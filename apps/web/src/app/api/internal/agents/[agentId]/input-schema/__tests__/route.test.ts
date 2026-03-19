@@ -11,7 +11,32 @@ jest.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
+jest.mock("@/lib/api", () => ({
+  createApiSuccessResponse: (data: unknown) =>
+    Response.json({
+      success: true,
+      data,
+    }),
+  handleApiError: (error: unknown) => {
+    const status =
+      error instanceof Error && error.message === "UNAUTHORIZED" ? 401 : 500;
+    return Response.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status },
+    );
+  },
+}));
+
 import { GET } from "../route";
+
+function createNextRequest(url: string): Request & { nextUrl: URL } {
+  return Object.assign(new Request(url), {
+    nextUrl: new URL(url),
+  });
+}
 
 describe("internal agent input schema route", () => {
   beforeEach(() => {
@@ -22,7 +47,7 @@ describe("internal agent input schema route", () => {
     getSessionMock.mockResolvedValue(null);
 
     const response = await GET(
-      new Request(
+      createNextRequest(
         "https://app.sokosumi.com/api/internal/agents/agent-1/input-schema",
       ) as never,
       {
@@ -51,7 +76,7 @@ describe("internal agent input schema route", () => {
     });
 
     const response = await GET(
-      new Request(
+      createNextRequest(
         "https://app.sokosumi.com/api/internal/agents/agent-1/input-schema",
       ) as never,
       {

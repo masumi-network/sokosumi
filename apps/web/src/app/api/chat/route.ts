@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 
 import { getSession } from "@/lib/auth/utils";
-import { coreApiBaseUrl } from "@/lib/clients/core.client";
+import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     requestHeaders.set("Content-Type", "application/json");
     requestHeaders.delete("Content-Length");
 
-    const response = await fetch(`${coreApiBaseUrl}/conversations/chat`, {
+    const response = await fetch(`${getCoreApiBaseUrl()}/conversations/chat`, {
       method: "POST",
       headers: requestHeaders,
       body: JSON.stringify(body),

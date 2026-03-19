@@ -15,8 +15,8 @@ jest.mock("@/lib/auth/utils", () => ({
   getSession: () => getSessionMock(),
 }));
 
-jest.mock("@/lib/clients/core.client", () => ({
-  coreApiBaseUrl: "https://core.example.com/v1",
+jest.mock("@/lib/clients/utils/core-api-base-url", () => ({
+  getCoreApiBaseUrl: () => "https://core.example.com/v1",
 }));
 
 import { POST } from "../route";

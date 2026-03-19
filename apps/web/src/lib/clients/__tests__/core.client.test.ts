@@ -2,9 +2,6 @@ export {};
 
 jest.mock("server-only", () => ({}));
 
-const getEnvPublicConfigMock = jest.fn();
-const getEnvSecretsMock = jest.fn();
-const withRelatedProjectMock = jest.fn();
 const getConversationsMock = jest.fn();
 const getAgentsByIdInputSchemaMock = jest.fn();
 const getUsersMeNoticesPendingMock = jest.fn();
@@ -15,20 +12,12 @@ const createClientMock = jest.fn();
 const headersMock = jest.fn();
 const mockClient = { id: "core-client" } as never;
 
-jest.mock("@/config/env.public", () => ({
-  getEnvPublicConfig: () => getEnvPublicConfigMock(),
-}));
-
-jest.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => getEnvSecretsMock(),
-}));
-
 jest.mock("next/headers", () => ({
   headers: () => headersMock(),
 }));
 
-jest.mock("@vercel/related-projects", () => ({
-  withRelatedProject: (...args: unknown[]) => withRelatedProjectMock(...args),
+jest.mock("@/lib/clients/utils/core-api-base-url", () => ({
+  getCoreApiBaseUrl: () => "http://localhost:8787/v1",
 }));
 
 jest.mock("@/lib/clients/generated/core/client", () => ({
@@ -49,16 +38,6 @@ describe("core.client", () => {
     jest.clearAllMocks();
     jest.resetModules();
 
-    getEnvPublicConfigMock.mockReturnValue({
-      NEXT_PUBLIC_NETWORK: "Mainnet",
-    });
-    getEnvSecretsMock.mockReturnValue({
-      CORE_API_URL: "http://localhost:8787",
-    });
-    withRelatedProjectMock.mockImplementation(
-      (options: { defaultHost: string }) => options.defaultHost,
-    );
-
     headersMock.mockResolvedValue(
       new Headers({
         cookie: "session=abc",
@@ -66,16 +45,6 @@ describe("core.client", () => {
       }),
     );
     createClientMock.mockReturnValue(mockClient);
-  });
-
-  it("resolves the core API url from the server env via related projects", async () => {
-    const { coreApiBaseUrl } = await import("../core.client");
-
-    expect(withRelatedProjectMock).toHaveBeenCalledWith({
-      projectName: "sokosumi-core-mainnet",
-      defaultHost: "http://localhost:8787",
-    });
-    expect(coreApiBaseUrl).toBe("http://localhost:8787/v1");
   });
 
   it("executes generated operations through the generated client", async () => {
