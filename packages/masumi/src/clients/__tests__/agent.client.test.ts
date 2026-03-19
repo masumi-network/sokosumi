@@ -418,4 +418,36 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       );
     }
   });
+
+  it("forwards an abort signal to the status fetch request", async () => {
+    const responseBody = {
+      status: "running",
+      input_schema: null,
+      result: null,
+    };
+    const abortSignal = AbortSignal.timeout(1000);
+    const fetchMock = jest.fn().mockResolvedValue(
+      new Response(JSON.stringify(responseBody), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+    const result = await client.fetchAgentJobStatus(createAgent(), "job-1", {
+      signal: abortSignal,
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(URL),
+      expect.objectContaining({
+        method: "GET",
+        signal: abortSignal,
+      }),
+    );
+  });
 });

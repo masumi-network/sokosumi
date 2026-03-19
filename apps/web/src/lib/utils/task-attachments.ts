@@ -1,5 +1,4 @@
-import { extractFileLikeLinks } from "@/lib/data/markdown/links";
-import { escapeMarkdownLinkUrl } from "@/lib/utils/markdown-links";
+import { escapeMarkdownLinkUrl, extractFileLikeLinks } from "@sokosumi/utils";
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  createMarkdownLinkRegex,
+  escapeMarkdownLinkUrl,
+  unescapeMarkdownLinkUrl,
+} from "@sokosumi/utils";
+import {
   Bold,
   Code,
   Heading2,
@@ -48,11 +53,6 @@ import {
   getBacktickFence,
   normalizeUrl,
 } from "@/lib/utils/markdown-editor-utils";
-import {
-  createMarkdownLinkRegex,
-  escapeMarkdownLinkUrl,
-  unescapeMarkdownLinkUrl,
-} from "@/lib/utils/markdown-links";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
 
 interface MarkdownEditorProps {

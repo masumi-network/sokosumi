@@ -40,6 +40,10 @@ export interface AgentClientConfig {
   }) => void;
 }
 
+interface AgentClientRequestOptions {
+  signal?: AbortSignal;
+}
+
 /**
  * Validates that a hostname is not an internal/private address to prevent SSRF attacks.
  * Blocks localhost, loopback, private IP ranges, link-local, and multicast addresses.
@@ -339,6 +343,7 @@ export function createAgentClient(config?: AgentClientConfig) {
     async fetchAgentJobStatus(
       agent: Agent,
       jobId: string,
+      options: AgentClientRequestOptions = {},
     ): Promise<
       Result<JobStatusResponseSchemaType & { statusHash: string }, string>
     > {
@@ -347,6 +352,7 @@ export function createAgentClient(config?: AgentClientConfig) {
         jobStatusUrl.searchParams.set("job_id", jobId);
         const jobStatusResponse = await fetch(jobStatusUrl, {
           method: "GET",
+          signal: options.signal,
         });
 
         if (!jobStatusResponse.ok) {

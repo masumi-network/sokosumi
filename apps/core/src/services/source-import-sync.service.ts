@@ -1,4 +1,5 @@
 import { BlobStatus } from "@sokosumi/database";
+import { getUrlBasename } from "@sokosumi/utils";
 import { head, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
@@ -15,16 +16,6 @@ interface ImportPendingResultBlobsOptions {
 /** Sanitize filename for blob storage path (matches web's uploadFileForBlob behavior). */
 function sanitizePathSegment(name: string): string {
   return name.replace(/ /g, "_");
-}
-
-function getBasename(url: string): string | null {
-  try {
-    const parsedUrl = new URL(url);
-    const pathnameTail = parsedUrl.pathname.split("/").pop() ?? "";
-    return pathnameTail || null;
-  } catch {
-    return null;
-  }
 }
 
 function parseContentDispositionFilename(
@@ -124,7 +115,7 @@ async function importBlob(
         response.headers.get("content-disposition"),
       ) ??
       blob.name ??
-      getBasename(blob.sourceUrl) ??
+      getUrlBasename(blob.sourceUrl) ??
       "file";
 
     const arrayBuffer = await response.arrayBuffer();
