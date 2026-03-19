@@ -4,16 +4,12 @@ import { serve } from "@hono/node-server";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
-import {
-  relatedProjects,
-  type VercelRelatedProject,
-} from "@vercel/related-projects";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
-import { getEnv, getWebAppBaseUrl, validateEnv } from "@/config/env";
+import { getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { initSentry } from "@/lib/sentry";
 import { maintenanceMiddleware } from "@/middleware/maintenance";
@@ -37,15 +33,6 @@ const mainApp = new Hono();
 const app = new OpenAPIHono<{
   Variables: RequestIdVariables;
 }>();
-
-app.use("*", async (_c, next) => {
-  const projects: VercelRelatedProject[] = relatedProjects();
-  console.log("--------------------------------");
-  console.log("projects", projects);
-  console.log("getWebAppBaseUrl()", getWebAppBaseUrl());
-  console.log("--------------------------------");
-  await next();
-});
 
 app.use(logger());
 app.use(requestId());
