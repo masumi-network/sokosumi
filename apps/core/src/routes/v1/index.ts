@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 
-import { getEnv, getWebAppBaseUrl } from "@/config/env.js";
+import { getEnv } from "@/config/env.js";
 
 import agentsRouter from "./agents/index.js";
 import categoriesRouter from "./categories/index.js";
@@ -65,7 +65,7 @@ app.doc31("/openapi.json", {
 app.use(
   "*",
   cors({
-    origin: getWebAppBaseUrl(),
+    origin: "*",
     allowHeaders: ["Content-Type", "Authorization", "X-Organization-Slug"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
