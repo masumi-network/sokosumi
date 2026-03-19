@@ -132,6 +132,9 @@ function getEmailLocale(
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   advanced: {
+    crossSubDomainCookies: {
+      enabled: true,
+    },
     ipAddress: {
       // For Vercel
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
