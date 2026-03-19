@@ -501,6 +501,10 @@
           "Fields": {
             "Name": {
               "placeholder": "Nome (ex.: 'A Minha Organização')"
+            },
+            "Url": {
+              "label": "Site",
+              "placeholder": "URL do website da empresa (ex.: https://example.com)"
             }
           }
         },
@@ -510,6 +514,9 @@
             "max": "O nome da organização tem de ter no máximo 50 caracteres.",
             "invalid": "O nome da organização tem de ser uma string válida.",
             "required": "O nome da organização é obrigatório"
+          },
+          "Url": {
+            "invalid": "A URL do website da empresa tem de ser uma URL válida"
           }
         }
       },
@@ -2090,6 +2097,7 @@
           "description": "Gira a sua organização"
         },
         "roleIndicator": "Ver como:",
+        "websiteLabel": "Site",
         "edit": "Editar",
         "delete": "Eliminar",
         "invite": "Convidar membro",
