@@ -261,40 +261,42 @@ async function getConversationItems(
   );
 }
 
-  async function addConversationItem(
-    id: string,
-    body: {
-      role: "user" | "assistant" | "system";
-      content: Array<{ type: string; text?: string }> | string;
-    },
-  ) {
-    return executeOperation(
-      (client) =>
-        corePostConversationsByIdItems({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to add conversation item",
-    );
-  }
+async function addConversationItem(
+  id: string,
+  body: {
+    role: "user" | "assistant" | "system";
+    content: Array<{ type: string; text?: string }> | string;
+  },
+) {
+  return executeOperation(
+    (client) =>
+      corePostConversationsByIdItems({
+        client,
+        path: { id },
+        body,
+      }),
+    "Failed to add conversation item",
+  );
+}
 
-  async function postConversationsByIdRecoverResponse(id: string) {
-    return executeOperation(async (_client) => {
-      const requestHeaders = await headers();
-      const baseUrl = normalizeCoreApiBaseUrl(coreApiBaseUrl);
-      const url = `${baseUrl}/conversations/${encodeURIComponent(id)}/recover-response`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: buildAuthHeaders(requestHeaders),
-        cache: "no-store",
-      });
-      const json = await response.json().catch(() => ({}));
-      const data = response.ok ? json?.data : undefined;
-      const error = !response.ok ? json : undefined;
-      return { data, error, response };
-    }, "Failed to recover conversation response");
-  }
+async function postConversationsByIdRecoverResponse(id: string) {
+  return executeOperation(async (_client) => {
+    const requestHeaders = new Headers(await headers());
+    requestHeaders.delete("Content-Length");
+
+    const baseUrl = getCoreApiBaseUrl();
+    const url = `${baseUrl}/conversations/${encodeURIComponent(id)}/recover-response`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: requestHeaders,
+      cache: "no-store",
+    });
+    const json = await response.json().catch(() => ({}));
+    const data = response.ok ? json?.data : undefined;
+    const error = !response.ok ? json : undefined;
+    return { data, error, response };
+  }, "Failed to recover conversation response");
+}
 
 async function getTasks(query?: GetTasksData["query"]) {
   return executeOperation(
