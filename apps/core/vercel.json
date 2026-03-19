@@ -1,5 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "relatedProjects": [
+    "prj_q93ayf8IpLM1QNdnlBZw02jMoTyC",
+    "prj_DsK6SqWjSU47g7O3unja5h4jtxMk"
+  ],
   "crons": [
     {
       "path": "/sync/agents",

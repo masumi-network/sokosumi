@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-import { getEnv } from "@/config/env.js";
+import { getWebAppBaseUrl } from "@/config/env.js";
 import { auth } from "@/lib/auth.js";
 
 const app = new Hono();
@@ -10,7 +10,7 @@ const app = new Hono();
 app.use(
   "*",
   cors({
-    origin: getEnv().BETTER_AUTH_TRUSTED_ORIGIN,
+    origin: getWebAppBaseUrl(),
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["POST", "GET", "OPTIONS"],
     exposeHeaders: ["Content-Length"],

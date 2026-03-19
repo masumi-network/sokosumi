@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
 
 /**
@@ -22,7 +23,12 @@ const envSchema = z.object({
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.url(),
-  BETTER_AUTH_TRUSTED_ORIGIN: z.url(),
+  BETTER_AUTH_TRUSTED_ORIGIN: z
+    .url()
+    .default("http://localhost:3000")
+    .describe(
+      "Web app origin; on Vercel overridden by related web project URL",
+    ),
   POSTMARK_SERVER_ID: z.string().min(1),
   POSTMARK_FROM_EMAIL: z.email(),
 
@@ -112,4 +118,20 @@ export function getEnv(): EnvConfig {
     envConfig = validateEnv();
   }
   return envConfig;
+}
+
+/**
+ * Web app base URL (used for Better Auth trusted origin, redirects, and links).
+ * On Vercel, uses the related web project deployment URL when core's
+ * relatedProjects point to the web app; otherwise uses BETTER_AUTH_TRUSTED_ORIGIN.
+ */
+export function getWebAppBaseUrl(): string {
+  const env = getEnv();
+  return withRelatedProject({
+    projectName:
+      env.NETWORK === "Preprod"
+        ? "sokosumi-app-preprod"
+        : "sokosumi-app-mainnet",
+    defaultHost: env.BETTER_AUTH_TRUSTED_ORIGIN,
+  });
 }

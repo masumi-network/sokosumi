@@ -48,6 +48,10 @@ const {
   prismaTransactionMock: vi.fn(),
 }));
 
+vi.mock("@vercel/related-projects", () => ({
+  withRelatedProject: (opts: { defaultHost: string }) => opts.defaultHost,
+}));
+
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
 }));
@@ -95,6 +99,7 @@ vi.mock("@/config/env", () => ({
     NETWORK: "Preprod",
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
   }),
+  getWebAppBaseUrl: () => "https://app.sokosumi.test",
 }));
 
 vi.mock("@/helpers/purchase", () => ({

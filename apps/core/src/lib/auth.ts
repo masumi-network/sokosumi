@@ -18,10 +18,11 @@ import {
 import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
-import { getEnv } from "@/config/env";
+import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 const env = getEnv();
+const webAppBaseUrl = getWebAppBaseUrl();
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
@@ -87,7 +88,7 @@ export const auth = betterAuth({
   rateLimit: {
     storage: "database",
   },
-  trustedOrigins: [env.BETTER_AUTH_TRUSTED_ORIGIN],
+  trustedOrigins: [webAppBaseUrl],
   user: {
     emailAndPassword: {
       enabled: true,
@@ -182,8 +183,8 @@ export const auth = betterAuth({
       },
     }),
     oauthProvider({
-      loginPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/signin`,
-      consentPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/oauth/consent`,
+      loginPage: `${webAppBaseUrl}/signin`,
+      consentPage: `${webAppBaseUrl}/oauth/consent`,
       scopes: ["openid", "offline_access"],
       clientRegistrationDefaultScopes: ["openid", "offline_access"],
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)

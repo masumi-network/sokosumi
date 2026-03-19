@@ -2,9 +2,8 @@ import * as Sentry from "@sentry/nextjs";
 import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 
-import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession } from "@/lib/auth/utils";
-import { buildAuthHeaders } from "@/lib/clients/core.client";
+import { buildAuthHeaders, coreApiBaseUrl } from "@/lib/clients/core.client";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -16,11 +15,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // Forward request to Core API chat endpoint
-    const coreApiUrl = getEnvSecrets().CORE_API_URL;
     const requestHeaders = await headers();
     const authHeaders = buildAuthHeaders(requestHeaders);
 
-    const response = await fetch(`${coreApiUrl}/v1/conversations/chat`, {
+    const response = await fetch(`${coreApiBaseUrl}/v1/conversations/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

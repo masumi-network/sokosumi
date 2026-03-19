@@ -8,7 +8,7 @@ const getUsersMeNoticesPendingMock = jest.fn();
 const postUsersMeNoticesByIdAcknowledgeMock = jest.fn();
 const getUsersMeCreditsMock = jest.fn();
 const getUsersMeOrganizationsMock = jest.fn();
-const getEnvSecretsMock = jest.fn();
+const getEnvPublicConfigMock = jest.fn();
 const mockClient = { id: "core-client" } as never;
 const createClientMock = jest.fn(() => mockClient);
 
@@ -16,8 +16,8 @@ jest.mock("next/headers", () => ({
   headers: headersMock,
 }));
 
-jest.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: getEnvSecretsMock,
+jest.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: getEnvPublicConfigMock,
 }));
 
 jest.mock("@/lib/clients/generated/core/client", () => ({
@@ -36,8 +36,8 @@ describe("core.client", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     headersMock.mockResolvedValue(new Headers());
-    getEnvSecretsMock.mockReturnValue({
-      CORE_API_URL: "http://localhost:3001",
+    getEnvPublicConfigMock.mockReturnValue({
+      NEXT_PUBLIC_CORE_API_URL: "http://localhost:8787",
     });
   });
 
@@ -59,14 +59,14 @@ describe("core.client", () => {
   it("normalizes core API base urls with and without /v1", async () => {
     const { normalizeCoreApiBaseUrl } = await import("../core.client");
 
-    expect(normalizeCoreApiBaseUrl("http://localhost:3001")).toBe(
-      "http://localhost:3001/v1",
+    expect(normalizeCoreApiBaseUrl("http://localhost:8787")).toBe(
+      "http://localhost:8787/v1",
     );
-    expect(normalizeCoreApiBaseUrl("http://localhost:3001/v1")).toBe(
-      "http://localhost:3001/v1",
+    expect(normalizeCoreApiBaseUrl("http://localhost:8787/v1")).toBe(
+      "http://localhost:8787/v1",
     );
-    expect(normalizeCoreApiBaseUrl("http://localhost:3001/v1/")).toBe(
-      "http://localhost:3001/v1",
+    expect(normalizeCoreApiBaseUrl("http://localhost:8787/v1/")).toBe(
+      "http://localhost:8787/v1",
     );
   });
 
@@ -93,7 +93,7 @@ describe("core.client", () => {
     const response = await coreClient.getConversations();
 
     expect(createClientMock).toHaveBeenCalledWith({
-      baseUrl: "http://localhost:3001/v1",
+      baseUrl: "http://localhost:8787/v1",
       headers: {
         cookie: "session=abc",
       },
