@@ -280,6 +280,9 @@ export function TasksEmptyStateOverlay({
         return;
       }
       if (isTasksEmptyStateChatRailPanelReady()) {
+        // Same turn as step → chat so `shouldRenderChatConnector` is true on first
+        // paint (avoids rAF-deferred readiness vs sync step advance flicker).
+        setIsChatPanelReadyForConnector(true);
         setStepIndex((prevStepIndex) => prevStepIndex + 1);
         return;
       }
@@ -310,24 +313,14 @@ export function TasksEmptyStateOverlay({
   }, [isAdvancingToChatStep, isChatRailOpen, stepIndex]);
 
   /**
-   * Single source of truth for desktop `data-chat-rail-ready` polling: updates
-   * connector visibility and advances the guide to the chat step when pending.
-   * Avoids duplicate poll/fallback loops racing on the same DOM attribute.
+   * Polls desktop `data-chat-rail-ready` and advances the guide when pending.
+   * Readiness + step advance run in one synchronous callback (poll / fallback /
+   * effect body) so we never paint chat step with connector still hidden—unlike
+   * splitting `setIsChatPanelReadyForConnector` (rAF) from `setStepIndex` (timer).
    */
   useEffect(() => {
-    let animationFrameId = 0;
     let pollTimeoutId = 0;
     let fallbackTimeoutId = 0;
-    let didAdvanceFromReady = false;
-
-    function tryAdvanceToChatStep() {
-      if (didAdvanceFromReady) return;
-      if (!isAdvancingToChatStep) return;
-      if (GUIDE_STEPS[stepIndex + 1] !== "chat") return;
-      didAdvanceFromReady = true;
-      setStepIndex((prevStepIndex) => prevStepIndex + 1);
-      setIsAdvancingToChatStep(false);
-    }
 
     function clearFallbackTimeout() {
       if (fallbackTimeoutId) {
@@ -336,41 +329,44 @@ export function TasksEmptyStateOverlay({
       }
     }
 
-    function scheduleReadinessUpdate(isReady: boolean) {
-      if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
-      animationFrameId = window.requestAnimationFrame(() => {
-        setIsChatPanelReadyForConnector(isReady);
-        if (isReady) tryAdvanceToChatStep();
-      });
+    function applyReadinessOrAdvance(ready: boolean) {
+      const pendingAdvanceToChat =
+        isAdvancingToChatStep && GUIDE_STEPS[stepIndex + 1] === "chat";
+      if (ready && pendingAdvanceToChat) {
+        setIsChatPanelReadyForConnector(true);
+        setStepIndex((prevStepIndex) => prevStepIndex + 1);
+        setIsAdvancingToChatStep(false);
+        return;
+      }
+      setIsChatPanelReadyForConnector(ready);
     }
 
     function cleanup() {
-      if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
       if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
       clearFallbackTimeout();
     }
 
     if (!isChatRailOpen) {
-      scheduleReadinessUpdate(false);
+      applyReadinessOrAdvance(false);
       return cleanup;
     }
 
     // Desktop `data-chat-rail-ready` is only driven when `open` (rail visible).
     // Mobile sheet uses `openMobile` only — panel stays not-ready forever; treat as ready.
     if (!open) {
-      scheduleReadinessUpdate(true);
+      applyReadinessOrAdvance(true);
       return cleanup;
     }
 
     if (!selectTasksEmptyStateChatRailPanel()) {
-      scheduleReadinessUpdate(true);
+      applyReadinessOrAdvance(true);
       return cleanup;
     }
 
     const syncFromDom = () => {
       const ready = isTasksEmptyStateChatRailPanelReady();
       if (ready) clearFallbackTimeout();
-      scheduleReadinessUpdate(ready);
+      applyReadinessOrAdvance(ready);
       if (!ready) {
         pollTimeoutId = window.setTimeout(syncFromDom, CHAT_RAIL_READY_POLL_MS);
       }
@@ -382,7 +378,7 @@ export function TasksEmptyStateOverlay({
         window.clearTimeout(pollTimeoutId);
         pollTimeoutId = 0;
       }
-      scheduleReadinessUpdate(true);
+      applyReadinessOrAdvance(true);
     }, CHAT_RAIL_READY_TIMEOUT_MS);
 
     syncFromDom();
