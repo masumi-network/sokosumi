@@ -1,8 +1,5 @@
-import "server-only";
-
 import type { Notice, NoticeKind } from "@sokosumi/database";
 import { withRelatedProject } from "@vercel/related-projects";
-import { headers } from "next/headers";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
@@ -124,13 +121,26 @@ export const coreApiBaseUrl = withRelatedProject({
   defaultHost: getEnvPublicConfig().NEXT_PUBLIC_CORE_API_URL,
 });
 
-async function createCoreApiClient(): Promise<Client> {
+/**
+ * Creates a Core API client. In the browser uses credentials (cookies); on the
+ * server forwards request headers. Export for use in TanStack Query etc.
+ */
+export async function createCoreApiClient(): Promise<Client> {
+  const baseUrl =
+    typeof window !== "undefined"
+      ? normalizeCoreApiBaseUrl(getEnvPublicConfig().NEXT_PUBLIC_CORE_API_URL)
+      : normalizeCoreApiBaseUrl(coreApiBaseUrl);
+
+  if (typeof window !== "undefined") {
+    return createClient({ baseUrl, credentials: "include" });
+  }
+
+  const { headers } = await import("next/headers");
   const requestHeaders = await headers();
-  const client = createClient({
-    baseUrl: normalizeCoreApiBaseUrl(coreApiBaseUrl),
+  return createClient({
+    baseUrl,
     headers: buildAuthHeaders(requestHeaders),
   });
-  return client;
 }
 
 async function executeOperation<TData, TError>(
