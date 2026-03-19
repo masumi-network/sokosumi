@@ -110,7 +110,6 @@ const envSecretsSchema = z.object({
       const trimmed = val?.trim();
       return trimmed ? trimmed : undefined;
     }),
-  BETTER_AUTH_TRUSTED_ORIGIN: z.url().default("http://localhost:3000"),
   BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
     .number()
     .min(0)

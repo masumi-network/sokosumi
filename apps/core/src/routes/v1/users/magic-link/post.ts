@@ -155,7 +155,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (existingUser) {
       throw conflict("User is already registered");
     }
-
     const callbackURL = oauth
       ? buildOAuthAuthorizeUrl(oauth)
       : getWebAppRootUrl();

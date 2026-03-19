@@ -83,12 +83,17 @@ export const auth = betterAuth({
     },
   },
   secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.BETTER_AUTH_URL,
+  baseURL: {
+    allowedHosts: [
+      "*.sokosumi.com", // Production
+      "*.vercel.app", // All Vercel previews
+      "localhost:*", // Local development
+    ],
+  },
   basePath: "/auth",
   rateLimit: {
     storage: "database",
   },
-  trustedOrigins: [webAppBaseUrl],
   user: {
     emailAndPassword: {
       enabled: true,

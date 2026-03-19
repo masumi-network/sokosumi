@@ -136,10 +136,16 @@ export const auth = betterAuth({
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },
   },
+  baseURL: {
+    allowedHosts: [
+      "*.sokosumi.com", // Production
+      "*.vercel.app", // All Vercel previews
+      "localhost:*", // Local development
+    ],
+  },
   experimental: {
     joins: true,
   },
-
   session: {
     cookieCache: {
       enabled: true,
@@ -266,18 +272,6 @@ export const auth = betterAuth({
         },
       },
     },
-  },
-  trustedOrigins: () => {
-    const origins = [getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGIN];
-    const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
-    if (vercelBranchUrl) {
-      origins.push(vercelBranchUrl);
-    }
-    const vercelUrl = getEnvSecrets().VERCEL_URL;
-    if (vercelUrl) {
-      origins.push(vercelUrl);
-    }
-    return origins;
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {

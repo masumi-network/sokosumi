@@ -209,7 +209,6 @@ describe("web auth config", () => {
       BETTER_AUTH_RP_ID: "example.com",
       BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: 5_000,
       BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 60,
-      BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
       BETTER_AUTH_URL: "https://example.com/auth",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
