@@ -19,6 +19,8 @@ import debugRouter from "@/routes/debug/index";
 import syncRouter from "@/routes/sync/index";
 import apiV1 from "@/routes/v1/index";
 
+import { errorHandler } from "./helpers/error-handler";
+
 validateEnv();
 initSentry();
 
@@ -38,6 +40,8 @@ app.use(logger());
 app.use(requestId());
 app.use(maintenanceMiddleware());
 app.use(sentryMiddleware());
+
+app.onError(errorHandler);
 
 app.notFound(() => {
   throw notFound();
