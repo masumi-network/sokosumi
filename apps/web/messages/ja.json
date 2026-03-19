@@ -508,14 +508,17 @@
               "placeholder": "会社サイトのURL（例: https://example.com）"
             },
             "Logo": {
-              "label": "Logo",
-              "description": "Upload an organization logo image.",
-              "upload": "Upload logo",
-              "replace": "Replace logo",
-              "remove": "Remove logo",
-              "previewAlt": "Organization logo preview",
-              "uploadSuccess": "Logo uploaded successfully",
-              "uploadError": "Failed to upload logo"
+              "label": "ロゴ",
+              "description": "組織のロゴ画像をアップロードしてください。",
+              "upload": "ロゴをアップロード",
+              "replace": "ロゴを置換",
+              "remove": "ロゴを削除",
+              "previewAlt": "組織ロゴのプレビュー",
+              "uploadSuccess": "ロゴのアップロードに成功しました",
+              "uploadError": "ロゴのアップロードに失敗しました",
+              "fileTooLarge": "ファイルが大きすぎます（最大 2 MB）",
+              "fileTypeNotAccepted": "ファイルタイプは受け付けられません",
+              "maxFilesExceeded": "最大 1 ファイルまで"
             }
           }
         },

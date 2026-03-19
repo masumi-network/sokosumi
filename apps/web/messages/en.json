@@ -515,7 +515,10 @@
               "remove": "Remove logo",
               "previewAlt": "Organization logo preview",
               "uploadSuccess": "Logo uploaded successfully",
-              "uploadError": "Failed to upload logo"
+              "uploadError": "Failed to upload logo",
+              "fileTooLarge": "File is too large (max 2 MB)",
+              "fileTypeNotAccepted": "File type not accepted",
+              "maxFilesExceeded": "Maximum 1 file allowed"
             }
           }
         },

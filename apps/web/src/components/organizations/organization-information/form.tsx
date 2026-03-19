@@ -138,7 +138,7 @@ export default function OrganizationInformationForm({
           data: {
             name: values.name,
             url: normalizedUrl,
-            logo: normalizedLogo,
+            logo: normalizedLogo || null,
           },
         });
       }
@@ -205,13 +205,22 @@ export default function OrganizationInformationForm({
                     <FileUpload
                       value={pendingLogoFiles}
                       onValueChange={setPendingLogoFiles}
-                      accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
                       maxFiles={1}
+                      maxSize={2 * 1024 * 1024}
                       multiple={false}
                       disabled={isLoading}
                       onAccept={handleLogoUpload}
-                      onFileReject={() => {
-                        toast.error(t("Fields.Logo.uploadError"));
+                      onFileReject={(_file, message) => {
+                        const translatedMessage =
+                          message === "File too large"
+                            ? t("Fields.Logo.fileTooLarge")
+                            : message === "File type not accepted"
+                              ? t("Fields.Logo.fileTypeNotAccepted")
+                              : message?.startsWith("Maximum")
+                                ? t("Fields.Logo.maxFilesExceeded")
+                                : (message ?? t("Fields.Logo.uploadError"));
+                        toast.error(translatedMessage);
                       }}
                     >
                       <div className="flex flex-col items-center gap-2">

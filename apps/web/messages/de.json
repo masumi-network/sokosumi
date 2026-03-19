@@ -509,13 +509,16 @@
             },
             "Logo": {
               "label": "Logo",
-              "description": "Upload an organization logo image.",
-              "upload": "Upload logo",
-              "replace": "Replace logo",
-              "remove": "Remove logo",
-              "previewAlt": "Organization logo preview",
-              "uploadSuccess": "Logo uploaded successfully",
-              "uploadError": "Failed to upload logo"
+              "description": "Laden Sie ein Organisationslogo hoch.",
+              "upload": "Logo hochladen",
+              "replace": "Logo ersetzen",
+              "remove": "Logo entfernen",
+              "previewAlt": "Organisationslogo-Vorschau",
+              "uploadSuccess": "Logo erfolgreich hochgeladen",
+              "uploadError": "Logo-Upload fehlgeschlagen",
+              "fileTooLarge": "Datei ist zu groß (max. 2 MB)",
+              "fileTypeNotAccepted": "Dateityp nicht akzeptiert",
+              "maxFilesExceeded": "Maximal 1 Datei erlaubt"
             }
           }
         },
