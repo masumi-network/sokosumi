@@ -9,4 +9,10 @@ export const organizationInformationFormData: FormData<
     name: "name",
     placeholderKey: "Fields.Name.placeholder",
   },
+  {
+    name: "url",
+    labelKey: "Fields.Url.label",
+    placeholderKey: "Fields.Url.placeholder",
+    type: "url",
+  },
 ];

@@ -501,6 +501,10 @@
           "Fields": {
             "Name": {
               "placeholder": "名称（例如 '我的组织'）"
+            },
+            "Url": {
+              "label": "网站",
+              "placeholder": "公司网站 URL（例如 https://example.com）"
             }
           }
         },
@@ -510,6 +514,9 @@
             "max": "组织名称最多为 50 个字符。",
             "invalid": "组织名称必须为有效字符串。",
             "required": "组织名称为必填项"
+          },
+          "Url": {
+            "invalid": "公司网站 URL 必须是有效的 URL"
           }
         }
       },
@@ -2090,6 +2097,7 @@
           "description": "管理您的组织"
         },
         "roleIndicator": "查看身份：",
+        "websiteLabel": "网站",
         "edit": "编辑",
         "delete": "删除",
         "invite": "邀请成员",

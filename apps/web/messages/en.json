@@ -501,6 +501,10 @@
           "Fields": {
             "Name": {
               "placeholder": "Name (e.g. 'My Organization')"
+            },
+            "Url": {
+              "label": "Website",
+              "placeholder": "https://example.com"
             }
           }
         },
@@ -510,6 +514,9 @@
             "max": "Organization name must be at most 50 characters.",
             "invalid": "Organization name must be a valid string.",
             "required": "Organization name is required"
+          },
+          "Url": {
+            "invalid": "Company website URL must be a valid URL"
           }
         }
       },
@@ -2090,6 +2097,7 @@
           "description": "Manage your organization"
         },
         "roleIndicator": "View as:",
+        "websiteLabel": "Website",
         "edit": "Edit",
         "delete": "Delete",
         "invite": "Invite Member",

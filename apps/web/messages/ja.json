@@ -501,6 +501,10 @@
           "Fields": {
             "Name": {
               "placeholder": "名前（例: 'My Organization'）"
+            },
+            "Url": {
+              "label": "ウェブサイト",
+              "placeholder": "会社サイトのURL（例: https://example.com）"
             }
           }
         },
@@ -510,6 +514,9 @@
             "max": "組織名は50文字以内である必要があります。",
             "invalid": "組織名は有効な文字列である必要があります。",
             "required": "組織名は必須です"
+          },
+          "Url": {
+            "invalid": "会社サイトのURLは有効なURLである必要があります"
           }
         }
       },
@@ -2090,6 +2097,7 @@
           "description": "組織を管理します"
         },
         "roleIndicator": "表示形式:",
+        "websiteLabel": "ウェブサイト",
         "edit": "編集",
         "delete": "削除",
         "invite": "メンバーを招待",
