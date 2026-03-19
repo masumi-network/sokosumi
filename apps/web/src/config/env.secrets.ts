@@ -15,6 +15,7 @@ const envSecretsSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
+  CORE_API_URL: z.url().default("http://localhost:8787"),
 
   CHROMIUM_EXECUTABLE_URL: z
     .url()

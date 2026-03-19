@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 
 import { getSession } from "@/lib/auth/utils";
-import { buildAuthHeaders, coreApiBaseUrl } from "@/lib/clients/core.client";
+import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -15,15 +15,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // Forward request to Core API chat endpoint
-    const requestHeaders = await headers();
-    const authHeaders = buildAuthHeaders(requestHeaders);
+    const requestHeaders = new Headers(await headers());
+    requestHeaders.set("Content-Type", "application/json");
+    requestHeaders.delete("Content-Length");
 
-    const response = await fetch(`${coreApiBaseUrl}/v1/conversations/chat`, {
+    const response = await fetch(`${getCoreApiBaseUrl()}/conversations/chat`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders,
-      },
+      headers: requestHeaders,
       body: JSON.stringify(body),
     });
 

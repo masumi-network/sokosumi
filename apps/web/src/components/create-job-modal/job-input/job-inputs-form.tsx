@@ -2,13 +2,14 @@
 
 import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import useAgentInputSchema from "@/hooks/use-agent-input-schema";
 import { useInputs } from "@/hooks/use-inputs";
 import { getAgentDemoValues, getAgentLegal } from "@/lib/helpers/agent";
 import { AgentDemoValues } from "@/lib/types/agent";
+import { getAgentInputSchemaQueryOptions } from "@/queries/agents";
 
 import { JobInputsFlatForm } from "./job-inputs-flat-form";
 import { JobInputsGroupedForm } from "./job-inputs-grouped-form";
@@ -31,9 +32,16 @@ export default function JobInputsForm({
   isDemo,
   className,
 }: JobInputsFormProps) {
-  const { data: inputSchema, loading, error } = useAgentInputSchema(agent.id);
+  const {
+    data: inputSchema,
+    isLoading,
+    error,
+  } = useQuery({
+    ...getAgentInputSchemaQueryOptions(agent.id),
+    enabled: !!agent.id,
+  });
 
-  if (loading) {
+  if (isLoading) {
     return <JobInputsFormSkeleton />;
   }
 
