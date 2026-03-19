@@ -360,10 +360,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           const responsesApiInput = modelMessages.filter(
             (m) => m.content && String(m.content).trim().length > 0,
           ) as Array<{ role: string; content: string }>;
-          const { onResponseCompleted: _omitCallback, ...retryOptions } =
-            responsesApiOptions;
           result = await streamResponsesApi(responsesApiInput, {
-            ...retryOptions,
+            ...responsesApiOptions,
             previousResponseId: null,
           });
         }

@@ -4,10 +4,8 @@ import {
   extractTextFromCompletedOutput,
   getResponseById,
 } from "@/clients/coworker-api.client";
-import {
-  findCoworkerWithChatBySlug,
-  requireCoworkerChatCapability,
-} from "@/helpers/access-control";
+import { requireCoworkerChatCapability } from "@/helpers/access-control";
+import { findCoworkerWithChatBySlug } from "@/helpers/coworker-queries";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -144,7 +142,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const newMetadata = {
         ...currentMeta,
         pending_responses_api_response_id: null,
-        last_responses_api_response_id: result.id,
+        previous_response_id: result.id,
       };
 
       let didRecover = false;

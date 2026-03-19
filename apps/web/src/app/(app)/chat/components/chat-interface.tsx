@@ -1180,6 +1180,8 @@ export default function ChatInterface({
     const pendingId = meta?.pending_responses_api_response_id;
     if (typeof pendingId !== "string" || pendingId.length === 0) return;
 
+    recoveryAttemptedForRef.current = conv.id;
+
     setIsRecovering(true);
     setIsRecoveringPolling(true);
     let cancelled = false;

@@ -44,8 +44,10 @@ vi.mock("@/clients/coworker-api.client", () => ({
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  findCoworkerWithChatBySlug: findCoworkerWithChatBySlugMock,
   requireCoworkerChatCapability: requireCoworkerChatCapabilityMock,
+}));
+vi.mock("@/helpers/coworker-queries", () => ({
+  findCoworkerWithChatBySlug: findCoworkerWithChatBySlugMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -247,6 +249,15 @@ describe("POST /conversations/:id/recover-response", () => {
     expect(body.data).toEqual({ recovered: true });
     expect(transactionMock).toHaveBeenCalled();
     expect(conversationItemCreateMock).toHaveBeenCalled();
+    expect(conversationUpdateMock).toHaveBeenCalledWith({
+      where: { id: CONV_ID },
+      data: {
+        metadata: expect.objectContaining({
+          pending_responses_api_response_id: null,
+          previous_response_id: "resp_789",
+        }),
+      },
+    });
   });
 
   it("returns 400 when coworker has no base URL", async () => {
