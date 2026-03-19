@@ -130,8 +130,8 @@ export function getWebAppBaseUrl(): string {
   return withRelatedProject({
     projectName:
       env.NETWORK === "Preprod"
-        ? "sokosumi-web-preprod"
-        : "sokosumi-web-mainnet",
+        ? "sokosumi-app-preprod"
+        : "sokosumi-app-mainnet",
     defaultHost: env.BETTER_AUTH_TRUSTED_ORIGIN,
   });
 }
