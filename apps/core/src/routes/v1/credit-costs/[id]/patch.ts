@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
-import { conflict, notFound } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -40,7 +40,6 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -50,36 +49,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const current = await tx.creditCost.findUnique({ where: { id } });
-      if (!current) {
-        throw notFound("Credit cost not found");
-      }
+    const current = await prisma.creditCost.findUnique({ where: { id } });
+    if (!current) {
+      throw notFound("Credit cost not found");
+    }
 
-      if (body.unit !== undefined) {
-        const existingWithUnit = await tx.creditCost.findFirst({
-          where: {
-            unit: body.unit,
-            id: { not: id },
-          },
-        });
-        if (existingWithUnit) {
-          throw conflict("Unit already exists");
-        }
-      }
-
-      const data: { unit?: string; centsPerUnit?: bigint } = {};
-      if (body.unit !== undefined) {
-        data.unit = body.unit;
-      }
-      if (body.creditsPerUnit !== undefined) {
-        data.centsPerUnit = convertCreditsToCents(body.creditsPerUnit);
-      }
-
-      return tx.creditCost.update({
-        where: { id },
-        data,
-      });
+    const centsPerUnit = convertCreditsToCents(body.creditsPerUnit);
+    const updated = await prisma.creditCost.update({
+      where: { id },
+      data: { centsPerUnit },
     });
 
     return ok(c, creditCostSchema.parse(mapCreditCostForApi(updated)));

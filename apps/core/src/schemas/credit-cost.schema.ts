@@ -11,7 +11,7 @@ export const creditCostSchema = z
     updatedAt: dateTimeSchema,
     unit: z.string().openapi({ example: "TOKEN" }),
     creditsPerUnit: z.number().min(0).openapi({
-      example: 100,
+      example: 0.0001,
       description: "Credits charged per unit (user-facing decimal)",
     }),
   })
@@ -22,21 +22,17 @@ export type CreditCost = z.infer<typeof creditCostSchema>;
 export const createCreditCostRequestSchema = z
   .object({
     unit: z.string().min(1).openapi({ example: "TOKEN" }),
-    creditsPerUnit: z.number().min(0).openapi({ example: 100 }),
+    creditsPerUnit: z.number().min(0).openapi({ example: 0.0001 }),
   })
   .openapi("CreateCreditCostRequest");
 
 export const patchCreditCostRequestSchema = z
   .object({
-    unit: z.string().min(1).optional().openapi({ example: "TOKEN" }),
-    creditsPerUnit: z.number().min(0).optional().openapi({ example: 100 }),
+    creditsPerUnit: z.number().min(0).openapi({
+      example: 0.0001,
+      description: "Credits charged per unit (user-facing decimal)",
+    }),
   })
-  .refine(
-    (data) => data.unit !== undefined || data.creditsPerUnit !== undefined,
-    {
-      message: "At least one of unit or creditsPerUnit is required",
-    },
-  )
   .openapi("PatchCreditCostRequest");
 
 export function mapCreditCostForApi(record: DatabaseCreditCost) {
