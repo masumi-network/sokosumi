@@ -42,7 +42,9 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 
 let mountPostUserFile: (app: OpenAPIHonoWithAuth) => void;
 
-function createApp(authContext: AuthenticationContext | null = USER_AUTH_CONTEXT) {
+function createApp(
+  authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & { requestId: string };
   }>({
