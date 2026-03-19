@@ -2,6 +2,7 @@ import "./globals.css";
 
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
+import { withRelatedProject } from "@vercel/related-projects";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
@@ -41,6 +42,14 @@ export function generateMetadata(): Metadata {
   };
 }
 
+const coreApiUrl = withRelatedProject({
+  projectName:
+    getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
+      ? "sokosumi-core-preprod"
+      : "sokosumi-core-mainnet",
+  defaultHost: getEnvPublicConfig().NEXT_PUBLIC_CORE_API_URL,
+});
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -52,6 +61,8 @@ export default async function RootLayout({
   const ucDataSettingsId = getEnvSecrets().USER_CENTRICS_DATA_SETTINGS_ID;
   const draftUserCentrics = getEnvSecrets().DRAFT_USER_CENTRICS;
   const usersnapSpaceApiKey = getEnvSecrets().USERSNAP_SPACE_API_KEY;
+
+  console.log("coreApiUrl", coreApiUrl);
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
