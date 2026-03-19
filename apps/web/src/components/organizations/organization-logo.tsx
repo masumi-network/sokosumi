@@ -31,14 +31,13 @@ export function OrganizationLogo({
   const faviconSources = url ? buildFaviconCandidates(url) : [];
   if (url && faviconSources.length > 0) {
     return (
-      <div>
-        <Favicon
-          sources={faviconSources}
-          alt={name}
-          size={size}
-          className="size-full rounded-sm"
-        />
-      </div>
+      <Favicon
+        sources={faviconSources}
+        alt={name}
+        size={size}
+        className="size-full rounded-sm"
+        fallback={<Building2 size={size} />}
+      />
     );
   }
 
