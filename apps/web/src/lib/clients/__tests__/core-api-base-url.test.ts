@@ -35,9 +35,7 @@ describe("getCoreApiBaseUrl", () => {
   });
 
   it("resolves the core API url from the server env via related projects", async () => {
-    const { getCoreApiBaseUrl } = await import(
-      "../utils/core-api-base-url"
-    );
+    const { getCoreApiBaseUrl } = await import("../utils/core-api-base-url");
     const coreApiBaseUrl = getCoreApiBaseUrl();
 
     expect(withRelatedProjectMock).toHaveBeenCalledWith({
