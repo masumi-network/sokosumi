@@ -18,7 +18,7 @@ import pLimit from "p-limit";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { postmarkClient } from "@/clients/postmark.client";
-import { getEnv } from "@/config/env";
+import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
@@ -117,7 +117,7 @@ function jobStatusToAgentJobStatus(jobStatus: JobStatusValue): AgentJobStatus {
 }
 
 function buildJobLink(job: JobWithSokosumiStatus): string {
-  return `${getEnv().BETTER_AUTH_TRUSTED_ORIGIN}/agents/${job.agentId}/jobs/${job.id}`;
+  return `${getWebAppBaseUrl()}/agents/${job.agentId}/jobs/${job.id}`;
 }
 
 function shouldSyncAgentStatus(job: JobWithSokosumiStatus): string | null {

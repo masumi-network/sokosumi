@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { getEnv } from "@/config/env";
+import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -110,7 +110,7 @@ const route = createRoute({
 });
 
 function getWebAppRootUrl(): string {
-  return new URL("/", getEnv().BETTER_AUTH_TRUSTED_ORIGIN).toString();
+  return new URL("/", getWebAppBaseUrl()).toString();
 }
 
 type OAuthAuthorizeRequest = z.infer<typeof oauthAuthorizeSchema>;
