@@ -3,7 +3,8 @@ export {};
 jest.mock("server-only", () => ({}));
 
 const getEnvPublicConfigMock = jest.fn();
-const getCoreTransportAdapterMock = jest.fn();
+const getEnvSecretsMock = jest.fn();
+const withRelatedProjectMock = jest.fn();
 const getConversationsMock = jest.fn();
 const getAgentsByIdInputSchemaMock = jest.fn();
 const getUsersMeNoticesPendingMock = jest.fn();
@@ -17,8 +18,16 @@ jest.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => getEnvPublicConfigMock(),
 }));
 
-jest.mock("../core.transport", () => ({
-  getCoreTransportAdapter: () => getCoreTransportAdapterMock(),
+jest.mock("@/config/env.secrets", () => ({
+  getEnvSecrets: () => getEnvSecretsMock(),
+}));
+
+jest.mock("@vercel/related-projects", () => ({
+  withRelatedProject: (...args: unknown[]) => withRelatedProjectMock(...args),
+}));
+
+jest.mock("../core.transport.server", () => ({
+  createCoreGeneratedClient: () => createGeneratedClientMock(),
 }));
 
 jest.mock("@/lib/clients/generated/core", () => ({
@@ -36,14 +45,16 @@ describe("core.client", () => {
     jest.resetModules();
 
     getEnvPublicConfigMock.mockReturnValue({
-      NEXT_PUBLIC_CORE_API_URL: "http://localhost:8787",
       NEXT_PUBLIC_NETWORK: "Mainnet",
     });
+    getEnvSecretsMock.mockReturnValue({
+      CORE_API_URL: "http://localhost:8787",
+    });
+    withRelatedProjectMock.mockImplementation(
+      (options: { defaultHost: string }) => options.defaultHost,
+    );
 
     createGeneratedClientMock.mockResolvedValue(mockClient);
-    getCoreTransportAdapterMock.mockResolvedValue({
-      createGeneratedClient: createGeneratedClientMock,
-    });
   });
 
   it("normalizes core API base urls with and without /v1", async () => {
@@ -66,7 +77,16 @@ describe("core.client", () => {
     expect(coreApiBaseUrl).toBe("http://localhost:8787");
   });
 
-  it("executes generated operations through the transport adapter", async () => {
+  it("resolves the core API url from the server env via related projects", async () => {
+    await import("../core.client");
+
+    expect(withRelatedProjectMock).toHaveBeenCalledWith({
+      projectName: "sokosumi-core-mainnet",
+      defaultHost: "http://localhost:8787",
+    });
+  });
+
+  it("executes generated operations through the server transport", async () => {
     getConversationsMock.mockResolvedValue({
       data: {
         data: [],
@@ -81,7 +101,6 @@ describe("core.client", () => {
     const { coreClient } = await import("../core.client");
     const response = await coreClient.getConversations();
 
-    expect(getCoreTransportAdapterMock).toHaveBeenCalledTimes(1);
     expect(createGeneratedClientMock).toHaveBeenCalledTimes(1);
     expect(getConversationsMock).toHaveBeenCalledWith({
       cache: "no-store",
@@ -92,7 +111,7 @@ describe("core.client", () => {
     );
   });
 
-  it("fetches agent input schemas through the transport adapter", async () => {
+  it("fetches agent input schemas through the server transport", async () => {
     getAgentsByIdInputSchemaMock.mockResolvedValue({
       data: {
         data: {
@@ -145,7 +164,7 @@ describe("core.client", () => {
     );
   });
 
-  it("executes user credit and organization operations through the transport adapter", async () => {
+  it("executes user credit and organization operations through the server transport", async () => {
     getUsersMeCreditsMock.mockResolvedValue({
       data: {
         data: {
@@ -217,7 +236,7 @@ describe("core.client", () => {
     });
   });
 
-  it("fetches pending notices through the transport adapter", async () => {
+  it("fetches pending notices through the server transport", async () => {
     getUsersMeNoticesPendingMock.mockResolvedValue({
       data: {
         data: {
@@ -247,7 +266,7 @@ describe("core.client", () => {
     expect(response).toHaveLength(1);
   });
 
-  it("acknowledges notices through the transport adapter", async () => {
+  it("acknowledges notices through the server transport", async () => {
     postUsersMeNoticesByIdAcknowledgeMock.mockResolvedValue({
       data: {
         data: {

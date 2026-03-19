@@ -5,6 +5,8 @@ jest.mock("server-only", () => ({}));
 const headersMock = jest.fn();
 const createClientMock = jest.fn();
 const getEnvPublicConfigMock = jest.fn();
+const getEnvSecretsMock = jest.fn();
+const withRelatedProjectMock = jest.fn();
 
 jest.mock("next/headers", () => ({
   headers: () => headersMock(),
@@ -12,6 +14,14 @@ jest.mock("next/headers", () => ({
 
 jest.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => getEnvPublicConfigMock(),
+}));
+
+jest.mock("@/config/env.secrets", () => ({
+  getEnvSecrets: () => getEnvSecretsMock(),
+}));
+
+jest.mock("@vercel/related-projects", () => ({
+  withRelatedProject: (...args: unknown[]) => withRelatedProjectMock(...args),
 }));
 
 jest.mock("@/lib/clients/generated/core/client", () => ({
@@ -30,18 +40,21 @@ describe("core.transport.server", () => {
       }),
     );
     getEnvPublicConfigMock.mockReturnValue({
-      NEXT_PUBLIC_CORE_API_URL: "https://core.example.com",
       NEXT_PUBLIC_NETWORK: "Mainnet",
     });
+    getEnvSecretsMock.mockReturnValue({
+      CORE_API_URL: "https://core.example.com",
+    });
+    withRelatedProjectMock.mockImplementation(
+      (options: { defaultHost: string }) => options.defaultHost,
+    );
   });
 
   it("creates a generated client with forwarded request headers", async () => {
     createClientMock.mockReturnValue({ id: "server-client" });
 
-    const { coreServerTransportAdapter } = await import(
-      "../core.transport.server"
-    );
-    const client = await coreServerTransportAdapter.createGeneratedClient();
+    const { createCoreGeneratedClient } = await import("../core.transport.server");
+    const client = await createCoreGeneratedClient();
     const clientConfig = createClientMock.mock.calls[0]?.[0];
     const forwardedHeaders = clientConfig?.headers;
 

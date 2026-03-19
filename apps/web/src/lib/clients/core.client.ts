@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { Notice, NoticeKind } from "@sokosumi/database";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
@@ -32,7 +34,7 @@ import {
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
-import { getCoreTransportAdapter } from "./core.transport";
+import { createCoreGeneratedClient } from "./core.transport.server";
 
 export {
   coreApiBaseUrl,
@@ -102,11 +104,6 @@ type CoreOperationResult<TData, TError> = {
   error?: TError;
   response: Response;
 };
-
-async function createCoreGeneratedClient(): Promise<Client> {
-  const transport = await getCoreTransportAdapter();
-  return transport.createGeneratedClient();
-}
 
 async function executeOperation<TData, TError>(
   operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,

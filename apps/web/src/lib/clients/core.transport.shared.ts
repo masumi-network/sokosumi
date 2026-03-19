@@ -1,4 +1,9 @@
+import "server-only";
+
+import { withRelatedProject } from "@vercel/related-projects";
+
 import { getEnvPublicConfig } from "@/config/env.public";
+import { getEnvSecrets } from "@/config/env.secrets";
 
 export function normalizeCoreApiBaseUrl(baseUrl: string): string {
   const withoutTrailingSlash = baseUrl.replace(/\/+$/, "");
@@ -7,4 +12,10 @@ export function normalizeCoreApiBaseUrl(baseUrl: string): string {
     : `${withoutTrailingSlash}/v1`;
 }
 
-export const coreApiBaseUrl = getEnvPublicConfig().NEXT_PUBLIC_CORE_API_URL;
+export const coreApiBaseUrl = withRelatedProject({
+  projectName:
+    getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
+      ? "sokosumi-core-preprod"
+      : "sokosumi-core-mainnet",
+  defaultHost: getEnvSecrets().CORE_API_URL,
+});
