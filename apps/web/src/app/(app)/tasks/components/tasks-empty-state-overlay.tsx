@@ -1,9 +1,15 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useAppChatRail } from "@/contexts/app-chat-rail-context";
+import {
+  CHAT_RAIL_READY_POLL_MS,
+  CHAT_RAIL_READY_TIMEOUT_MS,
+} from "@/lib/constants/chat-rail-ready";
 
 interface TasksEmptyStateOverlayLabels {
   title: string;
@@ -61,6 +67,10 @@ function selectTasksEmptyStateChatTarget(): HTMLElement | null {
   );
 }
 
+function selectTasksEmptyStateChatRailPanel(): HTMLElement | null {
+  return document.querySelector<HTMLElement>("[data-chat-rail-panel]");
+}
+
 const GUIDE_STEPS = ["addTask", "chat"] as const;
 
 type TasksEmptyStateGuideStep = (typeof GUIDE_STEPS)[number];
@@ -69,6 +79,13 @@ interface TasksEmptyStateGuideContent {
   title: string;
   description: string;
   hint: string;
+}
+
+function isTasksEmptyStateChatRailPanelReady(): boolean {
+  const railPanelElement = selectTasksEmptyStateChatRailPanel();
+  if (!railPanelElement) return true;
+
+  return railPanelElement.dataset.chatRailReady === "true";
 }
 
 export function getTasksEmptyStateGuideContent(
@@ -93,6 +110,7 @@ export function getTasksEmptyStateGuideContent(
 export function TasksEmptyStateOverlay({
   labels,
 }: TasksEmptyStateOverlayProps) {
+  const { open, openMobile, openLatestChat } = useAppChatRail();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const mobileCardRef = useRef<HTMLDivElement | null>(null);
   const [layout, setLayout] = useState<ConnectorLayout | null>(null);
@@ -102,6 +120,10 @@ export function TasksEmptyStateOverlay({
     label: Point;
   } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
+  const [isAdvancingToChatStep, setIsAdvancingToChatStep] = useState(false);
+  const [isChatPanelReadyForConnector, setIsChatPanelReadyForConnector] =
+    useState(false);
+  const isChatRailOpen = open || openMobile;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -229,7 +251,7 @@ export function TasksEmptyStateOverlay({
       window.removeEventListener("scroll", scheduleLayoutRecalculation, true);
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [open, openMobile, stepIndex]);
 
   const connectorPaths = useMemo(() => {
     if (!layout) return null;
@@ -248,7 +270,26 @@ export function TasksEmptyStateOverlay({
   const canMoveBack = stepIndex > 0;
 
   const handleMoveNext = () => {
-    if (!canMoveNext) return;
+    if (!canMoveNext || isAdvancingToChatStep) return;
+
+    const nextStep = GUIDE_STEPS[stepIndex + 1];
+    if (nextStep === "chat") {
+      if (!isChatRailOpen) {
+        openLatestChat();
+        setIsAdvancingToChatStep(true);
+        return;
+      }
+      if (isTasksEmptyStateChatRailPanelReady()) {
+        // Same turn as step → chat so `shouldRenderChatConnector` is true on first
+        // paint (avoids rAF-deferred readiness vs sync step advance flicker).
+        setIsChatPanelReadyForConnector(true);
+        setStepIndex((prevStepIndex) => prevStepIndex + 1);
+        return;
+      }
+      setIsAdvancingToChatStep(true);
+      return;
+    }
+
     setStepIndex((prevStepIndex) => prevStepIndex + 1);
   };
 
@@ -257,10 +298,108 @@ export function TasksEmptyStateOverlay({
     setStepIndex((prevStepIndex) => prevStepIndex - 1);
   };
 
+  useEffect(() => {
+    if (stepIndex !== 1 && !isAdvancingToChatStep) return;
+    if (isChatRailOpen) return;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      setStepIndex(0);
+      setIsAdvancingToChatStep(false);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [isAdvancingToChatStep, isChatRailOpen, stepIndex]);
+
+  /**
+   * Polls desktop `data-chat-rail-ready` and advances the guide when pending.
+   * Readiness + step advance run in one synchronous callback (poll / fallback /
+   * effect body) so we never paint chat step with connector still hidden—unlike
+   * splitting `setIsChatPanelReadyForConnector` (rAF) from `setStepIndex` (timer).
+   */
+  useEffect(() => {
+    let pollTimeoutId = 0;
+    let fallbackTimeoutId = 0;
+
+    function clearFallbackTimeout() {
+      if (fallbackTimeoutId) {
+        window.clearTimeout(fallbackTimeoutId);
+        fallbackTimeoutId = 0;
+      }
+    }
+
+    function applyReadinessOrAdvance(ready: boolean) {
+      const pendingAdvanceToChat =
+        isAdvancingToChatStep && GUIDE_STEPS[stepIndex + 1] === "chat";
+      if (ready && pendingAdvanceToChat) {
+        setIsChatPanelReadyForConnector(true);
+        setStepIndex((prevStepIndex) => prevStepIndex + 1);
+        setIsAdvancingToChatStep(false);
+        return;
+      }
+      setIsChatPanelReadyForConnector(ready);
+    }
+
+    function cleanup() {
+      if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
+      clearFallbackTimeout();
+    }
+
+    if (!isChatRailOpen) {
+      applyReadinessOrAdvance(false);
+      return cleanup;
+    }
+
+    // Desktop `data-chat-rail-ready` is only driven when `open` (rail visible).
+    // Mobile sheet uses `openMobile` only — panel stays not-ready forever; treat as ready.
+    if (!open) {
+      applyReadinessOrAdvance(true);
+      return cleanup;
+    }
+
+    if (!selectTasksEmptyStateChatRailPanel()) {
+      applyReadinessOrAdvance(true);
+      return cleanup;
+    }
+
+    const syncFromDom = () => {
+      const ready = isTasksEmptyStateChatRailPanelReady();
+      if (ready) clearFallbackTimeout();
+      applyReadinessOrAdvance(ready);
+      if (!ready) {
+        pollTimeoutId = window.setTimeout(syncFromDom, CHAT_RAIL_READY_POLL_MS);
+      }
+    };
+
+    fallbackTimeoutId = window.setTimeout(() => {
+      fallbackTimeoutId = 0;
+      if (pollTimeoutId) {
+        window.clearTimeout(pollTimeoutId);
+        pollTimeoutId = 0;
+      }
+      applyReadinessOrAdvance(true);
+    }, CHAT_RAIL_READY_TIMEOUT_MS);
+
+    syncFromDom();
+
+    return cleanup;
+  }, [isAdvancingToChatStep, isChatRailOpen, open, stepIndex]);
+
+  const shouldRenderChatConnector =
+    currentStep !== "chat" || isChatPanelReadyForConnector;
   const activeConnectorPath =
-    currentStep === "addTask" ? connectorPaths?.left : connectorPaths?.right;
+    currentStep === "addTask"
+      ? connectorPaths?.left
+      : shouldRenderChatConnector
+        ? connectorPaths?.right
+        : null;
   const activeLabelPosition =
-    currentStep === "addTask" ? layout?.leftLabel : layout?.rightLabel;
+    currentStep === "addTask"
+      ? layout?.leftLabel
+      : shouldRenderChatConnector
+        ? layout?.rightLabel
+        : null;
   const mobileContent = useMemo(
     () => getTasksEmptyStateGuideContent("addTask", labels),
     [labels],
@@ -365,8 +504,12 @@ export function TasksEmptyStateOverlay({
                   type="button"
                   size="sm"
                   className="pointer-events-auto"
+                  disabled={isAdvancingToChatStep}
                   onClick={handleMoveNext}
                 >
+                  {isAdvancingToChatStep ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : null}
                   {labels.next}
                 </Button>
               ) : null}
