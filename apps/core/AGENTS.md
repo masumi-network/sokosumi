@@ -163,7 +163,8 @@ Environment variables are accessed via `process.env`. Common variables include:
 
 - `PORT` - Server port (defaults to 8787)
 - `BETTER_AUTH_SECRET` - Better Auth secret key
-- `BETTER_AUTH_URL` - Better Auth base URL
+- `BETTER_AUTH_URL` - Better Auth URL
+- `WEB_APP_BASE_URL` - Web app base URL (redirects, OpenRouter referer, related-project resolution on Vercel)
 
 **Note**: Environment variables are loaded via `dotenv/config` at the application entry point.
 
@@ -432,7 +433,9 @@ const route = createRoute({
       z.array(itemSchema),
       "Items retrieved successfully",
       {
-        data: [/* example items */],
+        data: [
+          /* example items */
+        ],
         meta: {
           timestamp: "2025-01-21T12:00:00.000Z",
           requestId: "550e8400-e29b-41d4-a716-446655440000",
@@ -512,8 +515,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 3. **Take + 1 Pattern**: Always fetch `take + 1` items to detect if there are more pages without an extra count query
 
 4. **Ordering**: Always include `id` as a secondary sort field for stable pagination:
+
    ```typescript
-   orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+   orderBy: [{ createdAt: "asc" }, { id: "asc" }];
    ```
 
 5. **Pagination Metadata**: Use `createPaginationMeta()` helper which automatically:

@@ -89,6 +89,7 @@ export const auth = betterAuth({
       "*.vercel.app", // All Vercel previews
       "localhost:*", // Local development
     ],
+    fallback: env.BETTER_AUTH_URL,
   },
   basePath: "/auth",
   rateLimit: {
@@ -166,7 +167,12 @@ export const auth = betterAuth({
       },
       enableMetadata: true,
     }),
-    jwt({ disableSettingJwtHeader: true }),
+    jwt({
+      disableSettingJwtHeader: true,
+      jwt: {
+        issuer: env.BETTER_AUTH_URL,
+      },
+    }),
     organization({
       schema: {
         organization: {

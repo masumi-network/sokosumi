@@ -185,7 +185,7 @@ export const openrouterClient = (() => {
         headers: {
           Authorization: `Bearer ${chatApiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": process.env.BETTER_AUTH_URL || "",
+          "HTTP-Referer": "sokosumi.com",
           "X-Title": "Sokosumi",
         },
         body: JSON.stringify(requestBody),

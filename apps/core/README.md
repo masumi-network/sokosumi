@@ -215,7 +215,7 @@ All other endpoints require authentication.
 
 ### Authentication Issues
 
-1. Verify `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` are set
+1. Verify `BETTER_AUTH_SECRET` is set and `WEB_APP_BASE_URL` matches the web app URL
 2. Verify coworker callers use dedicated `coworker_*` API keys
 3. Check that Bearer token or session cookie is valid
 4. Review auth middleware logs
