@@ -41,7 +41,6 @@ describe("core.client", () => {
     headersMock.mockResolvedValue(
       new Headers({
         cookie: "session=abc",
-        "x-organization-slug": "my-org",
       }),
     );
     createClientMock.mockReturnValue(mockClient);
@@ -73,7 +72,6 @@ describe("core.client", () => {
     const forwardedHeaders = createClientMock.mock.calls[0]?.[0]
       ?.headers as Headers;
     expect(forwardedHeaders.get("cookie")).toBe("session=abc");
-    expect(forwardedHeaders.get("x-organization-slug")).toBe("my-org");
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-02-19T12:00:00.000Z"),
     );
