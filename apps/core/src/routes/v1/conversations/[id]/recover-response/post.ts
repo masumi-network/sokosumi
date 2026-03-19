@@ -18,10 +18,13 @@ const recoverResponseResultSchema = z
     recovered: z.boolean().openapi({
       description: "Whether an in-flight response was recovered and persisted",
     }),
-    reason: z.enum(["not_found", "in_progress"]).optional().openapi({
-      description:
-        "When recovered is false: not_found if the coworker API returned 404 (response not completed on their side), in_progress if still processing",
-    }),
+    reason: z
+      .enum(["not_found", "in_progress", "terminal"])
+      .optional()
+      .openapi({
+        description:
+          "When recovered is false: not_found if GET returned 404, terminal if the response finished in a failed/cancelled/etc. state, in_progress if still processing",
+      }),
   })
   .openapi("RecoverResponseResult");
 
@@ -118,8 +121,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const reason =
           result.status === "not_found"
             ? ("not_found" as const)
-            : ("in_progress" as const);
-        if (result.status === "not_found") {
+            : result.status === "terminal"
+              ? ("terminal" as const)
+              : ("in_progress" as const);
+        if (result.status === "not_found" || result.status === "terminal") {
           await prisma.$executeRaw`
             UPDATE conversation
             SET metadata = metadata - 'pending_responses_api_response_id'

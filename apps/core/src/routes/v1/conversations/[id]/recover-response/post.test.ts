@@ -146,6 +146,36 @@ describe("POST /conversations/:id/recover-response", () => {
     expect(getResponseByIdMock).not.toHaveBeenCalled();
   });
 
+  it("returns 200 with recovered false reason terminal and clears pending when GET response is terminal", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: CONV_ID,
+      metadata: {
+        pending_responses_api_response_id: "resp_fail",
+        coworker_slug: "ops-agent",
+      },
+    });
+    findCoworkerWithChatBySlugMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://api.example.com",
+    });
+    getResponseByIdMock.mockResolvedValueOnce({
+      status: "terminal",
+      apiStatus: "failed",
+    });
+
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/${CONV_ID}/recover-response`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual({ recovered: false, reason: "terminal" });
+    expect(executeRawMock).toHaveBeenCalledTimes(1);
+  });
+
   it("returns 200 with recovered false when GET returns in progress", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({
       id: CONV_ID,

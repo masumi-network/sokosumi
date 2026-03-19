@@ -155,12 +155,15 @@ export const getConversationItems = withSession<
 /**
  * Recovers a pending coworker response after client disconnect via Core API.
  * Returns { recovered: true } if a response was persisted, { recovered: false, reason? } otherwise.
- * reason is "not_found" when the coworker API returned 404 (response not completed on their side).
+ * reason is "not_found" when the coworker API returned 404, "terminal" when the response ended without a recoverable completion.
  */
 export const recoverConversationResponse = withSession<
   RecoverConversationResponseParameters,
   Result<
-    { recovered: boolean; reason?: "not_found" | "in_progress" },
+    {
+      recovered: boolean;
+      reason?: "not_found" | "in_progress" | "terminal";
+    },
     ActionError
   >
 >(async ({ conversationId }) => {
@@ -173,13 +176,19 @@ export const recoverConversationResponse = withSession<
       ok: false,
       error: result.error,
     } as unknown as Result<
-      { recovered: boolean; reason?: "not_found" | "in_progress" },
+      {
+        recovered: boolean;
+        reason?: "not_found" | "in_progress" | "terminal";
+      },
       ActionError
     >;
   }
 
   const value = result.value as
-    | { recovered?: boolean; reason?: "not_found" | "in_progress" }
+    | {
+        recovered?: boolean;
+        reason?: "not_found" | "in_progress" | "terminal";
+      }
     | undefined;
   return {
     ok: true,
@@ -188,7 +197,10 @@ export const recoverConversationResponse = withSession<
       reason: value?.reason,
     },
   } as unknown as Result<
-    { recovered: boolean; reason?: "not_found" | "in_progress" },
+    {
+      recovered: boolean;
+      reason?: "not_found" | "in_progress" | "terminal";
+    },
     ActionError
   >;
 });

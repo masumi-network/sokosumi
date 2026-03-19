@@ -88,6 +88,84 @@ describe("coworker-api.client", () => {
       expect(result).toEqual({ status: "not_found" });
     });
 
+    it("returns terminal for 200 with failed status", async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: "resp_123",
+          status: "failed",
+          error: { message: "model error" },
+        }),
+      });
+
+      const result = await getResponseById("resp_123", {
+        responsesApiBaseUrl: DEFAULT_BASE_URL,
+        sokosumiUserId: "user_1",
+        sokosumiOrganizationId: null,
+        coworkerSlug: "ops-agent",
+      });
+
+      expect(result).toEqual({
+        status: "terminal",
+        apiStatus: "failed",
+      });
+    });
+
+    it("returns terminal for 200 with completed but no output", async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: "resp_123",
+          status: "completed",
+        }),
+      });
+
+      const result = await getResponseById("resp_123", {
+        responsesApiBaseUrl: DEFAULT_BASE_URL,
+        sokosumiUserId: "user_1",
+        sokosumiOrganizationId: null,
+        coworkerSlug: "ops-agent",
+      });
+
+      expect(result).toEqual({
+        status: "terminal",
+        apiStatus: "completed",
+      });
+    });
+
+    it("returns completed for incomplete status when output is present", async () => {
+      const output = [
+        {
+          type: "message",
+          content: [{ type: "output_text", text: "Partial" }],
+        },
+      ];
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: "resp_123",
+          status: "incomplete",
+          output,
+        }),
+      });
+
+      const result = await getResponseById("resp_123", {
+        responsesApiBaseUrl: DEFAULT_BASE_URL,
+        sokosumiUserId: "user_1",
+        sokosumiOrganizationId: null,
+        coworkerSlug: "ops-agent",
+      });
+
+      expect(result).toEqual({
+        status: "completed",
+        id: "resp_123",
+        output,
+      });
+    });
+
     it("returns completed with id and output for 200 with status completed", async () => {
       const output = [
         {

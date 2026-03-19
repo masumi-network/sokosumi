@@ -110,8 +110,16 @@ export async function streamResponsesApi(
   });
 }
 
+const RESPONSES_API_TERMINAL_STATUSES = new Set([
+  "failed",
+  "cancelled", // e.g. OpenAI Responses
+  "canceled", // US spelling from some providers
+  "expired",
+]);
+
 export type GetResponseResult =
   | { status: "completed"; id: string; output: unknown }
+  | { status: "terminal"; apiStatus: string }
   | { status: "in_progress" | "not_found" };
 
 export interface GetResponseByIdOptions {
@@ -187,12 +195,26 @@ export async function getResponseById(
         ? inner.id
         : responseId;
 
-  if (status === "completed" && output !== undefined) {
+  const hasOutput = output !== undefined && output !== null;
+
+  if (hasOutput && (status === "completed" || status === "incomplete")) {
     return {
       status: "completed",
       id,
       output,
     };
+  }
+
+  if (status && RESPONSES_API_TERMINAL_STATUSES.has(status)) {
+    return { status: "terminal", apiStatus: status };
+  }
+
+  if (status === "completed" && !hasOutput) {
+    return { status: "terminal", apiStatus: "completed" };
+  }
+
+  if (status === "incomplete" && !hasOutput) {
+    return { status: "terminal", apiStatus: "incomplete" };
   }
 
   return { status: "in_progress" };

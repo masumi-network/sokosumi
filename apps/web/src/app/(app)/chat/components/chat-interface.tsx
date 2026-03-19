@@ -945,7 +945,7 @@ export default function ChatInterface({
                 result as {
                   data?: {
                     recovered?: boolean;
-                    reason?: "not_found" | "in_progress";
+                    reason?: "not_found" | "in_progress" | "terminal";
                   };
                 }
               ).data
@@ -954,7 +954,7 @@ export default function ChatInterface({
                   result as {
                     value?: {
                       recovered?: boolean;
-                      reason?: "not_found" | "in_progress";
+                      reason?: "not_found" | "in_progress" | "terminal";
                     };
                   }
                 ).value
@@ -970,7 +970,10 @@ export default function ChatInterface({
         if (isCancelled()) return;
         const recoverPayload = parseRecoverPayload(result);
         if (!recoverPayload?.recovered) {
-          if (recoverPayload?.reason === "not_found") {
+          if (
+            recoverPayload?.reason === "not_found" ||
+            recoverPayload?.reason === "terminal"
+          ) {
             if (mountedRef.current) setRecoveryNotFoundForConversationId(cid);
             return;
           }
@@ -1074,7 +1077,10 @@ export default function ChatInterface({
                 }
                 return;
               }
-              if (pollPayload?.reason === "not_found") {
+              if (
+                pollPayload?.reason === "not_found" ||
+                pollPayload?.reason === "terminal"
+              ) {
                 if (mountedRef.current) {
                   setRecoveryNotFoundForConversationId(cid);
                   setIsRecoveringPolling(false);
@@ -1244,7 +1250,7 @@ export default function ChatInterface({
                 result as {
                   data?: {
                     recovered?: boolean;
-                    reason?: "not_found" | "in_progress";
+                    reason?: "not_found" | "in_progress" | "terminal";
                   };
                 }
               ).data
@@ -1253,7 +1259,7 @@ export default function ChatInterface({
                   result as {
                     value?: {
                       recovered?: boolean;
-                      reason?: "not_found" | "in_progress";
+                      reason?: "not_found" | "in_progress" | "terminal";
                     };
                   }
                 ).value
@@ -1269,7 +1275,10 @@ export default function ChatInterface({
         if (cancelled) return;
         const recoverPayload = parseRecoverPayload(result);
         if (!recoverPayload?.recovered) {
-          if (recoverPayload?.reason === "not_found") {
+          if (
+            recoverPayload?.reason === "not_found" ||
+            recoverPayload?.reason === "terminal"
+          ) {
             setRecoveryNotFoundForConversationId(conv.id);
             setIsRecovering(false);
             return;
@@ -1362,7 +1371,10 @@ export default function ChatInterface({
                 setIsRecovering(false);
                 return;
               }
-              if (pollPayload?.reason === "not_found") {
+              if (
+                pollPayload?.reason === "not_found" ||
+                pollPayload?.reason === "terminal"
+              ) {
                 setRecoveryNotFoundForConversationId(conv.id);
                 setIsRecoveringPolling(false);
                 setIsRecovering(false);
@@ -1447,6 +1459,9 @@ export default function ChatInterface({
     })();
     return () => {
       cancelled = true;
+      if (recoveryAttemptedForRef.current === conv.id) {
+        recoveryAttemptedForRef.current = null;
+      }
       setIsRecoveringPolling(false);
       setIsRecovering(false);
     };
