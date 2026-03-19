@@ -169,6 +169,10 @@ export const auth = betterAuth({
     }),
     jwt({
       disableSettingJwtHeader: true,
+      // Better Auth 1.5.5 oauthProvider reads the JWT issuer during init.
+      jwt: {
+        issuer: env.BETTER_AUTH_URL,
+      },
     }),
     organization({
       schema: {

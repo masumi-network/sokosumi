@@ -325,6 +325,17 @@ describe("web auth config", () => {
     });
   });
 
+  it("configures the JWT issuer from BETTER_AUTH_URL", async () => {
+    await import("../auth");
+
+    expect(jwtPluginMock).toHaveBeenCalledWith({
+      disableSettingJwtHeader: true,
+      jwt: {
+        issuer: "https://example.com/auth",
+      },
+    });
+  });
+
   it("passes the resolved locale to the reset-password email renderer", async () => {
     await import("../auth");
 

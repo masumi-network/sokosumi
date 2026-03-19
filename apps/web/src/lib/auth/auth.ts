@@ -408,7 +408,13 @@ export const auth = betterAuth({
       enableMetadata: true,
       enableSessionForAPIKeys: true,
     }),
-    jwt({ disableSettingJwtHeader: true }),
+    jwt({
+      disableSettingJwtHeader: true,
+      // Better Auth 1.5.5 oauthProvider reads the JWT issuer during init.
+      jwt: {
+        issuer: getEnvSecrets().BETTER_AUTH_URL,
+      },
+    }),
     magicLink({
       disableSignUp: false,
       expiresIn: 60 * 10, // 10 minutes

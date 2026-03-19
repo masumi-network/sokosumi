@@ -134,6 +134,17 @@ describe("core auth config", () => {
     expect(config.plugins).toEqual(expect.arrayContaining(["admin-plugin"]));
   });
 
+  it("configures the JWT issuer from BETTER_AUTH_URL", async () => {
+    await import("./auth");
+
+    expect(jwtPluginMock).toHaveBeenCalledWith({
+      disableSettingJwtHeader: true,
+      jwt: {
+        issuer: "https://example.com",
+      },
+    });
+  });
+
   it("configures the magic link plugin", async () => {
     await import("./auth");
 
