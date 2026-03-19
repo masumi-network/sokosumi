@@ -2,6 +2,7 @@ import "./globals.css";
 
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
+import { relatedProjects, withRelatedProject } from "@vercel/related-projects";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
@@ -23,6 +24,14 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   fallback: ["sans-serif"],
+});
+
+const coreApiHost = withRelatedProject({
+  projectName:
+    getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
+      ? "sokosumi-core-preprod"
+      : "sokosumi-core-mainnet",
+  defaultHost: getEnvSecrets().CORE_API_URL,
 });
 
 export function generateMetadata(): Metadata {
@@ -53,6 +62,11 @@ export default async function RootLayout({
   const draftUserCentrics = getEnvSecrets().DRAFT_USER_CENTRICS;
   const usersnapSpaceApiKey = getEnvSecrets().USERSNAP_SPACE_API_KEY;
 
+  // fully typed env variable
+  const projects = relatedProjects();
+  console.log("projects", projects);
+  console.log("coreApiHost", coreApiHost);
+  console.log("getEnvSecrets().CORE_API_URL", getEnvSecrets().CORE_API_URL);
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
       <head>
