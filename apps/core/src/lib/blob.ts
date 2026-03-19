@@ -33,10 +33,6 @@ function buildUserUploadPrefix(userId: string): string {
   return `${STORAGE.USER_UPLOADS_DIR}/${userId}/`;
 }
 
-function buildOrganizationUploadPrefix(organizationId: string): string {
-  return `${STORAGE.ORGANIZATION_UPLOADS_DIR}/${organizationId}/`;
-}
-
 function sanitizeUploadFilename(fileName: string): string {
   const sanitized = fileName
     .trim()
@@ -90,35 +86,6 @@ export async function uploadUserFile(
       uploadedAt: new Date(),
       etag: blob.etag,
     });
-  }
-}
-
-export async function uploadOrganizationLogo(
-  organizationId: string,
-  file: File,
-  token: string,
-): Promise<string> {
-  const pathname = `${buildOrganizationUploadPrefix(organizationId)}logo`;
-
-  const blob = await put(pathname, file, {
-    access: "public",
-    token,
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: file.type || undefined,
-  });
-
-  try {
-    const blobHead = await head(blob.url, { token });
-    return blobHead.url;
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        function: "uploadOrganizationLogo",
-        phase: "head",
-      },
-    });
-    return blob.url;
   }
 }
 

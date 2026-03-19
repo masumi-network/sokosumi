@@ -21,7 +21,7 @@ describe("organizations routes OpenAPI contract", () => {
     expect(getOperation?.responses).toHaveProperty("404");
   });
 
-  it("exposes the organization logo upload endpoint", () => {
+  it("does not expose the organization logo upload endpoint", () => {
     const doc = organizationsRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -32,21 +32,6 @@ describe("organizations routes OpenAPI contract", () => {
 
     const putOperation = doc.paths?.["/{id}/logo"]?.put;
 
-    expect(putOperation).toBeDefined();
-    expect(putOperation?.responses).toHaveProperty("200");
-    expect(putOperation?.responses).toHaveProperty("400");
-    expect(putOperation?.responses).toHaveProperty("401");
-    expect(putOperation?.responses).toHaveProperty("403");
-    expect(putOperation?.responses).toHaveProperty("404");
-    expect(putOperation?.responses).toHaveProperty("413");
-    expect(putOperation?.responses).toHaveProperty("422");
-    expect(putOperation?.responses).toHaveProperty("503");
-    expect(putOperation?.requestBody).toBeDefined();
-    expect(putOperation?.requestBody).toHaveProperty(
-      "content.multipart/form-data",
-    );
-
-    const requestBody = JSON.stringify(putOperation?.requestBody);
-    expect(requestBody).toContain("binary");
+    expect(putOperation).toBeUndefined();
   });
 });
