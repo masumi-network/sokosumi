@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import { getWebAppBaseUrl } from "@/config/env";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -8,8 +8,6 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
-
-const BETTER_AUTH_BASE_PATH = "/auth";
 
 const oauthAuthorizeSchema = z
   .object({
@@ -115,11 +113,11 @@ function getWebAppRootUrl(): string {
 
 type OAuthAuthorizeRequest = z.infer<typeof oauthAuthorizeSchema>;
 
-function buildOAuthAuthorizeUrl(oauth: OAuthAuthorizeRequest): string {
-  const authorizeUrl = new URL(
-    `${BETTER_AUTH_BASE_PATH}/oauth2/authorize`,
-    getEnv().BETTER_AUTH_URL,
-  );
+function buildOAuthAuthorizeUrl(
+  oauth: OAuthAuthorizeRequest,
+  requestOrigin: string,
+): string {
+  const authorizeUrl = new URL(`/auth/oauth2/authorize`, requestOrigin);
 
   const entries = [
     ["response_type", oauth.response_type],
@@ -155,8 +153,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (existingUser) {
       throw conflict("User is already registered");
     }
+
+    const requestOrigin = new URL(c.req.url).origin;
     const callbackURL = oauth
-      ? buildOAuthAuthorizeUrl(oauth)
+      ? buildOAuthAuthorizeUrl(oauth, requestOrigin)
       : getWebAppRootUrl();
     const body = {
       email,

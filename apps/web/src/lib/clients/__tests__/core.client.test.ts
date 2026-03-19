@@ -70,7 +70,8 @@ describe("core.client", () => {
       cache: "no-store",
       client: mockClient,
     });
-    const forwardedHeaders = createClientMock.mock.calls[0]?.[0]?.headers as Headers;
+    const forwardedHeaders = createClientMock.mock.calls[0]?.[0]
+      ?.headers as Headers;
     expect(forwardedHeaders.get("cookie")).toBe("session=abc");
     expect(forwardedHeaders.get("x-organization-slug")).toBe("my-org");
     expect(response.meta?.timestamp).toEqual(
@@ -117,17 +118,17 @@ describe("core.client", () => {
     const { CoreApiRequestError, coreClient } = await import("../core.client");
 
     await expect(coreClient.getAgentInputSchema("agent_1")).rejects.toEqual(
-      expect.objectContaining<Partial<InstanceType<typeof CoreApiRequestError>>>(
-        {
-          details: {
-            error: "Unauthorized",
-            message: "Please sign in",
-          },
+      expect.objectContaining<
+        Partial<InstanceType<typeof CoreApiRequestError>>
+      >({
+        details: {
+          error: "Unauthorized",
           message: "Please sign in",
-          name: "CoreApiRequestError",
-          status: 401,
         },
-      ),
+        message: "Please sign in",
+        name: "CoreApiRequestError",
+        status: 401,
+      }),
     );
   });
 

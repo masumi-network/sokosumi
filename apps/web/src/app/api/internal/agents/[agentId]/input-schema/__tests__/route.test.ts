@@ -7,7 +7,8 @@ jest.mock("@/lib/auth/utils", () => ({
 
 jest.mock("@/lib/clients/core.client", () => ({
   coreClient: {
-    getAgentInputSchema: (...args: unknown[]) => getAgentInputSchemaMock(...args),
+    getAgentInputSchema: (...args: unknown[]) =>
+      getAgentInputSchemaMock(...args),
   },
 }));
 

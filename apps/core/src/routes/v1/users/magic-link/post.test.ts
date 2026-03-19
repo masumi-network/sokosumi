@@ -10,10 +10,6 @@ const { signInMagicLinkMock, userFindUniqueMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({
-    BETTER_AUTH_URL: "https://auth.example.com",
-    WEB_APP_BASE_URL: "https://app.example.com",
-  }),
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
 
@@ -143,7 +139,7 @@ describe("POST /users/magic-link", () => {
   it("builds a fresh OAuth authorize URL when oauth params are provided", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/", {
+    const response = await app.request("https://auth.example.com/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -182,7 +178,7 @@ describe("POST /users/magic-link", () => {
   it("serializes only defined oauth params into the authorize URL", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/", {
+    const response = await app.request("https://auth.example.com/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -256,7 +252,7 @@ describe("POST /users/magic-link", () => {
   it("passes oauth prompts through without local semantic validation", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/", {
+    const response = await app.request("https://auth.example.com/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
