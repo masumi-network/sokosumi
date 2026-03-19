@@ -35,7 +35,6 @@ import type { Client } from "@/lib/clients/generated/core/client";
 import { getCoreTransportAdapter } from "./core.transport";
 
 export {
-  buildAuthHeaders,
   coreApiBaseUrl,
   normalizeCoreApiBaseUrl,
 } from "./core.transport.shared";

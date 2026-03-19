@@ -46,21 +46,6 @@ describe("core.client", () => {
     });
   });
 
-  it("builds auth headers from incoming request headers", async () => {
-    const { buildAuthHeaders } = await import("../core.client");
-
-    const authHeaders = buildAuthHeaders(
-      new Headers({
-        cookie: "session=value",
-        "x-organization-slug": "org-slug",
-      }),
-    ) as Record<string, string>;
-
-    expect(authHeaders).toEqual({
-      cookie: "session=value",
-    });
-  });
-
   it("normalizes core API base urls with and without /v1", async () => {
     const { normalizeCoreApiBaseUrl } = await import("../core.client");
 

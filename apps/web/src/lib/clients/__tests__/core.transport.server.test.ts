@@ -35,20 +35,20 @@ describe("core.transport.server", () => {
     });
   });
 
-  it("creates a generated client with forwarded auth cookies", async () => {
+  it("creates a generated client with forwarded request headers", async () => {
     createClientMock.mockReturnValue({ id: "server-client" });
 
     const { coreServerTransportAdapter } = await import(
       "../core.transport.server"
     );
     const client = await coreServerTransportAdapter.createGeneratedClient();
+    const clientConfig = createClientMock.mock.calls[0]?.[0];
+    const forwardedHeaders = clientConfig?.headers;
 
-    expect(createClientMock).toHaveBeenCalledWith({
-      baseUrl: "https://core.example.com/v1",
-      headers: {
-        cookie: "session=abc",
-      },
-    });
+    expect(clientConfig.baseUrl).toBe("https://core.example.com/v1");
+    expect(forwardedHeaders).toBeInstanceOf(Headers);
+    expect(forwardedHeaders.get("cookie")).toBe("session=abc");
+    expect(forwardedHeaders.get("x-organization-slug")).toBe("my-org");
     expect(client).toEqual({ id: "server-client" });
   });
 });
