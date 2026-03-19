@@ -284,8 +284,6 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
 export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
   const authHeader = c.req.header("authorization");
 
-  console.log("c.req.header", c.req.header());
-  console.log("authHeader", authHeader);
   if (authHeader) {
     return bearerMiddleware(c, next);
   }
