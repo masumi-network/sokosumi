@@ -11,28 +11,32 @@ export function useTypingReveal(text: string): string {
   const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (text === prevTextRef.current) return;
-    const prev = prevTextRef.current;
-    prevTextRef.current = text;
-    if (prev.length > 0 && text.startsWith(prev)) {
-      return;
-    }
     if (intervalIdRef.current) {
       clearInterval(intervalIdRef.current);
       intervalIdRef.current = null;
     }
-    queueMicrotask(() => setRevealedLength(0));
-  }, [text]);
 
-  useEffect(() => {
-    if (intervalIdRef.current) {
-      clearInterval(intervalIdRef.current);
-      intervalIdRef.current = null;
+    const prev = prevTextRef.current;
+    const textChanged = text !== prev;
+
+    if (textChanged) {
+      prevTextRef.current = text;
+      const isExtension = prev.length > 0 && text.startsWith(prev);
+      if (!isExtension) {
+        setRevealedLength(0);
+      }
     }
+
     const target = text.length;
     targetRef.current = target;
-    if (target === 0) return;
-    if (revealedLength >= target) return;
+    if (target === 0) {
+      return () => {
+        if (intervalIdRef.current) {
+          clearInterval(intervalIdRef.current);
+          intervalIdRef.current = null;
+        }
+      };
+    }
 
     intervalIdRef.current = setInterval(() => {
       setRevealedLength((len) => {
@@ -54,8 +58,7 @@ export function useTypingReveal(text: string): string {
         intervalIdRef.current = null;
       }
     };
-    // Only re-run when text length changes; revealedLength is updated by the interval
-  }, [text.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [text]);
 
   return text.slice(0, revealedLength);
 }
