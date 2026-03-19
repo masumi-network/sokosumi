@@ -7,6 +7,7 @@ export const organizationInformationFormData: FormData<
 > = [
   {
     name: "name",
+    labelKey: "Fields.Name.label",
     placeholderKey: "Fields.Name.placeholder",
   },
   {

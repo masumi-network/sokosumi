@@ -31,6 +31,7 @@ import {
   postConversationsByIdItems as corePostConversationsByIdItems,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
+  postUsersMeFiles as corePostUsersMeFiles,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
 } from "@/lib/clients/generated/core";
 import { type Client, createClient } from "@/lib/clients/generated/core/client";
@@ -508,6 +509,17 @@ async function getMyOrganizations() {
   );
 }
 
+async function uploadMyFile(file: File) {
+  return executeOperation(
+    (client) =>
+      corePostUsersMeFiles({
+        client,
+        body: { file },
+      }),
+    "Failed to upload file",
+  );
+}
+
 export const coreClient = {
   acknowledgeNotice,
   addConversationItem,
@@ -531,4 +543,5 @@ export const coreClient = {
   getTasks,
   patchTask,
   updateConversation,
+  uploadMyFile,
 };

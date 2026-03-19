@@ -517,6 +517,11 @@ export const auth = betterAuth({
               required: false,
               defaultValue: null,
             },
+            logo: {
+              type: "string",
+              required: false,
+              defaultValue: null,
+            },
           },
         },
       },

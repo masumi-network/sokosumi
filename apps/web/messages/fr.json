@@ -500,11 +500,25 @@
           },
           "Fields": {
             "Name": {
+              "label": "Nom",
               "placeholder": "Nom (ex. « Mon organisation »)"
             },
             "Url": {
               "label": "Site web",
               "placeholder": "URL du site web de l’entreprise (ex. https://example.com)"
+            },
+            "Logo": {
+              "label": "Logo",
+              "description": "Téléchargez une image de logo pour l'organisation.",
+              "upload": "Télécharger le logo",
+              "replace": "Remplacer le logo",
+              "remove": "Supprimer le logo",
+              "previewAlt": "Aperçu du logo de l'organisation",
+              "uploadSuccess": "Logo téléchargé avec succès",
+              "uploadError": "Échec du téléchargement du logo",
+              "fileTooLarge": "Le fichier est trop volumineux (max. 2 Mo)",
+              "fileTypeNotAccepted": "Type de fichier non accepté",
+              "maxFilesExceeded": "Maximum 1 fichier autorisé"
             }
           }
         },
