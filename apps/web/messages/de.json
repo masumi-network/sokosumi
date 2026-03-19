@@ -501,6 +501,10 @@
           "Fields": {
             "Name": {
               "placeholder": "Name (z. B. 'Meine Organisation')"
+            },
+            "Url": {
+              "label": "Webseite",
+              "placeholder": "Firmen-Website-URL (z. B. https://example.com)"
             }
           }
         },
@@ -510,6 +514,9 @@
             "max": "Organisationsname darf maximal 50 Zeichen lang sein.",
             "invalid": "Organisationsname muss eine gültige Zeichenkette sein.",
             "required": "Organisationsname ist erforderlich"
+          },
+          "Url": {
+            "invalid": "Firmen-Website-URL muss eine gültige URL sein"
           }
         }
       },
@@ -2034,6 +2041,7 @@
           "description": "Deine Organisation verwalten"
         },
         "roleIndicator": "Ansicht als:",
+        "websiteLabel": "Webseite",
         "edit": "Bearbeiten",
         "delete": "Löschen",
         "invite": "Mitglied einladen",

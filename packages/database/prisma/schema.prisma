@@ -198,6 +198,7 @@ model Organization {
 
   stripeCustomerId String?
   invoiceEmail     String?
+  url              String?
 
   // Credit Buckets
   creditBuckets CreditBucket[]

@@ -12,6 +12,7 @@ import {
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -63,15 +64,20 @@ function FormInput<T extends FieldValues>({
   formDataItem,
   t,
 }: FormInputProps<T>) {
-  const { type, name, placeholderKey } = formDataItem;
+  const { type, name, labelKey, placeholderKey } = formDataItem;
 
   return (
-    <Input
-      id={name.toString()}
-      placeholder={placeholderKey && t(placeholderKey)}
-      type={type ?? "text"}
-      {...field}
-      value={typeof field.value === "string" ? field.value : ""}
-    />
+    <>
+      {labelKey && (
+        <FormLabel htmlFor={name.toString()}>{t(labelKey)}</FormLabel>
+      )}
+      <Input
+        id={name.toString()}
+        placeholder={placeholderKey && t(placeholderKey)}
+        type={type ?? "text"}
+        {...field}
+        value={typeof field.value === "string" ? field.value : ""}
+      />
+    </>
   );
 }
