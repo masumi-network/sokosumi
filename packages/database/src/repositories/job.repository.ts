@@ -662,7 +662,10 @@ function jobsNotFinishedWhereQuery(
       {
         purchase: {
           onChainStatus: {
-            notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
+            notIn: [
+              OnChainJobStatus.DISPUTED,
+              OnChainJobStatus.REFUND_REQUESTED,
+            ],
           },
         },
         externalDisputeUnlockTime: {

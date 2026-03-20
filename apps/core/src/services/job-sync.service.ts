@@ -139,9 +139,7 @@ function hasPaymentWindowExpired(
   );
 }
 
-function shouldSkipAgentStatusPersistence(
-  job: JobWithSokosumiStatus,
-): boolean {
+function shouldSkipAgentStatusPersistence(job: JobWithSokosumiStatus): boolean {
   const onChainStatus = job.purchase?.onChainStatus;
 
   return (
@@ -610,7 +608,10 @@ async function syncRefundReconciliationJob(
   options: JobSyncExecutionOptions,
 ): Promise<boolean> {
   if (
-    shouldStopSync(options, `Stopping before reconciling refund for job ${job.id}`)
+    shouldStopSync(
+      options,
+      `Stopping before reconciling refund for job ${job.id}`,
+    )
   ) {
     return false;
   }

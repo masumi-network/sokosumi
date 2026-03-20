@@ -45,6 +45,15 @@ async function captureGetJobsPendingRefundReconciliationWhereQuery() {
   return where;
 }
 
+function expectPayByTimeCutoffFilter(
+  payByTime: Prisma.JobWhereInput["payByTime"] | undefined,
+): void {
+  assert.ok(payByTime);
+  const filter = payByTime as Prisma.DateTimeNullableFilter<"Job">;
+  assert.equal(filter.not, null);
+  assert.ok(filter.lt instanceof Date);
+}
+
 describe("jobRepository.getJobsNotFinished", () => {
   it("does not include refund withdrawals in the unfinished sync set", async () => {
     const where = await captureGetJobsNotFinishedWhereQuery();
@@ -85,8 +94,7 @@ describe("jobRepository.getJobsNotFinished", () => {
 
     assert.equal(missingPurchaseClause?.purchase, null);
     assert.equal(missingPurchaseClause?.jobType, JobType.PAID);
-    assert.equal(missingPurchaseClause?.payByTime?.not, null);
-    assert.ok(missingPurchaseClause?.payByTime?.lt instanceof Date);
+    expectPayByTimeCutoffFilter(missingPurchaseClause?.payByTime);
   });
 });
 
@@ -120,8 +128,7 @@ describe("jobRepository.getJobsPendingRefundReconciliation", () => {
       true,
     );
     assert.equal(missingPurchaseClause?.purchase, null);
-    assert.equal(missingPurchaseClause?.payByTime?.not, null);
-    assert.ok(missingPurchaseClause?.payByTime?.lt instanceof Date);
+    expectPayByTimeCutoffFilter(missingPurchaseClause?.payByTime);
   });
 });
 
