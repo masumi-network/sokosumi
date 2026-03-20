@@ -24,7 +24,7 @@ export function resolveBetterAuthPublicBaseUrl(
 
   const raw =
     vercelEnv === "preview"
-      ? (vercelUrl ?? vercelBranchUrl ?? configuredBaseUrl)
+      ? vercelUrl || vercelBranchUrl || configuredBaseUrl
       : configuredBaseUrl;
 
   return stripTrailingSlashes(raw);

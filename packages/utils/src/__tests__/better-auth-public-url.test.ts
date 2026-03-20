@@ -27,6 +27,30 @@ test("preview falls back to VERCEL_BRANCH_URL when deployment URL missing", () =
   );
 });
 
+test("preview falls back to VERCEL_BRANCH_URL when deployment URL is empty string", () => {
+  assert.equal(
+    resolveBetterAuthPublicBaseUrl({
+      vercelEnv: "preview",
+      vercelUrl: "",
+      vercelBranchUrl: "https://my-app-git-feature-team.vercel.app",
+      configuredBaseUrl: "https://app.example.com",
+    }),
+    "https://my-app-git-feature-team.vercel.app",
+  );
+});
+
+test("preview falls back to configured base URL when both Vercel URLs are empty strings", () => {
+  assert.equal(
+    resolveBetterAuthPublicBaseUrl({
+      vercelEnv: "preview",
+      vercelUrl: "",
+      vercelBranchUrl: "",
+      configuredBaseUrl: "https://app.example.com",
+    }),
+    "https://app.example.com",
+  );
+});
+
 test("preview falls back to configured base URL when both Vercel URLs missing", () => {
   assert.equal(
     resolveBetterAuthPublicBaseUrl({
