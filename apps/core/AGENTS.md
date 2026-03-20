@@ -167,7 +167,7 @@ Environment variables are accessed via `process.env`, validated at startup with 
 - `WEB_APP_BASE_URL` — Default `http://localhost:3000`; used with `getWebAppBaseUrl()` and Vercel related projects
 - `BETTER_AUTH_SECRET` — Shared with the web Better Auth instance
 - `BETTER_AUTH_URL` — Public base URL of this Core service; used as Better Auth `baseURL` except on Vercel Preview
-- `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL` — Optional; when `VERCEL_ENV=preview`, `getBetterAuthPublicBaseUrl()` resolves the issuer URL from Vercel (see `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`)
+- `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL` — Optional; on Preview and Production, `getBetterAuthPublicBaseUrl()` resolves the issuer URL from Vercel (see `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`)
 
 **Note**: Environment variables are loaded via `dotenv/config` at the application entry point.
 

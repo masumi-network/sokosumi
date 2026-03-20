@@ -9,6 +9,7 @@ test("preview uses VERCEL_URL when set", () => {
       vercelEnv: "preview",
       vercelUrl: "https://my-app-abc123.vercel.app",
       vercelBranchUrl: "https://my-app-git-main-team.vercel.app",
+      vercelProductionUrl: undefined,
       configuredBaseUrl: "https://app.example.com",
     }),
     "https://my-app-abc123.vercel.app",
@@ -21,6 +22,7 @@ test("preview falls back to VERCEL_BRANCH_URL when deployment URL missing", () =
       vercelEnv: "preview",
       vercelUrl: undefined,
       vercelBranchUrl: "https://my-app-git-feature-team.vercel.app",
+      vercelProductionUrl: undefined,
       configuredBaseUrl: "https://app.example.com",
     }),
     "https://my-app-git-feature-team.vercel.app",
@@ -33,6 +35,7 @@ test("preview falls back to VERCEL_BRANCH_URL when deployment URL is empty strin
       vercelEnv: "preview",
       vercelUrl: "",
       vercelBranchUrl: "https://my-app-git-feature-team.vercel.app",
+      vercelProductionUrl: undefined,
       configuredBaseUrl: "https://app.example.com",
     }),
     "https://my-app-git-feature-team.vercel.app",
@@ -45,6 +48,7 @@ test("preview falls back to configured base URL when both Vercel URLs are empty 
       vercelEnv: "preview",
       vercelUrl: "",
       vercelBranchUrl: "",
+      vercelProductionUrl: undefined,
       configuredBaseUrl: "https://app.example.com",
     }),
     "https://app.example.com",
@@ -57,18 +61,33 @@ test("preview falls back to configured base URL when both Vercel URLs missing", 
       vercelEnv: "preview",
       vercelUrl: undefined,
       vercelBranchUrl: undefined,
+      vercelProductionUrl: undefined,
       configuredBaseUrl: "https://app.example.com",
     }),
     "https://app.example.com",
   );
 });
 
-test("production uses configured base URL", () => {
+test("production uses vercelProductionUrl when set", () => {
   assert.equal(
     resolveBetterAuthPublicBaseUrl({
       vercelEnv: "production",
       vercelUrl: "https://ignored.vercel.app",
       vercelBranchUrl: "https://ignored-git-main.vercel.app",
+      vercelProductionUrl: "https://core.example.com",
+      configuredBaseUrl: "https://app.example.com",
+    }),
+    "https://core.example.com",
+  );
+});
+
+test("production uses configured base URL when vercelProductionUrl missing", () => {
+  assert.equal(
+    resolveBetterAuthPublicBaseUrl({
+      vercelEnv: "production",
+      vercelUrl: "https://ignored.vercel.app",
+      vercelBranchUrl: "https://ignored-git-main.vercel.app",
+      vercelProductionUrl: undefined,
       configuredBaseUrl: "https://app.example.com",
     }),
     "https://app.example.com",
@@ -81,6 +100,7 @@ test("undefined vercelEnv uses configured base URL", () => {
       vercelEnv: undefined,
       vercelUrl: "https://preview.vercel.app",
       vercelBranchUrl: undefined,
+      vercelProductionUrl: undefined,
       configuredBaseUrl: "http://localhost:3000",
     }),
     "http://localhost:3000",
@@ -93,6 +113,7 @@ test("development vercelEnv uses configured base URL", () => {
       vercelEnv: "development",
       vercelUrl: "https://dev.vercel.app",
       vercelBranchUrl: undefined,
+      vercelProductionUrl: undefined,
       configuredBaseUrl: "http://localhost:3000",
     }),
     "http://localhost:3000",
@@ -105,6 +126,7 @@ test("strips trailing slashes from result", () => {
       vercelEnv: "preview",
       vercelUrl: "https://x.vercel.app///",
       vercelBranchUrl: undefined,
+      vercelProductionUrl: undefined,
       configuredBaseUrl: "https://app.example.com/",
     }),
     "https://x.vercel.app",

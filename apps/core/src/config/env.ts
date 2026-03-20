@@ -39,6 +39,13 @@ const envSchema = z.object({
     )
     .pipe(z.url())
     .optional(),
+  VERCEL_PROJECT_PRODUCTION_URL: z
+    .string()
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
+    .pipe(z.url())
+    .optional(),
 
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(1),
@@ -152,7 +159,8 @@ export function getWebAppBaseUrl(): string {
 
 /**
  * Public Better Auth base URL (Core deployment). On Vercel Preview, uses the
- * deployment or branch URL when `VERCEL_ENV=preview`.
+ * deployment or branch URL when `VERCEL_ENV=preview`. On Vercel Production,
+ * prefers `VERCEL_PROJECT_PRODUCTION_URL` when set, then `BETTER_AUTH_URL`.
  */
 export function getBetterAuthPublicBaseUrl(): string {
   const env = getEnv();
@@ -161,6 +169,7 @@ export function getBetterAuthPublicBaseUrl(): string {
     vercelEnv: env.VERCEL_ENV,
     vercelUrl: env.VERCEL_URL,
     vercelBranchUrl: env.VERCEL_BRANCH_URL,
+    vercelProductionUrl: env.VERCEL_PROJECT_PRODUCTION_URL,
     configuredBaseUrl: env.BETTER_AUTH_URL,
   });
 }
