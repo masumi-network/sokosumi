@@ -421,6 +421,46 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(publishJobStatusDataMock).not.toHaveBeenCalled();
   });
 
+  it("reconciles purchase-action payment failures without running the standard sync pipeline", async () => {
+    const reconciliationJob = createJob({
+      id: "job_purchase_action_failed",
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      purchase: {
+        externalId: "purchase_action_failed",
+        onChainStatus: null,
+        resultHash: null,
+        nextAction: "FUNDS_LOCKING_REQUESTED",
+        nextActionErrorType: "NETWORK_ERROR",
+        nextActionErrorNote: null,
+      },
+    });
+    getJobsPendingRefundReconciliationMock.mockResolvedValue([
+      reconciliationJob,
+    ]);
+    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        processed: 1,
+        unfinishedFound: 1,
+      }),
+    );
+    expect(refundJobMock).toHaveBeenCalledWith(
+      "job_purchase_action_failed",
+      {},
+    );
+    expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
+    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(publishJobStatusDataMock).not.toHaveBeenCalled();
+  });
+
   it("reconciles timed-out missing purchases without running the standard sync pipeline", async () => {
     const reconciliationJob = createJob({
       id: "job_missing_purchase",
@@ -937,6 +977,88 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       "job_1",
       expect.objectContaining({
         onChainStatus: null,
+        nextActionErrorType: "NETWORK_ERROR",
+      }),
+      {},
+    );
+    expect(getLatestJobEventByJobIdMock).not.toHaveBeenCalled();
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
+    expect(refundJobMock).not.toHaveBeenCalled();
+    expect(renderJobFailureNotificationEmailMock).toHaveBeenCalledWith({
+      network: "Preprod",
+      agentId: "agent_1",
+      agentBlockchainIdentifier: "agent-chain-1",
+      agentName: "Planner",
+      jobId: "job_1",
+      jobBlockchainIdentifier: "blockchain-job-1",
+      onChainStatus: "N/A",
+      agentStatus: SokosumiJobStatus.PAYMENT_FAILED,
+      result: "N/A",
+      resultHash: "N/A",
+      locale: "en",
+    });
+    expect(publishJobStatusDataMock).toHaveBeenCalledWith({
+      agentId: "agent_1",
+      userId: "user_1",
+      jobId: "job_1",
+      jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
+      jobStatusSettled: false,
+    });
+  });
+
+  it("ignores late completed agent results when a purchase action errors in the same sync cycle", async () => {
+    const paymentFailedJob = createJob({
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      purchase: {
+        externalId: "purchase_1",
+        onChainStatus: null,
+        resultHash: null,
+        nextAction: "FUNDS_LOCKING_REQUESTED",
+        nextActionErrorType: "NETWORK_ERROR",
+        nextActionErrorNote: null,
+      },
+    });
+
+    getJobsNotFinishedMock.mockResolvedValue([
+      createJob({
+        status: SokosumiJobStatus.PAYMENT_PENDING,
+        purchase: {
+          externalId: "purchase_1",
+          onChainStatus: null,
+          resultHash: null,
+          nextAction: "FUNDS_LOCKING_REQUESTED",
+          nextActionErrorType: null,
+          nextActionErrorNote: null,
+        },
+      }),
+    ]);
+    getPurchaseByIdMock.mockReturnValue(
+      ok({
+        id: "purchase_1",
+        onChainStatus: null,
+        nextAction: "FUNDS_LOCKING_REQUESTED",
+        nextActionErrorType: "NETWORK_ERROR",
+        nextActionErrorNote: null,
+      }),
+    );
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(paymentFailedJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(updateJobPurchaseByJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      expect.objectContaining({
+        onChainStatus: null,
+        nextAction: "FUNDS_LOCKING_REQUESTED",
         nextActionErrorType: "NETWORK_ERROR",
       }),
       {},

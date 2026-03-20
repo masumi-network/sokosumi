@@ -66,6 +66,9 @@ function checkPaymentStatus(
       return SokosumiJobStatus.PAYMENT_PENDING;
     }
   }
+  if (purchase.onChainStatus === null && purchase.nextActionErrorType) {
+    return SokosumiJobStatus.PAYMENT_FAILED;
+  }
   return null;
 }
 

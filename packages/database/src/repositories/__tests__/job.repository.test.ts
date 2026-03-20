@@ -56,15 +56,50 @@ describe("jobRepository.getJobsNotFinished", () => {
   it("keeps refund requests past the dispute cutoff in the unfinished sync set", async () => {
     const where = await captureGetJobsNotFinishedWhereQuery();
     const notClauses = where.NOT as Prisma.JobWhereInput[];
+    const fundsInvalidClause = notClauses.find(
+      (clause) =>
+        clause.purchase !== null &&
+        typeof clause.purchase === "object" &&
+        "onChainStatus" in clause.purchase &&
+        clause.purchase.onChainStatus === OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
+    );
+    const externalDisputeCutoffClause = notClauses.find(
+      (clause) =>
+        clause.purchase !== null &&
+        typeof clause.purchase === "object" &&
+        "onChainStatus" in clause.purchase &&
+        clause.purchase.onChainStatus !== null &&
+        typeof clause.purchase.onChainStatus === "object" &&
+        "notIn" in clause.purchase.onChainStatus,
+    );
 
-    assert.deepEqual(notClauses.at(1)?.purchase, {
+    assert.deepEqual(fundsInvalidClause?.purchase, {
       onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
     });
-    assert.deepEqual(notClauses.at(2)?.purchase, {
+    assert.deepEqual(externalDisputeCutoffClause?.purchase, {
       onChainStatus: {
         notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
       },
     });
+  });
+
+  it("moves purchase-action errors out of the unfinished sync set", async () => {
+    const where = await captureGetJobsNotFinishedWhereQuery();
+    const notClauses = where.NOT as Prisma.JobWhereInput[];
+    const purchaseActionErrorClause = notClauses.find(
+      (clause) =>
+        clause.purchase !== null &&
+        typeof clause.purchase === "object" &&
+        "nextActionErrorType" in clause.purchase,
+    );
+
+    assert.deepEqual(purchaseActionErrorClause?.purchase, {
+      onChainStatus: null,
+      nextActionErrorType: {
+        not: null,
+      },
+    });
+    assert.equal(purchaseActionErrorClause?.jobType, JobType.PAID);
   });
 
   it("keeps active timed-out null-on-chain purchases in the unfinished sync set", async () => {
@@ -75,7 +110,8 @@ describe("jobRepository.getJobsNotFinished", () => {
         clause.purchase !== null &&
         typeof clause.purchase === "object" &&
         "onChainStatus" in clause.purchase &&
-        clause.purchase.onChainStatus === null,
+        clause.purchase.onChainStatus === null &&
+        "nextAction" in clause.purchase,
     );
 
     assert.deepEqual(timedOutNullOnChainClause?.purchase, {

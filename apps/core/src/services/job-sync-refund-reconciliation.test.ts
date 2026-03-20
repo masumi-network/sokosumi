@@ -20,11 +20,17 @@ describe("buildJobsPendingRefundReconciliationWhere", () => {
     const missingPurchaseClause = orClauses.find(
       (clause) => clause.purchase === null,
     );
+    const purchaseActionErrorClause = orClauses.find(
+      (clause) =>
+        clause.purchase &&
+        "nextActionErrorType" in clause.purchase,
+    );
     const timedOutNullOnChainClause = orClauses.find(
       (clause) =>
         clause.purchase &&
         "onChainStatus" in clause.purchase &&
-        clause.purchase.onChainStatus === null,
+        clause.purchase.onChainStatus === null &&
+        "nextAction" in clause.purchase,
     );
 
     expect(where.refundedTransactionId).toBeNull();
@@ -48,6 +54,12 @@ describe("buildJobsPendingRefundReconciliationWhere", () => {
     ).toBe(true);
     expect(missingPurchaseClause?.purchase).toBeNull();
     expectPayByTimeCutoffFilter(missingPurchaseClause?.payByTime);
+    expect(purchaseActionErrorClause?.purchase).toEqual({
+      onChainStatus: null,
+      nextActionErrorType: {
+        not: null,
+      },
+    });
     expect(timedOutNullOnChainClause?.purchase).toEqual({
       onChainStatus: null,
       nextAction: {

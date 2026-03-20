@@ -32,6 +32,14 @@ export function buildJobsPendingRefundReconciliationWhere(
         },
       },
       {
+        purchase: {
+          onChainStatus: null,
+          nextActionErrorType: {
+            not: null,
+          },
+        },
+      },
+      {
         purchase: null,
         payByTime: {
           not: null,

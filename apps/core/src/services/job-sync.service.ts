@@ -144,12 +144,15 @@ function hasPaymentWindowExpired(
 
 function shouldSkipAgentStatusPersistence(job: JobWithSokosumiStatus): boolean {
   const onChainStatus = job.purchase?.onChainStatus;
+  const hasPurchaseActionError =
+    onChainStatus === null && job.purchase?.nextActionErrorType !== null;
   const hasTimedOutMissingPurchase =
     job.purchase === null && hasPaymentWindowExpired(job);
   const hasTimedOutNullOnChainPurchase =
     onChainStatus === null && hasPaymentWindowExpired(job);
 
   return (
+    hasPurchaseActionError ||
     hasTimedOutMissingPurchase ||
     hasTimedOutNullOnChainPurchase ||
     onChainStatus === OnChainJobStatus.FUNDS_OR_DATUM_INVALID ||
@@ -172,6 +175,9 @@ function shouldCreateLocalRefund(job: JobWithSokosumiStatus): boolean {
     case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
       return true;
     case null:
+      if (job.purchase.nextActionErrorType !== null) {
+        return true;
+      }
       return (
         hasPaymentWindowExpired(job) &&
         !ACTIVE_PURCHASE_NEXT_ACTIONS.includes(job.purchase.nextAction)

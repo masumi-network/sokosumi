@@ -581,6 +581,16 @@ function jobsNotFinishedWhereQuery(
         },
         jobType: JobType.PAID,
       },
+      // Filter out explicit purchase-action failures. Refund reconciliation owns these.
+      {
+        purchase: {
+          onChainStatus: null,
+          nextActionErrorType: {
+            not: null,
+          },
+        },
+        jobType: JobType.PAID,
+      },
       // Filter out jobs that are outside the dispute/refund reconciliation
       // window and have an externalDisputeUnlockTime before the cutoff.
       {
