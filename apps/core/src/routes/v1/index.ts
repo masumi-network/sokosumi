@@ -3,7 +3,6 @@ import { cors } from "hono/cors";
 
 import { TIME } from "@/config/constants.js";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
-import { getEnv } from "@/config/env.js";
 
 import agentsRouter from "./agents/index.js";
 import categoriesRouter from "./categories/index.js";
@@ -36,34 +35,6 @@ app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {
   },
 });
 
-app.doc31("/openapi.json", {
-  openapi: "3.1.0",
-  info: {
-    version: "1.0.0",
-    title: "Sokosumi API",
-    description: "Sokosumi API documentation.",
-  },
-  servers: [
-    {
-      url: `https://api.sokosumi.com/v1`,
-      description: "Mainnet Server",
-    },
-    {
-      url: `https://api.preprod.sokosumi.com/v1`,
-      description: "Pre-production Server",
-    },
-    ...(getEnv().NODE_ENV === "development"
-      ? [
-          {
-            url: `http://localhost:8787/v1`,
-            description: "Local Development Server",
-          },
-        ]
-      : []),
-  ],
-  security: [{ bearerAuth: [] }],
-});
-
 app.use(
   "*",
   cors({
@@ -75,6 +46,21 @@ app.use(
     credentials: true,
   }),
 );
+
+app.doc31("/openapi.json", {
+  openapi: "3.1.0",
+  info: {
+    version: "1.0.0",
+    title: "Sokosumi API",
+    description: "Sokosumi API documentation.",
+  },
+  servers: [
+    {
+      url: "/v1",
+    },
+  ],
+  security: [{ bearerAuth: [] }],
+});
 
 // Mount Routes
 app.route("/agents", agentsRouter);

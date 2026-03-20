@@ -3,9 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { organizationHeaderMiddleware } from "./organization";
 
-const { organizationFindUniqueMock, memberFindUniqueMock } = vi.hoisted(() => ({
-  organizationFindUniqueMock: vi.fn(),
-  memberFindUniqueMock: vi.fn(),
+const { memberFindFirstMock } = vi.hoisted(() => ({
+  memberFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -46,11 +45,8 @@ vi.mock("@/middleware/auth", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    organization: {
-      findUnique: organizationFindUniqueMock,
-    },
     member: {
-      findUnique: memberFindUniqueMock,
+      findFirst: memberFindFirstMock,
     },
   },
 }));
@@ -135,8 +131,7 @@ describe("organizationHeaderMiddleware", () => {
       userId: "user_123",
       organizationId: "org_existing",
     });
-    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
-    expect(memberFindUniqueMock).not.toHaveBeenCalled();
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("does not query organization when header is missing", async () => {
@@ -149,15 +144,11 @@ describe("organizationHeaderMiddleware", () => {
       userId: "user_123",
       organizationId: null,
     });
-    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
-    expect(memberFindUniqueMock).not.toHaveBeenCalled();
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("sets organizationId when header slug is valid and user is a member", async () => {
-    organizationFindUniqueMock.mockResolvedValue({
-      id: "org_new",
-    });
-    memberFindUniqueMock.mockResolvedValue({
+    memberFindFirstMock.mockResolvedValue({
       organizationId: "org_new",
     });
 
@@ -174,15 +165,11 @@ describe("organizationHeaderMiddleware", () => {
       userId: "user_123",
       organizationId: "org_new",
     });
-    expect(organizationFindUniqueMock).toHaveBeenCalledWith({
-      where: { slug: "new-org" },
-      select: { id: true },
-    });
-    expect(memberFindUniqueMock).toHaveBeenCalledWith({
+    expect(memberFindFirstMock).toHaveBeenCalledWith({
       where: {
-        userId_organizationId: {
-          userId: "user_123",
-          organizationId: "org_new",
+        userId: "user_123",
+        organization: {
+          slug: "new-org",
         },
       },
       select: { organizationId: true },
@@ -202,12 +189,11 @@ describe("organizationHeaderMiddleware", () => {
       actor: "coworker",
       coworkerId: "cow_123",
     });
-    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
-    expect(memberFindUniqueMock).not.toHaveBeenCalled();
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when organization slug does not exist", async () => {
-    organizationFindUniqueMock.mockResolvedValue(null);
+    memberFindFirstMock.mockResolvedValue(null);
 
     const app = createUserApp(null);
     const response = await app.request("http://localhost/", {
@@ -217,14 +203,10 @@ describe("organizationHeaderMiddleware", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when user is not a member of the organization", async () => {
-    organizationFindUniqueMock.mockResolvedValue({
-      id: "org_new",
-    });
-    memberFindUniqueMock.mockResolvedValue(null);
+    memberFindFirstMock.mockResolvedValue(null);
 
     const app = createUserApp(null);
     const response = await app.request("http://localhost/", {

@@ -4,6 +4,11 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 import { dateTimeSchema } from "./datetime.js";
 
+export interface HTTPExceptionMetadata {
+  kind?: string;
+  reportToSentry?: boolean;
+}
+
 /**
  * Standardized API error response schema
  * Mirrors success response structure for consistency
@@ -38,8 +43,9 @@ export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 function createHTTPException(
   status: ContentfulStatusCode,
   message: string,
+  metadata?: HTTPExceptionMetadata,
 ): HTTPException {
-  return new HTTPException(status, { message });
+  return new HTTPException(status, { message, cause: metadata });
 }
 
 /**
@@ -130,9 +136,28 @@ export const internalServerError = (
  */
 export const serviceUnavailable = (
   message: string = "Service Unavailable",
+  metadata?: HTTPExceptionMetadata,
 ): HTTPException => {
-  return createHTTPException(503, message);
+  return createHTTPException(503, message, metadata);
 };
+
+export function shouldReportHttpException(error: HTTPException): boolean {
+  if (error.status < 500) {
+    return false;
+  }
+
+  const cause = error.cause;
+  if (
+    typeof cause === "object" &&
+    cause !== null &&
+    "reportToSentry" in cause &&
+    cause.reportToSentry === false
+  ) {
+    return false;
+  }
+
+  return true;
+}
 
 /**
  * Formats a ZodError into a user-friendly error message

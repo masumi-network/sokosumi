@@ -1,3 +1,4 @@
+import { z } from "@hono/zod-openapi";
 import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,24 +33,67 @@ describe("errorHandler", () => {
     vi.clearAllMocks();
   });
 
-  it.each(["Service is under maintenance", "Storage backend unavailable"])(
-    "reports thrown 503 HTTPExceptions to Sentry (%s)",
-    async (message) => {
-      const app = createApp();
-      app.get("/", () => {
-        throw serviceUnavailable(message);
+  it("reports generic 503 HTTPExceptions to Sentry", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw serviceUnavailable("Storage backend unavailable");
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(503);
+    expect(body.error).toBe("ServiceUnavailable");
+    expect(body.message).toBe("Storage backend unavailable");
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report maintenance-mode 503 HTTPExceptions to Sentry", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw serviceUnavailable("Service is under maintenance", {
+        kind: "maintenance-mode",
+        reportToSentry: false,
       });
+    });
 
-      const response = await app.request("http://localhost/");
-      const body = (await response.json()) as {
-        error: string;
-        message: string;
-      };
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+    };
 
-      expect(response.status).toBe(503);
-      expect(body.error).toBe("ServiceUnavailable");
-      expect(body.message).toBe(message);
-      expect(captureExceptionMock).toHaveBeenCalledTimes(1);
-    },
-  );
+    expect(response.status).toBe(503);
+    expect(body.error).toBe("ServiceUnavailable");
+    expect(body.message).toBe("Service is under maintenance");
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("reports unhandled validation errors to Sentry as internal server errors", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      z.string().parse(123);
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(500);
+    expect(body.error).toBe("InternalServerError");
+    expect(body.message).toBe("An unexpected error occurred");
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(z.ZodError),
+      expect.objectContaining({
+        level: "fatal",
+        tags: { error_type: "unexpected_validation" },
+      }),
+    );
+  });
 });

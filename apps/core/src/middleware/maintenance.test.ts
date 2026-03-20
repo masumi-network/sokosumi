@@ -1,14 +1,21 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
+
 import { maintenanceMiddleware } from "./maintenance";
 
-const { getEnvMock } = vi.hoisted(() => ({
+const { captureExceptionMock, getEnvMock } = vi.hoisted(() => ({
+  captureExceptionMock: vi.fn(),
   getEnvMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: captureExceptionMock,
 }));
 
 function createApp() {
@@ -20,6 +27,7 @@ function createApp() {
     c.set("requestId", "req_123");
     await next();
   });
+  app.onError(errorHandler);
   app.use("*", maintenanceMiddleware());
 
   app.get("/", (c) => c.text("ok"));
@@ -59,6 +67,7 @@ describe("maintenanceMiddleware", () => {
     expect(body.meta.requestId).toBe("req_123");
     expect(body.meta.path).toBe("/");
     expect(body.meta.method).toBe("GET");
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("applies globally across representative root, api, and sync paths", async () => {

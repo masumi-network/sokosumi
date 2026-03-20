@@ -9,7 +9,7 @@ import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
-import { getEnv, validateEnv } from "@/config/env";
+import { getBetterAuthPublicBaseUrl, getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { initSentry } from "@/lib/sentry";
@@ -24,9 +24,7 @@ validateEnv();
 initSentry();
 
 // Build favicon URL - use Vercel URL in production, relative path locally
-const faviconUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}/favicon.ico`
-  : undefined;
+const faviconUrl = `${getBetterAuthPublicBaseUrl()}/favicon.ico`;
 
 // Main app is exported at the end to combine OpenAPI and auth routes
 const mainApp = new Hono();
@@ -78,7 +76,28 @@ const content = apiV1.getOpenAPI31Document({
   },
 });
 
-const markdown = await createMarkdownFromOpenApi(JSON.stringify(content));
+let llmsMarkdown: string | null = null;
+let llmsMarkdownPromise: Promise<string> | null = null;
+
+async function getLlmsMarkdown(): Promise<string> {
+  if (llmsMarkdown !== null) {
+    return llmsMarkdown;
+  }
+
+  if (!llmsMarkdownPromise) {
+    llmsMarkdownPromise = createMarkdownFromOpenApi(JSON.stringify(content))
+      .then((markdown) => {
+        llmsMarkdown = markdown;
+        return markdown;
+      })
+      .catch((error) => {
+        llmsMarkdownPromise = null;
+        throw error;
+      });
+  }
+
+  return await llmsMarkdownPromise;
+}
 
 /**
  * Register a route to serve the Markdown for LLMs
@@ -89,7 +108,7 @@ const markdown = await createMarkdownFromOpenApi(JSON.stringify(content));
  * @see https://llmstxt.org/
  */
 app.get("/llms.txt", async (c) => {
-  return c.text(markdown);
+  return c.text(await getLlmsMarkdown());
 });
 
 // Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
