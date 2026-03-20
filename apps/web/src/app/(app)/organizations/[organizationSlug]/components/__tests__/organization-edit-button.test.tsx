@@ -146,7 +146,7 @@ describe("OrganizationEditButton", () => {
     ).toBeInTheDocument();
   });
 
-  it("sends logo null to the API when the logo is cleared on update", async () => {
+  it("sends logo undefined in the update payload when the logo is cleared", async () => {
     mockedOrganizationUpdate.mockResolvedValue({
       data: {},
       error: null,
@@ -180,7 +180,7 @@ describe("OrganizationEditButton", () => {
         organizationId: "org_1",
         data: expect.objectContaining({
           name: "Acme",
-          logo: null,
+          logo: undefined,
         }),
       }),
     );
