@@ -38,3 +38,5 @@ lint-report.json
 # codex
 /.codex-artifacts
 
+# next-agents-md
+/.next-docs/
