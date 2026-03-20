@@ -72,7 +72,7 @@ describe("errorHandler", () => {
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
-  it("reports unhandled validation errors to Sentry", async () => {
+  it("reports unhandled validation errors to Sentry as internal server errors", async () => {
     const app = createApp();
     app.get("/", () => {
       z.string().parse(123);
@@ -84,9 +84,16 @@ describe("errorHandler", () => {
       message: string;
     };
 
-    expect(response.status).toBe(422);
-    expect(body.error).toBe("UnprocessableEntity");
-    expect(body.message).toBe("Invalid input: expected string, received number");
+    expect(response.status).toBe(500);
+    expect(body.error).toBe("InternalServerError");
+    expect(body.message).toBe("An unexpected error occurred");
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(z.ZodError),
+      expect.objectContaining({
+        level: "fatal",
+        tags: { error_type: "unexpected_validation" },
+      }),
+    );
   });
 });
