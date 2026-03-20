@@ -33,6 +33,7 @@ import { sourceImportService } from "@/services/source-import.service";
 const JOB_SYNC_CONCURRENCY = 5;
 const JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS = 250;
 const JOB_SYNC_REMOTE_TIMEOUT_MS = 10_000;
+const JOB_PAYMENT_GRACE_MS = 1000 * 60 * 10;
 const JOB_SYNC_TRANSACTION_OPTIONS = {
   maxWait: 5000,
   timeout: 20_000,
@@ -129,12 +130,22 @@ function buildJobLink(job: JobWithSokosumiStatus): string {
   return `${getWebAppBaseUrl()}/agents/${job.agentId}/jobs/${job.id}`;
 }
 
+function hasPaymentWindowExpired(
+  job: Pick<JobWithSokosumiStatus, "payByTime">,
+): boolean {
+  return (
+    job.payByTime !== null &&
+    job.payByTime.getTime() < Date.now() - JOB_PAYMENT_GRACE_MS
+  );
+}
+
 function shouldSkipAgentStatusPersistence(
   job: JobWithSokosumiStatus,
 ): boolean {
   const onChainStatus = job.purchase?.onChainStatus;
 
   return (
+    (job.purchase === null && hasPaymentWindowExpired(job)) ||
     onChainStatus === OnChainJobStatus.FUNDS_OR_DATUM_INVALID ||
     onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN ||
     onChainStatus === OnChainJobStatus.DISPUTED_WITHDRAWN

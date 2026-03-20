@@ -595,7 +595,8 @@ export const jobRepository = {
  *
  * A paid job still needs sync work if it meets any of the following criteria:
  * - Has an on-chain status that is not finalized (not in finalizedOnChainJobStatuses)
- * - Has no on-chain status but has a payByTime that is greater than the cutoff time
+ * - Has no purchase yet but is still within the pay-by grace window
+ * - Has no on-chain status but is still within the pay-by grace window
  *
  * Jobs are excluded if they meet any of the following criteria:
  * - Have been refunded (refundedTransactionId is not null)
@@ -624,6 +625,11 @@ function jobsNotFinishedWhereQuery(
         purchase: {
           onChainStatus: null,
         },
+        jobType: JobType.PAID,
+      },
+      // Filter in jobs that have no purchase yet
+      {
+        purchase: null,
         jobType: JobType.PAID,
       },
       // Filter in free jobs that are not finalized
@@ -673,6 +679,12 @@ function jobsNotFinishedWhereQuery(
         payByTime: { not: null, lt: cutoffTime },
         jobType: JobType.PAID,
       },
+      // Filter out jobs that have no purchase and have a payByTime that is less than the cutoff time
+      {
+        purchase: null,
+        payByTime: { not: null, lt: cutoffTime },
+        jobType: JobType.PAID,
+      },
       // Filter out demo jobs
       {
         jobType: JobType.DEMO,
@@ -681,7 +693,9 @@ function jobsNotFinishedWhereQuery(
   };
 }
 
-function jobsPendingRefundReconciliationWhereQuery(): Prisma.JobWhereInput {
+function jobsPendingRefundReconciliationWhereQuery(
+  cutoffTime: Date = new Date(Date.now() - 1000 * 60 * 10),
+): Prisma.JobWhereInput {
   return {
     refundedTransactionId: null,
     jobType: JobType.PAID,
@@ -694,6 +708,13 @@ function jobsPendingRefundReconciliationWhereQuery(): Prisma.JobWhereInput {
       {
         purchase: {
           onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
+        },
+      },
+      {
+        purchase: null,
+        payByTime: {
+          not: null,
+          lt: cutoffTime,
         },
       },
     ],

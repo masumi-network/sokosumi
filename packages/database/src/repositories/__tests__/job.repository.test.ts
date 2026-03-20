@@ -75,31 +75,53 @@ describe("jobRepository.getJobsNotFinished", () => {
       },
     });
   });
+
+  it("moves timed-out missing purchases out of the unfinished sync set", async () => {
+    const where = await captureGetJobsNotFinishedWhereQuery();
+    const notClauses = where.NOT as Prisma.JobWhereInput[];
+    const missingPurchaseClause = notClauses.find(
+      (clause) => clause.purchase === null,
+    );
+
+    assert.equal(missingPurchaseClause?.purchase, null);
+    assert.equal(missingPurchaseClause?.jobType, JobType.PAID);
+    assert.equal(missingPurchaseClause?.payByTime?.not, null);
+    assert.ok(missingPurchaseClause?.payByTime?.lt instanceof Date);
+  });
 });
 
 describe("jobRepository.getJobsPendingRefundReconciliation", () => {
-  it("returns only paid jobs with refund withdrawn and no local refund transaction", async () => {
+  it("returns paid jobs missing a local refund transaction for refund terminal states and timed-out missing purchases", async () => {
     const where = await captureGetJobsPendingRefundReconciliationWhereQuery();
-
-    assert.deepEqual(
-      where,
-      {
-        refundedTransactionId: null,
-        jobType: JobType.PAID,
-        OR: [
-          {
-            purchase: {
-              onChainStatus: OnChainJobStatus.REFUND_WITHDRAWN,
-            },
-          },
-          {
-            purchase: {
-              onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
-            },
-          },
-        ],
-      } satisfies Prisma.JobWhereInput,
+    const orClauses = where.OR as Prisma.JobWhereInput[];
+    const missingPurchaseClause = orClauses.find(
+      (clause) => clause.purchase === null,
     );
+
+    assert.equal(where.refundedTransactionId, null);
+    assert.equal(where.jobType, JobType.PAID);
+    assert.equal(
+      orClauses.some(
+        (clause) =>
+          clause.purchase &&
+          "onChainStatus" in clause.purchase &&
+          clause.purchase.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN,
+      ),
+      true,
+    );
+    assert.equal(
+      orClauses.some(
+        (clause) =>
+          clause.purchase &&
+          "onChainStatus" in clause.purchase &&
+          clause.purchase.onChainStatus ===
+            OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
+      ),
+      true,
+    );
+    assert.equal(missingPurchaseClause?.purchase, null);
+    assert.equal(missingPurchaseClause?.payByTime?.not, null);
+    assert.ok(missingPurchaseClause?.payByTime?.lt instanceof Date);
   });
 });
 

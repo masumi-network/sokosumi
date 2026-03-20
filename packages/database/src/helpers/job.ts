@@ -21,6 +21,14 @@ import {
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 
+function hasPaymentWindowExpired(
+  job: Pick<Job, "createdAt" | "payByTime">,
+  now: Date,
+): boolean {
+  const paymentDeadline = job.payByTime ?? job.createdAt;
+  return paymentDeadline.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP;
+}
+
 /**
  * Returns the latest (most recent) job event from a job's events array.
  *
@@ -43,7 +51,7 @@ function checkPaymentStatus(
 ): SokosumiJobStatus | null {
   const purchase = job.purchase;
   if (!purchase) {
-    if (job.createdAt.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP) {
+    if (hasPaymentWindowExpired(job, now)) {
       return SokosumiJobStatus.PAYMENT_FAILED;
     } else {
       return SokosumiJobStatus.PAYMENT_PENDING;
@@ -252,10 +260,7 @@ function computePaidJobStatus(
   switch (job.purchase?.onChainStatus) {
     case null:
     case undefined:
-      if (
-        job.payByTime &&
-        job.payByTime.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP
-      ) {
+      if (hasPaymentWindowExpired(job, now)) {
         return SokosumiJobStatus.FAILED;
       }
       return SokosumiJobStatus.PAYMENT_PENDING;
