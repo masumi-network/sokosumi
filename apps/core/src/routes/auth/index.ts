@@ -6,10 +6,10 @@ import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin";
 import { auth } from "@/lib/auth.js";
 
 const app = new Hono();
-const tokenCors = cors({
+const oauthCors = cors({
   origin: "*",
   allowHeaders: ["Content-Type", "Authorization"],
-  allowMethods: ["POST", "OPTIONS"],
+  allowMethods: ["POST", "GET", "OPTIONS"],
   exposeHeaders: ["Content-Length"],
   maxAge: TIME.CORS_MAX_AGE,
   credentials: false,
@@ -23,10 +23,10 @@ const strictAuthCors = cors({
   credentials: true,
 });
 
-// All remaining auth routes stay first-party only.
+// OAuth2 endpoints can be used by non-first-party clients.
 app.use("*", async (c, next) => {
-  if (c.req.path === "/oauth2/token") {
-    return await tokenCors(c, next);
+  if (c.req.path.startsWith("/auth/oauth2/")) {
+    return await oauthCors(c, next);
   } else {
     return await strictAuthCors(c, next);
   }

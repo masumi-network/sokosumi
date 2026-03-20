@@ -10,10 +10,10 @@ vi.mock("@/lib/auth.js", () => ({
 }));
 
 describe("auth route CORS", () => {
-  it("allows cross-origin token exchanges for public OAuth clients", async () => {
+  it("allows cross-origin oauth2 endpoint preflights", async () => {
     const { default: app } = await import("./index.js");
 
-    const response = await app.request("http://localhost/oauth2/token", {
+    const response = await app.request("http://localhost/auth/oauth2/token", {
       method: "OPTIONS",
       headers: {
         Origin: "https://consumer.example.com",
@@ -25,10 +25,28 @@ describe("auth route CORS", () => {
     expect(response.headers.get("access-control-allow-credentials")).toBeNull();
   });
 
-  it("keeps non-token auth routes first-party only", async () => {
+  it("allows other oauth2 routes cross-origin as well", async () => {
     const { default: app } = await import("./index.js");
 
-    const response = await app.request("http://localhost/session", {
+    const response = await app.request(
+      "http://localhost/auth/oauth2/introspect",
+      {
+        method: "OPTIONS",
+        headers: {
+          Origin: "https://consumer.example.com",
+          "Access-Control-Request-Method": "POST",
+        },
+      },
+    );
+
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    expect(response.headers.get("access-control-allow-credentials")).toBeNull();
+  });
+
+  it("keeps non-oauth auth routes first-party only", async () => {
+    const { default: app } = await import("./index.js");
+
+    const response = await app.request("http://localhost/auth/session", {
       method: "OPTIONS",
       headers: {
         Origin: "https://consumer.example.com",
@@ -42,7 +60,7 @@ describe("auth route CORS", () => {
   it("still allows first-party auth routes", async () => {
     const { default: app } = await import("./index.js");
 
-    const response = await app.request("http://localhost/session", {
+    const response = await app.request("http://localhost/auth/session", {
       method: "OPTIONS",
       headers: {
         Origin: "https://app.sokosumi.com",
