@@ -4,6 +4,7 @@ const adminPluginMock = vi.fn();
 const apiKeyPluginMock = vi.fn();
 const betterAuthMock = vi.fn();
 const createAuthMiddlewareMock = vi.fn((callback) => callback);
+const getBetterAuthProductionUrlMock = vi.fn();
 const getEnvPublicConfigMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
 const getInfraAuthPluginsMock = vi.fn();
@@ -131,6 +132,10 @@ vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => getEnvPublicConfigMock(),
 }));
 
+vi.mock("@/config/better-auth-production-url", () => ({
+  getBetterAuthProductionUrl: () => getBetterAuthProductionUrlMock(),
+}));
+
 vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
@@ -225,6 +230,7 @@ describe("web auth config", () => {
       VERCEL_BRANCH_URL: "",
       VERCEL_URL: "",
     });
+    getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
     getInfraAuthPluginsMock.mockReturnValue([]);
     i18nPluginMock.mockReturnValue("i18n-plugin");
     jwtPluginMock.mockReturnValue("jwt-plugin");
@@ -259,6 +265,18 @@ describe("web auth config", () => {
       subject: "Sokosumi - E-Mail-Adresse bestätigen",
     });
     stripePluginMock.mockReturnValue("stripe-plugin");
+  });
+
+  it("uses the canonical production URL for the OAuth proxy", async () => {
+    getBetterAuthProductionUrlMock.mockReturnValue(
+      "https://canonical.example.com",
+    );
+
+    await import("../auth");
+
+    expect(oAuthProxyPluginMock).toHaveBeenCalledWith({
+      productionURL: "https://canonical.example.com",
+    });
   });
 
   it("prefers the locale cookie over accept-language for magic-link emails", async () => {
