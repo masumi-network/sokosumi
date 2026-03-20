@@ -89,6 +89,13 @@ const envSecretsSchema = z.object({
     )
     .pipe(z.url())
     .optional(),
+  VERCEL_PROJECT_PRODUCTION_URL: z
+    .string()
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
+    .pipe(z.url())
+    .optional(),
   VERCEL_IMAGES_UPLOAD_DIR: z.string().default("images"),
 
   PAYMENT_API_KEY: z.string().min(1),

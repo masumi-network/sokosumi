@@ -63,8 +63,9 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | `VERCEL_ENV` | Optional. `preview` \| `production` \| `development` — set on Vercel |
 | `VERCEL_URL` | Optional. Current deployment hostname/URL on Vercel (often set automatically) |
 | `VERCEL_BRANCH_URL` | Optional. Stable branch URL on Vercel Preview |
+| `VERCEL_PROJECT_PRODUCTION_URL` | Optional. Vercel [system variable](https://vercel.com/docs/projects/environment-variables/system-environment-variables): production hostname for the project |
 
-**Better Auth public base URL:** `getBetterAuthPublicBaseUrl()` (in `src/config/env.ts`) implements the same rules as `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`: when `VERCEL_ENV=preview`, Core prefers `VERCEL_URL`, then `VERCEL_BRANCH_URL`, then `BETTER_AUTH_URL`. Otherwise it uses `BETTER_AUTH_URL`. This keeps issuer/session URLs aligned with the deployed Core host on Preview deployments.
+**Better Auth public base URL:** `getBetterAuthPublicBaseUrl()` (in `src/config/env.ts`) implements the same rules as `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`: when `VERCEL_ENV=preview`, Core prefers `VERCEL_URL`, then `VERCEL_BRANCH_URL`, then `BETTER_AUTH_URL`. When `VERCEL_ENV=production`, Core prefers `VERCEL_PROJECT_PRODUCTION_URL`, then `BETTER_AUTH_URL`. In other cases (including local) it uses `BETTER_AUTH_URL`. This keeps issuer/session URLs aligned with the deployed Core host on Vercel.
 
 **Web app → Core API:** configure the web app’s `CORE_APP_BASE_URL` to point at this service (e.g. `http://localhost:8787` locally).
 

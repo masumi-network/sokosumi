@@ -11,6 +11,7 @@ export function getBetterAuthPublicBaseUrl(): string {
     vercelEnv: env.VERCEL_ENV,
     vercelUrl: env.VERCEL_URL,
     vercelBranchUrl: env.VERCEL_BRANCH_URL,
-    configuredBaseUrl: env.BETTER_AUTH_URL,
+    vercelProductionUrl: env.VERCEL_PROJECT_PRODUCTION_URL,
+    fallbackUrl: env.BETTER_AUTH_URL,
   });
 }

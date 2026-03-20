@@ -4,6 +4,7 @@ const {
   adminPluginMock,
   apiKeyPluginMock,
   betterAuthMock,
+  getBetterAuthProductionUrlMock,
   i18nPluginMock,
   jwtPluginMock,
   oauthProviderPluginMock,
@@ -20,6 +21,7 @@ const {
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
   betterAuthMock: vi.fn(),
+  getBetterAuthProductionUrlMock: vi.fn(),
   i18nPluginMock: vi.fn(),
   jwtPluginMock: vi.fn(),
   oauthProviderPluginMock: vi.fn(),
@@ -93,6 +95,10 @@ vi.mock("@/config/env", () => ({
   getWebAppBaseUrl: () => "https://example.com",
 }));
 
+vi.mock("@/config/better-auth-production-url", () => ({
+  getBetterAuthProductionUrl: () => getBetterAuthProductionUrlMock(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: { __prisma: true },
 }));
@@ -125,6 +131,7 @@ describe("core auth config", () => {
     sentryCaptureExceptionMock.mockReset();
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
+    getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
   });
 
   it("registers the Better Auth admin plugin", async () => {
@@ -150,6 +157,18 @@ describe("core auth config", () => {
     >;
 
     expect(config.sendMagicLink).toEqual(expect.any(Function));
+  });
+
+  it("uses the canonical production URL for the OAuth proxy", async () => {
+    getBetterAuthProductionUrlMock.mockReturnValue(
+      "https://canonical.example.com",
+    );
+
+    await import("./auth");
+
+    expect(oAuthProxyPluginMock).toHaveBeenCalledWith({
+      productionURL: "https://canonical.example.com",
+    });
   });
 
   it("uses English for magic-link emails", async () => {
