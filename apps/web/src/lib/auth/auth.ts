@@ -275,7 +275,8 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
-    "https://*.sokosumi.com", // trust all HTTPS subdomains of sokosumi.com
+    "https://sokosumi.com",
+    "https://*.sokosumi.com",
     ...(secrets.NODE_ENV === "development"
       ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
       : []),

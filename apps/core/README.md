@@ -212,7 +212,7 @@ Additional behavior:
 - Methods and headers are configured per route group (`/auth` vs `/v1`)
 - Preflight responses set `Access-Control-Max-Age` to `TIME.CORS_MAX_AGE` (see `src/config/constants.ts`; browsers may cap effective cache duration)
 
-Better Auth’s `trustedOrigins` in `src/lib/auth.ts` should stay aligned: production trusts `https://*.sokosumi.com`; development adds `http://localhost:*` for local browsers.
+Better Auth’s `trustedOrigins` in Core and the web app should stay aligned with CORS: production trusts `https://sokosumi.com` and `https://*.sokosumi.com` (the wildcard does not match the apex); development adds `http://localhost:*` for local browsers.
 
 ## Authentication
 
