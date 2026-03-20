@@ -31,7 +31,7 @@ export default async function OrganizationInformation({
     <div className="space-y-4">
       <div className="flex items-center gap-8 lg:gap-12">
         <Avatar className="bg-muted size-14 items-center justify-center">
-          <OrganizationLogo organization={organization} size={24} />
+          <OrganizationLogo organization={organization} size={128} />
         </Avatar>
         <div className="flex-1" />
         {isOwnerOrAdmin && (
