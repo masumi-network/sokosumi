@@ -72,7 +72,7 @@ describe("errorHandler", () => {
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
-  it("does not report validation errors to Sentry", async () => {
+  it("reports unhandled validation errors to Sentry", async () => {
     const app = createApp();
     app.get("/", () => {
       z.string().parse(123);
@@ -87,6 +87,6 @@ describe("errorHandler", () => {
     expect(response.status).toBe(422);
     expect(body.error).toBe("UnprocessableEntity");
     expect(body.message).toBe("Invalid input: expected string, received number");
-    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -2,8 +2,6 @@ import * as Sentry from "@sentry/node";
 import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 
-import { isCoworkerAuthContext, isUserAuthContext } from "@/middleware/auth";
-
 import type { AuthVariables } from "./auth.js";
 
 const REDACTED_HEADER_VALUE = "[REDACTED]";
@@ -26,31 +24,6 @@ function redactHeaders(
         : value,
     ]),
   );
-}
-
-function setSentryUser(
-  variables: Partial<AuthVariables>,
-  scope: ReturnType<typeof Sentry.getCurrentScope>,
-) {
-  const authContext = variables.authContext;
-  if (!authContext || !variables.isAuthenticated) {
-    return;
-  }
-
-  if (isUserAuthContext(authContext)) {
-    scope.setUser({
-      id: authContext.userId,
-      organizationId: authContext.organizationId || undefined,
-    });
-    return;
-  }
-
-  if (isCoworkerAuthContext(authContext)) {
-    scope.setUser({
-      id: `coworker:${authContext.coworkerId}`,
-      coworkerId: authContext.coworkerId,
-    });
-  }
 }
 
 export function sentryMiddleware(): MiddlewareHandler<{
@@ -81,15 +54,12 @@ export function sentryMiddleware(): MiddlewareHandler<{
 
         try {
           await next();
-          setSentryUser(c.var, scope);
 
           const span = Sentry.getActiveSpan();
           if (span) {
             span.setAttribute("http.status_code", c.res.status);
           }
         } catch (error) {
-          setSentryUser(c.var, scope);
-
           const span = Sentry.getActiveSpan();
           if (span) {
             span.setAttribute("http.status_code", 500);
