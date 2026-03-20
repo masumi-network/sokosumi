@@ -6,7 +6,7 @@ Core API service for Sokosumi, built with Hono and Node.js.
 
 ### Prerequisites
 
-- Node.js >= 22.16.0 < 23.0.0
+- Node.js 24.x (see `engines` in `package.json`)
 - pnpm (workspace package manager)
 
 ### Installation
@@ -38,26 +38,44 @@ pnpm --filter core start
 
 ## Environment Configuration
 
-The core service uses environment variables for configuration. Create a `.env` file in `apps/core/` with the following variables:
+Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps/core/.env.example` to `.env` and fill in values.
 
-### Required
+### Required (typical local setup)
 
-```bash
-# Server Configuration
-PORT=8787                           # Server port (default: 8787)
+| Variable | Purpose |
+| -------- | ------- |
+| `DATABASE_URL` | Postgres connection string |
+| `BETTER_AUTH_SECRET` | Shared secret with the web app’s Better Auth config |
+| `BETTER_AUTH_URL` | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview |
+| `POSTMARK_SERVER_ID`, `POSTMARK_FROM_EMAIL` | Transactional email |
+| `PAYMENT_API_URL`, `PAYMENT_API_KEY` | Masumi payment API |
+| `REGISTRY_API_URL`, `REGISTRY_API_KEY` | Masumi registry API |
+| `STRIPE_SECRET_KEY` | Stripe server secret |
+| `ABLY_PUBLISH_ONLY_KEY` | Ably publish key |
 
-# Better Auth Configuration
-BETTER_AUTH_SECRET=                 # Better Auth secret key
-BETTER_AUTH_URL=                    # Better Auth base URL
-```
+`PORT` defaults to `8787`. See `.env.example` and `env.ts` for the full list (webhooks, OpenRouter keys, cron, blob storage, etc.).
+
+### URLs: web app, Core, and Vercel Preview
+
+| Variable | Purpose |
+| -------- | ------- |
+| `WEB_APP_BASE_URL` | Defaults to `http://localhost:3000`. Used by `getWebAppBaseUrl()` (with Vercel [related projects](https://vercel.com/docs/monorepos#related-projects) when deployed) so Core knows the browser origin for the web app |
+| `VERCEL_ENV` | Optional. `preview` \| `production` \| `development` — set on Vercel |
+| `VERCEL_URL` | Optional. Current deployment hostname/URL on Vercel (often set automatically) |
+| `VERCEL_BRANCH_URL` | Optional. Stable branch URL on Vercel Preview |
+
+**Better Auth public base URL:** `getBetterAuthPublicBaseUrl()` (in `src/config/env.ts`) implements the same rules as `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`: when `VERCEL_ENV=preview`, Core prefers `VERCEL_URL`, then `VERCEL_BRANCH_URL`, then `BETTER_AUTH_URL`. Otherwise it uses `BETTER_AUTH_URL`. This keeps issuer/session URLs aligned with the deployed Core host on Preview deployments.
+
+**Web app → Core API:** configure the web app’s `CORE_APP_BASE_URL` to point at this service (e.g. `http://localhost:8787` locally).
 
 ### Optional
 
 ```bash
-# Sentry Configuration (Error Tracking & Performance Monitoring)
-SENTRY_DSN=                         # Sentry project DSN
+# Sentry
+SENTRY_DSN=
+SENTRY_ENVIRONMENT=   # development | staging | production
 
-# Maintenance mode (blocks every route with HTTP 503 when true)
+# Maintenance (HTTP 503 on all routes; read at startup)
 MAINTENANCE_MODE=false
 ```
 
@@ -179,11 +197,22 @@ See [AGENTS.md](./AGENTS.md) for detailed development guidelines.
 
 ## CORS Configuration
 
-The API supports requests from any origin while maintaining authentication:
+Browser `Origin` headers are allowed only when `resolveCorsAllowOrigin()` in `src/config/cors-allow-origin.ts` returns that origin (otherwise `Access-Control-Allow-Origin` is omitted):
 
-- Dynamic origin support for universal access
+| Environment | Allowed origins |
+| ------------- | ---------------- |
+| Production / staging (`NODE_ENV` not `development`) | `https:` only, host `sokosumi.com` or `*.sokosumi.com` |
+| Local development (`NODE_ENV=development`) | Same as above, plus `http:` / `https:` with host `localhost` (any port) |
+
+Wildcard preview hosts such as `*.vercel.app` are **not** allowlisted for CORS. Use a `*.sokosumi.com` deployment or local dev.
+
+Additional behavior:
+
 - Credentials enabled for session cookies and Bearer tokens
-- All standard HTTP methods supported
+- Methods and headers are configured per route group (`/auth` vs `/v1`)
+- Preflight responses set `Access-Control-Max-Age` to `TIME.CORS_MAX_AGE` (see `src/config/constants.ts`; browsers may cap effective cache duration)
+
+Better Auth’s `trustedOrigins` in Core and the web app should stay aligned with CORS: production trusts `https://sokosumi.com` and `https://*.sokosumi.com` (the wildcard does not match the apex); development adds `http://localhost:*` for local browsers.
 
 ## Authentication
 
@@ -215,10 +244,11 @@ All other endpoints require authentication.
 
 ### Authentication Issues
 
-1. Verify `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` are set
-2. Verify coworker callers use dedicated `coworker_*` API keys
-3. Check that Bearer token or session cookie is valid
-4. Review auth middleware logs
+1. Verify `BETTER_AUTH_SECRET` matches the web app and `BETTER_AUTH_URL` reflects the **Core** public URL (on Vercel Preview, confirm `VERCEL_ENV` / `VERCEL_URL` / `VERCEL_BRANCH_URL` so `getBetterAuthPublicBaseUrl()` matches the deployment)
+2. Verify the web app’s `CORE_APP_BASE_URL` points at this Core deployment
+3. For browser calls from the web app, confirm the page origin is allowlisted for CORS and Better Auth `trustedOrigins` (see **CORS Configuration** above)
+4. Verify coworker callers use dedicated `coworker_*` API keys where applicable
+5. Check that Bearer token or session cookie is valid; review auth middleware logs
 
 ### Build Errors
 

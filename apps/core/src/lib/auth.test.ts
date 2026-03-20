@@ -7,6 +7,7 @@ const {
   i18nPluginMock,
   jwtPluginMock,
   oauthProviderPluginMock,
+  oAuthProxyPluginMock,
   openAPIPluginMock,
   organizationPluginMock,
   magicLinkPluginMock,
@@ -22,6 +23,7 @@ const {
   i18nPluginMock: vi.fn(),
   jwtPluginMock: vi.fn(),
   oauthProviderPluginMock: vi.fn(),
+  oAuthProxyPluginMock: vi.fn(),
   openAPIPluginMock: vi.fn(),
   organizationPluginMock: vi.fn(),
   magicLinkPluginMock: vi.fn(),
@@ -44,6 +46,7 @@ vi.mock("better-auth/plugins", () => ({
   admin: (...args: unknown[]) => adminPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   magicLink: (...args: unknown[]) => magicLinkPluginMock(...args),
+  oAuthProxy: (...args: unknown[]) => oAuthProxyPluginMock(...args),
   openAPI: (...args: unknown[]) => openAPIPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
 }));
@@ -82,10 +85,11 @@ vi.mock("@/config/env", () => ({
     BETTER_AUTH_SECRET: "test-secret",
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
     POSTMARK_SERVER_ID: "postmark-server-id",
-    BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
+    WEB_APP_BASE_URL: "https://example.com",
     BETTER_AUTH_URL: "https://example.com/auth",
     STRIPE_SECRET_KEY: "sk_test_123",
   }),
+  getBetterAuthPublicBaseUrl: () => "https://example.com/auth",
   getWebAppBaseUrl: () => "https://example.com",
 }));
 
@@ -108,6 +112,7 @@ describe("core auth config", () => {
     i18nPluginMock.mockReturnValue("i18n-plugin");
     jwtPluginMock.mockReturnValue("jwt-plugin");
     magicLinkPluginMock.mockReturnValue("magic-link-plugin");
+    oAuthProxyPluginMock.mockReturnValue("oauth-proxy-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     openAPIPluginMock.mockReturnValue("openapi-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
