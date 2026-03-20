@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createMarkdownFromOpenApiMock,
+  getBetterAuthPublicBaseUrlMock,
   getEnvMock,
   getOpenAPI31DocumentMock,
   initSentryMock,
@@ -10,6 +11,7 @@ const {
   validateEnvMock,
 } = vi.hoisted(() => ({
   createMarkdownFromOpenApiMock: vi.fn(),
+  getBetterAuthPublicBaseUrlMock: vi.fn(),
   getEnvMock: vi.fn(),
   getOpenAPI31DocumentMock: vi.fn(),
   initSentryMock: vi.fn(),
@@ -32,6 +34,7 @@ vi.mock("@scalar/openapi-to-markdown", () => ({
 }));
 
 vi.mock("@/config/env", () => ({
+  getBetterAuthPublicBaseUrl: getBetterAuthPublicBaseUrlMock,
   getEnv: getEnvMock,
   validateEnv: validateEnvMock,
 }));
@@ -99,6 +102,7 @@ describe("core index", () => {
       NODE_ENV: "development",
       PORT: 8787,
     });
+    getBetterAuthPublicBaseUrlMock.mockReturnValue("http://localhost:8787");
     validateEnvMock.mockReturnValue({
       NODE_ENV: "development",
       PORT: 8787,
