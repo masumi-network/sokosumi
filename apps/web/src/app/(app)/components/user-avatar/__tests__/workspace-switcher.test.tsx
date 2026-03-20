@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -10,11 +10,11 @@ import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 import { toast } from "sonner";
 
-const replaceMock = jest.fn();
-const refreshMock = jest.fn();
+const replaceMock = vi.fn();
+const refreshMock = vi.fn();
 let pathnameMock = "/";
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   usePathname: () => pathnameMock,
   useRouter: () => ({
     replace: replaceMock,
@@ -22,21 +22,21 @@ jest.mock("next/navigation", () => ({
   }),
 }));
 
-jest.mock("@/lib/auth/auth.client", () => ({
+vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     organization: {
-      setActive: jest.fn(),
+      setActive: vi.fn(),
     },
   },
 }));
 
-jest.mock("@/lib/actions/organization", () => ({
-  updatePreferredOrganization: jest.fn(),
+vi.mock("@/lib/actions/organization", () => ({
+  updatePreferredOrganization: vi.fn(),
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
-    success: jest.fn(),
+    success: vi.fn(),
   },
 }));
 
@@ -55,9 +55,9 @@ describe("workspace switcher", () => {
     pathnameMock = "/";
     replaceMock.mockClear();
     refreshMock.mockClear();
-    jest.mocked(authClient.organization.setActive).mockReset();
-    jest.mocked(updatePreferredOrganization).mockReset();
-    jest.mocked(toast.success).mockReset();
+    vi.mocked(authClient.organization.setActive).mockReset();
+    vi.mocked(updatePreferredOrganization).mockReset();
+    vi.mocked(toast.success).mockReset();
   });
 
   describe("getAgentJobsBasePath", () => {
@@ -74,11 +74,11 @@ describe("workspace switcher", () => {
 
   it("replaces to the jobs base path when current route is inside agent jobs", async () => {
     pathnameMock = "/agents/agent-1/jobs/job-9";
-    jest.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
       error: null,
     });
-    jest.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
       data: {
         organizationId: "org-1",
@@ -104,11 +104,11 @@ describe("workspace switcher", () => {
 
   it("refreshes the current route when outside agent jobs routes", async () => {
     pathnameMock = "/tasks";
-    jest.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
       error: null,
     });
-    jest.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
       data: {
         organizationId: "org-1",
@@ -134,11 +134,11 @@ describe("workspace switcher", () => {
 
   it("supports disabling job route replacement and shows success toast", async () => {
     pathnameMock = "/agents/agent-1/jobs/job-9";
-    jest.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
       error: null,
     });
-    jest.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
       data: {
         organizationId: "org-1",
@@ -185,18 +185,18 @@ describe("workspace switcher", () => {
 
   it("keeps the current switch when persisting the preferred organization fails", async () => {
     pathnameMock = "/tasks";
-    jest.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
       error: null,
     });
-    jest.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: false,
       error: {
         code: "UNAUTHORIZED",
       },
     });
 
-    const consoleErrorSpy = jest
+    const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
 

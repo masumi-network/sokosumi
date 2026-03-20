@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 import { TaskStatus } from "@sokosumi/database";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -6,28 +6,28 @@ import userEvent from "@testing-library/user-event";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: jest.fn(),
-    refresh: jest.fn(),
+    push: vi.fn(),
+    refresh: vi.fn(),
   }),
 }));
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTranslations: () => (key: string) => key,
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
-    success: jest.fn(),
-    error: jest.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/actions/task/action", () => ({
-  setTaskStatusFromDrag: jest.fn(),
-  deleteTask: jest.fn(),
+vi.mock("@/lib/actions/task/action", () => ({
+  setTaskStatusFromDrag: vi.fn(),
+  deleteTask: vi.fn(),
 }));
 
 function createDeferred<T>() {
@@ -55,7 +55,7 @@ describe("TaskDetailActions", () => {
   it("shows loading state only on the clicked status action", async () => {
     const user = userEvent.setup();
     const deferred = createDeferred<{ taskId: string }>();
-    const setTaskStatusFromDragMock = jest.mocked(setTaskStatusFromDrag);
+    const setTaskStatusFromDragMock = vi.mocked(setTaskStatusFromDrag);
     setTaskStatusFromDragMock.mockReturnValueOnce(deferred.promise);
 
     render(

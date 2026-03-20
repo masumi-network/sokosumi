@@ -1,30 +1,30 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import React from "react";
 
 import Markdown from "@/components/markdown";
 
-jest.mock("rehype-raw", () => ({
+vi.mock("rehype-raw", () => ({
   __esModule: true,
   default: () => null,
 }));
 
-jest.mock("rehype-highlight", () => ({
+vi.mock("rehype-highlight", () => ({
   __esModule: true,
   default: () => null,
 }));
 
-jest.mock("remark-gfm", () => ({
+vi.mock("remark-gfm", () => ({
   __esModule: true,
   default: () => null,
 }));
 
-jest.mock("remark-breaks", () => ({
+vi.mock("remark-breaks", () => ({
   __esModule: true,
   default: () => null,
 }));
 
-jest.mock("react-markdown", () => ({
+vi.mock("react-markdown", () => ({
   __esModule: true,
   default: ({
     components,

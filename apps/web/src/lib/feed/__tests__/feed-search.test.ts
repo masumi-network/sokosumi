@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { feedItemMatchesQuery } from "@/lib/feed/feed-search";
 
 describe("Feed search functionality", () => {

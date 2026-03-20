@@ -1,11 +1,11 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 
 import { render, screen } from "@testing-library/react";
 
 import UserCredits from "@/app/components/user-credits";
 import type { Session } from "@/lib/auth/auth";
 
-jest.mock("next-intl/server", () => ({
+vi.mock("next-intl/server", () => ({
   getTranslations: (namespace: string) =>
     Promise.resolve((key: string, values?: Record<string, string | number>) => {
       if (namespace === "App.Header.Credit") {
@@ -34,14 +34,14 @@ jest.mock("next-intl/server", () => ({
     }),
 }));
 
-jest.mock("../buy-credits-button", () => ({
+vi.mock("../buy-credits-button", () => ({
   __esModule: true,
   default: ({ label, path }: { label?: string; path?: string }) => (
     <div data-testid="buy-credits-button" data-label={label} data-path={path} />
   ),
 }));
 
-jest.mock("../user-avatar", () => ({
+vi.mock("../user-avatar", () => ({
   __esModule: true,
   default: ({
     creditsLabel,

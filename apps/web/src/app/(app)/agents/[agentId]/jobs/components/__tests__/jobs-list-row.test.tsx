@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import {
   JobType,
@@ -9,33 +9,33 @@ import { type ReactNode } from "react";
 
 import { JobRow } from "@/app/agents/[agentId]/jobs/components/jobs-list";
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTranslations: () => (_key: string) => "",
 }));
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useParams: () => ({}),
   useRouter: () => ({
-    push: jest.fn(),
+    push: vi.fn(),
   }),
 }));
 
-jest.mock("ably/react", () => ({
+vi.mock("ably/react", () => ({
   ChannelProvider: ({ children }: { children: ReactNode }) => children,
-  useChannel: jest.fn(),
+  useChannel: vi.fn(),
 }));
 
-jest.mock("@/contexts/alby-provider.dynamic", () => ({
+vi.mock("@/contexts/alby-provider.dynamic", () => ({
   __esModule: true,
   default: ({ children }: { children: ReactNode }) => children,
 }));
 
-jest.mock("../jobs-search", () => ({
+vi.mock("../jobs-search", () => ({
   JobsSearch: () => null,
 }));
 
-jest.mock("../jobs-list.utils", () => ({
+vi.mock("../jobs-list.utils", () => ({
   buildJobDayGroups: () => [],
 }));
 
@@ -115,7 +115,7 @@ describe("JobRow", () => {
         job={job}
         userId="current-user"
         selected={false}
-        onClick={jest.fn()}
+        onClick={vi.fn()}
         sharedByLabel="Shared by"
       />,
     );
@@ -134,7 +134,7 @@ describe("JobRow", () => {
         job={job}
         userId="current-user"
         selected={false}
-        onClick={jest.fn()}
+        onClick={vi.fn()}
         sharedByLabel="Shared by"
       />,
     );

@@ -1,7 +1,8 @@
+import { describe, expect, it, vi } from "vitest";
 import { type Session } from "@/lib/auth/auth";
 import { getJobQueryOptions } from "@/queries/jobs";
 
-jest.mock("superjson", () => ({
+vi.mock("superjson", () => ({
   __esModule: true,
   default: {
     parse: (value: unknown) => value,
@@ -11,7 +12,7 @@ jest.mock("superjson", () => ({
 
 describe("getJobQueryOptions", () => {
   it("fetches internal jobs route with credentials included", async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
       statusText: "Internal Server Error",

@@ -1,29 +1,30 @@
-jest.mock("server-only", () => ({}));
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 export {};
 
-const getMyMemberInOrganizationMock = jest.fn();
-const createStripeCheckoutSessionMock = jest.fn();
-const getCouponMock = jest.fn();
-const claimCouponMock = jest.fn();
-const getCreditTopUpPriceByCreditsMock = jest.fn();
-const getBaseCreditTopUpPriceMock = jest.fn();
-const resolveZeroMarginTopUpLookupKeyMock = jest.fn();
+const getMyMemberInOrganizationMock = vi.fn();
+const createStripeCheckoutSessionMock = vi.fn();
+const getCouponMock = vi.fn();
+const claimCouponMock = vi.fn();
+const getCreditTopUpPriceByCreditsMock = vi.fn();
+const getBaseCreditTopUpPriceMock = vi.fn();
+const resolveZeroMarginTopUpLookupKeyMock = vi.fn();
 
-jest.mock("@/middleware/auth-middleware", () => ({
+vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
     (handler: (params: unknown) => Promise<unknown>) =>
     async (params: unknown) =>
       await handler(params),
 }));
 
-jest.mock("@/lib/services", () => ({
+vi.mock("@/lib/services", () => ({
   userService: {
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
   },
 }));
 
-jest.mock("@/lib/services/stripe.service", () => ({
+vi.mock("@/lib/services/stripe.service", () => ({
   stripeService: {
     createStripeCheckoutSession: (...args: unknown[]) =>
       createStripeCheckoutSessionMock(...args),
@@ -32,7 +33,7 @@ jest.mock("@/lib/services/stripe.service", () => ({
   },
 }));
 
-jest.mock("@/lib/clients/stripe.client", () => ({
+vi.mock("@/lib/clients/stripe.client", () => ({
   stripeClient: {
     getCreditTopUpPriceByCredits: (...args: unknown[]) =>
       getCreditTopUpPriceByCreditsMock(...args),
@@ -41,7 +42,7 @@ jest.mock("@/lib/clients/stripe.client", () => ({
   },
 }));
 
-jest.mock("@/lib/flags/zero-margin-top-up", () => ({
+vi.mock("@/lib/flags/zero-margin-top-up", () => ({
   resolveZeroMarginTopUpLookupKey: (...args: unknown[]) =>
     resolveZeroMarginTopUpLookupKeyMock(...args),
 }));
@@ -58,7 +59,7 @@ describe("credits actions", () => {
   } as never;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     resolveZeroMarginTopUpLookupKeyMock.mockReturnValue(undefined);
   });
 

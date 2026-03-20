@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from "vitest";
 import {
   buildOAuthConsentReturnUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
@@ -137,9 +138,9 @@ describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
 
 describe("waitForAuthSession", () => {
   it("returns early when session is available after initial wait", async () => {
-    const waitForMs = jest.fn(async () => undefined);
-    const getSession = jest.fn().mockResolvedValue({ userId: "user_1" });
-    const logWarning = jest.fn();
+    const waitForMs = vi.fn(async () => undefined);
+    const getSession = vi.fn().mockResolvedValue({ userId: "user_1" });
+    const logWarning = vi.fn();
 
     await waitForAuthSession({
       context: "login",
@@ -157,12 +158,12 @@ describe("waitForAuthSession", () => {
   });
 
   it("retries once and logs waiting warning when first session check fails", async () => {
-    const waitForMs = jest.fn(async () => undefined);
-    const getSession = jest
+    const waitForMs = vi.fn(async () => undefined);
+    const getSession = vi
       .fn()
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ userId: "user_1" });
-    const logWarning = jest.fn();
+    const logWarning = vi.fn();
 
     await waitForAuthSession({
       context: "signup",
@@ -184,9 +185,9 @@ describe("waitForAuthSession", () => {
   });
 
   it("logs second warning when session is still unavailable after retry", async () => {
-    const waitForMs = jest.fn(async () => undefined);
-    const getSession = jest.fn().mockResolvedValue(null);
-    const logWarning = jest.fn();
+    const waitForMs = vi.fn(async () => undefined);
+    const getSession = vi.fn().mockResolvedValue(null);
+    const logWarning = vi.fn();
 
     await waitForAuthSession({
       context: "login",

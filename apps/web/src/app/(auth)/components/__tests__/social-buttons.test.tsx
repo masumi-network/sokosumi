@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   act,
   fireEvent,
@@ -13,36 +13,36 @@ import SocialButtons from "../social-buttons";
 const {
   buildOAuthConsentReturnUrlFromSearchParams:
     actualBuildOAuthConsentReturnUrlFromSearchParams,
-} = jest.requireActual(
+} = await vi.importActual<typeof import("@/lib/utils/auth-redirect")>(
   "@/lib/utils/auth-redirect",
-) as typeof import("@/lib/utils/auth-redirect");
+);
 
-const mockSocialSignIn = jest.fn();
-const mockPasskeySignIn = jest.fn();
-const mockRequestMagicLinkSignIn = jest.fn();
-const mockToastError = jest.fn();
-const mockRouterReplace = jest.fn();
-const mockGetSession = jest.fn();
-const mockIsConditionalMediationAvailable = jest.fn();
+const mockSocialSignIn = vi.fn();
+const mockPasskeySignIn = vi.fn();
+const mockRequestMagicLinkSignIn = vi.fn();
+const mockToastError = vi.fn();
+const mockRouterReplace = vi.fn();
+const mockGetSession = vi.fn();
+const mockIsConditionalMediationAvailable = vi.fn();
 
 interface MockWaitForAuthSessionOptions {
   getSession: () => Promise<null | { id: string }>;
 }
 
-const mockWaitForAuthSession = jest.fn(
+const mockWaitForAuthSession = vi.fn(
   async (_options: MockWaitForAuthSessionOptions) => undefined,
 );
 
 let mockSearchParams = new URLSearchParams();
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockRouterReplace,
   }),
   useSearchParams: () => mockSearchParams as unknown as URLSearchParams,
 }));
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => {
     const translator = (
       key: string,
@@ -74,17 +74,17 @@ jest.mock("next-intl", () => ({
   },
 }));
 
-jest.mock("@vercel/analytics", () => ({
-  track: jest.fn(),
+vi.mock("@vercel/analytics", () => ({
+  track: vi.fn(),
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
     error: (...args: unknown[]) => mockToastError(...args),
   },
 }));
 
-jest.mock("@/lib/auth/auth.client", () => ({
+vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     getSession: (...args: unknown[]) => mockGetSession(...args),
     signIn: {
@@ -94,15 +94,15 @@ jest.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
-jest.mock("@/lib/actions/auth", () => ({
+vi.mock("@/lib/actions/auth", () => ({
   requestMagicLinkSignIn: (...args: unknown[]) =>
     mockRequestMagicLinkSignIn(...args),
 }));
 
-jest.mock("@/lib/utils/auth-redirect", () => {
-  const actual = jest.requireActual(
+vi.mock("@/lib/utils/auth-redirect", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/utils/auth-redirect")>(
     "@/lib/utils/auth-redirect",
-  ) as typeof import("@/lib/utils/auth-redirect");
+  );
 
   return {
     ...actual,
@@ -140,7 +140,7 @@ function createDeferred<T>() {
   };
 }
 
-jest.mock("react-social-login-buttons", () => ({
+vi.mock("react-social-login-buttons", () => ({
   GoogleLoginButton: MockSocialButton,
   MicrosoftLoginButton: MockSocialButton,
 }));

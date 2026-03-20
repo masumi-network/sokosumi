@@ -1,27 +1,28 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
-const getEnvPublicConfigMock = jest.fn();
-const getEnvSecretsMock = jest.fn();
-const withRelatedProjectMock = jest.fn();
+const getEnvPublicConfigMock = vi.fn();
+const getEnvSecretsMock = vi.fn();
+const withRelatedProjectMock = vi.fn();
 
-jest.mock("@/config/env.public", () => ({
+vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => getEnvPublicConfigMock(),
 }));
 
-jest.mock("@/config/env.secrets", () => ({
+vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-jest.mock("@vercel/related-projects", () => ({
+vi.mock("@vercel/related-projects", () => ({
   withRelatedProject: (...args: unknown[]) => withRelatedProjectMock(...args),
 }));
 
 describe("getCoreApiBaseUrl", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
+    vi.clearAllMocks();
+    vi.resetModules();
 
     getEnvPublicConfigMock.mockReturnValue({
       NEXT_PUBLIC_NETWORK: "Mainnet",

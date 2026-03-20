@@ -56,7 +56,7 @@ const eslintConfig = defineConfig([
     "public/js/**/*.js",
     "*.config.mjs",
     "*.config.js",
-    "jest.setup.js",
+    "vitest.config.ts",
     "**/__tests__/**",
   ]),
 ]);

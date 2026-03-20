@@ -1,9 +1,9 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 
-jest.mock("next/image", () => ({
+vi.mock("next/image", () => ({
   __esModule: true,
   default: (props: {
     src: string;
@@ -16,7 +16,7 @@ jest.mock("next/image", () => ({
   },
 }));
 
-const fetchMock = jest.fn();
+const fetchMock = vi.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
 
 function createHeaders(values: Record<string, string | null>) {

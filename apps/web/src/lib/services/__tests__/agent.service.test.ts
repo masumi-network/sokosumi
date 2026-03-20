@@ -1,6 +1,7 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
 import {
   AgentStatus,
@@ -8,25 +9,25 @@ import {
   PricingType,
 } from "@sokosumi/database";
 
-const getShownAgentsWithRelationsByStatusMock = jest.fn();
-const getCreditCostsMock = jest.fn();
-const getCreditCostByUnitMock = jest.fn();
-const transactionMock = jest.fn();
-const getSessionMock = jest.fn();
+const getShownAgentsWithRelationsByStatusMock = vi.fn();
+const getCreditCostsMock = vi.fn();
+const getCreditCostByUnitMock = vi.fn();
+const transactionMock = vi.fn();
+const getSessionMock = vi.fn();
 
-jest.mock("@sokosumi/database/repositories", () => ({
+vi.mock("@sokosumi/database/repositories", () => ({
   agentListRepository: {
-    upsertAgentListForUserId: jest.fn(),
+    upsertAgentListForUserId: vi.fn(),
   },
   agentRatingRepository: {
-    getAgentRatingStats: jest.fn(),
-    getRatingsByAgentId: jest.fn(),
-    getUserRatingForAgent: jest.fn(),
-    upsertRating: jest.fn(),
+    getAgentRatingStats: vi.fn(),
+    getRatingsByAgentId: vi.fn(),
+    getUserRatingForAgent: vi.fn(),
+    upsertRating: vi.fn(),
   },
   agentRepository: {
-    getHiredAgentsWithLatestJobByUserIdAndOrganization: jest.fn(),
-    getShownAgentWithRelationById: jest.fn(),
+    getHiredAgentsWithLatestJobByUserIdAndOrganization: vi.fn(),
+    getShownAgentWithRelationById: vi.fn(),
     getShownAgentsWithRelationsByStatus: (...args: unknown[]) =>
       getShownAgentsWithRelationsByStatusMock(...args),
   },
@@ -36,16 +37,16 @@ jest.mock("@sokosumi/database/repositories", () => ({
     getCreditCosts: (...args: unknown[]) => getCreditCostsMock(...args),
   },
   jobRepository: {
-    doesUserHaveFinishedJobWithAgent: jest.fn(),
-    getAverageExecutionDurationByAgentId: jest.fn(),
+    doesUserHaveFinishedJobWithAgent: vi.fn(),
+    getAverageExecutionDurationByAgentId: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
-jest.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
     $transaction: (...args: unknown[]) => transactionMock(...args),
@@ -99,7 +100,7 @@ describe("agent.service", () => {
   const txMock = { tx: "mock" };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     transactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
         await callback(txMock),

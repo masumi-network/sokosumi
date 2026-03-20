@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it } from "vitest";
 
 import { mergeReadonlyInputValues } from "@/lib/utils/job-input-transformers";
 

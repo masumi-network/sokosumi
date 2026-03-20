@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { AgentJobStatus, type JobEventWithRelations } from "@sokosumi/database";
 
 import {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+
+import { test } from "vitest";
 
 import { resolveBetterAuthPublicBaseUrl } from "../better-auth-public-url.js";
 

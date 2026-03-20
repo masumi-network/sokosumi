@@ -1,17 +1,18 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
-const headersMock = jest.fn(async () => new Headers());
-const upgradeSubscriptionMock = jest.fn();
-const createBillingPortalMock = jest.fn();
-const updateOrganizationSeatsImmediatelyMock = jest.fn();
+const headersMock = vi.fn(async () => new Headers());
+const upgradeSubscriptionMock = vi.fn();
+const createBillingPortalMock = vi.fn();
+const updateOrganizationSeatsImmediatelyMock = vi.fn();
 
-jest.mock("next/headers", () => ({
+vi.mock("next/headers", () => ({
   headers: headersMock,
 }));
 
-jest.mock("@/lib/auth/auth", () => ({
+vi.mock("@/lib/auth/auth", () => ({
   auth: {
     api: {
       createBillingPortal: createBillingPortalMock,
@@ -20,13 +21,13 @@ jest.mock("@/lib/auth/auth", () => ({
   },
 }));
 
-jest.mock("@/lib/services", () => ({
+vi.mock("@/lib/services", () => ({
   organizationSubscriptionService: {
     updateOrganizationSeatsImmediately: updateOrganizationSeatsImmediatelyMock,
   },
 }));
 
-jest.mock("@/middleware/auth-middleware", () => ({
+vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
     (handler: (params: unknown) => Promise<unknown>) =>
     async (params: unknown) =>
@@ -53,7 +54,7 @@ const organizationSession = {
 
 describe("subscription actions", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("returns BAD_INPUT for invalid plan names", async () => {

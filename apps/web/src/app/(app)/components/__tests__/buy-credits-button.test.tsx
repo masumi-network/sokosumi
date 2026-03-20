@@ -1,20 +1,20 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import BuyCreditsButton from "@/app/components/buy-credits-button";
 
-const pushMock = jest.fn();
-const toggleSidebarMock = jest.fn();
+const pushMock = vi.fn();
+const toggleSidebarMock = vi.fn();
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
   }),
 }));
 
-jest.mock("@/components/ui/sidebar", () => ({
+vi.mock("@/components/ui/sidebar", () => ({
   useSidebar: () => ({
     isMobile: false,
     toggleSidebar: toggleSidebarMock,

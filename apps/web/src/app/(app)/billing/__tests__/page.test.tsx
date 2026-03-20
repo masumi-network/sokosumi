@@ -1,37 +1,43 @@
-jest.mock("server-only", () => ({}));
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 
 import { render } from "@testing-library/react";
 import { MemberRole } from "@sokosumi/database";
 
-const listActiveSubscriptionsMock = jest.fn();
-const getSessionMock = jest.fn();
-const getActiveOrganizationMock = jest.fn();
-const getMyMemberInOrganizationMock = jest.fn();
-const getBalanceMock = jest.fn();
-const getSubscriptionCatalogMock = jest.fn();
-const zeroMarginTopUpEnabledMock = jest.fn();
-const creditsSectionMock = jest.fn();
-const billingTabsMock = jest.fn();
+const listActiveSubscriptionsMock = vi.fn();
+const getSessionMock = vi.fn();
+const getActiveOrganizationMock = vi.fn();
+const getMyMemberInOrganizationMock = vi.fn();
+const getBalanceMock = vi.fn();
+const getSubscriptionCatalogMock = vi.fn();
+const zeroMarginTopUpEnabledMock = vi.fn();
+const creditsSectionMock = vi.fn();
+const billingTabsMock = vi.fn();
 
-jest.mock("next/headers", () => ({
+vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 
-jest.mock("next-intl/server", () => ({
+vi.mock("next-intl/server", () => ({
   getTranslations:
     async () => (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 
-jest.mock("stripe", () => jest.fn().mockImplementation(() => ({})));
+vi.mock("stripe", () => ({
+  __esModule: true,
+  default: vi.fn(function MockStripe() {
+    return {};
+  }),
+}));
 
-jest.mock("@/config/env.secrets", () => ({
+vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     STRIPE_SECRET_KEY: "sk_test_mock",
   }),
 }));
 
-jest.mock("@/lib/auth/auth", () => ({
+vi.mock("@/lib/auth/auth", () => ({
   auth: {
     api: {
       listActiveSubscriptions: (...args: unknown[]) =>
@@ -40,21 +46,21 @@ jest.mock("@/lib/auth/auth", () => ({
   },
 }));
 
-jest.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
-jest.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {},
 }));
 
-jest.mock("@/lib/flags/zero-margin-top-up", () => ({
+vi.mock("@/lib/flags/zero-margin-top-up", () => ({
   zeroMarginTopUpEnabled: (...args: unknown[]) =>
     zeroMarginTopUpEnabledMock(...args),
 }));
 
-jest.mock("@/lib/services", () => ({
+vi.mock("@/lib/services", () => ({
   userService: {
     getActiveOrganization: (...args: unknown[]) =>
       getActiveOrganizationMock(...args),
@@ -63,30 +69,30 @@ jest.mock("@/lib/services", () => ({
   },
 }));
 
-jest.mock("@/lib/stripe/subscription-catalog", () => ({
+vi.mock("@/lib/stripe/subscription-catalog", () => ({
   getSubscriptionCatalog: (...args: unknown[]) =>
     getSubscriptionCatalogMock(...args),
 }));
 
-jest.mock("@/lib/utils/credits", () => ({
+vi.mock("@/lib/utils/credits", () => ({
   formatCreditsForDisplay: (credits: number) => String(credits),
 }));
 
-jest.mock("@sokosumi/database/repositories", () => ({
+vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     getBalance: (...args: unknown[]) => getBalanceMock(...args),
   },
 }));
 
-jest.mock("@/components/billing/balance-section", () => ({
+vi.mock("@/components/billing/balance-section", () => ({
   BalanceSection: () => <div data-testid="balance-section" />,
 }));
 
-jest.mock("@/components/billing/billing-portal-card", () => ({
+vi.mock("@/components/billing/billing-portal-card", () => ({
   BillingPortalCard: () => <div data-testid="billing-portal-card" />,
 }));
 
-jest.mock("@/components/billing/billing-tabs", () => ({
+vi.mock("@/components/billing/billing-tabs", () => ({
   BillingTabs: (props: {
     couponContent: React.ReactNode;
     creditsContent?: React.ReactNode;
@@ -104,12 +110,12 @@ jest.mock("@/components/billing/billing-tabs", () => ({
   },
 }));
 
-jest.mock("@/components/billing/coupon-section", () => ({
+vi.mock("@/components/billing/coupon-section", () => ({
   __esModule: true,
   default: () => <div data-testid="coupon-section" />,
 }));
 
-jest.mock("@/components/billing/credits-section", () => ({
+vi.mock("@/components/billing/credits-section", () => ({
   __esModule: true,
   default: (props: unknown) => {
     creditsSectionMock(props);
@@ -117,13 +123,13 @@ jest.mock("@/components/billing/credits-section", () => ({
   },
 }));
 
-jest.mock("@/components/billing/organization-subscription-section", () => ({
+vi.mock("@/components/billing/organization-subscription-section", () => ({
   OrganizationSubscriptionSection: () => (
     <div data-testid="organization-subscription-section" />
   ),
 }));
 
-jest.mock("@/components/billing/personal-subscription-section", () => ({
+vi.mock("@/components/billing/personal-subscription-section", () => ({
   PersonalSubscriptionSection: () => (
     <div data-testid="personal-subscription-section" />
   ),
@@ -140,7 +146,7 @@ function createSubscriptionCatalog() {
 
 describe("BillingPage", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     getSessionMock.mockResolvedValue({
       user: {

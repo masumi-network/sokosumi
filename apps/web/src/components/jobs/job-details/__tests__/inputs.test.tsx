@@ -1,20 +1,20 @@
-import "@testing-library/jest-dom";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
 import JobDetailsInputs from "@/components/jobs/job-details/inputs";
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-jest.mock("@/components/markdown", () => ({
+vi.mock("@/components/markdown", () => ({
   __esModule: true,
   default: ({ children }: { children: string }) => {
     return <div data-testid="markdown-mock">{children}</div>;
   },
 }));
 
-jest.mock("next/image", () => ({
+vi.mock("next/image", () => ({
   __esModule: true,
   default: (props: {
     src: string;
@@ -27,7 +27,7 @@ jest.mock("next/image", () => ({
   },
 }));
 
-const fetchMock = jest.fn();
+const fetchMock = vi.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
 
 beforeAll(() => {

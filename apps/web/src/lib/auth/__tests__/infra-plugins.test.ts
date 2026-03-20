@@ -1,14 +1,15 @@
-const dashMock = jest.fn(() => "dash-plugin");
-const sentinelMock = jest.fn(() => "sentinel-plugin");
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const dashMock = vi.fn(() => "dash-plugin");
+const sentinelMock = vi.fn(() => "sentinel-plugin");
 
-jest.mock("@better-auth/infra", () => ({
+vi.mock("@better-auth/infra", () => ({
   dash: dashMock,
   sentinel: sentinelMock,
 }));
 
 describe("getInfraAuthPlugins", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("returns no infra plugins when the api key is missing", async () => {

@@ -1,18 +1,19 @@
-const getSessionMock = jest.fn();
-const getAgentInputSchemaMock = jest.fn();
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const getSessionMock = vi.fn();
+const getAgentInputSchemaMock = vi.fn();
 
-jest.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/utils", () => ({
   getSession: () => getSessionMock(),
 }));
 
-jest.mock("@/lib/clients/core.client", () => ({
+vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     getAgentInputSchema: (...args: unknown[]) =>
       getAgentInputSchemaMock(...args),
   },
 }));
 
-jest.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", () => ({
   createApiSuccessResponse: (data: unknown) =>
     Response.json({
       success: true,
@@ -41,7 +42,7 @@ function createNextRequest(url: string): Request & { nextUrl: URL } {
 
 describe("internal agent input schema route", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("returns 401 when the request is unauthenticated", async () => {

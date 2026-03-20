@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+
+import { describe, it } from "vitest";
 
 import type { Prisma } from "../../generated/prisma/client.js";
 import { agentRatingRepository } from "../agentRating.repository.js";
