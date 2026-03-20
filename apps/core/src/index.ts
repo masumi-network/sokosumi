@@ -78,7 +78,28 @@ const content = apiV1.getOpenAPI31Document({
   },
 });
 
-const markdown = await createMarkdownFromOpenApi(JSON.stringify(content));
+let llmsMarkdown: string | null = null;
+let llmsMarkdownPromise: Promise<string> | null = null;
+
+async function getLlmsMarkdown(): Promise<string> {
+  if (llmsMarkdown) {
+    return llmsMarkdown;
+  }
+
+  if (!llmsMarkdownPromise) {
+    llmsMarkdownPromise = createMarkdownFromOpenApi(JSON.stringify(content))
+      .then((markdown) => {
+        llmsMarkdown = markdown;
+        return markdown;
+      })
+      .catch((error) => {
+        llmsMarkdownPromise = null;
+        throw error;
+      });
+  }
+
+  return await llmsMarkdownPromise;
+}
 
 /**
  * Register a route to serve the Markdown for LLMs
@@ -89,7 +110,7 @@ const markdown = await createMarkdownFromOpenApi(JSON.stringify(content));
  * @see https://llmstxt.org/
  */
 app.get("/llms.txt", async (c) => {
-  return c.text(markdown);
+  return c.text(await getLlmsMarkdown());
 });
 
 // Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
