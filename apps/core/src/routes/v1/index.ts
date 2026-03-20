@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 
+import { TIME } from "@/config/constants.js";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
 import { getEnv } from "@/config/env.js";
 
@@ -70,7 +71,7 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization", "X-Organization-Slug"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
-    maxAge: 600,
+    maxAge: TIME.CORS_MAX_AGE,
     credentials: true,
   }),
 );

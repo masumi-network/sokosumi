@@ -179,11 +179,12 @@ See [AGENTS.md](./AGENTS.md) for detailed development guidelines.
 
 ## CORS Configuration
 
-The API supports requests from any origin while maintaining authentication:
+The API allows cross-origin requests only from trusted origins (see `resolveCorsAllowOrigin`):
 
-- Dynamic origin support for universal access
+- Echoed `Access-Control-Allow-Origin` for allowed browser origins
 - Credentials enabled for session cookies and Bearer tokens
-- All standard HTTP methods supported
+- Standard HTTP methods as configured per route group
+- Preflight responses include `Access-Control-Max-Age` (`TIME.CORS_MAX_AGE`, currently one day in seconds; browsers may cap this value)
 
 ## Authentication
 

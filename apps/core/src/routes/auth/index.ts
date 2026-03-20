@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
+import { TIME } from "@/config/constants";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin";
 import { auth } from "@/lib/auth.js";
 
@@ -14,7 +15,7 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["POST", "GET", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
-    maxAge: 600,
+    maxAge: TIME.CORS_MAX_AGE,
     credentials: true,
   }),
 );
