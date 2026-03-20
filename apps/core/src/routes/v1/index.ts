@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 
 import { TIME } from "@/config/constants.js";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
-import { getEnv } from "@/config/env.js";
+import { getBetterAuthPublicBaseUrl } from "@/config/env.js";
 
 import agentsRouter from "./agents/index.js";
 import categoriesRouter from "./categories/index.js";
@@ -45,21 +45,8 @@ app.doc31("/openapi.json", {
   },
   servers: [
     {
-      url: `https://api.sokosumi.com/v1`,
-      description: "Mainnet Server",
+      url: getBetterAuthPublicBaseUrl(),
     },
-    {
-      url: `https://api.preprod.sokosumi.com/v1`,
-      description: "Pre-production Server",
-    },
-    ...(getEnv().NODE_ENV === "development"
-      ? [
-          {
-            url: `http://localhost:8787/v1`,
-            description: "Local Development Server",
-          },
-        ]
-      : []),
   ],
   security: [{ bearerAuth: [] }],
 });
