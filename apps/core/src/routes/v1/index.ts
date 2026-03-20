@@ -3,7 +3,6 @@ import { cors } from "hono/cors";
 
 import { TIME } from "@/config/constants.js";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
-import { getBetterAuthPublicBaseUrl } from "@/config/env.js";
 
 import agentsRouter from "./agents/index.js";
 import categoriesRouter from "./categories/index.js";
@@ -57,7 +56,7 @@ app.doc31("/openapi.json", {
   },
   servers: [
     {
-      url: getBetterAuthPublicBaseUrl(),
+      url: "/v1",
     },
   ],
   security: [{ bearerAuth: [] }],

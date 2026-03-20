@@ -1,18 +1,15 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getBetterAuthPublicBaseUrlMock, getEnvMock } = vi.hoisted(() => ({
-  getBetterAuthPublicBaseUrlMock: vi.fn(),
+const { getEnvMock } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
-  getBetterAuthPublicBaseUrl: getBetterAuthPublicBaseUrlMock,
   getEnv: getEnvMock,
 }));
 
 vi.mock("@/config/env.js", () => ({
-  getBetterAuthPublicBaseUrl: getBetterAuthPublicBaseUrlMock,
   getEnv: getEnvMock,
 }));
 
@@ -34,10 +31,9 @@ describe("v1 router", () => {
     getEnvMock.mockReturnValue({
       NODE_ENV: "production",
     });
-    getBetterAuthPublicBaseUrlMock.mockReturnValue("https://api.example.com");
   });
 
-  it("applies cors headers to openapi responses", async () => {
+  it("serves openapi.json with cors headers and a relative v1 server url", async () => {
     const { default: app } = await import("./index.js");
 
     const response = await app.request("http://localhost/openapi.json", {
@@ -50,5 +46,9 @@ describe("v1 router", () => {
     expect(response.headers.get("access-control-allow-origin")).toBe(
       "https://www.sokosumi.com",
     );
+    const body = (await response.json()) as {
+      servers: Array<{ url: string }>;
+    };
+    expect(body.servers).toEqual([{ url: "/v1" }]);
   });
 });
