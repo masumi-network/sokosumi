@@ -36,6 +36,18 @@ app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {
   },
 });
 
+app.use(
+  "*",
+  cors({
+    origin: (origin) => resolveCorsAllowOrigin(origin),
+    allowHeaders: ["Content-Type", "Authorization", "X-Organization-Slug"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: TIME.CORS_MAX_AGE,
+    credentials: true,
+  }),
+);
+
 app.doc31("/openapi.json", {
   openapi: "3.1.0",
   info: {
@@ -50,18 +62,6 @@ app.doc31("/openapi.json", {
   ],
   security: [{ bearerAuth: [] }],
 });
-
-app.use(
-  "*",
-  cors({
-    origin: (origin) => resolveCorsAllowOrigin(origin),
-    allowHeaders: ["Content-Type", "Authorization", "X-Organization-Slug"],
-    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["Content-Length"],
-    maxAge: TIME.CORS_MAX_AGE,
-    credentials: true,
-  }),
-);
 
 // Mount Routes
 app.route("/agents", agentsRouter);
