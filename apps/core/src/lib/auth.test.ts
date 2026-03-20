@@ -86,6 +86,7 @@ vi.mock("@/config/env", () => ({
     BETTER_AUTH_URL: "https://example.com/auth",
     STRIPE_SECRET_KEY: "sk_test_123",
   }),
+  getBetterAuthPublicBaseUrl: () => "https://example.com/auth",
   getWebAppBaseUrl: () => "https://example.com",
 }));
 

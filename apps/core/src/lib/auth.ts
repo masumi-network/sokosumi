@@ -18,7 +18,11 @@ import {
 import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
-import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import {
+  getBetterAuthPublicBaseUrl,
+  getEnv,
+  getWebAppBaseUrl,
+} from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 const env = getEnv();
@@ -83,7 +87,7 @@ export const auth = betterAuth({
     },
   },
   secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.BETTER_AUTH_URL,
+  baseURL: getBetterAuthPublicBaseUrl(),
   basePath: "/auth",
   rateLimit: {
     storage: "database",
