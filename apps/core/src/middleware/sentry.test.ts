@@ -29,6 +29,8 @@ vi.mock("@sentry/node", () => ({
 function createApp(params: {
   authContext?: AuthenticationContext;
   isAuthenticated?: boolean;
+  nestedAuthContext?: AuthenticationContext;
+  nestedIsAuthenticated?: boolean;
 }) {
   const app = new Hono<{
     Variables: { requestId: string } & Partial<AuthVariables>;
@@ -49,6 +51,17 @@ function createApp(params: {
   });
 
   app.use("*", sentryMiddleware());
+  app.use("*", async (c, next) => {
+    if (params.nestedIsAuthenticated !== undefined) {
+      c.set("isAuthenticated", params.nestedIsAuthenticated);
+    }
+
+    if (params.nestedAuthContext) {
+      c.set("authContext", params.nestedAuthContext);
+    }
+
+    return await next();
+  });
   app.get("/", (c) => c.text("ok"));
 
   return app;
@@ -70,10 +83,10 @@ describe("sentryMiddleware", () => {
     });
   });
 
-  it("maps authenticated user actor to sentry user", async () => {
+  it("maps authenticated user actor to sentry user when auth is set after sentry middleware", async () => {
     const app = createApp({
-      isAuthenticated: true,
-      authContext: {
+      nestedIsAuthenticated: true,
+      nestedAuthContext: {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
@@ -90,10 +103,10 @@ describe("sentryMiddleware", () => {
     });
   });
 
-  it("maps authenticated coworker actor to namespaced sentry user", async () => {
+  it("maps authenticated coworker actor to namespaced sentry user when auth is set after sentry middleware", async () => {
     const app = createApp({
-      isAuthenticated: true,
-      authContext: {
+      nestedIsAuthenticated: true,
+      nestedAuthContext: {
         actor: "coworker",
         coworkerId: "cow_123",
       },
@@ -134,5 +147,31 @@ describe("sentryMiddleware", () => {
 
     expect(response.status).toBe(200);
     expect(setUserMock).not.toHaveBeenCalled();
+  });
+
+  it("redacts sensitive request headers before sending them to sentry", async () => {
+    const app = createApp({});
+
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer secret-token",
+        cookie: "session=top-secret",
+        "x-api-key": "raw-api-key",
+        "x-request-source": "test-suite",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(setContextMock).toHaveBeenCalledWith(
+      "request",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          authorization: "[REDACTED]",
+          cookie: "[REDACTED]",
+          "x-api-key": "[REDACTED]",
+          "x-request-source": "test-suite",
+        }),
+      }),
+    );
   });
 });

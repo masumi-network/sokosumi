@@ -44,19 +44,6 @@ export function errorHandler(
       meta,
     };
 
-    Sentry.captureException(error, {
-      contexts: {
-        validation: {
-          issues: error.issues.map((issue) => ({
-            path: issue.path.join("."),
-            message: issue.message,
-          })),
-        },
-      },
-      level: "fatal",
-      tags: { error_type: "validation" },
-    });
-
     return c.json(errorResponse, status);
   }
 

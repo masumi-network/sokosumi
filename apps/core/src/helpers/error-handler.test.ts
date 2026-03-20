@@ -1,3 +1,4 @@
+import { z } from "@hono/zod-openapi";
 import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -52,4 +53,22 @@ describe("errorHandler", () => {
       expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     },
   );
+
+  it("does not report validation errors to Sentry", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      z.string().parse(123);
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(422);
+    expect(body.error).toBe("UnprocessableEntity");
+    expect(body.message).toBe("Invalid input: expected string, received number");
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
 });

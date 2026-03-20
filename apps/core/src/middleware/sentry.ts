@@ -6,6 +6,53 @@ import { isCoworkerAuthContext, isUserAuthContext } from "@/middleware/auth";
 
 import type { AuthVariables } from "./auth.js";
 
+const REDACTED_HEADER_VALUE = "[REDACTED]";
+const SENSITIVE_HEADER_NAMES = new Set([
+  "authorization",
+  "cookie",
+  "proxy-authorization",
+  "set-cookie",
+  "x-api-key",
+]);
+
+function redactHeaders(
+  headers: IterableIterator<[string, string]>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Array.from(headers, ([key, value]) => [
+      key,
+      SENSITIVE_HEADER_NAMES.has(key.toLowerCase())
+        ? REDACTED_HEADER_VALUE
+        : value,
+    ]),
+  );
+}
+
+function setSentryUser(
+  variables: Partial<AuthVariables>,
+  scope: ReturnType<typeof Sentry.getCurrentScope>,
+) {
+  const authContext = variables.authContext;
+  if (!authContext || !variables.isAuthenticated) {
+    return;
+  }
+
+  if (isUserAuthContext(authContext)) {
+    scope.setUser({
+      id: authContext.userId,
+      organizationId: authContext.organizationId || undefined,
+    });
+    return;
+  }
+
+  if (isCoworkerAuthContext(authContext)) {
+    scope.setUser({
+      id: `coworker:${authContext.coworkerId}`,
+      coworkerId: authContext.coworkerId,
+    });
+  }
+}
+
 export function sentryMiddleware(): MiddlewareHandler<{
   Variables: RequestIdVariables & Partial<AuthVariables>;
 }> {
@@ -22,37 +69,27 @@ export function sentryMiddleware(): MiddlewareHandler<{
         },
       },
       async () => {
-        Sentry.getCurrentScope().setContext("request", {
+        const scope = Sentry.getCurrentScope();
+
+        scope.setContext("request", {
           method: c.req.method,
           url: c.req.url,
           path: c.req.path,
           requestId: c.var.requestId,
-          headers: Object.fromEntries(c.req.raw.headers.entries()),
+          headers: redactHeaders(c.req.raw.headers.entries()),
         });
-
-        const authContext = c.var.authContext;
-        if (authContext && c.var.isAuthenticated) {
-          if (isUserAuthContext(authContext)) {
-            Sentry.getCurrentScope().setUser({
-              id: authContext.userId,
-              organizationId: authContext.organizationId || undefined,
-            });
-          } else if (isCoworkerAuthContext(authContext)) {
-            Sentry.getCurrentScope().setUser({
-              id: `coworker:${authContext.coworkerId}`,
-              coworkerId: authContext.coworkerId,
-            });
-          }
-        }
 
         try {
           await next();
+          setSentryUser(c.var, scope);
 
           const span = Sentry.getActiveSpan();
           if (span) {
             span.setAttribute("http.status_code", c.res.status);
           }
         } catch (error) {
+          setSentryUser(c.var, scope);
+
           const span = Sentry.getActiveSpan();
           if (span) {
             span.setAttribute("http.status_code", 500);
