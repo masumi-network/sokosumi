@@ -1,4 +1,8 @@
 export {
+  resolveBetterAuthPublicBaseUrl,
+  type ResolveBetterAuthPublicBaseUrlParams,
+} from "./better-auth-public-url.js";
+export {
   FILE_EXTENSION_ALLOWLIST,
   getExtensionFromUrl,
   getUrlBasename,
