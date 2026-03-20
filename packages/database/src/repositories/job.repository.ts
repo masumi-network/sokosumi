@@ -2,15 +2,14 @@ import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 
 import {
   AgentJobStatus,
-  CreditBucketReferenceType,
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { mapJobWithStatus } from "../helpers/job.js";
+import { buildJobsNeedingRemoteSyncWhere } from "../helpers/job-sync.js";
 import {
   finalizedAgentJobStatuses,
-  finalizedOnChainJobStatuses,
   jobInclude,
   jobOrderBy,
   type JobWithSokosumiStatus,
@@ -68,16 +67,6 @@ type CreateJobData = CreatePaidJobData | CreateFreeJobData;
  * creating new jobs, updating job status, and handling job lifecycle operations.
  */
 export const jobRepository = {
-  async getJobsNotFinished(
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus[]> {
-    const jobs = await tx.job.findMany({
-      where: jobsNotFinishedWhereQuery(),
-      include: jobInclude,
-    });
-    return jobs.map(mapJobWithStatus);
-  },
-
   /**
    * Retrieves all jobs associated with a specific user
    * @param userId - The unique identifier of the user
@@ -374,71 +363,6 @@ export const jobRepository = {
     }
   },
 
-  async refundJob(jobId: string, tx: Prisma.TransactionClient): Promise<void> {
-    const job = await tx.job.findUnique({
-      where: { id: jobId },
-      select: {
-        refundedTransaction: true,
-        transaction: true,
-      },
-    });
-
-    // If the job has already been refunded, do nothing
-    if (job?.refundedTransaction) {
-      return;
-    }
-
-    const transaction = job?.transaction;
-
-    if (!transaction) {
-      throw new Error("Transaction not found");
-    }
-
-    const amount = transaction.amount * BigInt(-1);
-    await tx.job.update({
-      where: { id: jobId },
-      data: {
-        refundedTransaction: {
-          create: {
-            amount,
-            user: {
-              connect: {
-                id: transaction.userId,
-              },
-            },
-            ...(transaction.organizationId && {
-              organization: {
-                connect: {
-                  id: transaction.organizationId,
-                },
-              },
-            }),
-            sourceCreditBucket: {
-              create: {
-                amount,
-                referenceId: jobId,
-                referenceType: CreditBucketReferenceType.REFUND,
-                user: {
-                  connect: {
-                    id: transaction.userId,
-                  },
-                },
-                expiresAt: null,
-                ...(transaction.organizationId && {
-                  organization: {
-                    connect: {
-                      id: transaction.organizationId,
-                    },
-                  },
-                }),
-              },
-            },
-          } satisfies Prisma.TransactionCreateInput,
-        },
-      },
-    });
-  },
-
   async getNotFinishedLatestJobByAgentIdAndUserId(
     agentId: string,
     userId: string,
@@ -448,7 +372,7 @@ export const jobRepository = {
       where: {
         agentId,
         userId,
-        ...jobsNotFinishedWhereQuery(),
+        ...buildJobsNeedingRemoteSyncWhere(),
       },
       orderBy: { createdAt: "desc" },
       include: jobInclude,
@@ -476,7 +400,7 @@ export const jobRepository = {
         agentId,
         userId,
         organizationId: normalizedOrganizationId,
-        ...jobsNotFinishedWhereQuery(),
+        ...buildJobsNeedingRemoteSyncWhere(),
       },
       orderBy: { createdAt: "desc" },
       include: jobInclude,
@@ -581,87 +505,8 @@ export const jobRepository = {
 };
 
 /**
- * Creates a Prisma where query to filter for jobs that are not finished.
+ * Creates a Prisma where query to filter for jobs that still need sync work.
  *
- * A job is considered "not finished" if it meets any of the following criteria:
- * - Has an on-chain status that is not finalized (not in finalizedOnChainJobStatuses)
- * - Has no on-chain status but has a payByTime that is greater than the cutoff time
- *
- * Jobs are excluded if they meet any of the following criteria:
- * - Have been refunded (refundedTransactionId is not null)
- * - Are non-disputed and have passed their external dispute grace period
- * - Have no on-chain status and no payByTime set
- *
- * @param cutoffTime - The time threshold for filtering jobs (defaults to 10 minutes ago)
- * @returns Prisma where query object for filtering non-finished jobs
- */
-function jobsNotFinishedWhereQuery(
-  cutoffTime: Date = new Date(Date.now() - 1000 * 60 * 10),
-): Prisma.JobWhereInput {
-  return {
-    OR: [
-      // Filter out jobs that are finalized
-      {
-        purchase: {
-          onChainStatus: {
-            notIn: finalizedOnChainJobStatuses,
-          },
-        },
-        jobType: JobType.PAID,
-      },
-      // Filter in jobs that have no on-chain status
-      {
-        purchase: {
-          onChainStatus: null,
-        },
-        jobType: JobType.PAID,
-      },
-      // Filter in free jobs that are not finalized
-      {
-        jobType: JobType.FREE,
-        events: {
-          none: {
-            status: { in: finalizedAgentJobStatuses },
-          },
-        },
-      },
-    ],
-    NOT: [
-      // Filter out jobs that are refunded
-      {
-        refundedTransactionId: {
-          not: null,
-        },
-        jobType: JobType.PAID,
-      },
-      // Filter out jobs that are non-disputed and have a externalDisputeUnlockTime that is less than the cutoff time
-      {
-        purchase: {
-          onChainStatus: { not: OnChainJobStatus.DISPUTED },
-        },
-        externalDisputeUnlockTime: {
-          not: null,
-          lt: cutoffTime,
-        },
-        jobType: JobType.PAID,
-      },
-      // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
-      {
-        purchase: {
-          onChainStatus: null,
-        },
-        payByTime: { not: null, lt: cutoffTime },
-        jobType: JobType.PAID,
-      },
-      // Filter out demo jobs
-      {
-        jobType: JobType.DEMO,
-      },
-    ],
-  };
-}
-
-/**
  * Creates a Prisma where query to filter for jobs that are finished.
  * @returns Prisma where query object for filtering finished jobs
  *

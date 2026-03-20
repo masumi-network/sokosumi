@@ -21,6 +21,23 @@ import {
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 
+export const ACTIVE_PURCHASE_NEXT_ACTIONS: NextJobAction[] = [
+  NextJobAction.FUNDS_LOCKING_INITIATED,
+  NextJobAction.FUNDS_LOCKING_REQUESTED,
+  NextJobAction.SET_REFUND_REQUESTED_INITIATED,
+  NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+  NextJobAction.UNSET_REFUND_REQUESTED_INITIATED,
+  NextJobAction.UNSET_REFUND_REQUESTED_REQUESTED,
+];
+
+function hasPaymentWindowExpired(
+  job: Pick<Job, "createdAt" | "payByTime">,
+  now: Date,
+): boolean {
+  const paymentDeadline = job.payByTime ?? job.createdAt;
+  return paymentDeadline.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP;
+}
+
 /**
  * Returns the latest (most recent) job event from a job's events array.
  *
@@ -43,7 +60,7 @@ function checkPaymentStatus(
 ): SokosumiJobStatus | null {
   const purchase = job.purchase;
   if (!purchase) {
-    if (job.createdAt.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP) {
+    if (hasPaymentWindowExpired(job, now)) {
       return SokosumiJobStatus.PAYMENT_FAILED;
     } else {
       return SokosumiJobStatus.PAYMENT_PENDING;
@@ -161,11 +178,10 @@ function getFundsLockedJobStatus(
  *
  * The resolution order is as follows:
  * 1. If the job has been refunded (`refundedTransactionId` is set), return REFUND_RESOLVED.
- * 2. If the job has no on-chain status and there is a next action error, return PAYMENT_FAILED.
- * 3. If the job has not started (no purchase), return a payment-related status (see `checkPaymentStatus`).
- * 4. If the job has a next action, return the corresponding status (see `checkNextAction`).
- * 5. Otherwise, resolve based on the on-chain status and agent status:
- *    - null: If `payByTime` expired (with grace), return FAILED; else PAYMENT_PENDING.
+ * 2. If the job has not started (no purchase), return a payment-related status (see `checkPaymentStatus`).
+ * 3. If the job has a next action, return the corresponding status (see `checkNextAction`).
+ * 4. Otherwise, resolve based on the on-chain status and agent status:
+ *    - null: If `payByTime` expired (with grace), return PAYMENT_FAILED; else PAYMENT_PENDING.
  *    - FUNDS_LOCKED: Use `getFundsLockedJobStatus` for further resolution.
  *    - RESULT_SUBMITTED: If agent completed, return COMPLETED; else RESULT_PENDING.
  *    - FUNDS_WITHDRAWN: If agent completed, return COMPLETED; else FAILED.
@@ -252,11 +268,8 @@ function computePaidJobStatus(
   switch (job.purchase?.onChainStatus) {
     case null:
     case undefined:
-      if (
-        job.payByTime &&
-        job.payByTime.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP
-      ) {
-        return SokosumiJobStatus.FAILED;
+      if (hasPaymentWindowExpired(job, now)) {
+        return SokosumiJobStatus.PAYMENT_FAILED;
       }
       return SokosumiJobStatus.PAYMENT_PENDING;
     case OnChainJobStatus.FUNDS_LOCKED:

@@ -514,7 +514,6 @@
               "replace": "替换 Logo",
               "remove": "移除 Logo",
               "previewAlt": "组织 Logo 预览",
-              "uploadSuccess": "Logo 上传成功",
               "uploadError": "Logo 上传失败",
               "fileTooLarge": "文件过大（最大 2 MB）",
               "fileTypeNotAccepted": "不支持的文件类型",
