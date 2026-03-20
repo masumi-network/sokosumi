@@ -14,6 +14,7 @@ vi.mock("@/config/env", () => ({
     BETTER_AUTH_URL: "https://auth.example.com",
     WEB_APP_BASE_URL: "https://app.example.com",
   }),
+  getBetterAuthPublicBaseUrl: () => "https://auth.example.com",
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
 
