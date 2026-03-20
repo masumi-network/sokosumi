@@ -32,6 +32,7 @@ import pTimeout from "p-timeout";
 import Stripe from "stripe";
 import * as z from "zod";
 
+import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
 import { getBetterAuthPublicBaseUrl } from "@/config/better-auth-public-url";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -72,6 +73,7 @@ const stripeInstance = new Stripe(secrets.STRIPE_SECRET_KEY);
 
 const fromEmail = secrets.POSTMARK_FROM_EMAIL;
 const betterAuthApiKey = secrets.BETTER_AUTH_API_KEY;
+const betterAuthProductionUrl = getBetterAuthProductionUrl();
 
 function getEmailLocaleCookieValue(
   cookieHeader?: null | string,
@@ -465,7 +467,7 @@ export const auth = betterAuth({
       },
     }),
     oAuthProxy({
-      productionURL: secrets.BETTER_AUTH_URL,
+      productionURL: betterAuthProductionUrl,
     }),
     organization({
       organizationHooks: {
