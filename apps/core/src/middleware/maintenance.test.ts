@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
+
 import { maintenanceMiddleware } from "./maintenance";
 
 const { getEnvMock } = vi.hoisted(() => ({
@@ -20,6 +22,7 @@ function createApp() {
     c.set("requestId", "req_123");
     await next();
   });
+  app.onError(errorHandler);
   app.use("*", maintenanceMiddleware());
 
   app.get("/", (c) => c.text("ok"));
