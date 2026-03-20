@@ -6,10 +6,10 @@ import {
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
 import type { Prisma } from "../generated/prisma/client.js";
-import { ACTIVE_PURCHASE_NEXT_ACTIONS, mapJobWithStatus } from "../helpers/job.js";
+import { mapJobWithStatus } from "../helpers/job.js";
+import { buildJobsNeedingRemoteSyncWhere } from "../helpers/job-sync.js";
 import {
   finalizedAgentJobStatuses,
-  finalizedOnChainJobStatuses,
   jobInclude,
   jobOrderBy,
   type JobWithSokosumiStatus,
@@ -67,16 +67,6 @@ type CreateJobData = CreatePaidJobData | CreateFreeJobData;
  * creating new jobs, updating job status, and handling job lifecycle operations.
  */
 export const jobRepository = {
-  async getJobsNotFinished(
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus[]> {
-    const jobs = await tx.job.findMany({
-      where: jobsNotFinishedWhereQuery(),
-      include: jobInclude,
-    });
-    return jobs.map(mapJobWithStatus);
-  },
-
   /**
    * Retrieves all jobs associated with a specific user
    * @param userId - The unique identifier of the user
@@ -382,7 +372,7 @@ export const jobRepository = {
       where: {
         agentId,
         userId,
-        ...jobsNotFinishedWhereQuery(),
+        ...buildJobsNeedingRemoteSyncWhere(),
       },
       orderBy: { createdAt: "desc" },
       include: jobInclude,
@@ -410,7 +400,7 @@ export const jobRepository = {
         agentId,
         userId,
         organizationId: normalizedOrganizationId,
-        ...jobsNotFinishedWhereQuery(),
+        ...buildJobsNeedingRemoteSyncWhere(),
       },
       orderBy: { createdAt: "desc" },
       include: jobInclude,
@@ -517,123 +507,6 @@ export const jobRepository = {
 /**
  * Creates a Prisma where query to filter for jobs that still need sync work.
  *
- * A paid job still needs sync work if it meets any of the following criteria:
- * - Has an on-chain status that is not finalized (not in finalizedOnChainJobStatuses)
- * - Has no purchase yet but is still within the pay-by grace window
- * - Has no on-chain status but is still within the pay-by grace window
- *
- * Jobs are excluded if they meet any of the following criteria:
- * - Have been refunded (refundedTransactionId is not null)
- * - Are outside the dispute/refund reconciliation window and have passed their external dispute grace period
- * - Have no on-chain status and no payByTime set
- *
- * @param cutoffTime - The time threshold for filtering jobs (defaults to 10 minutes ago)
- * @returns Prisma where query object for filtering jobs that still need sync work
- */
-function jobsNotFinishedWhereQuery(
-  cutoffTime: Date = new Date(Date.now() - 1000 * 60 * 10),
-): Prisma.JobWhereInput {
-  return {
-    OR: [
-      // Filter out jobs that are finalized
-      {
-        purchase: {
-          onChainStatus: {
-            notIn: finalizedOnChainJobStatuses,
-          },
-        },
-        jobType: JobType.PAID,
-      },
-      // Filter in jobs that have no on-chain status
-      {
-        purchase: {
-          onChainStatus: null,
-        },
-        jobType: JobType.PAID,
-      },
-      // Filter in jobs that have no purchase yet
-      {
-        purchase: null,
-        jobType: JobType.PAID,
-      },
-      // Filter in free jobs that are not finalized
-      {
-        jobType: JobType.FREE,
-        events: {
-          none: {
-            status: { in: finalizedAgentJobStatuses },
-          },
-        },
-      },
-    ],
-    NOT: [
-      // Filter out jobs that are refunded
-      {
-        refundedTransactionId: {
-          not: null,
-        },
-        jobType: JobType.PAID,
-      },
-      // Filter out purchase-state payment failures. Refund reconciliation owns these.
-      {
-        purchase: {
-          onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
-        },
-        jobType: JobType.PAID,
-      },
-      // Filter out explicit purchase-action failures. Refund reconciliation owns these.
-      {
-        purchase: {
-          onChainStatus: null,
-          nextActionErrorType: {
-            not: null,
-          },
-        },
-        jobType: JobType.PAID,
-      },
-      // Filter out jobs that are outside the dispute/refund reconciliation
-      // window and have an externalDisputeUnlockTime before the cutoff.
-      {
-        purchase: {
-          onChainStatus: {
-            notIn: [
-              OnChainJobStatus.DISPUTED,
-              OnChainJobStatus.REFUND_REQUESTED,
-            ],
-          },
-        },
-        externalDisputeUnlockTime: {
-          not: null,
-          lt: cutoffTime,
-        },
-        jobType: JobType.PAID,
-      },
-      // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
-      {
-        purchase: {
-          onChainStatus: null,
-          nextAction: {
-            notIn: ACTIVE_PURCHASE_NEXT_ACTIONS,
-          },
-        },
-        payByTime: { not: null, lt: cutoffTime },
-        jobType: JobType.PAID,
-      },
-      // Filter out jobs that have no purchase and have a payByTime that is less than the cutoff time
-      {
-        purchase: null,
-        payByTime: { not: null, lt: cutoffTime },
-        jobType: JobType.PAID,
-      },
-      // Filter out demo jobs
-      {
-        jobType: JobType.DEMO,
-      },
-    ],
-  };
-}
-
-/**
  * Creates a Prisma where query to filter for jobs that are finished.
  * @returns Prisma where query object for filtering finished jobs
  *

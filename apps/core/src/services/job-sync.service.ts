@@ -5,13 +5,21 @@ import {
   OnChainJobStatus,
   SokosumiJobStatus,
 } from "@sokosumi/database";
-import { ACTIVE_PURCHASE_NEXT_ACTIONS } from "@sokosumi/database/helpers";
+import {
+  ACTIVE_PURCHASE_NEXT_ACTIONS,
+  buildJobsNeedingRemoteSyncWhere,
+  buildJobsPendingLocalRefundWhere,
+  mapJobWithStatus,
+} from "@sokosumi/database/helpers";
 import {
   jobEventRepository,
   jobPurchaseRepository,
   jobRepository,
 } from "@sokosumi/database/repositories";
-import type { JobWithSokosumiStatus } from "@sokosumi/database/types/job";
+import {
+  jobInclude,
+  type JobWithSokosumiStatus,
+} from "@sokosumi/database/types/job";
 import {
   type JobFailureNotificationEmailProps,
   renderJobFailureNotificationEmail,
@@ -30,7 +38,6 @@ import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { refundJob } from "@/services/job-refund";
-import { fetchJobsPendingRefundReconciliation } from "@/services/job-sync-refund-reconciliation";
 import { sourceImportService } from "@/services/source-import.service";
 
 const JOB_SYNC_CONCURRENCY = 5;
@@ -134,12 +141,10 @@ function buildJobLink(job: JobWithSokosumiStatus): string {
 }
 
 function hasPaymentWindowExpired(
-  job: Pick<JobWithSokosumiStatus, "payByTime">,
+  job: Pick<JobWithSokosumiStatus, "createdAt" | "payByTime">,
 ): boolean {
-  return (
-    job.payByTime !== null &&
-    job.payByTime.getTime() < Date.now() - JOB_PAYMENT_GRACE_MS
-  );
+  const paymentDeadline = job.payByTime ?? job.createdAt;
+  return paymentDeadline.getTime() < Date.now() - JOB_PAYMENT_GRACE_MS;
 }
 
 function shouldSkipAgentStatusPersistence(job: JobWithSokosumiStatus): boolean {
@@ -674,10 +679,19 @@ export const jobSyncService = {
     options: JobSyncExecutionOptions,
   ): Promise<JobSyncResult> {
     const startedAt = Date.now();
-    const [jobs, jobsPendingRefundReconciliation] = await Promise.all([
-      jobRepository.getJobsNotFinished(prisma),
-      fetchJobsPendingRefundReconciliation(prisma),
+    const [unfinishedJobs, jobsPendingLocalRefund] = await Promise.all([
+      prisma.job.findMany({
+        where: buildJobsNeedingRemoteSyncWhere(),
+        include: jobInclude,
+      }),
+      prisma.job.findMany({
+        where: buildJobsPendingLocalRefundWhere(),
+        include: jobInclude,
+      }),
     ]);
+    const jobs = unfinishedJobs.map(mapJobWithStatus);
+    const jobsPendingRefundReconciliation =
+      jobsPendingLocalRefund.map(mapJobWithStatus);
     const limit = pLimit(JOB_SYNC_CONCURRENCY);
     const tasks: Promise<boolean>[] = [];
 

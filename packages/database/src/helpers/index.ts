@@ -33,3 +33,4 @@
 export * from "./ably.js";
 export * from "./credit.js";
 export * from "./job.js";
+export * from "./job-sync.js";
