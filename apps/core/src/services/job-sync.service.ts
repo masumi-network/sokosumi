@@ -55,6 +55,7 @@ type JobStatusValue =
   | "running"
   | "completed"
   | "failed";
+type JobSyncKind = "remote" | "refund";
 
 export interface JobSyncExecutionOptions {
   abortSignal: AbortSignal;
@@ -72,22 +73,43 @@ function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
 }
 
+function getJobSyncLogPrefix(kind: JobSyncKind): string {
+  return kind === "remote" ? "[sync/jobs/remote]" : "[sync/jobs/refund]";
+}
+
+function logJobSyncInfo(kind: JobSyncKind, message: string): void {
+  console.info(`${getJobSyncLogPrefix(kind)} ${message}`);
+}
+
+function logJobSyncError(
+  kind: JobSyncKind,
+  jobId: string,
+  error: unknown,
+): void {
+  const message =
+    kind === "remote"
+      ? `Failed to sync job ${jobId}`
+      : `Failed to reconcile refund for job ${jobId}`;
+  console.error(`${getJobSyncLogPrefix(kind)} ${message}`, error);
+}
+
 function shouldStopSync(
   options: JobSyncExecutionOptions,
   reason: string,
+  kind: JobSyncKind,
 ): boolean {
   if (!options.shouldContinue()) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return true;
   }
 
   if (options.abortSignal.aborted) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return true;
   }
 
   if (!hasTimeRemaining(options.deadlineMs)) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return true;
   }
 
@@ -97,15 +119,16 @@ function shouldStopSync(
 function createPollingSignal(
   options: JobSyncExecutionOptions,
   reason: string,
+  kind: JobSyncKind,
 ): AbortSignal | null {
-  if (shouldStopSync(options, reason)) {
+  if (shouldStopSync(options, reason, kind)) {
     return null;
   }
 
   const remainingBudgetMs =
     options.deadlineMs - Date.now() - JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS;
   if (remainingBudgetMs <= 0) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return null;
   }
 
@@ -438,6 +461,7 @@ async function syncSingleJob(
     const backfillSignal = createPollingSignal(
       options,
       `Stopping before backfilling purchase for job ${job.id}`,
+      "remote",
     );
     if (!backfillSignal) {
       return false;
@@ -455,6 +479,7 @@ async function syncSingleJob(
       shouldStopSync(
         options,
         `Stopping after backfilling purchase for job ${job.id}`,
+        "remote",
       )
     ) {
       return false;
@@ -483,6 +508,7 @@ async function syncSingleJob(
   const pollingSignal = createPollingSignal(
     options,
     `Stopping before polling remote status for job ${job.id}`,
+    "remote",
   );
   if (!pollingSignal) {
     return false;
@@ -505,6 +531,7 @@ async function syncSingleJob(
     shouldStopSync(
       options,
       `Stopping after polling remote status for job ${job.id}`,
+      "remote",
     )
   ) {
     return false;
@@ -659,6 +686,7 @@ async function syncRefundReconciliationJob(
     shouldStopSync(
       options,
       `Stopping before reconciling refund for job ${job.id}`,
+      "refund",
     )
   ) {
     return false;
@@ -698,11 +726,17 @@ export const jobSyncService = {
     const jobs = unfinishedJobs.map(mapJobWithStatus);
     const jobsPendingRefundReconciliation =
       jobsPendingLocalRefund.map(mapJobWithStatus);
+    logJobSyncInfo("remote", `Found ${jobs.length} jobs for standard sync`);
+    logJobSyncInfo(
+      "refund",
+      `Found ${jobsPendingRefundReconciliation.length} jobs pending local refund`,
+    );
     const limit = pLimit(JOB_SYNC_CONCURRENCY);
     const tasks: Promise<boolean>[] = [];
 
     function enqueueSyncTask(
       job: JobWithSokosumiStatus,
+      kind: JobSyncKind,
       processor: (
         job: JobWithSokosumiStatus,
         options: JobSyncExecutionOptions,
@@ -711,7 +745,11 @@ export const jobSyncService = {
       tasks.push(
         limit(async () => {
           if (
-            shouldStopSync(options, `Stopping before processing job ${job.id}`)
+            shouldStopSync(
+              options,
+              `Stopping before processing job ${job.id}`,
+              kind,
+            )
           ) {
             return false;
           }
@@ -719,7 +757,7 @@ export const jobSyncService = {
           try {
             return await processor(job, options);
           } catch (error) {
-            console.error(`Failed to sync job ${job.id}`, error);
+            logJobSyncError(kind, job.id, error);
             Sentry.captureException(error, {
               extra: {
                 jobId: job.id,
@@ -736,12 +774,13 @@ export const jobSyncService = {
         shouldStopSync(
           options,
           "Stopping before scheduling more unfinished jobs",
+          "remote",
         )
       ) {
         break;
       }
 
-      enqueueSyncTask(job, syncSingleJob);
+      enqueueSyncTask(job, "remote", syncSingleJob);
     }
 
     for (const job of jobsPendingRefundReconciliation) {
@@ -749,12 +788,13 @@ export const jobSyncService = {
         shouldStopSync(
           options,
           "Stopping before scheduling more refund reconciliation jobs",
+          "refund",
         )
       ) {
         break;
       }
 
-      enqueueSyncTask(job, syncRefundReconciliationJob);
+      enqueueSyncTask(job, "refund", syncRefundReconciliationJob);
     }
 
     const results = await Promise.allSettled(tasks);

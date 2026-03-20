@@ -159,6 +159,8 @@ vi.mock("@sokosumi/email", () => ({
 }));
 
 const originalFetch = global.fetch;
+let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+let consoleInfoSpy: ReturnType<typeof vi.spyOn>;
 
 function createJobEvent(
   overrides: Record<string, unknown> = {},
@@ -250,6 +252,8 @@ function mockInitialJobQueries({
 describe("jobSyncService.syncUnfinishedJobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
 
     paymentClientFactoryMock.mockReturnValue({
       getPurchaseByBlockchainIdentifier: getPurchaseByBlockchainIdentifierMock,
@@ -288,6 +292,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   afterEach(() => {
+    consoleErrorSpy.mockRestore();
+    consoleInfoSpy.mockRestore();
     global.fetch = originalFetch;
   });
 
@@ -402,6 +408,35 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
     expect(publishJobStatusDataMock).not.toHaveBeenCalled();
+  });
+
+  it("logs separate counts for standard sync and refund reconciliation", async () => {
+    const reconciliationJob = createJob({
+      id: "job_refund",
+      status: SokosumiJobStatus.REFUND_RESOLVED,
+      purchase: {
+        externalId: "purchase_refund",
+        onChainStatus: "REFUND_WITHDRAWN",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+    });
+    mockInitialJobQueries({
+      unfinished: [createJob()],
+      pendingLocalRefunds: [reconciliationJob],
+    });
+    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      "[sync/jobs/remote] Found 1 jobs for standard sync",
+    );
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      "[sync/jobs/refund] Found 1 jobs pending local refund",
+    );
   });
 
   it("reconciles purchase-state payment failures without running the standard sync pipeline", async () => {
