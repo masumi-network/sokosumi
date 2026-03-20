@@ -5,7 +5,7 @@ import { Organization } from "@sokosumi/database";
 import { Building2, CloudUpload, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Dispatch, SetStateAction, useCallback, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -30,6 +30,7 @@ import { authClient } from "@/lib/auth/auth.client";
 import {
   ORGANIZATION_LOGO_ACCEPT,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+  ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
 import {
   organizationInformationFormSchema,
@@ -39,19 +40,47 @@ import {
 import { organizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
 
+class LogoUploadClientTimeoutError extends Error {
+  constructor() {
+    super("Logo upload timed out");
+    this.name = "LogoUploadClientTimeoutError";
+  }
+}
+
+function raceWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new LogoUploadClientTimeoutError());
+    }, ms);
+  });
+
+  return Promise.race([
+    promise.finally(() => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+    }),
+    timeoutPromise,
+  ]);
+}
+
 interface OrganizationInformationFormProps {
   organization: Organization | null;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
+  onLogoUploadBusyChange?: (busy: boolean) => void;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
 }
 
 export default function OrganizationInformationForm({
   organization,
   setIsLoading,
+  onLogoUploadBusyChange,
   onOpenChange,
 }: OrganizationInformationFormProps) {
   const t = useTranslations("Components.Organizations.InformationModal.Form");
   const router = useRouter();
+  const submitInFlightRef = useRef(false);
   const [pendingLogoFiles, setPendingLogoFiles] = useState<File[]>([]);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
@@ -79,8 +108,12 @@ export default function OrganizationInformationForm({
       if (!logoFile) return;
 
       setIsUploadingLogo(true);
+      onLogoUploadBusyChange?.(true);
       try {
-        const uploadResult = await uploadOrganizationLogo({ file: logoFile });
+        const uploadResult = await raceWithTimeout(
+          uploadOrganizationLogo({ file: logoFile }),
+          ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
+        );
         if (!uploadResult.ok) {
           toast.error(
             uploadResult.error.message ?? t("Fields.Logo.uploadError"),
@@ -89,15 +122,15 @@ export default function OrganizationInformationForm({
         }
 
         form.setValue("logo", uploadResult.data, { shouldDirty: true });
-        toast.success(t("Fields.Logo.uploadSuccess"));
       } catch (_error) {
         toast.error(t("Fields.Logo.uploadError"));
       } finally {
         setPendingLogoFiles([]);
         setIsUploadingLogo(false);
+        onLogoUploadBusyChange?.(false);
       }
     },
-    [form, t],
+    [form, onLogoUploadBusyChange, t],
   );
 
   const handleRemoveLogo = useCallback(() => {
@@ -106,6 +139,10 @@ export default function OrganizationInformationForm({
   }, [form]);
 
   const onSubmit = async (values: OrganizationInformationFormSchemaType) => {
+    if (submitInFlightRef.current) {
+      return;
+    }
+    submitInFlightRef.current = true;
     setIsLoading(true);
     try {
       let result;
@@ -187,6 +224,7 @@ export default function OrganizationInformationForm({
         onOpenChange(false);
       }
     } finally {
+      submitInFlightRef.current = false;
       setIsLoading(false);
     }
   };

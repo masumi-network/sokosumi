@@ -26,12 +26,13 @@ export default function OrganizationInformationModal({
 }: OrganizationInformationModalProps) {
   const t = useTranslations("Components.Organizations.InformationModal.Title");
   const [isLoading, setIsLoading] = useState(false);
+  const [isLogoUploadInFlight, setIsLogoUploadInFlight] = useState(false);
 
-  const handleOpenChange = (open: boolean) => {
-    if (isLoading) {
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (isLoading || isLogoUploadInFlight) {
       return;
     }
-    onOpenChange(open);
+    onOpenChange(nextOpen);
   };
 
   const isCreating = !organization;
@@ -46,6 +47,7 @@ export default function OrganizationInformationModal({
         <OrganizationInformationForm
           organization={organization}
           setIsLoading={setIsLoading}
+          onLogoUploadBusyChange={setIsLogoUploadInFlight}
           onOpenChange={onOpenChange}
         />
       </DialogContent>

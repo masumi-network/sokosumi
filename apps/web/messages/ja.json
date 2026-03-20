@@ -514,7 +514,6 @@
               "replace": "ロゴを置換",
               "remove": "ロゴを削除",
               "previewAlt": "組織ロゴのプレビュー",
-              "uploadSuccess": "ロゴのアップロードに成功しました",
               "uploadError": "ロゴのアップロードに失敗しました",
               "fileTooLarge": "ファイルが大きすぎます（最大 2 MB）",
               "fileTypeNotAccepted": "ファイルタイプは受け付けられません",
