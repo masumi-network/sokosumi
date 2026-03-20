@@ -74,6 +74,7 @@ const envSecretsSchema = z.object({
   POSTMARK_FROM_EMAIL: z.email(),
 
   // Vercel
+  VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
   VERCEL_URL: z
     .string()
     .transform((val: string) =>
