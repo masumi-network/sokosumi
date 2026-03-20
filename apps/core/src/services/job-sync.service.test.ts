@@ -1072,6 +1072,49 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
   });
 
+  it("persists agent status when null-on-chain purchase is past pay window but has an active next action", async () => {
+    const pendingWithActiveAction = createJob({
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+      payByTime: new Date("2020-01-01T00:00:00.000Z"),
+      purchase: {
+        externalId: "purchase_1",
+        onChainStatus: null,
+        resultHash: null,
+        nextAction: "FUNDS_LOCKING_REQUESTED",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+    });
+
+    mockInitialJobQueries({
+      unfinished: [pendingWithActiveAction],
+    });
+    getPurchaseByIdMock.mockReturnValue(
+      ok({
+        id: "purchase_1",
+        onChainStatus: null,
+        nextAction: "FUNDS_LOCKING_REQUESTED",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      }),
+    );
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(pendingWithActiveAction);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(updateJobPurchaseByJobIdMock).toHaveBeenCalled();
+    expect(getLatestJobEventByJobIdMock).toHaveBeenCalled();
+    expect(createJobEventForJobIdMock).toHaveBeenCalled();
+  });
+
   it("ignores late completed agent results when a purchase action errors in the same sync cycle", async () => {
     const paymentFailedJob = createJob({
       status: SokosumiJobStatus.PAYMENT_FAILED,

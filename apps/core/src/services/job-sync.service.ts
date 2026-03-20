@@ -154,7 +154,10 @@ function shouldSkipAgentStatusPersistence(job: JobWithSokosumiStatus): boolean {
   const hasTimedOutMissingPurchase =
     job.purchase === null && hasPaymentWindowExpired(job);
   const hasTimedOutNullOnChainPurchase =
-    onChainStatus === null && hasPaymentWindowExpired(job);
+    onChainStatus === null &&
+    job.purchase !== null &&
+    hasPaymentWindowExpired(job) &&
+    !ACTIVE_PURCHASE_NEXT_ACTIONS.includes(job.purchase.nextAction);
 
   return (
     hasPurchaseActionError ||
