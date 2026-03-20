@@ -1,3 +1,11 @@
+function stripTrailingSlashes(value: string): string {
+  let out = value;
+  while (out.endsWith("/")) {
+    out = out.slice(0, -1);
+  }
+  return out;
+}
+
 export interface ResolveBetterAuthPublicBaseUrlParams {
   vercelEnv: string | undefined;
   vercelUrl: string | undefined;
@@ -19,5 +27,5 @@ export function resolveBetterAuthPublicBaseUrl(
       ? (vercelUrl ?? vercelBranchUrl ?? configuredBaseUrl)
       : configuredBaseUrl;
 
-  return raw.replace(/\/+$/, "");
+  return stripTrailingSlashes(raw);
 }
