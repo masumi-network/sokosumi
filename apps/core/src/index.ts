@@ -82,7 +82,7 @@ let llmsMarkdown: string | null = null;
 let llmsMarkdownPromise: Promise<string> | null = null;
 
 async function getLlmsMarkdown(): Promise<string> {
-  if (llmsMarkdown) {
+  if (llmsMarkdown !== null) {
     return llmsMarkdown;
   }
 

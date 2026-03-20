@@ -153,6 +153,26 @@ describe("core index", () => {
     expect(createMarkdownFromOpenApiMock).toHaveBeenCalledTimes(1);
   });
 
+  it("reuses cached llms markdown even when it is an empty string", async () => {
+    createMarkdownFromOpenApiMock.mockResolvedValue("");
+
+    const fetchHandler = await loadFetchHandler();
+
+    const firstResponse = await fetchHandler(
+      new Request("http://localhost/llms.txt"),
+    );
+    expect(firstResponse.status).toBe(200);
+    expect(await firstResponse.text()).toBe("");
+    expect(createMarkdownFromOpenApiMock).toHaveBeenCalledTimes(1);
+
+    const secondResponse = await fetchHandler(
+      new Request("http://localhost/llms.txt"),
+    );
+    expect(secondResponse.status).toBe(200);
+    expect(await secondResponse.text()).toBe("");
+    expect(createMarkdownFromOpenApiMock).toHaveBeenCalledTimes(1);
+  });
+
   it("returns 500 when llms generation fails and retries on the next request", async () => {
     createMarkdownFromOpenApiMock
       .mockRejectedValueOnce(new Error("boom"))
