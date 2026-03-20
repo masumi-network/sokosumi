@@ -2,6 +2,8 @@
  * Get suggestions based on coworker ID
  */
 
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+
 import type { Coworker } from "@/app/chat/utils/types";
 /** DB coworker shape as returned by GET /api/coworkers (and Core GET /v1/coworkers) */
 import type { Coworker as CoreCoworker } from "@/lib/clients/generated/core";

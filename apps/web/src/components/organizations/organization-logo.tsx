@@ -22,8 +22,8 @@ export function OrganizationLogo({
       <Image
         src={resolveIpfsOrHttpUrl(logo)}
         alt={name}
-        width={size}
-        height={size}
+        width={size * 3}
+        height={size * 3}
         className="size-full rounded-sm object-cover"
       />
     );

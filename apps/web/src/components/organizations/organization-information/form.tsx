@@ -178,7 +178,7 @@ export default function OrganizationInformationForm({
           data: {
             name: values.name,
             url: normalizedUrl,
-            logo: logoForApi,
+            logo: logoForApi ?? undefined,
           },
         });
       }
