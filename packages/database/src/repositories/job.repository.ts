@@ -78,6 +78,16 @@ export const jobRepository = {
     return jobs.map(mapJobWithStatus);
   },
 
+  async getJobsPendingRefundReconciliation(
+    tx: Prisma.TransactionClient,
+  ): Promise<JobWithSokosumiStatus[]> {
+    const jobs = await tx.job.findMany({
+      where: jobsPendingRefundReconciliationWhereQuery(),
+      include: jobInclude,
+    });
+    return jobs.map(mapJobWithStatus);
+  },
+
   /**
    * Retrieves all jobs associated with a specific user
    * @param userId - The unique identifier of the user
@@ -585,7 +595,6 @@ export const jobRepository = {
  *
  * A paid job still needs sync work if it meets any of the following criteria:
  * - Has an on-chain status that is not finalized (not in finalizedOnChainJobStatuses)
- * - Has a finalized refund withdrawal on-chain but is still missing the local refund transaction
  * - Has no on-chain status but has a payByTime that is greater than the cutoff time
  *
  * Jobs are excluded if they meet any of the following criteria:
@@ -608,17 +617,6 @@ function jobsNotFinishedWhereQuery(
             notIn: finalizedOnChainJobStatuses,
           },
         },
-        jobType: JobType.PAID,
-      },
-      // Keep locally unrefunded refund withdrawals in the sync set so we can
-      // backfill the refund transaction once the remote refund settles.
-      {
-        purchase: {
-          onChainStatus: {
-            in: [OnChainJobStatus.REFUND_WITHDRAWN],
-          },
-        },
-        refundedTransactionId: null,
         jobType: JobType.PAID,
       },
       // Filter in jobs that have no on-chain status
@@ -651,11 +649,7 @@ function jobsNotFinishedWhereQuery(
       {
         purchase: {
           onChainStatus: {
-            notIn: [
-              OnChainJobStatus.DISPUTED,
-              OnChainJobStatus.REFUND_REQUESTED,
-              OnChainJobStatus.REFUND_WITHDRAWN,
-            ],
+            notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
           },
         },
         externalDisputeUnlockTime: {
@@ -677,6 +671,16 @@ function jobsNotFinishedWhereQuery(
         jobType: JobType.DEMO,
       },
     ],
+  };
+}
+
+function jobsPendingRefundReconciliationWhereQuery(): Prisma.JobWhereInput {
+  return {
+    purchase: {
+      onChainStatus: OnChainJobStatus.REFUND_WITHDRAWN,
+    },
+    refundedTransactionId: null,
+    jobType: JobType.PAID,
   };
 }
 

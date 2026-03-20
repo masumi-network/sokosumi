@@ -11,6 +11,7 @@ const {
   fetchAgentJobStatusMock,
   getJobByIdMock,
   getJobsNotFinishedMock,
+  getJobsPendingRefundReconciliationMock,
   getLatestJobEventByJobIdMock,
   publishJobStatusDataMock,
   renderJobFailureNotificationEmailMock,
@@ -32,6 +33,7 @@ const {
   fetchAgentJobStatusMock: vi.fn(),
   getJobByIdMock: vi.fn(),
   getJobsNotFinishedMock: vi.fn(),
+  getJobsPendingRefundReconciliationMock: vi.fn(),
   getLatestJobEventByJobIdMock: vi.fn(),
   publishJobStatusDataMock: vi.fn(),
   renderJobFailureNotificationEmailMock: vi.fn(),
@@ -68,6 +70,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
   jobRepository: {
     getJobById: getJobByIdMock,
     getJobsNotFinished: getJobsNotFinishedMock,
+    getJobsPendingRefundReconciliation: getJobsPendingRefundReconciliationMock,
     refundJob: refundJobMock,
   },
 }));
@@ -229,6 +232,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       return await callback({});
     });
     getJobsNotFinishedMock.mockResolvedValue([]);
+    getJobsPendingRefundReconciliationMock.mockResolvedValue([]);
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(err("not found"));
     getPurchaseByIdMock.mockReturnValue(err("not found"));
     fetchAgentJobStatusMock.mockReturnValue(err("not found"));
@@ -333,6 +337,41 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         signal: expect.any(Object),
       }),
     );
+  });
+
+  it("reconciles refund-withdrawn jobs without running the standard sync pipeline", async () => {
+    getJobsPendingRefundReconciliationMock.mockResolvedValue([
+      createJob({
+        id: "job_refund",
+        status: SokosumiJobStatus.REFUND_RESOLVED,
+        purchase: {
+          externalId: "purchase_refund",
+          onChainStatus: "REFUND_WITHDRAWN",
+          resultHash: null,
+          nextAction: "NONE",
+          nextActionErrorType: null,
+          nextActionErrorNote: null,
+        },
+      }),
+    ]);
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        processed: 1,
+        unfinishedFound: 1,
+      }),
+    );
+    expect(refundJobMock).toHaveBeenCalledWith("job_refund", {});
+    expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
+    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(publishJobStatusDataMock).not.toHaveBeenCalled();
   });
 
   it("skips new events and notifications when the agent status hash is unchanged", async () => {
@@ -561,6 +600,140 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
   });
 
+  it("ignores late completed agent results when a refund resolves in the same sync cycle", async () => {
+    const refundResolvedJob = createJob({
+      status: SokosumiJobStatus.REFUND_RESOLVED,
+      purchase: {
+        externalId: "purchase_1",
+        onChainStatus: "REFUND_WITHDRAWN",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+    });
+
+    getJobsNotFinishedMock.mockResolvedValue([
+      createJob({
+        status: SokosumiJobStatus.REFUND_PENDING,
+        purchase: {
+          externalId: "purchase_1",
+          onChainStatus: "REFUND_REQUESTED",
+          resultHash: null,
+          nextAction: "NONE",
+          nextActionErrorType: null,
+          nextActionErrorNote: null,
+        },
+      }),
+    ]);
+    getPurchaseByIdMock.mockReturnValue(
+      ok({
+        id: "purchase_1",
+        onChainStatus: "REFUND_WITHDRAWN",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      }),
+    );
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(refundResolvedJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(updateJobPurchaseByJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      expect.objectContaining({
+        onChainStatus: "REFUND_WITHDRAWN",
+      }),
+      {},
+    );
+    expect(getLatestJobEventByJobIdMock).not.toHaveBeenCalled();
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
+    expect(refundJobMock).toHaveBeenCalledWith("job_1", {});
+    expect(publishJobStatusDataMock).toHaveBeenCalledWith({
+      agentId: "agent_1",
+      userId: "user_1",
+      jobId: "job_1",
+      jobStatus: SokosumiJobStatus.REFUND_RESOLVED,
+      jobStatusSettled: false,
+    });
+  });
+
+  it("ignores late completed agent results when a dispute resolves in the same sync cycle", async () => {
+    const disputeResolvedJob = createJob({
+      status: SokosumiJobStatus.DISPUTE_RESOLVED,
+      purchase: {
+        externalId: "purchase_1",
+        onChainStatus: "DISPUTED_WITHDRAWN",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+    });
+
+    getJobsNotFinishedMock.mockResolvedValue([
+      createJob({
+        status: SokosumiJobStatus.DISPUTE_PENDING,
+        purchase: {
+          externalId: "purchase_1",
+          onChainStatus: "DISPUTED",
+          resultHash: null,
+          nextAction: "NONE",
+          nextActionErrorType: null,
+          nextActionErrorNote: null,
+        },
+      }),
+    ]);
+    getPurchaseByIdMock.mockReturnValue(
+      ok({
+        id: "purchase_1",
+        onChainStatus: "DISPUTED_WITHDRAWN",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      }),
+    );
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(disputeResolvedJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(updateJobPurchaseByJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      expect.objectContaining({
+        onChainStatus: "DISPUTED_WITHDRAWN",
+      }),
+      {},
+    );
+    expect(getLatestJobEventByJobIdMock).not.toHaveBeenCalled();
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
+    expect(refundJobMock).not.toHaveBeenCalled();
+    expect(publishJobStatusDataMock).toHaveBeenCalledWith({
+      agentId: "agent_1",
+      userId: "user_1",
+      jobId: "job_1",
+      jobStatus: SokosumiJobStatus.DISPUTE_RESOLVED,
+      jobStatusSettled: false,
+    });
+  });
+
   it("sends input-required notifications when a job starts awaiting input", async () => {
     const awaitingInputJob = createJob({
       status: SokosumiJobStatus.INPUT_REQUIRED,
@@ -647,6 +820,44 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 1,
       }),
     );
+  });
+
+  it("counts standard sync jobs and refund reconciliation jobs in the same run", async () => {
+    getJobsNotFinishedMock.mockResolvedValue([createJob()]);
+    getJobsPendingRefundReconciliationMock.mockResolvedValue([
+      createJob({
+        id: "job_refund",
+        status: SokosumiJobStatus.REFUND_RESOLVED,
+        purchase: {
+          externalId: "purchase_refund",
+          onChainStatus: "REFUND_WITHDRAWN",
+          resultHash: null,
+          nextAction: "NONE",
+          nextActionErrorType: null,
+          nextActionErrorNote: null,
+        },
+      }),
+    ]);
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "running",
+        result: null,
+        input_schema: null,
+        statusHash: "old-hash",
+      }),
+    );
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        processed: 2,
+        unfinishedFound: 2,
+      }),
+    );
+    expect(refundJobMock).toHaveBeenCalledWith("job_refund", {});
   });
 
   it("does not count thrown job sync failures as processed", async () => {

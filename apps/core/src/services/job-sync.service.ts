@@ -28,6 +28,10 @@ import { sourceImportService } from "@/services/source-import.service";
 const JOB_SYNC_CONCURRENCY = 5;
 const JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS = 250;
 const JOB_SYNC_REMOTE_TIMEOUT_MS = 10_000;
+const JOB_SYNC_TRANSACTION_OPTIONS = {
+  maxWait: 5000,
+  timeout: 20_000,
+} as const;
 
 type JobStatusValue =
   | "awaiting_payment"
@@ -118,6 +122,15 @@ function jobStatusToAgentJobStatus(jobStatus: JobStatusValue): AgentJobStatus {
 
 function buildJobLink(job: JobWithSokosumiStatus): string {
   return `${getWebAppBaseUrl()}/agents/${job.agentId}/jobs/${job.id}`;
+}
+
+function hasTerminalPurchaseResolutionStatus(
+  jobStatus: SokosumiJobStatus,
+): boolean {
+  return (
+    jobStatus === SokosumiJobStatus.REFUND_RESOLVED ||
+    jobStatus === SokosumiJobStatus.DISPUTE_RESOLVED
+  );
 }
 
 function shouldSyncAgentStatus(job: JobWithSokosumiStatus): string | null {
@@ -462,7 +475,10 @@ async function syncSingleJob(
         currentJob = refreshedJob;
       }
 
-      if (agentJobStatusResult.isOk()) {
+      if (
+        !hasTerminalPurchaseResolutionStatus(currentJob.status) &&
+        agentJobStatusResult.isOk()
+      ) {
         const latestJobEvent =
           await jobEventRepository.getLatestJobEventByJobId(currentJob.id, tx);
 
@@ -522,10 +538,7 @@ async function syncSingleJob(
         extractionContext,
       };
     },
-    {
-      maxWait: 5000,
-      timeout: 20_000,
-    },
+    JOB_SYNC_TRANSACTION_OPTIONS,
   );
 
   const updatedJob = transactionResult.job;
@@ -580,25 +593,42 @@ async function syncSingleJob(
   return true;
 }
 
+async function syncRefundReconciliationJob(
+  job: JobWithSokosumiStatus,
+  options: JobSyncExecutionOptions,
+): Promise<boolean> {
+  if (
+    shouldStopSync(options, `Stopping before reconciling refund for job ${job.id}`)
+  ) {
+    return false;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await jobRepository.refundJob(job.id, tx);
+  }, JOB_SYNC_TRANSACTION_OPTIONS);
+
+  return true;
+}
+
 export const jobSyncService = {
   async syncUnfinishedJobs(
     options: JobSyncExecutionOptions,
   ): Promise<JobSyncResult> {
     const startedAt = Date.now();
-    const jobs = await jobRepository.getJobsNotFinished(prisma);
+    const [jobs, jobsPendingRefundReconciliation] = await Promise.all([
+      jobRepository.getJobsNotFinished(prisma),
+      jobRepository.getJobsPendingRefundReconciliation(prisma),
+    ]);
     const limit = pLimit(JOB_SYNC_CONCURRENCY);
     const tasks: Promise<boolean>[] = [];
 
-    for (const job of jobs) {
-      if (
-        shouldStopSync(
-          options,
-          "Stopping before scheduling more unfinished jobs",
-        )
-      ) {
-        break;
-      }
-
+    function enqueueSyncTask(
+      job: JobWithSokosumiStatus,
+      processor: (
+        job: JobWithSokosumiStatus,
+        options: JobSyncExecutionOptions,
+      ) => Promise<boolean>,
+    ) {
       tasks.push(
         limit(async () => {
           if (
@@ -608,7 +638,7 @@ export const jobSyncService = {
           }
 
           try {
-            return await syncSingleJob(job, options);
+            return await processor(job, options);
           } catch (error) {
             console.error(`Failed to sync job ${job.id}`, error);
             Sentry.captureException(error, {
@@ -622,6 +652,32 @@ export const jobSyncService = {
       );
     }
 
+    for (const job of jobs) {
+      if (
+        shouldStopSync(
+          options,
+          "Stopping before scheduling more unfinished jobs",
+        )
+      ) {
+        break;
+      }
+
+      enqueueSyncTask(job, syncSingleJob);
+    }
+
+    for (const job of jobsPendingRefundReconciliation) {
+      if (
+        shouldStopSync(
+          options,
+          "Stopping before scheduling more refund reconciliation jobs",
+        )
+      ) {
+        break;
+      }
+
+      enqueueSyncTask(job, syncRefundReconciliationJob);
+    }
+
     const results = await Promise.allSettled(tasks);
     const processed = results.filter(
       (result) => result.status === "fulfilled" && result.value,
@@ -630,7 +686,7 @@ export const jobSyncService = {
     return {
       durationMs: Date.now() - startedAt,
       processed,
-      unfinishedFound: jobs.length,
+      unfinishedFound: jobs.length + jobsPendingRefundReconciliation.length,
     };
   },
 };

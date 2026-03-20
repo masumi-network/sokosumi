@@ -27,38 +27,67 @@ async function captureGetJobsNotFinishedWhereQuery() {
   return where;
 }
 
+async function captureGetJobsPendingRefundReconciliationWhereQuery() {
+  let where: Prisma.JobWhereInput | undefined;
+
+  const tx = {
+    job: {
+      findMany: async (args: { where: Prisma.JobWhereInput }) => {
+        where = args.where;
+        return [];
+      },
+    },
+  } as unknown as Prisma.TransactionClient;
+
+  await jobRepository.getJobsPendingRefundReconciliation(tx);
+
+  assert.ok(where);
+  return where;
+}
+
 describe("jobRepository.getJobsNotFinished", () => {
-  it("keeps refund withdrawals with no local refund transaction in the sync set", async () => {
+  it("does not include refund withdrawals in the unfinished sync set", async () => {
     const where = await captureGetJobsNotFinishedWhereQuery();
     const orClauses = where.OR as Prisma.JobWhereInput[];
 
-    assert.deepEqual(
-      orClauses.at(1),
-      {
-        purchase: {
-          onChainStatus: {
-            in: [OnChainJobStatus.REFUND_WITHDRAWN],
-          },
-        },
-        refundedTransactionId: null,
-        jobType: JobType.PAID,
-      } satisfies Prisma.JobWhereInput,
-    );
+    const hasRefundWithdrawalReinclusion = orClauses.some((clause) => {
+      const purchase = clause.purchase as
+        | { onChainStatus?: { in?: OnChainJobStatus[] } }
+        | undefined;
+      return purchase?.onChainStatus?.in?.includes(
+        OnChainJobStatus.REFUND_WITHDRAWN,
+      );
+    });
+
+    assert.equal(hasRefundWithdrawalReinclusion, false);
   });
 
-  it("does not apply the dispute cutoff to refund reconciliation jobs", async () => {
+  it("keeps refund requests past the dispute cutoff in the unfinished sync set", async () => {
     const where = await captureGetJobsNotFinishedWhereQuery();
     const notClauses = where.NOT as Prisma.JobWhereInput[];
 
     assert.deepEqual(notClauses.at(1)?.purchase, {
       onChainStatus: {
-        notIn: [
-          OnChainJobStatus.DISPUTED,
-          OnChainJobStatus.REFUND_REQUESTED,
-          OnChainJobStatus.REFUND_WITHDRAWN,
-        ],
+        notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
       },
     });
+  });
+});
+
+describe("jobRepository.getJobsPendingRefundReconciliation", () => {
+  it("returns only paid jobs with refund withdrawn and no local refund transaction", async () => {
+    const where = await captureGetJobsPendingRefundReconciliationWhereQuery();
+
+    assert.deepEqual(
+      where,
+      {
+        purchase: {
+          onChainStatus: OnChainJobStatus.REFUND_WITHDRAWN,
+        },
+        refundedTransactionId: null,
+        jobType: JobType.PAID,
+      } satisfies Prisma.JobWhereInput,
+    );
   });
 });
 
