@@ -1,11 +1,26 @@
 import * as Sentry from "@sentry/node";
-import { AgentJobStatus, JobType, SokosumiJobStatus } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  JobType,
+  OnChainJobStatus,
+  SokosumiJobStatus,
+} from "@sokosumi/database";
+import {
+  ACTIVE_PURCHASE_NEXT_ACTIONS,
+  buildJobsNeedingRemoteSyncWhere,
+  buildJobsPendingLocalRefundWhere,
+  JOB_SYNC_PAYMENT_GRACE_MS,
+  mapJobWithStatus,
+} from "@sokosumi/database/helpers";
 import {
   jobEventRepository,
   jobPurchaseRepository,
   jobRepository,
 } from "@sokosumi/database/repositories";
-import type { JobWithSokosumiStatus } from "@sokosumi/database/types/job";
+import {
+  jobInclude,
+  type JobWithSokosumiStatus,
+} from "@sokosumi/database/types/job";
 import {
   type JobFailureNotificationEmailProps,
   renderJobFailureNotificationEmail,
@@ -23,11 +38,16 @@ import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { refundJob } from "@/services/job-refund";
 import { sourceImportService } from "@/services/source-import.service";
 
 const JOB_SYNC_CONCURRENCY = 5;
 const JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS = 250;
 const JOB_SYNC_REMOTE_TIMEOUT_MS = 10_000;
+const JOB_SYNC_TRANSACTION_OPTIONS = {
+  maxWait: 5000,
+  timeout: 20_000,
+} as const;
 
 type JobStatusValue =
   | "awaiting_payment"
@@ -35,6 +55,7 @@ type JobStatusValue =
   | "running"
   | "completed"
   | "failed";
+type JobSyncKind = "remote" | "refund";
 
 export interface JobSyncExecutionOptions {
   abortSignal: AbortSignal;
@@ -52,22 +73,43 @@ function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
 }
 
+function getJobSyncLogPrefix(kind: JobSyncKind): string {
+  return kind === "remote" ? "[sync/jobs/remote]" : "[sync/jobs/refund]";
+}
+
+function logJobSyncInfo(kind: JobSyncKind, message: string): void {
+  console.info(`${getJobSyncLogPrefix(kind)} ${message}`);
+}
+
+function logJobSyncError(
+  kind: JobSyncKind,
+  jobId: string,
+  error: unknown,
+): void {
+  const message =
+    kind === "remote"
+      ? `Failed to sync job ${jobId}`
+      : `Failed to reconcile refund for job ${jobId}`;
+  console.error(`${getJobSyncLogPrefix(kind)} ${message}`, error);
+}
+
 function shouldStopSync(
   options: JobSyncExecutionOptions,
   reason: string,
+  kind: JobSyncKind,
 ): boolean {
   if (!options.shouldContinue()) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return true;
   }
 
   if (options.abortSignal.aborted) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return true;
   }
 
   if (!hasTimeRemaining(options.deadlineMs)) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return true;
   }
 
@@ -77,15 +119,16 @@ function shouldStopSync(
 function createPollingSignal(
   options: JobSyncExecutionOptions,
   reason: string,
+  kind: JobSyncKind,
 ): AbortSignal | null {
-  if (shouldStopSync(options, reason)) {
+  if (shouldStopSync(options, reason, kind)) {
     return null;
   }
 
   const remainingBudgetMs =
     options.deadlineMs - Date.now() - JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS;
   if (remainingBudgetMs <= 0) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return null;
   }
 
@@ -118,6 +161,64 @@ function jobStatusToAgentJobStatus(jobStatus: JobStatusValue): AgentJobStatus {
 
 function buildJobLink(job: JobWithSokosumiStatus): string {
   return `${getWebAppBaseUrl()}/agents/${job.agentId}/jobs/${job.id}`;
+}
+
+function hasPaymentWindowExpired(
+  job: Pick<JobWithSokosumiStatus, "createdAt" | "payByTime">,
+): boolean {
+  const paymentDeadline = job.payByTime ?? job.createdAt;
+  return paymentDeadline.getTime() < Date.now() - JOB_SYNC_PAYMENT_GRACE_MS;
+}
+
+function shouldSkipAgentStatusPersistence(job: JobWithSokosumiStatus): boolean {
+  if (job.jobType !== JobType.PAID) {
+    return false;
+  }
+  const onChainStatus = job.purchase?.onChainStatus;
+  const hasPurchaseActionError =
+    onChainStatus === null && job.purchase?.nextActionErrorType !== null;
+  const hasTimedOutMissingPurchase =
+    job.purchase === null && hasPaymentWindowExpired(job);
+  const hasTimedOutNullOnChainPurchase =
+    onChainStatus === null &&
+    job.purchase !== null &&
+    hasPaymentWindowExpired(job) &&
+    !ACTIVE_PURCHASE_NEXT_ACTIONS.includes(job.purchase.nextAction);
+
+  return (
+    hasPurchaseActionError ||
+    hasTimedOutMissingPurchase ||
+    hasTimedOutNullOnChainPurchase ||
+    onChainStatus === OnChainJobStatus.FUNDS_OR_DATUM_INVALID ||
+    onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN ||
+    onChainStatus === OnChainJobStatus.DISPUTED_WITHDRAWN
+  );
+}
+
+function shouldCreateLocalRefund(job: JobWithSokosumiStatus): boolean {
+  if (job.jobType !== JobType.PAID || job.refundedTransactionId) {
+    return false;
+  }
+
+  if (job.purchase === null) {
+    return hasPaymentWindowExpired(job);
+  }
+
+  switch (job.purchase.onChainStatus) {
+    case OnChainJobStatus.REFUND_WITHDRAWN:
+    case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
+      return true;
+    case null:
+      if (job.purchase.nextActionErrorType !== null) {
+        return true;
+      }
+      return (
+        hasPaymentWindowExpired(job) &&
+        !ACTIVE_PURCHASE_NEXT_ACTIONS.includes(job.purchase.nextAction)
+      );
+    default:
+      return false;
+  }
 }
 
 function shouldSyncAgentStatus(job: JobWithSokosumiStatus): string | null {
@@ -360,6 +461,7 @@ async function syncSingleJob(
     const backfillSignal = createPollingSignal(
       options,
       `Stopping before backfilling purchase for job ${job.id}`,
+      "remote",
     );
     if (!backfillSignal) {
       return false;
@@ -377,6 +479,7 @@ async function syncSingleJob(
       shouldStopSync(
         options,
         `Stopping after backfilling purchase for job ${job.id}`,
+        "remote",
       )
     ) {
       return false;
@@ -405,6 +508,7 @@ async function syncSingleJob(
   const pollingSignal = createPollingSignal(
     options,
     `Stopping before polling remote status for job ${job.id}`,
+    "remote",
   );
   if (!pollingSignal) {
     return false;
@@ -427,6 +531,7 @@ async function syncSingleJob(
     shouldStopSync(
       options,
       `Stopping after polling remote status for job ${job.id}`,
+      "remote",
     )
   ) {
     return false;
@@ -462,7 +567,10 @@ async function syncSingleJob(
         currentJob = refreshedJob;
       }
 
-      if (agentJobStatusResult.isOk()) {
+      if (
+        !shouldSkipAgentStatusPersistence(currentJob) &&
+        agentJobStatusResult.isOk()
+      ) {
         const latestJobEvent =
           await jobEventRepository.getLatestJobEventByJobId(currentJob.id, tx);
 
@@ -509,23 +617,13 @@ async function syncSingleJob(
         }
       }
 
-      if (
-        currentJob.status === SokosumiJobStatus.PAYMENT_FAILED ||
-        currentJob.status === SokosumiJobStatus.REFUND_RESOLVED
-      ) {
-        await jobRepository.refundJob(currentJob.id, tx);
-      }
-
       return {
         job: currentJob,
         jobStatus: currentJob.status,
         extractionContext,
       };
     },
-    {
-      maxWait: 5000,
-      timeout: 20_000,
-    },
+    JOB_SYNC_TRANSACTION_OPTIONS,
   );
 
   const updatedJob = transactionResult.job;
@@ -580,37 +678,86 @@ async function syncSingleJob(
   return true;
 }
 
+async function syncRefundReconciliationJob(
+  job: JobWithSokosumiStatus,
+  options: JobSyncExecutionOptions,
+): Promise<boolean> {
+  if (
+    shouldStopSync(
+      options,
+      `Stopping before reconciling refund for job ${job.id}`,
+      "refund",
+    )
+  ) {
+    return false;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const currentJob = await jobRepository.getJobById(job.id, tx);
+    if (!currentJob) {
+      throw new Error("Job not found");
+    }
+
+    if (!shouldCreateLocalRefund(currentJob)) {
+      return;
+    }
+
+    await refundJob(job.id, tx);
+  }, JOB_SYNC_TRANSACTION_OPTIONS);
+
+  return true;
+}
+
 export const jobSyncService = {
   async syncUnfinishedJobs(
     options: JobSyncExecutionOptions,
   ): Promise<JobSyncResult> {
     const startedAt = Date.now();
-    const jobs = await jobRepository.getJobsNotFinished(prisma);
+    const [unfinishedJobs, jobsPendingLocalRefund] = await Promise.all([
+      prisma.job.findMany({
+        where: buildJobsNeedingRemoteSyncWhere(),
+        include: jobInclude,
+      }),
+      prisma.job.findMany({
+        where: buildJobsPendingLocalRefundWhere(),
+        include: jobInclude,
+      }),
+    ]);
+    const jobs = unfinishedJobs.map(mapJobWithStatus);
+    const jobsPendingRefundReconciliation =
+      jobsPendingLocalRefund.map(mapJobWithStatus);
+    logJobSyncInfo("remote", `Found ${jobs.length} jobs for standard sync`);
+    logJobSyncInfo(
+      "refund",
+      `Found ${jobsPendingRefundReconciliation.length} jobs pending local refund`,
+    );
     const limit = pLimit(JOB_SYNC_CONCURRENCY);
     const tasks: Promise<boolean>[] = [];
 
-    for (const job of jobs) {
-      if (
-        shouldStopSync(
-          options,
-          "Stopping before scheduling more unfinished jobs",
-        )
-      ) {
-        break;
-      }
-
+    function enqueueSyncTask(
+      job: JobWithSokosumiStatus,
+      kind: JobSyncKind,
+      processor: (
+        job: JobWithSokosumiStatus,
+        options: JobSyncExecutionOptions,
+      ) => Promise<boolean>,
+    ) {
       tasks.push(
         limit(async () => {
           if (
-            shouldStopSync(options, `Stopping before processing job ${job.id}`)
+            shouldStopSync(
+              options,
+              `Stopping before processing job ${job.id}`,
+              kind,
+            )
           ) {
             return false;
           }
 
           try {
-            return await syncSingleJob(job, options);
+            return await processor(job, options);
           } catch (error) {
-            console.error(`Failed to sync job ${job.id}`, error);
+            logJobSyncError(kind, job.id, error);
             Sentry.captureException(error, {
               extra: {
                 jobId: job.id,
@@ -622,6 +769,34 @@ export const jobSyncService = {
       );
     }
 
+    for (const job of jobs) {
+      if (
+        shouldStopSync(
+          options,
+          "Stopping before scheduling more unfinished jobs",
+          "remote",
+        )
+      ) {
+        break;
+      }
+
+      enqueueSyncTask(job, "remote", syncSingleJob);
+    }
+
+    for (const job of jobsPendingRefundReconciliation) {
+      if (
+        shouldStopSync(
+          options,
+          "Stopping before scheduling more refund reconciliation jobs",
+          "refund",
+        )
+      ) {
+        break;
+      }
+
+      enqueueSyncTask(job, "refund", syncRefundReconciliationJob);
+    }
+
     const results = await Promise.allSettled(tasks);
     const processed = results.filter(
       (result) => result.status === "fulfilled" && result.value,
@@ -630,7 +805,7 @@ export const jobSyncService = {
     return {
       durationMs: Date.now() - startedAt,
       processed,
-      unfinishedFound: jobs.length,
+      unfinishedFound: jobs.length + jobsPendingRefundReconciliation.length,
     };
   },
 };
