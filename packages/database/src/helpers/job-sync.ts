@@ -6,7 +6,13 @@ import {
 } from "../types/job.js";
 import { ACTIVE_PURCHASE_NEXT_ACTIONS } from "./job.js";
 
-const JOB_SYNC_CUTOFF_MS = 1000 * 60 * 10;
+/**
+ * Shared grace window (ms) after the effective payment deadline. Used by
+ * `buildJobsNeedingRemoteSyncWhere` / `buildJobsPendingLocalRefundWhere` cutoff
+ * times and by core job-sync runtime checks — keep a single definition so DB
+ * selection and `hasPaymentWindowExpired` stay aligned.
+ */
+export const JOB_SYNC_PAYMENT_GRACE_MS = 1000 * 60 * 10;
 
 /**
  * Matches jobs whose effective payment deadline (`payByTime ?? createdAt`) is
@@ -22,7 +28,7 @@ function paymentDeadlineBeforeCutoff(cutoffTime: Date): Prisma.JobWhereInput {
 }
 
 export function buildJobsNeedingRemoteSyncWhere(
-  cutoffTime: Date = new Date(Date.now() - JOB_SYNC_CUTOFF_MS),
+  cutoffTime: Date = new Date(Date.now() - JOB_SYNC_PAYMENT_GRACE_MS),
 ): Prisma.JobWhereInput {
   return {
     OR: [
@@ -115,7 +121,7 @@ export function buildJobsNeedingRemoteSyncWhere(
 }
 
 export function buildJobsPendingLocalRefundWhere(
-  cutoffTime: Date = new Date(Date.now() - JOB_SYNC_CUTOFF_MS),
+  cutoffTime: Date = new Date(Date.now() - JOB_SYNC_PAYMENT_GRACE_MS),
 ): Prisma.JobWhereInput {
   return {
     refundedTransactionId: null,

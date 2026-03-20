@@ -9,6 +9,7 @@ import {
   ACTIVE_PURCHASE_NEXT_ACTIONS,
   buildJobsNeedingRemoteSyncWhere,
   buildJobsPendingLocalRefundWhere,
+  JOB_SYNC_PAYMENT_GRACE_MS,
   mapJobWithStatus,
 } from "@sokosumi/database/helpers";
 import {
@@ -43,7 +44,6 @@ import { sourceImportService } from "@/services/source-import.service";
 const JOB_SYNC_CONCURRENCY = 5;
 const JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS = 250;
 const JOB_SYNC_REMOTE_TIMEOUT_MS = 10_000;
-const JOB_PAYMENT_GRACE_MS = 1000 * 60 * 10;
 const JOB_SYNC_TRANSACTION_OPTIONS = {
   maxWait: 5000,
   timeout: 20_000,
@@ -144,7 +144,7 @@ function hasPaymentWindowExpired(
   job: Pick<JobWithSokosumiStatus, "createdAt" | "payByTime">,
 ): boolean {
   const paymentDeadline = job.payByTime ?? job.createdAt;
-  return paymentDeadline.getTime() < Date.now() - JOB_PAYMENT_GRACE_MS;
+  return paymentDeadline.getTime() < Date.now() - JOB_SYNC_PAYMENT_GRACE_MS;
 }
 
 function shouldSkipAgentStatusPersistence(job: JobWithSokosumiStatus): boolean {
