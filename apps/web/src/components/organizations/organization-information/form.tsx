@@ -30,6 +30,7 @@ import { authClient } from "@/lib/auth/auth.client";
 import {
   ORGANIZATION_LOGO_ACCEPT,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+  ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
 import {
   organizationInformationFormSchema,
@@ -38,6 +39,31 @@ import {
 
 import { organizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
+
+class LogoUploadClientTimeoutError extends Error {
+  constructor() {
+    super("Logo upload timed out");
+    this.name = "LogoUploadClientTimeoutError";
+  }
+}
+
+function raceWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new LogoUploadClientTimeoutError());
+    }, ms);
+  });
+
+  return Promise.race([
+    promise.finally(() => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+    }),
+    timeoutPromise,
+  ]);
+}
 
 interface OrganizationInformationFormProps {
   organization: Organization | null;
@@ -84,7 +110,10 @@ export default function OrganizationInformationForm({
       setIsUploadingLogo(true);
       onLogoUploadBusyChange?.(true);
       try {
-        const uploadResult = await uploadOrganizationLogo({ file: logoFile });
+        const uploadResult = await raceWithTimeout(
+          uploadOrganizationLogo({ file: logoFile }),
+          ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
+        );
         if (!uploadResult.ok) {
           toast.error(
             uploadResult.error.message ?? t("Fields.Logo.uploadError"),
