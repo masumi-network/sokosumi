@@ -47,7 +47,7 @@ app.doc31("/openapi.json", {
       description: "Mainnet Server",
     },
     {
-      url: `https://preprod.api.sokosumi.com/v1`,
+      url: `https://api.preprod.sokosumi.com/v1`,
       description: "Pre-production Server",
     },
     ...(getEnv().NODE_ENV === "development"
