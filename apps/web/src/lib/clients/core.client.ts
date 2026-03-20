@@ -101,10 +101,19 @@ type CoreOperationResult<TData, TError> = {
   response: Response;
 };
 
+export function buildAuthHeaders(requestHeaders: Headers): HeadersInit {
+  const authHeaders: HeadersInit = {};
+  const cookie = requestHeaders.get("cookie");
+
+  if (cookie) authHeaders.cookie = cookie;
+
+  return authHeaders;
+}
+
 async function createCoreGeneratedClient(): Promise<Client> {
   return createClient({
     baseUrl: getCoreApiBaseUrl(),
-    headers: await headers(),
+    headers: buildAuthHeaders(await headers()),
   });
 }
 

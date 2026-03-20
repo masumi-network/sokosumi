@@ -13,6 +13,7 @@ const lastLoginMethodPluginMock = jest.fn();
 const magicLinkPluginMock = jest.fn();
 const marketingOptInUserSchemaSafeParseMock = jest.fn();
 const nextCookiesPluginMock = jest.fn();
+const oAuthProxyPluginMock = jest.fn();
 const oauthProviderPluginMock = jest.fn();
 const organizationPluginMock = jest.fn();
 const renderOrganizationInvitationEmailMock = jest.fn();
@@ -81,6 +82,7 @@ jest.mock("better-auth/plugins", () => ({
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   lastLoginMethod: (...args: unknown[]) => lastLoginMethodPluginMock(...args),
   magicLink: (...args: unknown[]) => magicLinkPluginMock(...args),
+  oAuthProxy: (...args: unknown[]) => oAuthProxyPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
 }));
 
@@ -226,6 +228,7 @@ describe("web auth config", () => {
     lastLoginMethodPluginMock.mockReturnValue("last-login-method-plugin");
     magicLinkPluginMock.mockReturnValue("magic-link-plugin");
     nextCookiesPluginMock.mockReturnValue("next-cookies-plugin");
+    oAuthProxyPluginMock.mockReturnValue("oauth-proxy-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
     passkeyPluginMock.mockReturnValue("passkey-plugin");
