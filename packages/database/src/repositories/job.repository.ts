@@ -78,16 +78,6 @@ export const jobRepository = {
     return jobs.map(mapJobWithStatus);
   },
 
-  async getJobsPendingRefundReconciliation(
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus[]> {
-    const jobs = await tx.job.findMany({
-      where: jobsPendingRefundReconciliationWhereQuery(),
-      include: jobInclude,
-    });
-    return jobs.map(mapJobWithStatus);
-  },
-
   /**
    * Retrieves all jobs associated with a specific user
    * @param userId - The unique identifier of the user
@@ -691,34 +681,6 @@ function jobsNotFinishedWhereQuery(
       // Filter out demo jobs
       {
         jobType: JobType.DEMO,
-      },
-    ],
-  };
-}
-
-function jobsPendingRefundReconciliationWhereQuery(
-  cutoffTime: Date = new Date(Date.now() - 1000 * 60 * 10),
-): Prisma.JobWhereInput {
-  return {
-    refundedTransactionId: null,
-    jobType: JobType.PAID,
-    OR: [
-      {
-        purchase: {
-          onChainStatus: OnChainJobStatus.REFUND_WITHDRAWN,
-        },
-      },
-      {
-        purchase: {
-          onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
-        },
-      },
-      {
-        purchase: null,
-        payByTime: {
-          not: null,
-          lt: cutoffTime,
-        },
       },
     ],
   };

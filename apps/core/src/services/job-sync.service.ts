@@ -28,6 +28,7 @@ import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { fetchJobsPendingRefundReconciliation } from "@/services/job-sync-refund-reconciliation";
 import { sourceImportService } from "@/services/source-import.service";
 
 const JOB_SYNC_CONCURRENCY = 5;
@@ -630,7 +631,7 @@ export const jobSyncService = {
     const startedAt = Date.now();
     const [jobs, jobsPendingRefundReconciliation] = await Promise.all([
       jobRepository.getJobsNotFinished(prisma),
-      jobRepository.getJobsPendingRefundReconciliation(prisma),
+      fetchJobsPendingRefundReconciliation(prisma),
     ]);
     const limit = pLimit(JOB_SYNC_CONCURRENCY);
     const tasks: Promise<boolean>[] = [];

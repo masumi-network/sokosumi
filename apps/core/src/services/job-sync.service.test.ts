@@ -58,6 +58,10 @@ vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
 }));
 
+vi.mock("@/services/job-sync-refund-reconciliation", () => ({
+  fetchJobsPendingRefundReconciliation: getJobsPendingRefundReconciliationMock,
+}));
+
 vi.mock("@sokosumi/database/repositories", () => ({
   jobEventRepository: {
     createJobEventForJobId: createJobEventForJobIdMock,
@@ -70,7 +74,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
   jobRepository: {
     getJobById: getJobByIdMock,
     getJobsNotFinished: getJobsNotFinishedMock,
-    getJobsPendingRefundReconciliation: getJobsPendingRefundReconciliationMock,
     refundJob: refundJobMock,
   },
 }));

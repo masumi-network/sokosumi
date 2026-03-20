@@ -27,24 +27,6 @@ async function captureGetJobsNotFinishedWhereQuery() {
   return where;
 }
 
-async function captureGetJobsPendingRefundReconciliationWhereQuery() {
-  let where: Prisma.JobWhereInput | undefined;
-
-  const tx = {
-    job: {
-      findMany: async (args: { where: Prisma.JobWhereInput }) => {
-        where = args.where;
-        return [];
-      },
-    },
-  } as unknown as Prisma.TransactionClient;
-
-  await jobRepository.getJobsPendingRefundReconciliation(tx);
-
-  assert.ok(where);
-  return where;
-}
-
 function expectPayByTimeCutoffFilter(
   payByTime: Prisma.JobWhereInput["payByTime"] | undefined,
 ): void {
@@ -94,40 +76,6 @@ describe("jobRepository.getJobsNotFinished", () => {
 
     assert.equal(missingPurchaseClause?.purchase, null);
     assert.equal(missingPurchaseClause?.jobType, JobType.PAID);
-    expectPayByTimeCutoffFilter(missingPurchaseClause?.payByTime);
-  });
-});
-
-describe("jobRepository.getJobsPendingRefundReconciliation", () => {
-  it("returns paid jobs missing a local refund transaction for refund terminal states and timed-out missing purchases", async () => {
-    const where = await captureGetJobsPendingRefundReconciliationWhereQuery();
-    const orClauses = where.OR as Prisma.JobWhereInput[];
-    const missingPurchaseClause = orClauses.find(
-      (clause) => clause.purchase === null,
-    );
-
-    assert.equal(where.refundedTransactionId, null);
-    assert.equal(where.jobType, JobType.PAID);
-    assert.equal(
-      orClauses.some(
-        (clause) =>
-          clause.purchase &&
-          "onChainStatus" in clause.purchase &&
-          clause.purchase.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN,
-      ),
-      true,
-    );
-    assert.equal(
-      orClauses.some(
-        (clause) =>
-          clause.purchase &&
-          "onChainStatus" in clause.purchase &&
-          clause.purchase.onChainStatus ===
-            OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
-      ),
-      true,
-    );
-    assert.equal(missingPurchaseClause?.purchase, null);
     expectPayByTimeCutoffFilter(missingPurchaseClause?.payByTime);
   });
 });
