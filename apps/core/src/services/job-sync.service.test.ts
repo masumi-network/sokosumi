@@ -62,6 +62,10 @@ vi.mock("@/services/job-sync-refund-reconciliation", () => ({
   fetchJobsPendingRefundReconciliation: getJobsPendingRefundReconciliationMock,
 }));
 
+vi.mock("@/services/job-refund", () => ({
+  refundJob: refundJobMock,
+}));
+
 vi.mock("@sokosumi/database/repositories", () => ({
   jobEventRepository: {
     createJobEventForJobId: createJobEventForJobIdMock,
@@ -74,7 +78,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
   jobRepository: {
     getJobById: getJobByIdMock,
     getJobsNotFinished: getJobsNotFinishedMock,
-    refundJob: refundJobMock,
   },
 }));
 

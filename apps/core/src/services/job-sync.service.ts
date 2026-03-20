@@ -28,6 +28,7 @@ import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { refundJob } from "@/services/job-refund";
 import { fetchJobsPendingRefundReconciliation } from "@/services/job-sync-refund-reconciliation";
 import { sourceImportService } from "@/services/source-import.service";
 
@@ -618,7 +619,7 @@ async function syncRefundReconciliationJob(
   }
 
   await prisma.$transaction(async (tx) => {
-    await jobRepository.refundJob(job.id, tx);
+    await refundJob(job.id, tx);
   }, JOB_SYNC_TRANSACTION_OPTIONS);
 
   return true;

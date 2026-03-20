@@ -2,7 +2,6 @@ import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 
 import {
   AgentJobStatus,
-  CreditBucketReferenceType,
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
@@ -372,71 +371,6 @@ export const jobRepository = {
         throw new Error(`Unsupported job type: ${_exhaustive}`);
       }
     }
-  },
-
-  async refundJob(jobId: string, tx: Prisma.TransactionClient): Promise<void> {
-    const job = await tx.job.findUnique({
-      where: { id: jobId },
-      select: {
-        refundedTransaction: true,
-        transaction: true,
-      },
-    });
-
-    // If the job has already been refunded, do nothing
-    if (job?.refundedTransaction) {
-      return;
-    }
-
-    const transaction = job?.transaction;
-
-    if (!transaction) {
-      throw new Error("Transaction not found");
-    }
-
-    const amount = transaction.amount * BigInt(-1);
-    await tx.job.update({
-      where: { id: jobId },
-      data: {
-        refundedTransaction: {
-          create: {
-            amount,
-            user: {
-              connect: {
-                id: transaction.userId,
-              },
-            },
-            ...(transaction.organizationId && {
-              organization: {
-                connect: {
-                  id: transaction.organizationId,
-                },
-              },
-            }),
-            sourceCreditBucket: {
-              create: {
-                amount,
-                referenceId: jobId,
-                referenceType: CreditBucketReferenceType.REFUND,
-                user: {
-                  connect: {
-                    id: transaction.userId,
-                  },
-                },
-                expiresAt: null,
-                ...(transaction.organizationId && {
-                  organization: {
-                    connect: {
-                      id: transaction.organizationId,
-                    },
-                  },
-                }),
-              },
-            },
-          } satisfies Prisma.TransactionCreateInput,
-        },
-      },
-    });
   },
 
   async getNotFinishedLatestJobByAgentIdAndUserId(
