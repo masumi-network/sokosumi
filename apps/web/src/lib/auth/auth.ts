@@ -31,6 +31,7 @@ import pTimeout from "p-timeout";
 import Stripe from "stripe";
 import * as z from "zod";
 
+import { getBetterAuthPublicBaseUrl } from "@/config/better-auth-public-url";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { resolveRequestLocale } from "@/i18n/locale-resolution";
@@ -129,8 +130,11 @@ function getEmailLocale(
   });
 }
 
+const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
+
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
+  baseURL: betterAuthBaseUrl,
   advanced: {
     ipAddress: {
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
@@ -517,7 +521,7 @@ export const auth = betterAuth({
         },
       },
       async sendInvitationEmail(data, request) {
-        const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/accept-invitation/${data.id}`;
+        const inviteLink = `${betterAuthBaseUrl}/accept-invitation/${data.id}`;
         const email = await renderOrganizationInvitationEmail({
           invitationLink: inviteLink,
           invitorUsername: data.inviter.user.name,
