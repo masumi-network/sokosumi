@@ -6,6 +6,7 @@ import {
   OnChainJobStatus,
   type Prisma,
 } from "../../generated/prisma/client.js";
+import { ACTIVE_PURCHASE_NEXT_ACTIONS } from "../../helpers/job.js";
 import { jobRepository } from "../job.repository.js";
 
 async function captureGetJobsNotFinishedWhereQuery() {
@@ -64,6 +65,27 @@ describe("jobRepository.getJobsNotFinished", () => {
         notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
       },
     });
+  });
+
+  it("keeps active timed-out null-on-chain purchases in the unfinished sync set", async () => {
+    const where = await captureGetJobsNotFinishedWhereQuery();
+    const notClauses = where.NOT as Prisma.JobWhereInput[];
+    const timedOutNullOnChainClause = notClauses.find(
+      (clause) =>
+        clause.purchase !== null &&
+        typeof clause.purchase === "object" &&
+        "onChainStatus" in clause.purchase &&
+        clause.purchase.onChainStatus === null,
+    );
+
+    assert.deepEqual(timedOutNullOnChainClause?.purchase, {
+      onChainStatus: null,
+      nextAction: {
+        notIn: ACTIVE_PURCHASE_NEXT_ACTIONS,
+      },
+    });
+    assert.equal(timedOutNullOnChainClause?.jobType, JobType.PAID);
+    expectPayByTimeCutoffFilter(timedOutNullOnChainClause?.payByTime);
   });
 
   it("moves timed-out missing purchases out of the unfinished sync set", async () => {

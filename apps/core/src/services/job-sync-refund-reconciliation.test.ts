@@ -1,4 +1,5 @@
 import { JobType, OnChainJobStatus, type Prisma } from "@sokosumi/database";
+import { ACTIVE_PURCHASE_NEXT_ACTIONS } from "@sokosumi/database/helpers";
 import { describe, expect, it } from "vitest";
 
 import { buildJobsPendingRefundReconciliationWhere } from "./job-sync-refund-reconciliation";
@@ -49,6 +50,9 @@ describe("buildJobsPendingRefundReconciliationWhere", () => {
     expectPayByTimeCutoffFilter(missingPurchaseClause?.payByTime);
     expect(timedOutNullOnChainClause?.purchase).toEqual({
       onChainStatus: null,
+      nextAction: {
+        notIn: ACTIVE_PURCHASE_NEXT_ACTIONS,
+      },
     });
     expectPayByTimeCutoffFilter(timedOutNullOnChainClause?.payByTime);
   });

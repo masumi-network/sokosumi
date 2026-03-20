@@ -1,5 +1,8 @@
 import { JobType, OnChainJobStatus, type Prisma } from "@sokosumi/database";
-import { mapJobWithStatus } from "@sokosumi/database/helpers";
+import {
+  ACTIVE_PURCHASE_NEXT_ACTIONS,
+  mapJobWithStatus,
+} from "@sokosumi/database/helpers";
 import {
   jobInclude,
   type JobWithSokosumiStatus,
@@ -38,6 +41,9 @@ export function buildJobsPendingRefundReconciliationWhere(
       {
         purchase: {
           onChainStatus: null,
+          nextAction: {
+            notIn: ACTIVE_PURCHASE_NEXT_ACTIONS,
+          },
         },
         payByTime: {
           not: null,

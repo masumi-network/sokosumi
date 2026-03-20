@@ -5,6 +5,7 @@ import {
   OnChainJobStatus,
   SokosumiJobStatus,
 } from "@sokosumi/database";
+import { ACTIVE_PURCHASE_NEXT_ACTIONS } from "@sokosumi/database/helpers";
 import {
   jobEventRepository,
   jobPurchaseRepository,
@@ -155,6 +156,29 @@ function shouldSkipAgentStatusPersistence(job: JobWithSokosumiStatus): boolean {
     onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN ||
     onChainStatus === OnChainJobStatus.DISPUTED_WITHDRAWN
   );
+}
+
+function shouldCreateLocalRefund(job: JobWithSokosumiStatus): boolean {
+  if (job.jobType !== JobType.PAID || job.refundedTransactionId) {
+    return false;
+  }
+
+  if (job.purchase === null) {
+    return hasPaymentWindowExpired(job);
+  }
+
+  switch (job.purchase.onChainStatus) {
+    case OnChainJobStatus.REFUND_WITHDRAWN:
+    case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
+      return true;
+    case null:
+      return (
+        hasPaymentWindowExpired(job) &&
+        !ACTIVE_PURCHASE_NEXT_ACTIONS.includes(job.purchase.nextAction)
+      );
+    default:
+      return false;
+  }
 }
 
 function shouldSyncAgentStatus(job: JobWithSokosumiStatus): string | null {
@@ -624,6 +648,15 @@ async function syncRefundReconciliationJob(
   }
 
   await prisma.$transaction(async (tx) => {
+    const currentJob = await jobRepository.getJobById(job.id, tx);
+    if (!currentJob) {
+      throw new Error("Job not found");
+    }
+
+    if (!shouldCreateLocalRefund(currentJob)) {
+      return;
+    }
+
     await refundJob(job.id, tx);
   }, JOB_SYNC_TRANSACTION_OPTIONS);
 

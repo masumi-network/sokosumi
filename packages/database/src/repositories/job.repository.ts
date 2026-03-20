@@ -6,7 +6,7 @@ import {
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
 import type { Prisma } from "../generated/prisma/client.js";
-import { mapJobWithStatus } from "../helpers/job.js";
+import { ACTIVE_PURCHASE_NEXT_ACTIONS, mapJobWithStatus } from "../helpers/job.js";
 import {
   finalizedAgentJobStatuses,
   finalizedOnChainJobStatuses,
@@ -602,6 +602,9 @@ function jobsNotFinishedWhereQuery(
       {
         purchase: {
           onChainStatus: null,
+          nextAction: {
+            notIn: ACTIVE_PURCHASE_NEXT_ACTIONS,
+          },
         },
         payByTime: { not: null, lt: cutoffTime },
         jobType: JobType.PAID,

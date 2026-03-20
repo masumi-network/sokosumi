@@ -348,20 +348,22 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("reconciles refund-withdrawn jobs without running the standard sync pipeline", async () => {
+    const reconciliationJob = createJob({
+      id: "job_refund",
+      status: SokosumiJobStatus.REFUND_RESOLVED,
+      purchase: {
+        externalId: "purchase_refund",
+        onChainStatus: "REFUND_WITHDRAWN",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+    });
     getJobsPendingRefundReconciliationMock.mockResolvedValue([
-      createJob({
-        id: "job_refund",
-        status: SokosumiJobStatus.REFUND_RESOLVED,
-        purchase: {
-          externalId: "purchase_refund",
-          onChainStatus: "REFUND_WITHDRAWN",
-          resultHash: null,
-          nextAction: "NONE",
-          nextActionErrorType: null,
-          nextActionErrorNote: null,
-        },
-      }),
+      reconciliationJob,
     ]);
+    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -383,20 +385,22 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("reconciles purchase-state payment failures without running the standard sync pipeline", async () => {
+    const reconciliationJob = createJob({
+      id: "job_payment_failed",
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      purchase: {
+        externalId: "purchase_payment_failed",
+        onChainStatus: "FUNDS_OR_DATUM_INVALID",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+    });
     getJobsPendingRefundReconciliationMock.mockResolvedValue([
-      createJob({
-        id: "job_payment_failed",
-        status: SokosumiJobStatus.PAYMENT_FAILED,
-        purchase: {
-          externalId: "purchase_payment_failed",
-          onChainStatus: "FUNDS_OR_DATUM_INVALID",
-          resultHash: null,
-          nextAction: "NONE",
-          nextActionErrorType: null,
-          nextActionErrorNote: null,
-        },
-      }),
+      reconciliationJob,
     ]);
+    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -418,14 +422,16 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("reconciles timed-out missing purchases without running the standard sync pipeline", async () => {
+    const reconciliationJob = createJob({
+      id: "job_missing_purchase",
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      purchase: null,
+      payByTime: new Date("2026-03-18T09:45:00.000Z"),
+    });
     getJobsPendingRefundReconciliationMock.mockResolvedValue([
-      createJob({
-        id: "job_missing_purchase",
-        status: SokosumiJobStatus.PAYMENT_FAILED,
-        purchase: null,
-        payByTime: new Date("2026-03-18T09:45:00.000Z"),
-      }),
+      reconciliationJob,
     ]);
+    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -448,21 +454,23 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("reconciles timed-out null-on-chain purchases without running the standard sync pipeline", async () => {
+    const reconciliationJob = createJob({
+      id: "job_null_on_chain",
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      payByTime: new Date("2026-03-18T09:45:00.000Z"),
+      purchase: {
+        externalId: "purchase_null_on_chain",
+        onChainStatus: null,
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: "NETWORK_ERROR",
+        nextActionErrorNote: null,
+      },
+    });
     getJobsPendingRefundReconciliationMock.mockResolvedValue([
-      createJob({
-        id: "job_null_on_chain",
-        status: SokosumiJobStatus.PAYMENT_FAILED,
-        payByTime: new Date("2026-03-18T09:45:00.000Z"),
-        purchase: {
-          externalId: "purchase_null_on_chain",
-          onChainStatus: null,
-          resultHash: null,
-          nextAction: "NONE",
-          nextActionErrorType: "NETWORK_ERROR",
-          nextActionErrorNote: null,
-        },
-      }),
+      reconciliationJob,
     ]);
+    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -476,6 +484,57 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
     expect(refundJobMock).toHaveBeenCalledWith("job_null_on_chain", {});
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
+    expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
+    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(publishJobStatusDataMock).not.toHaveBeenCalled();
+  });
+
+  it("skips refund reconciliation when the refreshed job is still refund-pending", async () => {
+    getJobsPendingRefundReconciliationMock.mockResolvedValue([
+      createJob({
+        id: "job_stale_reconciliation",
+        status: SokosumiJobStatus.PAYMENT_FAILED,
+        payByTime: new Date("2026-03-18T09:45:00.000Z"),
+        purchase: {
+          externalId: "purchase_stale_reconciliation",
+          onChainStatus: null,
+          resultHash: null,
+          nextAction: "NONE",
+          nextActionErrorType: null,
+          nextActionErrorNote: null,
+        },
+      }),
+    ]);
+    getJobByIdMock.mockResolvedValueOnce(
+      createJob({
+        id: "job_stale_reconciliation",
+        status: SokosumiJobStatus.REFUND_PENDING,
+        payByTime: new Date("2026-03-18T09:45:00.000Z"),
+        purchase: {
+          externalId: "purchase_stale_reconciliation",
+          onChainStatus: null,
+          resultHash: null,
+          nextAction: "SET_REFUND_REQUESTED_REQUESTED",
+          nextActionErrorType: null,
+          nextActionErrorNote: null,
+        },
+      }),
+    );
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        processed: 1,
+        unfinishedFound: 1,
+      }),
+    );
+    expect(refundJobMock).not.toHaveBeenCalled();
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
     expect(getPurchaseByIdMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -1132,20 +1191,22 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
   it("counts standard sync jobs and refund reconciliation jobs in the same run", async () => {
     getJobsNotFinishedMock.mockResolvedValue([createJob()]);
+    const reconciliationJob = createJob({
+      id: "job_refund",
+      status: SokosumiJobStatus.REFUND_RESOLVED,
+      purchase: {
+        externalId: "purchase_refund",
+        onChainStatus: "REFUND_WITHDRAWN",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+    });
     getJobsPendingRefundReconciliationMock.mockResolvedValue([
-      createJob({
-        id: "job_refund",
-        status: SokosumiJobStatus.REFUND_RESOLVED,
-        purchase: {
-          externalId: "purchase_refund",
-          onChainStatus: "REFUND_WITHDRAWN",
-          resultHash: null,
-          nextAction: "NONE",
-          nextActionErrorType: null,
-          nextActionErrorNote: null,
-        },
-      }),
+      reconciliationJob,
     ]);
+    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
     fetchAgentJobStatusMock.mockReturnValue(
       ok({
         status: "running",
