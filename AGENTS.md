@@ -207,6 +207,7 @@ const config = {
 - **Coverage**: Cover both success and failure paths when touching `src/lib`
 - **Mocking**: Use `__mocks__` or Prisma factories for external services
 - **Execution**: Run `pnpm test` from the repo root, or the relevant workspace command such as `pnpm --filter web test`, before pushing
+- **Targeted reruns**: Use `pnpm --filter <workspace> test path/to/file.test.ts`. Do not insert an extra `--` before the file path for Vitest reruns.
 
 ## Commit & Pull Request Guidelines
 
