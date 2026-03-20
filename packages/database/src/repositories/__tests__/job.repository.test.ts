@@ -3,9 +3,64 @@ import { describe, it } from "node:test";
 
 import {
   CreditBucketReferenceType,
+  JobType,
+  OnChainJobStatus,
   type Prisma,
 } from "../../generated/prisma/client.js";
 import { jobRepository } from "../job.repository.js";
+
+async function captureGetJobsNotFinishedWhereQuery() {
+  let where: Prisma.JobWhereInput | undefined;
+
+  const tx = {
+    job: {
+      findMany: async (args: { where: Prisma.JobWhereInput }) => {
+        where = args.where;
+        return [];
+      },
+    },
+  } as unknown as Prisma.TransactionClient;
+
+  await jobRepository.getJobsNotFinished(tx);
+
+  assert.ok(where);
+  return where;
+}
+
+describe("jobRepository.getJobsNotFinished", () => {
+  it("keeps refund withdrawals with no local refund transaction in the sync set", async () => {
+    const where = await captureGetJobsNotFinishedWhereQuery();
+    const orClauses = where.OR as Prisma.JobWhereInput[];
+
+    assert.deepEqual(
+      orClauses.at(1),
+      {
+        purchase: {
+          onChainStatus: {
+            in: [OnChainJobStatus.REFUND_WITHDRAWN],
+          },
+        },
+        refundedTransactionId: null,
+        jobType: JobType.PAID,
+      } satisfies Prisma.JobWhereInput,
+    );
+  });
+
+  it("does not apply the dispute cutoff to refund reconciliation jobs", async () => {
+    const where = await captureGetJobsNotFinishedWhereQuery();
+    const notClauses = where.NOT as Prisma.JobWhereInput[];
+
+    assert.deepEqual(notClauses.at(1)?.purchase, {
+      onChainStatus: {
+        notIn: [
+          OnChainJobStatus.DISPUTED,
+          OnChainJobStatus.REFUND_REQUESTED,
+          OnChainJobStatus.REFUND_WITHDRAWN,
+        ],
+      },
+    });
+  });
+});
 
 describe("jobRepository.refundJob", () => {
   it("creates a refund bucket with REFUND reference type and no expiry", async () => {

@@ -581,19 +581,20 @@ export const jobRepository = {
 };
 
 /**
- * Creates a Prisma where query to filter for jobs that are not finished.
+ * Creates a Prisma where query to filter for jobs that still need sync work.
  *
- * A job is considered "not finished" if it meets any of the following criteria:
+ * A paid job still needs sync work if it meets any of the following criteria:
  * - Has an on-chain status that is not finalized (not in finalizedOnChainJobStatuses)
+ * - Has a finalized refund withdrawal on-chain but is still missing the local refund transaction
  * - Has no on-chain status but has a payByTime that is greater than the cutoff time
  *
  * Jobs are excluded if they meet any of the following criteria:
  * - Have been refunded (refundedTransactionId is not null)
- * - Are non-disputed and have passed their external dispute grace period
+ * - Are outside the dispute/refund reconciliation window and have passed their external dispute grace period
  * - Have no on-chain status and no payByTime set
  *
  * @param cutoffTime - The time threshold for filtering jobs (defaults to 10 minutes ago)
- * @returns Prisma where query object for filtering non-finished jobs
+ * @returns Prisma where query object for filtering jobs that still need sync work
  */
 function jobsNotFinishedWhereQuery(
   cutoffTime: Date = new Date(Date.now() - 1000 * 60 * 10),
@@ -607,6 +608,17 @@ function jobsNotFinishedWhereQuery(
             notIn: finalizedOnChainJobStatuses,
           },
         },
+        jobType: JobType.PAID,
+      },
+      // Keep locally unrefunded refund withdrawals in the sync set so we can
+      // backfill the refund transaction once the remote refund settles.
+      {
+        purchase: {
+          onChainStatus: {
+            in: [OnChainJobStatus.REFUND_WITHDRAWN],
+          },
+        },
+        refundedTransactionId: null,
         jobType: JobType.PAID,
       },
       // Filter in jobs that have no on-chain status
@@ -634,10 +646,17 @@ function jobsNotFinishedWhereQuery(
         },
         jobType: JobType.PAID,
       },
-      // Filter out jobs that are non-disputed and have a externalDisputeUnlockTime that is less than the cutoff time
+      // Filter out jobs that are outside the dispute/refund reconciliation
+      // window and have an externalDisputeUnlockTime before the cutoff.
       {
         purchase: {
-          onChainStatus: { not: OnChainJobStatus.DISPUTED },
+          onChainStatus: {
+            notIn: [
+              OnChainJobStatus.DISPUTED,
+              OnChainJobStatus.REFUND_REQUESTED,
+              OnChainJobStatus.REFUND_WITHDRAWN,
+            ],
+          },
         },
         externalDisputeUnlockTime: {
           not: null,
