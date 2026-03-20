@@ -14,6 +14,7 @@ const {
   setContextMock,
   setUserMock,
   startSpanMock,
+  withIsolationScopeMock,
 } = vi.hoisted(() => ({
   getActiveSpanMock: vi.fn(),
   captureExceptionMock: vi.fn(),
@@ -22,6 +23,7 @@ const {
   setContextMock: vi.fn(),
   setUserMock: vi.fn(),
   startSpanMock: vi.fn(),
+  withIsolationScopeMock: vi.fn(),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -29,6 +31,7 @@ vi.mock("@sentry/node", () => ({
   getActiveSpan: getActiveSpanMock,
   getCurrentScope: getCurrentScopeMock,
   startSpan: startSpanMock,
+  withIsolationScope: withIsolationScopeMock,
 }));
 
 function createApp(params: {
@@ -83,6 +86,9 @@ describe("sentryMiddleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    withIsolationScopeMock.mockImplementation(async (callback) => {
+      return await callback();
+    });
     startSpanMock.mockImplementation(async (_spanConfig, callback) => {
       return await callback();
     });
@@ -108,8 +114,10 @@ describe("sentryMiddleware", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(setUserMock).toHaveBeenCalledTimes(1);
-    expect(setUserMock).toHaveBeenCalledWith({
+    expect(withIsolationScopeMock).toHaveBeenCalledTimes(1);
+    expect(setUserMock).toHaveBeenNthCalledWith(1, null);
+    expect(setUserMock).toHaveBeenCalledTimes(2);
+    expect(setUserMock).toHaveBeenNthCalledWith(2, {
       id: "user_123",
       organizationId: "org_123",
     });
@@ -127,8 +135,9 @@ describe("sentryMiddleware", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(setUserMock).toHaveBeenCalledTimes(1);
-    expect(setUserMock).toHaveBeenCalledWith({
+    expect(setUserMock).toHaveBeenNthCalledWith(1, null);
+    expect(setUserMock).toHaveBeenCalledTimes(2);
+    expect(setUserMock).toHaveBeenNthCalledWith(2, {
       id: "coworker:cow_123",
       coworkerId: "cow_123",
     });
@@ -157,7 +166,8 @@ describe("sentryMiddleware", () => {
       return await next();
     });
     app.get("/", () => {
-      expect(setUserMock).toHaveBeenCalledWith({
+      expect(setUserMock).toHaveBeenNthCalledWith(1, null);
+      expect(setUserMock).toHaveBeenNthCalledWith(2, {
         id: "user_123",
         organizationId: "org_123",
       });
@@ -184,7 +194,8 @@ describe("sentryMiddleware", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(setUserMock).not.toHaveBeenCalled();
+    expect(setUserMock).toHaveBeenCalledTimes(1);
+    expect(setUserMock).toHaveBeenCalledWith(null);
   });
 
   it("does not set sentry user when auth context is missing", async () => {
@@ -195,7 +206,31 @@ describe("sentryMiddleware", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(setUserMock).not.toHaveBeenCalled();
+    expect(setUserMock).toHaveBeenCalledTimes(1);
+    expect(setUserMock).toHaveBeenCalledWith(null);
+  });
+
+  it("clears the request scope before auth runs so prior user state cannot leak", async () => {
+    const app = new Hono<{
+      Variables: { requestId: string } & Partial<AuthVariables>;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("requestId", "req_123");
+      return await next();
+    });
+    app.use("*", sentryMiddleware());
+    app.get("/", () => {
+      Sentry.captureException(new Error("unauthenticated failure"));
+      return new Response("ok");
+    });
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(setUserMock).toHaveBeenCalledTimes(1);
+    expect(setUserMock).toHaveBeenCalledWith(null);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
   it("redacts sensitive request headers before sending them to sentry", async () => {
