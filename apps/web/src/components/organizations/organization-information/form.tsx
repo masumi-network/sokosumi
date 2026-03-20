@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Organization } from "@sokosumi/database";
+import { normalizeOrganizationLogo } from "@sokosumi/utils";
 import { Building2, CloudUpload, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -148,17 +149,15 @@ export default function OrganizationInformationForm({
       let result;
       const isCreating = !organization;
       const normalizedUrl = values.url.trim();
-      const normalizedLogo = values.logo.trim();
+      const logoForApi = normalizeOrganizationLogo(values.logo);
       const createUrlPayload =
         normalizedUrl.length > 0 ? normalizedUrl : undefined;
-      const createLogoPayload =
-        normalizedLogo.length > 0 ? normalizedLogo : undefined;
 
       if (isCreating) {
         const slugResult = await generateOrganizationSlug({
           name: values.name,
           url: values.url,
-          logo: values.logo,
+          logo: logoForApi ?? "",
         });
 
         if (!slugResult.ok) {
@@ -171,7 +170,7 @@ export default function OrganizationInformationForm({
           slug,
           name: values.name,
           ...(createUrlPayload && { url: createUrlPayload }),
-          ...(createLogoPayload && { logo: createLogoPayload }),
+          ...(logoForApi && { logo: logoForApi }),
         });
       } else {
         result = await authClient.organization.update({
@@ -179,7 +178,7 @@ export default function OrganizationInformationForm({
           data: {
             name: values.name,
             url: normalizedUrl,
-            logo: normalizedLogo,
+            logo: logoForApi,
           },
         });
       }

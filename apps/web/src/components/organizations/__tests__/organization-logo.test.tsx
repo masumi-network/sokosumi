@@ -3,19 +3,25 @@ import { Organization } from "@sokosumi/database";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ImgHTMLAttributes } from "react";
 
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+
 import { OrganizationLogo } from "@/components/organizations/organization-logo";
-import { ipfsUrlResolver } from "@/lib/ipfs";
 
 jest.mock("next/image", () => ({
   __esModule: true,
   default: (props: ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
 }));
 
-jest.mock("@/lib/ipfs", () => ({
-  ipfsUrlResolver: jest.fn(),
-}));
+jest.mock("@sokosumi/utils", () => {
+  const actual =
+    jest.requireActual<typeof import("@sokosumi/utils")>("@sokosumi/utils");
+  return {
+    ...actual,
+    resolveIpfsOrHttpUrl: jest.fn(),
+  };
+});
 
-const mockedIpfsUrlResolver = jest.mocked(ipfsUrlResolver);
+const mockedResolveIpfsOrHttpUrl = jest.mocked(resolveIpfsOrHttpUrl);
 
 function createOrganization(overrides: Partial<Organization>): Organization {
   return {
@@ -28,11 +34,13 @@ function createOrganization(overrides: Partial<Organization>): Organization {
 
 describe("OrganizationLogo", () => {
   beforeEach(() => {
-    mockedIpfsUrlResolver.mockReset();
+    mockedResolveIpfsOrHttpUrl.mockReset();
   });
 
   it("prefers the uploaded organization logo over favicon sources", () => {
-    mockedIpfsUrlResolver.mockReturnValue("https://cdn.example/acme-logo.png");
+    mockedResolveIpfsOrHttpUrl.mockReturnValue(
+      "https://cdn.example/acme-logo.png",
+    );
 
     render(
       <OrganizationLogo

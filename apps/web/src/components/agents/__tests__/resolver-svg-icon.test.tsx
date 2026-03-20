@@ -10,9 +10,14 @@ jest.mock("dompurify", () => ({
   },
 }));
 
-jest.mock("@/lib/ipfs", () => ({
-  ipfsUrlResolver: jest.fn((url: string | null) => url || null),
-}));
+jest.mock("@sokosumi/utils", () => {
+  const actual =
+    jest.requireActual<typeof import("@sokosumi/utils")>("@sokosumi/utils");
+  return {
+    ...actual,
+    resolveIpfsOrHttpUrl: jest.fn((url: string | null) => url || ""),
+  };
+});
 
 jest.mock("next/image", () => ({
   __esModule: true,
@@ -53,8 +58,8 @@ describe("ResolverSVGIcon", () => {
     mockSanitize = DOMPurify.default.sanitize;
     mockSanitize.mockClear();
 
-    const ipfsModule = require("@/lib/ipfs");
-    mockIpfsUrlResolver = ipfsModule.ipfsUrlResolver;
+    const utilsModule = require("@sokosumi/utils");
+    mockIpfsUrlResolver = utilsModule.resolveIpfsOrHttpUrl;
     mockIpfsUrlResolver.mockClear();
   });
 

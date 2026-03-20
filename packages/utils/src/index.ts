@@ -10,6 +10,11 @@ export {
   sanitizeFileName,
 } from "./file-url.js";
 export {
+  IPFS_GATEWAY_PREFIX,
+  normalizeOrganizationLogo,
+  resolveIpfsOrHttpUrl,
+} from "./ipfs-url.js";
+export {
   createMarkdownLinkRegex,
   escapeMarkdownLinkUrl,
   unescapeMarkdownLinkUrl,
