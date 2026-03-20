@@ -57,9 +57,6 @@ function checkPaymentStatus(
       return SokosumiJobStatus.PAYMENT_PENDING;
     }
   }
-  if (purchase.onChainStatus === null && purchase.nextActionErrorType) {
-    return SokosumiJobStatus.PAYMENT_FAILED;
-  }
   return null;
 }
 
@@ -261,7 +258,7 @@ function computePaidJobStatus(
     case null:
     case undefined:
       if (hasPaymentWindowExpired(job, now)) {
-        return SokosumiJobStatus.FAILED;
+        return SokosumiJobStatus.PAYMENT_FAILED;
       }
       return SokosumiJobStatus.PAYMENT_PENDING;
     case OnChainJobStatus.FUNDS_LOCKED:

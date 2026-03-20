@@ -55,4 +55,38 @@ describe("computeJobStatus", () => {
 
     assert.equal(computeJobStatus(job), SokosumiJobStatus.PAYMENT_FAILED);
   });
+
+  it("marks null-on-chain purchases payment-failed once payByTime plus grace expires", () => {
+    const now = new Date();
+    const job = createPaidJob({
+      payByTime: new Date(now.getTime() - 11 * 60 * 1000),
+      purchase: {
+        externalId: "purchase-1",
+        onChainStatus: null,
+        onChainTransactionHash: null,
+        onChainTransactionStatus: null,
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: "NETWORK_ERROR",
+        nextActionErrorNote: null,
+        createdAt: now,
+        updatedAt: now,
+        jobId: "job-1",
+        errorNote: null,
+        errorNoteKey: null,
+      },
+      events: [
+        {
+          id: "event-1",
+          status: "RUNNING",
+          result: null,
+          statusHash: "old-hash",
+          input: null,
+          createdAt: now,
+        },
+      ],
+    });
+
+    assert.equal(computeJobStatus(job), SokosumiJobStatus.PAYMENT_FAILED);
+  });
 });

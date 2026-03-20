@@ -35,6 +35,15 @@ export function buildJobsPendingRefundReconciliationWhere(
           lt: cutoffTime,
         },
       },
+      {
+        purchase: {
+          onChainStatus: null,
+        },
+        payByTime: {
+          not: null,
+          lt: cutoffTime,
+        },
+      },
     ],
   };
 }

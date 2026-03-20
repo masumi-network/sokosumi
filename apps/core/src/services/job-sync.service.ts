@@ -143,9 +143,14 @@ function hasPaymentWindowExpired(
 
 function shouldSkipAgentStatusPersistence(job: JobWithSokosumiStatus): boolean {
   const onChainStatus = job.purchase?.onChainStatus;
+  const hasTimedOutMissingPurchase =
+    job.purchase === null && hasPaymentWindowExpired(job);
+  const hasTimedOutNullOnChainPurchase =
+    onChainStatus === null && hasPaymentWindowExpired(job);
 
   return (
-    (job.purchase === null && hasPaymentWindowExpired(job)) ||
+    hasTimedOutMissingPurchase ||
+    hasTimedOutNullOnChainPurchase ||
     onChainStatus === OnChainJobStatus.FUNDS_OR_DATUM_INVALID ||
     onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN ||
     onChainStatus === OnChainJobStatus.DISPUTED_WITHDRAWN
