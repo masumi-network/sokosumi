@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { resolveBetterAuthPublicBaseUrl } from "@sokosumi/utils";
 import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
 
@@ -21,6 +22,23 @@ const envSchema = z.object({
   DATABASE_URL: z.url(),
 
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
+
+  // Vercel (optional; Better Auth base URL on Preview)
+  VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
+  VERCEL_URL: z
+    .string()
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
+    .pipe(z.url())
+    .optional(),
+  VERCEL_BRANCH_URL: z
+    .string()
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
+    .pipe(z.url())
+    .optional(),
 
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(1),
@@ -129,5 +147,20 @@ export function getWebAppBaseUrl(): string {
         ? "sokosumi-app-preprod"
         : "sokosumi-app-mainnet",
     defaultHost: env.WEB_APP_BASE_URL,
+  });
+}
+
+/**
+ * Public Better Auth base URL (Core deployment). On Vercel Preview, uses the
+ * deployment or branch URL when `VERCEL_ENV=preview`.
+ */
+export function getBetterAuthPublicBaseUrl(): string {
+  const env = getEnv();
+
+  return resolveBetterAuthPublicBaseUrl({
+    vercelEnv: env.VERCEL_ENV,
+    vercelUrl: env.VERCEL_URL,
+    vercelBranchUrl: env.VERCEL_BRANCH_URL,
+    configuredBaseUrl: env.BETTER_AUTH_URL,
   });
 }
