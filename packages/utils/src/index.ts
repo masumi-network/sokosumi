@@ -1,4 +1,6 @@
 export {
+  resolveBetterAuthProductionUrl,
+  type ResolveBetterAuthProductionUrlParams,
   resolveBetterAuthPublicBaseUrl,
   type ResolveBetterAuthPublicBaseUrlParams,
 } from "./better-auth-public-url.js";
