@@ -1,6 +1,6 @@
-import "@testing-library/jest-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { JobType, SokosumiJobStatus } from "@sokosumi/database";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import {
   JobsListView,
@@ -8,16 +8,16 @@ import {
 } from "@/app/tasks/components/jobs-list-view";
 import type { KanbanColumnId } from "@/lib/types/task";
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTranslations: () => (key: string) => key,
 }));
 
-jest.mock("@/components/jobs/job-status-badge", () => ({
+vi.mock("@/components/jobs/job-status-badge", () => ({
   JobStatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
 }));
 
-jest.mock("@/lib/utils/datetime", () => ({
+vi.mock("@/lib/utils/datetime", () => ({
   formatTimeAgo: (value: string | Date) =>
     `ago:${value instanceof Date ? value.toISOString() : value}`,
 }));
@@ -63,12 +63,12 @@ const columnLabels: Record<KanbanColumnId, string> = {
 describe("JobsListView", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date("2026-02-11T12:00:00.000Z"));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-02-11T12:00:00.000Z"));
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it("groups jobs by status, keeps newest-first order, applies fallbacks, and isolates recent jobs", async () => {
@@ -132,9 +132,7 @@ describe("JobsListView", () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.getByText("Freshly done")).toBeInTheDocument();
-    });
+    expect(screen.getByText("Freshly done")).toBeInTheDocument();
 
     expect(screen.getAllByRole("link", { name: /Freshly done/i })).toHaveLength(
       1,

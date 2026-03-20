@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
 import { UnAuthenticatedError } from "@/lib/auth/errors";
@@ -7,8 +8,8 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-jest.mock("@/lib/auth/utils", () => ({
-  getSession: jest.fn(),
+vi.mock("@/lib/auth/utils", () => ({
+  getSession: vi.fn(),
 }));
 
 interface TestParams extends AuthenticatedRequest {
@@ -17,7 +18,7 @@ interface TestParams extends AuthenticatedRequest {
 
 describe("withSession", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("uses provided session without reading session fallback", async () => {
@@ -43,7 +44,7 @@ describe("withSession", () => {
       user: { id: "user_2" },
       session: { activeOrganizationId: "org_2" },
     };
-    jest.mocked(getSession).mockResolvedValue(session as never);
+    vi.mocked(getSession).mockResolvedValue(session as never);
 
     const wrapped = withSession<TestParams, string>(async (params) => {
       return `${params.value}:${params.session.session.activeOrganizationId}`;
@@ -56,7 +57,7 @@ describe("withSession", () => {
   });
 
   it("throws UnAuthenticatedError when session is missing", async () => {
-    jest.mocked(getSession).mockResolvedValue(null);
+    vi.mocked(getSession).mockResolvedValue(null);
 
     const wrapped = withSession<TestParams, string>(async () => {
       return "unreachable";

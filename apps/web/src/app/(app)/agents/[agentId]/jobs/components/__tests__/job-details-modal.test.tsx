@@ -1,15 +1,15 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { JobDetailsModal } from "@/app/agents/[agentId]/jobs/components/job-details-modal";
 
-const replaceMock = jest.fn();
+const replaceMock = vi.fn();
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: replaceMock,
   }),
@@ -19,22 +19,22 @@ jest.mock("next/navigation", () => ({
     }) as URLSearchParams,
 }));
 
-jest.mock("@/components/jobs", () => ({
+vi.mock("@/components/jobs", () => ({
   JobDetails: () => <div data-testid="job-details">Job Details</div>,
 }));
 
 function mockMatchMedia(matches: boolean) {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
-    value: jest.fn().mockImplementation((query: string) => ({
+    value: vi.fn().mockImplementation((query: string) => ({
       matches,
       media: query,
       onchange: null,
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-      dispatchEvent: jest.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
     })),
   });
 }

@@ -1,45 +1,48 @@
-jest.mock("server-only", () => ({}));
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 export {};
 
-const checkoutSessionsCreateMock = jest.fn();
-const couponsRetrieveMock = jest.fn();
-const getEnvSecretsMock = jest.fn();
-const invoiceItemsCreateMock = jest.fn();
-const invoicesCreateMock = jest.fn();
-const invoicesFinalizeInvoiceMock = jest.fn();
-const pricesListMock = jest.fn();
-const productsRetrieveMock = jest.fn();
+const checkoutSessionsCreateMock = vi.fn();
+const couponsRetrieveMock = vi.fn();
+const getEnvSecretsMock = vi.fn();
+const invoiceItemsCreateMock = vi.fn();
+const invoicesCreateMock = vi.fn();
+const invoicesFinalizeInvoiceMock = vi.fn();
+const pricesListMock = vi.fn();
+const productsRetrieveMock = vi.fn();
 
-jest.mock("@/config/env.secrets", () => ({
+vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-jest.mock("stripe", () => ({
+vi.mock("stripe", () => ({
   __esModule: true,
-  default: jest.fn().mockImplementation(() => ({
-    checkout: {
-      sessions: {
-        create: (...args: unknown[]) => checkoutSessionsCreateMock(...args),
+  default: vi.fn(function MockStripe() {
+    return {
+      checkout: {
+        sessions: {
+          create: (...args: unknown[]) => checkoutSessionsCreateMock(...args),
+        },
       },
-    },
-    coupons: {
-      retrieve: (...args: unknown[]) => couponsRetrieveMock(...args),
-    },
-    invoiceItems: {
-      create: (...args: unknown[]) => invoiceItemsCreateMock(...args),
-    },
-    invoices: {
-      create: (...args: unknown[]) => invoicesCreateMock(...args),
-      finalizeInvoice: (...args: unknown[]) =>
-        invoicesFinalizeInvoiceMock(...args),
-    },
-    prices: {
-      list: (...args: unknown[]) => pricesListMock(...args),
-    },
-    products: {
-      retrieve: (...args: unknown[]) => productsRetrieveMock(...args),
-    },
-  })),
+      coupons: {
+        retrieve: (...args: unknown[]) => couponsRetrieveMock(...args),
+      },
+      invoiceItems: {
+        create: (...args: unknown[]) => invoiceItemsCreateMock(...args),
+      },
+      invoices: {
+        create: (...args: unknown[]) => invoicesCreateMock(...args),
+        finalizeInvoice: (...args: unknown[]) =>
+          invoicesFinalizeInvoiceMock(...args),
+      },
+      prices: {
+        list: (...args: unknown[]) => pricesListMock(...args),
+      },
+      products: {
+        retrieve: (...args: unknown[]) => productsRetrieveMock(...args),
+      },
+    };
+  }),
 }));
 
 interface MockStripePriceParams {
@@ -60,8 +63,8 @@ function createMockStripePrice(params: MockStripePriceParams): never {
 
 describe("stripe.client lookup-key pricing", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
+    vi.clearAllMocks();
+    vi.resetModules();
     getEnvSecretsMock.mockReturnValue({
       STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
       STRIPE_SECRET_KEY: "sk_test_mock",

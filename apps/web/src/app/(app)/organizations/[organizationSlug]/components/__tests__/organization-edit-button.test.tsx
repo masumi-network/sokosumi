@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Organization } from "@sokosumi/database";
 import {
   act,
@@ -15,40 +15,40 @@ import OrganizationEditButton from "../organization-edit-button";
 import { uploadOrganizationLogo } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: jest.fn(),
-    refresh: jest.fn(),
+    push: vi.fn(),
+    refresh: vi.fn(),
   }),
 }));
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations:
     () =>
     (...segments: string[]) =>
       segments.join("."),
 }));
 
-jest.mock("@/lib/actions/organization", () => ({
-  uploadOrganizationLogo: jest.fn(),
-  updatePreferredOrganization: jest.fn(),
+vi.mock("@/lib/actions/organization", () => ({
+  uploadOrganizationLogo: vi.fn(),
+  updatePreferredOrganization: vi.fn(),
 }));
 
-jest.mock("@/lib/auth/auth.client", () => ({
+vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     organization: {
-      create: jest.fn(),
-      update: jest.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
     },
   },
 }));
 
-jest.mock("@/lib/actions", () => ({
-  generateOrganizationSlug: jest.fn(),
+vi.mock("@/lib/actions", () => ({
+  generateOrganizationSlug: vi.fn(),
 }));
 
-const mockedUploadLogo = jest.mocked(uploadOrganizationLogo);
-const mockedOrganizationUpdate = jest.mocked(authClient.organization.update);
+const mockedUploadLogo = vi.mocked(uploadOrganizationLogo);
+const mockedOrganizationUpdate = vi.mocked(authClient.organization.update);
 
 function createOrganization(
   overrides: Partial<Organization> & Pick<Organization, "id" | "name">,

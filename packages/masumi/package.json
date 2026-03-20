@@ -51,8 +51,9 @@
     "lint:fix": "eslint --fix .",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\"",
-    "test": "jest",
-    "test:ci": "jest --ci",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "test:watch": "vitest",
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment",
@@ -65,10 +66,8 @@
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.94.3",
-    "@types/jest": "30.0.0",
     "@types/node": "24.12.0",
-    "jest": "30.3.0",
-    "ts-jest": "29.4.6",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "4.1.0"
   }
 }

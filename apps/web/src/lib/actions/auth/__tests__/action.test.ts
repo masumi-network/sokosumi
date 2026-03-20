@@ -1,22 +1,22 @@
-export {};
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
-const signUpEmailMock = jest.fn();
-const signInEmailMock = jest.fn();
-const signInMagicLinkMock = jest.fn();
-const setPasswordMock = jest.fn();
-const handleUTMConversionMock = jest.fn();
-const headersMock = jest.fn();
-const betterAuthApiErrorSafeParseMock: jest.Mock = jest.fn(() => ({
+const signUpEmailMock = vi.fn();
+const signInEmailMock = vi.fn();
+const signInMagicLinkMock = vi.fn();
+const setPasswordMock = vi.fn();
+const handleUTMConversionMock = vi.fn();
+const headersMock = vi.fn();
+const betterAuthApiErrorSafeParseMock = vi.fn(() => ({
   success: false,
 }));
 
-jest.mock("next/headers", () => ({
+vi.mock("next/headers", () => ({
   headers: headersMock,
 }));
 
-jest.mock("@/lib/actions", () => ({
+vi.mock("@/lib/actions", () => ({
   AuthErrorCode: {
     EMAIL_DOMAIN_NOT_ALLOWED: "EMAIL_DOMAIN_NOT_ALLOWED",
     TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
@@ -30,7 +30,7 @@ jest.mock("@/lib/actions", () => ({
   },
 }));
 
-jest.mock("@/lib/auth/auth", () => ({
+vi.mock("@/lib/auth/auth", () => ({
   auth: {
     api: {
       signUpEmail: signUpEmailMock,
@@ -41,7 +41,7 @@ jest.mock("@/lib/auth/auth", () => ({
   },
 }));
 
-jest.mock("@/lib/services/utm.service", () => ({
+vi.mock("@/lib/services/utm.service", () => ({
   utmService: {
     handleUTMConversion: handleUTMConversionMock,
   },
@@ -49,7 +49,7 @@ jest.mock("@/lib/services/utm.service", () => ({
 
 describe("auth actions", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     headersMock.mockResolvedValue(new Headers());
     betterAuthApiErrorSafeParseMock.mockReturnValue({ success: false });
   });

@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { createEmailTranslator } from "../i18n/translate.js";
 import { EMAIL_LOCALES, EMAIL_MESSAGES } from "../locales/index.js";
 

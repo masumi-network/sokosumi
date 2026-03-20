@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+
+import { describe, it } from "vitest";
 
 import { JobType } from "../generated/prisma/client.js";
 import { SokosumiJobStatus } from "../types/job.js";

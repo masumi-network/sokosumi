@@ -1,21 +1,22 @@
-const getSessionMock = jest.fn();
-const headersMock = jest.fn();
-const captureExceptionMock = jest.fn();
-const fetchMock = jest.fn();
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const getSessionMock = vi.fn();
+const headersMock = vi.fn();
+const captureExceptionMock = vi.fn();
+const fetchMock = vi.fn();
 
-jest.mock("next/headers", () => ({
+vi.mock("next/headers", () => ({
   headers: () => headersMock(),
 }));
 
-jest.mock("@sentry/nextjs", () => ({
+vi.mock("@sentry/nextjs", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
-jest.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/utils", () => ({
   getSession: () => getSessionMock(),
 }));
 
-jest.mock("@/lib/clients/utils/core-api-base-url", () => ({
+vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getCoreApiBaseUrl: () => "https://core.example.com/v1",
 }));
 
@@ -40,7 +41,7 @@ function createReadonlyHeaders(init?: HeadersInit): Headers {
 
 describe("chat route", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     global.fetch = fetchMock as unknown as typeof fetch;
   });
 

@@ -1,13 +1,14 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { getAgentInputSchemaQueryOptions } from "@/queries/agents";
 
 describe("getAgentInputSchemaQueryOptions", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("fetches the internal agent input schema route with credentials included", async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,
@@ -50,7 +51,7 @@ describe("getAgentInputSchemaQueryOptions", () => {
   });
 
   it("maps 401 responses to UnAuthenticatedError", async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
     });
@@ -69,7 +70,7 @@ describe("getAgentInputSchemaQueryOptions", () => {
   });
 
   it("preserves non-auth failures as generic errors", async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
     });
