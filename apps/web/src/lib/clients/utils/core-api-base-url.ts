@@ -11,7 +11,7 @@ export function getCoreApiBaseUrl(): string {
       getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
         ? "sokosumi-core-preprod"
         : "sokosumi-core-mainnet",
-    defaultHost: getEnvSecrets().CORE_API_URL,
+    defaultHost: getEnvSecrets().CORE_APP_BASE_URL,
   });
 
   const withoutTrailingSlash = resolvedCoreApiHost.replace(/\/+$/, "");

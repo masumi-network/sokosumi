@@ -5,7 +5,7 @@ const envDefaults: Record<string, string> = {
   DATABASE_URL: "https://example.com/database",
   BETTER_AUTH_SECRET: "test-secret",
   BETTER_AUTH_URL: "https://example.com/auth",
-  BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
+  WEB_APP_BASE_URL: "https://example.com",
   POSTMARK_SERVER_ID: "test-postmark-server-id",
   POSTMARK_FROM_EMAIL: "no-reply@example.com",
   PAYMENT_API_URL: "https://example.com/payment",

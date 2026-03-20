@@ -159,13 +159,24 @@ Error helpers throw exceptions and have `never` return type - no `return` needed
 
 ### Environment Variables
 
-Environment variables are accessed via `process.env`. Common variables include:
+Environment variables are accessed via `process.env`, validated at startup with Zod in `src/config/env.ts`. See `apps/core/README.md` (Environment Configuration) for tables and `.env.example` for a full template.
 
-- `PORT` - Server port (defaults to 8787)
-- `BETTER_AUTH_SECRET` - Better Auth secret key
-- `BETTER_AUTH_URL` - Better Auth base URL
+**Common URL-related variables:**
+
+- `PORT` — HTTP port (default `8787`)
+- `WEB_APP_BASE_URL` — Default `http://localhost:3000`; used with `getWebAppBaseUrl()` and Vercel related projects
+- `BETTER_AUTH_SECRET` — Shared with the web Better Auth instance
+- `BETTER_AUTH_URL` — Public base URL of this Core service; used as Better Auth `baseURL` except on Vercel Preview
+- `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL` — Optional; when `VERCEL_ENV=preview`, `getBetterAuthPublicBaseUrl()` resolves the issuer URL from Vercel (see `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`)
 
 **Note**: Environment variables are loaded via `dotenv/config` at the application entry point.
+
+### CORS and Better Auth origins
+
+- **CORS** (`src/config/cors-allow-origin.ts`): `Access-Control-Allow-Origin` is echoed only for `https://sokosumi.com` / `https://*.sokosumi.com` in non-development, or for `localhost` with `http`/`https` when `NODE_ENV=development`. Wildcard Vercel preview hosts are not allowlisted.
+- **Better Auth** (`src/lib/auth.ts`, web `src/lib/auth/auth.ts`): `trustedOrigins` includes `https://sokosumi.com` (apex; `https://*.sokosumi.com` does not match the apex), `https://*.sokosumi.com`, and in development only `http://localhost:*`. Keep these consistent with CORS so browser requests from the web app succeed.
+
+Cross-origin calls from the web app require the web deployment to use a hostname that satisfies both checks (e.g. `*.sokosumi.com` in hosted environments).
 
 ### Authentication Context
 

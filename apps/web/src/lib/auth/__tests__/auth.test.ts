@@ -13,6 +13,7 @@ const lastLoginMethodPluginMock = jest.fn();
 const magicLinkPluginMock = jest.fn();
 const marketingOptInUserSchemaSafeParseMock = jest.fn();
 const nextCookiesPluginMock = jest.fn();
+const oAuthProxyPluginMock = jest.fn();
 const oauthProviderPluginMock = jest.fn();
 const organizationPluginMock = jest.fn();
 const renderOrganizationInvitationEmailMock = jest.fn();
@@ -81,6 +82,7 @@ jest.mock("better-auth/plugins", () => ({
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   lastLoginMethod: (...args: unknown[]) => lastLoginMethodPluginMock(...args),
   magicLink: (...args: unknown[]) => magicLinkPluginMock(...args),
+  oAuthProxy: (...args: unknown[]) => oAuthProxyPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
 }));
 
@@ -209,8 +211,8 @@ describe("web auth config", () => {
       BETTER_AUTH_RP_ID: "example.com",
       BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: 5_000,
       BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 60,
-      BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
       BETTER_AUTH_URL: "https://example.com/auth",
+      WEB_APP_BASE_URL: "https://example.com",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
       MICROSOFT_CLIENT_ID: "microsoft-client-id",
@@ -227,6 +229,7 @@ describe("web auth config", () => {
     lastLoginMethodPluginMock.mockReturnValue("last-login-method-plugin");
     magicLinkPluginMock.mockReturnValue("magic-link-plugin");
     nextCookiesPluginMock.mockReturnValue("next-cookies-plugin");
+    oAuthProxyPluginMock.mockReturnValue("oauth-proxy-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
     passkeyPluginMock.mockReturnValue("passkey-plugin");
