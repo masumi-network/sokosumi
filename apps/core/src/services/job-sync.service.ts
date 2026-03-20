@@ -148,6 +148,9 @@ function hasPaymentWindowExpired(
 }
 
 function shouldSkipAgentStatusPersistence(job: JobWithSokosumiStatus): boolean {
+  if (job.jobType !== JobType.PAID) {
+    return false;
+  }
   const onChainStatus = job.purchase?.onChainStatus;
   const hasPurchaseActionError =
     onChainStatus === null && job.purchase?.nextActionErrorType !== null;

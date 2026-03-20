@@ -657,6 +657,31 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(sendEmailMock).not.toHaveBeenCalled();
   });
 
+  it("persists agent status for FREE jobs with no purchase past the payment grace window", async () => {
+    const freeLongRunningJob = createJob({
+      jobType: JobType.FREE,
+      purchase: null,
+      payByTime: null,
+      createdAt: new Date("2020-01-01T00:00:00.000Z"),
+    });
+    mockInitialJobQueries({
+      unfinished: [freeLongRunningJob],
+    });
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValue(freeLongRunningJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobEventForJobIdMock).toHaveBeenCalled();
+  });
+
   it("creates new job events, enqueues source imports, and sends final notifications", async () => {
     const initialJob = createJob();
     const completedJob = createJob({
