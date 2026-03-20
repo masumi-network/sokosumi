@@ -266,18 +266,10 @@ export const auth = betterAuth({
       },
     },
   },
-  trustedOrigins: () => {
-    const origins = [getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGIN];
-    const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
-    if (vercelBranchUrl) {
-      origins.push(vercelBranchUrl);
-    }
-    const vercelUrl = getEnvSecrets().VERCEL_URL;
-    if (vercelUrl) {
-      origins.push(vercelUrl);
-    }
-    return origins;
-  },
+  trustedOrigins: [
+    "https://*.sokosumi.com", // trust all HTTPS subdomains of sokosumi.com
+    "http://localhost:*", // trust all HTTP subdomains of localhost
+  ],
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {

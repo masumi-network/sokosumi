@@ -15,7 +15,8 @@ const envSecretsSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
-  CORE_API_URL: z.url().default("http://localhost:8787"),
+
+  CORE_APP_BASE_URL: z.url().default("http://localhost:8787"),
 
   CHROMIUM_EXECUTABLE_URL: z
     .url()
@@ -110,7 +111,6 @@ const envSecretsSchema = z.object({
       const trimmed = val?.trim();
       return trimmed ? trimmed : undefined;
     }),
-  BETTER_AUTH_TRUSTED_ORIGIN: z.url().default("http://localhost:3000"),
   BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
     .number()
     .min(0)

@@ -82,7 +82,7 @@ vi.mock("@/config/env", () => ({
     BETTER_AUTH_SECRET: "test-secret",
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
     POSTMARK_SERVER_ID: "postmark-server-id",
-    BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
+    WEB_APP_BASE_URL: "https://example.com",
     BETTER_AUTH_URL: "https://example.com/auth",
     STRIPE_SECRET_KEY: "sk_test_123",
   }),

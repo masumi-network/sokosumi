@@ -20,15 +20,11 @@ const envSchema = z.object({
   // Database
   DATABASE_URL: z.url(),
 
+  WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
+
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.url(),
-  BETTER_AUTH_TRUSTED_ORIGIN: z
-    .url()
-    .default("http://localhost:3000")
-    .describe(
-      "Web app origin; on Vercel overridden by related web project URL",
-    ),
   POSTMARK_SERVER_ID: z.string().min(1),
   POSTMARK_FROM_EMAIL: z.email(),
 
@@ -123,7 +119,7 @@ export function getEnv(): EnvConfig {
 /**
  * Web app base URL (used for Better Auth trusted origin, redirects, and links).
  * On Vercel, uses the related web project deployment URL when core's
- * relatedProjects point to the web app; otherwise uses BETTER_AUTH_TRUSTED_ORIGIN.
+ * relatedProjects point to the web app; otherwise uses WEB_APP_BASE_URL.
  */
 export function getWebAppBaseUrl(): string {
   const env = getEnv();
@@ -132,6 +128,6 @@ export function getWebAppBaseUrl(): string {
       env.NETWORK === "Preprod"
         ? "sokosumi-app-preprod"
         : "sokosumi-app-mainnet",
-    defaultHost: env.BETTER_AUTH_TRUSTED_ORIGIN,
+    defaultHost: env.WEB_APP_BASE_URL,
   });
 }

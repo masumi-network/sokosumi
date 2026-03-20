@@ -88,7 +88,10 @@ export const auth = betterAuth({
   rateLimit: {
     storage: "database",
   },
-  trustedOrigins: [webAppBaseUrl],
+  trustedOrigins: [
+    "https://*.sokosumi.com", // trust all HTTPS subdomains of sokosumi.com
+    "http://localhost:*", // trust all HTTP subdomains of localhost
+  ],
   user: {
     emailAndPassword: {
       enabled: true,

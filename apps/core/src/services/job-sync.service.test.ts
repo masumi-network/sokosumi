@@ -103,7 +103,7 @@ vi.mock("@/clients/postmark.client", () => ({
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
-    BETTER_AUTH_TRUSTED_ORIGIN: "https://app.sokosumi.test",
+    WEB_APP_BASE_URL: "https://app.sokosumi.test",
     JOB_FAILURE_NOTIFICATION_EMAILS: [
       "stakeholder1@example.com",
       "stakeholder2@example.com",
