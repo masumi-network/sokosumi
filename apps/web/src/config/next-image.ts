@@ -3,13 +3,10 @@ export const NEXT_IMAGE_REMOTE_PATTERNS = [
     protocol: "https",
     hostname: "c-ipfs-gw.nmkr.io",
   },
+  /** Any Vercel Blob store id (*.public.blob.vercel-storage.com). */
   {
     protocol: "https",
-    hostname: "yhpsw8jlcoagsrkq.public.blob.vercel-storage.com",
-  },
-  {
-    protocol: "https",
-    hostname: "igcd4cnfvuav1zto.public.blob.vercel-storage.com",
+    hostname: "*.public.blob.vercel-storage.com",
   },
   {
     protocol: "https",
@@ -47,6 +44,18 @@ export function canUseNextImageSrc(url: string): boolean {
     if (pattern.hostname.startsWith("**.")) {
       const suffix = pattern.hostname.slice(3);
       return hostname === suffix || hostname.endsWith(`.${suffix}`);
+    }
+
+    if (pattern.hostname.startsWith("*.")) {
+      const suffix = pattern.hostname.slice(2);
+      if (hostname === suffix) {
+        return true;
+      }
+      if (!hostname.endsWith(`.${suffix}`)) {
+        return false;
+      }
+      const prefix = hostname.slice(0, -(suffix.length + 1));
+      return prefix.length > 0 && !prefix.includes(".");
     }
 
     return hostname === pattern.hostname;
