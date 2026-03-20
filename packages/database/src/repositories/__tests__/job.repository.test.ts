@@ -67,6 +67,9 @@ describe("jobRepository.getJobsNotFinished", () => {
     const notClauses = where.NOT as Prisma.JobWhereInput[];
 
     assert.deepEqual(notClauses.at(1)?.purchase, {
+      onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
+    });
+    assert.deepEqual(notClauses.at(2)?.purchase, {
       onChainStatus: {
         notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
       },
@@ -81,11 +84,20 @@ describe("jobRepository.getJobsPendingRefundReconciliation", () => {
     assert.deepEqual(
       where,
       {
-        purchase: {
-          onChainStatus: OnChainJobStatus.REFUND_WITHDRAWN,
-        },
         refundedTransactionId: null,
         jobType: JobType.PAID,
+        OR: [
+          {
+            purchase: {
+              onChainStatus: OnChainJobStatus.REFUND_WITHDRAWN,
+            },
+          },
+          {
+            purchase: {
+              onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
+            },
+          },
+        ],
       } satisfies Prisma.JobWhereInput,
     );
   });

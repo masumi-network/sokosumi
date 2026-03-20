@@ -1,5 +1,10 @@
 import * as Sentry from "@sentry/node";
-import { AgentJobStatus, JobType, SokosumiJobStatus } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  JobType,
+  OnChainJobStatus,
+  SokosumiJobStatus,
+} from "@sokosumi/database";
 import {
   jobEventRepository,
   jobPurchaseRepository,
@@ -124,12 +129,15 @@ function buildJobLink(job: JobWithSokosumiStatus): string {
   return `${getWebAppBaseUrl()}/agents/${job.agentId}/jobs/${job.id}`;
 }
 
-function hasTerminalPurchaseResolutionStatus(
-  jobStatus: SokosumiJobStatus,
+function shouldSkipAgentStatusPersistence(
+  job: JobWithSokosumiStatus,
 ): boolean {
+  const onChainStatus = job.purchase?.onChainStatus;
+
   return (
-    jobStatus === SokosumiJobStatus.REFUND_RESOLVED ||
-    jobStatus === SokosumiJobStatus.DISPUTE_RESOLVED
+    onChainStatus === OnChainJobStatus.FUNDS_OR_DATUM_INVALID ||
+    onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN ||
+    onChainStatus === OnChainJobStatus.DISPUTED_WITHDRAWN
   );
 }
 
@@ -476,7 +484,7 @@ async function syncSingleJob(
       }
 
       if (
-        !hasTerminalPurchaseResolutionStatus(currentJob.status) &&
+        !shouldSkipAgentStatusPersistence(currentJob) &&
         agentJobStatusResult.isOk()
       ) {
         const latestJobEvent =
@@ -523,13 +531,6 @@ async function syncSingleJob(
             };
           }
         }
-      }
-
-      if (
-        currentJob.status === SokosumiJobStatus.PAYMENT_FAILED ||
-        currentJob.status === SokosumiJobStatus.REFUND_RESOLVED
-      ) {
-        await jobRepository.refundJob(currentJob.id, tx);
       }
 
       return {

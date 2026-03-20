@@ -644,6 +644,13 @@ function jobsNotFinishedWhereQuery(
         },
         jobType: JobType.PAID,
       },
+      // Filter out purchase-state payment failures. Refund reconciliation owns these.
+      {
+        purchase: {
+          onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
+        },
+        jobType: JobType.PAID,
+      },
       // Filter out jobs that are outside the dispute/refund reconciliation
       // window and have an externalDisputeUnlockTime before the cutoff.
       {
@@ -676,11 +683,20 @@ function jobsNotFinishedWhereQuery(
 
 function jobsPendingRefundReconciliationWhereQuery(): Prisma.JobWhereInput {
   return {
-    purchase: {
-      onChainStatus: OnChainJobStatus.REFUND_WITHDRAWN,
-    },
     refundedTransactionId: null,
     jobType: JobType.PAID,
+    OR: [
+      {
+        purchase: {
+          onChainStatus: OnChainJobStatus.REFUND_WITHDRAWN,
+        },
+      },
+      {
+        purchase: {
+          onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
+        },
+      },
+    ],
   };
 }
 
