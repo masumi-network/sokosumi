@@ -14,6 +14,12 @@ describe("canUseNextImageSrc", () => {
     ).toBe(true);
   });
 
+  it("rejects bare domain for * pattern (exactly one subdomain required)", () => {
+    expect(
+      canUseNextImageSrc("https://public.blob.vercel-storage.com/asset.png"),
+    ).toBe(false);
+  });
+
   it("rejects unknown remote hosts", () => {
     expect(canUseNextImageSrc("https://evil.example.com/asset.png")).toBe(
       false,

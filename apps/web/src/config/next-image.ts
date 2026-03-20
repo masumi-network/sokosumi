@@ -48,9 +48,7 @@ export function canUseNextImageSrc(url: string): boolean {
 
     if (pattern.hostname.startsWith("*.")) {
       const suffix = pattern.hostname.slice(2);
-      if (hostname === suffix) {
-        return true;
-      }
+      // * means exactly one subdomain segment; bare domain (zero subdomains) must not match
       if (!hostname.endsWith(`.${suffix}`)) {
         return false;
       }
