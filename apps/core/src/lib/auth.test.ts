@@ -7,6 +7,7 @@ const {
   i18nPluginMock,
   jwtPluginMock,
   oauthProviderPluginMock,
+  oAuthProxyPluginMock,
   openAPIPluginMock,
   organizationPluginMock,
   magicLinkPluginMock,
@@ -22,6 +23,7 @@ const {
   i18nPluginMock: vi.fn(),
   jwtPluginMock: vi.fn(),
   oauthProviderPluginMock: vi.fn(),
+  oAuthProxyPluginMock: vi.fn(),
   openAPIPluginMock: vi.fn(),
   organizationPluginMock: vi.fn(),
   magicLinkPluginMock: vi.fn(),
@@ -44,6 +46,7 @@ vi.mock("better-auth/plugins", () => ({
   admin: (...args: unknown[]) => adminPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   magicLink: (...args: unknown[]) => magicLinkPluginMock(...args),
+  oAuthProxy: (...args: unknown[]) => oAuthProxyPluginMock(...args),
   openAPI: (...args: unknown[]) => openAPIPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
 }));
@@ -109,6 +112,7 @@ describe("core auth config", () => {
     i18nPluginMock.mockReturnValue("i18n-plugin");
     jwtPluginMock.mockReturnValue("jwt-plugin");
     magicLinkPluginMock.mockReturnValue("magic-link-plugin");
+    oAuthProxyPluginMock.mockReturnValue("oauth-proxy-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     openAPIPluginMock.mockReturnValue("openapi-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
