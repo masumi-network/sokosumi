@@ -27,7 +27,7 @@ describe("getCoreApiBaseUrl", () => {
       NEXT_PUBLIC_NETWORK: "Mainnet",
     });
     getEnvSecretsMock.mockReturnValue({
-      CORE_API_URL: "http://localhost:8787",
+      CORE_BASE_URL: "http://localhost:8787",
     });
     withRelatedProjectMock.mockImplementation(
       (options: { defaultHost: string }) => options.defaultHost,
