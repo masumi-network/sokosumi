@@ -13,6 +13,7 @@ import { useState } from "react";
 
 import OrganizationEditButton from "../organization-edit-button";
 import { uploadOrganizationLogo } from "@/lib/actions/organization";
+import { authClient } from "@/lib/auth/auth.client";
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -47,6 +48,7 @@ jest.mock("@/lib/actions", () => ({
 }));
 
 const mockedUploadLogo = jest.mocked(uploadOrganizationLogo);
+const mockedOrganizationUpdate = jest.mocked(authClient.organization.update);
 
 function createOrganization(
   overrides: Partial<Organization> & Pick<Organization, "id" | "name">,
@@ -89,6 +91,7 @@ function OrganizationEditButtonHarness({
 describe("OrganizationEditButton", () => {
   beforeEach(() => {
     mockedUploadLogo.mockReset();
+    mockedOrganizationUpdate.mockReset();
   });
 
   it("keeps the draft logo preview after upload when the parent rerenders", async () => {
@@ -141,5 +144,45 @@ describe("OrganizationEditButton", () => {
     expect(
       within(dialogAfter).getByRole("button", { name: "Fields.Logo.remove" }),
     ).toBeInTheDocument();
+  });
+
+  it("sends logo undefined in the update payload when the logo is cleared", async () => {
+    mockedOrganizationUpdate.mockResolvedValue({
+      data: {},
+      error: null,
+    } as Awaited<ReturnType<typeof authClient.organization.update>>);
+
+    const user = userEvent.setup();
+    const organization = createOrganization({
+      id: "org_1",
+      name: "Acme",
+      logo: "https://example.com/existing.png",
+    });
+
+    render(<OrganizationEditButtonHarness organizationSeed={organization} />);
+
+    await user.click(screen.getByRole("button", { name: "edit" }));
+
+    const dialog = await screen.findByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Fields.Logo.remove" }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Submit.edit" }),
+    );
+
+    await waitFor(() => {
+      expect(mockedOrganizationUpdate).toHaveBeenCalled();
+    });
+
+    expect(mockedOrganizationUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org_1",
+        data: expect.objectContaining({
+          name: "Acme",
+          logo: undefined,
+        }),
+      }),
+    );
   });
 });
