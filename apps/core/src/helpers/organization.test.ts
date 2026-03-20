@@ -20,6 +20,7 @@ function createOrganization(overrides: Record<string, unknown> = {}) {
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     name: "My Organization",
     slug: "my-org",
+    url: null,
     logo: null,
     metadata: null,
     stripeCustomerId: null,

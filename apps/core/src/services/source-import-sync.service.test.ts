@@ -126,9 +126,11 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
   it("continues scheduling later blobs when one running import is stalled", async () => {
     const sourceImportSyncService = await getSourceImportSyncService();
 
-    let resolveHungFetch: ((response: Response) => void) | null = null;
+    const hungFetchControl: {
+      resolve?: (value: Response | PromiseLike<Response>) => void;
+    } = {};
     const hungFetchPromise = new Promise<Response>((resolve) => {
-      resolveHungFetch = resolve;
+      hungFetchControl.resolve = resolve;
     });
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL): Promise<Response> => {
@@ -157,7 +159,7 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
         expect(calledUrls).toContain("https://example.com/blob-6.txt");
       });
     } finally {
-      resolveHungFetch?.(
+      hungFetchControl.resolve?.(
         new Response("late hello", {
           status: 200,
           headers: {

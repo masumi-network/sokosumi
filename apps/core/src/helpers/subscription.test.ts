@@ -96,8 +96,6 @@ describe("getCreditSummary", () => {
       getCreditSummary({
         totalCredits: 30,
         subscriptionCredits: {
-          total: 20,
-          used: 8,
           remaining: 12,
         },
       }),
@@ -124,8 +122,6 @@ describe("getCreditSummary", () => {
       getCreditSummary({
         totalCredits: 5,
         subscriptionCredits: {
-          total: 50,
-          used: 45,
           remaining: 8,
         },
       }),

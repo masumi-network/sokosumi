@@ -1,4 +1,3 @@
-import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -74,7 +73,7 @@ describe("requireAdminAuthContext", () => {
         userId: "user_123",
         organizationId: null,
       }),
-    ).rejects.toMatchObject<Partial<HTTPException>>({
+    ).rejects.toMatchObject({
       status: 403,
       message: "Admin access required",
     });
@@ -86,7 +85,7 @@ describe("requireAdminAuthContext", () => {
         actor: "coworker",
         coworkerId: "cow_123",
       }),
-    ).rejects.toMatchObject<Partial<HTTPException>>({
+    ).rejects.toMatchObject({
       status: 403,
       message: "User authentication required",
     });
@@ -143,7 +142,7 @@ describe("requireCoworkerManagementAccess", () => {
         },
         "cow_123",
       ),
-    ).rejects.toMatchObject<Partial<HTTPException>>({
+    ).rejects.toMatchObject({
       status: 403,
       message: "You can only manage your own coworkers",
     });
@@ -187,7 +186,7 @@ describe("requireCoworkerManagementAccess", () => {
         },
         "cow_123",
       ),
-    ).rejects.toMatchObject<Partial<HTTPException>>({
+    ).rejects.toMatchObject({
       status: 404,
       message: "Coworker not found",
     });
@@ -202,7 +201,7 @@ describe("requireCoworkerManagementAccess", () => {
         },
         "cow_123",
       ),
-    ).rejects.toMatchObject<Partial<HTTPException>>({
+    ).rejects.toMatchObject({
       status: 403,
       message: "User authentication required",
     });

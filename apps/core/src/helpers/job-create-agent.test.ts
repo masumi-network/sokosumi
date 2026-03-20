@@ -1,3 +1,5 @@
+import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -95,11 +97,11 @@ function createInput(overrides: Record<string, unknown> = {}) {
         input_data: [
           {
             id: "prompt",
-            type: "string",
+            type: InputType.STRING,
             name: "prompt",
           },
         ],
-      },
+      } as InputSchemaSchemaType,
       maxAcceptedCents: BigInt(10),
       name: "Scheduled Job",
     },
@@ -145,7 +147,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       input_data: [
         {
           id: "prompt",
-          type: "string",
+          type: InputType.STRING,
           name: "prompt",
         },
       ],

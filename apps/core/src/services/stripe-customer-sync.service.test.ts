@@ -202,12 +202,14 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
     userFindManyMock.mockResolvedValue([{ id: "user-1" }]);
     organizationFindManyMock.mockResolvedValue([{ id: "organization-1" }]);
 
-    let resolveFirstCreate: (() => void) | null = null;
+    const firstUserCustomerDeferred: {
+      resolve?: (value?: unknown) => void;
+    } = {};
     createUserCustomerMock
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
-            resolveFirstCreate = resolve;
+            firstUserCustomerDeferred.resolve = resolve;
           }),
       )
       .mockResolvedValueOnce({ id: "cus_user_2" });
@@ -220,12 +222,12 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
       });
 
     await vi.waitFor(() => {
-      expect(resolveFirstCreate).toBeTypeOf("function");
+      expect(firstUserCustomerDeferred.resolve).toBeTypeOf("function");
     });
 
     expect(settled).toBe(false);
 
-    resolveFirstCreate?.();
+    firstUserCustomerDeferred.resolve?.();
     await runPromise;
 
     expect(settled).toBe(true);

@@ -1,3 +1,4 @@
+import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 import { describe, expect, it, vi } from "vitest";
 
 import { publishJobStatusData, publishTaskEventData } from "./publish";
@@ -40,7 +41,7 @@ describe("publishJobStatusData", () => {
       agentId: "agent_123",
       userId: "user_123",
       jobId: "job_123",
-      jobStatus: "processing",
+      jobStatus: SokosumiJobStatus.PROCESSING,
       jobStatusSettled: false,
     });
 
@@ -49,7 +50,7 @@ describe("publishJobStatusData", () => {
     );
     expect(publishMock).toHaveBeenCalledWith("job_status_data", {
       jobId: "job_123",
-      jobStatus: "processing",
+      jobStatus: SokosumiJobStatus.PROCESSING,
       jobStatusSettled: false,
     });
   });
