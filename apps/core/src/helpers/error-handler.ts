@@ -8,6 +8,7 @@ import {
   type ErrorResponse,
   formatZodErrorMessage,
   getErrorName,
+  shouldReportHttpException,
 } from "./error.js";
 
 /**
@@ -50,7 +51,7 @@ export function errorHandler(
   if (error instanceof HTTPException) {
     const status = error.status;
 
-    if (status >= 500) {
+    if (shouldReportHttpException(error)) {
       Sentry.captureException(error);
     }
 

@@ -5,12 +5,17 @@ import { errorHandler } from "@/helpers/error-handler";
 
 import { maintenanceMiddleware } from "./maintenance";
 
-const { getEnvMock } = vi.hoisted(() => ({
+const { captureExceptionMock, getEnvMock } = vi.hoisted(() => ({
+  captureExceptionMock: vi.fn(),
   getEnvMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: captureExceptionMock,
 }));
 
 function createApp() {
@@ -62,6 +67,7 @@ describe("maintenanceMiddleware", () => {
     expect(body.meta.requestId).toBe("req_123");
     expect(body.meta.path).toBe("/");
     expect(body.meta.method).toBe("GET");
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("applies globally across representative root, api, and sync paths", async () => {

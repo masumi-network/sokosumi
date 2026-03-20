@@ -33,26 +33,44 @@ describe("errorHandler", () => {
     vi.clearAllMocks();
   });
 
-  it.each(["Service is under maintenance", "Storage backend unavailable"])(
-    "reports thrown 503 HTTPExceptions to Sentry (%s)",
-    async (message) => {
-      const app = createApp();
-      app.get("/", () => {
-        throw serviceUnavailable(message);
+  it("reports generic 503 HTTPExceptions to Sentry", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw serviceUnavailable("Storage backend unavailable");
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(503);
+    expect(body.error).toBe("ServiceUnavailable");
+    expect(body.message).toBe("Storage backend unavailable");
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report maintenance-mode 503 HTTPExceptions to Sentry", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw serviceUnavailable("Service is under maintenance", {
+        kind: "maintenance-mode",
+        reportToSentry: false,
       });
+    });
 
-      const response = await app.request("http://localhost/");
-      const body = (await response.json()) as {
-        error: string;
-        message: string;
-      };
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+    };
 
-      expect(response.status).toBe(503);
-      expect(body.error).toBe("ServiceUnavailable");
-      expect(body.message).toBe(message);
-      expect(captureExceptionMock).toHaveBeenCalledTimes(1);
-    },
-  );
+    expect(response.status).toBe(503);
+    expect(body.error).toBe("ServiceUnavailable");
+    expect(body.message).toBe("Service is under maintenance");
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
 
   it("does not report validation errors to Sentry", async () => {
     const app = createApp();

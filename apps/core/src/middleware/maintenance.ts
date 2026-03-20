@@ -9,7 +9,10 @@ export function maintenanceMiddleware(): MiddlewareHandler<{
 }> {
   return async (c, next) => {
     if (getEnv().MAINTENANCE_MODE) {
-      throw serviceUnavailable("Service is under maintenance");
+      throw serviceUnavailable("Service is under maintenance", {
+        kind: "maintenance-mode",
+        reportToSentry: false,
+      });
     }
 
     await next();
