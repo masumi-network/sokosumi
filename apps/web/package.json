@@ -144,7 +144,7 @@
     "@eslint/eslintrc": "3.3.5",
     "@hey-api/openapi-ts": "0.94.3",
     "@noble/hashes": "2.0.1",
-    "@swc/core": "1.15.18",
+    "@swc/core": "1.15.21",
     "@swc/helpers": "0.5.19",
     "@tailwindcss/postcss": "4.2.2",
     "@tailwindcss/typography": "0.5.19",
