@@ -57,7 +57,7 @@ describe("computeJobStatus", () => {
     assert.equal(computeJobStatus(job), SokosumiJobStatus.PAYMENT_FAILED);
   });
 
-  it("marks null-on-chain purchases payment-failed when the purchase action errors", () => {
+  it("keeps null-on-chain purchases payment-pending when the purchase action errors", () => {
     const now = new Date();
     const job = createPaidJob({
       payByTime: new Date(now.getTime() + 30 * 60 * 1000),
@@ -88,10 +88,10 @@ describe("computeJobStatus", () => {
       ],
     });
 
-    assert.equal(computeJobStatus(job), SokosumiJobStatus.PAYMENT_FAILED);
+    assert.equal(computeJobStatus(job), SokosumiJobStatus.PAYMENT_PENDING);
   });
 
-  it("marks null-on-chain purchases payment-failed once payByTime plus grace expires", () => {
+  it("keeps null-on-chain purchases payment-pending after payByTime plus grace expires", () => {
     const now = new Date();
     const job = createPaidJob({
       payByTime: new Date(now.getTime() - 11 * 60 * 1000),
@@ -103,6 +103,39 @@ describe("computeJobStatus", () => {
         resultHash: null,
         nextAction: "NONE",
         nextActionErrorType: "NETWORK_ERROR",
+        nextActionErrorNote: null,
+        createdAt: now,
+        updatedAt: now,
+        jobId: "job-1",
+        errorNote: null,
+        errorNoteKey: null,
+      },
+      events: [
+        {
+          id: "event-1",
+          status: "RUNNING",
+          result: null,
+          statusHash: "old-hash",
+          input: null,
+          createdAt: now,
+        },
+      ],
+    });
+
+    assert.equal(computeJobStatus(job), SokosumiJobStatus.PAYMENT_PENDING);
+  });
+
+  it("marks invalid on-chain purchases payment-failed", () => {
+    const now = new Date();
+    const job = createPaidJob({
+      purchase: {
+        externalId: "purchase-1",
+        onChainStatus: "FUNDS_OR_DATUM_INVALID",
+        onChainTransactionHash: null,
+        onChainTransactionStatus: null,
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
         nextActionErrorNote: null,
         createdAt: now,
         updatedAt: now,
