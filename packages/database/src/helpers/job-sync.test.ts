@@ -156,9 +156,30 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
     expectPaymentDeadlineAfterCutoffOr(missingPurchaseClause);
   });
 
-  it("does not add extra purchase exclusions beyond the unresolved-or-fresh selection", () => {
+  it("excludes result-submitted purchases after the shared cutoff", () => {
     const where = buildJobsNeedingPurchaseSyncWhere();
-    assert.equal(where.NOT, undefined);
+    const notClauses = where.NOT as Prisma.JobWhereInput[];
+    const resultSubmittedClause = notClauses[0] as {
+      purchase?: Prisma.JobPurchaseWhereInput;
+      externalDisputeUnlockTime?: Prisma.DateTimeNullableFilter<"Job">;
+    };
+
+    assert.equal(notClauses.length, 1);
+    assert.deepEqual(resultSubmittedClause.purchase, {
+      onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+    });
+    assert.deepEqual(resultSubmittedClause.externalDisputeUnlockTime, {
+      not: null,
+      lt: (
+        resultSubmittedClause.externalDisputeUnlockTime as {
+          lt: Date;
+        }
+      ).lt,
+    });
+    assert.ok(
+      (resultSubmittedClause.externalDisputeUnlockTime as { lt: Date })
+        .lt instanceof Date,
+    );
   });
 });
 
