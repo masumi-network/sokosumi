@@ -200,30 +200,35 @@ describe("buildJobsNeedingAgentStatusSyncWhere", () => {
     });
   });
 
-  it("moves disputed, refund, and refunded paid jobs out of the agent sync set", () => {
+  it("moves stale, disputed, refund, and refunded paid jobs out of the agent sync set", () => {
     const where = buildJobsNeedingAgentStatusSyncWhere();
     const notClauses = where.NOT as Prisma.JobWhereInput[];
 
-    assert.deepEqual(notClauses, [
-      {
-        jobType: JobType.PAID,
-        purchase: {
-          onChainStatus: {
-            in: [
-              OnChainJobStatus.DISPUTED,
-              OnChainJobStatus.REFUND_REQUESTED,
-              OnChainJobStatus.REFUND_WITHDRAWN,
-              OnChainJobStatus.DISPUTED_WITHDRAWN,
-            ],
-          },
+    assert.equal(notClauses.length, 3);
+    assert.deepEqual(notClauses[0], {
+      updatedAt: {
+        lt: (notClauses[0]?.updatedAt as { lt: Date }).lt,
+      },
+    });
+    assert.ok((notClauses[0]?.updatedAt as { lt: Date }).lt instanceof Date);
+    assert.deepEqual(notClauses[1], {
+      jobType: JobType.PAID,
+      purchase: {
+        onChainStatus: {
+          in: [
+            OnChainJobStatus.DISPUTED,
+            OnChainJobStatus.REFUND_REQUESTED,
+            OnChainJobStatus.REFUND_WITHDRAWN,
+            OnChainJobStatus.DISPUTED_WITHDRAWN,
+          ],
         },
       },
-      {
-        jobType: JobType.PAID,
-        refundedTransactionId: {
-          not: null,
-        },
+    });
+    assert.deepEqual(notClauses[2], {
+      jobType: JobType.PAID,
+      refundedTransactionId: {
+        not: null,
       },
-    ]);
+    });
   });
 });
