@@ -17,13 +17,21 @@ import {
 
 import { TasksView } from "./components/tasks-view";
 import { buildAgentNameById } from "./utils/agent-names";
-import { getCoworkerOptions } from "./utils/coworker-options";
+import {
+  findCoworkerIdBySlug,
+  getCoworkerOptions,
+} from "./utils/coworker-options";
+
+interface TasksPageProps {
+  searchParams: Promise<{ create?: string; coworker?: string }>;
+}
 
 export const metadata = {
   title: "Task Manager",
 };
 
-export default async function TasksPage() {
+export default async function TasksPage({ searchParams }: TasksPageProps) {
+  const { create, coworker: coworkerSlugParam } = await searchParams;
   const [t, tColumns, cookieStore, session] = await Promise.all([
     getTranslations("App.Tasks"),
     getTranslations("App.Tasks.Columns"),
@@ -80,6 +88,11 @@ export default async function TasksPage() {
   });
 
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
+  const initialCreateTaskOpen = create === "true";
+  const initialCoworkerId =
+    initialCreateTaskOpen && coworkerSlugParam
+      ? findCoworkerIdBySlug(coworkerOptions, coworkerSlugParam)
+      : null;
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
@@ -103,6 +116,9 @@ export default async function TasksPage() {
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}
         defaultViewMode={defaultViewMode}
+        initialCreateTaskOpen={initialCreateTaskOpen}
+        initialCoworkerId={initialCoworkerId}
+        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}`}
         labels={{
           tabs: {
             tasks: t("Tabs.tasks"),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createContext, useCallback, useContext, useState } from "react";
 
@@ -13,12 +13,16 @@ import { TaskFormModal } from "./task-form-modal";
 
 interface CreateTaskModalContextType {
   open: boolean;
+  coworkerOverrideId: string | null;
+  formInstanceKey: number;
   handleOpen: () => void;
   handleClose: () => void;
 }
 
 const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
   open: false,
+  coworkerOverrideId: null,
+  formInstanceKey: 0,
   handleOpen: () => {},
   handleClose: () => {},
 });
@@ -27,17 +31,46 @@ export function useCreateTaskModal() {
   return useContext(CreateTaskModalContext);
 }
 
+interface CreateTaskModalProviderProps {
+  children: React.ReactNode;
+  initialOpen?: boolean;
+  initialCoworkerId?: string | null;
+}
+
 export function CreateTaskModalProvider({
   children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const handleOpen = useCallback(() => setOpen(true), []);
-  const handleClose = useCallback(() => setOpen(false), []);
+  initialOpen = false,
+  initialCoworkerId = null,
+}: CreateTaskModalProviderProps) {
+  const [open, setOpen] = useState(initialOpen);
+  const [coworkerOverrideId, setCoworkerOverrideId] = useState<string | null>(
+    () =>
+      initialOpen && initialCoworkerId != null && initialCoworkerId !== ""
+        ? initialCoworkerId
+        : null,
+  );
+  const [formInstanceKey, setFormInstanceKey] = useState(0);
+
+  const handleOpen = useCallback(() => {
+    setCoworkerOverrideId(null);
+    setFormInstanceKey((key) => key + 1);
+    setOpen(true);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setOpen(false);
+  }, []);
 
   return (
-    <CreateTaskModalContext.Provider value={{ open, handleOpen, handleClose }}>
+    <CreateTaskModalContext.Provider
+      value={{
+        open,
+        coworkerOverrideId,
+        formInstanceKey,
+        handleOpen,
+        handleClose,
+      }}
+    >
       {children}
     </CreateTaskModalContext.Provider>
   );
@@ -54,13 +87,28 @@ export function CreateTaskModal({
   coworkerOptions,
   agentNameById,
 }: CreateTaskModalProps) {
-  const { open, handleClose } = useCreateTaskModal();
+  const { open, handleClose, coworkerOverrideId, formInstanceKey } =
+    useCreateTaskModal();
   const router = useRouter();
+  const pathname = usePathname();
   const t = useTranslations("App.Tasks.NewTask");
   const [isDismissDisabled, setIsDismissDisabled] = useState(false);
 
+  const stripCreateTaskSearchParams = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("create") || params.has("coworker")) {
+      router.replace(pathname);
+    }
+  }, [pathname, router]);
+
+  const handleDismiss = useCallback(() => {
+    stripCreateTaskSearchParams();
+    handleClose();
+  }, [handleClose, stripCreateTaskSearchParams]);
+
   const handleOnOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) handleClose();
+    if (!nextOpen) handleDismiss();
   };
 
   return (
@@ -72,6 +120,7 @@ export function CreateTaskModal({
       isDismissDisabled={isDismissDisabled}
     >
       <TaskForm
+        key={formInstanceKey}
         variant="modal"
         mode="create"
         showCancel={false}
@@ -99,7 +148,10 @@ export function CreateTaskModal({
         }}
         coworkerOptions={coworkerOptions}
         agentNameById={agentNameById}
-        onCancel={handleClose}
+        initialValues={
+          coworkerOverrideId ? { coworkerId: coworkerOverrideId } : undefined
+        }
+        onCancel={handleDismiss}
         onSubmittingChange={setIsDismissDisabled}
         onSuccess={(taskId) => {
           handleClose();
