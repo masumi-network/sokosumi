@@ -58,7 +58,6 @@ function createOrganization(overrides: Record<string, unknown> = {}) {
     logo: null,
     metadata: null,
     stripeCustomerId: null,
-    invoiceEmail: null,
     ...overrides,
   };
 }

@@ -66,6 +66,7 @@
     "@prisma/adapter-pg": "7.5.0",
     "@prisma/client": "7.5.0",
     "@sokosumi/masumi": "workspace:*",
+    "@sokosumi/utils": "workspace:*",
     "decimal.js": "10.6.0",
     "pg": "8.20.0",
     "pg-pool": "3.13.0",

@@ -2,7 +2,11 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Organization } from "@sokosumi/database";
-import { normalizeOrganizationLogo } from "@sokosumi/utils";
+import {
+  getOrganizationMetadata,
+  normalizeOrganizationLogo,
+  parseOrganizationMetadata,
+} from "@sokosumi/utils";
 import { Building2, CloudUpload, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -66,6 +70,26 @@ function raceWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+function buildOrganizationMetadataWithUrl(
+  metadata: Record<string, unknown> | null | undefined,
+  rawUrl: string,
+): Record<string, unknown> | null {
+  const normalizedUrl = rawUrl.trim();
+  const metadataRecord = metadata ?? {};
+
+  if (normalizedUrl.length === 0) {
+    const { url: _url, ...metadataWithoutUrl } = metadataRecord;
+    return Object.keys(metadataWithoutUrl).length > 0
+      ? metadataWithoutUrl
+      : null;
+  }
+
+  return {
+    ...metadataRecord,
+    url: normalizedUrl,
+  };
+}
+
 interface OrganizationInformationFormProps {
   organization: Organization | null;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
@@ -93,8 +117,9 @@ export default function OrganizationInformationForm({
     ),
     defaultValues: {
       name: organization?.name ?? "",
-      url: organization?.url ?? "",
       logo: organization?.logo ?? "",
+      url: getOrganizationMetadata(organization?.metadata).url ?? "",
+      metadata: parseOrganizationMetadata(organization?.metadata),
     },
   });
 
@@ -148,15 +173,19 @@ export default function OrganizationInformationForm({
     try {
       let result;
       const isCreating = !organization;
-      const normalizedUrl = values.url.trim();
       const logoForApi = normalizeOrganizationLogo(values.logo);
-      const createUrlPayload =
-        normalizedUrl.length > 0 ? normalizedUrl : undefined;
+      const metadataForApi = buildOrganizationMetadataWithUrl(
+        values.metadata,
+        values.url ?? "",
+      );
 
       if (isCreating) {
         const slugResult = await generateOrganizationSlug({
           name: values.name,
-          url: values.url,
+          metadata: values.metadata ?? {
+            url: values.url ?? null,
+            invoiceEmail: null,
+          },
           logo: logoForApi ?? "",
         });
 
@@ -169,7 +198,7 @@ export default function OrganizationInformationForm({
         result = await authClient.organization.create({
           slug,
           name: values.name,
-          ...(createUrlPayload && { url: createUrlPayload }),
+          ...(metadataForApi && { metadata: metadataForApi }),
           ...(logoForApi && { logo: logoForApi }),
         });
       } else {
@@ -177,8 +206,8 @@ export default function OrganizationInformationForm({
           organizationId: organization.id,
           data: {
             name: values.name,
-            url: normalizedUrl,
-            logo: logoForApi ?? undefined,
+            metadata: metadataForApi ?? undefined,
+            logo: logoForApi ?? "",
           },
         });
       }

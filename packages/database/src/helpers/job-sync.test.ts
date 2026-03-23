@@ -156,28 +156,31 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
     expectPaymentDeadlineAfterCutoffOr(missingPurchaseClause);
   });
 
-  it("excludes result-submitted purchases after the dispute unlock cutoff from purchase sync", () => {
+  it("excludes purchases neither disputed nor refund-requested when external dispute unlock is before the cutoff", () => {
     const where = buildJobsNeedingPurchaseSyncWhere();
     const notClauses = where.NOT as Prisma.JobWhereInput[];
-    const resultSubmittedClause = notClauses[0] as {
+    const disputeWindowClause = notClauses[0] as {
       purchase?: Prisma.JobPurchaseWhereInput;
       externalDisputeUnlockTime?: Prisma.DateTimeNullableFilter<"Job">;
     };
 
     assert.equal(notClauses.length, 1);
-    assert.deepEqual(resultSubmittedClause.purchase, {
-      onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+    assert.deepEqual(disputeWindowClause.purchase, {
+      onChainStatus: {
+        notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
+        not: null,
+      },
     });
-    assert.deepEqual(resultSubmittedClause.externalDisputeUnlockTime, {
+    assert.deepEqual(disputeWindowClause.externalDisputeUnlockTime, {
       not: null,
       lt: (
-        resultSubmittedClause.externalDisputeUnlockTime as {
+        disputeWindowClause.externalDisputeUnlockTime as {
           lt: Date;
         }
       ).lt,
     });
     assert.ok(
-      (resultSubmittedClause.externalDisputeUnlockTime as { lt: Date })
+      (disputeWindowClause.externalDisputeUnlockTime as { lt: Date })
         .lt instanceof Date,
     );
   });
@@ -202,7 +205,7 @@ describe("buildJobsNeedingAgentStatusSyncWhere", () => {
     });
   });
 
-  it("moves disputed, refund, and refunded paid jobs out of the agent sync set", () => {
+  it("moves disputed, refund, invalid-funds, and refunded paid jobs out of the agent sync set", () => {
     const where = buildJobsNeedingAgentStatusSyncWhere();
     const notClauses = where.NOT as Prisma.JobWhereInput[];
 
@@ -216,6 +219,7 @@ describe("buildJobsNeedingAgentStatusSyncWhere", () => {
             OnChainJobStatus.REFUND_REQUESTED,
             OnChainJobStatus.REFUND_WITHDRAWN,
             OnChainJobStatus.DISPUTED_WITHDRAWN,
+            OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
           ],
         },
       },

@@ -9,8 +9,17 @@ export const organizationSchema = z.object({
   slug: z.string().openapi({ example: "my-org" }),
   logo: z
     .httpUrl()
+    .or(z.literal(""))
     .nullable()
     .openapi({ example: "https://example.com/logo.png" }),
+  metadata: z
+    .object({
+      url: z.httpUrl().nullable().optional(),
+      invoiceEmail: z.string().nullable().optional(),
+    })
+    .catchall(z.unknown())
+    .nullable()
+    .openapi({ example: { url: "https://example.com" } }),
 });
 
 export type Organization = z.infer<typeof organizationSchema>;

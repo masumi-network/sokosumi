@@ -43,7 +43,13 @@ export function buildJobsNeedingPurchaseSyncWhere(
     NOT: [
       {
         purchase: {
-          onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+          onChainStatus: {
+            notIn: [
+              OnChainJobStatus.DISPUTED,
+              OnChainJobStatus.REFUND_REQUESTED,
+            ],
+            not: null,
+          },
         },
         externalDisputeUnlockTime: {
           not: null,
@@ -79,6 +85,7 @@ export function buildJobsNeedingAgentStatusSyncWhere(): Prisma.JobWhereInput {
               OnChainJobStatus.REFUND_REQUESTED,
               OnChainJobStatus.REFUND_WITHDRAWN,
               OnChainJobStatus.DISPUTED_WITHDRAWN,
+              OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
             ],
           },
         },

@@ -3,6 +3,7 @@ import {
   MemberRole,
   OrganizationWithRelations,
 } from "@sokosumi/database";
+import { getOrganizationMetadata } from "@sokosumi/utils";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -24,7 +25,7 @@ export default async function OrganizationInformation({
   const t = await getTranslations("App.Organizations.OrganizationDetail");
   const { role } = member;
   const isOwnerOrAdmin = role === MemberRole.OWNER || role === MemberRole.ADMIN;
-  const websiteUrl = organization.url?.trim() ?? null;
+  const { url: websiteUrl } = getOrganizationMetadata(organization.metadata);
   const hasWebsite = Boolean(websiteUrl);
 
   return (
