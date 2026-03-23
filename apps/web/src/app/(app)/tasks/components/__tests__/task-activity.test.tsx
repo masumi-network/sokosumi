@@ -32,6 +32,7 @@ vi.mock("next-intl", () => ({
       "originApp.whatsapp": "WhatsApp",
       "originApp.telegram": "Telegram",
       "originApp.signal": "Signal",
+      "originApp.discord": "Discord",
       "originApp.chat": "Chat",
       "originApp.unknown": "Unknown",
     };

@@ -27,6 +27,10 @@ vi.mock("@/lib/actions/task/action", () => ({
   updateTask: vi.fn(),
 }));
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 vi.mock("../markdown-editor", () => ({
   MarkdownEditor: forwardRef(function MockMarkdownEditor(
     {

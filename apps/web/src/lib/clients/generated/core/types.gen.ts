@@ -264,6 +264,29 @@ export type CreateConversationItemRequest = {
     }>;
 };
 
+export type CreditCost = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    unit: string;
+    /**
+     * Credits charged per unit (user-facing decimal)
+     */
+    creditsPerUnit: number;
+};
+
+export type CreateCreditCostRequest = {
+    unit: string;
+    creditsPerUnit: number;
+};
+
+export type PatchCreditCostRequest = {
+    /**
+     * Credits charged per unit (user-facing decimal)
+     */
+    creditsPerUnit: number;
+};
+
 export type User = {
     id: string;
     createdAt: Date;
@@ -386,6 +409,12 @@ export type JobEvent = {
     links: Array<Link>;
 };
 
+export type CoworkerMetadata = {
+    channels: {
+        [key: string]: string;
+    };
+};
+
 export type Coworker = {
     id: string;
     createdAt: Date;
@@ -402,13 +431,13 @@ export type Coworker = {
      * OpenAI Responses API base URL used to enable this coworker for chat.
      */
     baseURL: string | null;
-    email?: string | null;
     description?: string | null;
     /**
      * Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.
      */
     capabilities: Array<'chat' | 'tasks'>;
     image?: string | null;
+    metadata: CoworkerMetadata | null;
 };
 
 export type TaskEvent = {
@@ -422,7 +451,7 @@ export type TaskEvent = {
     credits?: number | null;
     comment?: string | null;
     authenticationUrl?: string | null;
-    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
+    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
     status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
 };
 
@@ -3354,6 +3383,334 @@ export type PostConversationsByIdItemsResponses = {
 
 export type PostConversationsByIdItemsResponse = PostConversationsByIdItemsResponses[keyof PostConversationsByIdItemsResponses];
 
+export type GetCreditCostsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/credit-costs';
+};
+
+export type GetCreditCostsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCreditCostsError = GetCreditCostsErrors[keyof GetCreditCostsErrors];
+
+export type GetCreditCostsResponses = {
+    /**
+     * Retrieve all credit costs
+     */
+    200: {
+        data: Array<CreditCost>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCreditCostsResponse = GetCreditCostsResponses[keyof GetCreditCostsResponses];
+
+export type PostCreditCostsData = {
+    body?: CreateCreditCostRequest;
+    path?: never;
+    query?: never;
+    url: '/credit-costs';
+};
+
+export type PostCreditCostsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostCreditCostsError = PostCreditCostsErrors[keyof PostCreditCostsErrors];
+
+export type PostCreditCostsResponses = {
+    /**
+     * Create credit cost
+     */
+    201: {
+        data: CreditCost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostCreditCostsResponse = PostCreditCostsResponses[keyof PostCreditCostsResponses];
+
+export type DeleteCreditCostsByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/credit-costs/{id}';
+};
+
+export type DeleteCreditCostsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteCreditCostsByIdError = DeleteCreditCostsByIdErrors[keyof DeleteCreditCostsByIdErrors];
+
+export type DeleteCreditCostsByIdResponses = {
+    /**
+     * Delete credit cost
+     */
+    200: {
+        data: CreditCost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteCreditCostsByIdResponse = DeleteCreditCostsByIdResponses[keyof DeleteCreditCostsByIdResponses];
+
+export type GetCreditCostsByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/credit-costs/{id}';
+};
+
+export type GetCreditCostsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCreditCostsByIdError = GetCreditCostsByIdErrors[keyof GetCreditCostsByIdErrors];
+
+export type GetCreditCostsByIdResponses = {
+    /**
+     * Retrieve credit cost
+     */
+    200: {
+        data: CreditCost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCreditCostsByIdResponse = GetCreditCostsByIdResponses[keyof GetCreditCostsByIdResponses];
+
+export type PatchCreditCostsByIdData = {
+    body?: PatchCreditCostRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/credit-costs/{id}';
+};
+
+export type PatchCreditCostsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchCreditCostsByIdError = PatchCreditCostsByIdErrors[keyof PatchCreditCostsByIdErrors];
+
+export type PatchCreditCostsByIdResponses = {
+    /**
+     * Update credit cost
+     */
+    200: {
+        data: CreditCost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchCreditCostsByIdResponse = PatchCreditCostsByIdResponses[keyof PatchCreditCostsByIdResponses];
+
 export type PostUsersMagicLinkData = {
     body?: {
         /**
@@ -5469,13 +5826,13 @@ export type PostCoworkersData = {
          * OpenAI Responses API base URL used to enable this coworker for chat.
          */
         baseURL?: string | null;
-        email: string;
         description?: string | null;
         image?: string | null;
         /**
          * Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.
          */
         capabilities?: Array<'chat' | 'tasks'>;
+        metadata?: CoworkerMetadata | null;
     };
     path?: never;
     query?: never;
@@ -6228,13 +6585,13 @@ export type PatchCoworkersByIdData = {
          * OpenAI Responses API base URL used to enable this coworker for chat.
          */
         baseURL?: string | null;
-        email?: string;
         description?: string | null;
         image?: string | null;
         /**
          * Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.
          */
         capabilities?: Array<'chat' | 'tasks'>;
+        metadata?: CoworkerMetadata | null;
     };
     path: {
         id: string;
@@ -6464,7 +6821,7 @@ export type PostTasksData = {
         /**
          * Origin of the initial task event. Defaults to SOKOSUMI if not provided.
          */
-        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
+        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
     };
     headers?: {
         /**
@@ -6818,7 +7175,7 @@ export type PostTasksByIdEventsData = {
         /**
          * The origin of the task event. Defaults to SOKOSUMI if undefined.
          */
-        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
+        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
     };
     path: {
         id: string;

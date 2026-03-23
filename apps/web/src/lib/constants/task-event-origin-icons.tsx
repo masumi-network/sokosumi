@@ -8,6 +8,7 @@ import {
 import { type ComponentType } from "react";
 import { PiMicrosoftTeamsLogo } from "react-icons/pi";
 import {
+  SiDiscord,
   SiGithub,
   SiLinear,
   SiSignal,
@@ -48,6 +49,7 @@ export const ORIGIN_ICON_MAP: Record<
   [TaskEventOrigin.WHATSAPP]: SiWhatsapp,
   [TaskEventOrigin.TELEGRAM]: SiTelegram,
   [TaskEventOrigin.SIGNAL]: SiSignal,
+  [TaskEventOrigin.DISCORD]: SiDiscord,
   [TaskEventOrigin.CHAT]: MessageSquare,
   [TaskEventOrigin.SOKOSUMI]: SokosumiOriginIcon,
   [TaskEventOrigin.UNKNOWN]: CircleHelp,
@@ -62,6 +64,7 @@ export const ORIGIN_APP_NAME_KEY_MAP: Record<TaskEventOrigin, string> = {
   [TaskEventOrigin.WHATSAPP]: "whatsapp",
   [TaskEventOrigin.TELEGRAM]: "telegram",
   [TaskEventOrigin.SIGNAL]: "signal",
+  [TaskEventOrigin.DISCORD]: "discord",
   [TaskEventOrigin.CHAT]: "chat",
   [TaskEventOrigin.SOKOSUMI]: "sokosumi",
   [TaskEventOrigin.UNKNOWN]: "unknown",
