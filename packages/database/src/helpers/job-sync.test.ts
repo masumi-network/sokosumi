@@ -156,7 +156,7 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
     expectPaymentDeadlineAfterCutoffOr(missingPurchaseClause);
   });
 
-  it("excludes non-disputed purchases whose external dispute unlock is before the cutoff", () => {
+  it("excludes purchases neither disputed nor refund-requested when external dispute unlock is before the cutoff", () => {
     const where = buildJobsNeedingPurchaseSyncWhere();
     const notClauses = where.NOT as Prisma.JobWhereInput[];
     const disputeWindowClause = notClauses[0] as {
@@ -167,7 +167,7 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
     assert.equal(notClauses.length, 1);
     assert.deepEqual(disputeWindowClause.purchase, {
       onChainStatus: {
-        notIn: [OnChainJobStatus.DISPUTED],
+        notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
         not: null,
       },
     });

@@ -44,7 +44,10 @@ export function buildJobsNeedingPurchaseSyncWhere(
       {
         purchase: {
           onChainStatus: {
-            notIn: [OnChainJobStatus.DISPUTED],
+            notIn: [
+              OnChainJobStatus.DISPUTED,
+              OnChainJobStatus.REFUND_REQUESTED,
+            ],
             not: null,
           },
         },
