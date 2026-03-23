@@ -89,7 +89,9 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
       ({ where }: { where: { id: string } }) =>
         Promise.resolve({
           id: where.id,
-          invoiceEmail: `${where.id}@billing.example.com`,
+          metadata: JSON.stringify({
+            invoiceEmail: `${where.id}@billing.example.com`,
+          }),
           name: `Organization ${where.id}`,
           slug: `${where.id}-slug`,
         }),

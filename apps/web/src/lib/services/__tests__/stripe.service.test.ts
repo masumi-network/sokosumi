@@ -172,7 +172,7 @@ describe("stripeService.createStripeCheckoutSession", () => {
       id: "org-1",
       slug: "org-one",
       name: "Org One",
-      invoiceEmail: "billing@org-one.com",
+      metadata: JSON.stringify({ invoiceEmail: "billing@org-one.com" }),
     });
     createOrganizationCustomerMock.mockResolvedValue({
       id: "cus_new_org",

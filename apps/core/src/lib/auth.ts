@@ -172,22 +172,6 @@ export const auth = betterAuth({
               defaultValue: null,
               input: false,
             },
-            invoiceEmail: {
-              type: "string",
-              required: false,
-              defaultValue: null,
-              input: false,
-            },
-            url: {
-              type: "string",
-              required: false,
-              defaultValue: null,
-            },
-            logo: {
-              type: "string",
-              required: false,
-              defaultValue: null,
-            },
           },
         },
       },

@@ -6,6 +6,29 @@ import {
   OrganizationWithRelations,
 } from "../types/organization.js";
 
+function parseOrganizationMetadataToObject(
+  metadata: string | null,
+): Record<string, unknown> {
+  if (!metadata) {
+    return {};
+  }
+
+  try {
+    const parsedMetadata = JSON.parse(metadata) as unknown;
+    if (
+      parsedMetadata &&
+      typeof parsedMetadata === "object" &&
+      !Array.isArray(parsedMetadata)
+    ) {
+      return parsedMetadata as Record<string, unknown>;
+    }
+
+    return {};
+  } catch {
+    return {};
+  }
+}
+
 /**
  * Repository for managing Organization entities and related queries.
  * Provides methods for creating organizations, fetching organizations with relations
@@ -119,9 +142,29 @@ export const organizationRepository = {
     invoiceEmail: string | null,
     tx: Prisma.TransactionClient,
   ): Promise<Organization> {
+    const organization = await tx.organization.findUnique({
+      where: { id: organizationId },
+      select: { metadata: true },
+    });
+
+    const parsedMetadata = parseOrganizationMetadataToObject(
+      organization?.metadata ?? null,
+    );
+
+    if (invoiceEmail) {
+      parsedMetadata.invoiceEmail = invoiceEmail;
+    } else {
+      delete parsedMetadata.invoiceEmail;
+    }
+
+    const nextMetadata =
+      Object.keys(parsedMetadata).length > 0
+        ? JSON.stringify(parsedMetadata)
+        : null;
+
     return await tx.organization.update({
       where: { id: organizationId },
-      data: { invoiceEmail },
+      data: { metadata: nextMetadata },
     });
   },
 

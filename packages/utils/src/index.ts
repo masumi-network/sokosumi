@@ -25,4 +25,9 @@ export {
   extractHttpLinks,
   extractLinks,
 } from "./markdown-links-extract.js";
+export {
+  getOrganizationMetadata,
+  type OrganizationMetadata,
+  parseOrganizationMetadata,
+} from "./organization-metadata.js";
 export { getFallbackUserName, getStoredUserName } from "./user-name.js";

@@ -54,7 +54,7 @@ function createOrganization(
   overrides: Partial<Organization> & Pick<Organization, "id" | "name">,
 ): Organization {
   return {
-    url: null,
+    metadata: null,
     logo: null,
     slug: "acme",
     ...overrides,
