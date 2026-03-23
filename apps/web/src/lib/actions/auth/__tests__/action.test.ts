@@ -2,13 +2,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+interface BetterAuthApiErrorParseResult {
+  data?: {
+    body: {
+      code: string;
+      message: string;
+    };
+    status: string;
+    statusCode: number;
+  };
+  success: boolean;
+}
+
 const signUpEmailMock = vi.fn();
 const signInEmailMock = vi.fn();
 const signInMagicLinkMock = vi.fn();
 const setPasswordMock = vi.fn();
 const handleUTMConversionMock = vi.fn();
 const headersMock = vi.fn();
-const betterAuthApiErrorSafeParseMock = vi.fn(() => ({
+const betterAuthApiErrorSafeParseMock = vi.fn<
+  (value: unknown) => BetterAuthApiErrorParseResult
+>(() => ({
   success: false,
 }));
 
