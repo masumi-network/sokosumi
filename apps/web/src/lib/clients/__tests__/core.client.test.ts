@@ -101,6 +101,10 @@ describe("core.client", () => {
       client: mockClient,
       path: { id: "agent_1" },
     });
+    expect("input_data" in response.data).toBe(true);
+    if (!("input_data" in response.data)) {
+      throw new Error("Expected flat input schema");
+    }
     expect(response.data.input_data).toHaveLength(1);
   });
 

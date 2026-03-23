@@ -54,7 +54,6 @@ vi.mock(
     dashClient: dashClientMock,
     sentinelClient: sentinelClientMock,
   }),
-  { virtual: true },
 );
 
 vi.mock("@/lib/auth/auth", () => ({
