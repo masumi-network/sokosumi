@@ -166,7 +166,10 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
 
     assert.equal(notClauses.length, 1);
     assert.deepEqual(resultSubmittedClause.purchase, {
-      onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+      onChainStatus: {
+        in: [OnChainJobStatus.RESULT_SUBMITTED],
+        not: null,
+      },
     });
     assert.deepEqual(resultSubmittedClause.externalDisputeUnlockTime, {
       not: null,
