@@ -8,7 +8,7 @@ export function getCoreRelatedProjectName(network: CoreNetwork): string {
 
 export function getDefaultCoreApiBaseUrl(network: CoreNetwork): string {
   return network === "Preprod"
-    ? "https://preprod.api.sokosumi.com"
+    ? "https://api.preprod.sokosumi.com"
     : "https://api.sokosumi.com";
 }
 
