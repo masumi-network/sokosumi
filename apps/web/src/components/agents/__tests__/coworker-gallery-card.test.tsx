@@ -16,6 +16,22 @@ vi.mock("next/image", () => ({
 }));
 
 describe("CoworkerGalleryCard", () => {
+  it("uses native img for unsupported remote hosts so next/image is not invoked", () => {
+    const unsupportedSrc = "https://external-content.duckduckgo.com/iu/test.jpg";
+    render(
+      <CoworkerGalleryCard
+        slug="test-coworker"
+        name="Test"
+        image={unsupportedSrc}
+        action={<button type="button">Select</button>}
+      />,
+    );
+
+    expect(screen.queryByTestId("gallery-image")).not.toBeInTheDocument();
+    const img = screen.getByRole("img", { name: "Test" });
+    expect(img).toHaveAttribute("src", unsupportedSrc);
+  });
+
   it("reveals contact value when channel icon is clicked", async () => {
     const user = userEvent.setup();
     render(

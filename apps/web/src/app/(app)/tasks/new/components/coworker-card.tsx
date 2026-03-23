@@ -1,7 +1,6 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -18,20 +17,10 @@ export function CoworkerCard({
   isSelected,
   onSelect,
 }: CoworkerCardProps) {
-  function handleCardKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-    if (event.defaultPrevented) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onSelect();
-    }
-  }
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={onSelect}
-      onKeyDown={handleCardKeyDown}
       aria-pressed={isSelected}
       className={cn(
         "focus-visible:ring-ring relative flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 text-left transition-all outline-none focus-visible:ring-2",
@@ -63,6 +52,6 @@ export function CoworkerCard({
           </p>
         ) : null}
       </div>
-    </div>
+    </button>
   );
 }

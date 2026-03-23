@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { type MouseEvent, useState } from "react";
 
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
+import { canUseNextImageSrc } from "@/config/next-image";
 import {
   ORIGIN_APP_NAME_KEY_MAP,
   ORIGIN_ICON_MAP,
@@ -60,6 +61,7 @@ function CoworkerGalleryCard({
     image ||
     COWORKER_FALLBACK_IMAGES[slug] ||
     "/images/logos/sokosumi-logo-white.svg";
+  const canUseNextImage = canUseNextImageSrc(imageSrc);
   const displayDescription = description || DEFAULT_COWORKER_DESCRIPTION;
   const coworkerChatHref = `/chat?coworker=${encodeURIComponent(slug)}`;
   const cardClassName = cn(
@@ -104,15 +106,29 @@ function CoworkerGalleryCard({
       </div>
     ) : null;
 
+  const imageClassName =
+    "object-cover object-top transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.03]";
+
   const cardContent = (
     <div className="relative aspect-3/4 w-full overflow-hidden rounded-lg">
-      <Image
-        src={imageSrc}
-        alt={name}
-        fill
-        className="object-cover object-top transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.03]"
-        sizes="(max-width: 768px) 100vw, 320px"
-      />
+      {canUseNextImage ? (
+        <Image
+          src={imageSrc}
+          alt={name}
+          fill
+          className={imageClassName}
+          sizes="(max-width: 768px) 100vw, 320px"
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- next/image rejects unconfigured remote hosts
+        <img
+          src={imageSrc}
+          alt={name}
+          className={cn("absolute inset-0 size-full", imageClassName)}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      )}
 
       {/* Verified badge */}
       <div className="absolute top-3 right-3">
