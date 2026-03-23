@@ -176,7 +176,7 @@ export default function OrganizationInformationForm({
       const logoForApi = normalizeOrganizationLogo(values.logo);
       const metadataForApi = buildOrganizationMetadataWithUrl(
         values.metadata,
-        values.metadata?.url ?? "",
+        values.url ?? "",
       );
 
       if (isCreating) {
