@@ -1206,8 +1206,8 @@
         "modelAlt": "Modell",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Nutzer-Avatar",
-        "expandPrompt": "Show full message",
-        "collapsePrompt": "Show less",
+        "expandPrompt": "Vollständige Nachricht anzeigen",
+        "collapsePrompt": "Weniger anzeigen",
         "reasoning": {
           "processing": "Wird verarbeitet...",
           "thinking": "Denkt nach...",
@@ -1226,6 +1226,7 @@
         "tryAgain": "Erneut versuchen",
         "networkErrorAfterRetry": "Der Server konnte nach mehreren Versuchen nicht erreicht werden. Bitte prüfe deine Verbindung und versuche es erneut.",
         "pendingResponseFailed": "Bei uns ist etwas schiefgelaufen. Bitte sende deine letzte Nachricht erneut.",
+        "resend": "Erneut senden",
         "noResponseConnectionLost": "Die Verbindung wurde unterbrochen. Bitte lade die Seite neu und versuche es erneut.",
         "authorize": "Autorisieren"
       }
