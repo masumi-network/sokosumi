@@ -71,7 +71,10 @@ function createApp(params: {
       }
     }
 
-    if (params.nestedAuthContext && params.nestedIsAuthenticated === undefined) {
+    if (
+      params.nestedAuthContext &&
+      params.nestedIsAuthenticated === undefined
+    ) {
       c.set("authContext", params.nestedAuthContext);
     }
 

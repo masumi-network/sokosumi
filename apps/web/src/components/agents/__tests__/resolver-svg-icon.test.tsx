@@ -14,9 +14,8 @@ vi.mock("dompurify", () => ({
 }));
 
 vi.mock("@sokosumi/utils", async () => {
-  const actual = await vi.importActual<typeof import("@sokosumi/utils")>(
-    "@sokosumi/utils",
-  );
+  const actual =
+    await vi.importActual<typeof import("@sokosumi/utils")>("@sokosumi/utils");
   return {
     ...actual,
     resolveIpfsOrHttpUrl: vi.fn((url: string | null) => url || ""),
