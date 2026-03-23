@@ -5,6 +5,7 @@ import {
   memberRepository,
   organizationRepository,
 } from "@sokosumi/database/repositories";
+import { getOrganizationMetadata } from "@sokosumi/utils";
 import * as z from "zod";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
@@ -167,7 +168,10 @@ export const updateOrganizationInvoiceEmail = withSession<
     invoiceEmail,
   );
 
-  return Ok({ invoiceEmail: updatedOrganization.invoiceEmail });
+  return Ok({
+    invoiceEmail: getOrganizationMetadata(updatedOrganization.metadata)
+      .invoiceEmail,
+  });
 });
 
 const updatePreferredOrganizationSchema = z.object({

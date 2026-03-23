@@ -4,6 +4,7 @@ import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
+import { getOrganizationMetadata } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
@@ -386,11 +387,12 @@ export const stripeService = (() => {
       if (!organization) {
         return null;
       }
+      const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
       return await stripeClient.createOrganizationCustomer(
         organization.id,
         organization.slug,
         organization.name,
-        organization.invoiceEmail,
+        invoiceEmail,
       );
     },
 
@@ -555,11 +557,14 @@ export const stripeService = (() => {
 
         let orgStripeCustomerId = organization.stripeCustomerId;
         if (!orgStripeCustomerId) {
+          const { invoiceEmail } = getOrganizationMetadata(
+            organization.metadata,
+          );
           const orgCustomer = await stripeClient.createOrganizationCustomer(
             organization.id,
             organization.slug,
             organization.name,
-            organization.invoiceEmail,
+            invoiceEmail,
           );
           if (!orgCustomer) {
             throw new Error("Failed to create organization Stripe customer");

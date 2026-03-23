@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { parseOrganizationMetadata } from "@sokosumi/utils";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -23,6 +24,10 @@ const route = createRoute({
             name: "My Organization",
             slug: "my-org",
             logo: "https://example.com/logo.png",
+            metadata: {
+              url: "https://example.com",
+              invoiceEmail: "test@example.com",
+            },
             createdAt: "2025-01-01T00:00:00.000Z",
             role: "member",
           },
@@ -55,6 +60,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return members.map((member) => ({
         ...member.organization,
+        metadata: parseOrganizationMetadata(member.organization.metadata),
         role: member.role,
       }));
     });

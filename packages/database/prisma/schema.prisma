@@ -197,8 +197,6 @@ model Organization {
   coworkerUsages CoworkerUsage[]
 
   stripeCustomerId String?
-  invoiceEmail     String?
-  url              String?
 
   // Credit Buckets
   creditBuckets CreditBucket[]

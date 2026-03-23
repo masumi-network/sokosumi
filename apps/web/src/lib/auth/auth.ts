@@ -16,7 +16,7 @@ import {
   renderVerificationEmail,
 } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
-import { getStoredUserName } from "@sokosumi/utils";
+import { getOrganizationMetadata, getStoredUserName } from "@sokosumi/utils";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
@@ -472,12 +472,15 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
+          const { invoiceEmail } = getOrganizationMetadata(
+            organization.metadata,
+          );
           stripeClient
             .createOrganizationCustomer(
               organization.id,
               organization.slug,
               organization.name,
-              organization.invoiceEmail,
+              invoiceEmail,
             )
             .catch((error) => {
               Sentry.captureException(error, {
@@ -488,7 +491,7 @@ export const auth = betterAuth({
                   organizationId: organization.id,
                   name: organization.name,
                   slug: organization.slug,
-                  invoiceEmail: organization.invoiceEmail,
+                  invoiceEmail,
                 },
               });
             });
@@ -512,22 +515,6 @@ export const auth = betterAuth({
               required: false,
               defaultValue: null,
               input: false,
-            },
-            invoiceEmail: {
-              type: "string",
-              required: false,
-              defaultValue: null,
-              input: false,
-            },
-            url: {
-              type: "string",
-              required: false,
-              defaultValue: null,
-            },
-            logo: {
-              type: "string",
-              required: false,
-              defaultValue: null,
             },
           },
         },
