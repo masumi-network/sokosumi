@@ -69,7 +69,6 @@ export function buildJobsNeedingAgentStatusSyncWhere(): Prisma.JobWhereInput {
         },
       },
     },
-
     NOT: [
       {
         jobType: JobType.PAID,
