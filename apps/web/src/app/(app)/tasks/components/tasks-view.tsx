@@ -11,7 +11,7 @@ import {
 } from "@dnd-kit/core";
 import { SokosumiJobStatus } from "@sokosumi/database";
 import { ChannelProvider, useChannel } from "ably/react";
-import { Plus } from "lucide-react";
+import { CircleHelp, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -120,6 +120,7 @@ const hydrationStore = (() => {
 
 const JOBS_FAILED_FILTER_MODE_STORAGE_KEY =
   "sokosumi.tasks.jobs.failedFilterMode";
+const TASKS_GUIDE_COMPLETED_STORAGE_KEY = "sokosumi.tasks.guideCompleted";
 interface TasksRealtimeListenerProps {
   userId: string;
   onEvent: (data: TaskEventData) => void;
@@ -228,12 +229,16 @@ interface TasksViewProps {
       description: string;
       chatTitle: string;
       chatDescription: string;
+      getStartedTitle: string;
+      getStartedDescription: string;
+      getStartedButton: string;
       next: string;
       back: string;
       addTaskHint: string;
       chatHint: string;
       elenaAvatarAlt: string;
     };
+    showGuideAriaLabel: string;
   };
 }
 
@@ -277,6 +282,21 @@ export function TasksView({
         return "hideFailed";
       }
     });
+  const [guideCompleted, setGuideCompleted] = useState<boolean>(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    try {
+      return (
+        window.localStorage.getItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY) ===
+        "true"
+      );
+    } catch {
+      return false;
+    }
+  });
+  const [forceShowGuide, setForceShowGuide] = useState(false);
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [jobsItems, setJobsItems] = useState<TasksViewJob[]>(jobs);
   const [jobsCursor, setJobsCursor] = useState<string | null>(
@@ -657,11 +677,13 @@ export function TasksView({
     () => Array.from(new Set(jobsItems.map((job) => job.agentId))),
     [jobsItems],
   );
-  const shouldShowEmptyStateOverlay = shouldShowTasksEmptyStateOverlay({
-    activeTab,
-    taskCount: items.length,
-    viewMode,
-  });
+  const shouldShowEmptyStateOverlay =
+    shouldShowTasksEmptyStateOverlay({
+      activeTab,
+      taskCount: items.length,
+      viewMode,
+      guideCompleted,
+    }) || forceShowGuide;
   const activeDragTask = useMemo(
     () =>
       activeDragTaskId
@@ -702,6 +724,20 @@ export function TasksView({
     loadingColumnIds,
   ]);
 
+  const handleGuideComplete = useCallback(() => {
+    setGuideCompleted(true);
+    setForceShowGuide(false);
+    try {
+      window.localStorage.setItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY, "true");
+    } catch {
+      // Ignore storage errors.
+    }
+  }, []);
+
+  const handleGuideDismiss = useCallback(() => {
+    setForceShowGuide(false);
+  }, []);
+
   const tabsContent = (
     <Tabs
       value={activeTab}
@@ -728,6 +764,18 @@ export function TasksView({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          {activeTab === "tasks" ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              aria-label={labels.showGuideAriaLabel}
+              onClick={() => setForceShowGuide(true)}
+            >
+              <CircleHelp className="size-4" aria-hidden />
+            </Button>
+          ) : null}
           {activeTab === "tasks" ? (
             <ViewModeSwitch
               value={viewMode}
@@ -896,14 +944,22 @@ export function TasksView({
           ))}
           {tabsContent}
           {shouldShowEmptyStateOverlay ? (
-            <TasksEmptyStateOverlay labels={labels.emptyState} />
+            <TasksEmptyStateOverlay
+              labels={labels.emptyState}
+              onComplete={handleGuideComplete}
+              onDismiss={handleGuideDismiss}
+            />
           ) : null}
         </DynamicAblyProvider>
       ) : (
         <>
           {tabsContent}
           {shouldShowEmptyStateOverlay ? (
-            <TasksEmptyStateOverlay labels={labels.emptyState} />
+            <TasksEmptyStateOverlay
+              labels={labels.emptyState}
+              onComplete={handleGuideComplete}
+              onDismiss={handleGuideDismiss}
+            />
           ) : null}
         </>
       )}

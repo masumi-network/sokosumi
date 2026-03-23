@@ -16,6 +16,9 @@ interface TasksEmptyStateOverlayLabels {
   description: string;
   chatTitle: string;
   chatDescription: string;
+  getStartedTitle: string;
+  getStartedDescription: string;
+  getStartedButton: string;
   next: string;
   back: string;
   addTaskHint: string;
@@ -25,6 +28,8 @@ interface TasksEmptyStateOverlayLabels {
 
 interface TasksEmptyStateOverlayProps {
   labels: TasksEmptyStateOverlayLabels;
+  onComplete: () => void;
+  onDismiss: () => void;
 }
 
 interface Point {
@@ -71,7 +76,7 @@ function selectTasksEmptyStateChatRailPanel(): HTMLElement | null {
   return document.querySelector<HTMLElement>("[data-chat-rail-panel]");
 }
 
-const GUIDE_STEPS = ["addTask", "chat"] as const;
+const GUIDE_STEPS = ["addTask", "chat", "getStarted"] as const;
 
 type TasksEmptyStateGuideStep = (typeof GUIDE_STEPS)[number];
 
@@ -100,6 +105,14 @@ export function getTasksEmptyStateGuideContent(
     };
   }
 
+  if (step === "getStarted") {
+    return {
+      title: labels.getStartedTitle,
+      description: labels.getStartedDescription,
+      hint: "",
+    };
+  }
+
   return {
     title: labels.chatTitle,
     description: labels.chatDescription,
@@ -109,6 +122,8 @@ export function getTasksEmptyStateGuideContent(
 
 export function TasksEmptyStateOverlay({
   labels,
+  onComplete,
+  onDismiss,
 }: TasksEmptyStateOverlayProps) {
   const { open, openMobile, openLatestChat } = useAppChatRail();
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -389,20 +404,43 @@ export function TasksEmptyStateOverlay({
   const shouldRenderChatConnector =
     currentStep !== "chat" || isChatPanelReadyForConnector;
   const activeConnectorPath =
-    currentStep === "addTask"
-      ? connectorPaths?.left
-      : shouldRenderChatConnector
-        ? connectorPaths?.right
-        : null;
+    currentStep === "getStarted"
+      ? null
+      : currentStep === "addTask"
+        ? connectorPaths?.left
+        : shouldRenderChatConnector
+          ? connectorPaths?.right
+          : null;
   const activeLabelPosition =
-    currentStep === "addTask"
-      ? layout?.leftLabel
-      : shouldRenderChatConnector
-        ? layout?.rightLabel
-        : null;
+    currentStep === "getStarted"
+      ? null
+      : currentStep === "addTask"
+        ? layout?.leftLabel
+        : shouldRenderChatConnector
+          ? layout?.rightLabel
+          : null;
+  const isGetStartedStep = currentStep === "getStarted";
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onDismiss();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onDismiss]);
+
   const mobileContent = useMemo(
-    () => getTasksEmptyStateGuideContent("addTask", labels),
-    [labels],
+    () =>
+      getTasksEmptyStateGuideContent(
+        isGetStartedStep ? "getStarted" : "addTask",
+        labels,
+      ),
+    [isGetStartedStep, labels],
   );
   const mobileConnectorPath = useMemo(() => {
     if (!mobileLayout) return null;
@@ -499,7 +537,16 @@ export function TasksEmptyStateOverlay({
               ) : (
                 <div />
               )}
-              {canMoveNext ? (
+              {isGetStartedStep ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="pointer-events-auto"
+                  onClick={onComplete}
+                >
+                  {labels.getStartedButton}
+                </Button>
+              ) : canMoveNext ? (
                 <Button
                   type="button"
                   size="sm"
@@ -523,7 +570,7 @@ export function TasksEmptyStateOverlay({
         aria-hidden
         data-tasks-empty-state-overlay-mobile
       >
-        {mobileLayout ? (
+        {mobileLayout && !isGetStartedStep ? (
           <svg className="absolute inset-0 h-full w-full">
             <defs>
               <marker
@@ -551,7 +598,7 @@ export function TasksEmptyStateOverlay({
           </svg>
         ) : null}
 
-        {mobileLayout ? (
+        {mobileLayout && !isGetStartedStep ? (
           <div
             className="text-primary bg-background border-primary/30 absolute rounded-full border px-2.5 py-1 text-[11px] font-medium shadow-sm"
             style={{
@@ -578,7 +625,10 @@ export function TasksEmptyStateOverlay({
                   sizes="48px"
                 />
               </div>
-              <div className="space-y-1.5">
+              <div
+                key={isGetStartedStep ? "getStarted" : "addTask"}
+                className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 space-y-1.5"
+              >
                 <h2 className="text-sm font-semibold tracking-tight">
                   {mobileContent.title}
                 </h2>
@@ -587,6 +637,27 @@ export function TasksEmptyStateOverlay({
                 </p>
               </div>
             </div>
+            {isGetStartedStep ? (
+              <div className="mt-3 flex items-center justify-between border-t pt-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="pointer-events-auto"
+                  onClick={handleMoveBack}
+                >
+                  {labels.back}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="pointer-events-auto"
+                  onClick={onComplete}
+                >
+                  {labels.getStartedButton}
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
