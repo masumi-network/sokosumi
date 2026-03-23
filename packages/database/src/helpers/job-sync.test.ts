@@ -156,31 +156,31 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
     expectPaymentDeadlineAfterCutoffOr(missingPurchaseClause);
   });
 
-  it("excludes result-submitted purchases after the shared cutoff", () => {
+  it("excludes non-disputed purchases whose external dispute unlock is before the cutoff", () => {
     const where = buildJobsNeedingPurchaseSyncWhere();
     const notClauses = where.NOT as Prisma.JobWhereInput[];
-    const resultSubmittedClause = notClauses[0] as {
+    const disputeWindowClause = notClauses[0] as {
       purchase?: Prisma.JobPurchaseWhereInput;
       externalDisputeUnlockTime?: Prisma.DateTimeNullableFilter<"Job">;
     };
 
     assert.equal(notClauses.length, 1);
-    assert.deepEqual(resultSubmittedClause.purchase, {
+    assert.deepEqual(disputeWindowClause.purchase, {
       onChainStatus: {
-        in: [OnChainJobStatus.RESULT_SUBMITTED],
+        notIn: [OnChainJobStatus.DISPUTED],
         not: null,
       },
     });
-    assert.deepEqual(resultSubmittedClause.externalDisputeUnlockTime, {
+    assert.deepEqual(disputeWindowClause.externalDisputeUnlockTime, {
       not: null,
       lt: (
-        resultSubmittedClause.externalDisputeUnlockTime as {
+        disputeWindowClause.externalDisputeUnlockTime as {
           lt: Date;
         }
       ).lt,
     });
     assert.ok(
-      (resultSubmittedClause.externalDisputeUnlockTime as { lt: Date })
+      (disputeWindowClause.externalDisputeUnlockTime as { lt: Date })
         .lt instanceof Date,
     );
   });

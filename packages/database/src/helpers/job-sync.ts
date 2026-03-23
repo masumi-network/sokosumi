@@ -43,7 +43,10 @@ export function buildJobsNeedingPurchaseSyncWhere(
     NOT: [
       {
         purchase: {
-          onChainStatus: { in: [OnChainJobStatus.RESULT_SUBMITTED], not: null },
+          onChainStatus: {
+            notIn: [OnChainJobStatus.DISPUTED],
+            not: null,
+          },
         },
         externalDisputeUnlockTime: {
           not: null,
