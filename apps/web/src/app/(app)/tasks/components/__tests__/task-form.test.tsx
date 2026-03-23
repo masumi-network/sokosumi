@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { forwardRef, useImperativeHandle } from "react";
@@ -112,19 +112,6 @@ const coworkerOptions = [
     id: "coworker-1",
     name: "Soko",
     image: "",
-    contacts: [],
-  },
-];
-
-const coworkerOptionsWithContacts = [
-  {
-    id: "coworker-1",
-    name: "Soko",
-    image: "",
-    contacts: [
-      { origin: TaskEventOrigin.EMAIL, value: "soko@example.com" },
-      { origin: TaskEventOrigin.WHATSAPP, value: "+49151" },
-    ],
   },
 ];
 
@@ -204,29 +191,6 @@ describe("TaskForm", () => {
         desiredStatus: TaskStatus.READY,
       }),
     );
-  });
-
-  it("reveals coworker contact value when channel icon is clicked", async () => {
-    const user = userEvent.setup();
-    render(
-      <TaskForm
-        variant="modal"
-        mode="create"
-        showCancel={false}
-        labels={baseLabels}
-        coworkerOptions={coworkerOptionsWithContacts}
-        onSuccess={vi.fn()}
-      />,
-    );
-
-    await user.click(screen.getByRole("button", { name: "originApp.email" }));
-    expect(screen.getByText("soko@example.com")).toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", { name: "originApp.whatsapp" }),
-    );
-    expect(screen.queryByText("soko@example.com")).not.toBeInTheDocument();
-    expect(screen.getByText("+49151")).toBeInTheDocument();
   });
 
   it("passes agent mention options to MarkdownEditor", () => {

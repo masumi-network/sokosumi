@@ -24,6 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { getCoworkerMetadataChannels } from "@/lib/utils/coworker-channels";
 
 import { CoworkerAvatarWithSkeleton } from "./coworker-avatar";
 import CoworkerModelSelector from "./coworker-model-selector";
@@ -314,6 +315,9 @@ function PureMultimodalInput({
                       image={coworker.avatar}
                       caption={coworker.caption}
                       description={coworker.description}
+                      channels={getCoworkerMetadataChannels({
+                        metadata: coworker.metadata ?? null,
+                      })}
                       action={
                         <Button
                           type="button"

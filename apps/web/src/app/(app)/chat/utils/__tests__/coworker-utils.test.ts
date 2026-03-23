@@ -28,6 +28,7 @@ describe("mapDbCoworkerToChatCoworker", () => {
       name: "Elena",
       description: "Ops helper",
       useCase: "",
+      metadata: null,
     });
   });
 });
