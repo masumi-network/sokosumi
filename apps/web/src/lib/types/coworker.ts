@@ -7,6 +7,7 @@ export interface CoworkerChannel {
 
 export interface CoworkerOption {
   id: string;
+  slug: string;
   name: string;
   image: string;
   description?: string;

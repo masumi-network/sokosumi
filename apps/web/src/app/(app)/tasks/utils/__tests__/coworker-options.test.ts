@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Coworker } from "@/lib/clients/generated/core";
 
-import { getCoworkerOptions } from "../coworker-options";
+import { findCoworkerIdBySlug, getCoworkerOptions } from "../coworker-options";
 
 function baseCoworker(overrides: Partial<Coworker> = {}): Coworker {
   return {
@@ -33,6 +33,7 @@ describe("getCoworkerOptions", () => {
     ]);
     expect(options[0]).toEqual({
       id: "id-1",
+      slug: "alex",
       name: "Alex",
       image: "https://example.com/a.png",
       description: "Helps with ops",
@@ -43,9 +44,27 @@ describe("getCoworkerOptions", () => {
     const options = getCoworkerOptions([baseCoworker({ description: null })]);
     expect(options[0]).toEqual({
       id: "cow_1",
+      slug: "ops-agent",
       name: "Ops Agent",
       image: "",
     });
     expect(options[0]?.description).toBeUndefined();
+  });
+});
+
+describe("findCoworkerIdBySlug", () => {
+  it("returns id for case-insensitive slug match", () => {
+    const options = getCoworkerOptions([
+      baseCoworker({ id: "a", slug: "alpha", name: "Alpha" }),
+      baseCoworker({ id: "b", slug: "beta", name: "Beta" }),
+    ]);
+    expect(findCoworkerIdBySlug(options, "BETA")).toBe("b");
+    expect(findCoworkerIdBySlug(options, "alpha")).toBe("a");
+  });
+
+  it("returns null when slug is missing or unknown", () => {
+    const options = getCoworkerOptions([baseCoworker()]);
+    expect(findCoworkerIdBySlug(options, "nope")).toBeNull();
+    expect(findCoworkerIdBySlug(options, "   ")).toBeNull();
   });
 });

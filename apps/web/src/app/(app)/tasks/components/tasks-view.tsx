@@ -190,6 +190,9 @@ interface TasksViewProps {
   userId?: string | null;
   activeOrganizationId: string | null;
   defaultViewMode?: TasksViewMode;
+  initialCreateTaskOpen?: boolean;
+  initialCoworkerId?: string | null;
+  createTaskModalResetKey?: string;
   labels: {
     tabs: {
       tasks: string;
@@ -248,6 +251,9 @@ export function TasksView({
   userId,
   activeOrganizationId,
   defaultViewMode,
+  initialCreateTaskOpen = false,
+  initialCoworkerId = null,
+  createTaskModalResetKey = "default",
   labels,
 }: TasksViewProps) {
   const router = useRouter();
@@ -863,7 +869,11 @@ export function TasksView({
   );
 
   return (
-    <CreateTaskModalProvider>
+    <CreateTaskModalProvider
+      key={createTaskModalResetKey}
+      initialOpen={initialCreateTaskOpen}
+      initialCoworkerId={initialCoworkerId}
+    >
       {userId ? (
         <DynamicAblyProvider>
           <ChannelProvider channelName={makeUserTasksChannelName(userId)}>
