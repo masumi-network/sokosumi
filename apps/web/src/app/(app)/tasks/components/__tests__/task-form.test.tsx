@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { forwardRef, useImperativeHandle } from "react";
@@ -25,6 +25,10 @@ vi.mock("@/hooks/use-os-detection", () => ({
 vi.mock("@/lib/actions/task/action", () => ({
   createTask: vi.fn(),
   updateTask: vi.fn(),
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
 }));
 
 vi.mock("../markdown-editor", () => ({
@@ -211,7 +215,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptionsWithContacts}
-        onSuccess={jest.fn()}
+        onSuccess={vi.fn()}
       />,
     );
 

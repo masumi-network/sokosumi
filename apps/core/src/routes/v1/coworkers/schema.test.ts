@@ -10,7 +10,6 @@ describe("createCoworkerRequestSchema", () => {
   it("accepts valid HTTP(S) values for companyLogo and url", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
-      email: "ops@example.com",
       companyLogo: "https://example.com/company-logo.png",
       url: "http://example.com",
       baseURL: "https://responses.example.com/v1",
@@ -22,7 +21,6 @@ describe("createCoworkerRequestSchema", () => {
   it("accepts null baseURL", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
-      email: "ops@example.com",
       baseURL: null,
     });
 
@@ -32,7 +30,6 @@ describe("createCoworkerRequestSchema", () => {
   it("accepts capabilities and normalizes them", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
-      email: "ops@example.com",
       capabilities: ["tasks", "chat", "tasks"],
     });
 
@@ -45,7 +42,6 @@ describe("createCoworkerRequestSchema", () => {
   it("rejects unsupported capabilities", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
-      email: "ops@example.com",
       capabilities: ["search"],
     });
 
@@ -55,7 +51,6 @@ describe("createCoworkerRequestSchema", () => {
   it("rejects companyLogo when it is not a valid URL", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
-      email: "ops@example.com",
       companyLogo: "not-a-url",
     });
 
@@ -65,7 +60,6 @@ describe("createCoworkerRequestSchema", () => {
   it("rejects url when it is not HTTP(S)", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
-      email: "ops@example.com",
       url: "mailto:ops@example.com",
     });
 
@@ -75,7 +69,6 @@ describe("createCoworkerRequestSchema", () => {
   it("rejects names shorter than 3 characters", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "ab",
-      email: "ops@example.com",
     });
 
     expect(result.success).toBe(false);
@@ -84,7 +77,6 @@ describe("createCoworkerRequestSchema", () => {
   it("strips isWhitelisted when provided", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
-      email: "ops@example.com",
       isWhitelisted: true,
     });
 
@@ -97,7 +89,6 @@ describe("createCoworkerRequestSchema", () => {
   it("accepts metadata with channels", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
-      email: "ops@example.com",
       metadata: {
         channels: {
           email: "foo@bar.com",

@@ -10,6 +10,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
+import { normalizeCoworkerMetadata } from "./metadata";
 import { createCoworkerRequestSchema } from "./schema";
 
 const route = createRoute({
@@ -39,13 +40,12 @@ const route = createRoute({
         companyLogo: "https://example.com/company-logo",
         url: "https://example.com",
         baseURL: "https://responses.example.com/v1",
-        email: "ops@example.com",
         description: "Ops helper",
         capabilities: ["chat", "tasks"],
         image: "https://example.com/logo",
         metadata: {
           channels: {
-            email: "ops@example.com",
+            email: "foo@bar.com",
             whatsapp: "+49151xxxx",
           },
         },
@@ -67,6 +67,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
     const body = c.req.valid("json");
+    const metadata = normalizeCoworkerMetadata(body.metadata);
     const slug = slugify(body.name, {
       lower: true,
       strict: true,
@@ -106,11 +107,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             companyLogo: body.companyLogo ?? null,
             url: body.url ?? null,
             baseURL: body.baseURL ?? null,
-            email: body.email ?? null,
             description: body.description ?? null,
             capabilities: body.capabilities,
             image: body.image ?? null,
-            metadata: body.metadata ?? null,
+            metadata: metadata ?? null,
             isWhitelisted: false,
           },
         });

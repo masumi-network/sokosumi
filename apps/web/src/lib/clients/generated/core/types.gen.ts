@@ -431,7 +431,6 @@ export type Coworker = {
      * OpenAI Responses API base URL used to enable this coworker for chat.
      */
     baseURL: string | null;
-    email?: string | null;
     description?: string | null;
     /**
      * Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.
@@ -5827,7 +5826,6 @@ export type PostCoworkersData = {
          * OpenAI Responses API base URL used to enable this coworker for chat.
          */
         baseURL?: string | null;
-        email: string;
         description?: string | null;
         image?: string | null;
         /**
@@ -6587,7 +6585,6 @@ export type PatchCoworkersByIdData = {
          * OpenAI Responses API base URL used to enable this coworker for chat.
          */
         baseURL?: string | null;
-        email?: string;
         description?: string | null;
         image?: string | null;
         /**

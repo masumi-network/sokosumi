@@ -100,7 +100,6 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
     company: "Serviceplan",
     companyLogo: "https://example.com/company-logo",
     url: "https://example.com",
-    email: "ops@example.com",
     description: "Ops helper",
     image: "https://example.com/logo",
     baseURL: null,
@@ -145,7 +144,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
       }),
     });
 
@@ -188,7 +186,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
         baseURL: "https://responses.example.com/v1",
       }),
     });
@@ -232,7 +229,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
         capabilities: ["tasks", "chat", "tasks"],
       }),
     });
@@ -280,7 +276,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
         metadata,
       }),
     });
@@ -320,7 +315,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
         isWhitelisted: true,
       }),
     });
@@ -363,7 +357,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
       }),
     });
 
@@ -379,7 +372,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "ab",
-        email: "ops@example.com",
       }),
     });
 
@@ -396,7 +388,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
         companyLogo: "not-a-url",
       }),
     });

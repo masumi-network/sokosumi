@@ -10,7 +10,7 @@ import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
 
 function getCoworkerContacts(coworker: Coworker): CoworkerContactChannel[] {
   const channels = coworker.metadata?.channels ?? {};
-  const email = coworker.email?.trim() || channels.email?.trim() || "";
+  const email = channels.email?.trim() || "";
   const whatsapp = channels.whatsapp?.trim() || "";
 
   const contacts: CoworkerContactChannel[] = [];

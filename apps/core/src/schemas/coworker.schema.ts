@@ -28,6 +28,8 @@ export const coworkerMetadataSchema = z
   })
   .openapi("CoworkerMetadata");
 
+export type CoworkerMetadata = z.infer<typeof coworkerMetadataSchema>;
+
 export const coworkerSchema = z
   .object({
     id: z.string().openapi({ example: "cow_123" }),
@@ -52,7 +54,6 @@ export const coworkerSchema = z
       description:
         "OpenAI Responses API base URL used to enable this coworker for chat.",
     }),
-    email: z.string().nullish().openapi({ example: "ops@example.com" }),
     description: z.string().nullish().openapi({ example: "Ops helper" }),
     capabilities: coworkerCapabilitiesSchema,
     image: z

@@ -13,7 +13,6 @@ describe("coworkerSchema", () => {
       slug: "ops-agent",
       name: "Ops Agent",
       url: "https://example.com",
-      email: "ops@example.com",
       description: "Ops helper",
       image: "https://example.com/image.png",
       caption: "Senior Campaign Partner",
@@ -44,7 +43,6 @@ describe("coworkerSchema", () => {
       isWhitelisted: true,
       slug: "ops-agent",
       name: "Ops Agent",
-      email: "ops@example.com",
       baseURL: null,
       capabilities: [],
       metadata: {
@@ -68,7 +66,6 @@ describe("coworkerSchema", () => {
       isWhitelisted: true,
       slug: "ops-agent",
       name: "Ops Agent",
-      email: "ops@example.com",
       baseURL: null,
       capabilities: [],
     });
@@ -99,7 +96,6 @@ describe("coworkerSchema", () => {
         isWhitelisted: true,
         slug: "ops-agent",
         name: "Ops Agent",
-        email: "ops@example.com",
       });
     }).toThrow();
   });
@@ -114,7 +110,6 @@ describe("coworkerSchema", () => {
         isWhitelisted: true,
         slug: "ops-agent",
         name: "Ops Agent",
-        email: "ops@example.com",
         baseURL: null,
       });
     }).toThrow();

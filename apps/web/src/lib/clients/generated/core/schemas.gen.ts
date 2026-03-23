@@ -1448,13 +1448,6 @@ export const CoworkerSchema = {
             example: 'https://responses.example.com/v1',
             description: 'OpenAI Responses API base URL used to enable this coworker for chat.'
         },
-        email: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'ops@example.com'
-        },
         description: {
             type: [
                 'string',

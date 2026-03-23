@@ -31,7 +31,6 @@ const coworkerEditableFieldsSchema = z.object({
     description:
       "OpenAI Responses API base URL used to enable this coworker for chat.",
   }),
-  email: z.email().openapi({ example: "ops@example.com" }),
   description: z
     .string()
     .trim()
@@ -62,7 +61,6 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       data.companyLogo !== undefined ||
       data.url !== undefined ||
       data.baseURL !== undefined ||
-      data.email !== undefined ||
       data.description !== undefined ||
       data.capabilities !== undefined ||
       data.image !== undefined ||
@@ -76,7 +74,6 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
         "companyLogo",
         "url",
         "baseURL",
-        "email",
         "description",
         "capabilities",
         "image",

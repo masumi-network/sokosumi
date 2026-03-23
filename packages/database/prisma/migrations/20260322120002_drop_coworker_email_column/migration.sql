@@ -1,0 +1,2 @@
+ALTER TABLE "coworker"
+DROP COLUMN IF EXISTS "email";

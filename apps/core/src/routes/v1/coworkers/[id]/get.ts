@@ -31,13 +31,12 @@ const route = createRoute({
         companyLogo: "https://example.com/company-logo",
         url: "https://example.com",
         baseURL: "https://responses.example.com/v1",
-        email: "ops@example.com",
         description: "Ops helper",
         capabilities: ["chat", "tasks"],
         image: "https://example.com/logo",
         metadata: {
           channels: {
-            email: "ops@example.com",
+            email: "foo@bar.com",
             whatsapp: "+49151xxxx",
           },
         },

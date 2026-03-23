@@ -1099,7 +1099,6 @@ model Coworker {
   companyLogo String?
   url         String?
   baseURL     String?
-  email       String?
   description String?
   image       String?
   metadata    Json?
