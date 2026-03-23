@@ -24,10 +24,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@better-auth/api-key": "1.5.5",
-    "@better-auth/i18n": "1.5.5",
-    "@better-auth/oauth-provider": "1.5.5",
-    "@better-auth/prisma-adapter": "1.5.5",
+    "@better-auth/api-key": "1.5.6",
+    "@better-auth/i18n": "1.5.6",
+    "@better-auth/oauth-provider": "1.5.6",
+    "@better-auth/prisma-adapter": "1.5.6",
     "@better-auth/utils": "0.3.1",
     "@hono/node-server": "1.19.11",
     "@hono/zod-openapi": "1.2.3",
@@ -46,7 +46,7 @@
     "@vercel/related-projects": "1.0.1",
     "ably": "2.21.0",
     "ai": "6.0.134",
-    "better-auth": "1.5.5",
+    "better-auth": "1.5.6",
     "cron-parser": "5.5.0",
     "dotenv": "17.3.1",
     "hono": "4.12.8",
