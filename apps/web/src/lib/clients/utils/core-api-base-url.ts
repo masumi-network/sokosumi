@@ -4,19 +4,20 @@ import { withRelatedProject } from "@vercel/related-projects";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
+import {
+  getCoreRelatedProjectName,
+  normalizeCoreApiBaseUrl,
+} from "@/lib/clients/utils/core-api-base-url.shared";
 
-export function getCoreApiBaseUrl(): string {
+export function getServerCoreApiBaseUrl(): string {
   const resolvedCoreApiHost = withRelatedProject({
-    projectName:
-      getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
-        ? "sokosumi-core-preprod"
-        : "sokosumi-core-mainnet",
+    projectName: getCoreRelatedProjectName(
+      getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+    ),
     defaultHost: getEnvSecrets().CORE_APP_BASE_URL,
   });
 
-  const withoutTrailingSlash = resolvedCoreApiHost.replace(/\/+$/, "");
-
-  return withoutTrailingSlash.endsWith("/v1")
-    ? withoutTrailingSlash
-    : `${withoutTrailingSlash}/v1`;
+  return normalizeCoreApiBaseUrl(resolvedCoreApiHost);
 }
+
+export const getCoreApiBaseUrl = getServerCoreApiBaseUrl;

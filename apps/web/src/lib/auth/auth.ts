@@ -142,6 +142,9 @@ export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   baseURL: betterAuthBaseUrl,
   advanced: {
+    crossSubDomainCookies: {
+      enabled: true,
+    },
     ipAddress: {
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },
