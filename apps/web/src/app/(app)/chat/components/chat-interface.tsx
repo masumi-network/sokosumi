@@ -828,29 +828,6 @@ export default function ChatInterface({
     })(),
   );
 
-  const routeDrivenRecoveryCid = urlConversationId ?? selectedChatId ?? null;
-  const convForRouteDrivenRecovery =
-    routeDrivenRecoveryCid &&
-    selectedConversation?.id === routeDrivenRecoveryCid
-      ? selectedConversation
-      : routeDrivenRecoveryCid
-        ? (conversations.find((c) => c.id === routeDrivenRecoveryCid) ?? null)
-        : null;
-  const routeDrivenRecoveryPendingFingerprint = !routeDrivenRecoveryCid
-    ? ""
-    : (() => {
-        if (!convForRouteDrivenRecovery) {
-          return `${routeDrivenRecoveryCid}|`;
-        }
-        const meta = (convForRouteDrivenRecovery.metadata ?? {}) as Record<
-          string,
-          unknown
-        >;
-        const id = meta.pending_responses_api_response_id;
-        const pendingStr = typeof id === "string" && id.length > 0 ? id : "";
-        return `${routeDrivenRecoveryCid}|${pendingStr}`;
-      })();
-
   useChatSelection({
     urlConversationId,
     pathname,
@@ -907,7 +884,6 @@ export default function ChatInterface({
   });
 
   const recoveryAttemptedForRef = useRef<string | null>(null);
-  const routeDrivenRecoveryAttemptKeyRef = useRef<string | null>(null);
   const coworkerChatRecoveryGenerationRef = useRef(0);
   const recoveredProcessedForRef = useRef<string | null>(null);
   const currentCidRef = useRef<string | null>(null);
@@ -923,6 +899,13 @@ export default function ChatInterface({
     };
   }, []);
 
+  function convHasPendingId(conv: { metadata?: unknown } | null): boolean {
+    if (!conv) return false;
+    const meta = (conv.metadata ?? {}) as Record<string, unknown>;
+    const id = meta.pending_responses_api_response_id;
+    return typeof id === "string" && id.length > 0;
+  }
+
   useEffect(() => {
     const cid = urlConversationId ?? selectedChatId;
     if (!cid || !isRouteDriven || !isChatPath) {
@@ -932,13 +915,14 @@ export default function ChatInterface({
       return;
     }
 
-    const cidHasPendingId =
-      routeDrivenRecoveryPendingFingerprint.length > cid.length + 1;
+    const convForCid =
+      (conversationForRecovery?.id === cid ? conversationForRecovery : null) ??
+      conversations.find((c) => c.id === cid) ??
+      null;
+    const cidHasPendingId = convHasPendingId(convForCid);
 
-    const recoveryAttemptKey = routeDrivenRecoveryPendingFingerprint;
-    if (routeDrivenRecoveryAttemptKeyRef.current === recoveryAttemptKey) {
-      // Same route + pending snapshot as an in-flight or completed attempt (list refresh
-      // must not bump this string, or we would cancel polling via effect cleanup).
+    if (recoveryAttemptedForRef.current === cid) {
+      // Don't re-set recovering when we already processed recovery (stale sidebar metadata).
       if (
         cidHasPendingId &&
         mountedRef.current &&
@@ -949,7 +933,7 @@ export default function ChatInterface({
       }
       return;
     }
-    routeDrivenRecoveryAttemptKeyRef.current = recoveryAttemptKey;
+    recoveryAttemptedForRef.current = cid;
     const routeRecoveryGeneration = routeDrivenRecoveryGenerationRef.current;
     if (urlConversationId && selectedChatId !== urlConversationId) {
       setSelectedChatId(urlConversationId);
@@ -1245,7 +1229,8 @@ export default function ChatInterface({
     setMessagesForConversation,
     setMessagesSlots,
     refreshConversations,
-    routeDrivenRecoveryPendingFingerprint,
+    conversationForRecovery,
+    conversations,
   ]);
 
   useEffect(() => {
