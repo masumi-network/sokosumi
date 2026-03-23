@@ -71,11 +71,6 @@ export function buildJobsNeedingAgentStatusSyncWhere(): Prisma.JobWhereInput {
     },
     NOT: [
       {
-        updatedAt: {
-          lt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
-        },
-      },
-      {
         jobType: JobType.PAID,
         purchase: {
           onChainStatus: {
