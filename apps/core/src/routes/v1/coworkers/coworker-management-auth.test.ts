@@ -175,7 +175,6 @@ describe("coworker management endpoints auth guard", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
       }),
     });
 

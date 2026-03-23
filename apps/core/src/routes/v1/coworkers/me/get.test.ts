@@ -51,7 +51,6 @@ describe("GET /coworkers/me", () => {
       capabilities: ["tasks"],
       slug: "ops-agent",
       name: "Ops Agent",
-      email: "ops@example.com",
       baseURL: null,
     });
 

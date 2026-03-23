@@ -16,6 +16,18 @@ describe("createTaskEventRequestSchema", () => {
     }
   });
 
+  it("accepts DISCORD origin", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      origin: TaskEventOrigin.DISCORD,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.origin).toBe(TaskEventOrigin.DISCORD);
+    }
+  });
+
   it("throws an error for unsupported origins", () => {
     expect(() => {
       createTaskEventRequestSchema.parse({

@@ -1099,9 +1099,9 @@ model Coworker {
   companyLogo String?
   url         String?
   baseURL     String?
-  email       String?
   description String?
   image       String?
+  metadata    Json?
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1190,6 +1190,7 @@ enum TaskEventOrigin {
   WHATSAPP
   TELEGRAM
   SIGNAL
+  DISCORD
   CHAT
   SOKOSUMI
   UNKNOWN

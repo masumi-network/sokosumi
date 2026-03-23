@@ -100,11 +100,11 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
     company: "Serviceplan",
     companyLogo: "https://example.com/company-logo",
     url: "https://example.com",
-    email: "ops@example.com",
     description: "Ops helper",
     image: "https://example.com/logo",
     baseURL: null,
     userId: "user_123",
+    metadata: null,
     ...overrides,
   };
 }
@@ -144,7 +144,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
       }),
     });
 
@@ -187,7 +186,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
         baseURL: "https://responses.example.com/v1",
       }),
     });
@@ -231,7 +229,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
         capabilities: ["tasks", "chat", "tasks"],
       }),
     });
@@ -246,6 +243,53 @@ describe("coworker management CRUD endpoints", () => {
       }),
     );
     expect(body.data.capabilities).toEqual(["chat", "tasks"]);
+  });
+
+  it("creates coworker with metadata channels", async () => {
+    const metadata = {
+      channels: {
+        email: "foo@bar.com",
+        whatsapp: "+49151xxxx",
+      },
+    };
+    const tx: TransactionMock = {
+      coworker: {
+        findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
+        findFirst: coworkerFindFirstTxMock,
+        create: coworkerCreateMock.mockResolvedValue(
+          createCoworkerRecord({ metadata }),
+        ),
+        updateMany: coworkerUpdateManyMock,
+      },
+      coworkerApiKey: {
+        updateMany: coworkerApiKeyUpdateManyMock,
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Ops Agent",
+        metadata,
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(coworkerCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata,
+        }),
+      }),
+    );
+    expect(body.data.metadata).toEqual(metadata);
   });
 
   it("ignores request isWhitelisted and persists false by default", async () => {
@@ -271,7 +315,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
         isWhitelisted: true,
       }),
     });
@@ -314,7 +357,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
       }),
     });
 
@@ -330,7 +372,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "ab",
-        email: "ops@example.com",
       }),
     });
 
@@ -347,7 +388,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        email: "ops@example.com",
         companyLogo: "not-a-url",
       }),
     });
@@ -534,6 +574,52 @@ describe("coworker management CRUD endpoints", () => {
       }),
     );
     expect(body.data.capabilities).toEqual(["chat", "tasks"]);
+  });
+
+  it("updates coworker metadata channels", async () => {
+    const metadata = {
+      channels: {
+        email: "foo@bar.com",
+        whatsapp: "+49151xxxx",
+      },
+    };
+    const tx: TransactionMock = {
+      coworker: {
+        findUnique: coworkerFindUniqueMock,
+        findFirst: coworkerFindFirstTxMock.mockResolvedValue(
+          createCoworkerRecord({ metadata }),
+        ),
+        create: coworkerCreateMock,
+        updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 1 }),
+      },
+      coworkerApiKey: {
+        updateMany: coworkerApiKeyUpdateManyMock,
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/cow_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        metadata,
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(coworkerUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata,
+        }),
+      }),
+    );
+    expect(body.data.metadata).toEqual(metadata);
   });
 
   it("allows admin to update metadata for another user's coworker", async () => {

@@ -1,6 +1,9 @@
 import { z } from "@hono/zod-openapi";
 
-import { coworkerCapabilitiesSchema } from "@/schemas/coworker.schema";
+import {
+  coworkerCapabilitiesSchema,
+  coworkerMetadataSchema,
+} from "@/schemas/coworker.schema";
 
 const coworkerEditableFieldsSchema = z.object({
   name: z.string().trim().min(3).openapi({ example: "Ops Agent" }),
@@ -28,7 +31,6 @@ const coworkerEditableFieldsSchema = z.object({
     description:
       "OpenAI Responses API base URL used to enable this coworker for chat.",
   }),
-  email: z.email().openapi({ example: "ops@example.com" }),
   description: z
     .string()
     .trim()
@@ -39,6 +41,7 @@ const coworkerEditableFieldsSchema = z.object({
     .httpUrl()
     .nullish()
     .openapi({ example: "https://example.com/logo.png" }),
+  metadata: coworkerMetadataSchema.nullish(),
 });
 
 export const createCoworkerRequestSchema = coworkerEditableFieldsSchema.extend({
@@ -58,10 +61,10 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       data.companyLogo !== undefined ||
       data.url !== undefined ||
       data.baseURL !== undefined ||
-      data.email !== undefined ||
       data.description !== undefined ||
       data.capabilities !== undefined ||
-      data.image !== undefined,
+      data.image !== undefined ||
+      data.metadata !== undefined,
     {
       message: "At least one coworker field is required",
       path: [
@@ -71,10 +74,10 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
         "companyLogo",
         "url",
         "baseURL",
-        "email",
         "description",
         "capabilities",
         "image",
+        "metadata",
       ],
     },
   );

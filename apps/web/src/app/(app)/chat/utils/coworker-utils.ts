@@ -39,6 +39,7 @@ export function mapDbCoworkerToChatCoworker(db: CoreCoworker): Coworker {
     name: db.name,
     description: db.description ?? "",
     useCase: "", // DB has no useCase; avoid duplicating description in UI
+    metadata: db.metadata,
     ...(db.caption && { caption: db.caption }),
     ...(resolvedImage && { avatar: resolvedImage }),
   };
