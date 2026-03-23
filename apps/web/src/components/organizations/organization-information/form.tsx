@@ -206,7 +206,7 @@ export default function OrganizationInformationForm({
           organizationId: organization.id,
           data: {
             name: values.name,
-            metadata: metadataForApi,
+            metadata: metadataForApi ?? undefined,
             logo: logoForApi ?? "",
           },
         });
