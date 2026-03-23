@@ -31,6 +31,30 @@ const stripeSdkMock = vi.fn(function MockStripe() {
   return { __stripe: true };
 });
 
+function getDefaultEnvSecrets() {
+  return {
+    BETTER_AUTH_API_KEY: "test-api-key",
+    BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: 900,
+    BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: 86_400,
+    BETTER_AUTH_ORG_INVITATION_LIMIT: 10,
+    BETTER_AUTH_ORG_LIMIT: 5,
+    BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: 5_000,
+    BETTER_AUTH_RP_ID: "example.com",
+    BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 60,
+    BETTER_AUTH_URL: "https://example.com/auth",
+    GOOGLE_CLIENT_ID: "google-client-id",
+    GOOGLE_CLIENT_SECRET: "google-client-secret",
+    MICROSOFT_CLIENT_ID: "microsoft-client-id",
+    MICROSOFT_CLIENT_SECRET: "microsoft-client-secret",
+    POSTMARK_FROM_EMAIL: "no-reply@example.com",
+    STRIPE_SECRET_KEY: "sk_test_123",
+    STRIPE_WEBHOOK_SECRET: "whsec_123",
+    VERCEL_BRANCH_URL: "",
+    VERCEL_URL: "",
+    WEB_APP_BASE_URL: "https://example.com",
+  };
+}
+
 vi.mock("server-only", () => ({}));
 
 vi.mock("@sentry/nextjs", () => ({
@@ -209,27 +233,7 @@ describe("web auth config", () => {
       NEXT_PUBLIC_PASSWORD_MAX_LENGTH: 128,
       NEXT_PUBLIC_PASSWORD_MIN_LENGTH: 12,
     });
-    getEnvSecretsMock.mockReturnValue({
-      BETTER_AUTH_API_KEY: "test-api-key",
-      BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: 900,
-      BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: 86_400,
-      BETTER_AUTH_ORG_INVITATION_LIMIT: 10,
-      BETTER_AUTH_ORG_LIMIT: 5,
-      BETTER_AUTH_RP_ID: "example.com",
-      BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: 5_000,
-      BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 60,
-      BETTER_AUTH_URL: "https://example.com/auth",
-      WEB_APP_BASE_URL: "https://example.com",
-      GOOGLE_CLIENT_ID: "google-client-id",
-      GOOGLE_CLIENT_SECRET: "google-client-secret",
-      MICROSOFT_CLIENT_ID: "microsoft-client-id",
-      MICROSOFT_CLIENT_SECRET: "microsoft-client-secret",
-      POSTMARK_FROM_EMAIL: "no-reply@example.com",
-      STRIPE_SECRET_KEY: "sk_test_123",
-      STRIPE_WEBHOOK_SECRET: "whsec_123",
-      VERCEL_BRANCH_URL: "",
-      VERCEL_URL: "",
-    });
+    getEnvSecretsMock.mockReturnValue(getDefaultEnvSecrets());
     getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
     getInfraAuthPluginsMock.mockReturnValue([]);
     i18nPluginMock.mockReturnValue("i18n-plugin");
@@ -276,6 +280,87 @@ describe("web auth config", () => {
 
     expect(oAuthProxyPluginMock).toHaveBeenCalledWith({
       productionURL: "https://canonical.example.com",
+    });
+  });
+
+  it("disables cross-subdomain cookies on localhost", async () => {
+    getEnvSecretsMock.mockReturnValue({
+      ...getDefaultEnvSecrets(),
+      BETTER_AUTH_URL: "http://localhost:3000/auth",
+      WEB_APP_BASE_URL: "http://localhost:3000",
+    });
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.crossSubDomainCookies).toBeUndefined();
+  });
+
+  it("scopes cross-subdomain cookies to the preprod environment host", async () => {
+    getEnvSecretsMock.mockReturnValue({
+      ...getDefaultEnvSecrets(),
+      BETTER_AUTH_URL: "https://preprod.sokosumi.com/auth",
+      WEB_APP_BASE_URL: "https://preprod.sokosumi.com",
+    });
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.crossSubDomainCookies).toEqual({
+      enabled: true,
+      domain: "preprod.sokosumi.com",
+    });
+  });
+
+  it("pins preview cross-subdomain cookies to preview.sokosumi.com", async () => {
+    getEnvSecretsMock.mockReturnValue({
+      ...getDefaultEnvSecrets(),
+      BETTER_AUTH_URL: "https://api.feature-123.preview.sokosumi.com/auth",
+      WEB_APP_BASE_URL: "https://feature-123.preview.sokosumi.com",
+    });
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.crossSubDomainCookies).toEqual({
+      enabled: true,
+      domain: "preview.sokosumi.com",
     });
   });
 

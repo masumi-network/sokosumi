@@ -5,7 +5,10 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import * as Sentry from "@sentry/node";
 import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
-import { getStoredUserName } from "@sokosumi/utils";
+import {
+  getStoredUserName,
+  resolveCrossSubdomainCookieDomain,
+} from "@sokosumi/utils";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
@@ -29,13 +32,21 @@ import prisma from "@/lib/db/prisma";
 
 const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
+const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
+const crossSubdomainCookieDomain =
+  resolveCrossSubdomainCookieDomain(betterAuthBaseUrl);
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   advanced: {
-    crossSubDomainCookies: {
-      enabled: true,
-    },
+    ...(crossSubdomainCookieDomain
+      ? {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: crossSubdomainCookieDomain,
+          },
+        }
+      : {}),
     ipAddress: {
       // For Vercel
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
@@ -89,7 +100,7 @@ export const auth = betterAuth({
     },
   },
   secret: env.BETTER_AUTH_SECRET,
-  baseURL: getBetterAuthPublicBaseUrl(),
+  baseURL: betterAuthBaseUrl,
   basePath: "/auth",
   rateLimit: {
     storage: "database",

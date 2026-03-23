@@ -16,7 +16,11 @@ import {
   renderVerificationEmail,
 } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
-import { getOrganizationMetadata, getStoredUserName } from "@sokosumi/utils";
+import {
+  getOrganizationMetadata,
+  getStoredUserName,
+  resolveCrossSubdomainCookieDomain,
+} from "@sokosumi/utils";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
@@ -137,15 +141,21 @@ function getEmailLocale(
 }
 
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
+const crossSubdomainCookieDomain =
+  resolveCrossSubdomainCookieDomain(betterAuthBaseUrl);
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   baseURL: betterAuthBaseUrl,
   advanced: {
-    crossSubDomainCookies: {
-      enabled: true,
-      domain: "sokosumi.com",
-    },
+    ...(crossSubdomainCookieDomain
+      ? {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: crossSubdomainCookieDomain,
+          },
+        }
+      : {}),
     ipAddress: {
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },
