@@ -3,13 +3,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
 import {
+  AgentJobStatus,
   JobType,
   OnChainJobStatus,
   type Prisma,
 } from "../generated/prisma/client.js";
-import { ACTIVE_PURCHASE_NEXT_ACTIONS } from "./job.js";
+import { finalizedOnChainJobStatuses } from "../types/job.js";
 import {
-  buildJobsNeedingRemoteSyncWhere,
+  buildJobsNeedingAgentStatusSyncWhere,
+  buildJobsNeedingPurchaseSyncWhere,
   buildJobsPendingLocalRefundWhere,
 } from "./job-sync.js";
 
@@ -39,98 +41,88 @@ function expectPaymentDeadlineBeforeCutoffOr(
   assert.ok(withCreatedAtFallback.createdAt.lt instanceof Date);
 }
 
+function expectPaymentDeadlineAfterCutoffOr(
+  clause: Prisma.JobWhereInput | undefined,
+): void {
+  assert.ok(clause?.OR);
+  const or = clause.OR as Prisma.JobWhereInput[];
+  assert.equal(or.length, 2);
+  const withPayByTime = or[0] as {
+    payByTime?: Prisma.DateTimeNullableFilter<"Job">;
+  };
+  const withCreatedAtFallback = or[1] as {
+    payByTime: null;
+    createdAt: { gt: Date };
+  };
+  assert.ok(withPayByTime.payByTime);
+  assert.equal(
+    (withPayByTime.payByTime as Prisma.DateTimeNullableFilter<"Job">).not,
+    null,
+  );
+  assert.ok(
+    (withPayByTime.payByTime as Prisma.DateTimeNullableFilter<"Job">)
+      .gt instanceof Date,
+  );
+  assert.equal(withCreatedAtFallback.payByTime, null);
+  assert.ok(withCreatedAtFallback.createdAt.gt instanceof Date);
+}
+
 describe("buildJobsPendingLocalRefundWhere", () => {
-  it("selects paid jobs missing a local refund transaction for refund terminal states and timed-out missing purchases", () => {
+  it("selects refund terminal states and timed-out missing purchases", () => {
     const where = buildJobsPendingLocalRefundWhere();
     const orClauses = where.OR as Prisma.JobWhereInput[];
-    const missingPurchaseClause = orClauses.find(
-      (clause) => clause.purchase === null,
-    );
-    const purchaseActionErrorClause = orClauses.find(
-      (clause) =>
-        clause.purchase !== null &&
-        typeof clause.purchase === "object" &&
-        "nextActionErrorType" in clause.purchase,
-    );
-    const timedOutNullOnChainClause = orClauses.find(
+    const terminalStatusClause = orClauses.find(
       (clause) =>
         clause.purchase !== null &&
         typeof clause.purchase === "object" &&
         "onChainStatus" in clause.purchase &&
-        clause.purchase.onChainStatus === null &&
-        "nextAction" in clause.purchase,
+        clause.purchase.onChainStatus !== null &&
+        typeof clause.purchase.onChainStatus === "object" &&
+        "in" in clause.purchase.onChainStatus,
+    );
+    const missingPurchaseClause = orClauses.find(
+      (clause) => clause.purchase === null,
     );
 
     assert.equal(where.refundedTransactionId, null);
     assert.equal(where.jobType, JobType.PAID);
-    assert.equal(
-      orClauses.some(
-        (clause) =>
-          clause.purchase !== null &&
-          typeof clause.purchase === "object" &&
-          "onChainStatus" in clause.purchase &&
-          clause.purchase.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN,
-      ),
-      true,
-    );
-    assert.equal(
-      orClauses.some(
-        (clause) =>
-          clause.purchase !== null &&
-          typeof clause.purchase === "object" &&
-          "onChainStatus" in clause.purchase &&
-          clause.purchase.onChainStatus ===
-            OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
-      ),
-      true,
-    );
+    assert.deepEqual(terminalStatusClause?.purchase, {
+      onChainStatus: {
+        in: [
+          OnChainJobStatus.REFUND_WITHDRAWN,
+          OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
+        ],
+      },
+    });
     assert.equal(missingPurchaseClause?.purchase, null);
     expectPaymentDeadlineBeforeCutoffOr(missingPurchaseClause);
-    assert.deepEqual(purchaseActionErrorClause?.purchase, {
-      onChainStatus: null,
-      nextActionErrorType: {
-        not: null,
-      },
-    });
-    assert.deepEqual(timedOutNullOnChainClause?.purchase, {
-      onChainStatus: null,
-      nextAction: {
-        notIn: ACTIVE_PURCHASE_NEXT_ACTIONS,
-      },
-    });
-    expectPaymentDeadlineBeforeCutoffOr(timedOutNullOnChainClause);
+    assert.equal(
+      orClauses.some(
+        (clause) =>
+          clause.purchase !== null &&
+          typeof clause.purchase === "object" &&
+          "nextActionErrorType" in clause.purchase,
+      ),
+      false,
+    );
+    assert.equal(
+      orClauses.some(
+        (clause) =>
+          clause.purchase !== null &&
+          typeof clause.purchase === "object" &&
+          "onChainStatus" in clause.purchase &&
+          clause.purchase.onChainStatus === OnChainJobStatus.DISPUTED_WITHDRAWN,
+      ),
+      false,
+    );
   });
 });
 
-describe("buildJobsNeedingRemoteSyncWhere", () => {
-  it("does not include refund withdrawals in the unfinished sync set", () => {
-    const where = buildJobsNeedingRemoteSyncWhere();
+describe("buildJobsNeedingPurchaseSyncWhere", () => {
+  it("keeps unresolved paid jobs and fresh missing purchases in the purchase sync set", () => {
+    const where = buildJobsNeedingPurchaseSyncWhere();
     const orClauses = where.OR as Prisma.JobWhereInput[];
-
-    const hasRefundWithdrawalReinclusion = orClauses.some((clause) => {
-      const purchase = clause.purchase as
-        | { onChainStatus?: { in?: OnChainJobStatus[] } }
-        | undefined;
-      return purchase?.onChainStatus?.in?.includes(
-        OnChainJobStatus.REFUND_WITHDRAWN,
-      );
-    });
-
-    assert.equal(hasRefundWithdrawalReinclusion, false);
-  });
-
-  it("keeps refund requests past the dispute cutoff in the unfinished sync set", () => {
-    const where = buildJobsNeedingRemoteSyncWhere();
-    const notClauses = where.NOT as Prisma.JobWhereInput[];
-    const fundsInvalidClause = notClauses.find(
-      (clause) =>
-        clause.purchase !== null &&
-        typeof clause.purchase === "object" &&
-        "onChainStatus" in clause.purchase &&
-        clause.purchase.onChainStatus ===
-          OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
-    );
-    const externalDisputeCutoffClause = notClauses.find(
+    const unresolvedPurchaseClause = orClauses.find(
       (clause) =>
         clause.purchase !== null &&
         typeof clause.purchase === "object" &&
@@ -139,67 +131,102 @@ describe("buildJobsNeedingRemoteSyncWhere", () => {
         typeof clause.purchase.onChainStatus === "object" &&
         "notIn" in clause.purchase.onChainStatus,
     );
-
-    assert.deepEqual(fundsInvalidClause?.purchase, {
-      onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
-    });
-    assert.deepEqual(externalDisputeCutoffClause?.purchase, {
-      onChainStatus: {
-        notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
-      },
-    });
-  });
-
-  it("moves purchase-action errors out of the unfinished sync set", () => {
-    const where = buildJobsNeedingRemoteSyncWhere();
-    const notClauses = where.NOT as Prisma.JobWhereInput[];
-    const purchaseActionErrorClause = notClauses.find(
-      (clause) =>
-        clause.purchase !== null &&
-        typeof clause.purchase === "object" &&
-        "nextActionErrorType" in clause.purchase,
-    );
-
-    assert.deepEqual(purchaseActionErrorClause?.purchase, {
-      onChainStatus: null,
-      nextActionErrorType: {
-        not: null,
-      },
-    });
-    assert.equal(purchaseActionErrorClause?.jobType, JobType.PAID);
-  });
-
-  it("keeps active timed-out null-on-chain purchases in the unfinished sync set", () => {
-    const where = buildJobsNeedingRemoteSyncWhere();
-    const notClauses = where.NOT as Prisma.JobWhereInput[];
-    const timedOutNullOnChainClause = notClauses.find(
+    const nullOnChainClause = orClauses.find(
       (clause) =>
         clause.purchase !== null &&
         typeof clause.purchase === "object" &&
         "onChainStatus" in clause.purchase &&
-        clause.purchase.onChainStatus === null &&
-        "nextAction" in clause.purchase,
+        clause.purchase.onChainStatus === null,
     );
-
-    assert.deepEqual(timedOutNullOnChainClause?.purchase, {
-      onChainStatus: null,
-      nextAction: {
-        notIn: ACTIVE_PURCHASE_NEXT_ACTIONS,
-      },
-    });
-    assert.equal(timedOutNullOnChainClause?.jobType, JobType.PAID);
-    expectPaymentDeadlineBeforeCutoffOr(timedOutNullOnChainClause);
-  });
-
-  it("moves timed-out missing purchases out of the unfinished sync set", () => {
-    const where = buildJobsNeedingRemoteSyncWhere();
-    const notClauses = where.NOT as Prisma.JobWhereInput[];
-    const missingPurchaseClause = notClauses.find(
+    const missingPurchaseClause = orClauses.find(
       (clause) => clause.purchase === null,
     );
 
+    assert.equal(where.jobType, JobType.PAID);
+    assert.deepEqual(unresolvedPurchaseClause?.purchase, {
+      onChainStatus: {
+        notIn: finalizedOnChainJobStatuses,
+      },
+    });
+    assert.deepEqual(nullOnChainClause?.purchase, {
+      onChainStatus: null,
+    });
     assert.equal(missingPurchaseClause?.purchase, null);
-    assert.equal(missingPurchaseClause?.jobType, JobType.PAID);
-    expectPaymentDeadlineBeforeCutoffOr(missingPurchaseClause);
+    expectPaymentDeadlineAfterCutoffOr(missingPurchaseClause);
+  });
+
+  it("excludes result-submitted purchases after the dispute unlock cutoff from purchase sync", () => {
+    const where = buildJobsNeedingPurchaseSyncWhere();
+    const notClauses = where.NOT as Prisma.JobWhereInput[];
+    const resultSubmittedClause = notClauses[0] as {
+      purchase?: Prisma.JobPurchaseWhereInput;
+      externalDisputeUnlockTime?: Prisma.DateTimeNullableFilter<"Job">;
+    };
+
+    assert.equal(notClauses.length, 1);
+    assert.deepEqual(resultSubmittedClause.purchase, {
+      onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+    });
+    assert.deepEqual(resultSubmittedClause.externalDisputeUnlockTime, {
+      not: null,
+      lt: (resultSubmittedClause.externalDisputeUnlockTime as {
+        lt: Date;
+      }).lt,
+    });
+    assert.ok(
+      (resultSubmittedClause.externalDisputeUnlockTime as { lt: Date }).lt
+        instanceof Date,
+    );
+  });
+});
+
+describe("buildJobsNeedingAgentStatusSyncWhere", () => {
+  it("keeps free and paid jobs with unfinished agent work in the agent sync set", () => {
+    const where = buildJobsNeedingAgentStatusSyncWhere();
+
+    assert.deepEqual(where.OR, [
+      {
+        jobType: {
+          in: [JobType.FREE, JobType.PAID],
+        },
+        events: {
+          none: {
+            status: {
+              in: [AgentJobStatus.COMPLETED, AgentJobStatus.FAILED],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
+  it("moves disputed, refund, refunded paid jobs, and demo jobs out of the agent sync set", () => {
+    const where = buildJobsNeedingAgentStatusSyncWhere();
+    const notClauses = where.NOT as Prisma.JobWhereInput[];
+
+    assert.deepEqual(notClauses, [
+      {
+        jobType: JobType.PAID,
+        purchase: {
+          onChainStatus: {
+            in: [
+              OnChainJobStatus.DISPUTED,
+              OnChainJobStatus.REFUND_REQUESTED,
+              OnChainJobStatus.REFUND_WITHDRAWN,
+              OnChainJobStatus.DISPUTED_WITHDRAWN,
+            ],
+          },
+        },
+      },
+      {
+        jobType: JobType.PAID,
+        refundedTransactionId: {
+          not: null,
+        },
+      },
+      {
+        jobType: JobType.DEMO,
+      },
+    ]);
   });
 });

@@ -1,36 +1,23 @@
-import { JobType, OnChainJobStatus } from "../generated/prisma/browser.js";
-import type { Prisma } from "../generated/prisma/client.js";
 import {
-  finalizedAgentJobStatuses,
-  finalizedOnChainJobStatuses,
-} from "../types/job.js";
-import { ACTIVE_PURCHASE_NEXT_ACTIONS } from "./job.js";
+  AgentJobStatus,
+  JobType,
+  OnChainJobStatus,
+} from "../generated/prisma/browser.js";
+import type { Prisma } from "../generated/prisma/client.js";
+import { finalizedOnChainJobStatuses } from "../types/job.js";
 
 /**
- * Shared grace window (ms) after the effective payment deadline. Used by
- * `buildJobsNeedingRemoteSyncWhere` / `buildJobsPendingLocalRefundWhere` cutoff
- * times and by core job-sync runtime checks — keep a single definition so DB
- * selection and `hasPaymentWindowExpired` stay aligned.
+ * Shared grace window (ms) after the effective payment deadline. Used by all
+ * job sync selectors and by core job-sync runtime checks so DB selection and
+ * in-memory gating stay aligned.
  */
 export const JOB_SYNC_PAYMENT_GRACE_MS = 1000 * 60 * 10;
 
-/**
- * Matches jobs whose effective payment deadline (`payByTime ?? createdAt`) is
- * before `cutoffTime`, consistent with `hasPaymentWindowExpired` in `./job`.
- */
-function paymentDeadlineBeforeCutoff(cutoffTime: Date): Prisma.JobWhereInput {
-  return {
-    OR: [
-      { payByTime: { not: null, lt: cutoffTime } },
-      { payByTime: null, createdAt: { lt: cutoffTime } },
-    ],
-  };
-}
-
-export function buildJobsNeedingRemoteSyncWhere(
+export function buildJobsNeedingPurchaseSyncWhere(
   cutoffTime: Date = new Date(Date.now() - JOB_SYNC_PAYMENT_GRACE_MS),
 ): Prisma.JobWhereInput {
   return {
+    jobType: JobType.PAID,
     OR: [
       {
         purchase: {
@@ -38,24 +25,45 @@ export function buildJobsNeedingRemoteSyncWhere(
             notIn: finalizedOnChainJobStatuses,
           },
         },
-        jobType: JobType.PAID,
       },
       {
         purchase: {
           onChainStatus: null,
         },
-        jobType: JobType.PAID,
       },
       {
         purchase: null,
-        jobType: JobType.PAID,
+        OR: [
+          { payByTime: { not: null, gt: cutoffTime } },
+          { payByTime: null, createdAt: { gt: cutoffTime } },
+        ],
       },
+    ],
+    NOT: [
       {
-        jobType: JobType.FREE,
+        purchase: {
+          onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+        },
+        externalDisputeUnlockTime: {
+          not: null,
+          lt: cutoffTime,
+        },
+      },
+    ],
+  };
+}
+
+export function buildJobsNeedingAgentStatusSyncWhere(): Prisma.JobWhereInput {
+  return {
+    OR: [
+      {
+        jobType: {
+          in: [JobType.FREE, JobType.PAID],
+        },
         events: {
           none: {
             status: {
-              in: finalizedAgentJobStatuses,
+              in: [AgentJobStatus.COMPLETED, AgentJobStatus.FAILED],
             },
           },
         },
@@ -63,55 +71,23 @@ export function buildJobsNeedingRemoteSyncWhere(
     ],
     NOT: [
       {
-        refundedTransactionId: {
-          not: null,
-        },
         jobType: JobType.PAID,
-      },
-      {
-        purchase: {
-          onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
-        },
-        jobType: JobType.PAID,
-      },
-      {
-        purchase: {
-          onChainStatus: null,
-          nextActionErrorType: {
-            not: null,
-          },
-        },
-        jobType: JobType.PAID,
-      },
-      {
         purchase: {
           onChainStatus: {
-            notIn: [
+            in: [
               OnChainJobStatus.DISPUTED,
               OnChainJobStatus.REFUND_REQUESTED,
+              OnChainJobStatus.REFUND_WITHDRAWN,
+              OnChainJobStatus.DISPUTED_WITHDRAWN,
             ],
           },
         },
-        externalDisputeUnlockTime: {
+      },
+      {
+        jobType: JobType.PAID,
+        refundedTransactionId: {
           not: null,
-          lt: cutoffTime,
         },
-        jobType: JobType.PAID,
-      },
-      {
-        purchase: {
-          onChainStatus: null,
-          nextAction: {
-            notIn: ACTIVE_PURCHASE_NEXT_ACTIONS,
-          },
-        },
-        jobType: JobType.PAID,
-        ...paymentDeadlineBeforeCutoff(cutoffTime),
-      },
-      {
-        purchase: null,
-        jobType: JobType.PAID,
-        ...paymentDeadlineBeforeCutoff(cutoffTime),
       },
       {
         jobType: JobType.DEMO,
@@ -129,34 +105,20 @@ export function buildJobsPendingLocalRefundWhere(
     OR: [
       {
         purchase: {
-          onChainStatus: OnChainJobStatus.REFUND_WITHDRAWN,
-        },
-      },
-      {
-        purchase: {
-          onChainStatus: OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
-        },
-      },
-      {
-        purchase: {
-          onChainStatus: null,
-          nextActionErrorType: {
-            not: null,
+          onChainStatus: {
+            in: [
+              OnChainJobStatus.REFUND_WITHDRAWN,
+              OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
+            ],
           },
         },
       },
       {
         purchase: null,
-        ...paymentDeadlineBeforeCutoff(cutoffTime),
-      },
-      {
-        purchase: {
-          onChainStatus: null,
-          nextAction: {
-            notIn: ACTIVE_PURCHASE_NEXT_ACTIONS,
-          },
-        },
-        ...paymentDeadlineBeforeCutoff(cutoffTime),
+        OR: [
+          { payByTime: { not: null, lt: cutoffTime } },
+          { payByTime: null, createdAt: { lt: cutoffTime } },
+        ],
       },
     ],
   };
