@@ -1,3 +1,5 @@
+import { parseOrganizationMetadata } from "@sokosumi/utils";
+
 import type { Organization, Prisma } from "../generated/prisma/client.js";
 import {
   organizationInclude,
@@ -5,29 +7,6 @@ import {
   OrganizationWithLimitedInfo,
   OrganizationWithRelations,
 } from "../types/organization.js";
-
-function parseOrganizationMetadataToObject(
-  metadata: string | null,
-): Record<string, unknown> {
-  if (!metadata) {
-    return {};
-  }
-
-  try {
-    const parsedMetadata = JSON.parse(metadata) as unknown;
-    if (
-      parsedMetadata &&
-      typeof parsedMetadata === "object" &&
-      !Array.isArray(parsedMetadata)
-    ) {
-      return parsedMetadata as Record<string, unknown>;
-    }
-
-    return {};
-  } catch {
-    return {};
-  }
-}
 
 /**
  * Repository for managing Organization entities and related queries.
@@ -147,9 +126,8 @@ export const organizationRepository = {
       select: { metadata: true },
     });
 
-    const parsedMetadata = parseOrganizationMetadataToObject(
-      organization?.metadata ?? null,
-    );
+    const parsedMetadata =
+      parseOrganizationMetadata(organization?.metadata ?? null) ?? {};
 
     if (invoiceEmail) {
       parsedMetadata.invoiceEmail = invoiceEmail;
