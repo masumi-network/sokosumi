@@ -1,3 +1,5 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { hashCanonicalJsonValue, hashInputSchema } from "../../hash/hash.js";
 import type { Agent } from "../../types/agent.js";
 import { createAgentClient } from "../agent.client.js";
@@ -18,11 +20,11 @@ describe("createAgentClient URL validation", () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("blocks localhost hostnames to prevent SSRF", async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -41,7 +43,7 @@ describe("createAgentClient URL validation", () => {
   });
 
   it("blocks 127.0.0.1 to prevent SSRF", async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -60,7 +62,7 @@ describe("createAgentClient URL validation", () => {
   });
 
   it("blocks private IP ranges to prevent SSRF", async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -89,7 +91,7 @@ describe("createAgentClient URL validation", () => {
   });
 
   it("blocks cloud metadata endpoints (169.254.x.x) to prevent SSRF", async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -108,7 +110,7 @@ describe("createAgentClient URL validation", () => {
   });
 
   it("blocks override URLs with internal addresses", async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -130,7 +132,7 @@ describe("createAgentClient URL validation", () => {
   });
 
   it("rejects API base URLs with query strings", async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -149,7 +151,7 @@ describe("createAgentClient URL validation", () => {
   });
 
   it("rejects API base URLs with hashes", async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -166,7 +168,7 @@ describe("createAgentClient URL validation", () => {
   });
 
   it("rejects non-http/https API base URLs", async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -190,7 +192,7 @@ describe("createAgentClient provideJobInput", () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("sends input_schema_hash in the provide_input request body", async () => {
@@ -204,7 +206,7 @@ describe("createAgentClient provideJobInput", () => {
       ],
     });
 
-    const fetchMock = jest.fn().mockResolvedValue(
+    const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
           input_hash: "input-hash",
@@ -249,7 +251,7 @@ describe("createAgentClient provideJobInput", () => {
   });
 
   it("returns error and skips request when input schema hashing fails", async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -273,7 +275,7 @@ describe("createAgentClient provideJobInput", () => {
     const bareSchema = JSON.stringify([
       { id: "answer", name: "Answer", type: "string" },
     ]);
-    const fetchMock = jest.fn().mockResolvedValue(
+    const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
           input_hash: "hash-123",
@@ -323,7 +325,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("returns statusHash from canonical parsed status payload", async () => {
@@ -340,7 +342,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       },
       result: null,
     };
-    const fetchMock = jest.fn().mockResolvedValue(
+    const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(responseBody), {
         status: 200,
         headers: {
@@ -379,7 +381,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       timestamp: "2026-03-02T10:05:00.000Z",
       trace_id: "trace-123",
     };
-    const fetchMock = jest
+    const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
         new Response(JSON.stringify(firstResponseBody), {
@@ -426,7 +428,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       result: null,
     };
     const abortSignal = AbortSignal.timeout(1000);
-    const fetchMock = jest.fn().mockResolvedValue(
+    const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(responseBody), {
         status: 200,
         headers: {

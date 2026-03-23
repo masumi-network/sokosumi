@@ -1,16 +1,18 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { createRegistryClient } from "../masumi-registry.client.js";
 
-const postRegistryDiffMock = jest.fn();
-const postRegistryEntryMock = jest.fn();
+const postRegistryDiffMock = vi.fn();
+const postRegistryEntryMock = vi.fn();
 
-jest.mock("../openapi/generated/registry/index.js", () => ({
+vi.mock("../openapi/generated/registry/index.js", () => ({
   postRegistryDiff: (...args: unknown[]) => postRegistryDiffMock(...args),
   postRegistryEntry: (...args: unknown[]) => postRegistryEntryMock(...args),
 }));
 
 describe("createRegistryClient.getAgentsDiff", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     postRegistryDiffMock.mockResolvedValue({
       data: {
         data: {

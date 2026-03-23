@@ -25,12 +25,15 @@ import {
   jwt,
   lastLoginMethod,
   magicLink,
+  oAuthProxy,
   organization,
 } from "better-auth/plugins";
 import pTimeout from "p-timeout";
 import Stripe from "stripe";
 import * as z from "zod";
 
+import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
+import { getBetterAuthPublicBaseUrl } from "@/config/better-auth-public-url";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { resolveRequestLocale } from "@/i18n/locale-resolution";
@@ -63,10 +66,14 @@ export type Account = Awaited<
   ReturnType<typeof auth.api.listUserAccounts>
 >[number];
 
-const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+const secrets = getEnvSecrets();
+const env = getEnvPublicConfig();
 
-const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
-const betterAuthApiKey = getEnvSecrets().BETTER_AUTH_API_KEY;
+const stripeInstance = new Stripe(secrets.STRIPE_SECRET_KEY);
+
+const fromEmail = secrets.POSTMARK_FROM_EMAIL;
+const betterAuthApiKey = secrets.BETTER_AUTH_API_KEY;
+const betterAuthProductionUrl = getBetterAuthProductionUrl();
 
 function getEmailLocaleCookieValue(
   cookieHeader?: null | string,
@@ -129,8 +136,11 @@ function getEmailLocale(
   });
 }
 
+const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
+
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
+  baseURL: betterAuthBaseUrl,
   advanced: {
     ipAddress: {
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
@@ -142,7 +152,7 @@ export const auth = betterAuth({
   session: {
     cookieCache: {
       enabled: true,
-      maxAge: getEnvSecrets().BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
+      maxAge: secrets.BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
     },
     storeSessionInDatabase: true,
   },
@@ -151,14 +161,14 @@ export const auth = betterAuth({
   }),
   socialProviders: {
     google: {
-      clientId: getEnvSecrets().GOOGLE_CLIENT_ID,
-      clientSecret: getEnvSecrets().GOOGLE_CLIENT_SECRET,
+      clientId: secrets.GOOGLE_CLIENT_ID,
+      clientSecret: secrets.GOOGLE_CLIENT_SECRET,
       overrideUserInfoOnSignIn: true,
       mapProfileToUser,
     },
     microsoft: {
-      clientId: getEnvSecrets().MICROSOFT_CLIENT_ID,
-      clientSecret: getEnvSecrets().MICROSOFT_CLIENT_SECRET,
+      clientId: secrets.MICROSOFT_CLIENT_ID,
+      clientSecret: secrets.MICROSOFT_CLIENT_SECRET,
       overrideUserInfoOnSignIn: true,
       mapProfileToUser,
     },
@@ -266,18 +276,13 @@ export const auth = betterAuth({
       },
     },
   },
-  trustedOrigins: () => {
-    const origins = [getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGIN];
-    const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
-    if (vercelBranchUrl) {
-      origins.push(vercelBranchUrl);
-    }
-    const vercelUrl = getEnvSecrets().VERCEL_URL;
-    if (vercelUrl) {
-      origins.push(vercelUrl);
-    }
-    return origins;
-  },
+  trustedOrigins: [
+    "https://sokosumi.com",
+    "https://*.sokosumi.com",
+    ...(secrets.NODE_ENV === "development"
+      ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
+      : []),
+  ],
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
@@ -319,8 +324,8 @@ export const auth = betterAuth({
   disabledPaths: ["/sign-up/email", "/sign-in", "/token"],
   emailAndPassword: {
     enabled: true,
-    maxPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
-    minPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
+    maxPasswordLength: env.NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
+    minPasswordLength: env.NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
     requireEmailVerification: false,
     autoSignIn: true,
     sendResetPassword: async ({ user, url }, request) => {
@@ -359,7 +364,7 @@ export const auth = betterAuth({
     },
     sendOnSignUp: true,
     sendOnSignIn: true,
-    expiresIn: getEnvSecrets().BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN,
+    expiresIn: secrets.BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN,
     autoSignInAfterVerification: true,
   },
   user: {
@@ -439,7 +444,7 @@ export const auth = betterAuth({
       },
     }),
     passkey({
-      rpID: getEnvSecrets().BETTER_AUTH_RP_ID,
+      rpID: secrets.BETTER_AUTH_RP_ID,
       rpName: "Sokosumi",
     }),
     lastLoginMethod(),
@@ -460,6 +465,9 @@ export const auth = betterAuth({
       silenceWarnings: {
         oauthAuthServerConfig: true,
       },
+    }),
+    oAuthProxy({
+      productionURL: betterAuthProductionUrl,
     }),
     organization({
       organizationHooks: {
@@ -512,7 +520,7 @@ export const auth = betterAuth({
         },
       },
       async sendInvitationEmail(data, request) {
-        const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/accept-invitation/${data.id}`;
+        const inviteLink = `${betterAuthBaseUrl}/accept-invitation/${data.id}`;
         const email = await renderOrganizationInvitationEmail({
           invitationLink: inviteLink,
           invitorUsername: data.inviter.user.name,
@@ -529,14 +537,13 @@ export const auth = betterAuth({
           MessageStream: "organizations",
         });
       },
-      invitationLimit: getEnvSecrets().BETTER_AUTH_ORG_INVITATION_LIMIT,
+      invitationLimit: secrets.BETTER_AUTH_ORG_INVITATION_LIMIT,
       cancelPendingInvitationsOnReInvite: true,
       allowUserToCreateOrganization(user) {
         return user.emailVerified;
       },
-      organizationLimit: getEnvSecrets().BETTER_AUTH_ORG_LIMIT,
-      invitationExpiresIn:
-        getEnvSecrets().BETTER_AUTH_ORG_INVITATION_EXPIRES_IN,
+      organizationLimit: secrets.BETTER_AUTH_ORG_LIMIT,
+      invitationExpiresIn: secrets.BETTER_AUTH_ORG_INVITATION_EXPIRES_IN,
     }),
     i18n({
       translations: authTranslations,
@@ -547,7 +554,7 @@ export const auth = betterAuth({
     ...getInfraAuthPlugins(betterAuthApiKey),
     stripe({
       stripeClient: stripeInstance,
-      stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,
+      stripeWebhookSecret: secrets.STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: false,
       subscription: {
         enabled: true,
@@ -650,7 +657,7 @@ export const auth = betterAuth({
 async function mapProfileToUser(profile: { name: string; picture: string }) {
   try {
     return pTimeout(mapProfileToUserInner(profile), {
-      milliseconds: getEnvSecrets().BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
+      milliseconds: secrets.BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
     });
   } catch (error) {
     Sentry.captureException(error);

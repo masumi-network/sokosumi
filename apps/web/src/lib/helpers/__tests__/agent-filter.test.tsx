@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { AgentStatus } from "@sokosumi/database";
 

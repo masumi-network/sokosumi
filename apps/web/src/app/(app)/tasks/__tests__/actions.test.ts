@@ -1,27 +1,28 @@
-const listCoworkersMock = jest.fn();
-const getAvailableAgentsWithCreditsPriceMock = jest.fn();
-const getTasksColumnPageMock = jest.fn();
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const listCoworkersMock = vi.fn();
+const getAvailableAgentsWithCreditsPriceMock = vi.fn();
+const getTasksColumnPageMock = vi.fn();
 
-jest.mock("@/lib/services/coworker.service", () => ({
+vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
     listCoworkers: (...args: unknown[]) => listCoworkersMock(...args),
   },
 }));
 
-jest.mock("@/lib/services/agent.service", () => ({
+vi.mock("@/lib/services/agent.service", () => ({
   agentService: {
     getAvailableAgentsWithCreditsPrice: (...args: unknown[]) =>
       getAvailableAgentsWithCreditsPriceMock(...args),
   },
 }));
 
-jest.mock("@/lib/services/user.service", () => ({
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
-    listMyJobsForActiveContextPaginated: jest.fn(),
+    listMyJobsForActiveContextPaginated: vi.fn(),
   },
 }));
 
-jest.mock("../utils/tasks-column-page", () => ({
+vi.mock("../utils/tasks-column-page", () => ({
   getTasksColumnPage: (...args: unknown[]) => getTasksColumnPageMock(...args),
 }));
 
@@ -29,7 +30,7 @@ import { loadMoreTasksColumn } from "../actions";
 
 describe("loadMoreTasksColumn", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("loads one column page and returns mapped cursor result", async () => {

@@ -33,7 +33,7 @@ apps/web
 - **TypeScript**: Type-safe development environment
 - **Prisma**: Database ORM for type-safe database queries
 - **TailwindCSS**: Utility-first CSS framework
-- **Jest**: Testing framework
+- **Vitest**: Testing framework
 - **ESLint**: Code linting
 - **Docker**: Containerization support
 - **Conventional Commits**: Standardized commit messages
@@ -79,11 +79,12 @@ apps/web
 - `pnpm build` - Build the application
 - `pnpm start` - Start the production server
 - `pnpm test` - Run tests
+- `pnpm test:watch` - Run tests in watch mode
 - `pnpm lint` - Run ESLint
 
 ## Testing
 
-Run tests using Jest:
+Run tests using Vitest with the `happy-dom` browser-like environment:
 
 ```bash
 pnpm test

@@ -24,16 +24,16 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@better-auth/api-key": "1.5.5",
-    "@better-auth/i18n": "1.5.5",
-    "@better-auth/oauth-provider": "1.5.5",
-    "@better-auth/prisma-adapter": "1.5.5",
+    "@better-auth/api-key": "1.5.6",
+    "@better-auth/i18n": "1.5.6",
+    "@better-auth/oauth-provider": "1.5.6",
+    "@better-auth/prisma-adapter": "1.5.6",
     "@better-auth/utils": "0.3.1",
     "@hono/node-server": "1.19.11",
-    "@hono/zod-openapi": "1.2.2",
+    "@hono/zod-openapi": "1.2.3",
     "@openrouter/ai-sdk-provider": "2.3.3",
     "@scalar/hono-api-reference": "0.10.4",
-    "@scalar/openapi-to-markdown": "0.4.10",
+    "@scalar/openapi-to-markdown": "0.4.12",
     "@sentry/node": "10.45.0",
     "@sentry/profiling-node": "10.45.0",
     "@sokosumi/chat": "workspace:*",
@@ -45,8 +45,8 @@
     "@vercel/functions": "3.4.3",
     "@vercel/related-projects": "1.0.1",
     "ably": "2.21.0",
-    "ai": "6.0.116",
-    "better-auth": "1.5.5",
+    "ai": "6.0.134",
+    "better-auth": "1.5.6",
     "cron-parser": "5.5.0",
     "dotenv": "17.3.1",
     "hono": "4.12.8",
@@ -62,8 +62,6 @@
     "tsup": "8.5.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
-    "vite": "8.0.1",
-    "vite-tsconfig-paths": "6.1.1",
     "vitest": "4.1.0"
   }
 }

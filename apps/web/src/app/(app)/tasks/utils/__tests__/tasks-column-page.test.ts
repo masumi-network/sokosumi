@@ -1,12 +1,13 @@
-jest.mock("server-only", () => ({}));
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 
 import { TaskStatus } from "@sokosumi/database";
 
 import { getTasksColumnPage } from "../tasks-column-page";
 
-const listTasksMock = jest.fn();
+const listTasksMock = vi.fn();
 
-jest.mock("@/lib/services/task.service", () => ({
+vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     listTasks: (...args: unknown[]) => listTasksMock(...args),
   },
@@ -36,7 +37,7 @@ function buildTask({
 
 describe("getTasksColumnPage", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("queries all column statuses in one request", async () => {

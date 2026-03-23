@@ -1,25 +1,28 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import DOMPurify from "dompurify";
 import { render, waitFor } from "@testing-library/react";
+
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { ResolverSVGIcon } from "@/components/agents/resolver-svg-icon";
 
-jest.mock("dompurify", () => ({
+vi.mock("dompurify", () => ({
   __esModule: true,
   default: {
-    sanitize: jest.fn((svg: string) => svg),
+    sanitize: vi.fn((svg: string) => svg),
   },
 }));
 
-jest.mock("@sokosumi/utils", () => {
+vi.mock("@sokosumi/utils", async () => {
   const actual =
-    jest.requireActual<typeof import("@sokosumi/utils")>("@sokosumi/utils");
+    await vi.importActual<typeof import("@sokosumi/utils")>("@sokosumi/utils");
   return {
     ...actual,
-    resolveIpfsOrHttpUrl: jest.fn((url: string | null) => url || ""),
+    resolveIpfsOrHttpUrl: vi.fn((url: string | null) => url || ""),
   };
 });
 
-jest.mock("next/image", () => ({
+vi.mock("next/image", () => ({
   __esModule: true,
   default: (props: {
     src: string;
@@ -43,23 +46,17 @@ jest.mock("next/image", () => ({
   },
 }));
 
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
+const mockSanitize = vi.mocked(DOMPurify.sanitize);
+const mockIpfsUrlResolver = vi.mocked(resolveIpfsOrHttpUrl);
+
 global.fetch = mockFetch;
 
 describe("ResolverSVGIcon", () => {
-  let mockSanitize: jest.Mock;
-  let mockIpfsUrlResolver: jest.Mock;
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockFetch.mockClear();
-
-    const DOMPurify = require("dompurify");
-    mockSanitize = DOMPurify.default.sanitize;
     mockSanitize.mockClear();
-
-    const utilsModule = require("@sokosumi/utils");
-    mockIpfsUrlResolver = utilsModule.resolveIpfsOrHttpUrl;
     mockIpfsUrlResolver.mockClear();
   });
 

@@ -1,16 +1,16 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { PasskeySettings } from "../passkey-settings";
 
-const mockAddPasskey = jest.fn();
-const mockDeletePasskey = jest.fn();
-const mockListUserPasskeys = jest.fn();
-const mockRefresh = jest.fn();
-const mockToastError = jest.fn();
-const mockToastSuccess = jest.fn();
-const mockUpdatePasskey = jest.fn();
+const mockAddPasskey = vi.fn();
+const mockDeletePasskey = vi.fn();
+const mockListUserPasskeys = vi.fn();
+const mockRefresh = vi.fn();
+const mockToastError = vi.fn();
+const mockToastSuccess = vi.fn();
+const mockUpdatePasskey = vi.fn();
 let currentPasskeys: Array<{
   createdAt: string;
   id: string;
@@ -33,13 +33,13 @@ function createDeferred<T>() {
   };
 }
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
     refresh: mockRefresh,
   }),
 }));
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTranslations: (namespace?: string) => {
     return (
@@ -66,14 +66,14 @@ jest.mock("next-intl", () => ({
   },
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
     error: (...args: unknown[]) => mockToastError(...args),
     success: (...args: unknown[]) => mockToastSuccess(...args),
   },
 }));
 
-jest.mock("@/lib/auth/auth.client", () => ({
+vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     passkey: {
       addPasskey: (...args: unknown[]) => mockAddPasskey(...args),

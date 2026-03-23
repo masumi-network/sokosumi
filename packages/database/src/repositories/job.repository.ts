@@ -7,7 +7,7 @@ import {
 } from "../generated/prisma/browser.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { mapJobWithStatus } from "../helpers/job.js";
-import { buildJobsNeedingRemoteSyncWhere } from "../helpers/job-sync.js";
+import { buildJobsNeedingAgentStatusSyncWhere } from "../helpers/job-sync.js";
 import {
   finalizedAgentJobStatuses,
   jobInclude,
@@ -363,23 +363,6 @@ export const jobRepository = {
     }
   },
 
-  async getNotFinishedLatestJobByAgentIdAndUserId(
-    agentId: string,
-    userId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus | null> {
-    const job = await tx.job.findFirst({
-      where: {
-        agentId,
-        userId,
-        ...buildJobsNeedingRemoteSyncWhere(),
-      },
-      orderBy: { createdAt: "desc" },
-      include: jobInclude,
-    });
-    return job ? mapJobWithStatus(job) : null;
-  },
-
   /**
    * Retrieves the latest not-finished job a specific agent, user, and organization
    * @param agentId - The unique identifier of the agent
@@ -400,7 +383,7 @@ export const jobRepository = {
         agentId,
         userId,
         organizationId: normalizedOrganizationId,
-        ...buildJobsNeedingRemoteSyncWhere(),
+        ...buildJobsNeedingAgentStatusSyncWhere(),
       },
       orderBy: { createdAt: "desc" },
       include: jobInclude,

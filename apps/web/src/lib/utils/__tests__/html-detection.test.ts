@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { hasHtmlContent } from "@/lib/utils/html-detection";
 
 /**

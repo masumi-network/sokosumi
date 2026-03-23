@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { canUseNextImageSrc } from "@/config/next-image";
 
 describe("canUseNextImageSrc", () => {

@@ -17,24 +17,11 @@ async function resolveOrganizationFromSlug(
   organizationSlug: string,
   userId: string,
 ): Promise<string> {
-  // Look up organization by slug
-  const organization = await prisma.organization.findUnique({
-    where: { slug: organizationSlug },
-    select: { id: true },
-  });
-
-  if (!organization) {
-    throw forbidden(
-      `You are not a member of organization '${organizationSlug}'`,
-    );
-  }
-
-  // Verify user is a member
-  const membership = await prisma.member.findUnique({
+  const membership = await prisma.member.findFirst({
     where: {
-      userId_organizationId: {
-        userId,
-        organizationId: organization.id,
+      userId,
+      organization: {
+        slug: organizationSlug,
       },
     },
     select: { organizationId: true },
@@ -46,7 +33,7 @@ async function resolveOrganizationFromSlug(
     );
   }
 
-  return organization.id;
+  return membership.organizationId;
 }
 
 /**

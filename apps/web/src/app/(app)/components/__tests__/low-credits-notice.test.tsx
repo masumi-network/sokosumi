@@ -1,10 +1,10 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 
 import { render, screen } from "@testing-library/react";
 
 import LowCreditsNotice from "@/app/components/low-credits-notice";
 
-jest.mock("next-intl/server", () => ({
+vi.mock("next-intl/server", () => ({
   getTranslations: () =>
     Promise.resolve((key: string) => {
       const labels: Record<string, string> = {

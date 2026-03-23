@@ -1,4 +1,5 @@
-jest.mock("server-only", () => ({}));
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 
 import { SokosumiJobStatus } from "@sokosumi/database";
 
@@ -6,9 +7,9 @@ import type { TaskWithCoworker } from "@/lib/types/task";
 
 import { mapJobsToTasksViewData } from "../jobs-view-data";
 
-const getTaskByIdMock = jest.fn();
+const getTaskByIdMock = vi.fn();
 
-jest.mock("@/lib/services/task.service", () => ({
+vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     getTaskById: (...args: unknown[]) => getTaskByIdMock(...args),
   },
@@ -39,7 +40,7 @@ function buildJob(taskId: string) {
 
 describe("mapJobsToTasksViewData", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("uses seedTasksById and skips getTaskById for seeded tasks", async () => {

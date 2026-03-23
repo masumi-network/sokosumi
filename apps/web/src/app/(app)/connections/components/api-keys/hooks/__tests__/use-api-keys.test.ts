@@ -1,26 +1,27 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useApiKeys } from "@/app/connections/components/api-keys/hooks/use-api-keys";
 import { toast } from "sonner";
 
-const listMock = jest.fn();
-const createMock = jest.fn();
-const updateMock = jest.fn();
-const deleteMock = jest.fn();
+const listMock = vi.fn();
+const createMock = vi.fn();
+const updateMock = vi.fn();
+const deleteMock = vi.fn();
 const translateMock = (key: string) => key;
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => translateMock,
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
-    success: jest.fn(),
-    error: jest.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/auth/auth.client", () => ({
+vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     apiKey: {
       list: (...args: unknown[]) => listMock(...args),
@@ -59,7 +60,7 @@ function makeApiKey(id: string) {
 
 describe("useApiKeys", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("loads keys from result.data.apiKeys", async () => {

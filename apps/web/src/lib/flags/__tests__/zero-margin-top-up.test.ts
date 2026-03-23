@@ -1,10 +1,11 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
-const getSessionMock = jest.fn();
+const getSessionMock = vi.fn();
 
-jest.mock("flags/next", () => ({
+vi.mock("flags/next", () => ({
   flag: ({
     decide,
   }: {
@@ -13,13 +14,13 @@ jest.mock("flags/next", () => ({
   }) => decide,
 }));
 
-jest.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
 describe("zeroMarginTopUpEnabled", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("returns false when session is missing", async () => {

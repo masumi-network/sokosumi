@@ -6,8 +6,8 @@ import type { RequestIdVariables } from "hono/request-id";
 
 import {
   type ErrorResponse,
-  formatZodErrorMessage,
   getErrorName,
+  shouldReportHttpException,
 } from "./error.js";
 
 /**
@@ -37,14 +37,15 @@ export function errorHandler(
       })),
     });
 
-    const status = 422;
+    const status = 500;
     const errorResponse: ErrorResponse = {
       error: getErrorName(status),
-      message: formatZodErrorMessage(error),
+      message: "An unexpected error occurred",
       meta,
     };
 
     Sentry.captureException(error, {
+      level: "fatal",
       contexts: {
         validation: {
           issues: error.issues.map((issue) => ({
@@ -53,8 +54,7 @@ export function errorHandler(
           })),
         },
       },
-      level: "fatal",
-      tags: { error_type: "validation" },
+      tags: { error_type: "unexpected_validation" },
     });
 
     return c.json(errorResponse, status);
@@ -63,7 +63,7 @@ export function errorHandler(
   if (error instanceof HTTPException) {
     const status = error.status;
 
-    if (status >= 500) {
+    if (shouldReportHttpException(error)) {
       Sentry.captureException(error);
     }
 

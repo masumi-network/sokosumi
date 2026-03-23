@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { extractFileLikeLinks } from "@sokosumi/utils";
 
 const memeMarkdown = `

@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
@@ -6,13 +6,13 @@ import { render, screen } from "@testing-library/react";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import type { TaskEvent } from "@/lib/types/task";
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    refresh: jest.fn(),
+    refresh: vi.fn(),
   }),
 }));
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTranslations: () => (key: string, values?: Record<string, string>) => {
     const labels: Record<string, string> = {
@@ -42,18 +42,18 @@ jest.mock("next-intl", () => ({
   },
 }));
 
-jest.mock("@/hooks/use-os-detection", () => ({
+vi.mock("@/hooks/use-os-detection", () => ({
   useOSDetection: () => ({
     os: "MacOS",
     isMobile: false,
   }),
 }));
 
-jest.mock("@/lib/actions/task/action", () => ({
-  createTaskComment: jest.fn(),
+vi.mock("@/lib/actions/task/action", () => ({
+  createTaskComment: vi.fn(),
 }));
 
-jest.mock("@/components/expandable-markdown", () => ({
+vi.mock("@/components/expandable-markdown", () => ({
   ExpandableMarkdown: ({ content }: { content: string }) => (
     <div>{content}</div>
   ),

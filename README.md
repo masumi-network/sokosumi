@@ -58,8 +58,9 @@ Other available scripts:
 
 ## Testing
 
-- Each package may have its own test scripts:
-  - `pnpm test` (from within `apps/web/` if available)
+- The monorepo uses Vitest for unit tests.
+- Run all workspace tests from the repo root with `pnpm test`.
+- Run a single workspace with `pnpm --filter web test`, `pnpm --filter core test`, or `pnpm --filter @sokosumi/<package> test`.
 
 ## Deployment
 

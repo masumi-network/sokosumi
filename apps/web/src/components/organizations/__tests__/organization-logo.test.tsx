@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Organization } from "@sokosumi/database";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ImgHTMLAttributes } from "react";
@@ -7,21 +7,21 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { OrganizationLogo } from "@/components/organizations/organization-logo";
 
-jest.mock("next/image", () => ({
+vi.mock("next/image", () => ({
   __esModule: true,
   default: (props: ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
 }));
 
-jest.mock("@sokosumi/utils", () => {
+vi.mock("@sokosumi/utils", async () => {
   const actual =
-    jest.requireActual<typeof import("@sokosumi/utils")>("@sokosumi/utils");
+    await vi.importActual<typeof import("@sokosumi/utils")>("@sokosumi/utils");
   return {
     ...actual,
-    resolveIpfsOrHttpUrl: jest.fn(),
+    resolveIpfsOrHttpUrl: vi.fn(),
   };
 });
 
-const mockedResolveIpfsOrHttpUrl = jest.mocked(resolveIpfsOrHttpUrl);
+const mockedResolveIpfsOrHttpUrl = vi.mocked(resolveIpfsOrHttpUrl);
 
 function createOrganization(overrides: Partial<Organization>): Organization {
   return {
