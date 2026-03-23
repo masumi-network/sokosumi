@@ -65,6 +65,71 @@ describe("getCoworkerOptions", () => {
     ]);
   });
 
+  it("builds Telegram contact from metadata.channels", () => {
+    const options = getCoworkerOptions([
+      baseCoworker({
+        metadata: {
+          channels: { telegram: "@ops" },
+        },
+      }),
+    ]);
+    expect(options[0]?.contacts).toEqual([
+      { origin: TaskEventOrigin.TELEGRAM, value: "@ops" },
+    ]);
+  });
+
+  it("builds Teams contact from metadata.channels", () => {
+    const options = getCoworkerOptions([
+      baseCoworker({
+        metadata: {
+          channels: { teams: "https://teams.microsoft.com/l/chat/0/0" },
+        },
+      }),
+    ]);
+    expect(options[0]?.contacts).toEqual([
+      {
+        origin: TaskEventOrigin.TEAMS,
+        value: "https://teams.microsoft.com/l/chat/0/0",
+      },
+    ]);
+  });
+
+  it("builds Discord contact from metadata.channels", () => {
+    const options = getCoworkerOptions([
+      baseCoworker({
+        metadata: {
+          channels: { discord: "user#1234" },
+        },
+      }),
+    ]);
+    expect(options[0]?.contacts).toEqual([
+      { origin: TaskEventOrigin.DISCORD, value: "user#1234" },
+    ]);
+  });
+
+  it("orders contacts email, WhatsApp, Telegram, Teams, Discord", () => {
+    const options = getCoworkerOptions([
+      baseCoworker({
+        metadata: {
+          channels: {
+            discord: "d",
+            teams: "t",
+            telegram: "tg",
+            whatsapp: "w",
+            email: "e@x.com",
+          },
+        },
+      }),
+    ]);
+    expect(options[0]?.contacts).toEqual([
+      { origin: TaskEventOrigin.EMAIL, value: "e@x.com" },
+      { origin: TaskEventOrigin.WHATSAPP, value: "w" },
+      { origin: TaskEventOrigin.TELEGRAM, value: "tg" },
+      { origin: TaskEventOrigin.TEAMS, value: "t" },
+      { origin: TaskEventOrigin.DISCORD, value: "d" },
+    ]);
+  });
+
   it("ignores blank channels values", () => {
     const options = getCoworkerOptions([
       baseCoworker({

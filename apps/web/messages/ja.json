@@ -1370,6 +1370,7 @@
           "whatsapp": "WhatsApp",
           "telegram": "Telegram",
           "signal": "Signal",
+          "discord": "Discord",
           "chat": "チャット",
           "unknown": "不明"
         },

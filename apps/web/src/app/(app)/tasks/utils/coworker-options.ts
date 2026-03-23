@@ -8,18 +8,29 @@ import type {
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
 
+const COWORKER_CHANNEL_SPECS: ReadonlyArray<{
+  channelKey: string;
+  origin: TaskEventOrigin;
+}> = [
+  { channelKey: "email", origin: TaskEventOrigin.EMAIL },
+  { channelKey: "whatsapp", origin: TaskEventOrigin.WHATSAPP },
+  { channelKey: "telegram", origin: TaskEventOrigin.TELEGRAM },
+  { channelKey: "teams", origin: TaskEventOrigin.TEAMS },
+  { channelKey: "discord", origin: TaskEventOrigin.DISCORD },
+];
+
 function getCoworkerContacts(coworker: Coworker): CoworkerContactChannel[] {
   const channels = coworker.metadata?.channels ?? {};
-  const email = channels.email?.trim() || "";
-  const whatsapp = channels.whatsapp?.trim() || "";
-
   const contacts: CoworkerContactChannel[] = [];
-  if (email) {
-    contacts.push({ origin: TaskEventOrigin.EMAIL, value: email });
+
+  for (const { channelKey, origin } of COWORKER_CHANNEL_SPECS) {
+    const raw = channels[channelKey];
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (value) {
+      contacts.push({ origin, value });
+    }
   }
-  if (whatsapp) {
-    contacts.push({ origin: TaskEventOrigin.WHATSAPP, value: whatsapp });
-  }
+
   return contacts;
 }
 

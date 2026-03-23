@@ -1574,6 +1574,7 @@ export const TaskEventSchema = {
                 'WHATSAPP',
                 'TELEGRAM',
                 'SIGNAL',
+                'DISCORD',
                 'CHAT',
                 'SOKOSUMI',
                 'UNKNOWN'
