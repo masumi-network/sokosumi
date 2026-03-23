@@ -238,20 +238,48 @@ function createExecutionOptions(
 }
 
 function mockInitialJobQueries({
-  unfinished = [],
+  purchase = [],
+  agent,
   pendingLocalRefunds = [],
+  unfinished,
 }: {
-  unfinished?: Record<string, unknown>[];
+  purchase?: Record<string, unknown>[];
+  agent?: Record<string, unknown>[];
   pendingLocalRefunds?: Record<string, unknown>[];
+  unfinished?: Record<string, unknown>[];
 } = {}) {
   prismaJobFindManyMock.mockReset();
-  prismaJobFindManyMock.mockResolvedValueOnce(unfinished);
+  prismaJobFindManyMock.mockResolvedValueOnce(purchase);
+  prismaJobFindManyMock.mockResolvedValueOnce(agent ?? unfinished ?? []);
   prismaJobFindManyMock.mockResolvedValueOnce(pendingLocalRefunds);
 }
 
 describe("jobSyncService.syncUnfinishedJobs", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    for (const mock of [
+      captureExceptionMock,
+      createJobEventForJobIdMock,
+      createJobPurchaseMock,
+      fetchAgentJobStatusMock,
+      getJobByIdMock,
+      getLatestJobEventByJobIdMock,
+      publishJobStatusDataMock,
+      prismaJobFindManyMock,
+      renderJobFailureNotificationEmailMock,
+      renderJobFinalStatusEmailMock,
+      renderJobInputRequiredEmailMock,
+      requestFetchMock,
+      sendEmailMock,
+      sourceImportEnqueueMock,
+      paymentClientFactoryMock,
+      getPurchaseByBlockchainIdentifierMock,
+      getPurchaseByIdMock,
+      updateJobPurchaseByJobIdMock,
+      refundJobMock,
+      prismaTransactionMock,
+    ]) {
+      mock.mockReset();
+    }
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
 
@@ -318,12 +346,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       status: SokosumiJobStatus.PAYMENT_PENDING,
     });
     mockInitialJobQueries({
-      unfinished: [
+      purchase: [
         createJob({
           purchase: null,
           status: SokosumiJobStatus.PAYMENT_PENDING,
         }),
       ],
+      agent: [backfilledJob],
     });
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
@@ -338,7 +367,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
 
     expect(result.unfinishedFound).toBe(1);
-    expect(result.processed).toBe(1);
+    expect(result.processed).toBe(2);
     expect(createJobPurchaseMock).toHaveBeenCalledWith(
       {
         jobId: "job_1",
@@ -424,15 +453,21 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       },
     });
     mockInitialJobQueries({
-      unfinished: [createJob()],
+      purchase: [createJob()],
+      agent: [createJob()],
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+    getJobByIdMock
+      .mockResolvedValueOnce(createJob())
+      .mockResolvedValueOnce(reconciliationJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
     expect(consoleInfoSpy).toHaveBeenCalledWith(
-      "[sync/jobs/remote] Found 1 jobs for standard sync",
+      "[sync/jobs/purchase] Found 1 jobs for purchase sync",
+    );
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      "[sync/jobs/agent] Found 1 jobs for agent sync",
     );
     expect(consoleInfoSpy).toHaveBeenCalledWith(
       "[sync/jobs/refund] Found 1 jobs pending local refund",
@@ -616,7 +651,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(publishJobStatusDataMock).not.toHaveBeenCalled();
   });
 
-  it("skips refund reconciliation when the refreshed job is still refund-pending", async () => {
+  it("reconciles refunds whenever the refund phase query includes the job", async () => {
     mockInitialJobQueries({
       pendingLocalRefunds: [
         createJob({
@@ -660,7 +695,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 1,
       }),
     );
-    expect(refundJobMock).not.toHaveBeenCalled();
+    expect(refundJobMock).toHaveBeenCalledWith("job_stale_reconciliation", {});
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
     expect(getPurchaseByIdMock).not.toHaveBeenCalled();
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
@@ -741,7 +776,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     mockInitialJobQueries({
-      unfinished: [initialJob],
+      agent: [initialJob],
     });
     fetchAgentJobStatusMock.mockReturnValue(
       ok({
@@ -814,7 +849,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     mockInitialJobQueries({
-      unfinished: [createJob()],
+      agent: [createJob()],
     });
     fetchAgentJobStatusMock.mockReturnValue(
       ok({
@@ -874,7 +909,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     mockInitialJobQueries({
-      unfinished: [createJob()],
+      purchase: [createJob()],
     });
     getPurchaseByIdMock.mockReturnValue(
       ok({
@@ -942,7 +977,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     mockInitialJobQueries({
-      unfinished: [createJob()],
+      purchase: [createJob()],
     });
     getPurchaseByIdMock.mockReturnValue(
       ok({
@@ -1021,9 +1056,18 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
     expect(createJobPurchaseMock).not.toHaveBeenCalled();
-    expect(getLatestJobEventByJobIdMock).not.toHaveBeenCalled();
-    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
-    expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
+    expect(getLatestJobEventByJobIdMock).toHaveBeenCalledWith("job_1", {});
+    expect(createJobEventForJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      {
+        status: AgentJobStatus.COMPLETED,
+        inputSchema: undefined,
+        result: "done",
+        statusHash: "new-hash",
+      },
+      {},
+    );
+    expect(sourceImportEnqueueMock).toHaveBeenCalledWith("event_2", "done");
     expect(refundJobMock).not.toHaveBeenCalled();
     expect(renderJobFailureNotificationEmailMock).toHaveBeenCalledWith({
       network: "Preprod",
@@ -1056,13 +1100,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         onChainStatus: null,
         resultHash: null,
         nextAction: "NONE",
-        nextActionErrorType: "NETWORK_ERROR",
+        nextActionErrorType: null,
         nextActionErrorNote: null,
       },
     });
 
     mockInitialJobQueries({
-      unfinished: [
+      purchase: [
         createJob({
           status: SokosumiJobStatus.PAYMENT_PENDING,
           payByTime: new Date("2026-03-18T09:45:00.000Z"),
@@ -1070,7 +1114,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
             externalId: "purchase_1",
             onChainStatus: null,
             resultHash: null,
-            nextAction: "NONE",
+            nextAction: "FUNDS_LOCKING_REQUESTED",
             nextActionErrorType: null,
             nextActionErrorNote: null,
           },
@@ -1082,7 +1126,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         id: "purchase_1",
         onChainStatus: null,
         nextAction: "NONE",
-        nextActionErrorType: "NETWORK_ERROR",
+        nextActionErrorType: null,
         nextActionErrorNote: null,
       }),
     );
@@ -1102,7 +1146,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       "job_1",
       expect.objectContaining({
         onChainStatus: null,
-        nextActionErrorType: "NETWORK_ERROR",
+        nextAction: "NONE",
+        nextActionErrorType: null,
       }),
       {},
     );
@@ -1147,7 +1192,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     mockInitialJobQueries({
-      unfinished: [pendingWithActiveAction],
+      purchase: [pendingWithActiveAction],
+      agent: [pendingWithActiveAction],
     });
     getPurchaseByIdMock.mockReturnValue(
       ok({
@@ -1166,7 +1212,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(pendingWithActiveAction);
+    getJobByIdMock
+      .mockResolvedValueOnce(pendingWithActiveAction)
+      .mockResolvedValueOnce(pendingWithActiveAction)
+      .mockResolvedValueOnce(pendingWithActiveAction);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1189,7 +1238,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     mockInitialJobQueries({
-      unfinished: [
+      purchase: [
         createJob({
           status: SokosumiJobStatus.PAYMENT_PENDING,
           purchase: {
@@ -1273,7 +1322,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     mockInitialJobQueries({
-      unfinished: [
+      purchase: [
         createJob({
           status: SokosumiJobStatus.REFUND_PENDING,
           purchase: {
@@ -1342,7 +1391,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     mockInitialJobQueries({
-      unfinished: [
+      purchase: [
         createJob({
           status: SokosumiJobStatus.DISPUTE_PENDING,
           purchase: {
@@ -1419,7 +1468,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     mockInitialJobQueries({
-      unfinished: [createJob()],
+      agent: [createJob()],
     });
     fetchAgentJobStatusMock.mockReturnValue(
       ok({
@@ -1489,7 +1538,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
-  it("counts standard sync jobs and refund reconciliation jobs in the same run", async () => {
+  it("counts unique jobs across purchase, agent, and refund phases in the same run", async () => {
     const reconciliationJob = createJob({
       id: "job_refund",
       status: SokosumiJobStatus.REFUND_RESOLVED,
@@ -1503,10 +1552,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       },
     });
     mockInitialJobQueries({
-      unfinished: [createJob()],
+      purchase: [createJob()],
+      agent: [createJob()],
       pendingLocalRefunds: [reconciliationJob],
     });
-    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+    getJobByIdMock.mockImplementation(async (jobId: string) => {
+      return jobId === "job_refund" ? reconciliationJob : createJob();
+    });
     fetchAgentJobStatusMock.mockReturnValue(
       ok({
         status: "running",
@@ -1522,7 +1574,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
     expect(result).toEqual(
       expect.objectContaining({
-        processed: 2,
+        processed: 3,
         unfinishedFound: 2,
       }),
     );
@@ -1619,29 +1671,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     mockInitialJobQueries({
-      unfinished: [createJob()],
+      purchase: [createJob()],
     });
-    fetchAgentJobStatusMock.mockImplementation(
-      (
-        _agent,
-        _jobId,
-        options?: {
-          signal?: AbortSignal;
-        },
-      ) => {
-        resolvePollingStarted?.();
-
-        return new Promise((resolve) => {
-          options?.signal?.addEventListener(
-            "abort",
-            () => {
-              resolve(err("aborted"));
-            },
-            { once: true },
-          );
-        });
-      },
-    );
     getPurchaseByIdMock.mockImplementation(
       (
         _purchaseId,
@@ -1649,6 +1680,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
           signal?: AbortSignal;
         },
       ) => {
+        resolvePollingStarted?.();
+
         return new Promise((resolve) => {
           options?.signal?.addEventListener(
             "abort",
@@ -1677,13 +1710,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
     expect(prismaTransactionMock).not.toHaveBeenCalled();
-    expect(fetchAgentJobStatusMock).toHaveBeenCalledWith(
-      expect.any(Object),
-      "remote-job-1",
-      expect.objectContaining({
-        signal: expect.any(Object),
-      }),
-    );
+    expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
     expect(getPurchaseByIdMock).toHaveBeenCalledWith(
       "purchase_1",
       expect.objectContaining({
