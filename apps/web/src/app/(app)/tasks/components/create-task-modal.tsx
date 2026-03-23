@@ -154,7 +154,7 @@ export function CreateTaskModal({
         onCancel={handleDismiss}
         onSubmittingChange={setIsDismissDisabled}
         onSuccess={(taskId) => {
-          handleClose();
+          handleDismiss();
           router.push(`/tasks/${taskId}`);
         }}
       />
