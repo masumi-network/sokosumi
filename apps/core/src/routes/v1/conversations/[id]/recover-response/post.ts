@@ -16,14 +16,13 @@ import { requireUserAuthContext } from "@/middleware/auth";
 const recoverResponseResultSchema = z
   .object({
     recovered: z.boolean().openapi({
-      description: "Whether an in-flight response was recovered and persisted",
+      description: "True if a completed response was fetched and saved",
     }),
     reason: z
       .enum(["not_found", "in_progress", "terminal"])
       .optional()
       .openapi({
-        description:
-          "When recovered is false: not_found if GET returned 404, terminal if the response finished in a failed/cancelled/etc. state, in_progress if still processing",
+        description: "When recovered is false",
       }),
   })
   .openapi("RecoverResponseResult");
@@ -32,7 +31,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/recover-response",
   description:
-    "Recover a pending coworker response after client disconnect by fetching it from the Responses API and persisting it",
+    "Fetch pending coworker Responses API result and persist if complete",
   tags: ["Conversations"],
   request: {
     params: z.object({
@@ -47,11 +46,9 @@ const route = createRoute({
     }),
   },
   responses: {
-    200: jsonSuccessResponse(
-      recoverResponseResultSchema,
-      "Recovery attempted; recovered is true if a response was persisted",
-      { data: { recovered: true } },
-    ),
+    200: jsonSuccessResponse(recoverResponseResultSchema, "Recovery result", {
+      data: { recovered: true },
+    }),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),

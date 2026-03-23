@@ -53,6 +53,7 @@ const chatRequestSchema = z.object({
     }),
   ),
   conversationId: z.string().uuid().optional(),
+  previousResponseId: z.string().optional(),
   model: z.string().nullable().optional(),
 });
 
@@ -102,7 +103,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      const { messages, conversationId, model } = parsedBody.data;
+      const {
+        messages,
+        conversationId,
+        model,
+        previousResponseId: bodyPreviousResponseId,
+      } = parsedBody.data;
 
       let internalConversationId: string | null = null;
       let selectedModel: string | null = model ?? null;
@@ -189,6 +195,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const previousResponseIdFromMeta = metadata?.previous_response_id as
         | string
         | undefined;
+
+      const trimmedBodyPrevious = bodyPreviousResponseId?.trim();
+      const previousResponseId =
+        trimmedBodyPrevious && trimmedBodyPrevious.length > 0
+          ? trimmedBodyPrevious
+          : typeof previousResponseIdFromMeta === "string" &&
+              previousResponseIdFromMeta.trim().length > 0
+            ? previousResponseIdFromMeta.trim()
+            : null;
 
       let coworker: {
         id: string;
@@ -287,7 +302,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           sokosumiUserId: authContext.userId,
           sokosumiOrganizationId: authContext.organizationId ?? null,
           coworkerSlug: coworker!.slug,
-          previousResponseId: previousResponseIdFromMeta ?? null,
+          previousResponseId,
           onResponseStarted: async (responseId: string) => {
             responsesApiResponseIdRef.current = responseId;
             if (!internalConversationId) return;

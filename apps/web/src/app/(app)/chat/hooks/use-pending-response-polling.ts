@@ -45,7 +45,7 @@ export interface UsePendingResponsePollingProps {
   /** When true, recovery is running or will run; do not poll (recover endpoint handles it). */
   hasPendingIdInMetadata?: boolean;
   setMessagesForConversation: (convId: string, messages: UIMessage[]) => void;
-  refreshConversations: () => Promise<void>;
+  refreshConversations: () => Promise<unknown>;
 }
 
 /**

@@ -9,6 +9,8 @@ import {
   type ConversationWithItems,
 } from "@/lib/actions/conversation/core-api-actions";
 
+type RefreshConversationsResult = Conversation[] | undefined;
+
 export interface ConversationsContextValue {
   conversations: Conversation[];
   selectedConversation: ConversationWithItems | null;
@@ -25,7 +27,7 @@ export interface ConversationsContextValue {
   ) => Promise<void>;
   deleteSelectedConversation: () => Promise<void>;
   deleteConversationById: (id: string) => Promise<void>;
-  refreshConversations: () => Promise<void>;
+  refreshConversations: () => Promise<RefreshConversationsResult>;
 }
 
 const ConversationsContext = createContext<ConversationsContextValue | null>(

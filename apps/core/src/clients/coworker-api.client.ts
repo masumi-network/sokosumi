@@ -110,6 +110,15 @@ export async function streamResponsesApi(
   });
 }
 
+const GET_RESPONSE_BY_ID_TIMEOUT_MS = 25_000;
+
+function isFetchTimeoutOrAbort(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "TimeoutError" || error.name === "AbortError")
+  );
+}
+
 const RESPONSES_API_TERMINAL_STATUSES = new Set([
   "failed",
   "cancelled", // e.g. OpenAI Responses
@@ -156,10 +165,19 @@ export async function getResponseById(
     requestHeaders.Authorization = `Bearer ${options.responsesApiServiceKey}`;
   }
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: requestHeaders,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers: requestHeaders,
+      signal: AbortSignal.timeout(GET_RESPONSE_BY_ID_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (isFetchTimeoutOrAbort(error)) {
+      return { status: "in_progress" };
+    }
+    throw error;
+  }
 
   if (response.status === 404 || response.status === 202) {
     return {

@@ -31,7 +31,8 @@ export function streamWithAssistantPersistence(
   let buffer = "";
   let accumulatedText = "";
   let persisted = false;
-  const useResponsesApiId = Boolean(options?.responsesApiResponseIdRef);
+  const responsesApiRef = options?.responsesApiResponseIdRef;
+  const useResponsesApiId = responsesApiRef != null;
 
   function tryPersist(text: string): Promise<void> {
     if (persisted || !text.trim()) return Promise.resolve();
@@ -49,10 +50,9 @@ export function streamWithAssistantPersistence(
         if (!conv) return;
 
         let responsesApiResponseId: string | null = null;
-        if (useResponsesApiId) {
-          responsesApiResponseId =
-            options!.responsesApiResponseIdRef!.current ?? null;
-          if (!responsesApiResponseId && "metadata" in conv && conv.metadata) {
+        if (responsesApiRef) {
+          responsesApiResponseId = responsesApiRef.current ?? null;
+          if (!responsesApiResponseId && conv.metadata) {
             const meta = conv.metadata as Record<string, unknown>;
             const p = meta.pending_responses_api_response_id;
             if (typeof p === "string" && p.length > 0) {

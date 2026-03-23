@@ -227,6 +227,21 @@ describe("coworker-api.client", () => {
       ).rejects.toThrow("Responses API GET error");
     });
 
+    it("returns in_progress when fetch times out or aborts", async () => {
+      const timeoutErr = new Error("The operation was aborted due to timeout");
+      timeoutErr.name = "TimeoutError";
+      fetchMock.mockRejectedValueOnce(timeoutErr);
+
+      const result = await getResponseById("resp_123", {
+        responsesApiBaseUrl: DEFAULT_BASE_URL,
+        sokosumiUserId: "user_1",
+        sokosumiOrganizationId: null,
+        coworkerSlug: "ops-agent",
+      });
+
+      expect(result).toEqual({ status: "in_progress" });
+    });
+
     it("calls GET with correct URL and headers", async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,

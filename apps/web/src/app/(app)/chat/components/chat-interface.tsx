@@ -52,6 +52,13 @@ interface SlotPayload {
   model: { id: string; name: string } | null;
 }
 
+function readPreviousResponseIdFromMetadata(
+  metadata: Record<string, unknown> | null | undefined,
+): string | undefined {
+  const p = metadata?.previous_response_id;
+  return typeof p === "string" && p.trim().length > 0 ? p.trim() : undefined;
+}
+
 interface ChatInterfaceProps {
   mobileKeyboardOptimized?: boolean;
   showGreetingAndSuggestions?: boolean;
@@ -103,6 +110,12 @@ export default function ChatInterface({
     refreshConversations,
     isLoading: isConversationsLoading,
   } = useConversationsContext();
+
+  const conversationsForChatRequestRef = useRef(conversations);
+  conversationsForChatRequestRef.current = conversations;
+  const selectedConversationForChatRequestRef = useRef(selectedConversation);
+  selectedConversationForChatRequestRef.current = selectedConversation;
+  const resendPreviousResponseIdOverrideRef = useRef(new Map<string, string>());
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [input, setInput] = useState<string>("");
@@ -356,6 +369,30 @@ export default function ChatInterface({
           return next;
         });
         const payload = slotPayloadRef.current[slotIndex];
+        const cid = payload?.conversationId;
+        let previousResponseIdForBody: string | undefined;
+        if (typeof cid === "string" && cid.length > 0) {
+          const override = resendPreviousResponseIdOverrideRef.current.get(cid);
+          if (override) {
+            previousResponseIdForBody = override;
+            resendPreviousResponseIdOverrideRef.current.delete(cid);
+          } else {
+            const sel = selectedConversationForChatRequestRef.current;
+            if (sel?.id === cid) {
+              previousResponseIdForBody = readPreviousResponseIdFromMetadata(
+                sel.metadata as Record<string, unknown> | null,
+              );
+            }
+            if (!previousResponseIdForBody) {
+              const conv = conversationsForChatRequestRef.current.find(
+                (c) => c.id === cid,
+              );
+              previousResponseIdForBody = readPreviousResponseIdFromMetadata(
+                conv?.metadata as Record<string, unknown> | null,
+              );
+            }
+          }
+        }
         return {
           body: {
             messages: request.messages,
@@ -364,6 +401,9 @@ export default function ChatInterface({
               : {}),
             ...(payload?.model ? { model: payload.model.id } : {}),
             ...request.body,
+            ...(previousResponseIdForBody
+              ? { previousResponseId: previousResponseIdForBody }
+              : {}),
           },
         };
       },
@@ -1683,15 +1723,28 @@ export default function ChatInterface({
   );
 
   const handleResendLastMessage = useCallback(
-    (text: string) => {
+    async (text: string) => {
       if (!selectedChatId || !text.trim()) return;
       setRecoveryNotFoundForConversationId((prev) =>
         prev === selectedChatId ? null : prev,
       );
       clearPendingResponseFailed();
+      const list = await refreshConversations();
+      const conv = list?.find((c) => c.id === selectedChatId);
+      const pid = readPreviousResponseIdFromMetadata(
+        conv?.metadata as Record<string, unknown> | null,
+      );
+      if (pid) {
+        resendPreviousResponseIdOverrideRef.current.set(selectedChatId, pid);
+      }
       sendInConversation(selectedChatId, text.trim());
     },
-    [selectedChatId, sendInConversation, clearPendingResponseFailed],
+    [
+      selectedChatId,
+      sendInConversation,
+      clearPendingResponseFailed,
+      refreshConversations,
+    ],
   );
 
   const handleStop = () => {

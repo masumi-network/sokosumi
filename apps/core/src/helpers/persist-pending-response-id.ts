@@ -16,11 +16,6 @@ export interface PersistPendingResponseIdOptions {
   delaysMs?: number[];
 }
 
-/**
- * Persists pending Responses API response id (and coworker slug/id) to conversation
- * metadata with retries and exponential backoff. Skips write if already superseded
- * (completed or already written).
- */
 export async function persistPendingResponseId(
   params: PersistPendingResponseIdParams,
   options: PersistPendingResponseIdOptions = {},
@@ -88,10 +83,6 @@ export interface ClearPendingAndSetPreviousOptions {
   delaysMs?: number[];
 }
 
-/**
- * Clears pending_responses_api_response_id and sets previous_response_id on
- * conversation metadata, with retries. Used when a response completes.
- */
 export async function clearPendingAndSetPrevious(
   params: ClearPendingAndSetPreviousParams,
   options: ClearPendingAndSetPreviousOptions = {},

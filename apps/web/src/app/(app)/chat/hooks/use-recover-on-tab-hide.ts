@@ -21,7 +21,7 @@ interface UseRecoverOnTabHideParams {
     conversationId: string,
     messages: UIMessage[],
   ) => void;
-  refreshConversations: () => void | Promise<void>;
+  refreshConversations: () => void | Promise<unknown>;
 }
 
 /**
