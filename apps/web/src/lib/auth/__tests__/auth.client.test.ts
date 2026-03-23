@@ -4,9 +4,7 @@ export {};
 const createAuthClientMock = vi.fn();
 const adminClientMock = vi.fn(() => "admin-plugin");
 const apiKeyClientMock = vi.fn(() => "api-key-plugin");
-const inferAdditionalFieldsMock = vi.fn(
-  () => "infer-additional-fields-plugin",
-);
+const inferAdditionalFieldsMock = vi.fn(() => "infer-additional-fields-plugin");
 const inferOrgAdditionalFieldsMock = vi.fn(
   () => "infer-org-additional-fields-plugin",
 );
@@ -48,13 +46,10 @@ vi.mock("@better-auth/stripe/client", () => ({
   stripeClient: stripeClientMock,
 }));
 
-vi.mock(
-  "@better-auth/infra/client",
-  () => ({
-    dashClient: dashClientMock,
-    sentinelClient: sentinelClientMock,
-  }),
-);
+vi.mock("@better-auth/infra/client", () => ({
+  dashClient: dashClientMock,
+  sentinelClient: sentinelClientMock,
+}));
 
 vi.mock("@/lib/auth/auth", () => ({
   auth: {},

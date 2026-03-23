@@ -38,11 +38,9 @@ function mockMatchMedia(initialMatches: boolean) {
     addListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => {
       listeners.add(listener);
     }),
-    removeListener: vi.fn(
-      (listener: (event: MediaQueryListEvent) => void) => {
-        listeners.delete(listener);
-      },
-    ),
+    removeListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => {
+      listeners.delete(listener);
+    }),
     dispatchEvent: vi.fn(),
   };
 

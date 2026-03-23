@@ -170,13 +170,15 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
     });
     assert.deepEqual(resultSubmittedClause.externalDisputeUnlockTime, {
       not: null,
-      lt: (resultSubmittedClause.externalDisputeUnlockTime as {
-        lt: Date;
-      }).lt,
+      lt: (
+        resultSubmittedClause.externalDisputeUnlockTime as {
+          lt: Date;
+        }
+      ).lt,
     });
     assert.ok(
-      (resultSubmittedClause.externalDisputeUnlockTime as { lt: Date }).lt
-        instanceof Date,
+      (resultSubmittedClause.externalDisputeUnlockTime as { lt: Date })
+        .lt instanceof Date,
     );
   });
 });
