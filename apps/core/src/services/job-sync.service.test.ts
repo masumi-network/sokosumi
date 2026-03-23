@@ -1,4 +1,9 @@
-import { AgentJobStatus, JobType, SokosumiJobStatus } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  AgentStatus,
+  JobType,
+  SokosumiJobStatus,
+} from "@sokosumi/database";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -750,6 +755,43 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
     expect(createJobEventForJobIdMock).toHaveBeenCalled();
+  });
+
+  it("does not sync agent status for jobs whose agent is not ONLINE", async () => {
+    const offlineAgentJob = createJob({
+      agent: {
+        id: "agent_1",
+        name: "Planner",
+        blockchainIdentifier: "agent-chain-1",
+        authorContactEmail: null,
+        status: AgentStatus.OFFLINE,
+      },
+    });
+
+    mockInitialJobQueries({
+      purchase: [offlineAgentJob],
+      pendingLocalRefunds: [],
+    });
+    getPurchaseByIdMock.mockReturnValue(err("not found"));
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        processed: 1,
+        unfinishedFound: 1,
+      }),
+    );
+    expect(getPurchaseByIdMock).toHaveBeenCalledWith(
+      "purchase_1",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
+    expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
   });
 
   it("creates new job events, enqueues source imports, and sends final notifications", async () => {

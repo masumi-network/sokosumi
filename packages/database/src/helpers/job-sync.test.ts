@@ -4,6 +4,7 @@ import { describe, it } from "vitest";
 
 import {
   AgentJobStatus,
+  AgentStatus,
   JobType,
   OnChainJobStatus,
   type Prisma,
@@ -184,23 +185,22 @@ describe("buildJobsNeedingAgentStatusSyncWhere", () => {
   it("keeps free and paid jobs with unfinished agent work in the agent sync set", () => {
     const where = buildJobsNeedingAgentStatusSyncWhere();
 
-    assert.deepEqual(where.OR, [
-      {
-        jobType: {
-          in: [JobType.FREE, JobType.PAID],
-        },
-        events: {
-          none: {
-            status: {
-              in: [AgentJobStatus.COMPLETED, AgentJobStatus.FAILED],
-            },
-          },
+    assert.deepEqual(where.agent, {
+      status: AgentStatus.ONLINE,
+    });
+    assert.deepEqual(where.jobType, {
+      in: [JobType.FREE, JobType.PAID],
+    });
+    assert.deepEqual(where.events, {
+      none: {
+        status: {
+          in: [AgentJobStatus.COMPLETED, AgentJobStatus.FAILED],
         },
       },
-    ]);
+    });
   });
 
-  it("moves disputed, refund, refunded paid jobs, and demo jobs out of the agent sync set", () => {
+  it("moves disputed, refund, and refunded paid jobs out of the agent sync set", () => {
     const where = buildJobsNeedingAgentStatusSyncWhere();
     const notClauses = where.NOT as Prisma.JobWhereInput[];
 
@@ -223,9 +223,6 @@ describe("buildJobsNeedingAgentStatusSyncWhere", () => {
         refundedTransactionId: {
           not: null,
         },
-      },
-      {
-        jobType: JobType.DEMO,
       },
     ]);
   });

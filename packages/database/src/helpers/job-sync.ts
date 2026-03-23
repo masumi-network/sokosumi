@@ -1,5 +1,6 @@
 import {
   AgentJobStatus,
+  AgentStatus,
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
@@ -55,20 +56,20 @@ export function buildJobsNeedingPurchaseSyncWhere(
 
 export function buildJobsNeedingAgentStatusSyncWhere(): Prisma.JobWhereInput {
   return {
-    OR: [
-      {
-        jobType: {
-          in: [JobType.FREE, JobType.PAID],
-        },
-        events: {
-          none: {
-            status: {
-              in: [AgentJobStatus.COMPLETED, AgentJobStatus.FAILED],
-            },
-          },
+    agent: {
+      status: AgentStatus.ONLINE,
+    },
+    jobType: {
+      in: [JobType.FREE, JobType.PAID],
+    },
+    events: {
+      none: {
+        status: {
+          in: [AgentJobStatus.COMPLETED, AgentJobStatus.FAILED],
         },
       },
-    ],
+    },
+
     NOT: [
       {
         jobType: JobType.PAID,
@@ -88,9 +89,6 @@ export function buildJobsNeedingAgentStatusSyncWhere(): Prisma.JobWhereInput {
         refundedTransactionId: {
           not: null,
         },
-      },
-      {
-        jobType: JobType.DEMO,
       },
     ],
   };
