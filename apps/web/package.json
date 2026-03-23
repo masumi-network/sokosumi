@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@ai-sdk/react": "3.0.136",
-    "@better-auth/api-key": "1.5.5",
+    "@better-auth/api-key": "1.5.6",
     "@better-auth/i18n": "1.5.5",
     "@better-auth/infra": "0.1.12",
     "@better-auth/oauth-provider": "1.5.5",
