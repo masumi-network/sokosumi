@@ -26,7 +26,7 @@
     "generate:api": "pnpm run generate:payment && pnpm run generate:core"
   },
   "dependencies": {
-    "@ai-sdk/react": "3.0.118",
+    "@ai-sdk/react": "3.0.136",
     "@better-auth/api-key": "1.5.5",
     "@better-auth/i18n": "1.5.5",
     "@better-auth/infra": "0.1.12",
