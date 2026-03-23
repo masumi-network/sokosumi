@@ -1,4 +1,12 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -64,9 +72,9 @@ vi.mock("@/lib/gtm-events", () => ({
 }));
 
 vi.mock("@/lib/utils/auth-redirect", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/utils/auth-redirect")>(
-    "@/lib/utils/auth-redirect",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/utils/auth-redirect")
+  >("@/lib/utils/auth-redirect");
   return {
     ...actual,
     waitForAuthSession: (...args: unknown[]) => mockWaitForAuthSession(...args),

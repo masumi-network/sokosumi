@@ -68,9 +68,9 @@ describe("VerifyEmailButton", () => {
   });
 
   it("shows a fallback error toast when sending verification email throws", async () => {
-    vi
-      .mocked(authClient.sendVerificationEmail)
-      .mockRejectedValueOnce(new Error("network-error"));
+    vi.mocked(authClient.sendVerificationEmail).mockRejectedValueOnce(
+      new Error("network-error"),
+    );
 
     const user = userEvent.setup();
     render(<VerifyEmailButton email="user@example.com" label="Verify email" />);

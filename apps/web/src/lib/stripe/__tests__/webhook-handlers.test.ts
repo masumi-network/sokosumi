@@ -651,9 +651,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("logs seat-credit cap when billed organization seats exceed active members", async () => {
-    const consoleLogSpy = vi
-      .spyOn(console, "log")
-      .mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },

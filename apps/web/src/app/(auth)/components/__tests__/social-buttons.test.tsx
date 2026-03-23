@@ -100,9 +100,9 @@ vi.mock("@/lib/actions/auth", () => ({
 }));
 
 vi.mock("@/lib/utils/auth-redirect", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/utils/auth-redirect")>(
-    "@/lib/utils/auth-redirect",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/utils/auth-redirect")
+  >("@/lib/utils/auth-redirect");
 
   return {
     ...actual,
