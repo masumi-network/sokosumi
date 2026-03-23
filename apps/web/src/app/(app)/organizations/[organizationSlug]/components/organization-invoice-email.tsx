@@ -6,6 +6,7 @@ import {
   MemberRole,
   OrganizationWithRelations,
 } from "@sokosumi/database";
+import { getOrganizationMetadata } from "@sokosumi/utils";
 import { Loader2, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -60,19 +61,20 @@ export default function OrganizationInvoiceEmail({
 
   const { role } = member;
   const isOwnerOrAdmin = role === MemberRole.OWNER || role === MemberRole.ADMIN;
+  const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
 
   const form = useForm<InvoiceEmailFormData>({
     resolver: zodResolver(invoiceEmailFormSchema),
     defaultValues: {
-      invoiceEmail: organization.invoiceEmail ?? "",
+      invoiceEmail: invoiceEmail ?? "",
     },
   });
 
   useEffect(() => {
     form.reset({
-      invoiceEmail: organization.invoiceEmail ?? "",
+      invoiceEmail: invoiceEmail ?? "",
     });
-  }, [organization.invoiceEmail, form]);
+  }, [invoiceEmail, form]);
 
   const onSubmit = async (data: InvoiceEmailFormData) => {
     const result = await updateOrganizationInvoiceEmail({
@@ -110,7 +112,7 @@ export default function OrganizationInvoiceEmail({
 
   const handleCancel = () => {
     form.reset({
-      invoiceEmail: organization.invoiceEmail ?? "",
+      invoiceEmail: invoiceEmail ?? "",
     });
     setIsEditing(false);
   };

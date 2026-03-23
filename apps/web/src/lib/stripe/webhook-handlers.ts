@@ -23,6 +23,7 @@ import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
+import { getOrganizationMetadata } from "@sokosumi/utils";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -989,15 +990,17 @@ export async function handleCustomerUpdatedEvent(
       return;
     }
 
+    const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
+
     // Only update if the email has actually changed
-    if (organization.invoiceEmail !== customerEmail) {
+    if (invoiceEmail !== customerEmail) {
       await organizationRepository.updateOrganizationInvoiceEmail(
         organizationId,
         customerEmail,
         prisma,
       );
       console.log(
-        `✅ Updated organization ${organizationId} invoice email from ${organization.invoiceEmail} to ${customerEmail}`,
+        `✅ Updated organization ${organizationId} invoice email from ${invoiceEmail} to ${customerEmail}`,
       );
     }
   } else if (metadata?.type === "user" && metadata?.userId) {

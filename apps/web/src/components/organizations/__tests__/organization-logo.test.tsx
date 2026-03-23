@@ -27,7 +27,7 @@ function createOrganization(overrides: Partial<Organization>): Organization {
   return {
     name: "Acme",
     logo: null,
-    url: null,
+    metadata: null,
     ...overrides,
   } as unknown as Organization;
 }
@@ -46,7 +46,7 @@ describe("OrganizationLogo", () => {
       <OrganizationLogo
         organization={createOrganization({
           logo: "ipfs://acme-logo",
-          url: "https://acme.example",
+          metadata: JSON.stringify({ url: "https://acme.example" }),
         })}
       />,
     );
@@ -59,7 +59,7 @@ describe("OrganizationLogo", () => {
     const { container } = render(
       <OrganizationLogo
         organization={createOrganization({
-          url: "https://acme.example",
+          metadata: JSON.stringify({ url: "https://acme.example" }),
         })}
       />,
     );

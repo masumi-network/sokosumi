@@ -9,8 +9,16 @@ export const organizationInformationFormSchema = (
       .min(1, t?.("Name.required"))
       .min(2, t?.("Name.min"))
       .max(50, t?.("Name.max")),
-    url: z.union([z.literal(""), z.url({ error: t?.("Url.invalid") })]),
-    logo: z.string(),
+    logo: z.string().nullable(),
+    url: z.string().nullable().optional(),
+    metadata: z
+      .object({
+        url: z.string().nullable().optional(),
+        invoiceEmail: z.string().nullable().optional(),
+      })
+      .catchall(z.unknown())
+      .nullable()
+      .optional(),
   });
 
 export type OrganizationInformationFormSchemaType = z.infer<

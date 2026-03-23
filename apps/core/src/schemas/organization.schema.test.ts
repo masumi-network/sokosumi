@@ -10,11 +10,19 @@ describe("organizationWithRoleSchema", () => {
       name: "My Organization",
       slug: "my-org",
       logo: "https://example.com/logo.png",
+      metadata: {
+        url: "https://example.com",
+        invoiceEmail: "test@example.com",
+      },
       role: "member",
     });
 
     expect(result.role).toBe("member");
     expect(result.logo).toBe("https://example.com/logo.png");
+    expect(result.metadata).toEqual({
+      url: "https://example.com",
+      invoiceEmail: "test@example.com",
+    });
   });
 
   it("strips legacy credits field when provided", () => {
@@ -24,6 +32,7 @@ describe("organizationWithRoleSchema", () => {
       name: "My Organization",
       slug: "my-org",
       logo: null,
+      metadata: null,
       role: "member",
       credits: 100,
     });
@@ -38,6 +47,7 @@ describe("organizationWithRoleSchema", () => {
       name: "My Organization",
       slug: "my-org",
       logo: null,
+      metadata: null,
       role: "member",
       subscription: {
         plan: "starter",
@@ -52,16 +62,17 @@ describe("organizationWithRoleSchema", () => {
     expect(result).not.toHaveProperty("subscription");
   });
 
-  it("rejects empty-string logo (invalid http URL)", () => {
-    expect(() =>
-      organizationWithRoleSchema.parse({
-        id: "org_123",
-        createdAt: "2025-01-01T00:00:00.000Z",
-        name: "My Organization",
-        slug: "my-org",
-        logo: "",
-        role: "member",
-      }),
-    ).toThrow();
+  it("accepts empty-string logo", () => {
+    const result = organizationWithRoleSchema.parse({
+      id: "org_123",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      name: "My Organization",
+      slug: "my-org",
+      logo: "",
+      metadata: null,
+      role: "member",
+    });
+
+    expect(result.logo).toBe("");
   });
 });

@@ -608,6 +608,9 @@ importers:
       '@sokosumi/masumi':
         specifier: workspace:*
         version: link:../masumi
+      '@sokosumi/utils':
+        specifier: workspace:*
+        version: link:../utils
       decimal.js:
         specifier: 10.6.0
         version: 10.6.0

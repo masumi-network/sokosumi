@@ -1,5 +1,5 @@
 import { Organization } from "@sokosumi/database";
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { getOrganizationMetadata, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { Building2 } from "lucide-react";
 import Image from "next/image";
 
@@ -15,7 +15,8 @@ export function OrganizationLogo({
   organization,
   size = 24,
 }: OrganizationLogoProps) {
-  const { name, logo, url } = organization;
+  const { name, logo } = organization;
+  const { url } = getOrganizationMetadata(organization.metadata);
 
   if (logo) {
     return (
