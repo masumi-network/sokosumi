@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildOrganizationInvoiceCreditReferenceId,
   buildOrganizationMemberSubscriptionReferenceId,
@@ -7,25 +8,25 @@ import {
   getCreditExpiryDate,
 } from "@sokosumi/database/helpers";
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
-const getUserByStripeCustomerIdMock = jest.fn();
-const getOrganizationByStripeCustomerIdMock = jest.fn();
-const getMembersByOrganizationIdMock = jest.fn();
-const getSubscriptionCatalogMock = jest.fn();
-const findExistingBucketMock = jest.fn();
-const findExistingOrganizationInvoiceSubscriptionBucketMock = jest.fn();
-const aggregateGrantedCreditsMock = jest.fn();
-const createTransactionMock = jest.fn();
-const findOutOfCreditsTasksMock = jest.fn();
-const updateTaskMock = jest.fn();
-const ensurePersonalFreeSubscriptionMock = jest.fn();
-const ensureOrganizationFreeSubscriptionMock = jest.fn();
-const claimWelcomeCouponMock = jest.fn();
-const prismaOrganizationUpdateMock = jest.fn();
-const prismaUserUpdateMock = jest.fn();
+const getUserByStripeCustomerIdMock = vi.fn();
+const getOrganizationByStripeCustomerIdMock = vi.fn();
+const getMembersByOrganizationIdMock = vi.fn();
+const getSubscriptionCatalogMock = vi.fn();
+const findExistingBucketMock = vi.fn();
+const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
+const aggregateGrantedCreditsMock = vi.fn();
+const createTransactionMock = vi.fn();
+const findOutOfCreditsTasksMock = vi.fn();
+const updateTaskMock = vi.fn();
+const ensurePersonalFreeSubscriptionMock = vi.fn();
+const ensureOrganizationFreeSubscriptionMock = vi.fn();
+const claimWelcomeCouponMock = vi.fn();
+const prismaOrganizationUpdateMock = vi.fn();
+const prismaUserUpdateMock = vi.fn();
 
-const transactionMock = jest.fn(async (callback: (tx: unknown) => unknown) =>
+const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
     creditBucket: {
       findUnique: (...args: unknown[]) => findExistingBucketMock(...args),
@@ -40,7 +41,7 @@ const transactionMock = jest.fn(async (callback: (tx: unknown) => unknown) =>
   }),
 );
 
-jest.mock("@/config/env.secrets", () => ({
+vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
     STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID: "prod_free",
@@ -51,7 +52,7 @@ jest.mock("@/config/env.secrets", () => ({
   }),
 }));
 
-jest.mock("@sokosumi/database/repositories", () => ({
+vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getMembersByOrganizationId: (...args: unknown[]) =>
       getMembersByOrganizationIdMock(...args),
@@ -59,8 +60,8 @@ jest.mock("@sokosumi/database/repositories", () => ({
   organizationRepository: {
     getOrganizationByStripeCustomerId: (...args: unknown[]) =>
       getOrganizationByStripeCustomerIdMock(...args),
-    getOrganizationWithRelationsById: jest.fn(),
-    updateOrganizationInvoiceEmail: jest.fn(),
+    getOrganizationWithRelationsById: vi.fn(),
+    updateOrganizationInvoiceEmail: vi.fn(),
   },
   userRepository: {
     getUserByStripeCustomerId: (...args: unknown[]) =>
@@ -68,7 +69,7 @@ jest.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-jest.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
     $transaction: (callback: (tx: unknown) => unknown) =>
@@ -87,7 +88,7 @@ jest.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-jest.mock("@/lib/services", () => ({
+vi.mock("@/lib/services", () => ({
   stripeService: {
     ensurePersonalFreeSubscription: (...args: unknown[]) =>
       ensurePersonalFreeSubscriptionMock(...args),
@@ -97,7 +98,7 @@ jest.mock("@/lib/services", () => ({
   },
 }));
 
-jest.mock("@/lib/stripe/subscription-catalog", () => ({
+vi.mock("@/lib/stripe/subscription-catalog", () => ({
   getSubscriptionCatalog: (...args: unknown[]) =>
     getSubscriptionCatalogMock(...args),
 }));
@@ -238,7 +239,7 @@ function createInvoice(params: {
 
 describe("handleInvoicePaidEvent", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     getUserByStripeCustomerIdMock.mockResolvedValue({
       id: "user-1",
     });
@@ -650,7 +651,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("logs seat-credit cap when billed organization seats exceed active members", async () => {
-    const consoleLogSpy = jest
+    const consoleLogSpy = vi
       .spyOn(console, "log")
       .mockImplementation(() => {});
 
@@ -1326,7 +1327,7 @@ describe("handleInvoicePaidEvent", () => {
 
 describe("handleCustomerCreatedEvent", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     ensurePersonalFreeSubscriptionMock.mockResolvedValue({
       status: "skipped",
       reason: "ALREADY_HAS_SUBSCRIPTION",

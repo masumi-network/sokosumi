@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { shouldShowTasksEmptyStateOverlay } from "@/app/tasks/components/tasks-empty-state";
 
 describe("shouldShowTasksEmptyStateOverlay", () => {

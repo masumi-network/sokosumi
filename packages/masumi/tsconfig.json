@@ -15,7 +15,7 @@
     "rootDir": "./src",
     "incremental": false,
     "preserveSymlinks": true,
-    "types": ["node", "jest"]
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts"]

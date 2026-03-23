@@ -12,8 +12,9 @@ const { signInMagicLinkMock, userFindUniqueMock } = vi.hoisted(() => ({
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     BETTER_AUTH_URL: "https://auth.example.com",
-    BETTER_AUTH_TRUSTED_ORIGIN: "https://app.example.com",
+    WEB_APP_BASE_URL: "https://app.example.com",
   }),
+  getBetterAuthPublicBaseUrl: () => "https://auth.example.com",
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
 

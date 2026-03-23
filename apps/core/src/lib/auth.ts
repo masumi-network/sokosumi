@@ -11,14 +11,20 @@ import {
   admin,
   jwt,
   magicLink,
+  oAuthProxy,
   openAPI,
   organization,
 } from "better-auth/plugins";
 
 import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
+import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
 import { LIMITS, TIME } from "@/config/constants";
-import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import {
+  getBetterAuthPublicBaseUrl,
+  getEnv,
+  getWebAppBaseUrl,
+} from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 const env = getEnv();
@@ -83,12 +89,18 @@ export const auth = betterAuth({
     },
   },
   secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.BETTER_AUTH_URL,
+  baseURL: getBetterAuthPublicBaseUrl(),
   basePath: "/auth",
   rateLimit: {
     storage: "database",
   },
-  trustedOrigins: [webAppBaseUrl],
+  trustedOrigins: [
+    "https://sokosumi.com",
+    "https://*.sokosumi.com",
+    ...(env.NODE_ENV === "development"
+      ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
+      : []),
+  ],
   user: {
     emailAndPassword: {
       enabled: true,
@@ -209,6 +221,9 @@ export const auth = betterAuth({
       silenceWarnings: {
         oauthAuthServerConfig: true,
       },
+    }),
+    oAuthProxy({
+      productionURL: getBetterAuthProductionUrl(),
     }),
   ],
 });

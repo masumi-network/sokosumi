@@ -43,11 +43,7 @@ updates:
       better-auth:
         patterns:
           - "better-auth"
-          - "better-auth-harmony"
-          - "better-auth-localization"
-          - "@better-auth/utils"
-          - "@better-auth/oauth-provider"
-          - "@better-auth/stripe"
+          - "@better-auth/*"
       hey-api:
         patterns:
           - "@hey-api/*"

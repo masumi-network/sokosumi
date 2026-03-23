@@ -1,4 +1,10 @@
 export {
+  resolveBetterAuthProductionUrl,
+  type ResolveBetterAuthProductionUrlParams,
+  resolveBetterAuthPublicBaseUrl,
+  type ResolveBetterAuthPublicBaseUrlParams,
+} from "./better-auth-public-url.js";
+export {
   FILE_EXTENSION_ALLOWLIST,
   getExtensionFromUrl,
   getUrlBasename,
@@ -9,6 +15,11 @@ export {
   isUrlString,
   sanitizeFileName,
 } from "./file-url.js";
+export {
+  IPFS_GATEWAY_PREFIX,
+  normalizeOrganizationLogo,
+  resolveIpfsOrHttpUrl,
+} from "./ipfs-url.js";
 export {
   createMarkdownLinkRegex,
   escapeMarkdownLinkUrl,

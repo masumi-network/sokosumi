@@ -5,6 +5,7 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
@@ -12,21 +13,20 @@ import { type RatingMetrics } from "@/schemas/agent.schema";
 import type { AgentWithPricing } from "@/types/agent";
 
 import { internalServerError, unprocessableEntity } from "./error";
-import { ipfsUrlResolver } from "./ipfs";
 
 export const getAgentImage = (agent: Agent): string | null => {
   const image = agent.overrideImage ?? agent.image;
   if (!image) {
     return null;
   }
-  return ipfsUrlResolver(image);
+  return resolveIpfsOrHttpUrl(image);
 };
 
 export const getAgentIcon = (agent: Agent): string | null => {
   if (!agent.icon) {
     return null;
   }
-  return ipfsUrlResolver(agent.icon);
+  return resolveIpfsOrHttpUrl(agent.icon);
 };
 
 export const getAgentName = (agent: Agent): string => {
@@ -42,7 +42,7 @@ export const getAgentAuthorImage = (agent: Agent): string | null => {
   if (!image) {
     return null;
   }
-  return ipfsUrlResolver(image);
+  return resolveIpfsOrHttpUrl(image);
 };
 
 /**

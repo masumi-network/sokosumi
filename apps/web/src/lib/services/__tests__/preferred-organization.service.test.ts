@@ -1,12 +1,13 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
-const getMemberByUserIdAndOrganizationIdMock = jest.fn();
-const getUserByIdMock = jest.fn();
-const updatePreferredOrganizationIdMock = jest.fn();
+const getMemberByUserIdAndOrganizationIdMock = vi.fn();
+const getUserByIdMock = vi.fn();
+const updatePreferredOrganizationIdMock = vi.fn();
 
-jest.mock("@sokosumi/database/repositories", () => ({
+vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberByUserIdAndOrganizationIdMock(...args),
@@ -22,14 +23,14 @@ const mockPrisma = {} as {
   $transaction: (callback: (tx: unknown) => unknown) => Promise<unknown>;
 };
 mockPrisma.$transaction = (callback) => Promise.resolve(callback(mockPrisma));
-jest.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: mockPrisma,
 }));
 
 describe("preferredOrganizationService", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("resolves the preferred organization for a new session when membership is still valid", async () => {

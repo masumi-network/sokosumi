@@ -1,11 +1,25 @@
 import * as Sentry from "@sentry/node";
-import { AgentJobStatus, JobType, SokosumiJobStatus } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  JobType,
+  Prisma,
+  SokosumiJobStatus,
+} from "@sokosumi/database";
+import {
+  buildJobsNeedingAgentStatusSyncWhere,
+  buildJobsNeedingPurchaseSyncWhere,
+  buildJobsPendingLocalRefundWhere,
+  mapJobWithStatus,
+} from "@sokosumi/database/helpers";
 import {
   jobEventRepository,
   jobPurchaseRepository,
   jobRepository,
 } from "@sokosumi/database/repositories";
-import type { JobWithSokosumiStatus } from "@sokosumi/database/types/job";
+import {
+  jobInclude,
+  type JobWithSokosumiStatus,
+} from "@sokosumi/database/types/job";
 import {
   type JobFailureNotificationEmailProps,
   renderJobFailureNotificationEmail,
@@ -13,7 +27,6 @@ import {
   renderJobInputRequiredEmail,
 } from "@sokosumi/email";
 import { createAgentClient } from "@sokosumi/masumi";
-import { err } from "neverthrow";
 import pLimit from "p-limit";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
@@ -23,11 +36,16 @@ import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { refundJob } from "@/services/job-refund";
 import { sourceImportService } from "@/services/source-import.service";
 
 const JOB_SYNC_CONCURRENCY = 5;
 const JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS = 250;
 const JOB_SYNC_REMOTE_TIMEOUT_MS = 10_000;
+const JOB_SYNC_TRANSACTION_OPTIONS = {
+  maxWait: 5000,
+  timeout: 20_000,
+} as const;
 
 type JobStatusValue =
   | "awaiting_payment"
@@ -35,6 +53,18 @@ type JobStatusValue =
   | "running"
   | "completed"
   | "failed";
+type JobSyncKind = "purchase" | "agent" | "refund";
+
+interface JobSyncPhaseResult {
+  found: number;
+  processed: number;
+}
+
+interface JobSyncTransactionResult {
+  extractionContext?: { eventId: string; result: string; userId: string };
+  job: JobWithSokosumiStatus;
+  jobStatus: SokosumiJobStatus;
+}
 
 export interface JobSyncExecutionOptions {
   abortSignal: AbortSignal;
@@ -52,22 +82,56 @@ function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
 }
 
+function getJobSyncLogPrefix(kind: JobSyncKind): string {
+  switch (kind) {
+    case "purchase":
+      return "[sync/jobs/purchase]";
+    case "agent":
+      return "[sync/jobs/agent]";
+    case "refund":
+      return "[sync/jobs/refund]";
+  }
+}
+
+function logJobSyncInfo(kind: JobSyncKind, message: string): void {
+  console.info(`${getJobSyncLogPrefix(kind)} ${message}`);
+}
+
+function logJobSyncError(
+  kind: JobSyncKind,
+  jobId: string,
+  error: unknown,
+): void {
+  const message = (() => {
+    switch (kind) {
+      case "purchase":
+        return `Failed to sync purchase state for job ${jobId}`;
+      case "agent":
+        return `Failed to sync agent status for job ${jobId}`;
+      case "refund":
+        return `Failed to reconcile refund for job ${jobId}`;
+    }
+  })();
+  console.error(`${getJobSyncLogPrefix(kind)} ${message}`, error);
+}
+
 function shouldStopSync(
   options: JobSyncExecutionOptions,
   reason: string,
+  kind: JobSyncKind,
 ): boolean {
   if (!options.shouldContinue()) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return true;
   }
 
   if (options.abortSignal.aborted) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return true;
   }
 
   if (!hasTimeRemaining(options.deadlineMs)) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return true;
   }
 
@@ -77,15 +141,16 @@ function shouldStopSync(
 function createPollingSignal(
   options: JobSyncExecutionOptions,
   reason: string,
+  kind: JobSyncKind,
 ): AbortSignal | null {
-  if (shouldStopSync(options, reason)) {
+  if (shouldStopSync(options, reason, kind)) {
     return null;
   }
 
   const remainingBudgetMs =
     options.deadlineMs - Date.now() - JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS;
   if (remainingBudgetMs <= 0) {
-    console.info(`[sync/jobs] ${reason}`);
+    logJobSyncInfo(kind, reason);
     return null;
   }
 
@@ -118,35 +183,6 @@ function jobStatusToAgentJobStatus(jobStatus: JobStatusValue): AgentJobStatus {
 
 function buildJobLink(job: JobWithSokosumiStatus): string {
   return `${getWebAppBaseUrl()}/agents/${job.agentId}/jobs/${job.id}`;
-}
-
-function shouldSyncAgentStatus(job: JobWithSokosumiStatus): string | null {
-  if (job.jobType === JobType.DEMO) {
-    return null;
-  }
-  if (job.refundedTransactionId) {
-    return null;
-  }
-  const completedEvent = job.events.find(
-    (event) => event.status === AgentJobStatus.COMPLETED,
-  );
-  if (completedEvent) {
-    return null;
-  }
-  return job.agentJobId;
-}
-
-function shouldSyncMasumiStatus(job: JobWithSokosumiStatus): string | null {
-  if (job.jobType === JobType.FREE || job.jobType === JobType.DEMO) {
-    return null;
-  }
-  if (job.refundedTransactionId) {
-    return null;
-  }
-  if (job.purchase === null) {
-    return null;
-  }
-  return job.purchase.externalId;
 }
 
 function buildFailureNotificationData(
@@ -349,185 +385,10 @@ async function dispatchJobFailureNotification(
   }
 }
 
-async function syncSingleJob(
-  initialJob: JobWithSokosumiStatus,
-  options: JobSyncExecutionOptions,
-): Promise<boolean> {
-  const oldJobStatus = initialJob.status;
-  let job = initialJob;
-
-  if (job.jobType === JobType.PAID && job.purchase === null) {
-    const backfillSignal = createPollingSignal(
-      options,
-      `Stopping before backfilling purchase for job ${job.id}`,
-    );
-    if (!backfillSignal) {
-      return false;
-    }
-
-    const purchaseResult =
-      await paymentClient().getPurchaseByBlockchainIdentifier(
-        job.blockchainIdentifier,
-        {
-          signal: backfillSignal,
-        },
-      );
-    if (
-      backfillSignal.aborted ||
-      shouldStopSync(
-        options,
-        `Stopping after backfilling purchase for job ${job.id}`,
-      )
-    ) {
-      return false;
-    }
-
-    if (purchaseResult.isOk()) {
-      const purchaseData = transformPurchaseToJobUpdate(purchaseResult.value);
-      await jobPurchaseRepository.createJobPurchase(
-        {
-          jobId: job.id,
-          ...purchaseData,
-        },
-        prisma,
-      );
-    }
-
-    const refreshedJob = await jobRepository.getJobById(job.id, prisma);
-    if (!refreshedJob) {
-      throw new Error("Job not found");
-    }
-    job = refreshedJob;
-  }
-
-  const agentJobIdToSync = shouldSyncAgentStatus(job);
-  const purchaseIdToSync = shouldSyncMasumiStatus(job);
-  const pollingSignal = createPollingSignal(
-    options,
-    `Stopping before polling remote status for job ${job.id}`,
-  );
-  if (!pollingSignal) {
-    return false;
-  }
-
-  const [agentJobStatusResult, onChainPurchaseResult] = await Promise.all([
-    agentJobIdToSync
-      ? createAgentClient().fetchAgentJobStatus(job.agent, agentJobIdToSync, {
-          signal: pollingSignal,
-        })
-      : Promise.resolve(err("No agent job ID to sync")),
-    purchaseIdToSync
-      ? paymentClient().getPurchaseById(purchaseIdToSync, {
-          signal: pollingSignal,
-        })
-      : Promise.resolve(err("No purchase ID to sync")),
-  ]);
-  if (
-    pollingSignal.aborted ||
-    shouldStopSync(
-      options,
-      `Stopping after polling remote status for job ${job.id}`,
-    )
-  ) {
-    return false;
-  }
-
-  const transactionResult = await prisma.$transaction(
-    async (
-      tx,
-    ): Promise<{
-      extractionContext?: { eventId: string; result: string; userId: string };
-      job: JobWithSokosumiStatus;
-      jobStatus: SokosumiJobStatus;
-    }> => {
-      let extractionContext:
-        | { eventId: string; result: string; userId: string }
-        | undefined;
-      let currentJob = job;
-
-      if (onChainPurchaseResult.isOk()) {
-        const purchaseData = transformPurchaseToJobUpdate(
-          onChainPurchaseResult.value,
-        );
-        await jobPurchaseRepository.updateJobPurchaseByJobId(
-          currentJob.id,
-          purchaseData,
-          tx,
-        );
-
-        const refreshedJob = await jobRepository.getJobById(currentJob.id, tx);
-        if (!refreshedJob) {
-          throw new Error("Job not found");
-        }
-        currentJob = refreshedJob;
-      }
-
-      if (agentJobStatusResult.isOk()) {
-        const latestJobEvent =
-          await jobEventRepository.getLatestJobEventByJobId(currentJob.id, tx);
-
-        const hasUnchangedStatusHash =
-          latestJobEvent?.statusHash &&
-          latestJobEvent.statusHash === agentJobStatusResult.value.statusHash;
-
-        if (!hasUnchangedStatusHash) {
-          const inputSchemaData = agentJobStatusResult.value.input_schema;
-          const inputSchemaValue = inputSchemaData
-            ? JSON.stringify(inputSchemaData)
-            : undefined;
-
-          const newJobEvent = await jobEventRepository.createJobEventForJobId(
-            currentJob.id,
-            {
-              status: jobStatusToAgentJobStatus(
-                agentJobStatusResult.value.status as JobStatusValue,
-              ),
-              inputSchema: inputSchemaValue,
-              result: agentJobStatusResult.value.result,
-              statusHash: agentJobStatusResult.value.statusHash,
-            },
-            tx,
-          );
-
-          const refreshedJob = await jobRepository.getJobById(
-            currentJob.id,
-            tx,
-          );
-          if (!refreshedJob) {
-            throw new Error("Job not found");
-          }
-          currentJob = refreshedJob;
-
-          const outputResult = agentJobStatusResult.value.result;
-          if (typeof outputResult === "string") {
-            extractionContext = {
-              eventId: newJobEvent.id,
-              result: outputResult,
-              userId: currentJob.userId,
-            };
-          }
-        }
-      }
-
-      if (
-        currentJob.status === SokosumiJobStatus.PAYMENT_FAILED ||
-        currentJob.status === SokosumiJobStatus.REFUND_RESOLVED
-      ) {
-        await jobRepository.refundJob(currentJob.id, tx);
-      }
-
-      return {
-        job: currentJob,
-        jobStatus: currentJob.status,
-        extractionContext,
-      };
-    },
-    {
-      maxWait: 5000,
-      timeout: 20_000,
-    },
-  );
-
+async function finalizeJobSyncResult(
+  oldJobStatus: SokosumiJobStatus,
+  transactionResult: JobSyncTransactionResult,
+): Promise<void> {
   const updatedJob = transactionResult.job;
 
   if (transactionResult.extractionContext) {
@@ -545,7 +406,7 @@ async function syncSingleJob(
 
   const newJobStatus = transactionResult.jobStatus;
   if (newJobStatus === oldJobStatus) {
-    return true;
+    return;
   }
 
   switch (newJobStatus) {
@@ -576,8 +437,321 @@ async function syncSingleJob(
   } catch (error) {
     console.error("Error publishing job status data", error);
   }
+}
+
+async function syncPurchaseState(
+  initialJob: JobWithSokosumiStatus,
+  options: JobSyncExecutionOptions,
+): Promise<boolean> {
+  const oldJobStatus = initialJob.status;
+  let job = initialJob;
+
+  if (job.jobType === JobType.PAID && job.purchase === null) {
+    const backfillSignal = createPollingSignal(
+      options,
+      `Stopping before backfilling purchase for job ${job.id}`,
+      "purchase",
+    );
+    if (!backfillSignal) {
+      return false;
+    }
+
+    const purchaseResult =
+      await paymentClient().getPurchaseByBlockchainIdentifier(
+        job.blockchainIdentifier,
+        {
+          signal: backfillSignal,
+        },
+      );
+    if (
+      backfillSignal.aborted ||
+      shouldStopSync(
+        options,
+        `Stopping after backfilling purchase for job ${job.id}`,
+        "purchase",
+      )
+    ) {
+      return false;
+    }
+
+    if (purchaseResult.isOk()) {
+      const purchaseData = transformPurchaseToJobUpdate(purchaseResult.value);
+      await jobPurchaseRepository.createJobPurchase(
+        {
+          jobId: job.id,
+          ...purchaseData,
+        },
+        prisma,
+      );
+    }
+
+    const refreshedJob = await jobRepository.getJobById(job.id, prisma);
+    if (!refreshedJob) {
+      throw new Error("Job not found");
+    }
+    job = refreshedJob;
+  }
+
+  const purchaseExternalIdToSync = job.purchase?.externalId ?? null;
+  if (!purchaseExternalIdToSync) {
+    await finalizeJobSyncResult(oldJobStatus, {
+      job,
+      jobStatus: job.status,
+    });
+    return true;
+  }
+
+  const pollingSignal = createPollingSignal(
+    options,
+    `Stopping before polling purchase status for job ${job.id}`,
+    "purchase",
+  );
+  if (!pollingSignal) {
+    return false;
+  }
+
+  const onChainPurchaseResult = await paymentClient().getPurchaseById(
+    purchaseExternalIdToSync,
+    {
+      signal: pollingSignal,
+    },
+  );
+  if (
+    pollingSignal.aborted ||
+    shouldStopSync(
+      options,
+      `Stopping after polling purchase status for job ${job.id}`,
+      "purchase",
+    )
+  ) {
+    return false;
+  }
+
+  let transactionResult: JobSyncTransactionResult = {
+    job,
+    jobStatus: job.status,
+  };
+
+  if (onChainPurchaseResult.isOk()) {
+    transactionResult = await prisma.$transaction(
+      async (tx): Promise<JobSyncTransactionResult> => {
+        const purchaseData = transformPurchaseToJobUpdate(
+          onChainPurchaseResult.value,
+        );
+        await jobPurchaseRepository.updateJobPurchaseByJobId(
+          job.id,
+          purchaseData,
+          tx,
+        );
+
+        const refreshedJob = await jobRepository.getJobById(job.id, tx);
+        if (!refreshedJob) {
+          throw new Error("Job not found");
+        }
+
+        return {
+          job: refreshedJob,
+          jobStatus: refreshedJob.status,
+        };
+      },
+      JOB_SYNC_TRANSACTION_OPTIONS,
+    );
+  }
+
+  await finalizeJobSyncResult(oldJobStatus, transactionResult);
+  return true;
+}
+
+async function syncAgentStatus(
+  initialJob: JobWithSokosumiStatus,
+  options: JobSyncExecutionOptions,
+): Promise<boolean> {
+  const oldJobStatus = initialJob.status;
+  const agentJobIdToSync = initialJob.agentJobId;
+  if (!agentJobIdToSync) {
+    return true;
+  }
+
+  const pollingSignal = createPollingSignal(
+    options,
+    `Stopping before polling agent status for job ${initialJob.id}`,
+    "agent",
+  );
+  if (!pollingSignal) {
+    return false;
+  }
+
+  const agentJobStatusResult = await createAgentClient().fetchAgentJobStatus(
+    initialJob.agent,
+    agentJobIdToSync,
+    {
+      signal: pollingSignal,
+    },
+  );
+  if (
+    pollingSignal.aborted ||
+    shouldStopSync(
+      options,
+      `Stopping after polling agent status for job ${initialJob.id}`,
+      "agent",
+    )
+  ) {
+    return false;
+  }
+
+  if (agentJobStatusResult.isErr()) {
+    return true;
+  }
+
+  const transactionResult = await prisma.$transaction(
+    async (tx): Promise<JobSyncTransactionResult> => {
+      let extractionContext:
+        | { eventId: string; result: string; userId: string }
+        | undefined;
+
+      let currentJob = initialJob;
+      const latestJobEvent = await jobEventRepository.getLatestJobEventByJobId(
+        initialJob.id,
+        tx,
+      );
+
+      const hasUnchangedStatusHash =
+        latestJobEvent?.statusHash &&
+        latestJobEvent.statusHash === agentJobStatusResult.value.statusHash;
+
+      if (!hasUnchangedStatusHash) {
+        const inputSchemaData = agentJobStatusResult.value.input_schema;
+        const inputSchemaValue = inputSchemaData
+          ? JSON.stringify(inputSchemaData)
+          : undefined;
+
+        const newJobEvent = await jobEventRepository.createJobEventForJobId(
+          initialJob.id,
+          {
+            status: jobStatusToAgentJobStatus(
+              agentJobStatusResult.value.status as JobStatusValue,
+            ),
+            inputSchema: inputSchemaValue,
+            result: agentJobStatusResult.value.result,
+            statusHash: agentJobStatusResult.value.statusHash,
+          },
+          tx,
+        );
+
+        const refreshedJob = await jobRepository.getJobById(initialJob.id, tx);
+        if (!refreshedJob) {
+          throw new Error("Job not found");
+        }
+        currentJob = refreshedJob;
+
+        const outputResult = agentJobStatusResult.value.result;
+        if (typeof outputResult === "string") {
+          extractionContext = {
+            eventId: newJobEvent.id,
+            result: outputResult,
+            userId: currentJob.userId,
+          };
+        }
+      }
+
+      return {
+        extractionContext,
+        job: currentJob,
+        jobStatus: currentJob.status,
+      };
+    },
+    JOB_SYNC_TRANSACTION_OPTIONS,
+  );
+
+  await finalizeJobSyncResult(oldJobStatus, transactionResult);
+  return true;
+}
+
+async function syncRefundReconciliationJob(
+  job: JobWithSokosumiStatus,
+  options: JobSyncExecutionOptions,
+): Promise<boolean> {
+  if (
+    shouldStopSync(
+      options,
+      `Stopping before reconciling refund for job ${job.id}`,
+      "refund",
+    )
+  ) {
+    return false;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await refundJob(job.id, tx);
+  }, JOB_SYNC_TRANSACTION_OPTIONS);
 
   return true;
+}
+
+async function runSyncPhase(
+  kind: JobSyncKind,
+  where: Prisma.JobWhereInput,
+  options: JobSyncExecutionOptions,
+  seenJobIds: Set<string>,
+  processor: (
+    job: JobWithSokosumiStatus,
+    options: JobSyncExecutionOptions,
+  ) => Promise<boolean>,
+): Promise<JobSyncPhaseResult> {
+  const jobs = (
+    await prisma.job.findMany({
+      where,
+      include: jobInclude,
+    })
+  ).map(mapJobWithStatus);
+
+  for (const job of jobs) {
+    seenJobIds.add(job.id);
+  }
+
+  const foundMessage =
+    kind === "refund"
+      ? `Found ${jobs.length} jobs pending local refund`
+      : `Found ${jobs.length} jobs for ${kind} sync`;
+  logJobSyncInfo(kind, foundMessage);
+
+  const limit = pLimit(JOB_SYNC_CONCURRENCY);
+  const tasks = jobs.map((job) =>
+    limit(async () => {
+      if (
+        shouldStopSync(
+          options,
+          `Stopping before processing job ${job.id}`,
+          kind,
+        )
+      ) {
+        return false;
+      }
+
+      try {
+        return await processor(job, options);
+      } catch (error) {
+        logJobSyncError(kind, job.id, error);
+        Sentry.captureException(error, {
+          extra: {
+            jobId: job.id,
+          },
+        });
+      }
+
+      return false;
+    }),
+  );
+
+  const results = await Promise.allSettled(tasks);
+  const processed = results.filter(
+    (result) => result.status === "fulfilled" && result.value,
+  ).length;
+
+  return {
+    found: jobs.length,
+    processed,
+  };
 }
 
 export const jobSyncService = {
@@ -585,52 +759,34 @@ export const jobSyncService = {
     options: JobSyncExecutionOptions,
   ): Promise<JobSyncResult> {
     const startedAt = Date.now();
-    const jobs = await jobRepository.getJobsNotFinished(prisma);
-    const limit = pLimit(JOB_SYNC_CONCURRENCY);
-    const tasks: Promise<boolean>[] = [];
-
-    for (const job of jobs) {
-      if (
-        shouldStopSync(
-          options,
-          "Stopping before scheduling more unfinished jobs",
-        )
-      ) {
-        break;
-      }
-
-      tasks.push(
-        limit(async () => {
-          if (
-            shouldStopSync(options, `Stopping before processing job ${job.id}`)
-          ) {
-            return false;
-          }
-
-          try {
-            return await syncSingleJob(job, options);
-          } catch (error) {
-            console.error(`Failed to sync job ${job.id}`, error);
-            Sentry.captureException(error, {
-              extra: {
-                jobId: job.id,
-              },
-            });
-          }
-          return false;
-        }),
-      );
-    }
-
-    const results = await Promise.allSettled(tasks);
-    const processed = results.filter(
-      (result) => result.status === "fulfilled" && result.value,
-    ).length;
+    const seenJobIds = new Set<string>();
+    const purchasePhase = await runSyncPhase(
+      "purchase",
+      buildJobsNeedingPurchaseSyncWhere(),
+      options,
+      seenJobIds,
+      syncPurchaseState,
+    );
+    const agentPhase = await runSyncPhase(
+      "agent",
+      buildJobsNeedingAgentStatusSyncWhere(),
+      options,
+      seenJobIds,
+      syncAgentStatus,
+    );
+    const refundPhase = await runSyncPhase(
+      "refund",
+      buildJobsPendingLocalRefundWhere(),
+      options,
+      seenJobIds,
+      syncRefundReconciliationJob,
+    );
 
     return {
       durationMs: Date.now() - startedAt,
-      processed,
-      unfinishedFound: jobs.length,
+      processed:
+        purchasePhase.processed + agentPhase.processed + refundPhase.processed,
+      unfinishedFound: seenJobIds.size,
     };
   },
 };

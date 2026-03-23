@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
@@ -31,9 +32,32 @@ export type AuthEnv = {
   Variables: AuthVariables;
 };
 
+function syncSentryUser(context: AuthVariables) {
+  const scope = Sentry.getCurrentScope();
+
+  if (!context.isAuthenticated) {
+    scope.setUser(null);
+    return;
+  }
+
+  if (context.authContext.actor === "user") {
+    scope.setUser({
+      id: context.authContext.userId,
+      organizationId: context.authContext.organizationId || undefined,
+    });
+    return;
+  }
+
+  scope.setUser({
+    id: `coworker:${context.authContext.coworkerId}`,
+    coworkerId: context.authContext.coworkerId,
+  });
+}
+
 export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
   c.set("isAuthenticated", context.isAuthenticated);
   c.set("authContext", context.authContext);
+  syncSentryUser(context);
 }
 
 export function isUserAuthContext(

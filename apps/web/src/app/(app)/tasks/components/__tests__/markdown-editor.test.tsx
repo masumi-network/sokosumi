@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 import {
   createEvent,
   fireEvent,
@@ -38,7 +38,7 @@ describe("MarkdownEditor", () => {
     render(
       <MarkdownEditor
         value="[me](mailto:user@example.com)"
-        onChange={jest.fn()}
+        onChange={vi.fn()}
         mentions={{
           "agent-1": { value: "Writer Agent" },
         }}
@@ -61,7 +61,7 @@ describe("MarkdownEditor", () => {
     render(
       <MarkdownEditor
         value="@agent-1:writer-agent test @agent-2:weather-agent"
-        onChange={jest.fn()}
+        onChange={vi.fn()}
         mentions={{
           "agent-1": { value: "Writer Agent" },
           "agent-2": { value: "Weather Agent" },
@@ -83,7 +83,7 @@ describe("MarkdownEditor", () => {
     render(
       <MarkdownEditor
         value="@@MENTION1@@ test @@MENTION2@@"
-        onChange={jest.fn()}
+        onChange={vi.fn()}
       />,
     );
 
@@ -103,7 +103,7 @@ describe("MarkdownEditor", () => {
     render(
       <MarkdownEditor
         value="@agent-1:price-agent"
-        onChange={jest.fn()}
+        onChange={vi.fn()}
         mentions={{
           "agent-1": { value: "Price $& Agent" },
         }}
@@ -120,7 +120,7 @@ describe("MarkdownEditor", () => {
   });
 
   it("inserts newline with one Enter when mention dropdown is not visible", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(
       <MarkdownEditor
@@ -147,7 +147,7 @@ describe("MarkdownEditor", () => {
   });
 
   it("uses Enter to select mention when dropdown is visible", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(
       <MarkdownEditor
@@ -182,7 +182,7 @@ describe("MarkdownEditor", () => {
   });
 
   it("uses Tab to select mention when dropdown is visible", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(
       <MarkdownEditor
@@ -217,8 +217,8 @@ describe("MarkdownEditor", () => {
   });
 
   it("uses Ctrl+Enter to trigger submit shortcut without adding newline", () => {
-    const onChange = jest.fn();
-    const onSubmitShortcut = jest.fn();
+    const onChange = vi.fn();
+    const onSubmitShortcut = vi.fn();
 
     render(
       <MarkdownEditor
@@ -239,7 +239,7 @@ describe("MarkdownEditor", () => {
   });
 
   it("inserts newline on first Enter after moving caret away from mention trigger", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(
       <MarkdownEditor
@@ -273,7 +273,7 @@ describe("MarkdownEditor", () => {
   });
 
   it("does not prevent native Enter when selection is temporarily missing", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(<MarkdownEditor value="Hello" onChange={onChange} />);
 
@@ -294,7 +294,7 @@ describe("MarkdownEditor", () => {
   });
 
   it("keeps fenced code blocks on a new line when saving", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(<MarkdownEditor value="" onChange={onChange} />);
 
@@ -311,7 +311,7 @@ describe("MarkdownEditor", () => {
   });
 
   it("preserves code block language when saving", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(<MarkdownEditor value="" onChange={onChange} />);
 
@@ -328,7 +328,7 @@ describe("MarkdownEditor", () => {
   });
 
   it("serializes multiline code tags as fenced markdown", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(<MarkdownEditor value="" onChange={onChange} />);
 
@@ -345,7 +345,7 @@ describe("MarkdownEditor", () => {
   });
 
   it("keeps multiline code fences separated from preceding text", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(<MarkdownEditor value="" onChange={onChange} />);
 
@@ -363,7 +363,7 @@ describe("MarkdownEditor", () => {
   });
 
   it("preserves line breaks when code block uses div children", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
 
     render(<MarkdownEditor value="" onChange={onChange} />);
 

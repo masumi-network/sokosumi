@@ -1,9 +1,9 @@
 import { Organization } from "@sokosumi/database";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { Building2 } from "lucide-react";
 import Image from "next/image";
 
 import { Favicon } from "@/components/ui/favicon";
-import { ipfsUrlResolver } from "@/lib/ipfs";
 import { buildFaviconCandidates } from "@/lib/utils/url";
 
 interface OrganizationLogoProps {
@@ -20,10 +20,10 @@ export function OrganizationLogo({
   if (logo) {
     return (
       <Image
-        src={ipfsUrlResolver(logo)}
+        src={resolveIpfsOrHttpUrl(logo)}
         alt={name}
-        width={size}
-        height={size}
+        width={size * 3}
+        height={size * 3}
         className="size-full rounded-sm object-cover"
       />
     );

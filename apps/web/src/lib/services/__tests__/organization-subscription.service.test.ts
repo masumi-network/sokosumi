@@ -1,6 +1,7 @@
-jest.mock("server-only", () => ({}));
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 
-jest.mock("better-auth/api", () => ({
+vi.mock("better-auth/api", () => ({
   APIError: class APIError extends Error {
     constructor(_code: string, options?: { message?: string }) {
       super(options?.message ?? "API error");
@@ -9,27 +10,27 @@ jest.mock("better-auth/api", () => ({
   },
 }));
 
-const getMemberByUserIdAndOrganizationIdMock = jest.fn();
-const memberCountMock = jest.fn();
-const findSubscriptionMock = jest.fn();
-const updateSubscriptionRecordMock = jest.fn();
-const retrieveStripeSubscriptionMock = jest.fn();
-const updateStripeSubscriptionMock = jest.fn();
+const getMemberByUserIdAndOrganizationIdMock = vi.fn();
+const memberCountMock = vi.fn();
+const findSubscriptionMock = vi.fn();
+const updateSubscriptionRecordMock = vi.fn();
+const retrieveStripeSubscriptionMock = vi.fn();
+const updateStripeSubscriptionMock = vi.fn();
 
-jest.mock("@sokosumi/database/repositories", () => ({
+vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberByUserIdAndOrganizationIdMock(...args),
   },
 }));
 
-jest.mock("@/config/env.secrets", () => ({
+vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     STRIPE_SECRET_KEY: "sk_test_mock",
   }),
 }));
 
-jest.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
     member: {
@@ -42,22 +43,24 @@ jest.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-jest.mock("stripe", () => {
+vi.mock("stripe", () => {
   return {
     __esModule: true,
-    default: jest.fn().mockImplementation(() => ({
-      subscriptions: {
-        retrieve: (...args: unknown[]) =>
-          retrieveStripeSubscriptionMock(...args),
-        update: (...args: unknown[]) => updateStripeSubscriptionMock(...args),
-      },
-    })),
+    default: vi.fn(function MockStripe() {
+      return {
+        subscriptions: {
+          retrieve: (...args: unknown[]) =>
+            retrieveStripeSubscriptionMock(...args),
+          update: (...args: unknown[]) => updateStripeSubscriptionMock(...args),
+        },
+      };
+    }),
   };
 });
 
 describe("organizationSubscriptionService", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("ensureCanCreateInvitation", () => {

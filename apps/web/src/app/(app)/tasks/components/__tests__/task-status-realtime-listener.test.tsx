@@ -1,19 +1,19 @@
-import "@testing-library/jest-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render } from "@testing-library/react";
 
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 
-const refreshMock = jest.fn();
+const refreshMock = vi.fn();
 let channelCallback: null | ((message: { data: unknown }) => void) = null;
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
     refresh: refreshMock,
   }),
 }));
 
-jest.mock("ably/react", () => ({
+vi.mock("ably/react", () => ({
   ChannelProvider: ({ children }: { children: React.ReactNode }) => children,
   useChannel: (
     _channelName: string,
@@ -23,21 +23,21 @@ jest.mock("ably/react", () => ({
   },
 }));
 
-jest.mock("@/contexts/alby-provider.dynamic", () => ({
+vi.mock("@/contexts/alby-provider.dynamic", () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 describe("TaskStatusRealtimeListener", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     refreshMock.mockReset();
     channelCallback = null;
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   it("debounces route refreshes for repeated events on the same task", () => {
@@ -55,13 +55,13 @@ describe("TaskStatusRealtimeListener", () => {
       channelCallback?.({
         data: { taskId: "task-1", eventType: "task_event" },
       });
-      jest.advanceTimersByTime(TASKS_ROUTE_REFRESH_DEBOUNCE_MS - 1);
+      vi.advanceTimersByTime(TASKS_ROUTE_REFRESH_DEBOUNCE_MS - 1);
     });
 
     expect(refreshMock).not.toHaveBeenCalled();
 
     act(() => {
-      jest.advanceTimersByTime(1);
+      vi.advanceTimersByTime(1);
     });
 
     expect(refreshMock).toHaveBeenCalledTimes(1);
@@ -74,7 +74,7 @@ describe("TaskStatusRealtimeListener", () => {
       channelCallback?.({
         data: { taskId: "task-2", eventType: "task_event" },
       });
-      jest.advanceTimersByTime(TASKS_ROUTE_REFRESH_DEBOUNCE_MS);
+      vi.advanceTimersByTime(TASKS_ROUTE_REFRESH_DEBOUNCE_MS);
     });
 
     expect(refreshMock).not.toHaveBeenCalled();

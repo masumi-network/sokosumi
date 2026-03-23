@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import VerifyEmailButton from "@/app/components/verify-email-button";
 import { authClient } from "@/lib/auth/auth.client";
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {
       sendSuccess: "Verification email sent.",
@@ -17,30 +17,30 @@ jest.mock("next-intl", () => ({
   },
 }));
 
-jest.mock("@/lib/auth/auth.client", () => ({
+vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
-    sendVerificationEmail: jest.fn(),
+    sendVerificationEmail: vi.fn(),
   },
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
-    success: jest.fn(),
-    error: jest.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 describe("VerifyEmailButton", () => {
   beforeEach(() => {
-    jest.mocked(authClient.sendVerificationEmail).mockReset();
-    jest.mocked(toast.success).mockReset();
-    jest.mocked(toast.error).mockReset();
+    vi.mocked(authClient.sendVerificationEmail).mockReset();
+    vi.mocked(toast.success).mockReset();
+    vi.mocked(toast.error).mockReset();
   });
 
   it("sends verification email with the current page callback URL and shows success", async () => {
     let resolveRequest: ((value: unknown) => void) | undefined;
 
-    jest.mocked(authClient.sendVerificationEmail).mockImplementation(
+    vi.mocked(authClient.sendVerificationEmail).mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveRequest = resolve;
@@ -68,7 +68,7 @@ describe("VerifyEmailButton", () => {
   });
 
   it("shows a fallback error toast when sending verification email throws", async () => {
-    jest
+    vi
       .mocked(authClient.sendVerificationEmail)
       .mockRejectedValueOnce(new Error("network-error"));
 

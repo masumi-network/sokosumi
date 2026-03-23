@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { hashInput, hashInputDeprecated, hashResult } from "../hash.js";
 import {
   type InputVerificationOptions,

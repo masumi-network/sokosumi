@@ -193,6 +193,7 @@ const config = {
 | `pnpm web:lint`        | Lint web app                  |
 | `pnpm web:lint:report` | CI-friendly lint report       |
 | `pnpm test`            | Run tests locally             |
+| `pnpm core:test`       | Run core API tests            |
 | `pnpm web:test`        | Run web app tests             |
 | `pnpm masumi:test`     | Run masumi package tests      |
 | `pnpm web:test:ci`     | CI test execution             |
@@ -201,11 +202,12 @@ const config = {
 
 ## Testing Guidelines
 
-- **Framework**: Jest with jsdom and Testing Library
+- **Framework**: Vitest with Testing Library and workspace-specific environments (for example `happy-dom` in `apps/web` and Node in packages/services)
 - **Test Files**: Name as `*.test.ts(x)` and colocate under nearest `__tests__/`
 - **Coverage**: Cover both success and failure paths when touching `src/lib`
 - **Mocking**: Use `__mocks__` or Prisma factories for external services
-- **Execution**: No watch mode—run `pnpm test` and refresh snapshots before pushing
+- **Execution**: Run `pnpm test` from the repo root, or the relevant workspace command such as `pnpm --filter web test`, before pushing
+- **Targeted reruns**: Use `pnpm --filter <workspace> test path/to/file.test.ts`. Do not insert an extra `--` before the file path for Vitest reruns.
 
 ## Commit & Pull Request Guidelines
 

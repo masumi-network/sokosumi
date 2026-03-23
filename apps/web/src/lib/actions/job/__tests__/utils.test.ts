@@ -1,8 +1,9 @@
-jest.mock("server-only", () => ({}));
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 
-const uploadFileForUserMock = jest.fn();
+const uploadFileForUserMock = vi.fn();
 
-jest.mock("@/lib/blob/utils", () => ({
+vi.mock("@/lib/blob/utils", () => ({
   uploadFileForUser: (...args: unknown[]) => uploadFileForUserMock(...args),
 }));
 
@@ -10,7 +11,7 @@ import { handleInputDataFileUploads } from "@/lib/actions/job/utils";
 
 describe("handleInputDataFileUploads", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("replaces a single file input with a URL", async () => {

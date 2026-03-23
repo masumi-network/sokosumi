@@ -1,14 +1,14 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 import { AcceptTermsOfService } from "@/components/create-job-modal/job-input/accept-terms-of-service";
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-jest.mock("next/link", () => ({
+vi.mock("next/link", () => ({
   __esModule: true,
   default: ({ children, href }: { children: ReactNode; href: string }) => (
     <a href={href}>{children}</a>

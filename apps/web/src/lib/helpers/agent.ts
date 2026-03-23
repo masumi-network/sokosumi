@@ -9,9 +9,9 @@ import {
   PricingType,
 } from "@sokosumi/database";
 import { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
-import { ipfsUrlResolver } from "@/lib/ipfs";
 import { jobInputsFormSchema } from "@/lib/job-input/form";
 import {
   jobStatusResponseSchema,
@@ -59,7 +59,7 @@ export function getAgentResolvedImage(
   if (!image) {
     return null;
   }
-  return ipfsUrlResolver(image);
+  return resolveIpfsOrHttpUrl(image);
 }
 
 export function getAgentResolvedIcon(
@@ -68,7 +68,7 @@ export function getAgentResolvedIcon(
   if (!agent.icon) {
     return null;
   }
-  const resolvedUrl = ipfsUrlResolver(agent.icon);
+  const resolvedUrl = resolveIpfsOrHttpUrl(agent.icon);
 
   try {
     new URL(resolvedUrl);
@@ -153,7 +153,7 @@ export function getFullAgentAuthorName(agent: Agent): string | null {
 
 export function getAgentAuthorResolvedImage(agent: Agent): string | null {
   const image = agent.overrideAuthorImage ?? agent.authorImage;
-  return image ? ipfsUrlResolver(image) : null;
+  return image ? resolveIpfsOrHttpUrl(image) : null;
 }
 
 export function getAgentSummary(agent: Agent): string | null {
@@ -179,7 +179,7 @@ export function getAgentExampleOutput(
 export function getAgentResolvedExampleOutputUrl(
   exampleOutput: ExampleOutput,
 ): string {
-  return ipfsUrlResolver(exampleOutput.url);
+  return resolveIpfsOrHttpUrl(exampleOutput.url);
 }
 
 /**

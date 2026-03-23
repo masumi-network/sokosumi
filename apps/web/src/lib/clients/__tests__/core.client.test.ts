@@ -1,30 +1,31 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
-const getConversationsMock = jest.fn();
-const getAgentsByIdInputSchemaMock = jest.fn();
-const getUsersMeNoticesPendingMock = jest.fn();
-const postUsersMeNoticesByIdAcknowledgeMock = jest.fn();
-const getUsersMeCreditsMock = jest.fn();
-const getUsersMeOrganizationsMock = jest.fn();
-const createClientMock = jest.fn();
-const headersMock = jest.fn();
+const getConversationsMock = vi.fn();
+const getAgentsByIdInputSchemaMock = vi.fn();
+const getUsersMeNoticesPendingMock = vi.fn();
+const postUsersMeNoticesByIdAcknowledgeMock = vi.fn();
+const getUsersMeCreditsMock = vi.fn();
+const getUsersMeOrganizationsMock = vi.fn();
+const createClientMock = vi.fn();
+const headersMock = vi.fn();
 const mockClient = { id: "core-client" } as never;
 
-jest.mock("next/headers", () => ({
+vi.mock("next/headers", () => ({
   headers: () => headersMock(),
 }));
 
-jest.mock("@/lib/clients/utils/core-api-base-url", () => ({
+vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getCoreApiBaseUrl: () => "http://localhost:8787/v1",
 }));
 
-jest.mock("@/lib/clients/generated/core/client", () => ({
+vi.mock("@/lib/clients/generated/core/client", () => ({
   createClient: (...args: unknown[]) => createClientMock(...args),
 }));
 
-jest.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@/lib/clients/generated/core", () => ({
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
   getConversations: getConversationsMock,
   getUsersMeNoticesPending: getUsersMeNoticesPendingMock,
@@ -35,8 +36,8 @@ jest.mock("@/lib/clients/generated/core", () => ({
 
 describe("core.client", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
+    vi.clearAllMocks();
+    vi.resetModules();
 
     headersMock.mockResolvedValue(
       new Headers({
@@ -103,6 +104,10 @@ describe("core.client", () => {
       client: mockClient,
       path: { id: "agent_1" },
     });
+    expect("input_data" in response.data).toBe(true);
+    if (!("input_data" in response.data)) {
+      throw new Error("Expected flat input schema");
+    }
     expect(response.data.input_data).toHaveLength(1);
   });
 

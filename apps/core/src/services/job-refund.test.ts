@@ -1,13 +1,9 @@
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import { describe, expect, it } from "vitest";
 
-import {
-  CreditBucketReferenceType,
-  type Prisma,
-} from "../../generated/prisma/client.js";
-import { jobRepository } from "../job.repository.js";
+import { refundJob } from "./job-refund";
 
-describe("jobRepository.refundJob", () => {
+describe("refundJob", () => {
   it("creates a refund bucket with REFUND reference type and no expiry", async () => {
     const updateCalls: unknown[] = [];
     const tx = {
@@ -27,9 +23,9 @@ describe("jobRepository.refundJob", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    await jobRepository.refundJob("job-1", tx);
+    await refundJob("job-1", tx);
 
-    assert.equal(updateCalls.length, 1);
+    expect(updateCalls).toHaveLength(1);
 
     const updateCall = updateCalls[0] as {
       data: {
@@ -50,28 +46,24 @@ describe("jobRepository.refundJob", () => {
       where: { id: string };
     };
 
-    assert.equal(updateCall.where.id, "job-1");
-    assert.equal(updateCall.data.refundedTransaction.create.amount, 500n);
-    assert.equal(
+    expect(updateCall.where.id).toBe("job-1");
+    expect(updateCall.data.refundedTransaction.create.amount).toBe(500n);
+    expect(
       updateCall.data.refundedTransaction.create.sourceCreditBucket.create
         .referenceId,
-      "job-1",
-    );
-    assert.equal(
+    ).toBe("job-1");
+    expect(
       updateCall.data.refundedTransaction.create.sourceCreditBucket.create
         .referenceType,
-      CreditBucketReferenceType.REFUND,
-    );
-    assert.equal(
+    ).toBe(CreditBucketReferenceType.REFUND);
+    expect(
       updateCall.data.refundedTransaction.create.organization?.connect.id,
-      "org-1",
-    );
+    ).toBe("org-1");
 
-    assert.equal(
+    expect(
       updateCall.data.refundedTransaction.create.sourceCreditBucket.create
         .expiresAt,
-      null,
-    );
+    ).toBeNull();
   });
 
   it("does nothing when job is already refunded", async () => {
@@ -93,9 +85,9 @@ describe("jobRepository.refundJob", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    await jobRepository.refundJob("job-1", tx);
+    await refundJob("job-1", tx);
 
-    assert.equal(updateCalled, false);
+    expect(updateCalled).toBe(false);
   });
 
   it("throws when the original transaction is missing", async () => {
@@ -109,8 +101,7 @@ describe("jobRepository.refundJob", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    await assert.rejects(
-      () => jobRepository.refundJob("job-1", tx),
+    await expect(refundJob("job-1", tx)).rejects.toThrow(
       /Transaction not found/,
     );
   });

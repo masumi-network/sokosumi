@@ -1,7 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 
-import { getEnv, getWebAppBaseUrl } from "@/config/env.js";
+import { TIME } from "@/config/constants.js";
+import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
 
 import agentsRouter from "./agents/index.js";
 import categoriesRouter from "./categories/index.js";
@@ -34,6 +35,18 @@ app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {
   },
 });
 
+app.use(
+  "*",
+  cors({
+    origin: (origin) => resolveCorsAllowOrigin(origin),
+    allowHeaders: ["Content-Type", "Authorization", "X-Organization-Slug"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: TIME.CORS_MAX_AGE,
+    credentials: true,
+  }),
+);
+
 app.doc31("/openapi.json", {
   openapi: "3.1.0",
   info: {
@@ -43,36 +56,11 @@ app.doc31("/openapi.json", {
   },
   servers: [
     {
-      url: `https://api.sokosumi.com/v1`,
-      description: "Mainnet Server",
+      url: "/v1",
     },
-    {
-      url: `https://preprod.api.sokosumi.com/v1`,
-      description: "Pre-production Server",
-    },
-    ...(getEnv().NODE_ENV === "development"
-      ? [
-          {
-            url: `http://localhost:8787/v1`,
-            description: "Local Development Server",
-          },
-        ]
-      : []),
   ],
   security: [{ bearerAuth: [] }],
 });
-
-app.use(
-  "*",
-  cors({
-    origin: getWebAppBaseUrl(),
-    allowHeaders: ["Content-Type", "Authorization", "X-Organization-Slug"],
-    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["Content-Length"],
-    maxAge: 600,
-    credentials: true,
-  }),
-);
 
 // Mount Routes
 app.route("/agents", agentsRouter);

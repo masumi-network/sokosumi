@@ -1,65 +1,69 @@
-export {};
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const adminPluginMock = jest.fn();
-const apiKeyPluginMock = jest.fn();
-const betterAuthMock = jest.fn();
-const createAuthMiddlewareMock = jest.fn((callback) => callback);
-const getEnvPublicConfigMock = jest.fn();
-const getEnvSecretsMock = jest.fn();
-const getInfraAuthPluginsMock = jest.fn();
-const i18nPluginMock = jest.fn();
-const jwtPluginMock = jest.fn();
-const lastLoginMethodPluginMock = jest.fn();
-const magicLinkPluginMock = jest.fn();
-const marketingOptInUserSchemaSafeParseMock = jest.fn();
-const nextCookiesPluginMock = jest.fn();
-const oauthProviderPluginMock = jest.fn();
-const organizationPluginMock = jest.fn();
-const renderOrganizationInvitationEmailMock = jest.fn();
-const renderResetPasswordEmailMock = jest.fn();
-const renderVerificationEmailMock = jest.fn();
-const callUserCreatedWebHookMock = jest.fn();
-const callUserUpdatedWebHookMock = jest.fn();
-const postmarkSendEmailMock = jest.fn();
-const prismaAdapterMock = jest.fn();
-const renderMagicLinkEmailMock = jest.fn();
-const stripeCreateUserCustomerMock = jest.fn();
-const stripePluginMock = jest.fn();
-const stripeSdkMock = jest.fn(() => ({ __stripe: true }));
+const adminPluginMock = vi.fn();
+const apiKeyPluginMock = vi.fn();
+const betterAuthMock = vi.fn();
+const createAuthMiddlewareMock = vi.fn((callback) => callback);
+const getBetterAuthProductionUrlMock = vi.fn();
+const getEnvPublicConfigMock = vi.fn();
+const getEnvSecretsMock = vi.fn();
+const getInfraAuthPluginsMock = vi.fn();
+const i18nPluginMock = vi.fn();
+const jwtPluginMock = vi.fn();
+const lastLoginMethodPluginMock = vi.fn();
+const magicLinkPluginMock = vi.fn();
+const marketingOptInUserSchemaSafeParseMock = vi.fn();
+const nextCookiesPluginMock = vi.fn();
+const oAuthProxyPluginMock = vi.fn();
+const oauthProviderPluginMock = vi.fn();
+const organizationPluginMock = vi.fn();
+const renderOrganizationInvitationEmailMock = vi.fn();
+const renderResetPasswordEmailMock = vi.fn();
+const renderVerificationEmailMock = vi.fn();
+const callUserCreatedWebHookMock = vi.fn();
+const callUserUpdatedWebHookMock = vi.fn();
+const postmarkSendEmailMock = vi.fn();
+const prismaAdapterMock = vi.fn();
+const renderMagicLinkEmailMock = vi.fn();
+const stripeCreateUserCustomerMock = vi.fn();
+const stripePluginMock = vi.fn();
+const stripeSdkMock = vi.fn(function MockStripe() {
+  return { __stripe: true };
+});
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
-jest.mock("@sentry/nextjs", () => ({
-  captureException: jest.fn(),
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
 }));
 
-jest.mock("@better-auth/api-key", () => ({
+vi.mock("@better-auth/api-key", () => ({
   apiKey: (...args: unknown[]) => apiKeyPluginMock(...args),
 }));
 
-jest.mock("@better-auth/i18n", () => ({
+vi.mock("@better-auth/i18n", () => ({
   i18n: (...args: unknown[]) => i18nPluginMock(...args),
 }));
 
-jest.mock("@better-auth/oauth-provider", () => ({
+vi.mock("@better-auth/oauth-provider", () => ({
   oauthProvider: (...args: unknown[]) => oauthProviderPluginMock(...args),
 }));
 
-const passkeyPluginMock = jest.fn();
+const passkeyPluginMock = vi.fn();
 
-jest.mock("@better-auth/passkey", () => ({
+vi.mock("@better-auth/passkey", () => ({
   passkey: (...args: unknown[]) => passkeyPluginMock(...args),
 }));
 
-jest.mock("@better-auth/prisma-adapter", () => ({
+vi.mock("@better-auth/prisma-adapter", () => ({
   prismaAdapter: (...args: unknown[]) => prismaAdapterMock(...args),
 }));
 
-jest.mock("@better-auth/stripe", () => ({
+vi.mock("@better-auth/stripe", () => ({
   stripe: (...args: unknown[]) => stripePluginMock(...args),
 }));
 
-jest.mock("better-auth/api", () => {
+vi.mock("better-auth/api", () => {
   class MockApiError extends Error {}
 
   return {
@@ -68,28 +72,29 @@ jest.mock("better-auth/api", () => {
   };
 });
 
-jest.mock("better-auth/minimal", () => ({
+vi.mock("better-auth/minimal", () => ({
   betterAuth: (...args: unknown[]) => betterAuthMock(...args),
 }));
 
-jest.mock("better-auth/next-js", () => ({
+vi.mock("better-auth/next-js", () => ({
   nextCookies: (...args: unknown[]) => nextCookiesPluginMock(...args),
 }));
 
-jest.mock("better-auth/plugins", () => ({
+vi.mock("better-auth/plugins", () => ({
   admin: (...args: unknown[]) => adminPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   lastLoginMethod: (...args: unknown[]) => lastLoginMethodPluginMock(...args),
   magicLink: (...args: unknown[]) => magicLinkPluginMock(...args),
+  oAuthProxy: (...args: unknown[]) => oAuthProxyPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
 }));
 
-jest.mock("stripe", () => ({
+vi.mock("stripe", () => ({
   __esModule: true,
   default: stripeSdkMock,
 }));
 
-jest.mock("@sokosumi/database", () => ({
+vi.mock("@sokosumi/database", () => ({
   MemberRole: {
     ADMIN: "ADMIN",
     OWNER: "OWNER",
@@ -97,13 +102,13 @@ jest.mock("@sokosumi/database", () => ({
   User: {},
 }));
 
-jest.mock("@sokosumi/database/repositories", () => ({
+vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
-    getMemberByUserIdAndOrganizationId: jest.fn(),
+    getMemberByUserIdAndOrganizationId: vi.fn(),
   },
 }));
 
-jest.mock("@sokosumi/email", () => ({
+vi.mock("@sokosumi/email", () => ({
   renderMagicLinkEmail: (...args: unknown[]) =>
     renderMagicLinkEmailMock(...args),
   renderOrganizationInvitationEmail: (...args: unknown[]) =>
@@ -114,88 +119,92 @@ jest.mock("@sokosumi/email", () => ({
     renderVerificationEmailMock(...args),
 }));
 
-jest.mock("@sokosumi/masumi/auth", () => ({
+vi.mock("@sokosumi/masumi/auth", () => ({
   authTranslations: {},
 }));
 
-jest.mock("p-timeout", () => ({
+vi.mock("p-timeout", () => ({
   __esModule: true,
   default: (promise: Promise<unknown>) => promise,
 }));
 
-jest.mock("@/config/env.public", () => ({
+vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => getEnvPublicConfigMock(),
 }));
 
-jest.mock("@/config/env.secrets", () => ({
+vi.mock("@/config/better-auth-production-url", () => ({
+  getBetterAuthProductionUrl: () => getBetterAuthProductionUrlMock(),
+}));
+
+vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-jest.mock("@/lib/auth/infra-plugins", () => ({
+vi.mock("@/lib/auth/infra-plugins", () => ({
   getInfraAuthPlugins: (...args: unknown[]) => getInfraAuthPluginsMock(...args),
 }));
 
-jest.mock("@/lib/blob/utils", () => ({
-  uploadProfileImage: jest.fn(),
+vi.mock("@/lib/blob/utils", () => ({
+  uploadProfileImage: vi.fn(),
 }));
 
-jest.mock("@/lib/clients/stripe.client", () => ({
+vi.mock("@/lib/clients/stripe.client", () => ({
   stripeClient: {
-    createOrganizationCustomer: jest.fn(() => Promise.resolve()),
+    createOrganizationCustomer: vi.fn(() => Promise.resolve()),
     createUserCustomer: (...args: unknown[]) =>
       stripeCreateUserCustomerMock(...args),
   },
 }));
 
-jest.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: { __prisma: true },
 }));
 
-jest.mock("@/lib/email/postmark", () => ({
+vi.mock("@/lib/email/postmark", () => ({
   postmarkClient: {
     sendEmail: postmarkSendEmailMock,
   },
 }));
 
-jest.mock("@/lib/schemas", () => ({
+vi.mock("@/lib/schemas", () => ({
   marketingOptInUserSchema: {
     safeParse: marketingOptInUserSchemaSafeParseMock,
   },
 }));
 
-jest.mock("@/lib/services", () => ({
-  callAccountCreatedWebHook: jest.fn(),
+vi.mock("@/lib/services", () => ({
+  callAccountCreatedWebHook: vi.fn(),
   callUserCreatedWebHook: callUserCreatedWebHookMock,
   callUserUpdatedWebHook: callUserUpdatedWebHookMock,
   organizationSubscriptionService: {
-    ensureCanAcceptInvitation: jest.fn(),
-    ensureCanCreateInvitation: jest.fn(),
+    ensureCanAcceptInvitation: vi.fn(),
+    ensureCanCreateInvitation: vi.fn(),
   },
   preferredOrganizationService: {
-    resolveActiveOrganizationIdForSession: jest.fn(),
+    resolveActiveOrganizationIdForSession: vi.fn(),
   },
   stripeService: {},
 }));
 
-jest.mock("@/lib/stripe/subscription-catalog", () => ({
-  getBetterAuthSubscriptionPlans: jest.fn(),
+vi.mock("@/lib/stripe/subscription-catalog", () => ({
+  getBetterAuthSubscriptionPlans: vi.fn(),
 }));
 
-jest.mock("@/lib/stripe/webhook-handlers", () => ({
-  handleCustomerCreatedEvent: jest.fn(),
-  handleCustomerUpdatedEvent: jest.fn(),
-  handleInvoicePaidEvent: jest.fn(),
+vi.mock("@/lib/stripe/webhook-handlers", () => ({
+  handleCustomerCreatedEvent: vi.fn(),
+  handleCustomerUpdatedEvent: vi.fn(),
+  handleInvoicePaidEvent: vi.fn(),
 }));
 
 describe("web auth config", () => {
   beforeEach(() => {
-    jest.resetModules();
-    jest.clearAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
 
     adminPluginMock.mockReturnValue("admin-plugin");
     apiKeyPluginMock.mockReturnValue("api-key-plugin");
-    betterAuthMock.mockReturnValue({ api: {}, handler: jest.fn() });
+    betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
     getEnvPublicConfigMock.mockReturnValue({
       NEXT_PUBLIC_PASSWORD_MAX_LENGTH: 128,
       NEXT_PUBLIC_PASSWORD_MIN_LENGTH: 12,
@@ -209,8 +218,8 @@ describe("web auth config", () => {
       BETTER_AUTH_RP_ID: "example.com",
       BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: 5_000,
       BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 60,
-      BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
       BETTER_AUTH_URL: "https://example.com/auth",
+      WEB_APP_BASE_URL: "https://example.com",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
       MICROSOFT_CLIENT_ID: "microsoft-client-id",
@@ -221,12 +230,14 @@ describe("web auth config", () => {
       VERCEL_BRANCH_URL: "",
       VERCEL_URL: "",
     });
+    getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
     getInfraAuthPluginsMock.mockReturnValue([]);
     i18nPluginMock.mockReturnValue("i18n-plugin");
     jwtPluginMock.mockReturnValue("jwt-plugin");
     lastLoginMethodPluginMock.mockReturnValue("last-login-method-plugin");
     magicLinkPluginMock.mockReturnValue("magic-link-plugin");
     nextCookiesPluginMock.mockReturnValue("next-cookies-plugin");
+    oAuthProxyPluginMock.mockReturnValue("oauth-proxy-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
     passkeyPluginMock.mockReturnValue("passkey-plugin");
@@ -254,6 +265,18 @@ describe("web auth config", () => {
       subject: "Sokosumi - E-Mail-Adresse bestätigen",
     });
     stripePluginMock.mockReturnValue("stripe-plugin");
+  });
+
+  it("uses the canonical production URL for the OAuth proxy", async () => {
+    getBetterAuthProductionUrlMock.mockReturnValue(
+      "https://canonical.example.com",
+    );
+
+    await import("../auth");
+
+    expect(oAuthProxyPluginMock).toHaveBeenCalledWith({
+      productionURL: "https://canonical.example.com",
+    });
   });
 
   it("prefers the locale cookie over accept-language for magic-link emails", async () => {

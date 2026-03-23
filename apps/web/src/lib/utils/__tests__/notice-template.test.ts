@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
 
 describe("parseNoticeTemplate", () => {

@@ -208,7 +208,7 @@ export const finalizedOnChainJobStatuses: OnChainJobStatus[] = [
   OnChainJobStatus.DISPUTED_WITHDRAWN,
   OnChainJobStatus.FUNDS_WITHDRAWN,
   OnChainJobStatus.REFUND_WITHDRAWN,
-  OnChainJobStatus.RESULT_SUBMITTED,
+  OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
 ];
 
 export const finalizedAgentJobStatuses: AgentJobStatus[] = [

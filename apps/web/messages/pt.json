@@ -514,7 +514,6 @@
               "replace": "Substituir logo",
               "remove": "Remover logo",
               "previewAlt": "Pré-visualização do logo da organização",
-              "uploadSuccess": "Logo carregado com sucesso",
               "uploadError": "Falha ao carregar o logo",
               "fileTooLarge": "O ficheiro é demasiado grande (máx. 2 MB)",
               "fileTypeNotAccepted": "Tipo de ficheiro não aceite",

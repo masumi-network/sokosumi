@@ -1,17 +1,18 @@
-jest.mock("server-only", () => ({}));
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 
 import { TaskStatus } from "@sokosumi/database";
 
 const coreClientMock = {
-  createTask: jest.fn(),
-  createTaskEvent: jest.fn(),
-  deleteTask: jest.fn(),
-  getTaskById: jest.fn(),
-  getTasks: jest.fn(),
-  patchTask: jest.fn(),
+  createTask: vi.fn(),
+  createTaskEvent: vi.fn(),
+  deleteTask: vi.fn(),
+  getTaskById: vi.fn(),
+  getTasks: vi.fn(),
+  patchTask: vi.fn(),
 };
 
-jest.mock("@/lib/clients/core.client", () => ({
+vi.mock("@/lib/clients/core.client", () => ({
   coreClient: coreClientMock,
 }));
 
@@ -33,7 +34,7 @@ function buildTask() {
 
 describe("task.service", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("lists tasks and normalizes status for the core client", async () => {

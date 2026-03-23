@@ -1,9 +1,11 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { createPaymentClient } from "../masumi-payment.client.js";
 
-const getPurchaseMock = jest.fn();
-const postPurchaseResolveBlockchainIdentifierMock = jest.fn();
+const getPurchaseMock = vi.fn();
+const postPurchaseResolveBlockchainIdentifierMock = vi.fn();
 
-jest.mock("../openapi/generated/payment/index.js", () => ({
+vi.mock("../openapi/generated/payment/index.js", () => ({
   getPurchase: (...args: unknown[]) => getPurchaseMock(...args),
   postPurchaseResolveBlockchainIdentifier: (...args: unknown[]) =>
     postPurchaseResolveBlockchainIdentifierMock(...args),
@@ -11,7 +13,7 @@ jest.mock("../openapi/generated/payment/index.js", () => ({
 
 describe("createPaymentClient polling requests", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     getPurchaseMock.mockResolvedValue({
       data: {
         data: {

@@ -1,10 +1,11 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
-const getEnvSecretsMock = jest.fn();
+const getEnvSecretsMock = vi.fn();
 
-jest.mock("@/config/env.secrets", () => ({
+vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: getEnvSecretsMock,
 }));
 
@@ -49,13 +50,13 @@ function createMockProduct(params: MockProductParams): unknown {
 
 describe("subscription-catalog", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
+    vi.clearAllMocks();
+    vi.resetModules();
     getEnvSecretsMock.mockReturnValue(ENV);
   });
 
   it("builds catalog from product metadata credits", async () => {
-    const retrieveMock = jest.fn(async (productId: string) => {
+    const retrieveMock = vi.fn(async (productId: string) => {
       switch (productId) {
         case ENV.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID:
           return createMockProduct({
@@ -135,7 +136,7 @@ describe("subscription-catalog", () => {
   });
 
   it("throws when product metadata credits are missing", async () => {
-    const retrieveMock = jest.fn(async (productId: string) => {
+    const retrieveMock = vi.fn(async (productId: string) => {
       switch (productId) {
         case ENV.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID:
           return createMockProduct({

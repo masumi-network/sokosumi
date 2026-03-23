@@ -1,10 +1,12 @@
 /**
  * Get suggestions based on coworker ID
  */
+
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+
 import type { Coworker } from "@/app/chat/utils/types";
 /** DB coworker shape as returned by GET /api/coworkers (and Core GET /v1/coworkers) */
 import type { Coworker as CoreCoworker } from "@/lib/clients/generated/core";
-import { ipfsUrlResolver } from "@/lib/ipfs";
 
 const DEFAULT_COWORKER_AVATARS: Record<string, string> = {
   alex: "/images/coworkers/alex.webp",
@@ -30,7 +32,7 @@ export function getCoworkerImageUrl(
  */
 export function mapDbCoworkerToChatCoworker(db: CoreCoworker): Coworker {
   const resolvedImage =
-    db.image != null && db.image !== "" ? ipfsUrlResolver(db.image) : null;
+    db.image != null && db.image !== "" ? resolveIpfsOrHttpUrl(db.image) : null;
   return {
     id: db.id,
     slug: db.slug,

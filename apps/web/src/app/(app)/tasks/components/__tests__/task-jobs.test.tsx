@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 import {
   JobType,
   SokosumiJobStatus,
@@ -10,11 +10,11 @@ import type { ReactNode } from "react";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import type { Job } from "@/lib/clients/generated/core/types.gen";
 
-jest.mock("@/components/jobs/job-status-badge", () => ({
+vi.mock("@/components/jobs/job-status-badge", () => ({
   JobStatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
 }));
 
-jest.mock("../task-job-status-badge.client", () => ({
+vi.mock("../task-job-status-badge.client", () => ({
   TaskJobStatusBadge: ({
     initialStatus,
     jobId,
@@ -24,7 +24,7 @@ jest.mock("../task-job-status-badge.client", () => ({
   }) => <span>{`realtime:${jobId}:${initialStatus}`}</span>,
 }));
 
-jest.mock("../task-jobs-realtime-provider.client", () => ({
+vi.mock("../task-jobs-realtime-provider.client", () => ({
   TaskJobsRealtimeProvider: ({ children }: { children: ReactNode }) => (
     <>{children}</>
   ),
@@ -33,7 +33,7 @@ jest.mock("../task-jobs-realtime-provider.client", () => ({
   ),
 }));
 
-jest.mock("@/lib/utils/datetime", () => ({
+vi.mock("@/lib/utils/datetime", () => ({
   formatTimeAgo: (value: string | Date) =>
     `ago:${value instanceof Date ? value.toISOString() : value}`,
 }));

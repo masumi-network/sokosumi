@@ -51,4 +51,17 @@ describe("organizationWithRoleSchema", () => {
 
     expect(result).not.toHaveProperty("subscription");
   });
+
+  it("rejects empty-string logo (invalid http URL)", () => {
+    expect(() =>
+      organizationWithRoleSchema.parse({
+        id: "org_123",
+        createdAt: "2025-01-01T00:00:00.000Z",
+        name: "My Organization",
+        slug: "my-org",
+        logo: "",
+        role: "member",
+      }),
+    ).toThrow();
+  });
 });

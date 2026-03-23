@@ -1,24 +1,24 @@
-import "@testing-library/jest-dom";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import SignUpForm from "../form";
 
-const mockReplace = jest.fn();
-const mockSignUpEmail = jest.fn();
-const mockGetSession = jest.fn();
-const mockWaitForAuthSession = jest.fn().mockResolvedValue(undefined);
+const mockReplace = vi.fn();
+const mockSignUpEmail = vi.fn();
+const mockGetSession = vi.fn();
+const mockWaitForAuthSession = vi.fn().mockResolvedValue(undefined);
 
 let mockSearchParams = new URLSearchParams();
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockReplace,
   }),
   useSearchParams: () => mockSearchParams as unknown as URLSearchParams,
 }));
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => {
     const t = (key: string) => key;
     t.has = () => true;
@@ -26,22 +26,22 @@ jest.mock("next-intl", () => ({
   },
 }));
 
-jest.mock("@vercel/analytics", () => ({
-  track: jest.fn(),
+vi.mock("@vercel/analytics", () => ({
+  track: vi.fn(),
 }));
 
-jest.mock("@sentry/nextjs", () => ({
-  captureMessage: jest.fn(),
+vi.mock("@sentry/nextjs", () => ({
+  captureMessage: vi.fn(),
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
-    success: jest.fn(),
-    error: jest.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/actions", () => ({
+vi.mock("@/lib/actions", () => ({
   AuthErrorCode: {
     EMAIL_DOMAIN_NOT_ALLOWED: "EMAIL_DOMAIN_NOT_ALLOWED",
     TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
@@ -49,22 +49,24 @@ jest.mock("@/lib/actions", () => ({
   signUpEmail: (...args: unknown[]) => mockSignUpEmail(...args),
 }));
 
-jest.mock("@/lib/auth/auth.client", () => ({
+vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     getSession: (...args: unknown[]) => mockGetSession(...args),
   },
 }));
 
-jest.mock("@/lib/gtm-events", () => ({
+vi.mock("@/lib/gtm-events", () => ({
   fireGTMEvent: {
-    viewRegisterArea: jest.fn(),
-    registerFormStart: jest.fn(),
-    signUp: jest.fn(),
+    viewRegisterArea: vi.fn(),
+    registerFormStart: vi.fn(),
+    signUp: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/utils/auth-redirect", () => {
-  const actual = jest.requireActual("@/lib/utils/auth-redirect");
+vi.mock("@/lib/utils/auth-redirect", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/utils/auth-redirect")>(
+    "@/lib/utils/auth-redirect",
+  );
   return {
     ...actual,
     waitForAuthSession: (...args: unknown[]) => mockWaitForAuthSession(...args),
