@@ -79,6 +79,7 @@ export function buildJobsNeedingAgentStatusSyncWhere(): Prisma.JobWhereInput {
               OnChainJobStatus.REFUND_REQUESTED,
               OnChainJobStatus.REFUND_WITHDRAWN,
               OnChainJobStatus.DISPUTED_WITHDRAWN,
+              OnChainJobStatus.FUNDS_OR_DATUM_INVALID,
             ],
           },
         },
