@@ -144,6 +144,7 @@ export const auth = betterAuth({
   advanced: {
     crossSubDomainCookies: {
       enabled: true,
+      domain: "sokosumi.com",
     },
     ipAddress: {
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
