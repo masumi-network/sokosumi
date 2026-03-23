@@ -1266,9 +1266,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(createJobEventForJobIdMock).toHaveBeenCalled();
   });
 
-  it("ignores late completed agent results when a purchase action errors in the same sync cycle", async () => {
-    const paymentFailedJob = createJob({
-      status: SokosumiJobStatus.PAYMENT_FAILED,
+  it("keeps payment pending when a purchase action errors in the same sync cycle", async () => {
+    const paymentPendingJob = createJob({
+      status: SokosumiJobStatus.PAYMENT_PENDING,
       purchase: {
         externalId: "purchase_1",
         onChainStatus: null,
@@ -1311,7 +1311,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(paymentFailedJob);
+    getJobByIdMock.mockResolvedValueOnce(paymentPendingJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1328,26 +1328,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
     expect(sourceImportEnqueueMock).not.toHaveBeenCalled();
     expect(refundJobMock).not.toHaveBeenCalled();
-    expect(renderJobFailureNotificationEmailMock).toHaveBeenCalledWith({
-      network: "Preprod",
-      agentId: "agent_1",
-      agentBlockchainIdentifier: "agent-chain-1",
-      agentName: "Planner",
-      jobId: "job_1",
-      jobBlockchainIdentifier: "blockchain-job-1",
-      onChainStatus: "N/A",
-      agentStatus: SokosumiJobStatus.PAYMENT_FAILED,
-      result: "N/A",
-      resultHash: "N/A",
-      locale: "en",
-    });
-    expect(publishJobStatusDataMock).toHaveBeenCalledWith({
-      agentId: "agent_1",
-      userId: "user_1",
-      jobId: "job_1",
-      jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
-      jobStatusSettled: false,
-    });
+    expect(renderJobFailureNotificationEmailMock).not.toHaveBeenCalled();
+    expect(publishJobStatusDataMock).not.toHaveBeenCalled();
   });
 
   it("ignores late completed agent results when a refund resolves in the same sync cycle", async () => {
