@@ -93,6 +93,25 @@ describe("createCoworkerRequestSchema", () => {
       expect(result.data).not.toHaveProperty("isWhitelisted");
     }
   });
+
+  it("accepts metadata with channels", () => {
+    const result = createCoworkerRequestSchema.safeParse({
+      name: "Ops Agent",
+      email: "ops@example.com",
+      metadata: {
+        channels: {
+          email: "foo@bar.com",
+          whatsapp: "+49151xxxx",
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.metadata?.channels.email).toBe("foo@bar.com");
+      expect(result.data.metadata?.channels.whatsapp).toBe("+49151xxxx");
+    }
+  });
 });
 
 describe("patchCoworkerRequestSchema", () => {
@@ -159,6 +178,29 @@ describe("patchCoworkerRequestSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("accepts metadata-only updates", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      metadata: {
+        channels: {
+          whatsapp: "+49151xxxx",
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.metadata?.channels.whatsapp).toBe("+49151xxxx");
+    }
+  });
+
+  it("accepts null metadata to clear", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      metadata: null,
+    });
+
+    expect(result.success).toBe(true);
   });
 });
 

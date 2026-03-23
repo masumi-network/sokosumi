@@ -1,6 +1,9 @@
 import { z } from "@hono/zod-openapi";
 
-import { coworkerCapabilitiesSchema } from "@/schemas/coworker.schema";
+import {
+  coworkerCapabilitiesSchema,
+  coworkerMetadataSchema,
+} from "@/schemas/coworker.schema";
 
 const coworkerEditableFieldsSchema = z.object({
   name: z.string().trim().min(3).openapi({ example: "Ops Agent" }),
@@ -39,6 +42,7 @@ const coworkerEditableFieldsSchema = z.object({
     .httpUrl()
     .nullish()
     .openapi({ example: "https://example.com/logo.png" }),
+  metadata: coworkerMetadataSchema.nullish(),
 });
 
 export const createCoworkerRequestSchema = coworkerEditableFieldsSchema.extend({
@@ -61,7 +65,8 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       data.email !== undefined ||
       data.description !== undefined ||
       data.capabilities !== undefined ||
-      data.image !== undefined,
+      data.image !== undefined ||
+      data.metadata !== undefined,
     {
       message: "At least one coworker field is required",
       path: [
@@ -75,6 +80,7 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
         "description",
         "capabilities",
         "image",
+        "metadata",
       ],
     },
   );

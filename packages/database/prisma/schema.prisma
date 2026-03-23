@@ -1102,6 +1102,7 @@ model Coworker {
   email       String?
   description String?
   image       String?
+  metadata    Json?
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)

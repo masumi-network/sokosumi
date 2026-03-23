@@ -19,6 +19,7 @@ describe("mapDbCoworkerToChatCoworker", () => {
         baseURL: null,
         email: null,
         capabilities: [],
+        metadata: null,
         createdAt: new Date("2026-03-06T00:00:00.000Z"),
         updatedAt: new Date("2026-03-06T00:00:00.000Z"),
       }),

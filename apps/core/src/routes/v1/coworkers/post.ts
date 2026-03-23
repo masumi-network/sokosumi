@@ -43,6 +43,12 @@ const route = createRoute({
         description: "Ops helper",
         capabilities: ["chat", "tasks"],
         image: "https://example.com/logo",
+        metadata: {
+          channels: {
+            email: "ops@example.com",
+            whatsapp: "+49151xxxx",
+          },
+        },
         createdAt: "2025-01-01T00:00:00.000Z",
         updatedAt: "2025-01-01T00:00:00.000Z",
       },
@@ -104,6 +110,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             description: body.description ?? null,
             capabilities: body.capabilities,
             image: body.image ?? null,
+            metadata: body.metadata ?? null,
             isWhitelisted: false,
           },
         });

@@ -32,6 +32,31 @@ describe("coworkerSchema", () => {
     expect(result.isWhitelisted).toBe(true);
     expect(typeof result.createdAt).toBe("string");
     expect(typeof result.updatedAt).toBe("string");
+    expect(result.metadata).toBeNull();
+  });
+
+  it("parses metadata channels", () => {
+    const result = coworkerSchema.parse({
+      id: "cow_123",
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      archivedAt: null,
+      isWhitelisted: true,
+      slug: "ops-agent",
+      name: "Ops Agent",
+      email: "ops@example.com",
+      baseURL: null,
+      capabilities: [],
+      metadata: {
+        channels: {
+          email: "foo@bar.com",
+          whatsapp: "+49151xxxx",
+        },
+      },
+    });
+
+    expect(result.metadata?.channels.email).toBe("foo@bar.com");
+    expect(result.metadata?.channels.whatsapp).toBe("+49151xxxx");
   });
 
   it("accepts null baseURL", () => {

@@ -846,6 +846,78 @@ export const CreateConversationItemRequestSchema = {
     ]
 } as const;
 
+export const CreditCostSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'clxx123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        unit: {
+            type: 'string',
+            example: 'TOKEN'
+        },
+        creditsPerUnit: {
+            type: 'number',
+            minimum: 0,
+            example: 0.0001,
+            description: 'Credits charged per unit (user-facing decimal)'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'unit',
+        'creditsPerUnit'
+    ]
+} as const;
+
+export const CreateCreditCostRequestSchema = {
+    type: 'object',
+    properties: {
+        unit: {
+            type: 'string',
+            minLength: 1,
+            example: 'TOKEN'
+        },
+        creditsPerUnit: {
+            type: 'number',
+            minimum: 0,
+            example: 0.0001
+        }
+    },
+    required: [
+        'unit',
+        'creditsPerUnit'
+    ]
+} as const;
+
+export const PatchCreditCostRequestSchema = {
+    type: 'object',
+    properties: {
+        creditsPerUnit: {
+            type: 'number',
+            minimum: 0,
+            example: 0.0001,
+            description: 'Credits charged per unit (user-facing decimal)'
+        }
+    },
+    required: [
+        'creditsPerUnit'
+    ]
+} as const;
+
 export const UserSchema = {
     type: 'object',
     properties: {
@@ -1283,6 +1355,26 @@ export const Job_EventSchema = {
     ]
 } as const;
 
+export const CoworkerMetadataSchema = {
+          type: 'object',
+          required: [
+              'channels'
+          ],
+          properties: {
+              channels: {
+                  type: 'object',
+                  additionalProperties: {
+                      type: 'string'
+                  },
+                  description: 'Contact channels keyed by provider id (e.g. email, whatsapp).',
+                  example: {
+                      email: 'foo@bar.com',
+                      whatsapp: '+49151xxxx'
+                  }
+              }
+          }
+} as const;
+
 export const CoworkerSchema = {
     type: 'object',
     properties: {
@@ -1391,6 +1483,14 @@ export const CoworkerSchema = {
                 'null'
             ],
             example: 'https://example.com/logo'
+        },
+        metadata: {
+            anyOf: [
+                CoworkerMetadataSchema,
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -1402,7 +1502,8 @@ export const CoworkerSchema = {
         'slug',
         'name',
         'baseURL',
-        'capabilities'
+        'capabilities',
+        'metadata'
     ]
 } as const;
 
