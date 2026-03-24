@@ -3,6 +3,7 @@ import { dashClient, sentinelClient } from "@better-auth/infra/client";
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { stripeClient } from "@better-auth/stripe/client";
+import { resolveBetterAuthCookieName } from "@sokosumi/utils";
 import {
   adminClient,
   inferAdditionalFields,
@@ -13,7 +14,22 @@ import {
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
+import { getEnvPublicConfig } from "@/config/env.public";
+
 import { auth } from "./auth";
+
+function getLastUsedLoginMethodCookieName(): string {
+  const env = getEnvPublicConfig();
+
+  return resolveBetterAuthCookieName(
+    {
+      network: env.NEXT_PUBLIC_NETWORK,
+      vercelEnv: env.NEXT_PUBLIC_VERCEL_ENV,
+      vercelGitCommitRef: env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF,
+    },
+    "last_used_login_method",
+  );
+}
 
 export const authClient = createAuthClient({
   plugins: [
@@ -24,7 +40,9 @@ export const authClient = createAuthClient({
       schema: inferOrgAdditionalFields<typeof auth>(),
     }),
     passkeyClient(),
-    lastLoginMethodClient(),
+    lastLoginMethodClient({
+      cookieName: getLastUsedLoginMethodCookieName(),
+    }),
     oauthProviderClient(),
     jwtClient(),
     stripeClient({

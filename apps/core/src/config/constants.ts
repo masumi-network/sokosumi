@@ -10,9 +10,6 @@ export const TIME = {
   /** Webhook request timeout (10 seconds) */
   WEBHOOK_TIMEOUT: 10,
 
-  /** Session cookie cache max age (5 minutes) */
-  SESSION_COOKIE_CACHE_MAX_AGE: 5 * 60,
-
   /** Email verification link expiration (2 days) */
   EMAIL_VERIFICATION_EXPIRES: 2 * 24 * 60 * 60,
 
