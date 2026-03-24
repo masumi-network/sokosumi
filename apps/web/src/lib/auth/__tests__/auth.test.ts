@@ -368,7 +368,8 @@ describe("web auth config", () => {
   it("pins preview cross-subdomain cookies to preview.sokosumi.com", async () => {
     getEnvSecretsMock.mockReturnValue({
       ...getDefaultEnvSecrets(),
-      BETTER_AUTH_URL: "https://api.feature-123.preview.sokosumi.com/auth",
+      BETTER_AUTH_URL:
+        "https://sokosumi-app-preprod-git-feature-123.preview.sokosumi.com/auth",
       WEB_APP_BASE_URL: "https://feature-123.preview.sokosumi.com",
     });
 

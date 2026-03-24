@@ -231,7 +231,7 @@ describe("core auth config", () => {
 
   it("uses a stable preview cookie prefix for preview hosts", async () => {
     getBetterAuthPublicBaseUrlMock.mockReturnValue(
-      "https://api.feature-123.preview.sokosumi.com/auth",
+      "https://sokosumi-core-preprod-git-feature-123.preview.sokosumi.com/auth",
     );
     getWebAppBaseUrlMock.mockReturnValue(
       "https://feature-123.preview.sokosumi.com",

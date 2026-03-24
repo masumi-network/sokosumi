@@ -49,6 +49,20 @@ test("uses a stable preview key from the custom preview host", () => {
   );
 });
 
+test("normalizes project-style preview hosts to the git branch suffix", () => {
+  const webCookiePrefix = resolveBetterAuthCookiePrefix({
+    baseUrl:
+      "https://sokosumi-app-preprod-git-feature-123.preview.sokosumi.com/auth",
+  });
+  const coreCookiePrefix = resolveBetterAuthCookiePrefix({
+    baseUrl:
+      "https://sokosumi-core-preprod-git-feature-123.preview.sokosumi.com/auth",
+  });
+
+  assert.equal(webCookiePrefix, "sokosumi-preview-feature-123");
+  assert.equal(coreCookiePrefix, "sokosumi-preview-feature-123");
+});
+
 test("uses the branch URL hostname when the deployment URL is unstable", () => {
   const webCookiePrefix = resolveBetterAuthCookiePrefix({
     baseUrl: "https://deploy-a.vercel.app/auth",
@@ -63,6 +77,27 @@ test("uses the branch URL hostname when the deployment URL is unstable", () => {
 
   assert.equal(webCookiePrefix, "sokosumi-preview-feature-branch-123-team");
   assert.equal(coreCookiePrefix, "sokosumi-preview-feature-branch-123-team");
+});
+
+test("matches custom preview hosts to the same branch-based prefix fallback", () => {
+  const customPreviewCookiePrefix = resolveBetterAuthCookiePrefix({
+    baseUrl:
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/auth",
+  });
+  const branchFallbackCookiePrefix = resolveBetterAuthCookiePrefix({
+    baseUrl: "https://deploy-b.vercel.app/auth",
+    vercelBranchUrl:
+      "https://sokosumi-core-preprod-git-codex-evaluate-cookie-prefix-usage.vercel.app",
+  });
+
+  assert.equal(
+    customPreviewCookiePrefix,
+    "sokosumi-preview-codex-evaluate-cookie-prefix-usage",
+  );
+  assert.equal(
+    branchFallbackCookiePrefix,
+    "sokosumi-preview-codex-evaluate-cookie-prefix-usage",
+  );
 });
 
 test("falls back to a shared preview prefix when no stable preview key exists", () => {

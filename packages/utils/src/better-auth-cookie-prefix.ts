@@ -6,6 +6,7 @@ const PREVIEW_HOST = "preview.sokosumi.com";
 const SOKOSUMI_ROOT_DOMAIN = "sokosumi.com";
 const SHARED_COOKIE_HOST_PREFIXES = ["api.", "app."] as const;
 const VERCEL_APP_HOST_SUFFIX = ".vercel.app";
+const GIT_HOST_SEGMENT = "-git-";
 
 export interface ResolveBetterAuthCookiePrefixParams {
   baseUrl: string;
@@ -47,6 +48,24 @@ function sanitizeCookieSegment(value: string): string | undefined {
   return normalized || undefined;
 }
 
+function getGitHostSuffix(value: string): string | undefined {
+  const gitSegmentIndex = value.indexOf(GIT_HOST_SEGMENT);
+
+  if (gitSegmentIndex < 0) {
+    return undefined;
+  }
+
+  return value.slice(gitSegmentIndex + GIT_HOST_SEGMENT.length);
+}
+
+function getPreviewKeyFromLabel(value: string): string | undefined {
+  const normalizedValue = stripSharedCookieHostPrefix(value);
+
+  return sanitizeCookieSegment(
+    getGitHostSuffix(normalizedValue) ?? normalizedValue,
+  );
+}
+
 function getPreviewKeyFromHostname(hostname: string): string | undefined {
   const normalizedHostname = stripSharedCookieHostPrefix(hostname);
 
@@ -59,7 +78,7 @@ function getPreviewKeyFromHostname(hostname: string): string | undefined {
     return undefined;
   }
 
-  return sanitizeCookieSegment(
+  return getPreviewKeyFromLabel(
     normalizedHostname.slice(0, -previewSuffix.length),
   );
 }
@@ -70,12 +89,13 @@ function getVercelBranchKeyFromHostname(hostname: string): string | undefined {
   }
 
   const branchHost = hostname.slice(0, -VERCEL_APP_HOST_SUFFIX.length);
-  const gitSeparatorIndex = branchHost.indexOf("-git-");
-  if (gitSeparatorIndex < 0) {
+  const gitHostSuffix = getGitHostSuffix(branchHost);
+
+  if (!gitHostSuffix) {
     return undefined;
   }
 
-  return sanitizeCookieSegment(branchHost.slice(gitSeparatorIndex + 5));
+  return sanitizeCookieSegment(gitHostSuffix);
 }
 
 function resolvePreviewKey(
