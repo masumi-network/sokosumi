@@ -659,9 +659,9 @@ export default function ChatInterface({
       selectedChatId != null
         ? conversationToSlot.get(selectedChatId)
         : undefined;
-    return slot !== undefined
-      ? (reasoningStartedAtBySlotRef.current[slot] ?? null)
-      : null;
+    if (slot === undefined) return null;
+    const _reasoningSteps = reasoningBySlot[slot];
+    return reasoningStartedAtBySlotRef.current[slot] ?? null;
   }, [selectedChatId, conversationToSlot, reasoningBySlot]);
 
   const selectedChatReasoningEndedAt = useMemo(() => {

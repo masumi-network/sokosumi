@@ -18,8 +18,10 @@ export function useTypingReveal(text: string): string {
   const revealedLengthRef = useRef(0);
   const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  targetRef.current = text.length;
-  revealedLengthRef.current = revealedLength;
+  useEffect(() => {
+    targetRef.current = text.length;
+    revealedLengthRef.current = revealedLength;
+  }, [text.length, revealedLength]);
 
   useEffect(() => {
     if (text === prevTextRef.current) return;
@@ -28,7 +30,9 @@ export function useTypingReveal(text: string): string {
     if (prev.length > 0 && text.startsWith(prev)) {
       return;
     }
-    setRevealedLength(0);
+    queueMicrotask(() => {
+      setRevealedLength(0);
+    });
     if (intervalIdRef.current) {
       clearInterval(intervalIdRef.current);
       intervalIdRef.current = null;
@@ -42,7 +46,9 @@ export function useTypingReveal(text: string): string {
     }
 
     if (isDocumentHidden()) {
-      setRevealedLength(text.length);
+      queueMicrotask(() => {
+        setRevealedLength(text.length);
+      });
       return;
     }
 
