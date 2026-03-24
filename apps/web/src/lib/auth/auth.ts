@@ -153,10 +153,14 @@ export const auth = betterAuth({
   baseURL: betterAuthBaseUrl,
   advanced: {
     cookiePrefix: resolveBetterAuthCookiePrefix(betterAuthCookiePrefixParams),
-    crossSubDomainCookies: {
-      enabled: true,
-      domain: secrets.BETTER_AUTH_COOKIE_DOMAIN,
-    },
+    ...(secrets.BETTER_AUTH_COOKIE_DOMAIN
+      ? {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: secrets.BETTER_AUTH_COOKIE_DOMAIN,
+          },
+        }
+      : {}),
     ipAddress: {
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },

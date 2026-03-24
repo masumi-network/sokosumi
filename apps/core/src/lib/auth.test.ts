@@ -187,6 +187,32 @@ describe("core auth config", () => {
     });
   });
 
+  it("disables cross-subdomain cookies when no cookie domain is configured", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      BETTER_AUTH_COOKIE_DOMAIN: undefined,
+    });
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.crossSubDomainCookies).toBeUndefined();
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-localhost-preprod");
+  });
+
   it("uses the configured cookie domain when provided", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
