@@ -39,10 +39,31 @@ function stripSharedCookieHostPrefix(hostname: string): string {
 }
 
 function sanitizeCookieSegment(value: string): string | undefined {
-  const normalized = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  let normalized = "";
+  let previousWasSeparator = false;
+
+  for (const character of value.toLowerCase()) {
+    const isAlphaNumeric =
+      (character >= "a" && character <= "z") ||
+      (character >= "0" && character <= "9");
+
+    if (isAlphaNumeric) {
+      normalized += character;
+      previousWasSeparator = false;
+      continue;
+    }
+
+    if (normalized === "" || previousWasSeparator) {
+      continue;
+    }
+
+    normalized += "-";
+    previousWasSeparator = true;
+  }
+
+  if (normalized.endsWith("-")) {
+    normalized = normalized.slice(0, -1);
+  }
 
   return normalized || undefined;
 }

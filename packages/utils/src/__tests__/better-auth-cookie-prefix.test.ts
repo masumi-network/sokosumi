@@ -108,3 +108,14 @@ test("falls back to a shared preview prefix when preview commit ref is empty", (
     "sokosumi-preview",
   );
 });
+
+test("collapses repeated separators in preview commit refs", () => {
+  assert.equal(
+    resolveBetterAuthCookiePrefix({
+      baseUrl: "https://deployment-abc.vercel.app/auth",
+      vercelEnv: "preview",
+      vercelGitCommitRef: "---feature___branch---123---",
+    }),
+    "sokosumi-preview-feature-branch-123",
+  );
+});
