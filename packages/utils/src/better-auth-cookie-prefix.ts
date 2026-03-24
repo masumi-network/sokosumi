@@ -63,7 +63,7 @@ export function resolveBetterAuthCookiePrefix(
   }
 }
 
-export function getBetterAuthCookieName(
+function getBetterAuthCookieName(
   cookiePrefix: string,
   cookieName: string,
 ): string {
