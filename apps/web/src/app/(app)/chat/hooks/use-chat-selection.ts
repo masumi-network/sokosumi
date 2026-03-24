@@ -6,9 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import {
-  bucketKeyFromDisplaySlug,
   displaySlugFromMetadata,
-  getBucketKeyFromMetadata,
 } from "@/app/chat/utils/bucket-slug";
 import type { Conversation } from "@/lib/actions/conversation";
 
@@ -35,38 +33,6 @@ interface UseChatSelectionProps {
   isSelectedChatStreaming?: boolean;
   isConversationLoading?: boolean;
   enabled?: boolean;
-}
-
-function _getNextConversationAfterDelete(
-  conversations: Conversation[],
-  bucketSlug: string | undefined,
-): { nextId: string | null; nextSlug: string } {
-  if (conversations.length === 0) {
-    return { nextId: null, nextSlug: bucketSlug ?? "" };
-  }
-  const bucketKey = bucketSlug
-    ? bucketKeyFromDisplaySlug(conversations, bucketSlug)
-    : null;
-  const sameBucket = bucketKey
-    ? conversations.filter(
-        (c) =>
-          getBucketKeyFromMetadata(
-            (c.metadata as Record<string, unknown> | null) ?? null,
-          ) === bucketKey,
-      )
-    : [];
-  const candidates = sameBucket.length > 0 ? sameBucket : conversations;
-  const sorted = [...candidates].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
-  const nextConv = sorted[0] ?? null;
-  const nextId = nextConv?.id ?? null;
-  const nextSlug = nextConv
-    ? displaySlugFromMetadata(
-        (nextConv.metadata as Record<string, unknown> | null) ?? null,
-      )
-    : "";
-  return { nextId, nextSlug: nextSlug || bucketSlug || "" };
 }
 
 /**
