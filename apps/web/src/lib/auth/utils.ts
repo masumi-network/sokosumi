@@ -6,6 +6,10 @@ import { cache } from "react";
 
 import { auth, Session } from "@/lib/auth/auth";
 
+interface GetSessionOptions {
+  refresh?: boolean;
+}
+
 /**
  * Gets the current user's session information. This function only works with
  * session-based authentication, not API keys.
@@ -13,13 +17,28 @@ import { auth, Session } from "@/lib/auth/auth";
  * @returns Promise resolving to the user's session if valid, null otherwise
  *
  */
-export const getSession = cache(async (): Promise<Session | null> => {
+const getCachedSession = cache(async (): Promise<Session | null> => {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   return session;
 });
+
+export async function getSession(
+  options?: GetSessionOptions,
+): Promise<Session | null> {
+  if (options?.refresh) {
+    return auth.api.getSession({
+      query: {
+        disableCookieCache: true,
+      },
+      headers: await headers(),
+    });
+  }
+
+  return getCachedSession();
+}
 
 /**
  * Gets the current user's session or redirects to the login page if no valid session is found.

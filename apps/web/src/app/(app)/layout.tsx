@@ -19,6 +19,7 @@ import { coreClient } from "@/lib/clients/core.client";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
+import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
 import EmailVerificationNotice from "./components/email-verification-notice";
 import Header from "./components/header";
@@ -164,6 +165,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <QueryProvider>
+      <AuthSessionGuard />
       <ConversationsProvider>
         <CoworkersProvider initialCoworkers={coworkers}>
           {content}

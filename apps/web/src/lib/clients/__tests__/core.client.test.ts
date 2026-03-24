@@ -18,6 +18,7 @@ vi.mock("next/headers", () => ({
 }));
 
 vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
+  getServerCoreApiBaseUrl: () => "http://localhost:8787/v1",
   getCoreApiBaseUrl: () => "http://localhost:8787/v1",
 }));
 
