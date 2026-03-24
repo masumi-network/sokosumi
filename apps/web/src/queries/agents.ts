@@ -2,7 +2,10 @@ import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import { queryOptions } from "@tanstack/react-query";
 
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.browser.client";
+import {
+  CoreApiRequestError,
+  coreClient,
+} from "@/lib/clients/core.browser.client";
 
 export const getAgentInputSchemaQueryKey = (agentId: string) => [
   "agents",

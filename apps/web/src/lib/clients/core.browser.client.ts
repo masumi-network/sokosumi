@@ -12,9 +12,7 @@ export {
   toCoreApiActionError,
 } from "./core.shared";
 
-let browserGeneratedClient:
-  | ReturnType<typeof createClient>
-  | undefined;
+let browserGeneratedClient: ReturnType<typeof createClient> | undefined;
 
 function getBrowserGeneratedClient() {
   browserGeneratedClient ??= createClient({

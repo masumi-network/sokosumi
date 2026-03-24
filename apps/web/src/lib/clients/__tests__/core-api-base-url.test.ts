@@ -37,9 +37,8 @@ describe("getCoreApiBaseUrl", () => {
   });
 
   it("normalizes base urls to a single /v1 suffix", async () => {
-    const { normalizeCoreApiBaseUrl } = await import(
-      "../utils/core-api-base-url.shared"
-    );
+    const { normalizeCoreApiBaseUrl } =
+      await import("../utils/core-api-base-url.shared");
 
     expect(normalizeCoreApiBaseUrl("https://api.sokosumi.com")).toBe(
       "https://api.sokosumi.com/v1",
@@ -53,9 +52,8 @@ describe("getCoreApiBaseUrl", () => {
   });
 
   it("resolves the server core API url from related projects", async () => {
-    const { getServerCoreApiBaseUrl } = await import(
-      "../utils/core-api-base-url"
-    );
+    const { getServerCoreApiBaseUrl } =
+      await import("../utils/core-api-base-url");
     const coreApiBaseUrl = getServerCoreApiBaseUrl();
 
     expect(withRelatedProjectMock).toHaveBeenCalledWith({
@@ -66,9 +64,8 @@ describe("getCoreApiBaseUrl", () => {
   });
 
   it("reads the browser core API url from public env", async () => {
-    const { getBrowserCoreApiBaseUrl } = await import(
-      "../utils/core-api-base-url.browser"
-    );
+    const { getBrowserCoreApiBaseUrl } =
+      await import("../utils/core-api-base-url.browser");
 
     expect(getBrowserCoreApiBaseUrl()).toBe("https://api.sokosumi.com/v1");
   });
