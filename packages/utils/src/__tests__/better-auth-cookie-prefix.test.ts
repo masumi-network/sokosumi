@@ -1,9 +1,7 @@
-import assert from "node:assert/strict";
-
-import { test } from "vitest";
+import { assert, test } from "vitest";
 
 import {
-  getBetterAuthCookieName,
+  resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "../better-auth-cookie-prefix.js";
 
@@ -48,10 +46,17 @@ test("uses a preview key from the git commit ref", () => {
     vercelGitCommitRef: "feature/123",
   });
 
-  assert.equal(cookiePrefix, "sokosumi-preview-Preprod-feature-123");
+  assert.equal(cookiePrefix, "sokosumi-preview-preprod-feature-123");
   assert.equal(
-    getBetterAuthCookieName(cookiePrefix, "last_used_login_method"),
-    "sokosumi-preview-Preprod-feature-123.last_used_login_method",
+    resolveBetterAuthCookieName(
+      {
+        network: "Preprod",
+        vercelEnv: "preview",
+        vercelGitCommitRef: "feature/123",
+      },
+      "last_used_login_method",
+    ),
+    "sokosumi-preview-preprod-feature-123.last_used_login_method",
   );
 });
 
@@ -67,8 +72,8 @@ test("uses different preview prefixes across different networks", () => {
     vercelGitCommitRef: "feature/123",
   });
 
-  assert.equal(webCookiePrefix, "sokosumi-preview-Preprod-feature-123");
-  assert.equal(coreCookiePrefix, "sokosumi-preview-Mainnet-feature-123");
+  assert.equal(webCookiePrefix, "sokosumi-preview-preprod-feature-123");
+  assert.equal(coreCookiePrefix, "sokosumi-preview-mainnet-feature-123");
 });
 
 test("uses the git commit ref when preview env is enabled", () => {
@@ -85,11 +90,11 @@ test("uses the git commit ref when preview env is enabled", () => {
 
   assert.equal(
     webCookiePrefix,
-    "sokosumi-preview-Preprod-feature-branch-123-team",
+    "sokosumi-preview-preprod-feature-branch-123-team",
   );
   assert.equal(
     coreCookiePrefix,
-    "sokosumi-preview-Preprod-feature-branch-123-team",
+    "sokosumi-preview-preprod-feature-branch-123-team",
   );
 });
 
@@ -99,7 +104,7 @@ test("preview prefixes include the configured network", () => {
     vercelEnv: "preview",
     vercelGitCommitRef: "different-branch-name",
   });
-  assert.equal(previewPrefix, "sokosumi-preview-Mainnet-different-branch-name");
+  assert.equal(previewPrefix, "sokosumi-preview-mainnet-different-branch-name");
 });
 
 test("falls back to a network-specific preview prefix when commit ref is empty", () => {
@@ -109,7 +114,7 @@ test("falls back to a network-specific preview prefix when commit ref is empty",
       vercelEnv: "preview",
       vercelGitCommitRef: "",
     }),
-    "sokosumi-preview-Preprod",
+    "sokosumi-preview-preprod",
   );
 });
 
@@ -120,7 +125,7 @@ test("collapses repeated separators in preview commit refs", () => {
       vercelEnv: "preview",
       vercelGitCommitRef: "---feature___branch---123---",
     }),
-    "sokosumi-preview-Mainnet-feature-branch-123",
+    "sokosumi-preview-mainnet-feature-branch-123",
   );
 });
 
@@ -129,13 +134,13 @@ test("uses a localhost prefix outside Vercel deployments", () => {
     resolveBetterAuthCookiePrefix({
       network: "Preprod",
     }),
-    "sokosumi-localhost-Preprod",
+    "sokosumi-localhost-preprod",
   );
   assert.equal(
     resolveBetterAuthCookiePrefix({
       network: "Mainnet",
       vercelEnv: "development",
     }),
-    "sokosumi-localhost-Mainnet",
+    "sokosumi-localhost-mainnet",
   );
 });

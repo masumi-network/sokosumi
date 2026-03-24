@@ -1,7 +1,4 @@
-import {
-  getBetterAuthCookieName,
-  resolveBetterAuthCookiePrefix,
-} from "@sokosumi/utils";
+import { resolveBetterAuthCookieName } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
@@ -33,12 +30,12 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
   const env = getEnvSecrets();
   const { returnUrl, email } = await searchParams;
   const cookieStore = await cookies();
-  const lastUsedLoginMethodCookieName = getBetterAuthCookieName(
-    resolveBetterAuthCookiePrefix({
+  const lastUsedLoginMethodCookieName = resolveBetterAuthCookieName(
+    {
       network: env.NETWORK,
       vercelEnv: env.VERCEL_ENV,
       vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
-    }),
+    },
     "last_used_login_method",
   );
   const lastUsedLoginMethod = parseLastUsedAuthMethod(

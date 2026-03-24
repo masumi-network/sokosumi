@@ -44,21 +44,22 @@ function sanitizeCookieSegment(value: string): string | undefined {
 export function resolveBetterAuthCookiePrefix(
   params: ResolveBetterAuthCookiePrefixParams,
 ): string {
+  const network = params.network.toLowerCase();
   switch (params.vercelEnv) {
     case "production":
-      return params.network === "Preprod"
+      return network === "preprod"
         ? PREPROD_COOKIE_PREFIX
         : DEFAULT_COOKIE_PREFIX;
     case "preview":
       const previewKey = sanitizeCookieSegment(params.vercelGitCommitRef ?? "");
       if (previewKey) {
-        return `${PREVIEW_COOKIE_PREFIX}-${params.network}-${previewKey}`;
+        return `${PREVIEW_COOKIE_PREFIX}-${network}-${previewKey}`;
       }
-      return `${PREVIEW_COOKIE_PREFIX}-${params.network}`;
+      return `${PREVIEW_COOKIE_PREFIX}-${network}`;
     case "development":
-      return `${LOCALHOST_COOKIE_PREFIX}-${params.network}`;
+      return `${LOCALHOST_COOKIE_PREFIX}-${network}`;
     default:
-      return `${LOCALHOST_COOKIE_PREFIX}-${params.network}`;
+      return `${LOCALHOST_COOKIE_PREFIX}-${network}`;
   }
 }
 
@@ -67,4 +68,14 @@ export function getBetterAuthCookieName(
   cookieName: string,
 ): string {
   return `${cookiePrefix}.${cookieName}`;
+}
+
+export function resolveBetterAuthCookieName(
+  params: ResolveBetterAuthCookiePrefixParams,
+  cookieName: string,
+): string {
+  return getBetterAuthCookieName(
+    resolveBetterAuthCookiePrefix(params),
+    cookieName,
+  );
 }

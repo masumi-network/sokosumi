@@ -3,10 +3,7 @@ import { dashClient, sentinelClient } from "@better-auth/infra/client";
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { stripeClient } from "@better-auth/stripe/client";
-import {
-  getBetterAuthCookieName,
-  resolveBetterAuthCookiePrefix,
-} from "@sokosumi/utils";
+import { resolveBetterAuthCookieName } from "@sokosumi/utils";
 import {
   adminClient,
   inferAdditionalFields,
@@ -24,12 +21,12 @@ import { auth } from "./auth";
 function getLastUsedLoginMethodCookieName(): string {
   const env = getEnvPublicConfig();
 
-  return getBetterAuthCookieName(
-    resolveBetterAuthCookiePrefix({
+  return resolveBetterAuthCookieName(
+    {
       network: env.NEXT_PUBLIC_NETWORK,
       vercelEnv: env.NEXT_PUBLIC_VERCEL_ENV,
       vercelGitCommitRef: env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF,
-    }),
+    },
     "last_used_login_method",
   );
 }

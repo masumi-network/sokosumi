@@ -17,9 +17,9 @@ import {
 } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
-  getBetterAuthCookieName,
   getOrganizationMetadata,
   getStoredUserName,
+  resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
   resolveCrossSubdomainCookieDomain,
 } from "@sokosumi/utils";
@@ -143,23 +143,20 @@ function getEmailLocale(
 }
 
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
-const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
+const betterAuthCookiePrefixParams = {
   network: secrets.NETWORK,
   vercelEnv: secrets.VERCEL_ENV,
   vercelGitCommitRef: secrets.VERCEL_GIT_COMMIT_REF,
-});
+};
+
 const crossSubdomainCookieDomain =
   resolveCrossSubdomainCookieDomain(betterAuthBaseUrl);
-const lastUsedLoginMethodCookieName = getBetterAuthCookieName(
-  betterAuthCookiePrefix,
-  "last_used_login_method",
-);
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   baseURL: betterAuthBaseUrl,
   advanced: {
-    cookiePrefix: betterAuthCookiePrefix,
+    cookiePrefix: resolveBetterAuthCookiePrefix(betterAuthCookiePrefixParams),
     ...(crossSubdomainCookieDomain
       ? {
           crossSubDomainCookies: {
@@ -474,7 +471,10 @@ export const auth = betterAuth({
       rpName: "Sokosumi",
     }),
     lastLoginMethod({
-      cookieName: lastUsedLoginMethodCookieName,
+      cookieName: resolveBetterAuthCookieName(
+        betterAuthCookiePrefixParams,
+        "last_used_login_method",
+      ),
     }),
     oauthProvider({
       loginPage: "/signin",
