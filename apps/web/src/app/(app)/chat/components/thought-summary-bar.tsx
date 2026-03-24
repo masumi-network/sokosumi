@@ -33,8 +33,6 @@ export default function ThoughtSummaryBar({
     .map(({ message }) => message.trim())
     .filter(Boolean);
 
-  const hasReasoningSteps = subordinateSteps.length > 0;
-
   useEffect(() => {
     if (reasoningStartedAt == null || isFrozen) return;
     const update = () =>
@@ -47,17 +45,17 @@ export default function ThoughtSummaryBar({
   }, [reasoningStartedAt, isFrozen]);
 
   useEffect(() => {
-    if (!hasReasoningSteps || !isOpen) return;
+    if (subordinateSteps.length === 0 || !isOpen) return;
     const el = viewportRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [hasReasoningSteps, isOpen, subordinateSteps]);
+  }, [subordinateSteps, isOpen]);
 
   const displaySeconds = isFrozen ? frozenSeconds : liveSeconds;
   const isRecordedView = reasoningEndedAt != null;
 
   return (
     <div className="mb-1 flex flex-col">
-      {hasReasoningSteps ? (
+      {subordinateSteps.length > 0 ? (
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
@@ -89,7 +87,7 @@ export default function ThoughtSummaryBar({
           {t("reasoning.thoughtForSeconds", { seconds: displaySeconds })}
         </div>
       )}
-      {isOpen && hasReasoningSteps && (
+      {isOpen && subordinateSteps.length > 0 && (
         <div className="min-w-0 px-4 pt-0.5 pb-1.5">
           <div
             ref={viewportRef}

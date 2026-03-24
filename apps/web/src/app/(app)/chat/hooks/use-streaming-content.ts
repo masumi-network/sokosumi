@@ -1,41 +1,20 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+  isDocumentHidden,
+  useDocumentVisibilityState,
+} from "@/app/chat/hooks/document-visibility";
 
 const CHARS_PER_SECOND = 128;
 const CATCH_UP_THRESHOLD = 6;
-
-function isDocumentHidden(): boolean {
-  return (
-    typeof document !== "undefined" && document.visibilityState === "hidden"
-  );
-}
-
-function subscribeVisibility(callback: () => void) {
-  if (typeof document === "undefined") return () => {};
-  document.addEventListener("visibilitychange", callback);
-  return () => document.removeEventListener("visibilitychange", callback);
-}
-
-function getDocumentVisibilityState(): DocumentVisibilityState {
-  return typeof document !== "undefined" ? document.visibilityState : "visible";
-}
 
 export function useStreamingContent(
   content: string,
   isStreaming: boolean,
 ): string {
-  const visibilityState = useSyncExternalStore(
-    subscribeVisibility,
-    getDocumentVisibilityState,
-    (): DocumentVisibilityState => "visible",
-  );
+  const visibilityState = useDocumentVisibilityState();
 
   const [revealedLength, setRevealedLength] = useState(0);
   const [hasAnimated, setHasAnimated] = useState(false);

@@ -205,10 +205,10 @@ function createResponsesApiUiStream(
   let streamClosed = false;
   let cancelled = false;
   let lastEventLine: string | null = null;
-  const responseStartedState = { called: false };
+  let responseStartedNotified = false;
   const pendingDeltaChunks: string[] = [];
   const reasoningAccumulator: Record<string, string> = {};
-  const needNewlineBeforeNextDelta = false;
+  let needNewlineBeforeNextDelta = false;
 
   function closeStream(
     controller: ReadableStreamDefaultController<Uint8Array>,
@@ -295,10 +295,10 @@ function createResponsesApiUiStream(
 
       if (
         typeof responseId === "string" &&
-        !responseStartedState.called &&
+        !responseStartedNotified &&
         lastEventLine === "response.created"
       ) {
-        responseStartedState.called = true;
+        responseStartedNotified = true;
         onResponseStarted?.(responseId);
       }
 
@@ -378,7 +378,9 @@ function createResponsesApiUiStream(
         closeStream(controller);
         return true;
       }
-    } catch (_) {}
+    } catch {
+      return false;
+    }
 
     return false;
   }

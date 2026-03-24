@@ -1,31 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import {
+  isDocumentHidden,
+  useDocumentVisibilityState,
+} from "@/app/chat/hooks/document-visibility";
 
 const MS_PER_CHAR = 3;
 
-function isDocumentHidden(): boolean {
-  return (
-    typeof document !== "undefined" && document.visibilityState === "hidden"
-  );
-}
-
-function subscribeVisibility(callback: () => void) {
-  if (typeof document === "undefined") return () => {};
-  document.addEventListener("visibilitychange", callback);
-  return () => document.removeEventListener("visibilitychange", callback);
-}
-
-function getDocumentVisibilityState(): DocumentVisibilityState {
-  return typeof document !== "undefined" ? document.visibilityState : "visible";
-}
-
 export function useTypingReveal(text: string): string {
-  const visibilityState = useSyncExternalStore(
-    subscribeVisibility,
-    getDocumentVisibilityState,
-    (): DocumentVisibilityState => "visible",
-  );
+  const visibilityState = useDocumentVisibilityState();
 
   const [revealedLength, setRevealedLength] = useState(0);
   const prevTextRef = useRef("");
