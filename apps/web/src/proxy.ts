@@ -1,6 +1,4 @@
-import {
-  resolveBetterAuthCookiePrefix,
-} from "@sokosumi/utils";
+import { resolveBetterAuthCookiePrefix } from "@sokosumi/utils";
 import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
