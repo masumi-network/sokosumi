@@ -13,6 +13,8 @@ const envSecretsSchema = z.object({
     .enum(["development", "staging", "production"])
     .default("development"),
 
+  NETWORK: z.enum(["Mainnet", "Preprod"]).default("Preprod"),
+
   // Database
   DATABASE_URL: z.url(),
 
