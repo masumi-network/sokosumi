@@ -886,7 +886,6 @@ export default function ChatInterface({
   const recoveryAttemptedForRef = useRef<string | null>(null);
   const recoveredProcessedForRef = useRef<string | null>(null);
   const currentCidRef = useRef<string | null>(null);
-  /** Shared by route-driven and coworker-metadata recovery effects so cleanup cancels all in-flight work. */
   const conversationRecoveryGenerationRef = useRef(0);
   const mountedRef = useRef(true);
 
