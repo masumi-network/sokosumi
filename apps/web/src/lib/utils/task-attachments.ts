@@ -1,5 +1,7 @@
 import { escapeMarkdownLinkUrl, extractFileLikeLinks } from "@sokosumi/utils";
 
+import { coreClient } from "@/lib/clients/core.browser.client";
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -48,22 +50,16 @@ export function removeTaskAttachmentLinks(
 }
 
 export async function uploadTaskAttachment(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.set("file", file);
+  try {
+    const response = await coreClient.uploadMyFile(file);
+    const url = response.data.publicUrl;
 
-  const response = await fetch("/api/internal/uploads/task-attachments", {
-    method: "POST",
-    body: formData,
-  });
+    if (!url) {
+      throw new Error("Failed to upload file");
+    }
 
-  if (!response.ok) {
+    return url;
+  } catch {
     throw new Error("Failed to upload file");
   }
-
-  const payload = (await response.json()) as { url?: string };
-  if (!payload.url) {
-    throw new Error("Failed to upload file");
-  }
-
-  return payload.url;
 }
