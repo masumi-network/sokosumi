@@ -170,8 +170,10 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       reasoningMessages.length > 0 &&
       lastMessage?.role === "assistant" &&
       lastMessageContent.trim().length > 0;
+    const recoveryInFlight = isRecovering || isRecoveringPolling;
     const showPendingError =
-      pendingResponseFailed || showPendingErrorForEmptyAssistant;
+      !recoveryInFlight &&
+      (pendingResponseFailed || showPendingErrorForEmptyAssistant);
     const showLoadingIndicator =
       isRecovering ||
       (showLoadingArea && !showReasoningLoaders && !showPendingError);

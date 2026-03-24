@@ -884,10 +884,10 @@ export default function ChatInterface({
   });
 
   const recoveryAttemptedForRef = useRef<string | null>(null);
-  const coworkerChatRecoveryGenerationRef = useRef(0);
   const recoveredProcessedForRef = useRef<string | null>(null);
   const currentCidRef = useRef<string | null>(null);
-  const routeDrivenRecoveryGenerationRef = useRef(0);
+  /** Shared by route-driven and coworker-metadata recovery effects so cleanup cancels all in-flight work. */
+  const conversationRecoveryGenerationRef = useRef(0);
   const mountedRef = useRef(true);
 
   currentCidRef.current = urlConversationId ?? selectedChatId ?? null;
@@ -934,7 +934,7 @@ export default function ChatInterface({
       return;
     }
     recoveryAttemptedForRef.current = cid;
-    const routeRecoveryGeneration = routeDrivenRecoveryGenerationRef.current;
+    const routeRecoveryGeneration = conversationRecoveryGenerationRef.current;
     if (urlConversationId && selectedChatId !== urlConversationId) {
       setSelectedChatId(urlConversationId);
     }
@@ -944,7 +944,7 @@ export default function ChatInterface({
     }
     (async () => {
       const isCancelled = () =>
-        routeRecoveryGeneration !== routeDrivenRecoveryGenerationRef.current;
+        routeRecoveryGeneration !== conversationRecoveryGenerationRef.current;
       async function loadConversationItemsIntoCache(conversationId: string) {
         const itemsResult = await getConversationItems({
           conversationId,
@@ -1216,7 +1216,7 @@ export default function ChatInterface({
       }
     })();
     return () => {
-      routeDrivenRecoveryGenerationRef.current += 1;
+      conversationRecoveryGenerationRef.current += 1;
       setIsRecoveringPolling(false);
       setIsRecovering(false);
     };
@@ -1248,9 +1248,17 @@ export default function ChatInterface({
     const pendingId = meta?.pending_responses_api_response_id;
     if (typeof pendingId !== "string" || pendingId.length === 0) return;
 
+    if (recoveryAttemptedForRef.current === conv.id) {
+      if (mountedRef.current && recoveredProcessedForRef.current !== conv.id) {
+        setIsRecovering(true);
+        setIsRecoveringPolling(true);
+      }
+      return;
+    }
+
     recoveryAttemptedForRef.current = conv.id;
 
-    const recoveryGeneration = coworkerChatRecoveryGenerationRef.current;
+    const recoveryGeneration = conversationRecoveryGenerationRef.current;
 
     setIsRecovering(true);
     setIsRecoveringPolling(true);
@@ -1258,7 +1266,7 @@ export default function ChatInterface({
     function isAborted() {
       return (
         cancelled ||
-        recoveryGeneration !== coworkerChatRecoveryGenerationRef.current
+        recoveryGeneration !== conversationRecoveryGenerationRef.current
       );
     }
     (async () => {
@@ -1509,7 +1517,7 @@ export default function ChatInterface({
     })();
     return () => {
       cancelled = true;
-      coworkerChatRecoveryGenerationRef.current += 1;
+      conversationRecoveryGenerationRef.current += 1;
       if (recoveryAttemptedForRef.current === conv.id) {
         recoveryAttemptedForRef.current = null;
       }
