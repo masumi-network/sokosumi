@@ -536,6 +536,38 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function postConversationsByIdRecoverResponse(id: string) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await client.post({
+          url: `/conversations/${encodeURIComponent(id)}/recover-response`,
+          security: [{ scheme: "bearer", type: "http" }],
+          cache: "no-store",
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error,
+            response: result.response,
+          };
+        }
+        const envelope = result.data as { data?: unknown } | undefined;
+        return {
+          data: envelope?.data as
+            | {
+                recovered?: boolean;
+                reason?: "not_found" | "in_progress" | "terminal";
+              }
+            | undefined,
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to recover conversation response",
+    );
+  }
+
   return {
     acknowledgeNotice,
     addConversationItem,
@@ -549,6 +581,7 @@ export function createCoreClient(getClient: GetClient) {
     getConversations,
     getAgentById,
     getAgentInputSchema,
+    postConversationsByIdRecoverResponse,
     getCoworkers,
     getJobById,
     getJobs,
