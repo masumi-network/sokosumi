@@ -6,7 +6,7 @@ const LOCALHOST_COOKIE_PREFIX = "sokosumi-localhost";
 type BetterAuthCookieNetwork = "Mainnet" | "Preprod";
 
 export interface ResolveBetterAuthCookiePrefixParams {
-  network?: BetterAuthCookieNetwork;
+  network: BetterAuthCookieNetwork;
   vercelEnv?: string;
   vercelGitCommitRef?: string;
 }
@@ -44,24 +44,23 @@ function sanitizeCookieSegment(value: string): string | undefined {
 export function resolveBetterAuthCookiePrefix(
   params: ResolveBetterAuthCookiePrefixParams,
 ): string {
-  const network = params.network ?? "Preprod";
   switch (params.vercelEnv) {
     case "production":
-      return network === "Preprod"
+      return params.network === "Preprod"
         ? PREPROD_COOKIE_PREFIX
         : DEFAULT_COOKIE_PREFIX;
     case "preview":
       const previewKey = sanitizeCookieSegment(params.vercelGitCommitRef ?? "");
 
       if (previewKey) {
-        return `${PREVIEW_COOKIE_PREFIX}-${network}-${previewKey}`;
+        return `${PREVIEW_COOKIE_PREFIX}-${params.network}-${previewKey}`;
       }
 
-      return `${PREVIEW_COOKIE_PREFIX}-${network}`;
+      return `${PREVIEW_COOKIE_PREFIX}-${params.network}`;
     case "development":
-      return `${LOCALHOST_COOKIE_PREFIX}-${network}`;
+      return `${LOCALHOST_COOKIE_PREFIX}-${params.network}`;
     default:
-      return `${LOCALHOST_COOKIE_PREFIX}-${network}`;
+      return `${LOCALHOST_COOKIE_PREFIX}-${params.network}`;
   }
 }
 
