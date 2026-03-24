@@ -92,10 +92,7 @@ test("preview commit ref wins over the hostname shape", () => {
     vercelEnv: "preview",
     vercelGitCommitRef: "different-branch-name",
   });
-  assert.equal(
-    hostnameBasedPrefix,
-    "sokosumi-preview-different-branch-name",
-  );
+  assert.equal(hostnameBasedPrefix, "sokosumi-preview-different-branch-name");
 });
 
 test("falls back to a shared preview prefix when preview commit ref is empty", () => {
