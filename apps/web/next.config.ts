@@ -4,26 +4,24 @@ import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-import { getEnvSecrets } from "@/config/env.secrets";
-
 import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
 import {
   getCoreRelatedProjectName,
   normalizeCoreApiBaseUrl,
 } from "./src/lib/clients/utils/core-api-base-url.shared";
 
-const secrets = getEnvSecrets();
+const coreNetwork = process.env.NETWORK === "Mainnet" ? "Mainnet" : "Preprod";
 
 const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
   withRelatedProject({
-    projectName: getCoreRelatedProjectName(secrets.NETWORK),
+    projectName: getCoreRelatedProjectName(coreNetwork),
     defaultHost: process.env.CORE_APP_BASE_URL ?? "http://localhost:8787",
   }),
 );
 
 const nextConfig: NextConfig = {
   env: {
-    NEXT_PUBLIC_NETWORK: secrets.NETWORK,
+    NEXT_PUBLIC_NETWORK: coreNetwork,
     NEXT_PUBLIC_CORE_APP_BASE_URL: browserCoreApiBaseUrl,
     NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV,
     NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: process.env.VERCEL_GIT_COMMIT_REF,
