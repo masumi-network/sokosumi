@@ -73,7 +73,7 @@ describe("SignIn page", () => {
     );
 
     expect(getMock).toHaveBeenCalledWith(
-      "sokosumi-localhost-Preprod.last_used_login_method",
+      "sokosumi-localhost-preprod.last_used_login_method",
     );
   });
 });

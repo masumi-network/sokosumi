@@ -73,7 +73,7 @@ describe("SignUp page", () => {
     );
 
     expect(getMock).toHaveBeenCalledWith(
-      "sokosumi-preview-Preprod-feature-123.last_used_login_method",
+      "sokosumi-preview-preprod-feature-123.last_used_login_method",
     );
   });
 });

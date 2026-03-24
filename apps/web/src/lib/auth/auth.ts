@@ -21,7 +21,6 @@ import {
   getStoredUserName,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
-  resolveCrossSubdomainCookieDomain,
 } from "@sokosumi/utils";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
@@ -149,22 +148,15 @@ const betterAuthCookiePrefixParams = {
   vercelGitCommitRef: secrets.VERCEL_GIT_COMMIT_REF,
 };
 
-const crossSubdomainCookieDomain =
-  resolveCrossSubdomainCookieDomain(betterAuthBaseUrl);
-
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   baseURL: betterAuthBaseUrl,
   advanced: {
     cookiePrefix: resolveBetterAuthCookiePrefix(betterAuthCookiePrefixParams),
-    ...(crossSubdomainCookieDomain
-      ? {
-          crossSubDomainCookies: {
-            enabled: true,
-            domain: crossSubdomainCookieDomain,
-          },
-        }
-      : {}),
+    crossSubDomainCookies: {
+      enabled: true,
+      domain: secrets.BETTER_AUTH_COOKIE_DOMAIN,
+    },
     ipAddress: {
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },

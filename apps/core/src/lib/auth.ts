@@ -8,7 +8,6 @@ import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   getStoredUserName,
   resolveBetterAuthCookiePrefix,
-  resolveCrossSubdomainCookieDomain,
 } from "@sokosumi/utils";
 import { betterAuth } from "better-auth/minimal";
 import {
@@ -39,23 +38,16 @@ const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
   vercelEnv: env.VERCEL_ENV,
   vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
 });
-const crossSubdomainCookieDomain =
-  resolveCrossSubdomainCookieDomain(betterAuthBaseUrl);
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   advanced: {
     cookiePrefix: betterAuthCookiePrefix,
-    ...(crossSubdomainCookieDomain
-      ? {
-          crossSubDomainCookies: {
-            enabled: true,
-            domain: crossSubdomainCookieDomain,
-          },
-        }
-      : {}),
+    crossSubDomainCookies: {
+      enabled: true,
+      domain: env.BETTER_AUTH_COOKIE_DOMAIN,
+    },
     ipAddress: {
-      // For Vercel
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },
   },

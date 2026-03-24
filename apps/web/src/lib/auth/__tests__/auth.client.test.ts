@@ -101,7 +101,7 @@ describe("auth client", () => {
     await import("../auth.client");
 
     expect(lastLoginMethodClientMock).toHaveBeenCalledWith({
-      cookieName: "sokosumi-localhost-Preprod.last_used_login_method",
+      cookieName: "sokosumi-localhost-preprod.last_used_login_method",
     });
   });
 
@@ -115,7 +115,7 @@ describe("auth client", () => {
     await import("../auth.client");
 
     expect(lastLoginMethodClientMock).toHaveBeenCalledWith({
-      cookieName: "sokosumi-preview-Mainnet-feature-123.last_used_login_method",
+      cookieName: "sokosumi-preview-mainnet-feature-123.last_used_login_method",
     });
   });
 });

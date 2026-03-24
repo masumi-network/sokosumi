@@ -39,7 +39,7 @@ describe("proxy", () => {
 
     expect(getSessionCookieMock).toHaveBeenCalledWith(request, {
       cookiePrefix:
-        "sokosumi-preview-Preprod-codex-evaluate-cookie-prefix-usage",
+        "sokosumi-preview-preprod-codex-evaluate-cookie-prefix-usage",
     });
   });
 });

@@ -44,6 +44,7 @@ const {
 
 function getDefaultEnv() {
   return {
+    BETTER_AUTH_COOKIE_DOMAIN: undefined,
     BETTER_AUTH_SECRET: "test-secret",
     NETWORK: "Preprod",
     NODE_ENV: "production",
@@ -186,9 +187,10 @@ describe("core auth config", () => {
     });
   });
 
-  it("scopes cross-subdomain cookies to the shared preprod host", async () => {
+  it("uses the configured cookie domain when provided", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
+      BETTER_AUTH_COOKIE_DOMAIN: "preview.sokosumi.com",
       VERCEL_ENV: "production",
     });
     getBetterAuthPublicBaseUrlMock.mockReturnValue(
@@ -214,7 +216,7 @@ describe("core auth config", () => {
 
     expect(config.advanced.crossSubDomainCookies).toEqual({
       enabled: true,
-      domain: "preprod.sokosumi.com",
+      domain: "preview.sokosumi.com",
     });
     expect(config.advanced.cookiePrefix).toBe("sokosumi-preprod");
   });
@@ -245,9 +247,10 @@ describe("core auth config", () => {
     expect(config.advanced.cookiePrefix).toBe("sokosumi");
   });
 
-  it("uses a network-specific preview cookie prefix for preview hosts", async () => {
+  it("uses the configured cookie domain for previews when provided", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
+      BETTER_AUTH_COOKIE_DOMAIN: "sokosumi.com",
       NETWORK: "Mainnet",
       VERCEL_ENV: "preview",
       VERCEL_GIT_COMMIT_REF: "feature/123",
@@ -276,11 +279,11 @@ describe("core auth config", () => {
     >;
 
     expect(config.advanced.cookiePrefix).toBe(
-      "sokosumi-preview-Mainnet-feature-123",
+      "sokosumi-preview-mainnet-feature-123",
     );
     expect(config.advanced.crossSubDomainCookies).toEqual({
       enabled: true,
-      domain: "preview.sokosumi.com",
+      domain: "sokosumi.com",
     });
   });
 
@@ -307,7 +310,7 @@ describe("core auth config", () => {
       ]
     >;
 
-    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-Preprod");
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-preprod");
   });
 
   it("uses English for magic-link emails", async () => {
