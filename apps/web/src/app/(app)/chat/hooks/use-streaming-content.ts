@@ -1,14 +1,42 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 const CHARS_PER_SECOND = 128;
 const CATCH_UP_THRESHOLD = 6;
+
+function isDocumentHidden(): boolean {
+  return (
+    typeof document !== "undefined" && document.visibilityState === "hidden"
+  );
+}
+
+function subscribeVisibility(callback: () => void) {
+  if (typeof document === "undefined") return () => {};
+  document.addEventListener("visibilitychange", callback);
+  return () => document.removeEventListener("visibilitychange", callback);
+}
+
+function getDocumentVisibilityState(): DocumentVisibilityState {
+  return typeof document !== "undefined" ? document.visibilityState : "visible";
+}
 
 export function useStreamingContent(
   content: string,
   isStreaming: boolean,
 ): string {
+  const visibilityState = useSyncExternalStore(
+    subscribeVisibility,
+    getDocumentVisibilityState,
+    (): DocumentVisibilityState => "visible",
+  );
+
   const [revealedLength, setRevealedLength] = useState(0);
   const [hasAnimated, setHasAnimated] = useState(false);
   const contentLengthRef = useRef(content.length);
@@ -33,10 +61,41 @@ export function useStreamingContent(
     }
   }, [content.length, revealedLength]);
 
+  const revealToTargetLength = useCallback((targetLength: number) => {
+    if (revealedLengthRef.current >= targetLength) return;
+    revealedLengthRef.current = targetLength;
+    setRevealedLength(targetLength);
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    pendingCharsRef.current = 0;
+    lastTimeRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (!isDocumentHidden()) return;
+    const target = contentLengthRef.current;
+    if (revealedLengthRef.current >= target) return;
+    queueMicrotask(() => revealToTargetLength(target));
+  }, [content.length, revealToTargetLength]);
+
+  useEffect(() => {
+    function flushIfHidden() {
+      if (!isDocumentHidden()) return;
+      revealToTargetLength(contentLengthRef.current);
+    }
+    document.addEventListener("visibilitychange", flushIfHidden);
+    flushIfHidden();
+    return () =>
+      document.removeEventListener("visibilitychange", flushIfHidden);
+  }, [revealToTargetLength]);
+
   useEffect(() => {
     const hasMoreToReveal =
       contentLengthRef.current > revealedLengthRef.current;
     const shouldRun =
+      visibilityState !== "hidden" &&
       hasMoreToReveal &&
       (isStreaming || revealedLengthRef.current > 0) &&
       rafIdRef.current === null;
@@ -44,6 +103,17 @@ export function useStreamingContent(
 
     let didSetAnimated = false;
     function loop(now: number) {
+      if (isDocumentHidden()) {
+        const targetLength = contentLengthRef.current;
+        if (revealedLengthRef.current < targetLength) {
+          revealedLengthRef.current = targetLength;
+          setRevealedLength(targetLength);
+        }
+        pendingCharsRef.current = 0;
+        lastTimeRef.current = null;
+        rafIdRef.current = null;
+        return;
+      }
       if (!didSetAnimated) {
         didSetAnimated = true;
         setHasAnimated(true);
@@ -88,17 +158,13 @@ export function useStreamingContent(
 
     rafIdRef.current = requestAnimationFrame(loop);
 
-    return () => {};
-  }, [isStreaming, content.length]);
-
-  useEffect(() => {
     return () => {
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = null;
       }
     };
-  }, []);
+  }, [isStreaming, content.length, visibilityState]);
 
   if (
     !isStreaming &&

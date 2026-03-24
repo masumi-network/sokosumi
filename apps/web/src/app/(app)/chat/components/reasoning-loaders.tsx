@@ -2,20 +2,10 @@
 
 import { useTranslations } from "next-intl";
 
+import { isReasoningGenericLabel } from "@/app/chat/utils/reasoning-generic-labels";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 
 import ReasoningLoaderRow from "./reasoning-loader-row";
-
-const GENERIC_LABELS = new Set([
-  "Processing...",
-  "Thinking...",
-  "Searching files...",
-  "Calling tools...",
-]);
-
-function isGenericLabel(message: string): boolean {
-  return GENERIC_LABELS.has(message) || message.trim() === "";
-}
 
 interface ReasoningLoadersProps {
   reasoningMessages: Array<{ id: string; message: string }>;
@@ -41,7 +31,7 @@ export default function ReasoningLoaders({
     : t("reasoning.thinking");
 
   const subordinateSteps = reasoningMessages
-    .filter(({ message }) => !isGenericLabel(message))
+    .filter(({ message }) => !isReasoningGenericLabel(message))
     .map(({ message }) => message.trim())
     .filter(Boolean);
 
