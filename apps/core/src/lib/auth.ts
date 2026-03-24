@@ -7,7 +7,7 @@ import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   getStoredUserName,
-  resolveCrossSubdomainCookieDomain,
+  resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
 import { betterAuth } from "better-auth/minimal";
 import {
@@ -33,22 +33,25 @@ import prisma from "@/lib/db/prisma";
 const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
-const crossSubdomainCookieDomain =
-  resolveCrossSubdomainCookieDomain(betterAuthBaseUrl);
+const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
+  network: env.NETWORK,
+  vercelEnv: env.VERCEL_ENV,
+  vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
+});
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   advanced: {
-    ...(crossSubdomainCookieDomain
+    cookiePrefix: betterAuthCookiePrefix,
+    ...(env.BETTER_AUTH_COOKIE_DOMAIN
       ? {
           crossSubDomainCookies: {
             enabled: true,
-            domain: crossSubdomainCookieDomain,
+            domain: env.BETTER_AUTH_COOKIE_DOMAIN,
           },
         }
       : {}),
     ipAddress: {
-      // For Vercel
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },
   },
@@ -56,10 +59,6 @@ export const auth = betterAuth({
     joins: true,
   },
   session: {
-    cookieCache: {
-      enabled: true,
-      maxAge: TIME.SESSION_COOKIE_CACHE_MAX_AGE,
-    },
     storeSessionInDatabase: true,
   },
   database: prismaAdapter(prisma, {

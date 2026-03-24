@@ -1,12 +1,14 @@
-export type CoreNetwork = "Mainnet" | "Preprod";
-
-export function getCoreRelatedProjectName(network: CoreNetwork): string {
+export function getCoreRelatedProjectName(
+  network: "Mainnet" | "Preprod",
+): string {
   return network === "Preprod"
     ? "sokosumi-core-preprod"
     : "sokosumi-core-mainnet";
 }
 
-export function getDefaultCoreApiBaseUrl(network: CoreNetwork): string {
+export function getDefaultCoreApiBaseUrl(
+  network: "Mainnet" | "Preprod",
+): string {
   return network === "Preprod"
     ? "https://api.preprod.sokosumi.com"
     : "https://api.sokosumi.com";

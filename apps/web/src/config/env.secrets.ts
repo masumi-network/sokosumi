@@ -13,6 +13,8 @@ const envSecretsSchema = z.object({
     .enum(["development", "staging", "production"])
     .default("development"),
 
+  NETWORK: z.enum(["Mainnet", "Preprod"]).default("Preprod"),
+
   // Database
   DATABASE_URL: z.url(),
 
@@ -89,6 +91,7 @@ const envSecretsSchema = z.object({
     )
     .pipe(z.url())
     .optional(),
+  VERCEL_GIT_COMMIT_REF: z.string().optional(),
   VERCEL_PROJECT_PRODUCTION_URL: z
     .string()
     .transform((val: string) =>
@@ -110,6 +113,7 @@ const envSecretsSchema = z.object({
 
   // Better Auth Settings
   BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
+  BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
   BETTER_AUTH_RP_ID: z.string().min(1).default("localhost"),
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_API_KEY: z

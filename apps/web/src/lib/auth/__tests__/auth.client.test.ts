@@ -16,6 +16,7 @@ const passkeyClientMock = vi.fn(() => "passkey-plugin");
 const stripeClientMock = vi.fn(() => "stripe-plugin");
 const dashClientMock = vi.fn(() => "dash-plugin");
 const sentinelClientMock = vi.fn(() => "sentinel-plugin");
+const getEnvPublicConfigMock = vi.fn();
 
 vi.mock("better-auth/react", () => ({
   createAuthClient: createAuthClientMock,
@@ -55,11 +56,20 @@ vi.mock("@/lib/auth/auth", () => ({
   auth: {},
 }));
 
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => getEnvPublicConfigMock(),
+}));
+
 describe("auth client", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
     createAuthClientMock.mockReturnValue({});
+    getEnvPublicConfigMock.mockReturnValue({
+      NEXT_PUBLIC_NETWORK: "Preprod",
+      NEXT_PUBLIC_VERCEL_ENV: undefined,
+      NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: undefined,
+    });
   });
 
   it("registers adminClient in createAuthClient plugins", async () => {
@@ -85,5 +95,27 @@ describe("auth client", () => {
     >;
 
     expect(plugins).toEqual(expect.arrayContaining(["passkey-plugin"]));
+  });
+
+  it("configures lastLoginMethodClient with the computed cookie name", async () => {
+    await import("../auth.client");
+
+    expect(lastLoginMethodClientMock).toHaveBeenCalledWith({
+      cookieName: "sokosumi-localhost-preprod.last_used_login_method",
+    });
+  });
+
+  it("uses the preview branch prefix when the public Vercel env is preview", async () => {
+    getEnvPublicConfigMock.mockReturnValue({
+      NEXT_PUBLIC_NETWORK: "Mainnet",
+      NEXT_PUBLIC_VERCEL_ENV: "preview",
+      NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "feature/123",
+    });
+
+    await import("../auth.client");
+
+    expect(lastLoginMethodClientMock).toHaveBeenCalledWith({
+      cookieName: "sokosumi-preview-mainnet-feature-123.last_used_login_method",
+    });
   });
 });
