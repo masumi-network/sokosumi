@@ -40,7 +40,8 @@ export async function proxy(request: NextRequest) {
   });
   const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
     baseUrl: betterAuthBaseUrl,
-    vercelBranchUrl: env.VERCEL_BRANCH_URL,
+    vercelEnv: env.VERCEL_ENV,
+    vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
   });
 
   // Check maintenance mode - redirect to /maintenance if enabled

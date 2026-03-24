@@ -42,6 +42,18 @@ const {
   stripeCreateUserCustomerMock: vi.fn(),
 }));
 
+function getDefaultEnv() {
+  return {
+    BETTER_AUTH_SECRET: "test-secret",
+    NODE_ENV: "production",
+    POSTMARK_FROM_EMAIL: "no-reply@example.com",
+    POSTMARK_SERVER_ID: "postmark-server-id",
+    STRIPE_SECRET_KEY: "sk_test_123",
+    VERCEL_ENV: undefined,
+    VERCEL_GIT_COMMIT_REF: "",
+  };
+}
+
 vi.mock("better-auth/minimal", () => ({
   betterAuth: (...args: unknown[]) => betterAuthMock(...args),
 }));
@@ -115,13 +127,7 @@ describe("core auth config", () => {
     adminPluginMock.mockReturnValue("admin-plugin");
     apiKeyPluginMock.mockReturnValue("api-key-plugin");
     i18nPluginMock.mockReturnValue("i18n-plugin");
-    getEnvMock.mockReturnValue({
-      BETTER_AUTH_SECRET: "test-secret",
-      NODE_ENV: "production",
-      POSTMARK_FROM_EMAIL: "no-reply@example.com",
-      POSTMARK_SERVER_ID: "postmark-server-id",
-      STRIPE_SECRET_KEY: "sk_test_123",
-    });
+    getEnvMock.mockReturnValue(getDefaultEnv());
     getBetterAuthPublicBaseUrlMock.mockReturnValue("https://example.com/auth");
     getWebAppBaseUrlMock.mockReturnValue("https://example.com");
     jwtPluginMock.mockReturnValue("jwt-plugin");
@@ -230,6 +236,11 @@ describe("core auth config", () => {
   });
 
   it("uses a stable preview cookie prefix for preview hosts", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "feature/123",
+    });
     getBetterAuthPublicBaseUrlMock.mockReturnValue(
       "https://sokosumi-core-preprod-git-feature-123.preview.sokosumi.com/auth",
     );
@@ -258,6 +269,32 @@ describe("core auth config", () => {
       enabled: true,
       domain: "preview.sokosumi.com",
     });
+  });
+
+  it("falls back to the shared preview prefix when preview commit ref is empty", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "",
+    });
+    getBetterAuthPublicBaseUrlMock.mockReturnValue(
+      "https://deployment-abc.vercel.app/auth",
+    );
+    getWebAppBaseUrlMock.mockReturnValue("https://deployment-abc.vercel.app");
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview");
   });
 
   it("uses English for magic-link emails", async () => {

@@ -89,6 +89,7 @@ const envSecretsSchema = z.object({
     )
     .pipe(z.url())
     .optional(),
+  VERCEL_GIT_COMMIT_REF: z.string().optional(),
   VERCEL_PROJECT_PRODUCTION_URL: z
     .string()
     .transform((val: string) =>

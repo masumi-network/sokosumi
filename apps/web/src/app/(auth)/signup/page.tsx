@@ -41,7 +41,8 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
   const lastUsedLoginMethodCookieName = getBetterAuthCookieName(
     resolveBetterAuthCookiePrefix({
       baseUrl: getBetterAuthPublicBaseUrl(),
-      vercelBranchUrl: env.VERCEL_BRANCH_URL,
+      vercelEnv: env.VERCEL_ENV,
+      vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
     }),
     "last_used_login_method",
   );

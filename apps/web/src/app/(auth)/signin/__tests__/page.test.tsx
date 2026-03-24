@@ -54,6 +54,7 @@ describe("SignIn page", () => {
     });
     getEnvSecretsMock.mockReturnValue({
       BETTER_AUTH_URL: "https://preprod.sokosumi.com/auth",
+      VERCEL_GIT_COMMIT_REF: "",
       VERCEL_BRANCH_URL: "",
       VERCEL_ENV: undefined,
       VERCEL_PROJECT_PRODUCTION_URL: undefined,

@@ -40,6 +40,8 @@ test("uses the preprod cookie prefix for preprod hosts", () => {
 test("uses a stable preview key from the custom preview host", () => {
   const cookiePrefix = resolveBetterAuthCookiePrefix({
     baseUrl: "https://api.feature-123.preview.sokosumi.com/auth",
+    vercelEnv: "preview",
+    vercelGitCommitRef: "feature/123",
   });
 
   assert.equal(cookiePrefix, "sokosumi-preview-feature-123");
@@ -53,57 +55,55 @@ test("normalizes project-style preview hosts to the git branch suffix", () => {
   const webCookiePrefix = resolveBetterAuthCookiePrefix({
     baseUrl:
       "https://sokosumi-app-preprod-git-feature-123.preview.sokosumi.com/auth",
+    vercelEnv: "preview",
+    vercelGitCommitRef: "feature/123",
   });
   const coreCookiePrefix = resolveBetterAuthCookiePrefix({
     baseUrl:
       "https://sokosumi-core-preprod-git-feature-123.preview.sokosumi.com/auth",
+    vercelEnv: "preview",
+    vercelGitCommitRef: "feature/123",
   });
 
   assert.equal(webCookiePrefix, "sokosumi-preview-feature-123");
   assert.equal(coreCookiePrefix, "sokosumi-preview-feature-123");
 });
 
-test("uses the branch URL hostname when the deployment URL is unstable", () => {
+test("uses the git commit ref when the deployment URL is unstable", () => {
   const webCookiePrefix = resolveBetterAuthCookiePrefix({
     baseUrl: "https://deploy-a.vercel.app/auth",
-    vercelBranchUrl:
-      "https://sokosumi-web-git-feature_branch-123-team.vercel.app",
+    vercelEnv: "preview",
+    vercelGitCommitRef: "feature_branch-123-team",
   });
   const coreCookiePrefix = resolveBetterAuthCookiePrefix({
     baseUrl: "https://deploy-b.vercel.app/auth",
-    vercelBranchUrl:
-      "https://sokosumi-core-git-feature_branch-123-team.vercel.app",
+    vercelEnv: "preview",
+    vercelGitCommitRef: "feature_branch-123-team",
   });
 
   assert.equal(webCookiePrefix, "sokosumi-preview-feature-branch-123-team");
   assert.equal(coreCookiePrefix, "sokosumi-preview-feature-branch-123-team");
 });
 
-test("matches custom preview hosts to the same branch-based prefix fallback", () => {
-  const customPreviewCookiePrefix = resolveBetterAuthCookiePrefix({
+test("preview commit ref wins over the hostname shape", () => {
+  const hostnameBasedPrefix = resolveBetterAuthCookiePrefix({
     baseUrl:
       "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/auth",
+    vercelEnv: "preview",
+    vercelGitCommitRef: "different-branch-name",
   });
-  const branchFallbackCookiePrefix = resolveBetterAuthCookiePrefix({
-    baseUrl: "https://deploy-b.vercel.app/auth",
-    vercelBranchUrl:
-      "https://sokosumi-core-preprod-git-codex-evaluate-cookie-prefix-usage.vercel.app",
-  });
-
   assert.equal(
-    customPreviewCookiePrefix,
-    "sokosumi-preview-codex-evaluate-cookie-prefix-usage",
-  );
-  assert.equal(
-    branchFallbackCookiePrefix,
-    "sokosumi-preview-codex-evaluate-cookie-prefix-usage",
+    hostnameBasedPrefix,
+    "sokosumi-preview-different-branch-name",
   );
 });
 
-test("falls back to a shared preview prefix when no stable preview key exists", () => {
+test("falls back to a shared preview prefix when preview commit ref is empty", () => {
   assert.equal(
     resolveBetterAuthCookiePrefix({
       baseUrl: "https://preview.sokosumi.com/auth",
+      vercelEnv: "preview",
+      vercelGitCommitRef: "",
     }),
     "sokosumi-preview",
   );

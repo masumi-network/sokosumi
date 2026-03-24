@@ -23,6 +23,8 @@ const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
 const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_CORE_APP_BASE_URL: browserCoreApiBaseUrl,
+    NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV,
+    NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: process.env.VERCEL_GIT_COMMIT_REF,
   },
   reactCompiler: true,
   images: {

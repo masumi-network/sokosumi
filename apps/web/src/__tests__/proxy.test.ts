@@ -17,6 +17,7 @@ describe("proxy", () => {
     getEnvSecretsMock.mockReturnValue({
       BETTER_AUTH_URL: "https://feature-123.preview.sokosumi.com/auth",
       MAINTENANCE_MODE: false,
+      VERCEL_GIT_COMMIT_REF: "codex/evaluate-cookie-prefix-usage",
       VERCEL_BRANCH_URL:
         "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.vercel.app",
       VERCEL_ENV: "preview",
@@ -26,7 +27,7 @@ describe("proxy", () => {
     getSessionCookieMock.mockReturnValue("session-token");
   });
 
-  it("checks the session cookie using the Better Auth preview URL, not the custom preview host", async () => {
+  it("checks the session cookie using the preview commit ref", async () => {
     const { NextRequest } = await import("next/server");
     const { proxy } = await import("../proxy");
     const request = new NextRequest(

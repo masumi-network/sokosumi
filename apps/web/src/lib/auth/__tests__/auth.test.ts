@@ -49,6 +49,7 @@ function getDefaultEnvSecrets() {
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
     STRIPE_SECRET_KEY: "sk_test_123",
     STRIPE_WEBHOOK_SECRET: "whsec_123",
+    VERCEL_GIT_COMMIT_REF: "",
     VERCEL_BRANCH_URL: "",
     VERCEL_URL: "",
     WEB_APP_BASE_URL: "https://example.com",
@@ -370,6 +371,8 @@ describe("web auth config", () => {
       ...getDefaultEnvSecrets(),
       BETTER_AUTH_URL:
         "https://sokosumi-app-preprod-git-feature-123.preview.sokosumi.com/auth",
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "feature/123",
       WEB_APP_BASE_URL: "https://feature-123.preview.sokosumi.com",
     });
 
@@ -396,13 +399,12 @@ describe("web auth config", () => {
     expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-feature-123");
   });
 
-  it("uses the branch URL to keep preview cookie prefixes stable", async () => {
+  it("uses the git commit ref to keep preview cookie prefixes stable", async () => {
     getEnvSecretsMock.mockReturnValue({
       ...getDefaultEnvSecrets(),
       BETTER_AUTH_URL: "https://fallback.sokosumi.com/auth",
-      VERCEL_BRANCH_URL:
-        "https://sokosumi-web-git-feature_branch-123-team.vercel.app",
       VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "feature_branch-123-team",
       VERCEL_URL: "https://deployment-abc.vercel.app",
       WEB_APP_BASE_URL: "https://deployment-abc.vercel.app",
     });
@@ -422,6 +424,31 @@ describe("web auth config", () => {
     expect(config.advanced.cookiePrefix).toBe(
       "sokosumi-preview-feature-branch-123-team",
     );
+  });
+
+  it("falls back to the shared preview prefix when preview commit ref is empty", async () => {
+    getEnvSecretsMock.mockReturnValue({
+      ...getDefaultEnvSecrets(),
+      BETTER_AUTH_URL: "https://deployment-abc.vercel.app/auth",
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "",
+      VERCEL_URL: "https://deployment-abc.vercel.app",
+      WEB_APP_BASE_URL: "https://deployment-abc.vercel.app",
+    });
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview");
   });
 
   it("prefers the locale cookie over accept-language for magic-link emails", async () => {

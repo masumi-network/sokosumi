@@ -17,15 +17,20 @@ import {
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
+import { getEnvPublicConfig } from "@/config/env.public";
+
 import { auth } from "./auth";
 
 function getLastUsedLoginMethodCookieName(): string {
+  const env = getEnvPublicConfig();
   const baseUrl =
     typeof window !== "undefined" ? window.location.origin : "http://localhost";
 
   return getBetterAuthCookieName(
     resolveBetterAuthCookiePrefix({
       baseUrl,
+      vercelEnv: env.NEXT_PUBLIC_VERCEL_ENV,
+      vercelGitCommitRef: env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF,
     }),
     "last_used_login_method",
   );
