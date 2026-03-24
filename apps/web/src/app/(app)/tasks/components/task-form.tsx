@@ -27,8 +27,8 @@ import {
   formatTaskAttachmentMarkdown,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
-  uploadTaskAttachment,
 } from "@/lib/utils/task-attachments";
+import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 
