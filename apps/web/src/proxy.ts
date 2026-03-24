@@ -1,4 +1,7 @@
-import { resolveBetterAuthCookiePrefix } from "@sokosumi/utils";
+import {
+  resolveBetterAuthCookiePrefix,
+  resolveBetterAuthPublicBaseUrl,
+} from "@sokosumi/utils";
 import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -28,8 +31,15 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.search;
   const env = getEnvSecrets();
+  const betterAuthBaseUrl = resolveBetterAuthPublicBaseUrl({
+    vercelEnv: env.VERCEL_ENV,
+    vercelUrl: env.VERCEL_URL,
+    vercelBranchUrl: env.VERCEL_BRANCH_URL,
+    vercelProductionUrl: env.VERCEL_PROJECT_PRODUCTION_URL,
+    fallbackUrl: env.BETTER_AUTH_URL,
+  });
   const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
-    baseUrl: request.nextUrl.origin,
+    baseUrl: betterAuthBaseUrl,
     vercelBranchUrl: env.VERCEL_BRANCH_URL,
   });
 
