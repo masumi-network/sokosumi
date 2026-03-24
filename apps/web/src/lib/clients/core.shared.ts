@@ -524,7 +524,7 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function uploadMyFile(file: File) {
+  async function uploadMyFile(file: Blob | File) {
     return executeOperation(
       getClient,
       (client) =>
