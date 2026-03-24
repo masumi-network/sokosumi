@@ -86,4 +86,12 @@ describe("auth client", () => {
 
     expect(plugins).toEqual(expect.arrayContaining(["passkey-plugin"]));
   });
+
+  it("configures lastLoginMethodClient with the computed cookie name", async () => {
+    await import("../auth.client");
+
+    expect(lastLoginMethodClientMock).toHaveBeenCalledWith({
+      cookieName: "sokosumi.last_used_login_method",
+    });
+  });
 });

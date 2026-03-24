@@ -191,6 +191,7 @@ describe("core auth config", () => {
       [
         {
           advanced: {
+            cookiePrefix?: string;
             crossSubDomainCookies?: {
               domain: string;
               enabled: true;
@@ -203,6 +204,59 @@ describe("core auth config", () => {
     expect(config.advanced.crossSubDomainCookies).toEqual({
       enabled: true,
       domain: "preprod.sokosumi.com",
+    });
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preprod");
+  });
+
+  it("uses the production cookie prefix on mainnet hosts", async () => {
+    getBetterAuthPublicBaseUrlMock.mockReturnValue(
+      "https://api.sokosumi.com/auth",
+    );
+    getWebAppBaseUrlMock.mockReturnValue("https://app.sokosumi.com");
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe("sokosumi");
+  });
+
+  it("uses a stable preview cookie prefix for preview hosts", async () => {
+    getBetterAuthPublicBaseUrlMock.mockReturnValue(
+      "https://api.feature-123.preview.sokosumi.com/auth",
+    );
+    getWebAppBaseUrlMock.mockReturnValue(
+      "https://feature-123.preview.sokosumi.com",
+    );
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-feature-123");
+    expect(config.advanced.crossSubDomainCookies).toEqual({
+      enabled: true,
+      domain: "preview.sokosumi.com",
     });
   });
 

@@ -7,6 +7,7 @@ import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   getStoredUserName,
+  resolveBetterAuthCookiePrefix,
   resolveCrossSubdomainCookieDomain,
 } from "@sokosumi/utils";
 import { betterAuth } from "better-auth/minimal";
@@ -33,12 +34,17 @@ import prisma from "@/lib/db/prisma";
 const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
+const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
+  baseUrl: betterAuthBaseUrl,
+  vercelBranchUrl: env.VERCEL_BRANCH_URL,
+});
 const crossSubdomainCookieDomain =
   resolveCrossSubdomainCookieDomain(betterAuthBaseUrl);
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   advanced: {
+    cookiePrefix: betterAuthCookiePrefix,
     ...(crossSubdomainCookieDomain
       ? {
           crossSubDomainCookies: {

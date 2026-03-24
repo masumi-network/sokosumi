@@ -1,6 +1,9 @@
+export { resolveCrossSubdomainCookieDomain } from "./better-auth-cookie-domain.js";
 export {
-  resolveCrossSubdomainCookieDomain,
-} from "./better-auth-cookie-domain.js";
+  getBetterAuthCookieName,
+  resolveBetterAuthCookiePrefix,
+  type ResolveBetterAuthCookiePrefixParams,
+} from "./better-auth-cookie-prefix.js";
 export {
   resolveBetterAuthProductionUrl,
   type ResolveBetterAuthProductionUrlParams,

@@ -1,0 +1,77 @@
+import { render } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const cookiesMock = vi.fn();
+const getMock = vi.fn();
+const socialButtonsMock = vi.fn();
+const signUpFormMock = vi.fn();
+const getEnvSecretsMock = vi.fn();
+
+vi.mock("next/headers", () => ({
+  cookies: () => cookiesMock(),
+}));
+
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => (key: string) => key,
+}));
+
+vi.mock("@/auth/components/divider", () => ({
+  __esModule: true,
+  default: () => <div data-testid="divider" />,
+}));
+
+vi.mock("@/auth/components/social-buttons", () => ({
+  __esModule: true,
+  default: (props: unknown) => {
+    socialButtonsMock(props);
+    return <div data-testid="social-buttons" />;
+  },
+}));
+
+vi.mock("@/config/env.secrets", () => ({
+  getEnvSecrets: () => getEnvSecretsMock(),
+}));
+
+vi.mock("../components/form", () => ({
+  __esModule: true,
+  default: (props: unknown) => {
+    signUpFormMock(props);
+    return <div data-testid="sign-up-form" />;
+  },
+}));
+
+vi.mock("../components/header", () => ({
+  __esModule: true,
+  default: () => <div data-testid="sign-up-header" />,
+}));
+
+describe("SignUp page", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getMock.mockReturnValue({ value: "magic-link" });
+    cookiesMock.mockResolvedValue({
+      get: getMock,
+    });
+    getEnvSecretsMock.mockReturnValue({
+      BETTER_AUTH_URL: "https://feature-123.preview.sokosumi.com/auth",
+      VERCEL_BRANCH_URL: "",
+      VERCEL_ENV: undefined,
+      VERCEL_PROJECT_PRODUCTION_URL: undefined,
+      VERCEL_URL: undefined,
+    });
+  });
+
+  it("reads the last-login cookie using the configured preview prefix", async () => {
+    const { default: SignUpPage } = await import("../page");
+
+    render(
+      await SignUpPage({
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    expect(getMock).toHaveBeenCalledWith(
+      "sokosumi-preview-feature-123.last_used_login_method",
+    );
+  });
+});
