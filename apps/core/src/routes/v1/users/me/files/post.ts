@@ -1,13 +1,9 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { bodyLimit } from "hono/body-limit";
 
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import {
-  badRequest,
-  payloadTooLarge,
-  serviceUnavailable,
-} from "@/helpers/error";
+import { payloadTooLarge, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { uploadUserFile } from "@/lib/blob";
@@ -18,6 +14,20 @@ import { blobFileSchema } from "@/schemas/blob-file.schema";
 const MULTIPART_FORM_OVERHEAD_BYTES = 256 * 1024;
 const MAX_UPLOAD_REQUEST_SIZE_BYTES =
   LIMITS.USER_UPLOAD_MAX_SIZE_BYTES + MULTIPART_FORM_OVERHEAD_BYTES;
+
+const uploadUserFileFormSchema = z.object({
+  file: z
+    .file({ error: "File is required" })
+    .min(1, "File cannot be empty")
+    .max(
+      LIMITS.USER_UPLOAD_MAX_SIZE_BYTES,
+      `File exceeds maximum size of ${LIMITS.USER_UPLOAD_MAX_SIZE_BYTES} bytes`,
+    )
+    .openapi({
+      type: "string",
+      format: "binary",
+    }),
+});
 
 const route = createRoute({
   method: "post",
@@ -30,6 +40,16 @@ const route = createRoute({
       throw payloadTooLarge("Request body exceeds upload size limit");
     },
   }),
+  request: {
+    body: {
+      required: true,
+      content: {
+        "multipart/form-data": {
+          schema: uploadUserFileFormSchema,
+        },
+      },
+    },
+  },
   responses: {
     201: jsonSuccessResponse(blobFileSchema, "File uploaded successfully", {
       data: {
@@ -53,35 +73,11 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     413: jsonErrorResponse("Payload Too Large"),
+    422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
-
-export function extractAndValidateFile(formData: FormData): File {
-  const fileEntries = formData.getAll("file");
-  if (fileEntries.length !== 1) {
-    throw badRequest("File is required");
-  }
-
-  const fileValue = fileEntries[0];
-
-  if (!(fileValue instanceof File)) {
-    throw badRequest("File is required");
-  }
-
-  if (fileValue.size <= 0) {
-    throw badRequest("File cannot be empty");
-  }
-
-  if (fileValue.size > LIMITS.USER_UPLOAD_MAX_SIZE_BYTES) {
-    throw badRequest(
-      `File exceeds maximum size of ${LIMITS.USER_UPLOAD_MAX_SIZE_BYTES} bytes`,
-    );
-  }
-
-  return fileValue;
-}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -92,8 +88,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw serviceUnavailable("Blob storage is not configured");
     }
 
-    const formData = await c.req.raw.formData();
-    const file = extractAndValidateFile(formData);
+    const { file } = c.req.valid("form");
     const uploadedFile = await uploadUserFile(authContext.userId, file, token);
 
     return created(c, blobFileSchema.parse(uploadedFile));

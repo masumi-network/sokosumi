@@ -5,30 +5,48 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import * as Sentry from "@sentry/node";
 import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
-import { getStoredUserName } from "@sokosumi/utils";
+import {
+  getStoredUserName,
+  resolveCrossSubdomainCookieDomain,
+} from "@sokosumi/utils";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
   jwt,
   magicLink,
+  oAuthProxy,
   openAPI,
   organization,
 } from "better-auth/plugins";
 
 import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
+import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
 import { LIMITS, TIME } from "@/config/constants";
-import { getEnv } from "@/config/env";
+import {
+  getBetterAuthPublicBaseUrl,
+  getEnv,
+  getWebAppBaseUrl,
+} from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 const env = getEnv();
+const webAppBaseUrl = getWebAppBaseUrl();
+const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
+const crossSubdomainCookieDomain =
+  resolveCrossSubdomainCookieDomain(betterAuthBaseUrl);
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   advanced: {
-    crossSubDomainCookies: {
-      enabled: true,
-    },
+    ...(crossSubdomainCookieDomain
+      ? {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: crossSubdomainCookieDomain,
+          },
+        }
+      : {}),
     ipAddress: {
       // For Vercel
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
@@ -82,12 +100,18 @@ export const auth = betterAuth({
     },
   },
   secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.BETTER_AUTH_URL,
+  baseURL: betterAuthBaseUrl,
   basePath: "/auth",
   rateLimit: {
     storage: "database",
   },
-  trustedOrigins: [env.BETTER_AUTH_TRUSTED_ORIGIN],
+  trustedOrigins: [
+    "https://sokosumi.com",
+    "https://*.sokosumi.com",
+    ...(env.NODE_ENV === "development"
+      ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
+      : []),
+  ],
   user: {
     emailAndPassword: {
       enabled: true,
@@ -171,19 +195,13 @@ export const auth = betterAuth({
               defaultValue: null,
               input: false,
             },
-            invoiceEmail: {
-              type: "string",
-              required: false,
-              defaultValue: null,
-              input: false,
-            },
           },
         },
       },
     }),
     oauthProvider({
-      loginPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/signin`,
-      consentPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/oauth/consent`,
+      loginPage: `${webAppBaseUrl}/signin`,
+      consentPage: `${webAppBaseUrl}/oauth/consent`,
       scopes: ["openid", "offline_access"],
       clientRegistrationDefaultScopes: ["openid", "offline_access"],
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
@@ -198,6 +216,9 @@ export const auth = betterAuth({
       silenceWarnings: {
         oauthAuthServerConfig: true,
       },
+    }),
+    oAuthProxy({
+      productionURL: getBetterAuthProductionUrl(),
     }),
   ],
 });

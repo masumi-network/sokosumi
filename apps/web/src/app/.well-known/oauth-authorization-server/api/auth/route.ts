@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { getEnvSecrets } from "@/config/env.secrets";
+import { getBetterAuthPublicBaseUrl } from "@/config/better-auth-public-url";
 
 function getOAuthAuthorizationServerMetadata() {
-  const { BETTER_AUTH_URL } = getEnvSecrets();
-  const issuer = `${BETTER_AUTH_URL}/api/auth`;
+  const issuer = `${getBetterAuthPublicBaseUrl()}/api/auth`;
   const oauthBasePath = `${issuer}/oauth2`;
 
   return {

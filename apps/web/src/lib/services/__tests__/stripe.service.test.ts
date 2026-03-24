@@ -1,32 +1,33 @@
-jest.mock("server-only", () => ({}));
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 
-const headersMock = jest.fn();
-const verifyUserIdMock = jest.fn();
-const createCheckoutSessionMock = jest.fn();
-const createUserCustomerMock = jest.fn();
-const createOrganizationCustomerMock = jest.fn();
-const getUserByIdMock = jest.fn();
-const getOrganizationWithRelationsByIdMock = jest.fn();
-const userFindUniqueMock = jest.fn();
-const userUpdateMock = jest.fn();
-const organizationFindUniqueMock = jest.fn();
-const organizationUpdateMock = jest.fn();
+const headersMock = vi.fn();
+const verifyUserIdMock = vi.fn();
+const createCheckoutSessionMock = vi.fn();
+const createUserCustomerMock = vi.fn();
+const createOrganizationCustomerMock = vi.fn();
+const getUserByIdMock = vi.fn();
+const getOrganizationWithRelationsByIdMock = vi.fn();
+const userFindUniqueMock = vi.fn();
+const userUpdateMock = vi.fn();
+const organizationFindUniqueMock = vi.fn();
+const organizationUpdateMock = vi.fn();
 
-jest.mock("next/headers", () => ({
+vi.mock("next/headers", () => ({
   headers: (...args: unknown[]) => headersMock(...args),
 }));
 
-jest.mock("@/config/env.secrets", () => ({
+vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     STRIPE_SECRET_KEY: "sk_test_mock",
   }),
 }));
 
-jest.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/utils", () => ({
   verifyUserId: (...args: unknown[]) => verifyUserIdMock(...args),
 }));
 
-jest.mock("@/lib/clients/stripe.client", () => ({
+vi.mock("@/lib/clients/stripe.client", () => ({
   stripeClient: {
     createCheckoutSession: (...args: unknown[]) =>
       createCheckoutSessionMock(...args),
@@ -36,7 +37,7 @@ jest.mock("@/lib/clients/stripe.client", () => ({
   },
 }));
 
-jest.mock("@sokosumi/database/repositories", () => ({
+vi.mock("@sokosumi/database/repositories", () => ({
   organizationRepository: {
     getOrganizationWithRelationsById: (...args: unknown[]) =>
       getOrganizationWithRelationsByIdMock(...args),
@@ -46,7 +47,7 @@ jest.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-jest.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
     organization: {
@@ -60,13 +61,15 @@ jest.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-jest.mock("@/lib/stripe/subscription-catalog", () => ({
-  getSubscriptionCatalog: jest.fn(),
+vi.mock("@/lib/stripe/subscription-catalog", () => ({
+  getSubscriptionCatalog: vi.fn(),
 }));
 
-jest.mock("stripe", () => ({
+vi.mock("stripe", () => ({
   __esModule: true,
-  default: jest.fn().mockImplementation(() => ({})),
+  default: vi.fn(function MockStripe() {
+    return {};
+  }),
 }));
 
 describe("stripeService.createStripeCheckoutSession", () => {
@@ -77,7 +80,7 @@ describe("stripeService.createStripeCheckoutSession", () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     verifyUserIdMock.mockResolvedValue(true);
     headersMock.mockResolvedValue(
       new Headers({
@@ -172,7 +175,7 @@ describe("stripeService.createStripeCheckoutSession", () => {
       id: "org-1",
       slug: "org-one",
       name: "Org One",
-      invoiceEmail: "billing@org-one.com",
+      metadata: JSON.stringify({ invoiceEmail: "billing@org-one.com" }),
     });
     createOrganizationCustomerMock.mockResolvedValue({
       id: "cus_new_org",

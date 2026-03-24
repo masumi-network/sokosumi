@@ -1,11 +1,11 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, waitFor } from "@testing-library/react";
 
 import JobDetailRedirect from "@/app/agents/[agentId]/jobs/@right/components/job-detail-redirect";
 
-const pushMock = jest.fn();
+const pushMock = vi.fn();
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
   }),
@@ -21,34 +21,32 @@ function mockMatchMedia(initialMatches: boolean) {
     },
     media: "(min-width: 1024px)",
     onchange: null,
-    addEventListener: jest.fn(
+    addEventListener: vi.fn(
       (eventName: string, listener: (event: MediaQueryListEvent) => void) => {
         if (eventName === "change") {
           listeners.add(listener);
         }
       },
     ),
-    removeEventListener: jest.fn(
+    removeEventListener: vi.fn(
       (eventName: string, listener: (event: MediaQueryListEvent) => void) => {
         if (eventName === "change") {
           listeners.delete(listener);
         }
       },
     ),
-    addListener: jest.fn((listener: (event: MediaQueryListEvent) => void) => {
+    addListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => {
       listeners.add(listener);
     }),
-    removeListener: jest.fn(
-      (listener: (event: MediaQueryListEvent) => void) => {
-        listeners.delete(listener);
-      },
-    ),
-    dispatchEvent: jest.fn(),
+    removeListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => {
+      listeners.delete(listener);
+    }),
+    dispatchEvent: vi.fn(),
   };
 
   Object.defineProperty(window, "matchMedia", {
     writable: true,
-    value: jest.fn().mockReturnValue(mediaQueryList),
+    value: vi.fn().mockReturnValue(mediaQueryList),
   });
 
   return {

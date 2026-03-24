@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -7,27 +7,31 @@ import { forwardRef, useImperativeHandle } from "react";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 
-const markdownEditorPropsSpy = jest.fn();
+const markdownEditorPropsSpy = vi.fn();
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: vi.fn(),
   }),
 }));
 
-jest.mock("@/hooks/use-os-detection", () => ({
+vi.mock("@/hooks/use-os-detection", () => ({
   useOSDetection: () => ({
     os: "MacOS",
     isMobile: false,
   }),
 }));
 
-jest.mock("@/lib/actions/task/action", () => ({
-  createTask: jest.fn(),
-  updateTask: jest.fn(),
+vi.mock("@/lib/actions/task/action", () => ({
+  createTask: vi.fn(),
+  updateTask: vi.fn(),
 }));
 
-jest.mock("../markdown-editor", () => ({
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
+vi.mock("../markdown-editor", () => ({
   MarkdownEditor: forwardRef(function MockMarkdownEditor(
     {
       value,
@@ -106,7 +110,14 @@ const baseLabels = {
 const coworkerOptions = [
   {
     id: "coworker-1",
+    slug: "soko",
     name: "Soko",
+    image: "",
+  },
+  {
+    id: "coworker-2",
+    slug: "elena",
+    name: "Elena",
     image: "",
   },
 ];
@@ -118,7 +129,7 @@ describe("TaskForm", () => {
 
   it("submits draft and ready from create modal actions", async () => {
     const user = userEvent.setup();
-    const createTaskMock = jest.mocked(createTask);
+    const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue({ taskId: "task-1" });
 
     render(
@@ -128,7 +139,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        onSuccess={jest.fn()}
+        onSuccess={vi.fn()}
       />,
     );
 
@@ -153,7 +164,7 @@ describe("TaskForm", () => {
 
   it("toggles status in edit modal and keeps the toggled status on save", async () => {
     const user = userEvent.setup();
-    const updateTaskMock = jest.mocked(updateTask);
+    const updateTaskMock = vi.mocked(updateTask);
     updateTaskMock.mockResolvedValue({ taskId: "task-1" });
 
     render(
@@ -170,7 +181,7 @@ describe("TaskForm", () => {
           coworkerId: "coworker-1",
           status: TaskStatus.DRAFT,
         }}
-        onSuccess={jest.fn()}
+        onSuccess={vi.fn()}
       />,
     );
 
@@ -189,6 +200,25 @@ describe("TaskForm", () => {
     );
   });
 
+  it("selects initialValues.coworkerId when provided", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const elenaButton = screen.getByRole("button", { name: /Elena/i });
+    const sokoButton = screen.getByRole("button", { name: /Soko/i });
+    expect(elenaButton).toHaveAttribute("aria-pressed", "true");
+    expect(sokoButton).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("passes agent mention options to MarkdownEditor", () => {
     render(
       <TaskForm
@@ -198,7 +228,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         agentNameById={new Map([["agent-1", "Writer Agent"]])}
-        onSuccess={jest.fn()}
+        onSuccess={vi.fn()}
       />,
     );
 

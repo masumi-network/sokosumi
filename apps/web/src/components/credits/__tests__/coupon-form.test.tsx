@@ -1,21 +1,21 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import CouponForm from "@/components/credits/coupon-form";
 
-const mockRouterPush = jest.fn();
-const claimFreeCreditsWithCouponMock = jest.fn();
-const viewCreditsMock = jest.fn();
-const beginCheckoutMock = jest.fn();
+const mockRouterPush = vi.fn();
+const claimFreeCreditsWithCouponMock = vi.fn();
+const viewCreditsMock = vi.fn();
+const beginCheckoutMock = vi.fn();
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: mockRouterPush,
   }),
 }));
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: { days?: number }) => {
     if (key === "couponExpiryNotice") {
       return `Credits expire after ${values?.days} days.`;
@@ -24,14 +24,14 @@ jest.mock("next-intl", () => ({
   },
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
-    error: jest.fn(),
-    success: jest.fn(),
+    error: vi.fn(),
+    success: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/actions", () => ({
+vi.mock("@/lib/actions", () => ({
   claimFreeCreditsWithCoupon: (...args: unknown[]) =>
     claimFreeCreditsWithCouponMock(...args),
   CommonErrorCode: {
@@ -47,7 +47,7 @@ jest.mock("@/lib/actions", () => ({
   },
 }));
 
-jest.mock("@/lib/gtm-events", () => ({
+vi.mock("@/lib/gtm-events", () => ({
   fireGTMEvent: {
     viewCredits: () => viewCreditsMock(),
     beginCheckout: () => beginCheckoutMock(),
@@ -56,7 +56,7 @@ jest.mock("@/lib/gtm-events", () => ({
 
 describe("CouponForm", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("does not submit when coupon code is empty", async () => {

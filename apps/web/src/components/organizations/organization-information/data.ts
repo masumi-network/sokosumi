@@ -7,6 +7,13 @@ export const organizationInformationFormData: FormData<
 > = [
   {
     name: "name",
+    labelKey: "Fields.Name.label",
     placeholderKey: "Fields.Name.placeholder",
+  },
+  {
+    name: "url",
+    labelKey: "Fields.Url.label",
+    placeholderKey: "Fields.Url.placeholder",
+    type: "url",
   },
 ];

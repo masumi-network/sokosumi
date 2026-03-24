@@ -6,6 +6,7 @@ import {
   OrganizationLogo,
   OrganizationRoleBadge,
 } from "@/components/organizations";
+import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import InvitationRowActionButtons from "./invitation-row-action-buttons";
@@ -21,7 +22,9 @@ export default function InvitationRow({
   return (
     <div className="flex items-center justify-between p-4">
       <div className="flex items-center gap-4">
-        <OrganizationLogo organization={organization} size={24} />
+        <Avatar className="bg-muted size-6 items-center justify-center">
+          <OrganizationLogo organization={organization} size={24} />
+        </Avatar>
         <Link href={`/organizations/${slug}`}>
           <p className="text-primary text-lg hover:underline">{name}</p>
         </Link>

@@ -36,7 +36,7 @@ model User {
   jobs             Job[]
   jobSchedules     JobSchedule[]
 
-  stripeCustomerId String?
+  stripeCustomerId        String?
   preferredOrganizationId String?
 
   members     Member[]
@@ -197,7 +197,6 @@ model Organization {
   coworkerUsages CoworkerUsage[]
 
   stripeCustomerId String?
-  invoiceEmail     String?
 
   // Credit Buckets
   creditBuckets CreditBucket[]
@@ -418,6 +417,9 @@ model Agent {
 
   legalPrivacyPolicy         String?
   overrideLegalPrivacyPolicy String?
+
+  legalDpa         String?
+  overrideLegalDpa String?
 
   legalTerms         String?
   overrideLegalTerms String?
@@ -1097,9 +1099,9 @@ model Coworker {
   companyLogo String?
   url         String?
   baseURL     String?
-  email       String?
   description String?
   image       String?
+  metadata    Json?
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1188,6 +1190,7 @@ enum TaskEventOrigin {
   WHATSAPP
   TELEGRAM
   SIGNAL
+  DISCORD
   CHAT
   SOKOSUMI
   UNKNOWN

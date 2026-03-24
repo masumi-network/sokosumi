@@ -11,7 +11,7 @@ import {
 } from "@dnd-kit/core";
 import { SokosumiJobStatus } from "@sokosumi/database";
 import { ChannelProvider, useChannel } from "ably/react";
-import { Plus } from "lucide-react";
+import { CircleHelp, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -23,8 +23,10 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
+import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
@@ -64,12 +66,19 @@ import { TaskCard } from "./task-card";
 import { isDnDColumn, statusForColumn } from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
+import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
+import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
 import { ViewModeSwitch } from "./view-mode-switch";
 
 function HeaderAddButton({ label }: { label: string }) {
   const { handleOpen } = useCreateTaskModal();
   return (
-    <Button size="sm" onClick={handleOpen} className="gap-1.5">
+    <Button
+      size="sm"
+      onClick={handleOpen}
+      className="gap-1.5"
+      data-tasks-add-task-header-anchor
+    >
       <Plus className="size-4" aria-hidden />
       <span className="hidden sm:inline">{label}</span>
     </Button>
@@ -111,7 +120,7 @@ const hydrationStore = (() => {
 
 const JOBS_FAILED_FILTER_MODE_STORAGE_KEY =
   "sokosumi.tasks.jobs.failedFilterMode";
-
+const TASKS_GUIDE_COMPLETED_STORAGE_KEY = "sokosumi.tasks.guideCompleted";
 interface TasksRealtimeListenerProps {
   userId: string;
   onEvent: (data: TaskEventData) => void;
@@ -182,6 +191,9 @@ interface TasksViewProps {
   userId?: string | null;
   activeOrganizationId: string | null;
   defaultViewMode?: TasksViewMode;
+  initialCreateTaskOpen?: boolean;
+  initialCoworkerId?: string | null;
+  createTaskModalResetKey?: string;
   labels: {
     tabs: {
       tasks: string;
@@ -212,6 +224,21 @@ interface TasksViewProps {
     loading: string;
     dragError: string;
     loadMoreError: string;
+    emptyState: {
+      title: string;
+      description: string;
+      chatTitle: string;
+      chatDescription: string;
+      getStartedTitle: string;
+      getStartedDescription: string;
+      getStartedButton: string;
+      next: string;
+      back: string;
+      addTaskHint: string;
+      chatHint: string;
+      elenaAvatarAlt: string;
+    };
+    showGuideAriaLabel: string;
   };
 }
 
@@ -229,6 +256,9 @@ export function TasksView({
   userId,
   activeOrganizationId,
   defaultViewMode,
+  initialCreateTaskOpen = false,
+  initialCoworkerId = null,
+  createTaskModalResetKey = "default",
   labels,
 }: TasksViewProps) {
   const router = useRouter();
@@ -252,6 +282,21 @@ export function TasksView({
         return "hideFailed";
       }
     });
+  const [guideCompleted, setGuideCompleted] = useState<boolean>(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    try {
+      return (
+        window.localStorage.getItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY) ===
+        "true"
+      );
+    } catch {
+      return false;
+    }
+  });
+  const [forceShowGuide, setForceShowGuide] = useState(false);
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [jobsItems, setJobsItems] = useState<TasksViewJob[]>(jobs);
   const [jobsCursor, setJobsCursor] = useState<string | null>(
@@ -285,10 +330,14 @@ export function TasksView({
     buildInitialColumnCursorById(columns, initialColumnNextCursorById),
   );
   const loadingColumnIdsRef = useRef<Set<KanbanColumnId>>(new Set());
+  const refreshRoute = useDebouncedCallback(
+    () => router.refresh(),
+    TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
+  );
   const scopeKey = activeOrganizationId ?? "personal";
   const previousScopeKeyRef = useRef(scopeKey);
   const handleEventUpdate = (_data: TaskEventData) => {
-    router.refresh();
+    refreshRoute();
   };
 
   useEffect(() => {
@@ -306,6 +355,12 @@ export function TasksView({
   useEffect(() => {
     loadingColumnIdsRef.current = loadingColumnIds;
   }, [loadingColumnIds]);
+
+  useEffect(() => {
+    return () => {
+      refreshRoute.cancel();
+    };
+  }, [refreshRoute]);
 
   useEffect(() => {
     try {
@@ -622,6 +677,13 @@ export function TasksView({
     () => Array.from(new Set(jobsItems.map((job) => job.agentId))),
     [jobsItems],
   );
+  const shouldShowEmptyStateOverlay =
+    shouldShowTasksEmptyStateOverlay({
+      activeTab,
+      taskCount: items.length,
+      viewMode,
+      guideCompleted,
+    }) || forceShowGuide;
   const activeDragTask = useMemo(
     () =>
       activeDragTaskId
@@ -662,6 +724,20 @@ export function TasksView({
     loadingColumnIds,
   ]);
 
+  const handleGuideComplete = useCallback(() => {
+    setGuideCompleted(true);
+    setForceShowGuide(false);
+    try {
+      window.localStorage.setItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY, "true");
+    } catch {
+      // Ignore storage errors.
+    }
+  }, []);
+
+  const handleGuideDismiss = useCallback(() => {
+    setForceShowGuide(false);
+  }, []);
+
   const tabsContent = (
     <Tabs
       value={activeTab}
@@ -688,6 +764,18 @@ export function TasksView({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          {activeTab === "tasks" ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              aria-label={labels.showGuideAriaLabel}
+              onClick={() => setForceShowGuide(true)}
+            >
+              <CircleHelp className="size-4" aria-hidden />
+            </Button>
+          ) : null}
           {activeTab === "tasks" ? (
             <ViewModeSwitch
               value={viewMode}
@@ -829,7 +917,11 @@ export function TasksView({
   );
 
   return (
-    <CreateTaskModalProvider>
+    <CreateTaskModalProvider
+      key={createTaskModalResetKey}
+      initialOpen={initialCreateTaskOpen}
+      initialCoworkerId={initialCoworkerId}
+    >
       {userId ? (
         <DynamicAblyProvider>
           <ChannelProvider channelName={makeUserTasksChannelName(userId)}>
@@ -851,9 +943,25 @@ export function TasksView({
             </ChannelProvider>
           ))}
           {tabsContent}
+          {shouldShowEmptyStateOverlay ? (
+            <TasksEmptyStateOverlay
+              labels={labels.emptyState}
+              onComplete={handleGuideComplete}
+              onDismiss={handleGuideDismiss}
+            />
+          ) : null}
         </DynamicAblyProvider>
       ) : (
-        tabsContent
+        <>
+          {tabsContent}
+          {shouldShowEmptyStateOverlay ? (
+            <TasksEmptyStateOverlay
+              labels={labels.emptyState}
+              onComplete={handleGuideComplete}
+              onDismiss={handleGuideDismiss}
+            />
+          ) : null}
+        </>
       )}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}

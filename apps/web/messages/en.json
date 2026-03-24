@@ -109,6 +109,7 @@
           "title": "From the developer",
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
+          "dpa": "Data Processing Agreement (DPA)",
           "other": "Other"
         },
         "Risk": {
@@ -499,7 +500,24 @@
           },
           "Fields": {
             "Name": {
+              "label": "Name",
               "placeholder": "Name (e.g. 'My Organization')"
+            },
+            "Url": {
+              "label": "Website",
+              "placeholder": "https://example.com"
+            },
+            "Logo": {
+              "label": "Logo",
+              "description": "Upload an organization logo image.",
+              "upload": "Upload logo",
+              "replace": "Replace logo",
+              "remove": "Remove logo",
+              "previewAlt": "Organization logo preview",
+              "uploadError": "Failed to upload logo",
+              "fileTooLarge": "File is too large (max 2 MB)",
+              "fileTypeNotAccepted": "File type not accepted",
+              "maxFilesExceeded": "Maximum 1 file allowed"
             }
           }
         },
@@ -509,6 +527,9 @@
             "max": "Organization name must be at most 50 characters.",
             "invalid": "Organization name must be a valid string.",
             "required": "Organization name is required"
+          },
+          "Url": {
+            "invalid": "Company website URL must be a valid URL"
           }
         }
       },
@@ -1273,7 +1294,22 @@
         "add": "Add",
         "addTask": "Add Task",
         "loading": "Loading...",
-        "loadMore": "Load More"
+        "loadMore": "Load More",
+        "showGuide": "Show guide"
+      },
+      "EmptyState": {
+        "title": "Welcome to Task Manager",
+        "description": "Start by creating your first task so Elena has clear context to execute.",
+        "chatTitle": "Then use chat to refine the plan",
+        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
+        "getStartedTitle": "You're all set!",
+        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
+        "getStartedButton": "Get Started",
+        "next": "Next",
+        "back": "Back",
+        "addTaskHint": "Start by adding a task",
+        "chatHint": "Use chat to shape the next task",
+        "elenaAvatarAlt": "Elena avatar"
       },
       "Errors": {
         "updateStatus": "Failed to update task status",
@@ -1344,6 +1380,7 @@
           "whatsapp": "WhatsApp",
           "telegram": "Telegram",
           "signal": "Signal",
+          "discord": "Discord",
           "chat": "Chat",
           "unknown": "Unknown"
         },
@@ -2084,6 +2121,7 @@
           "description": "Manage your organization"
         },
         "roleIndicator": "View as:",
+        "websiteLabel": "Website",
         "edit": "Edit",
         "delete": "Delete",
         "invite": "Invite Member",
@@ -2177,6 +2215,7 @@
         "Footer": {
           "termsAndConditions": "Terms and Conditions",
           "privacyPolicy": "Privacy Policy",
+          "dpa": "Data Processing Agreement (DPA)",
           "customerSupport": "Customer Support"
         },
         "RightSection": {
@@ -2374,6 +2413,7 @@
         "acceptByClickingSubmit": "By clicking on \"Hire\" you're accepting the ",
         "termsOfService": "Terms of Service",
         "privacyPolicy": "Privacy Policy",
+        "dpa": "Data Processing Agreement (DPA)",
         "legal": "other Legal Requirements",
         "byCreator": " by the creator of the Agent",
         "Error": {

@@ -16,10 +16,10 @@ import QueryProvider from "@/contexts/query-provider";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
-import { taskRailEnabled } from "@/lib/flags/task-rail";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
+import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
 import EmailVerificationNotice from "./components/email-verification-notice";
 import Header from "./components/header";
@@ -58,14 +58,12 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     shouldShowOnboarding,
     pendingNoticesResult,
     activeOrganization,
-    isTaskRailEnabled,
     creditsResult,
     coworkersResult,
   ] = await Promise.all([
     userService.showOnboarding(session),
     getPendingNoticesAction(),
     userService.getActiveOrganization(),
-    taskRailEnabled(),
     coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers("chat").catch(() => []),
   ]);
@@ -114,7 +112,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               currentTimestampMs={currentTimestampMs}
               organizationName={activeOrganization?.name ?? null}
               session={session}
-              isTaskRailEnabled={isTaskRailEnabled}
             />
             <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
               <div
@@ -168,6 +165,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <QueryProvider>
+      <AuthSessionGuard />
       <ConversationsProvider>
         <CoworkersProvider initialCoworkers={coworkers}>
           {content}

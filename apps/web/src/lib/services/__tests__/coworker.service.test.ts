@@ -1,18 +1,19 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
 const coreClientMock = {
-  getCoworkers: jest.fn(),
+  getCoworkers: vi.fn(),
 };
 
-jest.mock("@/lib/clients/core.client", () => ({
+vi.mock("@/lib/clients/core.client", () => ({
   coreClient: coreClientMock,
 }));
 
 describe("coworker.service", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("returns coworkers from core client response data", async () => {

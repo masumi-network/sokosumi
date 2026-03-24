@@ -50,6 +50,7 @@
     "masumi:test:ci": "pnpm --filter @sokosumi/masumi test:ci",
     "format": "pnpm -r format",
     "web:format": "pnpm --filter web format",
+    "web:agents-md": "cd apps/web && npx @next/codemod agents-md --output AGENTS.md",
     "core:format": "pnpm --filter core format",
     "database:format": "pnpm --filter @sokosumi/database format",
     "chat:format": "pnpm --filter @sokosumi/chat format",
@@ -71,6 +72,6 @@
     "eslint-plugin-unused-imports": "4.4.1",
     "lighthouse": "13.0.3",
     "prettier": "3.8.1",
-    "typescript-eslint": "8.57.0"
+    "typescript-eslint": "8.57.2"
   }
 }

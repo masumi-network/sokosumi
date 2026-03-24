@@ -13,6 +13,10 @@ import {
   type PostPurchaseResponses,
 } from "./openapi/generated/payment/index.js";
 
+interface PaymentClientRequestOptions {
+  signal?: AbortSignal;
+}
+
 export function createPaymentClient(
   network: "Preprod" | "Mainnet",
   apiUrl: string,
@@ -29,7 +33,10 @@ export function createPaymentClient(
   };
 
   return {
-    async getPurchaseByBlockchainIdentifier(jobBlockchainIdentifier: string) {
+    async getPurchaseByBlockchainIdentifier(
+      jobBlockchainIdentifier: string,
+      options: PaymentClientRequestOptions = {},
+    ) {
       try {
         const response = await postPurchaseResolveBlockchainIdentifier({
           client: client(),
@@ -37,6 +44,7 @@ export function createPaymentClient(
             blockchainIdentifier: jobBlockchainIdentifier,
             network,
           },
+          signal: options.signal,
         });
         if (response.error || !response.data) {
           return err(
@@ -49,7 +57,10 @@ export function createPaymentClient(
       }
     },
 
-    async getPurchaseById(purchaseId: string) {
+    async getPurchaseById(
+      purchaseId: string,
+      options: PaymentClientRequestOptions = {},
+    ) {
       try {
         const response = await getPurchase({
           client: client(),
@@ -58,6 +69,7 @@ export function createPaymentClient(
             network,
             limit: 1,
           },
+          signal: options.signal,
         });
 
         if (

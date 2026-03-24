@@ -1,4 +1,6 @@
 import { z } from "@hono/zod-openapi";
+import { resolveBetterAuthPublicBaseUrl } from "@sokosumi/utils";
+import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
 
 /**
@@ -19,10 +21,35 @@ const envSchema = z.object({
   // Database
   DATABASE_URL: z.url(),
 
+  WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
+
+  // Vercel (optional; Better Auth base URL on Preview)
+  VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
+  VERCEL_URL: z
+    .string()
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
+    .pipe(z.url())
+    .optional(),
+  VERCEL_BRANCH_URL: z
+    .string()
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
+    .pipe(z.url())
+    .optional(),
+  VERCEL_PROJECT_PRODUCTION_URL: z
+    .string()
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
+    .pipe(z.url())
+    .optional(),
+
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.url(),
-  BETTER_AUTH_TRUSTED_ORIGIN: z.url(),
   POSTMARK_SERVER_ID: z.string().min(1),
   POSTMARK_FROM_EMAIL: z.email(),
 
@@ -77,6 +104,16 @@ const envSchema = z.object({
   WEBHOOK_USER_CREATED: z.url().optional(),
   WEBHOOK_USER_UPDATED: z.url().optional(),
   WEBHOOK_ACCOUNT_CREATED: z.url().optional(),
+
+  // Job failure notifications
+  JOB_FAILURE_NOTIFICATION_EMAILS: z
+    .string()
+    .default("")
+    .transform((value: string) =>
+      value.trim() === "" ? [] : value.split(",").map((email) => email.trim()),
+    )
+    .pipe(z.array(z.email())),
+  JOB_FAILURE_WEBHOOK_URL: z.url().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -102,4 +139,37 @@ export function getEnv(): EnvConfig {
     envConfig = validateEnv();
   }
   return envConfig;
+}
+
+/**
+ * Web app base URL (used for Better Auth trusted origin, redirects, and links).
+ * On Vercel, uses the related web project deployment URL when core's
+ * relatedProjects point to the web app; otherwise uses WEB_APP_BASE_URL.
+ */
+export function getWebAppBaseUrl(): string {
+  const env = getEnv();
+  return withRelatedProject({
+    projectName:
+      env.NETWORK === "Preprod"
+        ? "sokosumi-app-preprod"
+        : "sokosumi-app-mainnet",
+    defaultHost: env.WEB_APP_BASE_URL,
+  });
+}
+
+/**
+ * Public Better Auth base URL (Core deployment). On Vercel Preview, uses the
+ * deployment or branch URL when `VERCEL_ENV=preview`. On Vercel Production,
+ * prefers `VERCEL_PROJECT_PRODUCTION_URL` when set, then `BETTER_AUTH_URL`.
+ */
+export function getBetterAuthPublicBaseUrl(): string {
+  const env = getEnv();
+
+  return resolveBetterAuthPublicBaseUrl({
+    vercelEnv: env.VERCEL_ENV,
+    vercelUrl: env.VERCEL_URL,
+    vercelBranchUrl: env.VERCEL_BRANCH_URL,
+    vercelProductionUrl: env.VERCEL_PROJECT_PRODUCTION_URL,
+    fallbackUrl: env.BETTER_AUTH_URL,
+  });
 }

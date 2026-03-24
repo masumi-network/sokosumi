@@ -1,24 +1,25 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
 const coreClientMock = {
-  addConversationItem: jest.fn(),
-  archiveConversation: jest.fn(),
-  createConversation: jest.fn(),
-  getConversation: jest.fn(),
-  getConversationItems: jest.fn(),
-  getConversations: jest.fn(),
-  updateConversation: jest.fn(),
+  addConversationItem: vi.fn(),
+  archiveConversation: vi.fn(),
+  createConversation: vi.fn(),
+  getConversation: vi.fn(),
+  getConversationItems: vi.fn(),
+  getConversations: vi.fn(),
+  updateConversation: vi.fn(),
 };
-const toCoreApiActionErrorMock = jest.fn();
+const toCoreApiActionErrorMock = vi.fn();
 
-jest.mock("@/lib/clients/core.client", () => ({
+vi.mock("@/lib/clients/core.client", () => ({
   coreClient: coreClientMock,
   toCoreApiActionError: toCoreApiActionErrorMock,
 }));
 
-jest.mock("@/middleware/auth-middleware", () => ({
+vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
     (handler: (params: Record<string, unknown>) => Promise<unknown>) =>
     async (params: Record<string, unknown>) => {
@@ -50,7 +51,7 @@ const session = {
 
 describe("core conversation api actions", () => {
   beforeEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const { CommonErrorCode } = await import("@/lib/actions/errors");
     toCoreApiActionErrorMock.mockReturnValue({
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,

@@ -1,4 +1,6 @@
-jest.mock("@/config/env.secrets", () => ({
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     BETTER_AUTH_URL: "https://app.sokosumi.com",
   }),

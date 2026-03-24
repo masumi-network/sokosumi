@@ -1,3 +1,5 @@
+import { CoworkerMetadata } from "@/lib/clients/generated/core/types.gen";
+
 export type ChatStatus = "active" | "awaiting" | "resolved";
 
 export interface Coworker {
@@ -8,6 +10,8 @@ export interface Coworker {
   description: string;
   useCase: string;
   slug: string;
+  /** Present when mapped from API; used for contact channels on gallery cards. */
+  metadata?: CoworkerMetadata | null;
 }
 
 export interface Chat {

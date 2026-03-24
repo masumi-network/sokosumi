@@ -1,15 +1,15 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType, InputValidation } from "@sokosumi/masumi/types";
 
 import { JobInputsFormBuilder } from "@/components/create-job-modal/job-input/job-inputs-form-builder";
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-jest.mock("@/components/markdown", () => ({
+vi.mock("@/components/markdown", () => ({
   __esModule: true,
   default: ({ children }: { children: string }) => {
     return <div data-testid="markdown-mock">{children}</div>;
@@ -39,7 +39,7 @@ describe("OptionInput", () => {
       render(
         <JobInputsFormBuilder
           inputFields={inputFields}
-          onSubmit={jest.fn()}
+          onSubmit={vi.fn()}
           renderFooter={() => <button type="submit">Submit</button>}
         />,
       ),

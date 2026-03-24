@@ -1,10 +1,10 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it, vi } from "vitest";
 import { JobType, SokosumiJobStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 

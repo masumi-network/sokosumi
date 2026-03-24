@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { getEnv } from "@/config/env";
+import { getBetterAuthPublicBaseUrl, getWebAppBaseUrl } from "@/config/env";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -8,8 +8,6 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
-
-const BETTER_AUTH_BASE_PATH = "/auth";
 
 const oauthAuthorizeSchema = z
   .object({
@@ -110,15 +108,15 @@ const route = createRoute({
 });
 
 function getWebAppRootUrl(): string {
-  return new URL("/", getEnv().BETTER_AUTH_TRUSTED_ORIGIN).toString();
+  return new URL("/", getWebAppBaseUrl()).toString();
 }
 
 type OAuthAuthorizeRequest = z.infer<typeof oauthAuthorizeSchema>;
 
 function buildOAuthAuthorizeUrl(oauth: OAuthAuthorizeRequest): string {
   const authorizeUrl = new URL(
-    `${BETTER_AUTH_BASE_PATH}/oauth2/authorize`,
-    getEnv().BETTER_AUTH_URL,
+    `/auth/oauth2/authorize`,
+    getBetterAuthPublicBaseUrl(),
   );
 
   const entries = [

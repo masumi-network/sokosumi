@@ -4,8 +4,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import { getEnvSecrets } from "@/config/env.secrets";
 import { auth, Session } from "@/lib/auth/auth";
+
+interface GetSessionOptions {
+  refresh?: boolean;
+}
 
 /**
  * Gets the current user's session information. This function only works with
@@ -14,13 +17,28 @@ import { auth, Session } from "@/lib/auth/auth";
  * @returns Promise resolving to the user's session if valid, null otherwise
  *
  */
-export const getSession = cache(async (): Promise<Session | null> => {
+const getCachedSession = cache(async (): Promise<Session | null> => {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   return session;
 });
+
+export async function getSession(
+  options?: GetSessionOptions,
+): Promise<Session | null> {
+  if (options?.refresh) {
+    return auth.api.getSession({
+      query: {
+        disableCookieCache: true,
+      },
+      headers: await headers(),
+    });
+  }
+
+  return getCachedSession();
+}
 
 /**
  * Gets the current user's session or redirects to the login page if no valid session is found.
@@ -64,45 +82,4 @@ export async function verifyUserId(userId: string): Promise<boolean> {
     return false;
   }
   return true;
-}
-
-/**
- * Authenticates a request using a Bearer token that should match the CRON_SECRET
- * environment variable. This is typically used for internal cron job authentication
- * to ensure only authorized services can trigger scheduled tasks.
- *
- * @param request - The incoming request to authenticate
- * @returns An object indicating authentication success or failure with appropriate response
- *
- */
-export function authenticateCronSecret(
-  request: Request,
-): { ok: true } | { ok: false; response: Response } {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = getEnvSecrets().CRON_SECRET;
-  if (!cronSecret) {
-    return {
-      ok: false,
-      response: new Response(
-        JSON.stringify({ message: "Cron secret not set" }),
-        {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    };
-  }
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return {
-      ok: false,
-      response: new Response(
-        JSON.stringify({ message: "Invalid cron secret" }),
-        {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    };
-  }
-  return { ok: true };
 }

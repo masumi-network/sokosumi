@@ -1,15 +1,15 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 
-const replaceMock = jest.fn();
-const refreshMock = jest.fn();
+const replaceMock = vi.fn();
+const refreshMock = vi.fn();
 let pathnameMock = "/";
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   usePathname: () => pathnameMock,
   useRouter: () => ({
     replace: replaceMock,
@@ -17,16 +17,16 @@ jest.mock("next/navigation", () => ({
   }),
 }));
 
-jest.mock("@/lib/auth/auth.client", () => ({
+vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     organization: {
-      setActive: jest.fn(),
+      setActive: vi.fn(),
     },
   },
 }));
 
-jest.mock("@/lib/actions/organization", () => ({
-  updatePreferredOrganization: jest.fn(),
+vi.mock("@/lib/actions/organization", () => ({
+  updatePreferredOrganization: vi.fn(),
 }));
 
 describe("AutoContextSwitch", () => {
@@ -34,16 +34,16 @@ describe("AutoContextSwitch", () => {
     pathnameMock = "/";
     replaceMock.mockClear();
     refreshMock.mockClear();
-    jest.mocked(authClient.organization.setActive).mockReset();
-    jest.mocked(updatePreferredOrganization).mockReset();
+    vi.mocked(authClient.organization.setActive).mockReset();
+    vi.mocked(updatePreferredOrganization).mockReset();
   });
 
   it("switches workspace once when active context is mismatched", async () => {
-    jest.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
       error: null,
     });
-    jest.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
       data: {
         organizationId: "org-1",
@@ -84,11 +84,11 @@ describe("AutoContextSwitch", () => {
   });
 
   it("does not re-trigger on rerender after first switch", async () => {
-    jest.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
       error: null,
     });
-    jest.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
       data: {
         organizationId: "org-1",

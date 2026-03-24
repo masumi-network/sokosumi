@@ -1,34 +1,35 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useMcpApiKey } from "@/app/components/MCP/use-mcp-api-key";
 
-const listMock = jest.fn();
-const createMock = jest.fn();
-const updateMock = jest.fn();
-const deleteMock = jest.fn();
-const toastSuccessMock = jest.fn();
-const toastErrorMock = jest.fn();
+const listMock = vi.fn();
+const createMock = vi.fn();
+const updateMock = vi.fn();
+const deleteMock = vi.fn();
+const toastSuccessMock = vi.fn();
+const toastErrorMock = vi.fn();
 const translateMock = (key: string) => key;
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => translateMock,
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
     success: (...args: unknown[]) => toastSuccessMock(...args),
     error: (...args: unknown[]) => toastErrorMock(...args),
   },
 }));
 
-jest.mock("@/config/env.public", () => ({
+vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => ({
     NEXT_PUBLIC_MCP_URL: "https://mcp.example.com",
     NEXT_PUBLIC_NETWORK: "Mainnet",
   }),
 }));
 
-jest.mock("@/lib/auth/auth.client", () => ({
+vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     apiKey: {
       list: (...args: unknown[]) => listMock(...args),
@@ -75,7 +76,7 @@ function makeApiKey(input: {
 
 describe("useMcpApiKey", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("detects existing enabled MCP key from data.apiKeys", async () => {

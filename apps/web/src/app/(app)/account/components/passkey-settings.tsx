@@ -16,7 +16,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import type { BetterAuthClientError } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
 
 function formatPasskeyDate(date: Date | string, locale: string): string {
@@ -28,9 +27,9 @@ function formatPasskeyDate(date: Date | string, locale: string): string {
 
 function getPasskeyErrorMessage(
   fallbackMessage: string,
-  error: BetterAuthClientError | null,
+  error: { message?: unknown } | null,
 ): string {
-  if (!error?.message) {
+  if (typeof error?.message !== "string" || error.message.length === 0) {
     return fallbackMessage;
   }
 

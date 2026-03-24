@@ -1,3 +1,5 @@
+import { parseOrganizationMetadata } from "@sokosumi/utils";
+
 import type { Organization, Prisma } from "../generated/prisma/client.js";
 import {
   organizationInclude,
@@ -119,9 +121,28 @@ export const organizationRepository = {
     invoiceEmail: string | null,
     tx: Prisma.TransactionClient,
   ): Promise<Organization> {
+    const organization = await tx.organization.findUnique({
+      where: { id: organizationId },
+      select: { metadata: true },
+    });
+
+    const parsedMetadata =
+      parseOrganizationMetadata(organization?.metadata ?? null) ?? {};
+
+    if (invoiceEmail) {
+      parsedMetadata.invoiceEmail = invoiceEmail;
+    } else {
+      delete parsedMetadata.invoiceEmail;
+    }
+
+    const nextMetadata =
+      Object.keys(parsedMetadata).length > 0
+        ? JSON.stringify(parsedMetadata)
+        : null;
+
     return await tx.organization.update({
       where: { id: organizationId },
-      data: { invoiceEmail },
+      data: { metadata: nextMetadata },
     });
   },
 

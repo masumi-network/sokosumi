@@ -26,19 +26,20 @@ export default function OrganizationInformationModal({
 }: OrganizationInformationModalProps) {
   const t = useTranslations("Components.Organizations.InformationModal.Title");
   const [isLoading, setIsLoading] = useState(false);
+  const [isLogoUploadInFlight, setIsLogoUploadInFlight] = useState(false);
 
-  const handleOpenChange = (open: boolean) => {
-    if (isLoading) {
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (isLoading || isLogoUploadInFlight) {
       return;
     }
-    onOpenChange(open);
+    onOpenChange(nextOpen);
   };
 
   const isCreating = !organization;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[80svh] w-[30vw] max-w-2xl!">
+      <DialogContent className="max-h-[90svh] w-[95vw] max-w-lg! overflow-y-auto sm:w-[85vw] sm:max-w-xl md:w-[70vw] md:max-w-2xl!">
         <DialogTitle className="text-center">
           {isCreating ? t("create") : t("edit")}
         </DialogTitle>
@@ -46,6 +47,7 @@ export default function OrganizationInformationModal({
         <OrganizationInformationForm
           organization={organization}
           setIsLoading={setIsLoading}
+          onLogoUploadBusyChange={setIsLogoUploadInFlight}
           onOpenChange={onOpenChange}
         />
       </DialogContent>

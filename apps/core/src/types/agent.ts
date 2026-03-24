@@ -42,3 +42,16 @@ export const agentJobsCountInclude = {
 export type AgentWithJobsCount = Prisma.AgentGetPayload<{
   include: typeof agentJobsCountInclude;
 }>;
+
+export const agentCategoriesInclude = {
+  categories: {
+    orderBy: [
+      { priority: "asc" },
+      { name: "asc" },
+    ] as Prisma.CategoryOrderByWithRelationInput[],
+  },
+} as const;
+
+export type AgentWithCategories = Prisma.AgentGetPayload<{
+  include: typeof agentCategoriesInclude;
+}>;

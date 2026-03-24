@@ -26,8 +26,9 @@
     "lint:fix": "eslint --fix .",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\"",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "test:ci": "NODE_OPTIONS=--experimental-vm-modules jest --ci",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "test:watch": "vitest",
     "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json ."
   },
   "dependencies": {
@@ -42,19 +43,17 @@
     "@react-email/preview": "0.0.14",
     "@react-email/render": "2.0.4",
     "@react-email/section": "0.0.17",
-    "@react-email/tailwind": "2.0.5",
+    "@react-email/tailwind": "2.0.6",
     "@react-email/text": "0.1.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "use-intl": "4.8.3"
   },
   "devDependencies": {
-    "@types/jest": "30.0.0",
     "@types/node": "24.12.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "jest": "30.3.0",
-    "ts-jest": "29.4.6",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "4.1.1"
   }
 }

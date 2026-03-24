@@ -41,11 +41,13 @@ sokosumi/
 │   │   ├── src/helpers/       # Database domain logic
 │   │   ├── src/types/         # Database type definitions
 │   │   └── prisma/            # Database schema and migrations
-│   └── masumi/                # Masumi protocol utilities (@sokosumi/masumi)
-│       ├── src/clients/       # Agent API client
-│       ├── src/hash/          # Hash utilities for job verification
-│       ├── src/schemas/       # Agent protocol Zod schemas
-│       └── src/types/         # Agent types
+│   ├── masumi/                # Masumi protocol utilities (@sokosumi/masumi)
+│   │   ├── src/clients/       # Agent API client
+│   │   ├── src/hash/          # Hash utilities for job verification
+│   │   ├── src/schemas/       # Agent protocol Zod schemas
+│   │   └── src/types/         # Agent types
+│   └── utils/                # Shared utilities (@sokosumi/utils)
+│       └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
 ├── docs/                      # Documentation (future)
 ├── eslint.config.mjs          # Root ESLint configuration
 └── prettier.config.mjs        # Root Prettier configuration
@@ -191,6 +193,7 @@ const config = {
 | `pnpm web:lint`        | Lint web app                  |
 | `pnpm web:lint:report` | CI-friendly lint report       |
 | `pnpm test`            | Run tests locally             |
+| `pnpm core:test`       | Run core API tests            |
 | `pnpm web:test`        | Run web app tests             |
 | `pnpm masumi:test`     | Run masumi package tests      |
 | `pnpm web:test:ci`     | CI test execution             |
@@ -199,11 +202,12 @@ const config = {
 
 ## Testing Guidelines
 
-- **Framework**: Jest with jsdom and Testing Library
+- **Framework**: Vitest with Testing Library and workspace-specific environments (for example `happy-dom` in `apps/web` and Node in packages/services)
 - **Test Files**: Name as `*.test.ts(x)` and colocate under nearest `__tests__/`
 - **Coverage**: Cover both success and failure paths when touching `src/lib`
 - **Mocking**: Use `__mocks__` or Prisma factories for external services
-- **Execution**: No watch mode—run `pnpm test` and refresh snapshots before pushing
+- **Execution**: Run `pnpm test` from the repo root, or the relevant workspace command such as `pnpm --filter web test`, before pushing
+- **Targeted reruns**: Use `pnpm --filter <workspace> test path/to/file.test.ts`. Do not insert an extra `--` before the file path for Vitest reruns.
 
 ## Commit & Pull Request Guidelines
 
@@ -241,6 +245,12 @@ docs(readme): update setup instructions
 - Minimize `'use client'` usage; prefer Server Components and server actions
 - At the end of every sequence of changes, run a review pass, fix any issues found, and repeat until no issues remain
 
+### Shared Packages and Deduplication
+
+- **When logic is duplicated across apps** (e.g. core and web): move the implementation to a shared package (e.g. `packages/utils`) so there is a single source of truth; fix bugs and add features in one place.
+- **Prefer direct imports** from the shared package (`@sokosumi/utils`, `@sokosumi/database`, etc.). Avoid re-export layers in apps unless they add real value (e.g. app-specific wrapping or configuration).
+- **`packages/utils`** holds framework-agnostic helpers (URL/file utilities, markdown link extraction, user-name helpers). Add new shared helpers here when multiple apps or packages would use them.
+
 ### Code References
 
 - Use backticks for file, directory, function, and class names
@@ -251,6 +261,7 @@ docs(readme): update setup instructions
 
 - [Linting](.cursor/rules/lint.mdc)
 - [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)
+- [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code
 
 ## References
 

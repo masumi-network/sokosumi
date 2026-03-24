@@ -1,30 +1,33 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
-jest.mock("server-only", () => ({}));
+vi.mock("server-only", () => ({}));
 
-const headersMock = jest.fn();
-const getConversationsMock = jest.fn();
-const getUsersMeNoticesPendingMock = jest.fn();
-const postUsersMeNoticesByIdAcknowledgeMock = jest.fn();
-const getUsersMeCreditsMock = jest.fn();
-const getUsersMeOrganizationsMock = jest.fn();
-const getEnvSecretsMock = jest.fn();
+const getConversationsMock = vi.fn();
+const getAgentsByIdInputSchemaMock = vi.fn();
+const getUsersMeNoticesPendingMock = vi.fn();
+const postUsersMeNoticesByIdAcknowledgeMock = vi.fn();
+const getUsersMeCreditsMock = vi.fn();
+const getUsersMeOrganizationsMock = vi.fn();
+const createClientMock = vi.fn();
+const headersMock = vi.fn();
 const mockClient = { id: "core-client" } as never;
-const createClientMock = jest.fn(() => mockClient);
 
-jest.mock("next/headers", () => ({
-  headers: headersMock,
+vi.mock("next/headers", () => ({
+  headers: () => headersMock(),
 }));
 
-jest.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: getEnvSecretsMock,
+vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
+  getServerCoreApiBaseUrl: () => "http://localhost:8787/v1",
+  getCoreApiBaseUrl: () => "http://localhost:8787/v1",
 }));
 
-jest.mock("@/lib/clients/generated/core/client", () => ({
-  createClient: createClientMock,
+vi.mock("@/lib/clients/generated/core/client", () => ({
+  createClient: (...args: unknown[]) => createClientMock(...args),
 }));
 
-jest.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@/lib/clients/generated/core", () => ({
+  getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
   getConversations: getConversationsMock,
   getUsersMeNoticesPending: getUsersMeNoticesPendingMock,
   postUsersMeNoticesByIdAcknowledge: postUsersMeNoticesByIdAcknowledgeMock,
@@ -34,49 +37,18 @@ jest.mock("@/lib/clients/generated/core", () => ({
 
 describe("core.client", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    headersMock.mockResolvedValue(new Headers());
-    getEnvSecretsMock.mockReturnValue({
-      CORE_API_URL: "http://localhost:3001",
-    });
-  });
+    vi.clearAllMocks();
+    vi.resetModules();
 
-  it("builds auth headers from incoming request headers", async () => {
-    const { buildAuthHeaders } = await import("../core.client");
-
-    const authHeaders = buildAuthHeaders(
-      new Headers({
-        cookie: "session=value",
-        "x-organization-slug": "org-slug",
-      }),
-    ) as Record<string, string>;
-
-    expect(authHeaders).toEqual({
-      cookie: "session=value",
-    });
-  });
-
-  it("normalizes core API base urls with and without /v1", async () => {
-    const { normalizeCoreApiBaseUrl } = await import("../core.client");
-
-    expect(normalizeCoreApiBaseUrl("http://localhost:3001")).toBe(
-      "http://localhost:3001/v1",
-    );
-    expect(normalizeCoreApiBaseUrl("http://localhost:3001/v1")).toBe(
-      "http://localhost:3001/v1",
-    );
-    expect(normalizeCoreApiBaseUrl("http://localhost:3001/v1/")).toBe(
-      "http://localhost:3001/v1",
-    );
-  });
-
-  it("forwards auth headers and uses normalized base url for generated operations", async () => {
     headersMock.mockResolvedValue(
       new Headers({
         cookie: "session=abc",
-        "x-organization-slug": "my-org",
       }),
     );
+    createClientMock.mockReturnValue(mockClient);
+  });
+
+  it("executes generated operations through the generated client", async () => {
     getConversationsMock.mockResolvedValue({
       data: {
         data: [],
@@ -89,11 +61,10 @@ describe("core.client", () => {
     });
 
     const { coreClient } = await import("../core.client");
-
     const response = await coreClient.getConversations();
 
     expect(createClientMock).toHaveBeenCalledWith({
-      baseUrl: "http://localhost:3001/v1",
+      baseUrl: "http://localhost:8787/v1",
       headers: {
         cookie: "session=abc",
       },
@@ -107,7 +78,64 @@ describe("core.client", () => {
     );
   });
 
-  it("executes user credit and organization operations through the generated client", async () => {
+  it("fetches agent input schemas through the server transport", async () => {
+    getAgentsByIdInputSchemaMock.mockResolvedValue({
+      data: {
+        data: {
+          input_data: [
+            {
+              id: "prompt",
+              name: "Prompt",
+              type: "string",
+            },
+          ],
+        },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.getAgentInputSchema("agent_1");
+
+    expect(createClientMock).toHaveBeenCalledTimes(1);
+    expect(getAgentsByIdInputSchemaMock).toHaveBeenCalledWith({
+      client: mockClient,
+      path: { id: "agent_1" },
+    });
+    expect("input_data" in response.data).toBe(true);
+    if (!("input_data" in response.data)) {
+      throw new Error("Expected flat input schema");
+    }
+    expect(response.data.input_data).toHaveLength(1);
+  });
+
+  it("raises CoreApiRequestError for agent input schema failures", async () => {
+    getAgentsByIdInputSchemaMock.mockResolvedValue({
+      error: {
+        error: "Unauthorized",
+        message: "Please sign in",
+      },
+      response: new Response("{}", { status: 401 }),
+    });
+
+    const { CoreApiRequestError, coreClient } = await import("../core.client");
+
+    await expect(coreClient.getAgentInputSchema("agent_1")).rejects.toEqual(
+      expect.objectContaining<
+        Partial<InstanceType<typeof CoreApiRequestError>>
+      >({
+        details: {
+          error: "Unauthorized",
+          message: "Please sign in",
+        },
+        message: "Please sign in",
+        name: "CoreApiRequestError",
+        status: 401,
+      }),
+    );
+  });
+
+  it("executes user credit and organization operations through the server transport", async () => {
     getUsersMeCreditsMock.mockResolvedValue({
       data: {
         data: {
@@ -132,6 +160,7 @@ describe("core.client", () => {
     await coreClient.getMyCredits();
     await coreClient.getMyOrganizations();
 
+    expect(createClientMock).toHaveBeenCalledTimes(2);
     expect(getUsersMeCreditsMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
@@ -179,7 +208,7 @@ describe("core.client", () => {
     });
   });
 
-  it("fetches pending notices through the generated core operation", async () => {
+  it("fetches pending notices through the server transport", async () => {
     getUsersMeNoticesPendingMock.mockResolvedValue({
       data: {
         data: {
@@ -209,7 +238,7 @@ describe("core.client", () => {
     expect(response).toHaveLength(1);
   });
 
-  it("acknowledges notices through the generated core operation", async () => {
+  it("acknowledges notices through the server transport", async () => {
     postUsersMeNoticesByIdAcknowledgeMock.mockResolvedValue({
       data: {
         data: {

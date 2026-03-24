@@ -1,22 +1,22 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import CreditsForm from "@/components/credits/credits-form";
 import { CreditTopUpPriceCatalog } from "@/lib/clients/stripe.client";
 
-const mockRouterPush = jest.fn();
-const purchaseCreditsMock = jest.fn();
-const viewCreditsMock = jest.fn();
-const beginCheckoutMock = jest.fn();
+const mockRouterPush = vi.fn();
+const purchaseCreditsMock = vi.fn();
+const viewCreditsMock = vi.fn();
+const beginCheckoutMock = vi.fn();
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: mockRouterPush,
   }),
 }));
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) => {
     if (key === "costPerCredit") {
       return `${values?.cost} per credit`;
@@ -39,14 +39,14 @@ jest.mock("next-intl", () => ({
   }),
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
-    error: jest.fn(),
-    success: jest.fn(),
+    error: vi.fn(),
+    success: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/actions", () => ({
+vi.mock("@/lib/actions", () => ({
   purchaseCredits: (...args: unknown[]) => purchaseCreditsMock(...args),
   CommonErrorCode: {
     UNAUTHENTICATED: "UNAUTHENTICATED",
@@ -62,7 +62,7 @@ jest.mock("@/lib/actions", () => ({
   },
 }));
 
-jest.mock("@/lib/gtm-events", () => ({
+vi.mock("@/lib/gtm-events", () => ({
   fireGTMEvent: {
     viewCredits: () => viewCreditsMock(),
     beginCheckout: () => beginCheckoutMock(),
@@ -94,7 +94,7 @@ const priceCatalog: CreditTopUpPriceCatalog = {
 
 describe("CreditsForm", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("updates displayed per-credit cost when entered credits cross pricing tiers", async () => {

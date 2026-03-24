@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { CouponTypeError } from "@/lib/errors/coupon-errors";
 
 import { formatCreditsForDisplay, getCreditsForCoupon } from "../credits";

@@ -1,5 +1,4 @@
-import { extractFileLikeLinks } from "@/lib/data/markdown/links";
-import { escapeMarkdownLinkUrl } from "@/lib/utils/markdown-links";
+import { escapeMarkdownLinkUrl, extractFileLikeLinks } from "@sokosumi/utils";
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -46,25 +45,4 @@ export function removeTaskAttachmentLinks(
   }
 
   return next.replace(/\n{3,}/g, "\n\n").trimEnd();
-}
-
-export async function uploadTaskAttachment(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.set("file", file);
-
-  const response = await fetch("/api/internal/uploads/task-attachments", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to upload file");
-  }
-
-  const payload = (await response.json()) as { url?: string };
-  if (!payload.url) {
-    throw new Error("Failed to upload file");
-  }
-
-  return payload.url;
 }

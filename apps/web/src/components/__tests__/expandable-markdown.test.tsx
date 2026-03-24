@@ -1,10 +1,10 @@
-import "@testing-library/jest-dom";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 
-jest.mock("@/components/markdown", () => ({
+vi.mock("@/components/markdown", () => ({
   __esModule: true,
   default: ({ children }: { children: string }) => (
     <div data-testid="markdown-mock">{children}</div>

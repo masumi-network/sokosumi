@@ -2,7 +2,10 @@
 
 import { ChannelProvider, useChannel } from "ably/react";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
+import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { makeUserTasksChannelName, taskEventDataSchema } from "@/lib/ably";
 
@@ -16,6 +19,16 @@ function TaskStatusRealtimeListenerBody({
   taskId,
 }: TaskStatusRealtimeListenerProps) {
   const router = useRouter();
+  const refreshRoute = useDebouncedCallback(
+    () => router.refresh(),
+    TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
+  );
+
+  useEffect(() => {
+    return () => {
+      refreshRoute.cancel();
+    };
+  }, [refreshRoute]);
 
   useChannel(makeUserTasksChannelName(userId), (message) => {
     const parsedResult = taskEventDataSchema.safeParse(message.data);
@@ -32,7 +45,7 @@ function TaskStatusRealtimeListenerBody({
       return;
     }
 
-    router.refresh();
+    refreshRoute();
   });
 
   return null;

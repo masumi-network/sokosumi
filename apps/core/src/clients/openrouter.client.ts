@@ -2,7 +2,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { getModelIdentifier } from "@sokosumi/chat";
 import { generateText } from "ai";
 
-import { getEnv } from "@/config/env";
+import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
 
 export type AgentInfo = {
   name: string;
@@ -185,7 +185,7 @@ export const openrouterClient = (() => {
         headers: {
           Authorization: `Bearer ${chatApiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": process.env.BETTER_AUTH_URL || "",
+          "HTTP-Referer": getBetterAuthPublicBaseUrl(),
           "X-Title": "Sokosumi",
         },
         body: JSON.stringify(requestBody),

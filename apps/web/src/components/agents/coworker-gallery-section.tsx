@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { canUseNextImageSrc } from "@/config/next-image";
 import type { Coworker } from "@/lib/clients/generated/core";
+import { getCoworkerMetadataChannels } from "@/lib/utils/coworker-channels";
 
 import { CoworkerGalleryCard } from "./coworker-gallery-card";
 
@@ -114,6 +115,7 @@ function CoworkerGallerySection({ coworkers }: CoworkerGallerySectionProps) {
                       image={coworker.image}
                       caption={coworker.caption}
                       description={coworker.description}
+                      channels={getCoworkerMetadataChannels(coworker)}
                       className="w-52"
                     />
                   </div>

@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { extractOAuthAuthorizationUrl } from "@/app/chat/utils/oauth-link";
 
 describe("extractOAuthAuthorizationUrl", () => {

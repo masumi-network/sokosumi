@@ -1,35 +1,35 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 
 import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
 
 import SocialSignupAutoInitiator from "../social-signup-auto-initiator";
 
-const mockSocialSignIn = jest.fn();
+const mockSocialSignIn = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useSearchParams: () => mockSearchParams as unknown as URLSearchParams,
 }));
 
-jest.mock("next-intl", () => ({
+vi.mock("next-intl", () => ({
   useTranslations: () => {
     return (key: string) => key;
   },
 }));
 
-jest.mock("@vercel/analytics", () => ({
-  track: jest.fn(),
+vi.mock("@vercel/analytics", () => ({
+  track: vi.fn(),
 }));
 
-jest.mock("sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
-    error: jest.fn(),
+    error: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/auth/auth.client", () => ({
+vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     signIn: {
       social: (...args: unknown[]) => mockSocialSignIn(...args),

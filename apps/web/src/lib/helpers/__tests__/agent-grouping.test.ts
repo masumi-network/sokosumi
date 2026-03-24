@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { AgentStatus } from "@sokosumi/database";
 
@@ -66,6 +67,8 @@ function createMockAgent(
     overrideAuthorOrganization: null,
     legalPrivacyPolicy: null,
     overrideLegalPrivacyPolicy: null,
+    legalDpa: null,
+    overrideLegalDpa: null,
     legalTerms: null,
     overrideLegalTerms: null,
     legalOther: null,

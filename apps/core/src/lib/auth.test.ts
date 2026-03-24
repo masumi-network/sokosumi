@@ -4,9 +4,14 @@ const {
   adminPluginMock,
   apiKeyPluginMock,
   betterAuthMock,
+  getBetterAuthPublicBaseUrlMock,
+  getEnvMock,
+  getBetterAuthProductionUrlMock,
+  getWebAppBaseUrlMock,
   i18nPluginMock,
   jwtPluginMock,
   oauthProviderPluginMock,
+  oAuthProxyPluginMock,
   openAPIPluginMock,
   organizationPluginMock,
   magicLinkPluginMock,
@@ -19,9 +24,14 @@ const {
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
   betterAuthMock: vi.fn(),
+  getBetterAuthPublicBaseUrlMock: vi.fn(),
+  getEnvMock: vi.fn(),
+  getBetterAuthProductionUrlMock: vi.fn(),
+  getWebAppBaseUrlMock: vi.fn(),
   i18nPluginMock: vi.fn(),
   jwtPluginMock: vi.fn(),
   oauthProviderPluginMock: vi.fn(),
+  oAuthProxyPluginMock: vi.fn(),
   openAPIPluginMock: vi.fn(),
   organizationPluginMock: vi.fn(),
   magicLinkPluginMock: vi.fn(),
@@ -44,6 +54,7 @@ vi.mock("better-auth/plugins", () => ({
   admin: (...args: unknown[]) => adminPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   magicLink: (...args: unknown[]) => magicLinkPluginMock(...args),
+  oAuthProxy: (...args: unknown[]) => oAuthProxyPluginMock(...args),
   openAPI: (...args: unknown[]) => openAPIPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
 }));
@@ -78,14 +89,13 @@ vi.mock("@/clients/stripe.client", () => ({
 }));
 
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({
-    BETTER_AUTH_SECRET: "test-secret",
-    POSTMARK_FROM_EMAIL: "no-reply@example.com",
-    POSTMARK_SERVER_ID: "postmark-server-id",
-    BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
-    BETTER_AUTH_URL: "https://example.com/auth",
-    STRIPE_SECRET_KEY: "sk_test_123",
-  }),
+  getEnv: () => getEnvMock(),
+  getBetterAuthPublicBaseUrl: () => getBetterAuthPublicBaseUrlMock(),
+  getWebAppBaseUrl: () => getWebAppBaseUrlMock(),
+}));
+
+vi.mock("@/config/better-auth-production-url", () => ({
+  getBetterAuthProductionUrl: () => getBetterAuthProductionUrlMock(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -105,8 +115,18 @@ describe("core auth config", () => {
     adminPluginMock.mockReturnValue("admin-plugin");
     apiKeyPluginMock.mockReturnValue("api-key-plugin");
     i18nPluginMock.mockReturnValue("i18n-plugin");
+    getEnvMock.mockReturnValue({
+      BETTER_AUTH_SECRET: "test-secret",
+      NODE_ENV: "production",
+      POSTMARK_FROM_EMAIL: "no-reply@example.com",
+      POSTMARK_SERVER_ID: "postmark-server-id",
+      STRIPE_SECRET_KEY: "sk_test_123",
+    });
+    getBetterAuthPublicBaseUrlMock.mockReturnValue("https://example.com/auth");
+    getWebAppBaseUrlMock.mockReturnValue("https://example.com");
     jwtPluginMock.mockReturnValue("jwt-plugin");
     magicLinkPluginMock.mockReturnValue("magic-link-plugin");
+    oAuthProxyPluginMock.mockReturnValue("oauth-proxy-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     openAPIPluginMock.mockReturnValue("openapi-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
@@ -119,6 +139,7 @@ describe("core auth config", () => {
     sentryCaptureExceptionMock.mockReset();
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
+    getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
   });
 
   it("registers the Better Auth admin plugin", async () => {
@@ -144,6 +165,45 @@ describe("core auth config", () => {
     >;
 
     expect(config.sendMagicLink).toEqual(expect.any(Function));
+  });
+
+  it("uses the canonical production URL for the OAuth proxy", async () => {
+    getBetterAuthProductionUrlMock.mockReturnValue(
+      "https://canonical.example.com",
+    );
+
+    await import("./auth");
+
+    expect(oAuthProxyPluginMock).toHaveBeenCalledWith({
+      productionURL: "https://canonical.example.com",
+    });
+  });
+
+  it("scopes cross-subdomain cookies to the shared preprod host", async () => {
+    getBetterAuthPublicBaseUrlMock.mockReturnValue(
+      "https://api.preprod.sokosumi.com/auth",
+    );
+    getWebAppBaseUrlMock.mockReturnValue("https://preprod.sokosumi.com");
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.crossSubDomainCookies).toEqual({
+      enabled: true,
+      domain: "preprod.sokosumi.com",
+    });
   });
 
   it("uses English for magic-link emails", async () => {

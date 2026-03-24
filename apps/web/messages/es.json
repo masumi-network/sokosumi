@@ -109,6 +109,7 @@
           "title": "Del desarrollador",
           "privacyPolicy": "Política de privacidad",
           "terms": "Términos de uso",
+          "dpa": "Acuerdo de procesamiento de datos (DPA)",
           "other": "Otros"
         },
         "Risk": {
@@ -499,7 +500,24 @@
           },
           "Fields": {
             "Name": {
+              "label": "Nombre",
               "placeholder": "Nombre (p. ej. 'Mi organización')"
+            },
+            "Url": {
+              "label": "Sitio web",
+              "placeholder": "URL del sitio web de la empresa (p. ej. https://example.com)"
+            },
+            "Logo": {
+              "label": "Logo",
+              "description": "Suba una imagen de logo de la organización.",
+              "upload": "Subir logo",
+              "replace": "Reemplazar logo",
+              "remove": "Eliminar logo",
+              "previewAlt": "Vista previa del logo de la organización",
+              "uploadError": "Error al subir el logo",
+              "fileTooLarge": "El archivo es demasiado grande (máx. 2 MB)",
+              "fileTypeNotAccepted": "Tipo de archivo no aceptado",
+              "maxFilesExceeded": "Máximo 1 archivo permitido"
             }
           }
         },
@@ -509,6 +527,9 @@
             "max": "El nombre de la organización no puede superar los 50 caracteres.",
             "invalid": "El nombre de la organización debe ser una cadena válida.",
             "required": "El nombre de la organización es obligatorio"
+          },
+          "Url": {
+            "invalid": "La URL del sitio web de la empresa debe ser una URL válida"
           }
         }
       },
@@ -1241,7 +1262,22 @@
         "add": "Añadir",
         "addTask": "Añadir Task",
         "loading": "Cargando...",
-        "loadMore": "Cargar más"
+        "loadMore": "Cargar más",
+        "showGuide": "Show guide"
+      },
+      "EmptyState": {
+        "title": "Welcome to Task Manager",
+        "description": "Start by creating your first task so Elena has clear context to execute.",
+        "chatTitle": "Then use chat to refine the plan",
+        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
+        "getStartedTitle": "You're all set!",
+        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
+        "getStartedButton": "Get Started",
+        "next": "Next",
+        "back": "Back",
+        "addTaskHint": "Start by adding a task",
+        "chatHint": "Use chat to shape the next task",
+        "elenaAvatarAlt": "Elena avatar"
       },
       "Errors": {
         "updateStatus": "No se pudo actualizar el estado del Task",
@@ -1312,6 +1348,7 @@
           "whatsapp": "WhatsApp",
           "telegram": "Telegram",
           "signal": "Signal",
+          "discord": "Discord",
           "chat": "Chat",
           "unknown": "Desconocido"
         },
@@ -1898,6 +1935,7 @@
           "authorizeError": "No se pudo autorizar la aplicación",
           "authorizeErrorRedirectUri": "No se pudo autorizar la aplicación. Por favor, verifica tu Redirect URI.",
           "authorizeErrorGeneric": "Ocurrió un error durante la autorización",
+          "authorizeSuccess": "Aplicación autorizada correctamente",
           "denyError": "No se pudo rechazar la aplicación"
         }
       },
@@ -2020,6 +2058,7 @@
           "description": "Gestiona tu organización"
         },
         "roleIndicator": "Vista como:",
+        "websiteLabel": "Sitio web",
         "edit": "Editar",
         "delete": "Eliminar",
         "invite": "Invitar miembro",
@@ -2113,6 +2152,7 @@
         "Footer": {
           "termsAndConditions": "Términos y condiciones",
           "privacyPolicy": "Política de privacidad",
+          "dpa": "Acuerdo de procesamiento de datos (DPA)",
           "customerSupport": "Soporte al cliente"
         },
         "RightSection": {
@@ -2372,6 +2412,7 @@
         "acceptByClickingSubmit": "Al hacer clic en \"Contratar\" aceptas ",
         "termsOfService": "Términos de uso",
         "privacyPolicy": "Política de privacidad",
+        "dpa": "Acuerdo de procesamiento de datos (DPA)",
         "legal": "otros requisitos legales",
         "byCreator": " del creador del Agent",
         "Error": {

@@ -21,8 +21,9 @@ export function CoworkerCard({
     <button
       type="button"
       onClick={onSelect}
+      aria-pressed={isSelected}
       className={cn(
-        "relative flex items-start gap-3 rounded-xl border-2 p-3 text-left transition-all",
+        "focus-visible:ring-ring relative flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 text-left transition-all outline-none focus-visible:ring-2",
         isSelected
           ? "border-primary bg-primary/5"
           : "bg-muted/40 hover:bg-muted/70 border-transparent",

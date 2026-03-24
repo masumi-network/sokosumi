@@ -1,0 +1,11 @@
+---
+description: "Core API: use direct Prisma, no repository pattern"
+alwaysApply: true
+---
+
+# Data Access (Core)
+
+- Use **direct Prisma** in route handlers (e.g. `prisma` from `@/lib/db/prisma`).
+- Do **not** use the repository pattern from `@sokosumi/database` for new routes; core uses Prisma with type-safe includes and helpers where needed.
+
+See [AGENTS.md](../AGENTS.md) (Accessing Job-Related Resources).

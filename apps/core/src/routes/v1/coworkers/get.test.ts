@@ -89,6 +89,7 @@ describe("GET /coworkers", () => {
     expect(body.data[0].isWhitelisted).toBe(true);
     expect(body.data[0].capabilities).toEqual(["chat", "tasks"]);
     expect(body.data[0].baseURL).toBeNull();
+    expect(body.data[0].metadata).toBeNull();
   });
 
   it("can return all non-archived coworkers via scope=all", async () => {

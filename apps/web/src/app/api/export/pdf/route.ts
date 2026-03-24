@@ -1,7 +1,7 @@
+import { sanitizeFileName } from "@sokosumi/utils";
 import { NextRequest, NextResponse } from "next/server";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { sanitizeFileName } from "@/lib/utils/file";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

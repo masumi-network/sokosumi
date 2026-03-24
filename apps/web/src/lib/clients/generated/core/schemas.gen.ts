@@ -171,6 +171,13 @@ export const AgentSchema = {
                     ],
                     example: 'Terms of Service'
                 },
+                dpa: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Data Processing Agreement (DPA)'
+                },
                 other: {
                     type: [
                         'string',
@@ -182,8 +189,16 @@ export const AgentSchema = {
             required: [
                 'privacyPolicy',
                 'terms',
+                'dpa',
                 'other'
             ]
+        },
+        categories: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/Category'
+            },
+            description: 'Categories this agent belongs to'
         }
     },
     required: [
@@ -198,8 +213,256 @@ export const AgentSchema = {
         'description',
         'metrics',
         'author',
-        'legal'
+        'legal',
+        'categories'
     ]
+} as const;
+
+export const CategorySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cat_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Research'
+        },
+        slug: {
+            type: 'string',
+            example: 'research'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Agents for research tasks'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/cat.png'
+        },
+        icon: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/cat.svg'
+        },
+        priority: {
+            type: 'number',
+            example: 0
+        },
+        styles: {
+            $ref: '#/components/schemas/CategoryStyles'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'description',
+        'image',
+        'icon',
+        'priority',
+        'styles'
+    ]
+} as const;
+
+export const CategoryStylesSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        light: {
+            type: 'object',
+            properties: {
+                color: {
+                    type: 'string',
+                    example: 'text-default-foreground'
+                },
+                border: {
+                    type: 'object',
+                    properties: {
+                        gradient: {
+                            type: 'object',
+                            properties: {
+                                type: {
+                                    type: 'string',
+                                    example: 'linear'
+                                },
+                                angle: {
+                                    type: 'number',
+                                    example: 135
+                                },
+                                shape: {
+                                    type: 'string',
+                                    example: 'ellipse'
+                                },
+                                extent: {
+                                    type: 'string',
+                                    example: 'farthest-corner'
+                                },
+                                position: {
+                                    type: 'object',
+                                    properties: {
+                                        x: {
+                                            type: 'number',
+                                            example: 0.5
+                                        },
+                                        y: {
+                                            type: 'number',
+                                            example: 0.5
+                                        }
+                                    },
+                                    required: [
+                                        'x',
+                                        'y'
+                                    ]
+                                },
+                                stops: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            color: {
+                                                type: 'string',
+                                                example: 'text-default-foreground'
+                                            },
+                                            offset: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1,
+                                                example: 0.5
+                                            },
+                                            opacity: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1,
+                                                example: 0.8
+                                            }
+                                        },
+                                        required: [
+                                            'color',
+                                            'offset'
+                                        ]
+                                    },
+                                    minItems: 1
+                                }
+                            },
+                            required: [
+                                'type',
+                                'stops'
+                            ]
+                        }
+                    },
+                    required: [
+                        'gradient'
+                    ]
+                }
+            }
+        },
+        dark: {
+            type: 'object',
+            properties: {
+                color: {
+                    type: 'string',
+                    example: 'text-default-foreground'
+                },
+                border: {
+                    type: 'object',
+                    properties: {
+                        gradient: {
+                            type: 'object',
+                            properties: {
+                                type: {
+                                    type: 'string',
+                                    example: 'linear'
+                                },
+                                angle: {
+                                    type: 'number',
+                                    example: 135
+                                },
+                                shape: {
+                                    type: 'string',
+                                    example: 'ellipse'
+                                },
+                                extent: {
+                                    type: 'string',
+                                    example: 'farthest-corner'
+                                },
+                                position: {
+                                    type: 'object',
+                                    properties: {
+                                        x: {
+                                            type: 'number',
+                                            example: 0.5
+                                        },
+                                        y: {
+                                            type: 'number',
+                                            example: 0.5
+                                        }
+                                    },
+                                    required: [
+                                        'x',
+                                        'y'
+                                    ]
+                                },
+                                stops: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            color: {
+                                                type: 'string',
+                                                example: 'text-default-foreground'
+                                            },
+                                            offset: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1,
+                                                example: 0.5
+                                            },
+                                            opacity: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1,
+                                                example: 0.8
+                                            }
+                                        },
+                                        required: [
+                                            'color',
+                                            'offset'
+                                        ]
+                                    },
+                                    minItems: 1
+                                }
+                            },
+                            required: [
+                                'type',
+                                'stops'
+                            ]
+                        }
+                    },
+                    required: [
+                        'gradient'
+                    ]
+                }
+            }
+        }
+    },
+    description: 'Optional category-specific UI styles.',
+    example: {
+        light: {
+            color: 'text-default-foreground'
+        }
+    }
 } as const;
 
 export const PaginationMetadataSchema = {
@@ -583,6 +846,78 @@ export const CreateConversationItemRequestSchema = {
     ]
 } as const;
 
+export const CreditCostSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'clxx123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        unit: {
+            type: 'string',
+            example: 'TOKEN'
+        },
+        creditsPerUnit: {
+            type: 'number',
+            minimum: 0,
+            example: 0.0001,
+            description: 'Credits charged per unit (user-facing decimal)'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'unit',
+        'creditsPerUnit'
+    ]
+} as const;
+
+export const CreateCreditCostRequestSchema = {
+    type: 'object',
+    properties: {
+        unit: {
+            type: 'string',
+            minLength: 1,
+            example: 'TOKEN'
+        },
+        creditsPerUnit: {
+            type: 'number',
+            minimum: 0,
+            example: 0.0001
+        }
+    },
+    required: [
+        'unit',
+        'creditsPerUnit'
+    ]
+} as const;
+
+export const PatchCreditCostRequestSchema = {
+    type: 'object',
+    properties: {
+        creditsPerUnit: {
+            type: 'number',
+            minimum: 0,
+            example: 0.0001,
+            description: 'Credits charged per unit (user-facing decimal)'
+        }
+    },
+    required: [
+        'creditsPerUnit'
+    ]
+} as const;
+
 export const UserSchema = {
     type: 'object',
     properties: {
@@ -656,6 +991,14 @@ export const OrganizationSchema = {
             type: 'string',
             example: 'my-org'
         },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.com/logo.png'
+        },
         role: {
             type: 'string',
             example: 'member'
@@ -666,6 +1009,7 @@ export const OrganizationSchema = {
         'createdAt',
         'name',
         'slug',
+        'logo',
         'role'
     ]
 } as const;
@@ -1011,6 +1355,26 @@ export const Job_EventSchema = {
     ]
 } as const;
 
+export const CoworkerMetadataSchema = {
+          type: 'object',
+          required: [
+              'channels'
+          ],
+          properties: {
+              channels: {
+                  type: 'object',
+                  additionalProperties: {
+                      type: 'string'
+                  },
+                  description: 'Contact channels keyed by provider id (e.g. email, whatsapp).',
+                  example: {
+                      email: 'foo@bar.com',
+                      whatsapp: '+49151xxxx'
+                  }
+              }
+          }
+} as const;
+
 export const CoworkerSchema = {
     type: 'object',
     properties: {
@@ -1084,13 +1448,6 @@ export const CoworkerSchema = {
             example: 'https://responses.example.com/v1',
             description: 'OpenAI Responses API base URL used to enable this coworker for chat.'
         },
-        email: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'ops@example.com'
-        },
         description: {
             type: [
                 'string',
@@ -1119,6 +1476,14 @@ export const CoworkerSchema = {
                 'null'
             ],
             example: 'https://example.com/logo'
+        },
+        metadata: {
+            anyOf: [
+                CoworkerMetadataSchema,
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -1130,7 +1495,8 @@ export const CoworkerSchema = {
         'slug',
         'name',
         'baseURL',
-        'capabilities'
+        'capabilities',
+        'metadata'
     ]
 } as const;
 
@@ -1208,6 +1574,7 @@ export const TaskEventSchema = {
                 'WHATSAPP',
                 'TELEGRAM',
                 'SIGNAL',
+                'DISCORD',
                 'CHAT',
                 'SOKOSUMI',
                 'UNKNOWN'

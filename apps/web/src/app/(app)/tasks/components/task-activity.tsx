@@ -1,6 +1,7 @@
 "use client";
 
 import { BlobStatus, TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { extractFileLikeLinks, extractHttpLinks } from "@sokosumi/utils";
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -34,10 +35,6 @@ import {
   ORIGIN_APP_NAME_KEY_MAP,
   ORIGIN_ICON_MAP,
 } from "@/lib/constants/task-event-origin-icons";
-import {
-  extractFileLikeLinks,
-  extractHttpLinks,
-} from "@/lib/data/markdown/links";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -47,8 +44,8 @@ import {
   formatTaskAttachmentMarkdown,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
-  uploadTaskAttachment,
 } from "@/lib/utils/task-attachments";
+import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { getInitials } from "@/lib/utils/text";
 
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";

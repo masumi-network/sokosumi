@@ -1,39 +1,39 @@
-import "@testing-library/jest-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { render, screen } from "@testing-library/react";
 
 import { AgentDetailReviews } from "@/components/agents/agent-detail/reviews";
 
-const agentRatingFormMock = jest.fn();
-const reviewsListMock = jest.fn();
+const agentRatingFormMock = vi.fn();
+const reviewsListMock = vi.fn();
 
-jest.mock("next-intl/server", () => ({
+vi.mock("next-intl/server", () => ({
   getTranslations: () =>
     Promise.resolve((key: string) => {
       return key;
     }),
 }));
 
-jest.mock("@/components/agents/agent-rating-form", () => ({
+vi.mock("@/components/agents/agent-rating-form", () => ({
   AgentRatingForm: (props: unknown) => {
     agentRatingFormMock(props);
     return <div data-testid="agent-rating-form" />;
   },
 }));
 
-jest.mock("@/components/agents/rating-distribution", () => ({
+vi.mock("@/components/agents/rating-distribution", () => ({
   RatingDistribution: () => <div data-testid="rating-distribution" />,
 }));
 
-jest.mock("@/components/agents/star-rating", () => ({
+vi.mock("@/components/agents/star-rating", () => ({
   StarRating: () => <div data-testid="star-rating" />,
 }));
 
-jest.mock("@/components/ui/skeleton", () => ({
+vi.mock("@/components/ui/skeleton", () => ({
   Skeleton: () => <div data-testid="skeleton" />,
 }));
 
-jest.mock("@/components/agents/agent-detail/reviews-list", () => ({
+vi.mock("@/components/agents/agent-detail/reviews-list", () => ({
   ReviewsList: (props: unknown) => {
     reviewsListMock(props);
     return <div data-testid="reviews-list" />;
@@ -42,7 +42,7 @@ jest.mock("@/components/agents/agent-detail/reviews-list", () => ({
 
 describe("AgentDetailReviews", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("keeps the current user's existing rating in the form when no public ratings remain", async () => {

@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import type { AgentWithCategories } from "@sokosumi/database";
 
 import { getAgentCategoryStyles } from "@/lib/helpers/agent";
@@ -34,6 +35,8 @@ function createMockAgent(
     overrideAuthorOrganization: null,
     legalPrivacyPolicy: null,
     overrideLegalPrivacyPolicy: null,
+    legalDpa: null,
+    overrideLegalDpa: null,
     legalTerms: null,
     overrideLegalTerms: null,
     legalOther: null,
