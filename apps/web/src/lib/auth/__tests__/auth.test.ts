@@ -34,6 +34,7 @@ const stripeSdkMock = vi.fn(function MockStripe() {
 function getDefaultEnvSecrets() {
   return {
     BETTER_AUTH_API_KEY: "test-api-key",
+    BETTER_AUTH_COOKIE_DOMAIN: undefined,
     BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: 900,
     BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: 86_400,
     BETTER_AUTH_ORG_INVITATION_LIMIT: 10,
@@ -46,9 +47,11 @@ function getDefaultEnvSecrets() {
     GOOGLE_CLIENT_SECRET: "google-client-secret",
     MICROSOFT_CLIENT_ID: "microsoft-client-id",
     MICROSOFT_CLIENT_SECRET: "microsoft-client-secret",
+    NETWORK: "Preprod",
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
     STRIPE_SECRET_KEY: "sk_test_123",
     STRIPE_WEBHOOK_SECRET: "whsec_123",
+    VERCEL_GIT_COMMIT_REF: "",
     VERCEL_BRANCH_URL: "",
     VERCEL_URL: "",
     WEB_APP_BASE_URL: "https://example.com",
@@ -296,6 +299,7 @@ describe("web auth config", () => {
       [
         {
           advanced: {
+            cookiePrefix?: string;
             crossSubDomainCookies?: {
               domain: string;
               enabled: true;
@@ -306,12 +310,42 @@ describe("web auth config", () => {
     >;
 
     expect(config.advanced.crossSubDomainCookies).toBeUndefined();
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-localhost-preprod");
   });
 
-  it("scopes cross-subdomain cookies to the preprod environment host", async () => {
+  it("uses the mainnet cookie prefix from NETWORK", async () => {
     getEnvSecretsMock.mockReturnValue({
       ...getDefaultEnvSecrets(),
+      BETTER_AUTH_URL: "https://app.sokosumi.com/auth",
+      NETWORK: "Mainnet",
+      VERCEL_ENV: "production",
+      WEB_APP_BASE_URL: "https://app.sokosumi.com",
+    });
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe("sokosumi");
+    expect(lastLoginMethodPluginMock).toHaveBeenCalledWith({
+      cookieName: "sokosumi.last_used_login_method",
+    });
+  });
+
+  it("uses the configured cookie domain when provided", async () => {
+    getEnvSecretsMock.mockReturnValue({
+      ...getDefaultEnvSecrets(),
+      BETTER_AUTH_COOKIE_DOMAIN: "preview.sokosumi.com",
       BETTER_AUTH_URL: "https://preprod.sokosumi.com/auth",
+      VERCEL_ENV: "production",
       WEB_APP_BASE_URL: "https://preprod.sokosumi.com",
     });
 
@@ -321,34 +355,7 @@ describe("web auth config", () => {
       [
         {
           advanced: {
-            crossSubDomainCookies?: {
-              domain: string;
-              enabled: true;
-            };
-          };
-        },
-      ]
-    >;
-
-    expect(config.advanced.crossSubDomainCookies).toEqual({
-      enabled: true,
-      domain: "preprod.sokosumi.com",
-    });
-  });
-
-  it("pins preview cross-subdomain cookies to preview.sokosumi.com", async () => {
-    getEnvSecretsMock.mockReturnValue({
-      ...getDefaultEnvSecrets(),
-      BETTER_AUTH_URL: "https://api.feature-123.preview.sokosumi.com/auth",
-      WEB_APP_BASE_URL: "https://feature-123.preview.sokosumi.com",
-    });
-
-    await import("../auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          advanced: {
+            cookiePrefix?: string;
             crossSubDomainCookies?: {
               domain: string;
               enabled: true;
@@ -362,6 +369,96 @@ describe("web auth config", () => {
       enabled: true,
       domain: "preview.sokosumi.com",
     });
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preprod");
+  });
+
+  it("uses the configured cookie domain for previews when provided", async () => {
+    getEnvSecretsMock.mockReturnValue({
+      ...getDefaultEnvSecrets(),
+      BETTER_AUTH_COOKIE_DOMAIN: "sokosumi.com",
+      BETTER_AUTH_URL:
+        "https://sokosumi-app-preprod-git-feature-123.preview.sokosumi.com/auth",
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "feature/123",
+      WEB_APP_BASE_URL: "https://feature-123.preview.sokosumi.com",
+    });
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.crossSubDomainCookies).toEqual({
+      enabled: true,
+      domain: "sokosumi.com",
+    });
+    expect(config.advanced.cookiePrefix).toBe(
+      "sokosumi-preview-preprod-feature-123",
+    );
+  });
+
+  it("uses the git commit ref to keep preview cookie prefixes stable", async () => {
+    getEnvSecretsMock.mockReturnValue({
+      ...getDefaultEnvSecrets(),
+      BETTER_AUTH_URL: "https://fallback.sokosumi.com/auth",
+      NETWORK: "Mainnet",
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "feature_branch-123-team",
+      VERCEL_URL: "https://deployment-abc.vercel.app",
+      WEB_APP_BASE_URL: "https://deployment-abc.vercel.app",
+    });
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe(
+      "sokosumi-preview-mainnet-feature-branch-123-team",
+    );
+  });
+
+  it("falls back to the network-specific preview prefix when preview commit ref is empty", async () => {
+    getEnvSecretsMock.mockReturnValue({
+      ...getDefaultEnvSecrets(),
+      BETTER_AUTH_URL: "https://deployment-abc.vercel.app/auth",
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "",
+      VERCEL_URL: "https://deployment-abc.vercel.app",
+      WEB_APP_BASE_URL: "https://deployment-abc.vercel.app",
+    });
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-preprod");
   });
 
   it("prefers the locale cookie over accept-language for magic-link emails", async () => {

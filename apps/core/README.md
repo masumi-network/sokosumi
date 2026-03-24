@@ -47,6 +47,7 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | `DATABASE_URL` | Postgres connection string |
 | `BETTER_AUTH_SECRET` | Shared secret with the web app’s Better Auth config |
 | `BETTER_AUTH_URL` | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview |
+| `BETTER_AUTH_COOKIE_DOMAIN` | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies |
 | `POSTMARK_SERVER_ID`, `POSTMARK_FROM_EMAIL` | Transactional email |
 | `PAYMENT_API_URL`, `PAYMENT_API_KEY` | Masumi payment API |
 | `REGISTRY_API_URL`, `REGISTRY_API_KEY` | Masumi registry API |

@@ -42,6 +42,20 @@ const {
   stripeCreateUserCustomerMock: vi.fn(),
 }));
 
+function getDefaultEnv() {
+  return {
+    BETTER_AUTH_COOKIE_DOMAIN: undefined,
+    BETTER_AUTH_SECRET: "test-secret",
+    NETWORK: "Preprod",
+    NODE_ENV: "production",
+    POSTMARK_FROM_EMAIL: "no-reply@example.com",
+    POSTMARK_SERVER_ID: "postmark-server-id",
+    STRIPE_SECRET_KEY: "sk_test_123",
+    VERCEL_ENV: undefined,
+    VERCEL_GIT_COMMIT_REF: "",
+  };
+}
+
 vi.mock("better-auth/minimal", () => ({
   betterAuth: (...args: unknown[]) => betterAuthMock(...args),
 }));
@@ -115,13 +129,7 @@ describe("core auth config", () => {
     adminPluginMock.mockReturnValue("admin-plugin");
     apiKeyPluginMock.mockReturnValue("api-key-plugin");
     i18nPluginMock.mockReturnValue("i18n-plugin");
-    getEnvMock.mockReturnValue({
-      BETTER_AUTH_SECRET: "test-secret",
-      NODE_ENV: "production",
-      POSTMARK_FROM_EMAIL: "no-reply@example.com",
-      POSTMARK_SERVER_ID: "postmark-server-id",
-      STRIPE_SECRET_KEY: "sk_test_123",
-    });
+    getEnvMock.mockReturnValue(getDefaultEnv());
     getBetterAuthPublicBaseUrlMock.mockReturnValue("https://example.com/auth");
     getWebAppBaseUrlMock.mockReturnValue("https://example.com");
     jwtPluginMock.mockReturnValue("jwt-plugin");
@@ -179,7 +187,56 @@ describe("core auth config", () => {
     });
   });
 
-  it("scopes cross-subdomain cookies to the shared preprod host", async () => {
+  it("disables Better Auth cookie cache for core sessions", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          session: {
+            cookieCache?: unknown;
+            storeSessionInDatabase?: boolean;
+          };
+        },
+      ]
+    >;
+
+    expect(config.session.cookieCache).toBeUndefined();
+    expect(config.session.storeSessionInDatabase).toBe(true);
+  });
+
+  it("disables cross-subdomain cookies when no cookie domain is configured", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      BETTER_AUTH_COOKIE_DOMAIN: undefined,
+    });
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.crossSubDomainCookies).toBeUndefined();
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-localhost-preprod");
+  });
+
+  it("uses the configured cookie domain when provided", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      BETTER_AUTH_COOKIE_DOMAIN: "preview.sokosumi.com",
+      VERCEL_ENV: "production",
+    });
     getBetterAuthPublicBaseUrlMock.mockReturnValue(
       "https://api.preprod.sokosumi.com/auth",
     );
@@ -191,6 +248,7 @@ describe("core auth config", () => {
       [
         {
           advanced: {
+            cookiePrefix?: string;
             crossSubDomainCookies?: {
               domain: string;
               enabled: true;
@@ -202,8 +260,101 @@ describe("core auth config", () => {
 
     expect(config.advanced.crossSubDomainCookies).toEqual({
       enabled: true,
-      domain: "preprod.sokosumi.com",
+      domain: "preview.sokosumi.com",
     });
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preprod");
+  });
+
+  it("uses the production cookie prefix on mainnet hosts", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NETWORK: "Mainnet",
+      VERCEL_ENV: "production",
+    });
+    getBetterAuthPublicBaseUrlMock.mockReturnValue(
+      "https://api.sokosumi.com/auth",
+    );
+    getWebAppBaseUrlMock.mockReturnValue("https://app.sokosumi.com");
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe("sokosumi");
+  });
+
+  it("uses the configured cookie domain for previews when provided", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      BETTER_AUTH_COOKIE_DOMAIN: "sokosumi.com",
+      NETWORK: "Mainnet",
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "feature/123",
+    });
+    getBetterAuthPublicBaseUrlMock.mockReturnValue(
+      "https://sokosumi-core-preprod-git-feature-123.preview.sokosumi.com/auth",
+    );
+    getWebAppBaseUrlMock.mockReturnValue(
+      "https://feature-123.preview.sokosumi.com",
+    );
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe(
+      "sokosumi-preview-mainnet-feature-123",
+    );
+    expect(config.advanced.crossSubDomainCookies).toEqual({
+      enabled: true,
+      domain: "sokosumi.com",
+    });
+  });
+
+  it("falls back to the network-specific preview prefix when preview commit ref is empty", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "",
+    });
+    getBetterAuthPublicBaseUrlMock.mockReturnValue(
+      "https://deployment-abc.vercel.app/auth",
+    );
+    getWebAppBaseUrlMock.mockReturnValue("https://deployment-abc.vercel.app");
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-preprod");
   });
 
   it("uses English for magic-link emails", async () => {

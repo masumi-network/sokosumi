@@ -1,3 +1,4 @@
+import { resolveBetterAuthCookiePrefix } from "@sokosumi/utils";
 import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -26,9 +27,15 @@ const EXCLUDED_PATHS = [
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.search;
+  const env = getEnvSecrets();
+  const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
+    network: env.NETWORK,
+    vercelEnv: env.VERCEL_ENV,
+    vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
+  });
 
   // Check maintenance mode - redirect to /maintenance if enabled
-  const isMaintenanceMode = getEnvSecrets().MAINTENANCE_MODE;
+  const isMaintenanceMode = env.MAINTENANCE_MODE;
   if (isMaintenanceMode) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json(
@@ -52,7 +59,9 @@ export async function proxy(request: NextRequest) {
   }
 
   // Check session for protected routes
-  const sessionCookie = getSessionCookie(request);
+  const sessionCookie = getSessionCookie(request, {
+    cookiePrefix: betterAuthCookiePrefix,
+  });
   if (!sessionCookie) {
     const currentUrl = pathname + searchParams;
     const returnUrl = encodeURIComponent(currentUrl);

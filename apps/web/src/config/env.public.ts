@@ -25,6 +25,10 @@ const envPublicConfigSchema = z.object({
     .literal("Preprod")
     .or(z.literal("Mainnet"))
     .default("Preprod"),
+  NEXT_PUBLIC_VERCEL_ENV: z
+    .enum(["production", "preview", "development"])
+    .optional(),
+  NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: z.string().optional(),
   NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD: z.coerce
     .number()
     .min(0)
@@ -53,6 +57,9 @@ function validateEnv() {
     NEXT_PUBLIC_MCP_URL: process.env.NEXT_PUBLIC_MCP_URL,
     NEXT_PUBLIC_CORE_APP_BASE_URL: process.env.NEXT_PUBLIC_CORE_APP_BASE_URL,
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
+    NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV,
+    NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF:
+      process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF,
     NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD:
       process.env.NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD,
     NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG:
