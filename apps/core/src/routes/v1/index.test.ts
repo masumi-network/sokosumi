@@ -38,13 +38,16 @@ describe("v1 router", () => {
 
     const response = await app.request("http://localhost/openapi.json", {
       headers: {
-        Origin: "https://www.sokosumi.com",
+        Origin: "https://app.sokosumi.com",
       },
     });
 
     expect(response.status).toBe(200);
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://www.sokosumi.com",
+      "https://app.sokosumi.com",
+    );
+    expect(response.headers.get("access-control-allow-credentials")).toBe(
+      "true",
     );
     const body = (await response.json()) as {
       servers: Array<{ url: string }>;

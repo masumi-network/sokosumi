@@ -1,121 +1,40 @@
 import "server-only";
 
-import type { Notice, NoticeKind } from "@sokosumi/database";
 import { headers } from "next/headers";
 
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import type {
-  GetCoworkersData,
-  GetTasksData,
-  PaginationMetadata,
-} from "@/lib/clients/generated/core";
-import {
-  deleteTasksById as coreDeleteTasksById,
-  getAgentsById as coreGetAgentsById,
-  getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
-  getConversations as coreGetConversations,
-  getConversationsById as coreGetConversationsById,
-  getConversationsByIdItems as coreGetConversationsByIdItems,
-  getCoworkers as coreGetCoworkers,
-  getJobs as coreGetJobs,
-  getJobsById as coreGetJobsById,
-  getTasks as coreGetTasks,
-  getTasksById as coreGetTasksById,
-  getUsersMeCredits as coreGetUsersMeCredits,
-  getUsersMeNoticesPending as coreGetUsersMeNoticesPending,
-  getUsersMeOrganizations as coreGetUsersMeOrganizations,
-  patchConversationsById as corePatchConversationsById,
-  patchConversationsByIdArchive as corePatchConversationsByIdArchive,
-  patchTasksById as corePatchTasksById,
-  postConversations as corePostConversations,
-  postConversationsByIdItems as corePostConversationsByIdItems,
-  postTasks as corePostTasks,
-  postTasksByIdEvents as corePostTasksByIdEvents,
-  postUsersMeFiles as corePostUsersMeFiles,
-  postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
-} from "@/lib/clients/generated/core";
-import { type Client, createClient } from "@/lib/clients/generated/core/client";
-import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
+import { createClient } from "@/lib/clients/generated/core/client";
+import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
-export type CoreApiPagination = PaginationMetadata;
+import { createCoreClient } from "./core.shared";
 
-export interface CoreApiMeta {
-  requestId?: string;
-  timestamp?: string;
-  pagination?: CoreApiPagination;
-}
-
-export interface CoreApiResponse<T> {
-  data: T;
-  meta?: CoreApiMeta;
-}
-
-export class CoreApiRequestError extends Error {
-  details?: unknown;
-  status?: number;
-
-  constructor(
-    message: string,
-    options?: { details?: unknown; status?: number },
-  ) {
-    super(message);
-    this.name = "CoreApiRequestError";
-    this.details = options?.details;
-    this.status = options?.status;
-  }
-}
-
-function extractErrorMessage(error: unknown, status?: number): string {
-  if (typeof error === "string" && error.length > 0) {
-    return error;
-  }
-
-  if (error && typeof error === "object") {
-    const typedError = error as {
-      error?: unknown;
-      message?: unknown;
-    };
-
-    if (
-      typeof typedError.message === "string" &&
-      typedError.message.length > 0
-    ) {
-      return typedError.message;
-    }
-
-    if (typeof typedError.error === "string" && typedError.error.length > 0) {
-      return typedError.error;
-    }
-  }
-
-  if (typeof status === "number") {
-    return `API error: ${status}`;
-  }
-
-  return "Failed to communicate with Core API";
-}
-
-type CoreOperationResult<TData, TError> = {
-  data?: TData;
-  error?: TError;
-  response: Response;
-};
+export {
+  type CoreApiMeta,
+  type CoreApiPagination,
+  CoreApiRequestError,
+  type CoreApiResponse,
+  mapCoreApiStatusToCommonErrorCode,
+  toCoreApiActionError,
+} from "./core.shared";
 
 export function buildAuthHeaders(requestHeaders: Headers): HeadersInit {
   const authHeaders: HeadersInit = {};
   const cookie = requestHeaders.get("cookie");
 
-  if (cookie) authHeaders.cookie = cookie;
+  if (cookie) {
+    authHeaders.cookie = cookie;
+  }
 
   return authHeaders;
 }
 
-async function createCoreGeneratedClient(): Promise<Client> {
+async function createCoreGeneratedClient() {
   return createClient({
-    baseUrl: getCoreApiBaseUrl(),
+    baseUrl: getServerCoreApiBaseUrl(),
     headers: buildAuthHeaders(await headers()),
   });
 }
+
+export const coreClient = createCoreClient(createCoreGeneratedClient);
 
 async function executeOperation<TData, TError>(
   operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,

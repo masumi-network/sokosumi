@@ -110,7 +110,7 @@ export default async function TaskDetailPage({
 
   return (
     <div className="min-h-full w-full">
-      <div className="mx-auto max-w-4xl px-4">
+      <div className="mx-auto max-w-4xl px-4 pb-8">
         <AutoContextSwitch
           activeOrganizationId={activeOrganizationId}
           targetOrganizationId={targetOrganizationId}

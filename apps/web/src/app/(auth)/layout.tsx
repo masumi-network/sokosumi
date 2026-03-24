@@ -27,7 +27,7 @@ export default async function AuthLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getSession();
+  const session = await getSession({ refresh: true });
 
   if (session) {
     // Get pathname from middleware header

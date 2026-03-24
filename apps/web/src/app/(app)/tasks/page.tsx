@@ -17,13 +17,21 @@ import {
 
 import { TasksView } from "./components/tasks-view";
 import { buildAgentNameById } from "./utils/agent-names";
-import { getCoworkerOptions } from "./utils/coworker-options";
+import {
+  findCoworkerIdBySlug,
+  getCoworkerOptions,
+} from "./utils/coworker-options";
+
+interface TasksPageProps {
+  searchParams: Promise<{ create?: string; coworker?: string }>;
+}
 
 export const metadata = {
   title: "Task Manager",
 };
 
-export default async function TasksPage() {
+export default async function TasksPage({ searchParams }: TasksPageProps) {
+  const { create, coworker: coworkerSlugParam } = await searchParams;
   const [t, tColumns, cookieStore, session] = await Promise.all([
     getTranslations("App.Tasks"),
     getTranslations("App.Tasks.Columns"),
@@ -80,6 +88,11 @@ export default async function TasksPage() {
   });
 
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
+  const initialCreateTaskOpen = create === "true";
+  const initialCoworkerId =
+    initialCreateTaskOpen && coworkerSlugParam
+      ? findCoworkerIdBySlug(coworkerOptions, coworkerSlugParam)
+      : null;
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
@@ -103,6 +116,9 @@ export default async function TasksPage() {
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}
         defaultViewMode={defaultViewMode}
+        initialCreateTaskOpen={initialCreateTaskOpen}
+        initialCoworkerId={initialCoworkerId}
+        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}`}
         labels={{
           tabs: {
             tasks: t("Tabs.tasks"),
@@ -136,12 +152,16 @@ export default async function TasksPage() {
             description: t("EmptyState.description"),
             chatTitle: t("EmptyState.chatTitle"),
             chatDescription: t("EmptyState.chatDescription"),
+            getStartedTitle: t("EmptyState.getStartedTitle"),
+            getStartedDescription: t("EmptyState.getStartedDescription"),
+            getStartedButton: t("EmptyState.getStartedButton"),
             next: t("EmptyState.next"),
             back: t("EmptyState.back"),
             addTaskHint: t("EmptyState.addTaskHint"),
             chatHint: t("EmptyState.chatHint"),
             elenaAvatarAlt: t("EmptyState.elenaAvatarAlt"),
           },
+          showGuideAriaLabel: t("Actions.showGuide"),
           loadMore: t("Actions.loadMore"),
           loading: t("Actions.loading"),
         }}

@@ -1,11 +1,29 @@
 /* eslint-disable no-restricted-properties */
 import { withSentryConfig } from "@sentry/nextjs";
+import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
+import {
+  getCoreRelatedProjectName,
+  normalizeCoreApiBaseUrl,
+} from "./src/lib/clients/utils/core-api-base-url.shared";
+
+const coreNetwork =
+  process.env.NEXT_PUBLIC_NETWORK === "Mainnet" ? "Mainnet" : "Preprod";
+
+const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
+  withRelatedProject({
+    projectName: getCoreRelatedProjectName(coreNetwork),
+    defaultHost: process.env.CORE_APP_BASE_URL ?? "http://localhost:8787",
+  }),
+);
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_CORE_APP_BASE_URL: browserCoreApiBaseUrl,
+  },
   reactCompiler: true,
   images: {
     remotePatterns: [...NEXT_IMAGE_REMOTE_PATTERNS],

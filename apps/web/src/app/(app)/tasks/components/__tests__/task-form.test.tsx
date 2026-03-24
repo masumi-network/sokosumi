@@ -110,7 +110,14 @@ const baseLabels = {
 const coworkerOptions = [
   {
     id: "coworker-1",
+    slug: "soko",
     name: "Soko",
+    image: "",
+  },
+  {
+    id: "coworker-2",
+    slug: "elena",
+    name: "Elena",
     image: "",
   },
 ];
@@ -191,6 +198,25 @@ describe("TaskForm", () => {
         desiredStatus: TaskStatus.READY,
       }),
     );
+  });
+
+  it("selects initialValues.coworkerId when provided", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const elenaButton = screen.getByRole("button", { name: /Elena/i });
+    const sokoButton = screen.getByRole("button", { name: /Soko/i });
+    expect(elenaButton).toHaveAttribute("aria-pressed", "true");
+    expect(sokoButton).toHaveAttribute("aria-pressed", "false");
   });
 
   it("passes agent mention options to MarkdownEditor", () => {

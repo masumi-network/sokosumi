@@ -63,7 +63,7 @@ function CoworkerGalleryCard({
     "/images/logos/sokosumi-logo-white.svg";
   const canUseNextImage = canUseNextImageSrc(imageSrc);
   const displayDescription = description || DEFAULT_COWORKER_DESCRIPTION;
-  const coworkerChatHref = `/chat?coworker=${encodeURIComponent(slug)}`;
+  const coworkerNewTaskHref = `/tasks?create=true&coworker=${encodeURIComponent(slug)}`;
   const cardClassName = cn(
     "group block w-full rounded-lg focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 focus-visible:outline-none md:w-80",
     !action && "cursor-pointer",
@@ -155,7 +155,7 @@ function CoworkerGalleryCard({
   if (action) return <div className={cardClassName}>{cardContent}</div>;
 
   return (
-    <Link href={coworkerChatHref} className={cardClassName}>
+    <Link href={coworkerNewTaskHref} className={cardClassName}>
       {cardContent}
     </Link>
   );
