@@ -23,7 +23,8 @@ const { MockCoreApiRequestError, getAgentInputSchemaMock } = vi.hoisted(() => {
 vi.mock("@/lib/clients/core.browser.client", () => ({
   CoreApiRequestError: MockCoreApiRequestError,
   coreClient: {
-    getAgentInputSchema: (...args: unknown[]) => getAgentInputSchemaMock(...args),
+    getAgentInputSchema: (...args: unknown[]) =>
+      getAgentInputSchemaMock(...args),
   },
 }));
 
