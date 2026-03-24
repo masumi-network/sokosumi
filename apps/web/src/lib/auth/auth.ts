@@ -144,7 +144,7 @@ function getEmailLocale(
 
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
 const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
-  baseUrl: betterAuthBaseUrl,
+  network: secrets.NETWORK,
   vercelEnv: secrets.VERCEL_ENV,
   vercelGitCommitRef: secrets.VERCEL_GIT_COMMIT_REF,
 });

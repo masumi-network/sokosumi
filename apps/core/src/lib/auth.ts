@@ -35,7 +35,7 @@ const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
 const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
-  baseUrl: betterAuthBaseUrl,
+  network: env.NETWORK,
   vercelEnv: env.VERCEL_ENV,
   vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
 });

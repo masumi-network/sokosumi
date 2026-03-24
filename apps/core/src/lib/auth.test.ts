@@ -45,6 +45,7 @@ const {
 function getDefaultEnv() {
   return {
     BETTER_AUTH_SECRET: "test-secret",
+    NETWORK: "Preprod",
     NODE_ENV: "production",
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
     POSTMARK_SERVER_ID: "postmark-server-id",
@@ -186,6 +187,10 @@ describe("core auth config", () => {
   });
 
   it("scopes cross-subdomain cookies to the shared preprod host", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      VERCEL_ENV: "production",
+    });
     getBetterAuthPublicBaseUrlMock.mockReturnValue(
       "https://api.preprod.sokosumi.com/auth",
     );
@@ -215,6 +220,11 @@ describe("core auth config", () => {
   });
 
   it("uses the production cookie prefix on mainnet hosts", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NETWORK: "Mainnet",
+      VERCEL_ENV: "production",
+    });
     getBetterAuthPublicBaseUrlMock.mockReturnValue(
       "https://api.sokosumi.com/auth",
     );
@@ -235,9 +245,10 @@ describe("core auth config", () => {
     expect(config.advanced.cookiePrefix).toBe("sokosumi");
   });
 
-  it("uses a stable preview cookie prefix for preview hosts", async () => {
+  it("uses a network-specific preview cookie prefix for preview hosts", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
+      NETWORK: "Mainnet",
       VERCEL_ENV: "preview",
       VERCEL_GIT_COMMIT_REF: "feature/123",
     });
@@ -264,14 +275,16 @@ describe("core auth config", () => {
       ]
     >;
 
-    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-feature-123");
+    expect(config.advanced.cookiePrefix).toBe(
+      "sokosumi-preview-Mainnet-feature-123",
+    );
     expect(config.advanced.crossSubDomainCookies).toEqual({
       enabled: true,
       domain: "preview.sokosumi.com",
     });
   });
 
-  it("falls back to the shared preview prefix when preview commit ref is empty", async () => {
+  it("falls back to the network-specific preview prefix when preview commit ref is empty", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
       VERCEL_ENV: "preview",
@@ -294,7 +307,7 @@ describe("core auth config", () => {
       ]
     >;
 
-    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview");
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-Preprod");
   });
 
   it("uses English for magic-link emails", async () => {

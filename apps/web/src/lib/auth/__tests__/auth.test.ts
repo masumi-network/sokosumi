@@ -46,6 +46,7 @@ function getDefaultEnvSecrets() {
     GOOGLE_CLIENT_SECRET: "google-client-secret",
     MICROSOFT_CLIENT_ID: "microsoft-client-id",
     MICROSOFT_CLIENT_SECRET: "microsoft-client-secret",
+    NETWORK: "Preprod",
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
     STRIPE_SECRET_KEY: "sk_test_123",
     STRIPE_WEBHOOK_SECRET: "whsec_123",
@@ -308,13 +309,15 @@ describe("web auth config", () => {
     >;
 
     expect(config.advanced.crossSubDomainCookies).toBeUndefined();
-    expect(config.advanced.cookiePrefix).toBe("sokosumi");
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-localhost-Preprod");
   });
 
-  it("uses the production cookie prefix on the mainnet host", async () => {
+  it("uses the mainnet cookie prefix from NETWORK", async () => {
     getEnvSecretsMock.mockReturnValue({
       ...getDefaultEnvSecrets(),
       BETTER_AUTH_URL: "https://app.sokosumi.com/auth",
+      NETWORK: "Mainnet",
+      VERCEL_ENV: "production",
       WEB_APP_BASE_URL: "https://app.sokosumi.com",
     });
 
@@ -340,6 +343,7 @@ describe("web auth config", () => {
     getEnvSecretsMock.mockReturnValue({
       ...getDefaultEnvSecrets(),
       BETTER_AUTH_URL: "https://preprod.sokosumi.com/auth",
+      VERCEL_ENV: "production",
       WEB_APP_BASE_URL: "https://preprod.sokosumi.com",
     });
 
@@ -396,13 +400,16 @@ describe("web auth config", () => {
       enabled: true,
       domain: "preview.sokosumi.com",
     });
-    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-feature-123");
+    expect(config.advanced.cookiePrefix).toBe(
+      "sokosumi-preview-Preprod-feature-123",
+    );
   });
 
   it("uses the git commit ref to keep preview cookie prefixes stable", async () => {
     getEnvSecretsMock.mockReturnValue({
       ...getDefaultEnvSecrets(),
       BETTER_AUTH_URL: "https://fallback.sokosumi.com/auth",
+      NETWORK: "Mainnet",
       VERCEL_ENV: "preview",
       VERCEL_GIT_COMMIT_REF: "feature_branch-123-team",
       VERCEL_URL: "https://deployment-abc.vercel.app",
@@ -422,11 +429,11 @@ describe("web auth config", () => {
     >;
 
     expect(config.advanced.cookiePrefix).toBe(
-      "sokosumi-preview-feature-branch-123-team",
+      "sokosumi-preview-Mainnet-feature-branch-123-team",
     );
   });
 
-  it("falls back to the shared preview prefix when preview commit ref is empty", async () => {
+  it("falls back to the network-specific preview prefix when preview commit ref is empty", async () => {
     getEnvSecretsMock.mockReturnValue({
       ...getDefaultEnvSecrets(),
       BETTER_AUTH_URL: "https://deployment-abc.vercel.app/auth",
@@ -448,7 +455,7 @@ describe("web auth config", () => {
       ]
     >;
 
-    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview");
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-Preprod");
   });
 
   it("prefers the locale cookie over accept-language for magic-link emails", async () => {

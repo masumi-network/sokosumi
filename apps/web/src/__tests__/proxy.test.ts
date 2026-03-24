@@ -17,6 +17,7 @@ describe("proxy", () => {
     getEnvSecretsMock.mockReturnValue({
       BETTER_AUTH_URL: "https://feature-123.preview.sokosumi.com/auth",
       MAINTENANCE_MODE: false,
+      NETWORK: "Preprod",
       VERCEL_GIT_COMMIT_REF: "codex/evaluate-cookie-prefix-usage",
       VERCEL_BRANCH_URL:
         "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.vercel.app",
@@ -37,7 +38,8 @@ describe("proxy", () => {
     await proxy(request);
 
     expect(getSessionCookieMock).toHaveBeenCalledWith(request, {
-      cookiePrefix: "sokosumi-preview-codex-evaluate-cookie-prefix-usage",
+      cookiePrefix:
+        "sokosumi-preview-Preprod-codex-evaluate-cookie-prefix-usage",
     });
   });
 });

@@ -23,12 +23,10 @@ import { auth } from "./auth";
 
 function getLastUsedLoginMethodCookieName(): string {
   const env = getEnvPublicConfig();
-  const baseUrl =
-    typeof window !== "undefined" ? window.location.origin : "http://localhost";
 
   return getBetterAuthCookieName(
     resolveBetterAuthCookiePrefix({
-      baseUrl,
+      network: env.NEXT_PUBLIC_NETWORK,
       vercelEnv: env.NEXT_PUBLIC_VERCEL_ENV,
       vercelGitCommitRef: env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF,
     }),

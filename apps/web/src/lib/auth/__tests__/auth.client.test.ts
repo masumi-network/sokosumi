@@ -66,6 +66,7 @@ describe("auth client", () => {
     vi.clearAllMocks();
     createAuthClientMock.mockReturnValue({});
     getEnvPublicConfigMock.mockReturnValue({
+      NEXT_PUBLIC_NETWORK: "Preprod",
       NEXT_PUBLIC_VERCEL_ENV: undefined,
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: undefined,
     });
@@ -100,12 +101,13 @@ describe("auth client", () => {
     await import("../auth.client");
 
     expect(lastLoginMethodClientMock).toHaveBeenCalledWith({
-      cookieName: "sokosumi.last_used_login_method",
+      cookieName: "sokosumi-localhost-Preprod.last_used_login_method",
     });
   });
 
   it("uses the preview branch prefix when the public Vercel env is preview", async () => {
     getEnvPublicConfigMock.mockReturnValue({
+      NEXT_PUBLIC_NETWORK: "Mainnet",
       NEXT_PUBLIC_VERCEL_ENV: "preview",
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "feature/123",
     });
@@ -113,7 +115,7 @@ describe("auth client", () => {
     await import("../auth.client");
 
     expect(lastLoginMethodClientMock).toHaveBeenCalledWith({
-      cookieName: "sokosumi-preview-feature-123.last_used_login_method",
+      cookieName: "sokosumi-preview-Mainnet-feature-123.last_used_login_method",
     });
   });
 });

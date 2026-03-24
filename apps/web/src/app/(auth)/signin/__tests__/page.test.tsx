@@ -54,6 +54,7 @@ describe("SignIn page", () => {
     });
     getEnvSecretsMock.mockReturnValue({
       BETTER_AUTH_URL: "https://preprod.sokosumi.com/auth",
+      NETWORK: "Preprod",
       VERCEL_GIT_COMMIT_REF: "",
       VERCEL_BRANCH_URL: "",
       VERCEL_ENV: undefined,
@@ -72,7 +73,7 @@ describe("SignIn page", () => {
     );
 
     expect(getMock).toHaveBeenCalledWith(
-      "sokosumi-preprod.last_used_login_method",
+      "sokosumi-localhost-Preprod.last_used_login_method",
     );
   });
 });

@@ -10,7 +10,6 @@ import Divider from "@/auth/components/divider";
 import SocialButtons, {
   type SignInMethodId,
 } from "@/auth/components/social-buttons";
-import { getBetterAuthPublicBaseUrl } from "@/config/better-auth-public-url";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
 
@@ -36,7 +35,7 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
   const cookieStore = await cookies();
   const lastUsedLoginMethodCookieName = getBetterAuthCookieName(
     resolveBetterAuthCookiePrefix({
-      baseUrl: getBetterAuthPublicBaseUrl(),
+      network: env.NETWORK,
       vercelEnv: env.VERCEL_ENV,
       vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
     }),

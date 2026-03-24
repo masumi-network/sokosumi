@@ -54,6 +54,7 @@ describe("SignUp page", () => {
     });
     getEnvSecretsMock.mockReturnValue({
       BETTER_AUTH_URL: "https://feature-123.preview.sokosumi.com/auth",
+      NETWORK: "Preprod",
       VERCEL_GIT_COMMIT_REF: "feature/123",
       VERCEL_BRANCH_URL: "",
       VERCEL_ENV: "preview",
@@ -72,7 +73,7 @@ describe("SignUp page", () => {
     );
 
     expect(getMock).toHaveBeenCalledWith(
-      "sokosumi-preview-feature-123.last_used_login_method",
+      "sokosumi-preview-Preprod-feature-123.last_used_login_method",
     );
   });
 });
