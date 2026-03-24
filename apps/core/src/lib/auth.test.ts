@@ -187,6 +187,24 @@ describe("core auth config", () => {
     });
   });
 
+  it("disables Better Auth cookie cache for core sessions", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          session: {
+            cookieCache?: unknown;
+            storeSessionInDatabase?: boolean;
+          };
+        },
+      ]
+    >;
+
+    expect(config.session.cookieCache).toBeUndefined();
+    expect(config.session.storeSessionInDatabase).toBe(true);
+  });
+
   it("disables cross-subdomain cookies when no cookie domain is configured", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
