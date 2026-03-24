@@ -162,9 +162,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const modelName = selectedChat?.model?.name;
     const modelId = selectedChat?.model?.id;
 
-    const lastUserMessageText = (() => {
-      for (let i = messagesWithTimestamps.length - 1; i >= 0; i--) {
-        const msg = messagesWithTimestamps[i];
+    const lastUserMessageText = useMemo(() => {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
         if ((msg.role as string) === "user") {
           const text = extractMessageContent(msg).trim();
           if (text) return text;
@@ -172,7 +172,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         }
       }
       return "";
-    })();
+    }, [messages]);
 
     const canResend = Boolean(
       pendingResponseFailed && onResendLastMessage && lastUserMessageText,
