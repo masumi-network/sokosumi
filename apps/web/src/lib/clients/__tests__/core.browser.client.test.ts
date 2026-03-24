@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
 const getAgentsByIdInputSchemaMock = vi.fn();
+const postUsersMeFilesMock = vi.fn();
 const createClientMock = vi.fn();
 const mockClient = { id: "browser-core-client" } as never;
 
@@ -15,6 +16,7 @@ vi.mock("@/lib/clients/generated/core/client", () => ({
 
 vi.mock("@/lib/clients/generated/core", () => ({
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
+  postUsersMeFiles: postUsersMeFilesMock,
 }));
 
 describe("core.browser.client", () => {
@@ -67,5 +69,38 @@ describe("core.browser.client", () => {
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
       message: "The service is currently unavailable.",
     });
+  });
+
+  it("uploads files through the browser transport", async () => {
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+
+    postUsersMeFilesMock.mockResolvedValue({
+      data: {
+        data: {
+          publicUrl: "https://blob.example/users/user_123/report.pdf",
+          metadata: {
+            pathname: "users/user_123/report.pdf",
+            downloadUrl: "https://blob.example/download/report.pdf",
+            size: 5,
+            uploadedAt: "2026-03-24T12:00:00.000Z",
+            etag: '"etag-123"',
+          },
+        },
+      },
+      response: new Response("{}", { status: 201 }),
+    });
+
+    const { coreClient } = await import("../core.browser.client");
+    const response = await coreClient.uploadMyFile(file);
+
+    expect(postUsersMeFilesMock).toHaveBeenCalledWith({
+      client: mockClient,
+      body: { file },
+    });
+    expect(response.data.publicUrl).toBe(
+      "https://blob.example/users/user_123/report.pdf",
+    );
   });
 });
