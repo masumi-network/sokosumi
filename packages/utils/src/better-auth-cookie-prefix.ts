@@ -51,11 +51,9 @@ export function resolveBetterAuthCookiePrefix(
         : DEFAULT_COOKIE_PREFIX;
     case "preview":
       const previewKey = sanitizeCookieSegment(params.vercelGitCommitRef ?? "");
-
       if (previewKey) {
         return `${PREVIEW_COOKIE_PREFIX}-${params.network}-${previewKey}`;
       }
-
       return `${PREVIEW_COOKIE_PREFIX}-${params.network}`;
     case "development":
       return `${LOCALHOST_COOKIE_PREFIX}-${params.network}`;
