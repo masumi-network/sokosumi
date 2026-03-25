@@ -14,7 +14,7 @@ const {
   prismaTransactionMock,
   requireUserTaskAccessMock,
   resolveMemberOrganizationByIdMock,
-  taskEventFindManyMock,
+  taskEventCountMock,
   taskFindUniqueOrThrowMock,
   taskUpdateManyMock,
 } = vi.hoisted(() => ({
@@ -23,7 +23,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requireUserTaskAccessMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  taskEventFindManyMock: vi.fn(),
+  taskEventCountMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
   taskUpdateManyMock: vi.fn(),
 }));
@@ -65,7 +65,7 @@ interface TransactionMock {
     updateMany: ReturnType<typeof vi.fn>;
   };
   taskEvent: {
-    findMany: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -170,7 +170,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       role: "member",
     });
     jobCountMock.mockResolvedValue(0);
-    taskEventFindManyMock.mockResolvedValue([]);
+    taskEventCountMock.mockResolvedValue(0);
     taskFindUniqueOrThrowMock.mockResolvedValue(createTaskRecord());
     taskUpdateManyMock.mockResolvedValue({ count: 1 });
     mapTaskMock.mockImplementation((task: TaskRecord) =>
@@ -192,7 +192,7 @@ describe("PUT /tasks/{id}/workspace", () => {
         updateMany: taskUpdateManyMock,
       },
       taskEvent: {
-        findMany: taskEventFindManyMock,
+        count: taskEventCountMock,
       },
     });
   });
@@ -233,7 +233,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(jobCountMock).toHaveBeenCalledWith({
       where: { taskId: "tsk_123" },
     });
-    expect(taskEventFindManyMock).toHaveBeenCalledWith({
+    expect(taskEventCountMock).toHaveBeenCalledWith({
       where: {
         taskId: "tsk_123",
         transactionId: { not: null },
@@ -397,7 +397,7 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     expect(response.status).toBe(200);
     expect(jobCountMock).toHaveBeenCalled();
-    expect(taskEventFindManyMock).toHaveBeenCalled();
+    expect(taskEventCountMock).toHaveBeenCalled();
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
@@ -432,7 +432,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(409);
-    expect(taskEventFindManyMock).not.toHaveBeenCalled();
+    expect(taskEventCountMock).not.toHaveBeenCalled();
     expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
@@ -442,7 +442,7 @@ describe("PUT /tasks/{id}/workspace", () => {
         status: TaskStatus.RUNNING,
       }),
     );
-    taskEventFindManyMock.mockResolvedValue([{ id: "tev_1" }]);
+    taskEventCountMock.mockResolvedValue(1);
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/tsk_123/workspace", {
@@ -504,7 +504,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(response.status).toBe(200);
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
     expect(jobCountMock).not.toHaveBeenCalled();
-    expect(taskEventFindManyMock).not.toHaveBeenCalled();
+    expect(taskEventCountMock).not.toHaveBeenCalled();
     expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
@@ -547,7 +547,7 @@ describe("PUT /tasks/{id}/workspace", () => {
         updateMany: taskUpdateManyMock,
       },
       taskEvent: {
-        findMany: taskEventFindManyMock,
+        count: taskEventCountMock,
       },
     });
     mapTaskMock.mockReturnValue(

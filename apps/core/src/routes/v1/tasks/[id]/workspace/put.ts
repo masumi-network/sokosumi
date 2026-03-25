@@ -76,13 +76,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
 
-        const taskEventsWithTransactions = await tx.taskEvent.findMany({
+        const taskEventsWithTransactionCount = await tx.taskEvent.count({
           where: {
             taskId: id,
             transactionId: { not: null },
           },
         });
-        const hasChargedTaskEvent = taskEventsWithTransactions.length > 0;
+        const hasChargedTaskEvent = taskEventsWithTransactionCount > 0;
         if (hasChargedTaskEvent) {
           throw conflict(
             "You can only change workspace before the task has charged events",
