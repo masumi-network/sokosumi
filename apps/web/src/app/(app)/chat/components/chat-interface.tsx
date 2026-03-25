@@ -317,6 +317,8 @@ export default function ChatInterface({
   const [reasoningEndedAtBySlot, setReasoningEndedAtBySlot] = useState<
     Record<number, number>
   >({});
+  /** Mirrored from `reasoningStartedAtBySlot` after layout; safe for sync reads. */
+  const reasoningStartedAtBySlotRef = useRef<Record<number, number>>({});
   const slotPayloadRef = useRef<SlotPayload[]>(
     Array.from({ length: NUM_SLOTS }, () => ({
       conversationId: null,
@@ -687,42 +689,47 @@ export default function ChatInterface({
     [slotToConversation, slotMessages],
   );
 
-  useEffect(() => {
-    setReasoningStartedAtBySlot((prev) => {
-      let next = prev;
-      let changed = false;
-      for (let slot = 0; slot < NUM_SLOTS; slot++) {
-        const steps = reasoningBySlot[slot];
-        if (steps && steps.length > 0 && prev[slot] == null) {
-          if (!changed) {
-            next = { ...prev };
-            changed = true;
-          }
-          next[slot] = Date.now();
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [reasoningBySlot]);
-
-  useEffect(() => {
-    let changed = false;
-    const next: Record<number, number> = {};
+  useLayoutEffect(() => {
+    const now = Date.now();
+    const effectiveStarted: Record<number, number> = {
+      ...reasoningStartedAtBySlot,
+    };
+    let needPersistStarted = false;
     for (let slot = 0; slot < NUM_SLOTS; slot++) {
-      const startedAt = reasoningStartedAtBySlot[slot];
+      const steps = reasoningBySlot[slot];
+      if (steps && steps.length > 0 && effectiveStarted[slot] == null) {
+        effectiveStarted[slot] = now;
+        needPersistStarted = true;
+      }
+    }
+    if (needPersistStarted) {
+      setReasoningStartedAtBySlot(effectiveStarted);
+    }
+
+    reasoningStartedAtBySlotRef.current = effectiveStarted;
+
+    const nextEnded: Record<number, number> = {};
+    let needEnded = false;
+    for (let slot = 0; slot < NUM_SLOTS; slot++) {
+      const startedAt = effectiveStarted[slot];
       if (startedAt == null || reasoningEndedAtBySlot[slot] != null) continue;
       const messages = (slotMessages[slot] ?? []) as UIMessage[];
       const last = messages[messages.length - 1];
       if (!last || (last.role as string) !== "assistant") continue;
       const content = extractMessageContent(last).trim();
       if (content.length === 0) continue;
-      next[slot] = Date.now();
-      changed = true;
+      nextEnded[slot] = now;
+      needEnded = true;
     }
-    if (changed) {
-      setReasoningEndedAtBySlot((prev) => ({ ...prev, ...next }));
+    if (needEnded) {
+      setReasoningEndedAtBySlot((prev) => ({ ...prev, ...nextEnded }));
     }
-  }, [slotMessages, reasoningEndedAtBySlot, reasoningStartedAtBySlot]);
+  }, [
+    reasoningBySlot,
+    slotMessages,
+    reasoningEndedAtBySlot,
+    reasoningStartedAtBySlot,
+  ]);
 
   const sendInConversation = useCallback(
     (conversationId: string, text: string): boolean => {
