@@ -20,6 +20,7 @@ export interface TaskWithCoworker {
   userId: string;
   createdAt: string;
   updatedAt: string;
+  jobsCount: number;
   coworker?: Coworker | null;
   commentsCount: number;
   columnId: KanbanColumnId;

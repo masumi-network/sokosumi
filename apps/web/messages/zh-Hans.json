@@ -1407,7 +1407,15 @@
           "markAsReady": "标记为就绪",
           "revertToDraft": "恢复为草稿",
           "cancelRequest": "请求取消",
-          "updateStatusSuccess": "任务状态已更新"
+          "updateStatusSuccess": "任务状态已更新",
+          "moveToWorkspace": "移到其他工作区",
+          "moveToWorkspaceTitle": "将任务移到其他工作区",
+          "moveToWorkspaceDescription": "选择要将此任务移动至的工作区。",
+          "moveToWorkspaceButton": "移动任务",
+          "moveToWorkspaceCancel": "取消",
+          "moveToWorkspaceSuccess": "任务已成功移动",
+          "moveToWorkspaceError": "移动任务失败",
+          "personalWorkspace": "个人"
         },
         "switchedWorkspace": "已切换到 {account} 账户"
       },

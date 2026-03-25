@@ -1407,7 +1407,15 @@
           "markAsReady": "Marquer comme prêt",
           "revertToDraft": "Revenir au brouillon",
           "cancelRequest": "Annuler la demande",
-          "updateStatusSuccess": "Statut de la tâche mis à jour"
+          "updateStatusSuccess": "Statut de la tâche mis à jour",
+          "moveToWorkspace": "Déplacer vers un autre espace de travail",
+          "moveToWorkspaceTitle": "Déplacer la tâche vers un autre espace de travail",
+          "moveToWorkspaceDescription": "Sélectionnez l'espace de travail vers lequel vous souhaitez déplacer cette tâche.",
+          "moveToWorkspaceButton": "Déplacer la tâche",
+          "moveToWorkspaceCancel": "Annuler",
+          "moveToWorkspaceSuccess": "Tâche déplacée avec succès",
+          "moveToWorkspaceError": "Échec du déplacement de la tâche",
+          "personalWorkspace": "Personnel"
         },
         "switchedWorkspace": "Passage au compte {account}"
       },

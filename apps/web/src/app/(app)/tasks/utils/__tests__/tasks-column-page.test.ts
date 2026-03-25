@@ -32,6 +32,7 @@ function buildTask({
     coworkerId: null,
     description: null,
     events: [],
+    jobs: [],
   } as const;
 }
 
