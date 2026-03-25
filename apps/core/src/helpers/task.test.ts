@@ -665,6 +665,8 @@ describe("mapTask", () => {
       description: null,
       status: TaskStatus.COMPLETED,
       jobs: [],
+      linksFrom: [],
+      linksTo: [],
       events: [
         {
           id: "evt_cancel",
@@ -739,6 +741,8 @@ describe("mapTask", () => {
       description: null,
       status: TaskStatus.COMPLETED,
       jobs: [],
+      linksFrom: [],
+      linksTo: [],
       events: [
         {
           id: "evt_complete",
@@ -793,6 +797,8 @@ describe("mapTask", () => {
       description: null,
       status: TaskStatus.OUT_OF_CREDITS,
       jobs: [],
+      linksFrom: [],
+      linksTo: [],
       events: [
         {
           id: "evt_partial",

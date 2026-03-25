@@ -84,6 +84,9 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(
       getQueryDescriptionFromGetOperation(doc, "/{id}/jobs", "scope"),
     ).toContain("Allowed values: context, owned");
+    expect(
+      getQueryDescriptionFromGetOperation(doc, "/{id}/links", "scope"),
+    ).toContain("Allowed values: context, owned");
   });
 
   it("exposes multi-status query parameter for the task list endpoint", () => {

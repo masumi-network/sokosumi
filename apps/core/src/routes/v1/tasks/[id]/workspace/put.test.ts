@@ -96,6 +96,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     credits: 0,
     events: [],
     jobs: [],
+    links: [],
     ...overrides,
   };
 }
@@ -211,6 +212,8 @@ describe("PUT /tasks/{id}/workspace", () => {
       }),
       events: [],
       jobs: [],
+      linksFrom: [],
+      linksTo: [],
     });
 
     const app = createApp(null);
@@ -267,6 +270,8 @@ describe("PUT /tasks/{id}/workspace", () => {
       }),
       events: [],
       jobs: [],
+      linksFrom: [],
+      linksTo: [],
     });
 
     const app = createApp("org_current");
@@ -298,6 +303,8 @@ describe("PUT /tasks/{id}/workspace", () => {
       }),
       events: [],
       jobs: [],
+      linksFrom: [],
+      linksTo: [],
     });
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: {
@@ -382,6 +389,8 @@ describe("PUT /tasks/{id}/workspace", () => {
       }),
       events: [],
       jobs: [],
+      linksFrom: [],
+      linksTo: [],
     });
 
     const app = createApp("org_current");
@@ -536,6 +545,8 @@ describe("PUT /tasks/{id}/workspace", () => {
       ...currentTask,
       events: [],
       jobs: [],
+      linksFrom: [],
+      linksTo: [],
     };
     taskFindUniqueOrThrowMock.mockResolvedValue(currentTaskWithIncludes);
     mockTransaction({

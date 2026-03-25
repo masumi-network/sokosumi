@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin, TaskLinkType, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { createJobRequestSchema, jobsSchema } from "@/schemas/job.schema";
@@ -38,6 +38,34 @@ export const taskCommentSchema = z
   })
   .openapi("TaskComment");
 
+export const taskLinkSchema = z
+  .object({
+    id: z.string().openapi({ example: "tl_123" }),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
+    type: z.enum(TaskLinkType).openapi({ example: TaskLinkType.RELATES }),
+    note: z.string().nullable().openapi({ example: null }),
+    fromTaskId: z.string().openapi({ example: "tsk_a" }),
+    toTaskId: z.string().openapi({ example: "tsk_b" }),
+    direction: z
+      .enum(["outgoing", "incoming"])
+      .openapi({ example: "outgoing" }),
+    peerTaskId: z.string().openapi({ example: "tsk_b" }),
+  })
+  .openapi("TaskLink");
+
+export type TaskLinkResponse = z.infer<typeof taskLinkSchema>;
+
+export const taskLinksSchema = z.array(taskLinkSchema).openapi("TaskLinks");
+
+export const createTaskLinkRequestSchema = z
+  .object({
+    toTaskId: z.string().min(1).openapi({ example: "tsk_b" }),
+    type: z.enum(TaskLinkType).openapi({ example: TaskLinkType.RELATES }),
+    note: z.string().max(2000).nullish().openapi({ example: null }),
+  })
+  .openapi("CreateTaskLinkRequest");
+
 export const taskSchema = z
   .object({
     id: z.string().openapi({ example: "tsk_123" }),
@@ -52,6 +80,7 @@ export const taskSchema = z
     credits: z.number().openapi({ example: 5 }),
     events: z.array(taskEventSchema).openapi({ example: [] }),
     jobs: jobsSchema.openapi({ example: [] }),
+    links: taskLinksSchema.openapi({ example: [] }),
   })
   .openapi("Task");
 

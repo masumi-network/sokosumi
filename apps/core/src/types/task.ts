@@ -26,6 +26,16 @@ export const taskInclude = {
       createdAt: "asc",
     },
   },
+  linksFrom: {
+    orderBy: {
+      createdAt: "asc",
+    },
+  },
+  linksTo: {
+    orderBy: {
+      createdAt: "asc",
+    },
+  },
 } as const;
 
 export type TaskWithIncludes = Prisma.TaskGetPayload<{
