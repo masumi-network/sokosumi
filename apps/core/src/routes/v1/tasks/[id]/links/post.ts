@@ -3,12 +3,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { requireUserTaskAccess } from "@/helpers/access-control";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { mapTaskLinkForTask } from "@/helpers/task";
-import {
-  assertTaskLinkAllowed,
-  isPrismaUniqueViolation,
-} from "@/helpers/task-link";
+import { assertTaskLinkAllowed } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";

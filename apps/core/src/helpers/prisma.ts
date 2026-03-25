@@ -1,4 +1,15 @@
 /**
+ * Returns true if the error is any Prisma unique constraint violation (P2002).
+ */
+export function isPrismaUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  return (error as { code?: unknown }).code === "P2002";
+}
+
+/**
  * Returns true if the error is a Prisma unique constraint violation (P2002)
  * on the slug field. Used to map race-condition violations to conflict responses.
  */
