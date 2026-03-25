@@ -74,49 +74,47 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
 
-        if (workspaceChanged) {
-          if (FINALIZED_TASK_STATUSES.has(task.status)) {
-            throw conflict(
-              "You can only change workspace for non-finalized tasks (completed, failed, canceled, cancel requested)",
-            );
-          }
-
-          const existingJobsCount = await tx.job.count({
-            where: { taskId: id },
-          });
-          if (existingJobsCount > 0) {
-            throw conflict(
-              "You can only change workspace before the task has any jobs",
-            );
-          }
-
-          const taskEventsWithTransactions = await tx.taskEvent.findMany({
-            where: {
-              taskId: id,
-              transactionId: { not: null },
-            },
-            select: {
-              transaction: {
-                select: { amount: true },
-              },
-            },
-          });
-          const hasChargedTaskEvent = taskEventsWithTransactions.some(
-            (event) => (event.transaction?.amount ?? 0n) < 0n,
+        if (FINALIZED_TASK_STATUSES.has(task.status)) {
+          throw conflict(
+            "You can only change workspace for non-finalized tasks (completed, failed, canceled, cancel requested)",
           );
-          if (hasChargedTaskEvent) {
-            throw conflict(
-              "You can only change workspace before the task has charged events",
-            );
-          }
+        }
 
-          if (organizationId !== null) {
-            await resolveMemberOrganizationById({
-              id: organizationId,
-              userId: authContext.userId,
-              tx,
-            });
-          }
+        const existingJobsCount = await tx.job.count({
+          where: { taskId: id },
+        });
+        if (existingJobsCount > 0) {
+          throw conflict(
+            "You can only change workspace before the task has any jobs",
+          );
+        }
+
+        const taskEventsWithTransactions = await tx.taskEvent.findMany({
+          where: {
+            taskId: id,
+            transactionId: { not: null },
+          },
+          select: {
+            transaction: {
+              select: { amount: true },
+            },
+          },
+        });
+        const hasChargedTaskEvent = taskEventsWithTransactions.some(
+          (event) => (event.transaction?.amount ?? 0n) < 0n,
+        );
+        if (hasChargedTaskEvent) {
+          throw conflict(
+            "You can only change workspace before the task has charged events",
+          );
+        }
+
+        if (organizationId !== null) {
+          await resolveMemberOrganizationById({
+            id: organizationId,
+            userId: authContext.userId,
+            tx,
+          });
         }
 
         const updateResult = await tx.task.updateMany({
