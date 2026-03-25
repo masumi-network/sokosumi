@@ -1176,6 +1176,8 @@ enum TaskLinkType {
   DUPLICATE
 }
 
+/// At most one row per unordered task pair (any direction or `TaskLinkType`).
+/// Enforced by DB index `task_link_task_pair_key` (see migration); Prisma cannot express LEAST/GREATEST unique constraints.
 model TaskLink {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -1190,7 +1192,6 @@ model TaskLink {
   type TaskLinkType
   note String?
 
-  @@unique([fromTaskId, toTaskId, type])
   @@index([fromTaskId])
   @@index([toTaskId])
   @@map("task_link")

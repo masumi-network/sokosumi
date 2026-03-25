@@ -20,8 +20,11 @@ CREATE INDEX "task_link_fromTaskId_idx" ON "task_link"("fromTaskId");
 -- CreateIndex
 CREATE INDEX "task_link_toTaskId_idx" ON "task_link"("toTaskId");
 
--- CreateIndex
-CREATE UNIQUE INDEX "task_link_fromTaskId_toTaskId_type_key" ON "task_link"("fromTaskId", "toTaskId", "type");
+-- CreateIndex: at most one link per unordered pair of tasks (any direction or type)
+CREATE UNIQUE INDEX "task_link_task_pair_key" ON "task_link" (
+  LEAST("fromTaskId", "toTaskId"),
+  GREATEST("fromTaskId", "toTaskId")
+);
 
 -- AddForeignKey
 ALTER TABLE "task_link" ADD CONSTRAINT "task_link_fromTaskId_fkey" FOREIGN KEY ("fromTaskId") REFERENCES "task"("id") ON DELETE CASCADE ON UPDATE CASCADE;
