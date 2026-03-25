@@ -163,7 +163,8 @@ export const moveTaskToWorkspace = withSession<
     return { taskId };
   } catch (error) {
     console.error("Failed to move task to workspace", error);
-    throw new Error(toCoreApiActionError(error).message);
+    const { message } = toCoreApiActionError(error);
+    throw new Error(message ?? "Failed to move task to workspace");
   }
 });
 
