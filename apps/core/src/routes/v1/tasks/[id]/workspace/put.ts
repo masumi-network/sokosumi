@@ -89,6 +89,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
 
+        const taskLinksCount = await tx.taskLink.count({
+          where: {
+            OR: [{ fromTaskId: id }, { toTaskId: id }],
+          },
+        });
+        if (taskLinksCount > 0) {
+          throw conflict(
+            "You can only change workspace before the task has any links",
+          );
+        }
+
         if (organizationId !== null) {
           await resolveMemberOrganizationById({
             id: organizationId,

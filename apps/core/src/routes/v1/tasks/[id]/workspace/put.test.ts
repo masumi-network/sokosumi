@@ -16,6 +16,7 @@ const {
   resolveMemberOrganizationByIdMock,
   taskEventCountMock,
   taskFindUniqueOrThrowMock,
+  taskLinkCountMock,
   taskUpdateManyMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
@@ -25,6 +26,7 @@ const {
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskEventCountMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
+  taskLinkCountMock: vi.fn(),
   taskUpdateManyMock: vi.fn(),
 }));
 
@@ -65,6 +67,9 @@ interface TransactionMock {
     updateMany: ReturnType<typeof vi.fn>;
   };
   taskEvent: {
+    count: ReturnType<typeof vi.fn>;
+  };
+  taskLink: {
     count: ReturnType<typeof vi.fn>;
   };
 }
@@ -172,6 +177,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
     jobCountMock.mockResolvedValue(0);
     taskEventCountMock.mockResolvedValue(0);
+    taskLinkCountMock.mockResolvedValue(0);
     taskFindUniqueOrThrowMock.mockResolvedValue(createTaskRecord());
     taskUpdateManyMock.mockResolvedValue({ count: 1 });
     mapTaskMock.mockImplementation((task: TaskRecord) =>
@@ -194,6 +200,9 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       taskEvent: {
         count: taskEventCountMock,
+      },
+      taskLink: {
+        count: taskLinkCountMock,
       },
     });
   });
@@ -468,6 +477,34 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
+  it("returns 409 when the task already has links", async () => {
+    requireUserTaskAccessMock.mockResolvedValue(
+      createTaskRecord({
+        status: TaskStatus.RUNNING,
+      }),
+    );
+    taskLinkCountMock.mockResolvedValue(1);
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_target",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(taskLinkCountMock).toHaveBeenCalledWith({
+      where: {
+        OR: [{ fromTaskId: "tsk_123" }, { toTaskId: "tsk_123" }],
+      },
+    });
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+  });
+
   it("returns 409 when the task row no longer matches the expected status", async () => {
     requireUserTaskAccessMock.mockResolvedValue(
       createTaskRecord({
@@ -559,6 +596,9 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       taskEvent: {
         count: taskEventCountMock,
+      },
+      taskLink: {
+        count: taskLinkCountMock,
       },
     });
     mapTaskMock.mockReturnValue(
