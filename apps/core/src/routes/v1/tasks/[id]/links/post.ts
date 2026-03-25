@@ -59,7 +59,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const link = await prisma.$transaction(async (tx) => {
       await requireUserTaskAccess(authContext, id, tx);
       await requireUserTaskAccess(authContext, toTaskId, tx);
-      await assertTaskLinkAllowed(tx, id, toTaskId, type);
+      await assertTaskLinkAllowed(tx, id, toTaskId);
 
       try {
         return await tx.taskLink.create({

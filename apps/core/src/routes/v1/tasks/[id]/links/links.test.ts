@@ -261,7 +261,7 @@ describe("POST /tasks/{id}/links", () => {
     expect(response.status).toBe(409);
   });
 
-  it("returns 409 when a reverse RELATES link already exists", async () => {
+  it("returns 409 when a link already exists in the opposite direction", async () => {
     taskLinkFindFirstMock.mockResolvedValueOnce({
       id: "tl_existing",
       fromTaskId: "tsk_b",
@@ -277,7 +277,31 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        type: TaskLinkType.BLOCKS,
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(taskLinkCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when a link already exists in the same direction with another type", async () => {
+    taskLinkFindFirstMock.mockResolvedValueOnce({
+      id: "tl_existing",
+      fromTaskId: "tsk_a",
+      toTaskId: "tsk_b",
+      type: TaskLinkType.RELATES,
+    });
+
+    const app = createUserApp();
+    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toTaskId: "tsk_b",
+        type: TaskLinkType.BLOCKS,
       }),
     });
 

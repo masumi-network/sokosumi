@@ -1,54 +1,28 @@
-import { type Prisma, TaskLinkType } from "@sokosumi/database";
+import { type Prisma } from "@sokosumi/database";
 
 import { badRequest, conflict } from "@/helpers/error";
 
-async function assertNoMirroredEdge(
-  tx: Prisma.TransactionClient,
-  fromTaskId: string,
-  toTaskId: string,
-  type: TaskLinkType,
-  message: string,
-): Promise<void> {
-  const mirrored = await tx.taskLink.findFirst({
-    where: {
-      fromTaskId: toTaskId,
-      toTaskId: fromTaskId,
-      type,
-    },
-  });
-  if (mirrored) {
-    throw conflict(message);
-  }
-}
-
+/** At most one link row may exist between two tasks (any direction or link type). */
 export async function assertTaskLinkAllowed(
   tx: Prisma.TransactionClient,
   fromTaskId: string,
   toTaskId: string,
-  type: TaskLinkType,
 ): Promise<void> {
   if (fromTaskId === toTaskId) {
     throw badRequest("A task cannot link to itself");
   }
 
-  if (type === TaskLinkType.RELATES) {
-    await assertNoMirroredEdge(
-      tx,
-      fromTaskId,
-      toTaskId,
-      type,
-      "A related link already exists for this task pair",
-    );
-  }
+  const existing = await tx.taskLink.findFirst({
+    where: {
+      OR: [
+        { fromTaskId, toTaskId },
+        { fromTaskId: toTaskId, toTaskId: fromTaskId },
+      ],
+    },
+  });
 
-  if (type === TaskLinkType.PARENT) {
-    await assertNoMirroredEdge(
-      tx,
-      fromTaskId,
-      toTaskId,
-      type,
-      "A parent/child link already exists in the opposite direction",
-    );
+  if (existing) {
+    throw conflict("A link already exists between these tasks");
   }
 }
 
