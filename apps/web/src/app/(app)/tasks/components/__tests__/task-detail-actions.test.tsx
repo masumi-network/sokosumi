@@ -28,6 +28,11 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/task/action", () => ({
   setTaskStatusFromDrag: vi.fn(),
   deleteTask: vi.fn(),
+  moveTaskToWorkspace: vi.fn(),
+}));
+
+vi.mock("@/app/tasks/components/move-task-to-workspace-dialog", () => ({
+  MoveTaskToWorkspaceDialog: () => null,
 }));
 
 function createDeferred<T>() {
