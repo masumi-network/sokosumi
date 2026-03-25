@@ -536,6 +536,36 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function moveTaskToWorkspace(
+    id: string,
+    body: { organizationId: string | null },
+  ) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await client.put({
+          url: `/v1/tasks/${encodeURIComponent(id)}/workspace`,
+          security: [{ scheme: "bearer", type: "http" }],
+          body,
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error,
+            response: result.response,
+          };
+        }
+        const envelope = result.data as { data?: unknown } | undefined;
+        return {
+          data: envelope?.data as Record<string, unknown> | undefined,
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to move task to workspace",
+    );
+  }
+
   async function postConversationsByIdRecoverResponse(id: string) {
     return executeOperation(
       getClient,
@@ -588,6 +618,7 @@ export function createCoreClient(getClient: GetClient) {
     getMyCredits,
     getMyOrganizations,
     getPendingNotices,
+    moveTaskToWorkspace,
     getTaskById,
     getTasks,
     patchTask,

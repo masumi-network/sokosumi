@@ -1,7 +1,7 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/database";
-import { Loader2, Pencil, Trash } from "lucide-react";
+import { type MemberWithOrganization, TaskStatus } from "@sokosumi/database";
+import { ArrowLeftRight, Loader2, Pencil, Trash } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -22,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { deleteTask, setTaskStatusFromDrag } from "@/lib/actions/task/action";
 
+import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
+
 interface TaskDetailActionsLabels {
   edit: string;
   delete: string;
@@ -37,24 +39,35 @@ interface TaskDetailActionsProps {
   taskId: string;
   status: TaskStatus;
   labels: TaskDetailActionsLabels;
+  currentOrganizationId?: string | null;
+  organizations?: MemberWithOrganization[];
 }
 
 export function TaskDetailActions({
   taskId,
   status,
   labels,
+  currentOrganizationId,
+  organizations,
 }: TaskDetailActionsProps) {
   const t = useTranslations("App");
   const router = useRouter();
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [pendingStatusTarget, setPendingStatusTarget] =
     useState<TaskStatus | null>(null);
 
   const statusActions = getTaskStatusActions(status, labels);
   const canEditOrDelete =
     status === TaskStatus.DRAFT || status === TaskStatus.READY;
+  const isFinalized =
+    status === TaskStatus.COMPLETED ||
+    status === TaskStatus.FAILED ||
+    status === TaskStatus.CANCELED ||
+    status === TaskStatus.CANCEL_REQUESTED;
+  const canMove = !isFinalized && organizations && organizations.length > 0;
 
   const handleStatusToggle = (desiredStatus: TaskStatus) => {
     setPendingStatusTarget(desiredStatus);
@@ -161,6 +174,27 @@ export function TaskDetailActions({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+        </>
+      ) : null}
+      {canMove ? (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground h-7 gap-1 px-2 text-xs"
+            disabled={isStatusPending || isDeletePending}
+            onClick={() => setIsMoveOpen(true)}
+          >
+            <ArrowLeftRight className="size-3" aria-hidden />
+            <span>{t("Tasks.Detail.actions.moveToWorkspace")}</span>
+          </Button>
+          <MoveTaskToWorkspaceDialog
+            open={isMoveOpen}
+            onOpenChange={setIsMoveOpen}
+            taskId={taskId}
+            currentOrganizationId={currentOrganizationId ?? null}
+            organizations={organizations}
+          />
         </>
       ) : null}
     </div>

@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { type MemberWithOrganization, TaskStatus } from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -8,6 +8,8 @@ import { TaskDetailActions } from "./task-detail-actions";
 
 interface TaskDetailHeaderProps {
   task: TaskWithCoworker;
+  currentOrganizationId?: string | null;
+  organizations?: MemberWithOrganization[];
   labels: {
     back: string;
     actions: {
@@ -23,7 +25,12 @@ interface TaskDetailHeaderProps {
   };
 }
 
-export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
+export function TaskDetailHeader({
+  task,
+  currentOrganizationId,
+  organizations,
+  labels,
+}: TaskDetailHeaderProps) {
   const canManage =
     task.status === TaskStatus.DRAFT ||
     task.status === TaskStatus.READY ||
@@ -51,6 +58,8 @@ export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
             taskId={task.id}
             status={task.status}
             labels={labels.actions}
+            currentOrganizationId={currentOrganizationId}
+            organizations={organizations}
           />
         ) : null}
       </div>

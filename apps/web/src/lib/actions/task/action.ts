@@ -34,6 +34,11 @@ interface DeleteTaskParameters extends AuthenticatedRequest {
   taskId: string;
 }
 
+interface MoveTaskToWorkspaceParameters extends AuthenticatedRequest {
+  taskId: string;
+  organizationId: string | null;
+}
+
 interface CreateTaskCommentParameters extends AuthenticatedRequest {
   taskId: string;
   comment: string;
@@ -145,6 +150,21 @@ export const deleteTask = withSession<DeleteTaskParameters, { taskId: string }>(
     }
   },
 );
+
+export const moveTaskToWorkspace = withSession<
+  MoveTaskToWorkspaceParameters,
+  { taskId: string }
+>(async ({ taskId, organizationId }) => {
+  try {
+    await taskService.moveTaskToWorkspace(taskId, organizationId);
+    revalidatePath("/tasks");
+    revalidatePath(`/tasks/${taskId}`);
+    return { taskId };
+  } catch (error) {
+    console.error("Failed to move task to workspace", error);
+    throw new Error("Failed to move task to workspace");
+  }
+});
 
 export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
   async ({ taskId, comment }) => {

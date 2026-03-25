@@ -126,6 +126,8 @@ export default async function TaskDetailPage({
         ) : null}
         <TaskDetailHeader
           task={task}
+          currentOrganizationId={targetOrganizationId}
+          organizations={members}
           labels={{
             back: t("back"),
             actions: {
