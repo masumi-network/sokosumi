@@ -25,6 +25,46 @@ function getQueryDescriptionFromGetOperation(
   return queryParameter?.description ?? "";
 }
 
+function resolveSchema(
+  doc: ReturnType<typeof tasksRouter.getOpenAPI31Document>,
+  schema: unknown,
+) {
+  if (!schema || typeof schema !== "object") {
+    return null;
+  }
+
+  if ("$ref" in schema && typeof schema.$ref === "string") {
+    const schemaName = schema.$ref.split("/").pop();
+    if (!schemaName) {
+      return null;
+    }
+
+    return doc.components?.schemas?.[schemaName] ?? null;
+  }
+
+  return schema;
+}
+
+function getJsonRequestSchema(
+  doc: ReturnType<typeof tasksRouter.getOpenAPI31Document>,
+  path: string,
+  method: "patch" | "put",
+) {
+  const operation = doc.paths?.[path]?.[method];
+  const requestBody = operation?.requestBody;
+
+  if (
+    !requestBody ||
+    typeof requestBody !== "object" ||
+    !("content" in requestBody)
+  ) {
+    return null;
+  }
+
+  const jsonBody = requestBody.content?.["application/json"];
+  return resolveSchema(doc, jsonBody?.schema);
+}
+
 describe("tasks routes OpenAPI query contract", () => {
   it("exposes scope query parameter for task endpoints", () => {
     const doc = tasksRouter.getOpenAPI31Document({
@@ -75,5 +115,31 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(deleteResponses).toHaveProperty("200");
     expect(deleteResponses).toHaveProperty("403");
     expect(deleteResponses).toHaveProperty("404");
+  });
+
+  it("keeps task patch metadata-only and exposes a dedicated workspace update route", () => {
+    const doc = tasksRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Tasks API",
+        version: "1.0.0",
+      },
+    });
+
+    const patchSchema = getJsonRequestSchema(doc, "/{id}", "patch") as {
+      properties?: Record<string, unknown>;
+    } | null;
+    const workspaceSchema = getJsonRequestSchema(
+      doc,
+      "/{id}/workspace",
+      "put",
+    ) as {
+      properties?: Record<string, unknown>;
+    } | null;
+    const workspaceResponses = doc.paths?.["/{id}/workspace"]?.put?.responses;
+
+    expect(patchSchema?.properties).not.toHaveProperty("organizationId");
+    expect(workspaceSchema?.properties).toHaveProperty("organizationId");
+    expect(workspaceResponses).toHaveProperty("409");
   });
 });

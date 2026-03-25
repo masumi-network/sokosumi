@@ -7,6 +7,7 @@ import mountGetTaskById from "./[id]/get.js";
 import mountGetTaskJobs from "./[id]/jobs/get.js";
 import mountPostTaskJob from "./[id]/jobs/post.js";
 import mountPatchTask from "./[id]/patch.js";
+import mountPutTaskWorkspace from "./[id]/workspace/put.js";
 import mountGetTasks from "./get.js";
 import mountPostTask from "./post.js";
 
@@ -16,6 +17,7 @@ mountGetTasks(app);
 mountPostTask(app);
 mountGetTaskById(app);
 mountPatchTask(app);
+mountPutTaskWorkspace(app);
 mountDeleteTask(app);
 mountGetTaskEvents(app);
 mountPostTaskEvents(app);
