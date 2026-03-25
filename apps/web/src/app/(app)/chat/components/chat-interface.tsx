@@ -317,8 +317,6 @@ export default function ChatInterface({
   const [reasoningEndedAtBySlot, setReasoningEndedAtBySlot] = useState<
     Record<number, number>
   >({});
-  /** Mirrored from `reasoningStartedAtBySlot` after layout; safe for sync reads. */
-  const reasoningStartedAtBySlotRef = useRef<Record<number, number>>({});
   const slotPayloadRef = useRef<SlotPayload[]>(
     Array.from({ length: NUM_SLOTS }, () => ({
       conversationId: null,
@@ -705,8 +703,6 @@ export default function ChatInterface({
     if (needPersistStarted) {
       setReasoningStartedAtBySlot(effectiveStarted);
     }
-
-    reasoningStartedAtBySlotRef.current = effectiveStarted;
 
     const nextEnded: Record<number, number> = {};
     let needEnded = false;
