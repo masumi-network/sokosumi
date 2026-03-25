@@ -157,6 +157,43 @@ describe("GET /tasks/{id}/links", () => {
     });
   });
 
+  it("keeps archived peer links visible for user-scoped link reads", async () => {
+    const app = createUserApp();
+    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request(
+      "http://localhost/tsk_a/links?scope=context",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "tsk_a", archivedAt: null },
+      select: {
+        id: true,
+        linksFrom: {
+          where: {
+            toTask: {
+              is: {
+                OR: [{ userId: "user_123", organizationId: "org_123" }],
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+        linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                OR: [{ userId: "user_123", organizationId: "org_123" }],
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+  });
+
   it("returns 404 when the task is not found", async () => {
     taskFindUniqueMock.mockResolvedValue(null);
 

@@ -65,7 +65,6 @@ function buildVisiblePeerTaskWhere(
   }
 
   return {
-    archivedAt: null,
     OR: buildTaskScopeFilters(authContext, scopes),
   };
 }

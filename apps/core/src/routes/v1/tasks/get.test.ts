@@ -92,7 +92,7 @@ describe("GET /tasks", () => {
     );
   });
 
-  it("filters included links to peer tasks visible in the requested scope", async () => {
+  it("keeps archived peer links visible for user-scoped task reads", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/?scope=context");
@@ -105,7 +105,6 @@ describe("GET /tasks", () => {
             where: {
               toTask: {
                 is: {
-                  archivedAt: null,
                   OR: [{ userId: "user_123", organizationId: "org_123" }],
                 },
               },
@@ -116,8 +115,45 @@ describe("GET /tasks", () => {
             where: {
               fromTask: {
                 is: {
-                  archivedAt: null,
                   OR: [{ userId: "user_123", organizationId: "org_123" }],
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        }),
+      }),
+    );
+  });
+
+  it("continues to exclude archived peer links for coworker-scoped task reads", async () => {
+    const app = createApp("coworker");
+
+    const response = await app.request("http://localhost/?scope=context");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          linksFrom: {
+            where: {
+              toTask: {
+                is: {
+                  coworkerId: "cow_123",
+                  archivedAt: null,
+                  NOT: { status: { in: [TaskStatus.DRAFT] } },
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+          linksTo: {
+            where: {
+              fromTask: {
+                is: {
+                  coworkerId: "cow_123",
+                  archivedAt: null,
+                  NOT: { status: { in: [TaskStatus.DRAFT] } },
                 },
               },
             },

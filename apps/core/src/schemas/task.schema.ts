@@ -56,7 +56,7 @@ export const taskLinkSchema = z
 
 export type TaskLinkResponse = z.infer<typeof taskLinkSchema>;
 
-export const taskLinksSchema = z.array(taskLinkSchema).openapi("TaskLinks");
+export const taskLinksSchema = z.array(taskLinkSchema);
 
 export const createTaskLinkRequestSchema = z
   .object({

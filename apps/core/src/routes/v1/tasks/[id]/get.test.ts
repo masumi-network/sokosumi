@@ -90,6 +90,40 @@ describe("GET /tasks/{id}", () => {
     taskFindUniqueMock.mockResolvedValue(createTask());
   });
 
+  it("keeps archived peer links visible for user-scoped task reads", async () => {
+    const app = createApp();
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a?scope=context");
+
+    expect(response.status).toBe(200);
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "tsk_a", archivedAt: null },
+      include: expect.objectContaining({
+        linksFrom: {
+          where: {
+            toTask: {
+              is: {
+                OR: [{ userId: "user_123", organizationId: "org_123" }],
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+        linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                OR: [{ userId: "user_123", organizationId: "org_123" }],
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      }),
+    });
+  });
+
   it("filters included links to peer tasks visible to the coworker", async () => {
     const app = createApp("coworker");
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
