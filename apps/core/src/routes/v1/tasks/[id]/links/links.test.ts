@@ -360,6 +360,76 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     });
   });
 
+  it("returns 200 when the peer task is archived but still owned by the user", async () => {
+    requireUserTaskAccessMock.mockImplementation(
+      async (_auth, taskId: string) => {
+        if (taskId !== "tsk_a") {
+          throw new HTTPException(404, { message: "Task not found" });
+        }
+
+        return {
+          id: taskId,
+          userId: "user_123",
+          organizationId: "org_123",
+          archivedAt: null,
+          status: TaskStatus.READY,
+          coworkerId: null,
+          name: "T",
+          description: null,
+        };
+      },
+    );
+
+    const app = createUserApp();
+    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkDeleteMock).toHaveBeenCalledWith({
+      where: { id: "tl_1" },
+    });
+    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
+    expect(taskFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 when the peer task is outside the user's current access scope", async () => {
+    requireUserTaskAccessMock.mockImplementation(
+      async (_auth, taskId: string) => {
+        if (taskId !== "tsk_a") {
+          throw new HTTPException(404, { message: "Task not found" });
+        }
+
+        return {
+          id: taskId,
+          userId: "user_123",
+          organizationId: "org_123",
+          archivedAt: null,
+          status: TaskStatus.READY,
+          coworkerId: null,
+          name: "T",
+          description: null,
+        };
+      },
+    );
+
+    const app = createUserApp();
+    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkDeleteMock).toHaveBeenCalledWith({
+      where: { id: "tl_1" },
+    });
+    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
+    expect(taskFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("returns 404 when the link does not involve the path task id", async () => {
     taskLinkFindUniqueMock.mockResolvedValue({
       id: "tl_1",

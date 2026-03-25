@@ -55,8 +55,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Task link not found");
       }
 
-      await requireUserTaskAccess(authContext, link.fromTaskId, tx);
-      await requireUserTaskAccess(authContext, link.toTaskId, tx);
+      await requireUserTaskAccess(authContext, id, tx);
 
       await tx.taskLink.delete({
         where: { id: linkId },
