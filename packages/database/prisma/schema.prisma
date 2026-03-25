@@ -1270,15 +1270,17 @@ model Conversation {
 }
 
 model ConversationItem {
-  id             String       @id @default(uuid())
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role           String // "user" | "assistant" | "system"
-  contentType    String? // "input_text", "output_text", etc. (optional)
-  contentText    String // The actual text content
-  createdAt      DateTime     @default(now())
+  id                     String       @id @default(uuid())
+  conversationId         String
+  conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role                   String // "user" | "assistant" | "system"
+  contentType            String? // "input_text", "output_text", etc. (optional)
+  contentText            String // The actual text content
+  responsesApiResponseId String? // Set when item is created from Responses API recovery; prevents duplicate storage per response ID
+  createdAt              DateTime     @default(now())
 
   @@index([conversationId])
   @@index([conversationId, createdAt])
+  @@unique([conversationId, responsesApiResponseId])
   @@map("conversationItem")
 }

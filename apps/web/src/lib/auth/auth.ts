@@ -168,6 +168,7 @@ export const auth = betterAuth({
   experimental: {
     joins: true,
   },
+
   session: {
     cookieCache: {
       enabled: true,

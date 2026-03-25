@@ -62,7 +62,17 @@ interface MessageListProps {
   userName?: string;
   isLoading: boolean;
   isPollingForPendingResponse?: boolean;
+  isRecovering?: boolean;
+  isRecoveringPolling?: boolean;
+  /** When true, show "connection lost" message instead of generic pending error */
+  isRecoveryNotFound?: boolean;
   pendingResponseFailed?: boolean;
+  hasPendingIdInMetadata?: boolean;
+  conversationCoworkerFallback?: {
+    id: string;
+    name?: string;
+    avatar?: string | null;
+  } | null;
   reasoningMessages?: Array<{ id: string; message: string }>;
   reasoningStartedAt?: number;
   reasoningEndedAt?: number;
@@ -81,7 +91,12 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       userName,
       isLoading,
       isPollingForPendingResponse = false,
+      isRecovering = false,
+      isRecoveringPolling = false,
+      isRecoveryNotFound = false,
       pendingResponseFailed = false,
+      hasPendingIdInMetadata = false,
+      conversationCoworkerFallback = null,
       reasoningMessages = [],
       reasoningStartedAt,
       reasoningEndedAt,
@@ -135,37 +150,56 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         : "";
     const lastAssistantHasNoContent =
       lastMessage?.role === "assistant" && !lastMessageContent.trim();
+    const showPendingErrorForEmptyAssistant =
+      hasPendingIdInMetadata &&
+      lastMessage?.role === "assistant" &&
+      lastAssistantHasNoContent &&
+      !isLoading;
     const showLoadingArea =
-      (isLoading || isPollingForPendingResponse) &&
+      (isLoading || isPollingForPendingResponse || isRecovering) &&
       (!lastMessage ||
         lastMessage.role !== "assistant" ||
         lastAssistantHasNoContent);
     const showReasoningLoaders =
-      showLoadingArea && isCoworker && reasoningMessages.length > 0;
+      showLoadingArea &&
+      isCoworker &&
+      reasoningMessages.length > 0 &&
+      !isRecoveringPolling &&
+      !isRecovering;
     const hasStreamingWithReasoning =
       isCoworker &&
       reasoningMessages.length > 0 &&
       lastMessage?.role === "assistant" &&
       lastMessageContent.trim().length > 0;
+    const recoveryInFlight = isRecovering || isRecoveringPolling;
+    const showPendingError =
+      !recoveryInFlight &&
+      (pendingResponseFailed || showPendingErrorForEmptyAssistant);
     const showLoadingIndicator =
-      showLoadingArea && !showReasoningLoaders && !pendingResponseFailed;
+      isRecovering ||
+      (showLoadingArea && !showReasoningLoaders && !showPendingError);
+    const loadingIndicatorLabel = undefined;
 
     const sections = groupMessagesIntoSection(messagesWithTimestamps);
 
     const selectedChat = chats.find((c) => c.id === selectedChatId);
-    const coworkerId = selectedChat?.coworker?.id;
-    const coworkerName = selectedChat?.coworker?.name;
+    const coworkerId =
+      selectedChat?.coworker?.id ?? conversationCoworkerFallback?.id;
+    const coworkerName =
+      selectedChat?.coworker?.name ?? conversationCoworkerFallback?.name;
     const coworkerFromList = coworkerId
       ? coworkers.find((c) => c.id === coworkerId)
       : undefined;
     const coworkerImageUrl =
-      selectedChat?.coworker?.avatar ?? coworkerFromList?.avatar;
+      selectedChat?.coworker?.avatar ??
+      conversationCoworkerFallback?.avatar ??
+      coworkerFromList?.avatar;
     const modelName = selectedChat?.model?.name;
     const modelId = selectedChat?.model?.id;
 
-    const lastUserMessageText = useMemo(() => {
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i];
+    const lastUserMessageText = (() => {
+      for (let i = messagesWithTimestamps.length - 1; i >= 0; i--) {
+        const msg = messagesWithTimestamps[i];
         if ((msg.role as string) === "user") {
           const text = extractMessageContent(msg).trim();
           if (text) return text;
@@ -173,13 +207,16 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         }
       }
       return "";
-    }, [messages]);
+    })();
 
     const canResend = Boolean(
-      pendingResponseFailed && onResendLastMessage && lastUserMessageText,
+      showPendingError && onResendLastMessage && lastUserMessageText,
     );
 
-    const pendingErrorBlock = pendingResponseFailed && (
+    const pendingErrorMessage = isRecoveryNotFound
+      ? t("noResponseConnectionLost")
+      : t("pendingResponseFailed");
+    const pendingErrorBlock = showPendingError && (
       <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
         <Avatar
           className={cn(
@@ -196,9 +233,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           />
         </Avatar>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <p className="text-muted-foreground text-sm">
-            {t("pendingResponseFailed")}
-          </p>
+          <p className="text-muted-foreground text-sm">{pendingErrorMessage}</p>
           {canResend && (
             <Button
               className="bg-foreground text-background hover:bg-foreground/90 w-fit"
@@ -270,6 +305,11 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         !content.trim() &&
         isLoading &&
         (showReasoningLoaders || showLoadingIndicator);
+      const hideEmptyAssistantShowError =
+        isLastMessage &&
+        role === "assistant" &&
+        !content.trim() &&
+        showPendingErrorForEmptyAssistant;
       const stableKeyForLastAssistant = isLastMessage && role === "assistant";
       const messageKey = stableKeyForLastAssistant
         ? `${selectedChatId ?? "no-chat"}-${index}-last-assistant`
@@ -283,7 +323,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
               formatDaySeparator={formatDaySeparator}
             />
           )}
-          {!hideEmptyAssistantWhileLoading && (
+          {!hideEmptyAssistantWhileLoading && !hideEmptyAssistantShowError && (
             <div className="mb-1">
               <ChatMessage
                 role={role}
@@ -317,7 +357,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           <div className="flex flex-col items-center pt-20 pb-40 md:pt-4">
             <div className="flex w-full max-w-4xl flex-col">
               {sections.length === 0 &&
-                (showLoadingArea || pendingResponseFailed) && (
+                (showLoadingArea || pendingResponseFailed || isRecovering) && (
                   <>
                     {showReasoningLoaders && (
                       <ReasoningLoaders
@@ -327,7 +367,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                         coworkers={coworkers}
                       />
                     )}
-                    {showLoadingIndicator && <LoadingIndicator />}
+                    {showLoadingIndicator && (
+                      <LoadingIndicator label={loadingIndicatorLabel} />
+                    )}
                     {pendingErrorBlock}
                     <div
                       className="min-h-[160px] shrink-0"
@@ -387,7 +429,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                             coworkers={coworkers}
                           />
                         )}
-                        {showLoadingIndicator && <LoadingIndicator />}
+                        {showLoadingIndicator && (
+                          <LoadingIndicator label={loadingIndicatorLabel} />
+                        )}
                         {pendingErrorBlock}
                         {(showLoadingArea || pendingResponseFailed) && (
                           <div

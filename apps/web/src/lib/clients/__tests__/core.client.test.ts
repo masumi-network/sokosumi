@@ -43,6 +43,7 @@ describe("core.client", () => {
     headersMock.mockResolvedValue(
       new Headers({
         cookie: "session=abc",
+        "x-organization-slug": "my-org",
       }),
     );
     createClientMock.mockReturnValue(mockClient);
@@ -65,14 +66,16 @@ describe("core.client", () => {
 
     expect(createClientMock).toHaveBeenCalledWith({
       baseUrl: "http://localhost:8787/v1",
-      headers: {
-        cookie: "session=abc",
-      },
+      headers: { cookie: "session=abc" },
     });
     expect(getConversationsMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
     });
+    const forwardedHeaders = createClientMock.mock.calls[0]?.[0]?.headers as
+      | Record<string, string>
+      | undefined;
+    expect(forwardedHeaders?.cookie).toBe("session=abc");
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-02-19T12:00:00.000Z"),
     );

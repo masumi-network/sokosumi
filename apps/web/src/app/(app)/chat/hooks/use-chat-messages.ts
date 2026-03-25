@@ -20,7 +20,9 @@ interface UseChatMessagesProps {
       content: Array<{ type: string; text?: string }> | string;
       createdAt: number;
     }>;
+    metadata?: Record<string, unknown> | null;
   } | null;
+  skipLoadWhenPendingId?: boolean;
   setMessagesForConversation: SetMessagesForConversation;
   previousChatIdRef: React.MutableRefObject<string | null>;
   messagesChatIdRef: React.MutableRefObject<string | null>;
@@ -34,6 +36,7 @@ interface UseChatMessagesProps {
 export function useChatMessages({
   selectedChatId,
   selectedConversation,
+  skipLoadWhenPendingId,
   setMessagesForConversation,
   previousChatIdRef,
   messagesChatIdRef,
@@ -46,6 +49,18 @@ export function useChatMessages({
     if (selectedChatId) {
       const currentSelectedChatId = selectedChatId;
       if (streamingConversationIdsRef?.current.has(currentSelectedChatId)) {
+        return;
+      }
+      const meta = (selectedConversation?.metadata ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const hasPendingResponseId =
+        skipLoadWhenPendingId === true ||
+        (selectedConversation?.id === currentSelectedChatId &&
+          typeof meta.pending_responses_api_response_id === "string" &&
+          meta.pending_responses_api_response_id.length > 0);
+      if (hasPendingResponseId) {
         return;
       }
       const hasSyncItems =
@@ -121,6 +136,7 @@ export function useChatMessages({
 
           const rawItemsResult: unknown = await getConversationItems({
             conversationId: currentSelectedChatId,
+            limit: 100,
           });
 
           const resultAny = rawItemsResult as SerializedResult;
@@ -175,6 +191,7 @@ export function useChatMessages({
                 try {
                   const retryResult: unknown = await getConversationItems({
                     conversationId: currentSelectedChatId,
+                    limit: 100,
                   });
                   const retryResultAny = retryResult as SerializedResult;
                   let retryItems: Array<{
@@ -289,6 +306,7 @@ export function useChatMessages({
   }, [
     selectedChatId,
     selectedConversation,
+    skipLoadWhenPendingId,
     selectedConversation?.items,
     setMessagesForConversation,
     previousChatIdRef,

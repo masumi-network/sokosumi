@@ -260,9 +260,60 @@ describe("POST /conversations/chat", () => {
       sokosumiOrganizationId: "org_123",
       coworkerSlug: "ops-agent",
       previousResponseId: "resp_prev",
+      onResponseStarted: expect.any(Function),
       onResponseCompleted: expect.any(Function),
     });
     expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
+  });
+
+  it("prefers previousResponseId from request body over conversation metadata", async () => {
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        metadata: {
+          coworker_slug: "ops-agent",
+          previous_response_id: "resp_from_db",
+        },
+      })
+      .mockResolvedValueOnce({
+        _count: {
+          items: 1,
+        },
+      });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+    requireCoworkerChatCapabilityMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://responses.example.com/v1",
+    });
+
+    const app = createApp({
+      organizationId: "org_123",
+    });
+    const response = await app.request("http://localhost/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        conversationId: "550e8400-e29b-41d4-a716-446655440000",
+        previousResponseId: "resp_from_client",
+        messages: [
+          {
+            role: "user",
+            parts: [{ type: "text", text: "Hello" }],
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(streamResponsesApiMock).toHaveBeenCalledWith(
+      "Hello",
+      expect.objectContaining({
+        previousResponseId: "resp_from_client",
+      }),
+    );
   });
 
   it("returns 503 when conversation has coworker but coworker has no Responses API URL", async () => {
@@ -305,5 +356,91 @@ describe("POST /conversations/chat", () => {
     expect(bodyText).toContain("no Responses API URL configured");
     expect(streamResponsesApiMock).not.toHaveBeenCalled();
     expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
+  });
+
+  it("retries without previous_response_id and passes completion callback so metadata can clear", async () => {
+    let streamCall = 0;
+    streamResponsesApiMock.mockReset();
+    streamResponsesApiMock.mockImplementation(() => {
+      streamCall += 1;
+      if (streamCall === 1) {
+        return Promise.reject(new Error("invalid_previous_response_id"));
+      }
+      return Promise.resolve(
+        new Response("responses", {
+          headers: {
+            "Content-Type": "text/event-stream",
+          },
+        }),
+      );
+    });
+
+    conversationFindFirstMock.mockReset();
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        metadata: {
+          coworker_slug: "ops-agent",
+          previous_response_id: "resp_stale",
+        },
+      })
+      .mockResolvedValueOnce({
+        _count: {
+          items: 1,
+        },
+      })
+      .mockResolvedValueOnce({
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        metadata: {
+          coworker_slug: "ops-agent",
+          previous_response_id: "resp_stale",
+        },
+      });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+    requireCoworkerChatCapabilityMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://responses.example.com/v1",
+    });
+
+    const app = createApp({ organizationId: "org_123" });
+    const response = await app.request("http://localhost/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        conversationId: "550e8400-e29b-41d4-a716-446655440000",
+        messages: [
+          {
+            role: "user",
+            parts: [{ type: "text", text: "Hello" }],
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(streamResponsesApiMock).toHaveBeenCalledTimes(2);
+    expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
+    expect(streamResponsesApiMock).toHaveBeenNthCalledWith(
+      1,
+      "Hello",
+      expect.objectContaining({
+        previousResponseId: "resp_stale",
+        onResponseStarted: expect.any(Function),
+        onResponseCompleted: expect.any(Function),
+      }),
+    );
+    expect(streamResponsesApiMock).toHaveBeenNthCalledWith(
+      2,
+      [{ role: "user", content: "Hello" }],
+      expect.objectContaining({
+        previousResponseId: null,
+        onResponseStarted: expect.any(Function),
+        onResponseCompleted: expect.any(Function),
+      }),
+    );
+    expect(updateConversationMock).toHaveBeenCalled();
   });
 });

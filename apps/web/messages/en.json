@@ -1201,6 +1201,7 @@
         "uploadPastedImageError": "Failed to upload pasted image(s)",
         "pendingResponseFailed": "Something went wrong on our side. Please try resending your last message again.",
         "resend": "Resend",
+        "noResponseConnectionLost": "The connection was lost. Please refresh the browser and try again.",
         "waitForResponses": "Please wait for other responses to finish (max 3 at a time).",
         "imageAttachment": "An image attachment",
         "fileLabel": "File",

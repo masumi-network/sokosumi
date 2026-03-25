@@ -42,8 +42,10 @@ export interface UsePendingResponsePollingProps {
   selectedChatId: string | null;
   displayedMessages: UIMessage[];
   isStreaming: boolean;
+  /** When true, recovery is running or will run; do not poll (recover endpoint handles it). */
+  hasPendingIdInMetadata?: boolean;
   setMessagesForConversation: (convId: string, messages: UIMessage[]) => void;
-  refreshConversations: () => Promise<void>;
+  refreshConversations: () => Promise<unknown>;
 }
 
 /**
@@ -55,6 +57,7 @@ export function usePendingResponsePolling({
   selectedChatId,
   displayedMessages,
   isStreaming,
+  hasPendingIdInMetadata = false,
   setMessagesForConversation,
   refreshConversations,
 }: UsePendingResponsePollingProps) {
@@ -73,6 +76,7 @@ export function usePendingResponsePolling({
     Boolean(selectedChatId) &&
     lastMessageRole === "user" &&
     !isStreaming &&
+    !hasPendingIdInMetadata &&
     displayedMessages.length > 0;
 
   const poll = useCallback(async () => {
@@ -90,6 +94,7 @@ export function usePendingResponsePolling({
     try {
       const raw = await getConversationItems({
         conversationId: selectedChatId,
+        limit: 100,
       });
       const items = parseItemsResult(raw);
       if (!items || items.length === 0) return;
@@ -135,5 +140,13 @@ export function usePendingResponsePolling({
     };
   }, [shouldPoll, poll]);
 
-  return { isPollingForPendingResponse, pendingResponseFailed };
+  const clearPendingResponseFailed = useCallback(() => {
+    setPendingResponseFailed(false);
+  }, []);
+
+  return {
+    isPollingForPendingResponse,
+    pendingResponseFailed,
+    clearPendingResponseFailed,
+  };
 }

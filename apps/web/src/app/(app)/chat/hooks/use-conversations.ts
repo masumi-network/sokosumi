@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
@@ -75,7 +75,7 @@ interface UseConversationsReturn {
   ) => Promise<void>;
   deleteSelectedConversation: () => Promise<void>;
   deleteConversationById: (id: string) => Promise<void>;
-  refreshConversations: () => Promise<void>;
+  refreshConversations: () => Promise<Conversation[] | undefined>;
 }
 
 /**
@@ -90,6 +90,7 @@ export function useConversations(): UseConversationsReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
   const networkErrorToastMessage = t("networkErrorAfterRetry");
+  const refreshGenerationRef = useRef(0);
 
   /**
    * Helper to parse serialized Result objects from Next.js server actions
@@ -141,6 +142,7 @@ export function useConversations(): UseConversationsReturn {
    * Refreshes the conversations list from the database
    */
   const refreshConversations = useCallback(async () => {
+    const generation = ++refreshGenerationRef.current;
     setIsLoading(true);
     setError(null);
 
@@ -149,6 +151,11 @@ export function useConversations(): UseConversationsReturn {
         retries: CONVERSATION_RETRY_ATTEMPTS,
         delayMs: CONVERSATION_RETRY_DELAY_MS,
       });
+
+      if (generation !== refreshGenerationRef.current) {
+        return undefined;
+      }
+
       const result = parseServerActionResult<Conversation[], ActionError>(
         rawResult,
       );
@@ -172,12 +179,18 @@ export function useConversations(): UseConversationsReturn {
         });
 
         setIsLoading(false);
-        return;
+        return undefined;
       }
 
-      setConversations(result.value || []);
+      const next = result.value || [];
+      setConversations(next);
       setIsLoading(false);
+      return next;
     } catch (error) {
+      if (generation !== refreshGenerationRef.current) {
+        return undefined;
+      }
+
       const errorMessage =
         error instanceof Error
           ? error.message
@@ -200,6 +213,7 @@ export function useConversations(): UseConversationsReturn {
       });
 
       setIsLoading(false);
+      return undefined;
     }
   }, [parseServerActionResult, networkErrorToastMessage]);
 

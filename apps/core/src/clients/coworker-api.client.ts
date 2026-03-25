@@ -110,40 +110,50 @@ export async function streamResponsesApi(
   });
 }
 
+const GET_RESPONSE_BY_ID_TIMEOUT_MS = 25_000;
+
+function isFetchTimeoutOrAbort(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "TimeoutError" || error.name === "AbortError")
+  );
+}
+
+const RESPONSES_API_TERMINAL_STATUSES = new Set([
+  "failed",
+  "cancelled", // e.g. OpenAI Responses
+  "canceled", // US spelling from some providers
+  "expired",
+]);
+
 export type GetResponseResult =
   | { status: "completed"; id: string; output: unknown }
+  | { status: "terminal"; apiStatus: string }
   | { status: "in_progress" | "not_found" };
 
 export interface GetResponseByIdOptions {
+  responsesApiBaseUrl: string;
   sokosumiUserId: string;
   sokosumiOrganizationId: string | null;
   coworkerSlug: string;
+  responsesApiServiceKey?: string;
 }
 
 export async function getResponseById(
   responseId: string,
   options: GetResponseByIdOptions,
 ): Promise<GetResponseResult> {
-  if (!isResponsesApiConfigured()) {
-    throw new Error(
-      "Responses API is not configured (missing key or base URL)",
-    );
-  }
-
-  const baseUrl = getResponsesApiBaseUrl();
-  const env = getEnv();
-  const serviceKey = env.COWORKERS_API_SERVICE_KEY;
-
-  if (!baseUrl || !serviceKey) {
-    throw new Error("Responses API base URL or service key missing");
+  const baseUrl = options.responsesApiBaseUrl?.trim();
+  if (!baseUrl) {
+    throw new Error("Responses API base URL is required");
   }
   if (!options.coworkerSlug?.trim()) {
     throw new Error("Responses API requires a coworker slug");
   }
 
-  const url = `${baseUrl.replace(/\/$/, "")}/v1/responses/${encodeURIComponent(responseId)}`;
+  const base = baseUrl.replace(/\/$/, "");
+  const url = `${base}/responses/${encodeURIComponent(responseId)}`;
   const requestHeaders: Record<string, string> = {
-    Authorization: `Bearer ${serviceKey}`,
     "X-Sokosumi-User-Id": options.sokosumiUserId,
     "X-Coworker-Slug": options.coworkerSlug,
   };
@@ -151,11 +161,23 @@ export async function getResponseById(
     requestHeaders["X-Sokosumi-Organization-Id"] =
       options.sokosumiOrganizationId;
   }
+  if (options.responsesApiServiceKey) {
+    requestHeaders.Authorization = `Bearer ${options.responsesApiServiceKey}`;
+  }
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: requestHeaders,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers: requestHeaders,
+      signal: AbortSignal.timeout(GET_RESPONSE_BY_ID_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (isFetchTimeoutOrAbort(error)) {
+      return { status: "in_progress" };
+    }
+    throw error;
+  }
 
   if (response.status === 404 || response.status === 202) {
     return {
@@ -168,18 +190,49 @@ export async function getResponseById(
     throw new Error(`Responses API GET error: ${response.status} ${errorText}`);
   }
 
-  const body = (await response.json()) as {
-    id?: string;
-    status?: string;
-    output?: unknown;
-  };
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch (parseErr) {
+    throw new Error(
+      `Responses API GET invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+    );
+  }
 
-  if (body.status === "completed" && body.output !== undefined) {
+  const bodyObj = body as Record<string, unknown>;
+  const dataOrResponse = bodyObj?.data ?? bodyObj?.response ?? bodyObj;
+  const inner = (dataOrResponse as Record<string, unknown>) ?? {};
+  const status =
+    (typeof bodyObj?.status === "string" ? bodyObj.status : null) ??
+    (typeof inner?.status === "string" ? inner.status : null);
+  const output = bodyObj?.output ?? inner?.output;
+  const id =
+    typeof bodyObj?.id === "string"
+      ? bodyObj.id
+      : typeof inner?.id === "string"
+        ? inner.id
+        : responseId;
+
+  const hasOutput = output !== undefined && output !== null;
+
+  if (hasOutput && (status === "completed" || status === "incomplete")) {
     return {
       status: "completed",
-      id: typeof body.id === "string" ? body.id : responseId,
-      output: body.output,
+      id,
+      output,
     };
+  }
+
+  if (status && RESPONSES_API_TERMINAL_STATUSES.has(status)) {
+    return { status: "terminal", apiStatus: status };
+  }
+
+  if (status === "completed" && !hasOutput) {
+    return { status: "terminal", apiStatus: "completed" };
+  }
+
+  if (status === "incomplete" && !hasOutput) {
+    return { status: "terminal", apiStatus: "incomplete" };
   }
 
   return { status: "in_progress" };
@@ -205,7 +258,7 @@ function createResponsesApiUiStream(
   let streamClosed = false;
   let cancelled = false;
   let lastEventLine: string | null = null;
-  let responseStartedNotified = false;
+  const responseStartedState = { called: false };
   const pendingDeltaChunks: string[] = [];
   const reasoningAccumulator: Record<string, string> = {};
   let needNewlineBeforeNextDelta = false;
@@ -295,10 +348,10 @@ function createResponsesApiUiStream(
 
       if (
         typeof responseId === "string" &&
-        !responseStartedNotified &&
+        !responseStartedState.called &&
         lastEventLine === "response.created"
       ) {
-        responseStartedNotified = true;
+        responseStartedState.called = true;
         onResponseStarted?.(responseId);
       }
 
