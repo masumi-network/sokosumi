@@ -9,6 +9,7 @@ import { mapTaskLinksForTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskLinksSchema } from "@/schemas/task.schema";
+import { buildVisibleTaskLinksInclude } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -49,12 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { id, archivedAt: null },
         select: {
           id: true,
-          linksFrom: {
-            orderBy: { createdAt: "asc" },
-          },
-          linksTo: {
-            orderBy: { createdAt: "asc" },
-          },
+          ...buildVisibleTaskLinksInclude(authContext, scope),
         },
       });
     });

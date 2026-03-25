@@ -26,7 +26,7 @@ import {
 import { isCoworkerAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
-import { taskInclude } from "@/types/task";
+import { buildTaskIncludeForViewer } from "@/types/task";
 
 const taskStatusQuerySchema = z
   .preprocess(
@@ -117,7 +117,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         skip,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        include: taskInclude,
+        include: buildTaskIncludeForViewer(authContext, scope),
       }),
       prisma.task.count({ where }),
     ]);

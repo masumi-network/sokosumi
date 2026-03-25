@@ -9,7 +9,7 @@ import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskSchema } from "@/schemas/task.schema";
-import { taskInclude } from "@/types/task";
+import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -48,7 +48,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireScopedTaskReadAccess(authContext, id, scope, tx);
       return tx.task.findUnique({
         where: { id, archivedAt: null },
-        include: taskInclude,
+        include: buildTaskIncludeForViewer(authContext, scope),
       });
     });
 

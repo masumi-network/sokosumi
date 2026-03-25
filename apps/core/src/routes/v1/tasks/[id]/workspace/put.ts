@@ -11,7 +11,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
-import { taskInclude } from "@/types/task";
+import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -63,7 +63,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!workspaceChanged) {
           return await tx.task.findUniqueOrThrow({
             where: { id },
-            include: taskInclude,
+            include: buildTaskIncludeForViewer(authContext),
           });
         }
 
@@ -115,7 +115,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         return await tx.task.findUniqueOrThrow({
           where: { id },
-          include: taskInclude,
+          include: buildTaskIncludeForViewer(authContext),
         });
       },
       {

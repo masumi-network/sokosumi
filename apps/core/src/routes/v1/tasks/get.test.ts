@@ -92,6 +92,42 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("filters included links to peer tasks visible in the requested scope", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/?scope=context");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          linksFrom: {
+            where: {
+              toTask: {
+                is: {
+                  archivedAt: null,
+                  OR: [{ userId: "user_123", organizationId: "org_123" }],
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+          linksTo: {
+            where: {
+              fromTask: {
+                is: {
+                  archivedAt: null,
+                  OR: [{ userId: "user_123", organizationId: "org_123" }],
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        }),
+      }),
+    );
+  });
+
   it("rejects coworker requests that include DRAFT", async () => {
     const app = createApp("coworker");
     const response = await app.request("http://localhost/?status=DRAFT,READY");

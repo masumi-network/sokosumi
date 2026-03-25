@@ -119,6 +119,47 @@ describe("GET /tasks/{id}/links", () => {
     expect(body.data).toEqual([]);
   });
 
+  it("filters linked peer tasks to those visible to the coworker", async () => {
+    const app = createCoworkerApp();
+    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request(
+      "http://localhost/tsk_a/links?scope=context",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "tsk_a", archivedAt: null },
+      select: {
+        id: true,
+        linksFrom: {
+          where: {
+            toTask: {
+              is: {
+                coworkerId: "cow_123",
+                archivedAt: null,
+                NOT: { status: { in: [TaskStatus.DRAFT] } },
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+        linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                coworkerId: "cow_123",
+                archivedAt: null,
+                NOT: { status: { in: [TaskStatus.DRAFT] } },
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+  });
+
   it("returns 404 when the task is not found", async () => {
     taskFindUniqueMock.mockResolvedValue(null);
 
