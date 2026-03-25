@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma, TaskStatus } from "@sokosumi/database";
+import { Prisma } from "@sokosumi/database";
 
 import { requireUserTaskAccess } from "@/helpers/access-control";
 import { conflict } from "@/helpers/error";
@@ -49,13 +49,6 @@ const route = createRoute({
   },
 });
 
-const FINALIZED_TASK_STATUSES = new Set<TaskStatus>([
-  TaskStatus.COMPLETED,
-  TaskStatus.FAILED,
-  TaskStatus.CANCELED,
-  TaskStatus.CANCEL_REQUESTED,
-]);
-
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
@@ -74,12 +67,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
 
-        if (FINALIZED_TASK_STATUSES.has(task.status)) {
-          throw conflict(
-            "You can only change workspace for non-finalized tasks (completed, failed, canceled, cancel requested)",
-          );
-        }
-
         const existingJobsCount = await tx.job.count({
           where: { taskId: id },
         });
@@ -89,23 +76,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
 
-        const taskEventsWithTransactions = await tx.taskEvent.findMany({
+        const taskEventsWithTransactionCount = await tx.taskEvent.count({
           where: {
             taskId: id,
             transactionId: { not: null },
           },
-          select: {
-            transaction: {
-              select: { amount: true },
-            },
-          },
         });
-        const hasChargedTaskEvent = taskEventsWithTransactions.some(
-          (event) => (event.transaction?.amount ?? 0n) < 0n,
-        );
-        if (hasChargedTaskEvent) {
+        const hasLinkedTransactionEvent = taskEventsWithTransactionCount > 0;
+        if (hasLinkedTransactionEvent) {
           throw conflict(
-            "You can only change workspace before the task has charged events",
+            "You can only change workspace before the task has events linked to a transaction",
           );
         }
 
