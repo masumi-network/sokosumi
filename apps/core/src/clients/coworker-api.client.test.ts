@@ -1,16 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  coworkerConversationClient,
+  createCoworkerConversationClient,
   extractTextFromCompletedOutput,
   getResponseById,
 } from "@/clients/coworker-api.client";
 
 const fetchMock = vi.fn();
+const textEncoder = new TextEncoder();
 
 const DEFAULT_BASE_URL = "https://api.coworker.example.com/v1";
 
+function createSseStream(lines: string[]): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(textEncoder.encode(lines.join("\n")));
+      controller.close();
+    },
+  });
+}
+
 describe("coworker-api.client", () => {
   beforeEach(() => {
+    fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
   });
 
@@ -267,6 +280,155 @@ describe("coworker-api.client", () => {
             "X-Coworker-Slug": "my-slug",
             "X-Sokosumi-Organization-Id": "org_1",
           }),
+        }),
+      );
+    });
+  });
+
+  describe("coworkerConversationClient", () => {
+    it("uses coworker provider identifier", () => {
+      expect(coworkerConversationClient.provider).toBe("coworker");
+    });
+
+    it("streams coworker response and propagates lifecycle callbacks", async () => {
+      const onResponseStarted = vi.fn();
+      const onResponseCompleted = vi.fn();
+
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        body: createSseStream([
+          "event: response.created",
+          'data: {"type":"response.created","response":{"id":"resp_start"}}',
+          "event: response.output_text.delta",
+          'data: {"type":"response.output_text.delta","delta":"Hi"}',
+          "event: response.completed",
+          'data: {"type":"response.completed","response":{"id":"resp_done"}}',
+          "data: [DONE]",
+          "",
+        ]),
+      });
+
+      const response = await coworkerConversationClient.stream({
+        actor: {
+          userId: "user_1",
+          organizationId: "org_1",
+        },
+        coworker: {
+          id: "coworker_1",
+          slug: "ops-agent",
+          baseUrl: DEFAULT_BASE_URL,
+        },
+        lifecycle: {
+          onResponseStarted,
+          onResponseCompleted,
+        },
+        messages: [
+          { role: "assistant", content: "Previous response" },
+          { role: "user", content: "Latest question" },
+        ],
+        modelId: null,
+        previousResponseId: "resp_prev",
+      });
+
+      await response.text();
+
+      expect(onResponseStarted).toHaveBeenCalledWith("resp_start");
+      expect(onResponseCompleted).toHaveBeenCalledWith("resp_done");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to full message input when previous response id is stale", async () => {
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          text: async () => "invalid_previous_response_id",
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          body: createSseStream(["data: [DONE]", ""]),
+        });
+
+      await coworkerConversationClient.stream({
+        actor: {
+          userId: "user_1",
+          organizationId: null,
+        },
+        coworker: {
+          id: "coworker_1",
+          slug: "ops-agent",
+          baseUrl: DEFAULT_BASE_URL,
+        },
+        messages: [
+          { role: "user", content: "First" },
+          { role: "assistant", content: "Second" },
+          { role: "user", content: "Third" },
+        ],
+        modelId: null,
+        previousResponseId: "resp_stale",
+      });
+
+      const firstCallBody = JSON.parse(
+        fetchMock.mock.calls[0][1].body as string,
+      );
+      const secondCallBody = JSON.parse(
+        fetchMock.mock.calls[1][1].body as string,
+      );
+
+      expect(firstCallBody.input).toBe("Third");
+      expect(firstCallBody.previous_response_id).toBe("resp_stale");
+      expect(secondCallBody.input).toEqual([
+        { role: "user", content: "First" },
+        { role: "assistant", content: "Second" },
+        { role: "user", content: "Third" },
+      ]);
+      expect(secondCallBody.previous_response_id).toBeUndefined();
+    });
+
+    it("supports pending response recovery through the adapter contract", async () => {
+      const client = createCoworkerConversationClient({
+        responsesApiServiceKey: "service_key_123",
+      });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: "resp_123",
+          status: "completed",
+          output: [],
+        }),
+      });
+
+      const result = await client.recoverPendingResponse?.({
+        actor: {
+          userId: "user_1",
+          organizationId: "org_1",
+        },
+        pendingResponseId: "resp_123",
+        coworker: {
+          id: "coworker_1",
+          slug: "ops-agent",
+          baseUrl: DEFAULT_BASE_URL,
+        },
+      });
+
+      expect(result).toEqual({
+        status: "completed",
+        id: "resp_123",
+        output: [],
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${DEFAULT_BASE_URL}/responses/resp_123`,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: "Bearer service_key_123",
+            "X-Coworker-Slug": "ops-agent",
+            "X-Sokosumi-Organization-Id": "org_1",
+            "X-Sokosumi-User-Id": "user_1",
+          }),
+          method: "GET",
         }),
       );
     });

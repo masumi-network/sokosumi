@@ -12,7 +12,7 @@ const {
   conversationUpdateMock,
   executeRawMock,
   findCoworkerWithChatBySlugMock,
-  getResponseByIdMock,
+  recoverPendingResponseMock,
   requireCoworkerChatCapabilityMock,
   transactionMock,
 } = vi.hoisted(() => ({
@@ -21,7 +21,7 @@ const {
   conversationUpdateMock: vi.fn(),
   executeRawMock: vi.fn(),
   findCoworkerWithChatBySlugMock: vi.fn(),
-  getResponseByIdMock: vi.fn(),
+  recoverPendingResponseMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
@@ -42,7 +42,10 @@ vi.mock("@/clients/coworker-api.client", () => ({
     }
     return "";
   },
-  getResponseById: (...args: unknown[]) => getResponseByIdMock(...args),
+  coworkerConversationClient: {
+    recoverPendingResponse: (...args: unknown[]) =>
+      recoverPendingResponseMock(...args),
+  },
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -125,7 +128,7 @@ describe("POST /conversations/:id/recover-response", () => {
     );
 
     expect(response.status).toBe(404);
-    expect(getResponseByIdMock).not.toHaveBeenCalled();
+    expect(recoverPendingResponseMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 with recovered false when no pending response id", async () => {
@@ -143,7 +146,7 @@ describe("POST /conversations/:id/recover-response", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data).toEqual({ recovered: false });
-    expect(getResponseByIdMock).not.toHaveBeenCalled();
+    expect(recoverPendingResponseMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 with recovered false reason terminal and clears pending when GET response is terminal", async () => {
@@ -159,7 +162,7 @@ describe("POST /conversations/:id/recover-response", () => {
       slug: "ops-agent",
       baseURL: "https://api.example.com",
     });
-    getResponseByIdMock.mockResolvedValueOnce({
+    recoverPendingResponseMock.mockResolvedValueOnce({
       status: "terminal",
       apiStatus: "failed",
     });
@@ -189,7 +192,7 @@ describe("POST /conversations/:id/recover-response", () => {
       slug: "ops-agent",
       baseURL: "https://api.example.com",
     });
-    getResponseByIdMock.mockResolvedValueOnce({ status: "in_progress" });
+    recoverPendingResponseMock.mockResolvedValueOnce({ status: "in_progress" });
 
     const app = createApp();
     const response = await app.request(
@@ -200,11 +203,17 @@ describe("POST /conversations/:id/recover-response", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data).toEqual({ recovered: false, reason: "in_progress" });
-    expect(getResponseByIdMock).toHaveBeenCalledWith("resp_456", {
-      responsesApiBaseUrl: "https://api.example.com",
-      sokosumiUserId: "user_123",
-      sokosumiOrganizationId: "org_123",
-      coworkerSlug: "ops-agent",
+    expect(recoverPendingResponseMock).toHaveBeenCalledWith({
+      actor: {
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+      pendingResponseId: "resp_456",
+      coworker: {
+        id: "cow_123",
+        slug: "ops-agent",
+        baseUrl: "https://api.example.com",
+      },
     });
   });
 
@@ -221,7 +230,7 @@ describe("POST /conversations/:id/recover-response", () => {
       slug: "ops-agent",
       baseURL: "https://api.example.com",
     });
-    getResponseByIdMock.mockResolvedValueOnce({ status: "not_found" });
+    recoverPendingResponseMock.mockResolvedValueOnce({ status: "not_found" });
 
     const app = createApp();
     const response = await app.request(
@@ -232,11 +241,17 @@ describe("POST /conversations/:id/recover-response", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data).toEqual({ recovered: false, reason: "not_found" });
-    expect(getResponseByIdMock).toHaveBeenCalledWith("resp_404", {
-      responsesApiBaseUrl: "https://api.example.com",
-      sokosumiUserId: "user_123",
-      sokosumiOrganizationId: "org_123",
-      coworkerSlug: "ops-agent",
+    expect(recoverPendingResponseMock).toHaveBeenCalledWith({
+      actor: {
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+      pendingResponseId: "resp_404",
+      coworker: {
+        id: "cow_123",
+        slug: "ops-agent",
+        baseUrl: "https://api.example.com",
+      },
     });
     expect(executeRawMock).toHaveBeenCalledTimes(1);
     expect(conversationUpdateMock).not.toHaveBeenCalled();
@@ -255,7 +270,7 @@ describe("POST /conversations/:id/recover-response", () => {
       slug: "ops-agent",
       baseURL: "https://api.example.com",
     });
-    getResponseByIdMock.mockResolvedValueOnce({ status: "not_found" });
+    recoverPendingResponseMock.mockResolvedValueOnce({ status: "not_found" });
     executeRawMock.mockResolvedValueOnce(0);
 
     const app = createApp();
@@ -284,7 +299,7 @@ describe("POST /conversations/:id/recover-response", () => {
       slug: "ops-agent",
       baseURL: "https://api.example.com",
     });
-    getResponseByIdMock.mockResolvedValueOnce({
+    recoverPendingResponseMock.mockResolvedValueOnce({
       status: "completed",
       id: "resp_789",
       output: [
@@ -348,7 +363,7 @@ describe("POST /conversations/:id/recover-response", () => {
         coworker_id: "cow_123",
       },
     });
-    getResponseByIdMock.mockResolvedValueOnce({ status: "in_progress" });
+    recoverPendingResponseMock.mockResolvedValueOnce({ status: "in_progress" });
 
     const app = createApp();
     await app.request(`http://localhost/${CONV_ID}/recover-response`, {
@@ -356,11 +371,13 @@ describe("POST /conversations/:id/recover-response", () => {
     });
 
     expect(requireCoworkerChatCapabilityMock).toHaveBeenCalledWith("cow_123");
-    expect(getResponseByIdMock).toHaveBeenCalledWith(
-      "resp_2",
+    expect(recoverPendingResponseMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        coworkerSlug: "ops-agent",
-        responsesApiBaseUrl: "https://api.example.com",
+        pendingResponseId: "resp_2",
+        coworker: expect.objectContaining({
+          slug: "ops-agent",
+          baseUrl: "https://api.example.com",
+        }),
       }),
     );
   });
@@ -378,7 +395,7 @@ describe("POST /conversations/:id/recover-response", () => {
       slug: "ops-agent",
       baseURL: "https://api.example.com",
     });
-    getResponseByIdMock.mockResolvedValueOnce({
+    recoverPendingResponseMock.mockResolvedValueOnce({
       status: "completed",
       id: "resp_789",
       output: [

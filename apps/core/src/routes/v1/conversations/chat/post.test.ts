@@ -10,21 +10,21 @@ import mountPostConversationChat from "./post";
 const {
   conversationFindFirstMock,
   conversationItemCreateMock,
+  coworkerConversationStreamMock,
   coworkerFindFirstMock,
   generateChatTitleMock,
-  openrouterStreamChatResponseMock,
+  openrouterConversationStreamMock,
   requireCoworkerChatCapabilityMock,
-  streamResponsesApiMock,
   streamWithAssistantPersistenceMock,
   updateConversationMock,
 } = vi.hoisted(() => ({
   conversationFindFirstMock: vi.fn(),
   conversationItemCreateMock: vi.fn(),
+  coworkerConversationStreamMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   generateChatTitleMock: vi.fn(),
-  openrouterStreamChatResponseMock: vi.fn(),
+  openrouterConversationStreamMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
-  streamResponsesApiMock: vi.fn(),
   streamWithAssistantPersistenceMock: vi.fn(),
   updateConversationMock: vi.fn(),
 }));
@@ -34,13 +34,19 @@ vi.mock("@/helpers/access-control", () => ({
 }));
 
 vi.mock("@/clients/coworker-api.client", () => ({
-  streamResponsesApi: streamResponsesApiMock,
+  coworkerConversationClient: {
+    provider: "coworker",
+    stream: coworkerConversationStreamMock,
+  },
 }));
 
 vi.mock("@/clients/openrouter.client", () => ({
   openrouterClient: {
     generateChatTitle: generateChatTitleMock,
-    streamChatResponse: openrouterStreamChatResponseMock,
+  },
+  openrouterConversationClient: {
+    provider: "openrouter",
+    stream: openrouterConversationStreamMock,
   },
 }));
 
@@ -91,7 +97,7 @@ describe("POST /conversations/chat", () => {
     vi.clearAllMocks();
     conversationItemCreateMock.mockResolvedValue(undefined);
     generateChatTitleMock.mockResolvedValue(null);
-    streamResponsesApiMock.mockResolvedValue(
+    coworkerConversationStreamMock.mockResolvedValue(
       new Response("responses", {
         headers: {
           "Content-Type": "text/event-stream",
@@ -99,7 +105,7 @@ describe("POST /conversations/chat", () => {
       }),
     );
     streamWithAssistantPersistenceMock.mockImplementation((body) => body);
-    openrouterStreamChatResponseMock.mockResolvedValue(
+    openrouterConversationStreamMock.mockResolvedValue(
       new Response("openrouter", {
         headers: {
           "Content-Type": "text/plain",
@@ -171,7 +177,7 @@ describe("POST /conversations/chat", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
+    expect(openrouterConversationStreamMock).not.toHaveBeenCalled();
   });
 
   it("falls back to OpenRouter when conversation has no coworker", async () => {
@@ -205,11 +211,18 @@ describe("POST /conversations/chat", () => {
 
     expect(response.status).toBe(200);
     expect(requireCoworkerChatCapabilityMock).not.toHaveBeenCalled();
-    expect(openrouterStreamChatResponseMock).toHaveBeenCalledWith(
-      [{ role: "user", content: "Hello" }],
-      null,
+    expect(openrouterConversationStreamMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: {
+          userId: "user_123",
+          organizationId: null,
+        },
+        messages: [{ role: "user", content: "Hello" }],
+        modelId: null,
+        previousResponseId: null,
+      }),
     );
-    expect(streamResponsesApiMock).not.toHaveBeenCalled();
+    expect(coworkerConversationStreamMock).not.toHaveBeenCalled();
   });
 
   it("passes coworker baseURL, slug and organization id to the Responses API", async () => {
@@ -254,16 +267,25 @@ describe("POST /conversations/chat", () => {
 
     expect(response.status).toBe(200);
     expect(requireCoworkerChatCapabilityMock).toHaveBeenCalledWith("cow_123");
-    expect(streamResponsesApiMock).toHaveBeenCalledWith("Hello", {
-      responsesApiBaseUrl: "https://responses.example.com/v1",
-      sokosumiUserId: "user_123",
-      sokosumiOrganizationId: "org_123",
-      coworkerSlug: "ops-agent",
-      previousResponseId: "resp_prev",
-      onResponseStarted: expect.any(Function),
-      onResponseCompleted: expect.any(Function),
-    });
-    expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
+    expect(coworkerConversationStreamMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: {
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        coworker: {
+          id: "cow_123",
+          slug: "ops-agent",
+          baseUrl: "https://responses.example.com/v1",
+        },
+        previousResponseId: "resp_prev",
+        lifecycle: {
+          onResponseStarted: expect.any(Function),
+          onResponseCompleted: expect.any(Function),
+        },
+      }),
+    );
+    expect(openrouterConversationStreamMock).not.toHaveBeenCalled();
   });
 
   it("prefers previousResponseId from request body over conversation metadata", async () => {
@@ -308,9 +330,9 @@ describe("POST /conversations/chat", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(streamResponsesApiMock).toHaveBeenCalledWith(
-      "Hello",
+    expect(coworkerConversationStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        messages: [{ role: "user", content: "Hello" }],
         previousResponseId: "resp_from_client",
       }),
     );
@@ -354,48 +376,19 @@ describe("POST /conversations/chat", () => {
     expect(response.status).toBe(503);
     const bodyText = await response.text();
     expect(bodyText).toContain("no Responses API URL configured");
-    expect(streamResponsesApiMock).not.toHaveBeenCalled();
-    expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
+    expect(coworkerConversationStreamMock).not.toHaveBeenCalled();
+    expect(openrouterConversationStreamMock).not.toHaveBeenCalled();
   });
 
-  it("retries without previous_response_id and passes completion callback so metadata can clear", async () => {
-    let streamCall = 0;
-    streamResponsesApiMock.mockReset();
-    streamResponsesApiMock.mockImplementation(() => {
-      streamCall += 1;
-      if (streamCall === 1) {
-        return Promise.reject(new Error("invalid_previous_response_id"));
-      }
-      return Promise.resolve(
-        new Response("responses", {
-          headers: {
-            "Content-Type": "text/event-stream",
-          },
-        }),
-      );
-    });
-
+  it("passes previous response id to coworker adapter for stale-id fallback handling", async () => {
     conversationFindFirstMock.mockReset();
-    conversationFindFirstMock
-      .mockResolvedValueOnce({
-        id: "550e8400-e29b-41d4-a716-446655440000",
-        metadata: {
-          coworker_slug: "ops-agent",
-          previous_response_id: "resp_stale",
-        },
-      })
-      .mockResolvedValueOnce({
-        _count: {
-          items: 1,
-        },
-      })
-      .mockResolvedValueOnce({
-        id: "550e8400-e29b-41d4-a716-446655440000",
-        metadata: {
-          coworker_slug: "ops-agent",
-          previous_response_id: "resp_stale",
-        },
-      });
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      metadata: {
+        coworker_slug: "ops-agent",
+        previous_response_id: "resp_stale",
+      },
+    });
     coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
     requireCoworkerChatCapabilityMock.mockResolvedValueOnce({
       id: "cow_123",
@@ -421,26 +414,18 @@ describe("POST /conversations/chat", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(streamResponsesApiMock).toHaveBeenCalledTimes(2);
-    expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
-    expect(streamResponsesApiMock).toHaveBeenNthCalledWith(
-      1,
-      "Hello",
+    expect(coworkerConversationStreamMock).toHaveBeenCalledTimes(1);
+    expect(coworkerConversationStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        messages: [{ role: "user", content: "Hello" }],
         previousResponseId: "resp_stale",
-        onResponseStarted: expect.any(Function),
-        onResponseCompleted: expect.any(Function),
+        lifecycle: {
+          onResponseStarted: expect.any(Function),
+          onResponseCompleted: expect.any(Function),
+        },
       }),
     );
-    expect(streamResponsesApiMock).toHaveBeenNthCalledWith(
-      2,
-      [{ role: "user", content: "Hello" }],
-      expect.objectContaining({
-        previousResponseId: null,
-        onResponseStarted: expect.any(Function),
-        onResponseCompleted: expect.any(Function),
-      }),
-    );
-    expect(updateConversationMock).toHaveBeenCalled();
+    expect(openrouterConversationStreamMock).not.toHaveBeenCalled();
+    expect(updateConversationMock).not.toHaveBeenCalled();
   });
 });

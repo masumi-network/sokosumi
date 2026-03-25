@@ -1,13 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import {
+  coworkerConversationClient,
   extractTextFromCompletedOutput,
-  getResponseById,
 } from "@/clients/coworker-api.client";
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
 import { findCoworkerWithChatBySlug } from "@/helpers/coworker-queries";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { clearPendingResponseIdIfMatches } from "@/helpers/persist-pending-response-id";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -107,12 +108,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Coworker has no Responses API base URL");
       }
 
-      const result = await getResponseById(pendingResponseId, {
-        responsesApiBaseUrl: coworker.baseURL.trim(),
-        sokosumiUserId: authContext.userId,
-        sokosumiOrganizationId: authContext.organizationId ?? null,
-        coworkerSlug: coworker.slug,
+      const result = await coworkerConversationClient.recoverPendingResponse?.({
+        actor: {
+          userId: authContext.userId,
+          organizationId: authContext.organizationId ?? null,
+        },
+        pendingResponseId,
+        coworker: {
+          id: coworker.id,
+          slug: coworker.slug,
+          baseUrl: coworker.baseURL.trim(),
+        },
       });
+
+      if (!result) {
+        throw internalServerError(
+          "Conversation provider does not support pending response recovery",
+        );
+      }
 
       if (result.status !== "completed") {
         const reason =
@@ -122,14 +135,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               ? ("terminal" as const)
               : ("in_progress" as const);
         if (result.status === "not_found" || result.status === "terminal") {
-          await prisma.$executeRaw`
-            UPDATE conversation
-            SET metadata = metadata - 'pending_responses_api_response_id'
-            WHERE id = ${conversationId}
-              AND "userId" = ${authContext.userId}
-              AND "archivedAt" IS NULL
-              AND (metadata->>'pending_responses_api_response_id') = ${pendingResponseId}
-          `;
+          await clearPendingResponseIdIfMatches({
+            conversationId,
+            userId: authContext.userId,
+            pendingResponseId,
+          });
         }
         return ok(c, { recovered: false, reason });
       }

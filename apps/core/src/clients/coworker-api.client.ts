@@ -1,3 +1,10 @@
+import type {
+  ConversationClient,
+  ConversationRecoverRequest,
+  ConversationRecoverResult,
+  ConversationStreamRequest,
+} from "@/clients/conversation.client";
+
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
 
@@ -39,6 +46,119 @@ export interface StreamResponsesApiOptions {
   onResponseCompleted?: (responseId: string) => void;
   onResponseStarted?: (responseId: string) => void;
 }
+
+function normalizeConversationMessages(
+  messages: ConversationStreamRequest["messages"],
+): Array<{ role: string; content: string }> {
+  return messages
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }))
+    .filter((message) => message.content.trim().length > 0);
+}
+
+function extractPrimaryCoworkerInput(
+  messages: ConversationStreamRequest["messages"],
+): string | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (
+      (message.role === "user" || message.role === "system") &&
+      message.content.trim().length > 0
+    ) {
+      return message.content;
+    }
+  }
+
+  return null;
+}
+
+function isInvalidPreviousResponseIdError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  return (
+    error.message.includes("invalid_previous_response_id") ||
+    error.message.includes("previous_response_id not found")
+  );
+}
+
+export interface CreateCoworkerConversationClientOptions {
+  responsesApiServiceKey?: string;
+}
+
+async function streamCoworkerConversation(
+  request: ConversationStreamRequest,
+): Promise<Response> {
+  if (!request.coworker?.baseUrl.trim()) {
+    throw new Error("Responses API base URL is required");
+  }
+
+  if (!request.coworker.slug.trim()) {
+    throw new Error("Responses API requires a coworker agent ID (slug)");
+  }
+
+  const primaryInput = extractPrimaryCoworkerInput(request.messages);
+  if (!primaryInput) {
+    throw new Error(
+      "Coworker chat requires a user or system message to respond to; send at least one message with text.",
+    );
+  }
+
+  const streamOptions: StreamResponsesApiOptions = {
+    responsesApiBaseUrl: request.coworker.baseUrl.trim(),
+    sokosumiUserId: request.actor.userId,
+    sokosumiOrganizationId: request.actor.organizationId,
+    coworkerSlug: request.coworker.slug,
+    previousResponseId: request.previousResponseId ?? null,
+    onResponseStarted: request.lifecycle?.onResponseStarted,
+    onResponseCompleted: request.lifecycle?.onResponseCompleted,
+  };
+
+  try {
+    return await streamResponsesApi(primaryInput, streamOptions);
+  } catch (error) {
+    if (!isInvalidPreviousResponseIdError(error)) {
+      throw error;
+    }
+
+    const fallbackInput = normalizeConversationMessages(request.messages);
+
+    return streamResponsesApi(fallbackInput, {
+      ...streamOptions,
+      previousResponseId: null,
+    });
+  }
+}
+
+async function recoverCoworkerResponse(
+  request: ConversationRecoverRequest,
+  options: CreateCoworkerConversationClientOptions,
+): Promise<ConversationRecoverResult> {
+  return getResponseById(request.pendingResponseId, {
+    responsesApiBaseUrl: request.coworker.baseUrl.trim(),
+    responsesApiServiceKey: options.responsesApiServiceKey,
+    sokosumiUserId: request.actor.userId,
+    sokosumiOrganizationId: request.actor.organizationId,
+    coworkerSlug: request.coworker.slug,
+  });
+}
+
+export function createCoworkerConversationClient(
+  options: CreateCoworkerConversationClientOptions = {},
+): ConversationClient {
+  return {
+    provider: "coworker",
+    stream(request) {
+      return streamCoworkerConversation(request);
+    },
+    recoverPendingResponse(request) {
+      return recoverCoworkerResponse(request, options);
+    },
+  };
+}
+
+export const coworkerConversationClient = createCoworkerConversationClient();
 
 export async function streamResponsesApi(
   input: string | Array<{ role: string; content: string }>,

@@ -130,3 +130,24 @@ export async function clearPendingAndSetPrevious(
     lastError ?? new Error("Failed to clear pending response id after retries")
   );
 }
+
+export interface ClearPendingResponseIdIfMatchesParams {
+  conversationId: string;
+  userId: string;
+  pendingResponseId: string;
+}
+
+export async function clearPendingResponseIdIfMatches(
+  params: ClearPendingResponseIdIfMatchesParams,
+): Promise<boolean> {
+  const rowsUpdated = await prisma.$executeRaw`
+    UPDATE conversation
+    SET metadata = metadata - 'pending_responses_api_response_id'
+    WHERE id = ${params.conversationId}
+      AND "userId" = ${params.userId}
+      AND "archivedAt" IS NULL
+      AND (metadata->>'pending_responses_api_response_id') = ${params.pendingResponseId}
+  `;
+
+  return rowsUpdated > 0;
+}

@@ -2,6 +2,12 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { getModelIdentifier } from "@sokosumi/chat";
 import { generateText } from "ai";
 
+import {
+  CONVERSATION_PROVIDERS,
+  type ConversationClient,
+  type ConversationMessage,
+  type ConversationStreamRequest,
+} from "@/clients/conversation.client";
 import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
 
 export type AgentInfo = {
@@ -29,6 +35,91 @@ const UI_MESSAGE_EVENTS = {
   FINISH: "finish",
   ERROR: "error",
 } as const;
+
+function normalizeConversationMessages(messages: ConversationMessage[]): Array<{
+  type: "message";
+  role: ConversationMessage["role"];
+  content: [{ type: "input_text"; text: string }];
+}> {
+  return messages.map((message) => ({
+    type: "message",
+    role: message.role,
+    content: [
+      {
+        type: "input_text",
+        text: message.content,
+      },
+    ],
+  }));
+}
+
+function toConversationMessages(messages: unknown[]): Array<{
+  role: ConversationMessage["role"];
+  content: string;
+}> {
+  return messages.map((msg: unknown) => {
+    const message = msg as {
+      role: ConversationMessage["role"];
+      content: string;
+    };
+    return {
+      role: message.role,
+      content: message.content,
+    };
+  });
+}
+
+async function streamOpenRouterChat(
+  messages: ConversationMessage[],
+  modelId: string | null,
+): Promise<Response> {
+  const chatApiKey = getEnv().OPENROUTER_CHAT_API_KEY;
+  if (!chatApiKey) {
+    throw new Error("OpenRouter chat API key not configured");
+  }
+
+  const modelIdentifier = getModelIdentifier(modelId);
+  const responsesInput = normalizeConversationMessages(messages);
+
+  const requestBody = {
+    model: modelIdentifier,
+    input: responsesInput,
+    stream: true,
+    max_output_tokens: 4096,
+  };
+  const response = await fetch("https://openrouter.ai/api/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${chatApiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": getBetterAuthPublicBaseUrl(),
+      "X-Title": "Sokosumi",
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(
+      `OpenRouter Responses API error: ${response.status} ${errorText}`,
+    );
+  }
+
+  if (!response.body) {
+    throw new Error("No response body from OpenRouter Responses API");
+  }
+
+  const stream = createUIMessageStream(response.body);
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "x-vercel-ai-ui-message-stream": "v1",
+    },
+  });
+}
 
 export const openrouterClient = (() => {
   const defaultApiKey = getEnv().OPENROUTER_DEFAULT_API_KEY;
@@ -153,68 +244,23 @@ export const openrouterClient = (() => {
       }
     },
 
+    async stream(request: ConversationStreamRequest): Promise<Response> {
+      return streamOpenRouterChat(request.messages, request.modelId);
+    },
+
     async streamChatResponse(messages: unknown[], modelId: string | null) {
-      const chatApiKey = getEnv().OPENROUTER_CHAT_API_KEY;
-      if (!chatApiKey) {
-        throw new Error("OpenRouter chat API key not configured");
-      }
-
-      const modelIdentifier = getModelIdentifier(modelId);
-      const responsesInput = messages.map((msg: unknown) => {
-        const m = msg as { role: string; content: string };
-        return {
-          type: "message",
-          role: m.role,
-          content: [
-            {
-              type: "input_text",
-              text: m.content,
-            },
-          ],
-        };
-      });
-
-      const requestBody = {
-        model: modelIdentifier,
-        input: responsesInput,
-        stream: true,
-        max_output_tokens: 4096,
-      };
-      const response = await fetch("https://openrouter.ai/api/v1/responses", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${chatApiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": getBetterAuthPublicBaseUrl(),
-          "X-Title": "Sokosumi",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        throw new Error(
-          `OpenRouter Responses API error: ${response.status} ${errorText}`,
-        );
-      }
-
-      if (!response.body) {
-        throw new Error("No response body from OpenRouter Responses API");
-      }
-
-      const stream = createUIMessageStream(response.body);
-
-      return new Response(stream, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          Connection: "keep-alive",
-          "x-vercel-ai-ui-message-stream": "v1",
-        },
-      });
+      return streamOpenRouterChat(toConversationMessages(messages), modelId);
     },
   };
 })();
+
+export const openrouterConversationClient: ConversationClient = {
+  provider: CONVERSATION_PROVIDERS.OPENROUTER,
+  stream(request) {
+    return openrouterClient.stream(request);
+  },
+};
+
 function createUIMessageStream(
   body: ReadableStream<Uint8Array>,
 ): ReadableStream<Uint8Array> {
