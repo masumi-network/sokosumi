@@ -1,7 +1,17 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/database";
-import { Loader2, Pencil, Trash } from "lucide-react";
+import { type MemberWithOrganization, TaskStatus } from "@sokosumi/database";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowLeftRight,
+  Ban,
+  CheckCircle2,
+  Ellipsis,
+  Loader2,
+  Pencil,
+  RotateCcw,
+  Trash,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -17,10 +27,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { deleteTask, setTaskStatusFromDrag } from "@/lib/actions/task/action";
+
+import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
+import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 
 interface TaskDetailActionsLabels {
   edit: string;
@@ -36,25 +54,47 @@ interface TaskDetailActionsLabels {
 interface TaskDetailActionsProps {
   taskId: string;
   status: TaskStatus;
+  jobsCount: number;
+  actionsMenuLabel: string;
   labels: TaskDetailActionsLabels;
+  currentOrganizationId?: string | null;
+  organizations?: MemberWithOrganization[];
+  personalWorkspaceLabel: string;
 }
 
 export function TaskDetailActions({
   taskId,
   status,
+  jobsCount,
+  actionsMenuLabel,
   labels,
+  currentOrganizationId,
+  organizations,
+  personalWorkspaceLabel,
 }: TaskDetailActionsProps) {
-  const t = useTranslations("App");
+  const tApp = useTranslations("App");
+  const tDetailActions = useTranslations("App.Tasks.Detail.actions");
+  const tTasks = useTranslations("App.Tasks");
   const router = useRouter();
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [pendingStatusTarget, setPendingStatusTarget] =
     useState<TaskStatus | null>(null);
 
   const statusActions = getTaskStatusActions(status, labels);
   const canEditOrDelete =
     status === TaskStatus.DRAFT || status === TaskStatus.READY;
+  const isFinalized =
+    status === TaskStatus.COMPLETED ||
+    status === TaskStatus.FAILED ||
+    status === TaskStatus.CANCELED ||
+    status === TaskStatus.CANCEL_REQUESTED;
+  const canMove =
+    !isFinalized &&
+    jobsCount === 0 &&
+    getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
 
   const handleStatusToggle = (desiredStatus: TaskStatus) => {
     setPendingStatusTarget(desiredStatus);
@@ -66,10 +106,10 @@ export function TaskDetailActions({
           desiredStatus,
         });
         router.refresh();
-        toast.success(t("Tasks.Detail.actions.updateStatusSuccess"));
+        toast.success(tDetailActions("updateStatusSuccess"));
       } catch (error) {
         console.error("Failed to update task status", error);
-        toast.error(t("Tasks.Errors.updateStatus"));
+        toast.error(tTasks("Errors.updateStatus"));
       } finally {
         setPendingStatusTarget(null);
       }
@@ -89,25 +129,33 @@ export function TaskDetailActions({
     });
   };
 
+  const actionsDisabled = isStatusPending || isDeletePending;
+
   return (
-    <div className="flex items-center gap-1.5">
-      {statusActions.map((action) => (
-        <Button
-          key={action.target}
-          variant="outline"
-          size="sm"
-          onClick={() => handleStatusToggle(action.target)}
-          disabled={isStatusPending}
-          className="h-7 gap-1.5 px-2.5 text-xs"
-        >
-          {isStatusPending && pendingStatusTarget === action.target ? (
-            <Loader2 className="size-3 animate-spin" />
-          ) : null}
-          <span>{action.label}</span>
-        </Button>
-      ))}
-      {canEditOrDelete ? (
-        <>
+    <>
+      <div className="hidden items-center gap-1.5 md:flex">
+        {statusActions.map((action) => {
+          const StatusIcon = getStatusActionMenuIcon(action.target);
+
+          return (
+            <Button
+              key={action.target}
+              variant="outline"
+              size="sm"
+              onClick={() => handleStatusToggle(action.target)}
+              disabled={isStatusPending}
+              className="h-7 gap-1.5 px-2.5 text-xs"
+            >
+              {isStatusPending && pendingStatusTarget === action.target ? (
+                <Loader2 className="size-3 animate-spin" aria-hidden />
+              ) : (
+                <StatusIcon className="size-3" aria-hidden />
+              )}
+              <span>{action.label}</span>
+            </Button>
+          );
+        })}
+        {canEditOrDelete ? (
           <Link
             href={`/tasks/${taskId}/edit`}
             aria-disabled={isStatusPending}
@@ -128,43 +176,154 @@ export function TaskDetailActions({
               </span>
             </Button>
           </Link>
-          <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-destructive h-7 gap-1 px-2 text-xs"
-                disabled={isDeletePending || isStatusPending}
-              >
-                <Trash className="size-3" aria-hidden />
-                <span>{labels.delete}</span>
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{labels.confirmDelete}</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {labels.confirmDeleteDescription}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeletePending}>
-                  {t("cancel")}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  disabled={isDeletePending}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+        ) : null}
+        {canMove ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground h-7 gap-1 px-2 text-xs"
+            disabled={actionsDisabled}
+            onClick={() => setIsMoveOpen(true)}
+          >
+            <ArrowLeftRight className="size-3" aria-hidden />
+            <span>{tDetailActions("moveToWorkspace")}</span>
+          </Button>
+        ) : null}
+        {canEditOrDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-destructive h-7 gap-1 px-2 text-xs"
+            disabled={isDeletePending || isStatusPending}
+            onClick={() => setIsOpen(true)}
+          >
+            <Trash className="size-3" aria-hidden />
+            <span>{labels.delete}</span>
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="md:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-8 shrink-0"
+              aria-label={actionsMenuLabel}
+              disabled={actionsDisabled}
+            >
+              <Ellipsis className="size-4" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {statusActions.map((action) => {
+              const StatusIcon = getStatusActionMenuIcon(action.target);
+
+              return (
+                <DropdownMenuItem
+                  key={action.target}
+                  disabled={isStatusPending}
+                  onSelect={() => handleStatusToggle(action.target)}
                 >
-                  {labels.delete}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
+                  {isStatusPending && pendingStatusTarget === action.target ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <StatusIcon className="size-4" aria-hidden />
+                  )}
+                  <span>{action.label}</span>
+                </DropdownMenuItem>
+              );
+            })}
+            {canEditOrDelete ? (
+              <DropdownMenuItem asChild disabled={isStatusPending}>
+                <Link
+                  href={`/tasks/${taskId}/edit`}
+                  className={
+                    isStatusPending ? "pointer-events-none opacity-70" : ""
+                  }
+                >
+                  <Pencil className="size-4" aria-hidden />
+                  {labels.edit}
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
+            {canMove ? (
+              <DropdownMenuItem
+                disabled={actionsDisabled}
+                onSelect={() => setIsMoveOpen(true)}
+              >
+                <ArrowLeftRight className="size-4" aria-hidden />
+                {tDetailActions("moveToWorkspace")}
+              </DropdownMenuItem>
+            ) : null}
+            {canEditOrDelete ? (
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={isDeletePending || isStatusPending}
+                onSelect={() => setIsOpen(true)}
+              >
+                <Trash className="size-4" aria-hidden />
+                {labels.delete}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {canEditOrDelete ? (
+        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{labels.confirmDelete}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {labels.confirmDeleteDescription}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletePending}>
+                {tApp("cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={isDeletePending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {labels.delete}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       ) : null}
-    </div>
+
+      {canMove ? (
+        <MoveTaskToWorkspaceDialog
+          open={isMoveOpen}
+          onOpenChange={setIsMoveOpen}
+          taskId={taskId}
+          currentOrganizationId={currentOrganizationId ?? null}
+          organizations={organizations ?? []}
+          personalWorkspaceLabel={personalWorkspaceLabel}
+        />
+      ) : null}
+    </>
   );
+}
+
+/** Icons for status transitions in the mobile overflow menu (aligned with action meaning). */
+function getStatusActionMenuIcon(target: TaskStatus): LucideIcon {
+  switch (target) {
+    case TaskStatus.DRAFT:
+      return RotateCcw;
+    case TaskStatus.READY:
+      return CheckCircle2;
+    case TaskStatus.CANCEL_REQUESTED:
+      return Ban;
+    default:
+      return CheckCircle2;
+  }
 }
 
 function getTaskStatusActions(

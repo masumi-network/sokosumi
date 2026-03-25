@@ -846,6 +846,28 @@ export const CreateConversationItemRequestSchema = {
     ]
 } as const;
 
+export const RecoverResponseResultSchema = {
+    type: 'object',
+    properties: {
+        recovered: {
+            type: 'boolean',
+            description: 'True if a completed response was fetched and saved'
+        },
+        reason: {
+            type: 'string',
+            enum: [
+                'not_found',
+                'in_progress',
+                'terminal'
+            ],
+            description: 'When recovered is false'
+        }
+    },
+    required: [
+        'recovered'
+    ]
+} as const;
+
 export const CreditCostSchema = {
     type: 'object',
     properties: {
@@ -992,12 +1014,47 @@ export const OrganizationSchema = {
             example: 'my-org'
         },
         logo: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uri'
+                },
+                {
+                    type: 'string',
+                    enum: [
+                        ''
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'https://example.com/logo.png'
+        },
+        metadata: {
             type: [
-                'string',
+                'object',
                 'null'
             ],
-            format: 'uri',
-            example: 'https://example.com/logo.png'
+            properties: {
+                url: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri'
+                },
+                invoiceEmail: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            additionalProperties: {},
+            example: {
+                url: 'https://example.com'
+            }
         },
         role: {
             type: 'string',
@@ -1010,6 +1067,7 @@ export const OrganizationSchema = {
         'name',
         'slug',
         'logo',
+        'metadata',
         'role'
     ]
 } as const;
@@ -1355,26 +1413,6 @@ export const Job_EventSchema = {
     ]
 } as const;
 
-export const CoworkerMetadataSchema = {
-          type: 'object',
-          required: [
-              'channels'
-          ],
-          properties: {
-              channels: {
-                  type: 'object',
-                  additionalProperties: {
-                      type: 'string'
-                  },
-                  description: 'Contact channels keyed by provider id (e.g. email, whatsapp).',
-                  example: {
-                      email: 'foo@bar.com',
-                      whatsapp: '+49151xxxx'
-                  }
-              }
-          }
-} as const;
-
 export const CoworkerSchema = {
     type: 'object',
     properties: {
@@ -1478,12 +1516,7 @@ export const CoworkerSchema = {
             example: 'https://example.com/logo'
         },
         metadata: {
-            anyOf: [
-                CoworkerMetadataSchema,
-                {
-                    type: 'null'
-                }
-            ]
+            $ref: '#/components/schemas/CoworkerMetadata'
         }
     },
     required: [
@@ -1495,8 +1528,30 @@ export const CoworkerSchema = {
         'slug',
         'name',
         'baseURL',
-        'capabilities',
-        'metadata'
+        'capabilities'
+    ]
+} as const;
+
+export const CoworkerMetadataSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        channels: {
+            type: 'object',
+            additionalProperties: {
+                type: 'string'
+            },
+            description: 'Contact channels keyed by provider id (e.g. email, whatsapp).',
+            example: {
+                email: 'foo@bar.com',
+                whatsapp: '+49151xxxx'
+            }
+        }
+    },
+    required: [
+        'channels'
     ]
 } as const;
 

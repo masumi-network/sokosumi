@@ -1376,7 +1376,15 @@
           "markAsReady": "Marcar como listo",
           "revertToDraft": "Revertir a borrador",
           "cancelRequest": "Cancelar solicitud",
-          "updateStatusSuccess": "Estado del Task actualizado"
+          "updateStatusSuccess": "Estado del Task actualizado",
+          "moveToWorkspace": "Mover a otro espacio de trabajo",
+          "moveToWorkspaceTitle": "Mover la tarea a otro espacio de trabajo",
+          "moveToWorkspaceDescription": "Selecciona el espacio de trabajo al que quieres mover esta tarea.",
+          "moveToWorkspaceButton": "Mover tarea",
+          "moveToWorkspaceCancel": "Cancelar",
+          "moveToWorkspaceSuccess": "Tarea movida correctamente",
+          "moveToWorkspaceError": "No se pudo mover la tarea",
+          "personalWorkspace": "Personal"
         },
         "switchedWorkspace": "Cambiado a la cuenta de {account}"
       },

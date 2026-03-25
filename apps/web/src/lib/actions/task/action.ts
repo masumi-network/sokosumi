@@ -3,6 +3,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import { revalidatePath } from "next/cache";
 
+import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { taskService } from "@/lib/services/task.service";
 import {
@@ -32,6 +33,11 @@ interface SetTaskStatusFromDragParameters extends AuthenticatedRequest {
 
 interface DeleteTaskParameters extends AuthenticatedRequest {
   taskId: string;
+}
+
+interface MoveTaskToWorkspaceParameters extends AuthenticatedRequest {
+  taskId: string;
+  organizationId: string | null;
 }
 
 interface CreateTaskCommentParameters extends AuthenticatedRequest {
@@ -145,6 +151,22 @@ export const deleteTask = withSession<DeleteTaskParameters, { taskId: string }>(
     }
   },
 );
+
+export const moveTaskToWorkspace = withSession<
+  MoveTaskToWorkspaceParameters,
+  { taskId: string }
+>(async ({ taskId, organizationId }) => {
+  try {
+    await taskService.moveTaskToWorkspace(taskId, organizationId);
+    revalidatePath("/tasks");
+    revalidatePath(`/tasks/${taskId}`);
+    return { taskId };
+  } catch (error) {
+    console.error("Failed to move task to workspace", error);
+    const { message } = toCoreApiActionError(error);
+    throw new Error(message ?? "Failed to move task to workspace");
+  }
+});
 
 export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
   async ({ taskId, comment }) => {

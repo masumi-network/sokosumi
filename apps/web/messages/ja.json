@@ -1407,7 +1407,15 @@
           "markAsReady": "準備完了にする",
           "revertToDraft": "下書きに戻す",
           "cancelRequest": "キャンセルを申請",
-          "updateStatusSuccess": "タスクステータスを更新しました"
+          "updateStatusSuccess": "タスクステータスを更新しました",
+          "moveToWorkspace": "ワークスペースへ移動",
+          "moveToWorkspaceTitle": "タスクを別のワークスペースへ移動",
+          "moveToWorkspaceDescription": "このタスクを移動先のワークスペースを選択してください。",
+          "moveToWorkspaceButton": "タスクを移動",
+          "moveToWorkspaceCancel": "キャンセル",
+          "moveToWorkspaceSuccess": "タスクを移動しました",
+          "moveToWorkspaceError": "タスクを移動できませんでした",
+          "personalWorkspace": "個人"
         },
         "switchedWorkspace": "{account} アカウントに切り替えました"
       },
