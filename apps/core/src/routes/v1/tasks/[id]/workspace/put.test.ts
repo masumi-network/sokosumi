@@ -6,9 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountPutTaskWorkspace, {
-  putTaskWorkspaceRequestSchema,
-} from "./put";
+import mountPutTaskWorkspace, { putTaskWorkspaceRequestSchema } from "./put";
 
 const {
   jobCountMock,
@@ -17,7 +15,8 @@ const {
   requireUserTaskAccessMock,
   resolveMemberOrganizationByIdMock,
   taskEventFindManyMock,
-  taskUpdateMock,
+  taskFindUniqueOrThrowMock,
+  taskUpdateManyMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   mapTaskMock: vi.fn(),
@@ -25,7 +24,8 @@ const {
   requireUserTaskAccessMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskEventFindManyMock: vi.fn(),
-  taskUpdateMock: vi.fn(),
+  taskFindUniqueOrThrowMock: vi.fn(),
+  taskUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -62,7 +62,7 @@ interface TransactionMock {
   };
   task: {
     findUniqueOrThrow: ReturnType<typeof vi.fn>;
-    update: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
   };
   taskEvent: {
     findMany: ReturnType<typeof vi.fn>;
@@ -171,15 +171,8 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
     jobCountMock.mockResolvedValue(0);
     taskEventFindManyMock.mockResolvedValue([]);
-    const taskFindUniqueOrThrowMock = vi
-      .fn()
-      .mockResolvedValue(createTaskRecord());
-    taskUpdateMock.mockImplementation(async ({ data }: { data: TaskRecord }) => {
-      return {
-        ...defaultTask,
-        ...data,
-      };
-    });
+    taskFindUniqueOrThrowMock.mockResolvedValue(createTaskRecord());
+    taskUpdateManyMock.mockResolvedValue({ count: 1 });
     mapTaskMock.mockImplementation((task: TaskRecord) =>
       createTaskApi({
         organizationId: task.organizationId,
@@ -196,7 +189,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       task: {
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
-        update: taskUpdateMock,
+        updateMany: taskUpdateManyMock,
       },
       taskEvent: {
         findMany: taskEventFindManyMock,
@@ -211,12 +204,14 @@ describe("PUT /tasks/{id}/workspace", () => {
         status: TaskStatus.RUNNING,
       }),
     );
-    taskUpdateMock.mockResolvedValue(
-      createTaskRecord({
+    taskFindUniqueOrThrowMock.mockResolvedValue({
+      ...createTaskRecord({
         organizationId: "org_target",
         status: TaskStatus.RUNNING,
       }),
-    );
+      events: [],
+      jobs: [],
+    });
 
     const app = createApp(null);
     const response = await app.request("http://localhost/tsk_123/workspace", {
@@ -249,7 +244,7 @@ describe("PUT /tasks/{id}/workspace", () => {
         },
       },
     });
-    expect(taskUpdateMock).toHaveBeenCalledWith({
+    expect(taskUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
         userId: "user_123",
@@ -260,7 +255,6 @@ describe("PUT /tasks/{id}/workspace", () => {
       data: {
         organizationId: "org_target",
       },
-      include: expect.any(Object),
     });
   });
 
@@ -271,12 +265,14 @@ describe("PUT /tasks/{id}/workspace", () => {
         status: TaskStatus.INPUT_REQUIRED,
       }),
     );
-    taskUpdateMock.mockResolvedValue(
-      createTaskRecord({
+    taskFindUniqueOrThrowMock.mockResolvedValue({
+      ...createTaskRecord({
         organizationId: null,
         status: TaskStatus.INPUT_REQUIRED,
       }),
-    );
+      events: [],
+      jobs: [],
+    });
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/tsk_123/workspace", {
@@ -300,12 +296,14 @@ describe("PUT /tasks/{id}/workspace", () => {
         status: TaskStatus.OUT_OF_CREDITS,
       }),
     );
-    taskUpdateMock.mockResolvedValue(
-      createTaskRecord({
+    taskFindUniqueOrThrowMock.mockResolvedValue({
+      ...createTaskRecord({
         organizationId: "org_other",
         status: TaskStatus.OUT_OF_CREDITS,
       }),
-    );
+      events: [],
+      jobs: [],
+    });
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: {
         id: "org_other",
@@ -351,7 +349,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task is not accessible from the current context", async () => {
@@ -373,7 +371,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when the task is finalized", async () => {
@@ -396,7 +394,7 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     expect(response.status).toBe(409);
     expect(jobCountMock).not.toHaveBeenCalled();
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when the task already has jobs", async () => {
@@ -420,7 +418,7 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     expect(response.status).toBe(409);
     expect(taskEventFindManyMock).not.toHaveBeenCalled();
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when the task already has charged task events", async () => {
@@ -449,7 +447,30 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(409);
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the task row no longer matches the expected status", async () => {
+    requireUserTaskAccessMock.mockResolvedValue(
+      createTaskRecord({
+        status: TaskStatus.RUNNING,
+      }),
+    );
+    taskUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_target",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(taskFindUniqueOrThrowMock).not.toHaveBeenCalled();
   });
 
   it("allows idempotent no-op updates without membership or guard checks", async () => {
@@ -475,7 +496,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
     expect(jobCountMock).not.toHaveBeenCalled();
     expect(taskEventFindManyMock).not.toHaveBeenCalled();
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 for empty-string organization ids", async () => {
@@ -492,7 +513,7 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     expect(response.status).toBe(400);
     expect(requireUserTaskAccessMock).not.toHaveBeenCalled();
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("reads the current task instead of updating on idempotent no-op requests", async () => {
@@ -507,16 +528,14 @@ describe("PUT /tasks/{id}/workspace", () => {
       events: [],
       jobs: [],
     };
-    const taskFindUniqueOrThrowMock = vi
-      .fn()
-      .mockResolvedValue(currentTaskWithIncludes);
+    taskFindUniqueOrThrowMock.mockResolvedValue(currentTaskWithIncludes);
     mockTransaction({
       job: {
         count: jobCountMock,
       },
       task: {
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
-        update: taskUpdateMock,
+        updateMany: taskUpdateManyMock,
       },
       taskEvent: {
         findMany: taskEventFindManyMock,
@@ -545,6 +564,6 @@ describe("PUT /tasks/{id}/workspace", () => {
       where: { id: "tsk_123" },
       include: expect.any(Object),
     });
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 });

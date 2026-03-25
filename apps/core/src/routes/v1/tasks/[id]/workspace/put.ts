@@ -119,7 +119,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
         }
 
-        return await tx.task.update({
+        const updateResult = await tx.task.updateMany({
           where: {
             id,
             userId: authContext.userId,
@@ -130,6 +130,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: {
             organizationId,
           },
+        });
+        if (updateResult.count !== 1) {
+          throw conflict("Task status was changed by another request");
+        }
+
+        return await tx.task.findUniqueOrThrow({
+          where: { id },
           include: taskInclude,
         });
       },
