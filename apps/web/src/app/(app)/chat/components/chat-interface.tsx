@@ -363,7 +363,11 @@ export default function ChatInterface({
           delete next[slotIndex];
           return next;
         });
-        delete reasoningStartedAtBySlotRef.current[slotIndex];
+        setReasoningStartedAtBySlot((prev) => {
+          const next = { ...prev };
+          delete next[slotIndex];
+          return next;
+        });
         const payload = slotPayloadRef.current[slotIndex];
         const cid = payload?.conversationId;
         let previousResponseIdForBody: string | undefined;
@@ -421,9 +425,6 @@ export default function ChatInterface({
           : `reasoning-${slotIndex}-${Date.now()}`;
       setReasoningBySlot((prev) => {
         const list = prev[slotIndex] ?? [];
-        if (list.length === 0) {
-          reasoningStartedAtBySlotRef.current[slotIndex] = Date.now();
-        }
         const existingIndex = list.findIndex((r) => r.id === id);
         const nextList =
           existingIndex >= 0
@@ -658,6 +659,11 @@ export default function ChatInterface({
         delete next[slot];
         return next;
       });
+      setReasoningStartedAtBySlot((prev) => {
+        const next = { ...prev };
+        delete next[slot];
+        return next;
+      });
       const msgs = slotMessages[slot] as UIMessage[];
       if (msgs?.length > 0) {
         setCachedMessagesByConversation((prev) => ({
@@ -682,10 +688,28 @@ export default function ChatInterface({
   );
 
   useEffect(() => {
+    setReasoningStartedAtBySlot((prev) => {
+      let next = prev;
+      let changed = false;
+      for (let slot = 0; slot < NUM_SLOTS; slot++) {
+        const steps = reasoningBySlot[slot];
+        if (steps && steps.length > 0 && prev[slot] == null) {
+          if (!changed) {
+            next = { ...prev };
+            changed = true;
+          }
+          next[slot] = Date.now();
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [reasoningBySlot]);
+
+  useEffect(() => {
     let changed = false;
     const next: Record<number, number> = {};
     for (let slot = 0; slot < NUM_SLOTS; slot++) {
-      const startedAt = reasoningStartedAtBySlotRef.current[slot];
+      const startedAt = reasoningStartedAtBySlot[slot];
       if (startedAt == null || reasoningEndedAtBySlot[slot] != null) continue;
       const messages = (slotMessages[slot] ?? []) as UIMessage[];
       const last = messages[messages.length - 1];
@@ -698,7 +722,7 @@ export default function ChatInterface({
     if (changed) {
       setReasoningEndedAtBySlot((prev) => ({ ...prev, ...next }));
     }
-  }, [slotMessages, reasoningEndedAtBySlot]);
+  }, [slotMessages, reasoningEndedAtBySlot, reasoningStartedAtBySlot]);
 
   const sendInConversation = useCallback(
     (conversationId: string, text: string): boolean => {
@@ -779,9 +803,8 @@ export default function ChatInterface({
         ? conversationToSlot.get(selectedChatId)
         : undefined;
     if (slot === undefined) return null;
-    const _reasoningSteps = reasoningBySlot[slot];
-    return reasoningStartedAtBySlotRef.current[slot] ?? null;
-  }, [selectedChatId, conversationToSlot, reasoningBySlot]);
+    return reasoningStartedAtBySlot[slot] ?? null;
+  }, [selectedChatId, conversationToSlot, reasoningStartedAtBySlot]);
 
   const selectedChatReasoningEndedAt = useMemo(() => {
     const slot =

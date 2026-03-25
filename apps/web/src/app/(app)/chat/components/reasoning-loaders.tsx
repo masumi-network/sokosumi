@@ -7,17 +7,6 @@ import type { Chat, Coworker } from "@/app/chat/utils/types";
 
 import ReasoningLoaderRow from "./reasoning-loader-row";
 
-const GENERIC_LABELS = new Set([
-  "Processing...",
-  "Thinking...",
-  "Searching files...",
-  "Calling tools...",
-]);
-
-function isGenericLabel(message: string): boolean {
-  return GENERIC_LABELS.has(message) || message.trim() === "";
-}
-
 interface ReasoningLoadersProps {
   reasoningMessages: Array<{ id: string; message: string }>;
   selectedChatId: string | null;

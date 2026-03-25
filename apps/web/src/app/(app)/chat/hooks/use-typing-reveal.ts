@@ -13,6 +13,7 @@ export function useTypingReveal(text: string): string {
   const visibilityState = useDocumentVisibilityState();
 
   const [revealedLength, setRevealedLength] = useState(0);
+  const [revealSessionKey, setRevealSessionKey] = useState(0);
   const prevTextRef = useRef("");
   const targetRef = useRef(0);
   const revealedLengthRef = useRef(0);
@@ -30,13 +31,15 @@ export function useTypingReveal(text: string): string {
     if (prev.length > 0 && text.startsWith(prev)) {
       return;
     }
-    queueMicrotask(() => {
-      setRevealedLength(0);
-    });
+    revealedLengthRef.current = 0;
     if (intervalIdRef.current) {
       clearInterval(intervalIdRef.current);
       intervalIdRef.current = null;
     }
+    queueMicrotask(() => {
+      setRevealedLength(0);
+      setRevealSessionKey((k) => k + 1);
+    });
   }, [text]);
 
   useEffect(() => {
@@ -76,7 +79,7 @@ export function useTypingReveal(text: string): string {
         intervalIdRef.current = null;
       }
     };
-  }, [text.length, visibilityState]);
+  }, [text.length, visibilityState, revealSessionKey]);
 
   return text.slice(0, revealedLength);
 }

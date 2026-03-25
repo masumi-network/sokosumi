@@ -5,9 +5,7 @@ import type { UIMessage } from "ai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import {
-  displaySlugFromMetadata,
-} from "@/app/chat/utils/bucket-slug";
+import { displaySlugFromMetadata } from "@/app/chat/utils/bucket-slug";
 import type { Conversation } from "@/lib/actions/conversation";
 
 const FALLBACK_BUCKET_SEGMENT = "_";
