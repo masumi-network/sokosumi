@@ -82,10 +82,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             transactionId: { not: null },
           },
         });
-        const hasChargedTaskEvent = taskEventsWithTransactionCount > 0;
-        if (hasChargedTaskEvent) {
+        const hasLinkedTransactionEvent = taskEventsWithTransactionCount > 0;
+        if (hasLinkedTransactionEvent) {
           throw conflict(
-            "You can only change workspace before the task has charged events",
+            "You can only change workspace before the task has events linked to a transaction",
           );
         }
 
