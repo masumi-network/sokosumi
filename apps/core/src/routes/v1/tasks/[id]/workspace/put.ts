@@ -21,7 +21,7 @@ const paramsSchema = z.object({
 });
 
 export const putTaskWorkspaceRequestSchema = z.object({
-  organizationId: z.string().nullable().openapi({ example: "org_123" }),
+  organizationId: z.string().min(1).nullable().openapi({ example: "org_123" }),
 });
 
 const route = createRoute({
@@ -66,6 +66,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       async (tx) => {
         const task = await requireUserTaskAccess(authContext, id, tx);
         const workspaceChanged = organizationId !== task.organizationId;
+
+        if (!workspaceChanged) {
+          return await tx.task.findUniqueOrThrow({
+            where: { id },
+            include: taskInclude,
+          });
+        }
 
         if (workspaceChanged) {
           if (FINALIZED_TASK_STATUSES.has(task.status)) {

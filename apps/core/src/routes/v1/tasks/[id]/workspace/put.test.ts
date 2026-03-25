@@ -61,6 +61,7 @@ interface TransactionMock {
     count: ReturnType<typeof vi.fn>;
   };
   task: {
+    findUniqueOrThrow: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
   taskEvent: {
@@ -146,6 +147,14 @@ describe("putTaskWorkspaceRequestSchema", () => {
 
     expect(result.organizationId).toBeNull();
   });
+
+  it("rejects empty-string organization ids", () => {
+    expect(() =>
+      putTaskWorkspaceRequestSchema.parse({
+        organizationId: "",
+      }),
+    ).toThrow();
+  });
 });
 
 describe("PUT /tasks/{id}/workspace", () => {
@@ -162,6 +171,9 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
     jobCountMock.mockResolvedValue(0);
     taskEventFindManyMock.mockResolvedValue([]);
+    const taskFindUniqueOrThrowMock = vi
+      .fn()
+      .mockResolvedValue(createTaskRecord());
     taskUpdateMock.mockImplementation(async ({ data }: { data: TaskRecord }) => {
       return {
         ...defaultTask,
@@ -183,6 +195,7 @@ describe("PUT /tasks/{id}/workspace", () => {
         count: jobCountMock,
       },
       task: {
+        findUniqueOrThrow: taskFindUniqueOrThrowMock,
         update: taskUpdateMock,
       },
       taskEvent: {
@@ -446,8 +459,71 @@ describe("PUT /tasks/{id}/workspace", () => {
         status: TaskStatus.COMPLETED,
       }),
     );
-    taskUpdateMock.mockResolvedValue(
-      createTaskRecord({
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_current",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(jobCountMock).not.toHaveBeenCalled();
+    expect(taskEventFindManyMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for empty-string organization ids", async () => {
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(requireUserTaskAccessMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("reads the current task instead of updating on idempotent no-op requests", async () => {
+    const currentTask = createTaskRecord({
+      organizationId: "org_current",
+      status: TaskStatus.COMPLETED,
+    });
+    requireUserTaskAccessMock.mockResolvedValue(currentTask);
+
+    const currentTaskWithIncludes = {
+      ...currentTask,
+      events: [],
+      jobs: [],
+    };
+    const taskFindUniqueOrThrowMock = vi
+      .fn()
+      .mockResolvedValue(currentTaskWithIncludes);
+    mockTransaction({
+      job: {
+        count: jobCountMock,
+      },
+      task: {
+        findUniqueOrThrow: taskFindUniqueOrThrowMock,
+        update: taskUpdateMock,
+      },
+      taskEvent: {
+        findMany: taskEventFindManyMock,
+      },
+    });
+    mapTaskMock.mockReturnValue(
+      createTaskApi({
         organizationId: "org_current",
         status: TaskStatus.COMPLETED,
       }),
@@ -465,15 +541,10 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(jobCountMock).not.toHaveBeenCalled();
-    expect(taskEventFindManyMock).not.toHaveBeenCalled();
-    expect(taskUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: {
-          organizationId: "org_current",
-        },
-      }),
-    );
+    expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      include: expect.any(Object),
+    });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 });
