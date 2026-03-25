@@ -44,13 +44,13 @@ export const taskLinkSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     type: z.enum(TaskLinkType).openapi({ example: TaskLinkType.RELATES }),
-    note: z.string().nullable().openapi({ example: null }),
     fromTaskId: z.string().openapi({ example: "tsk_a" }),
     toTaskId: z.string().openapi({ example: "tsk_b" }),
+    peerTaskId: z.string().openapi({ example: "tsk_b" }),
     direction: z
       .enum(["outgoing", "incoming"])
       .openapi({ example: "outgoing" }),
-    peerTaskId: z.string().openapi({ example: "tsk_b" }),
+    note: z.string().nullable().openapi({ example: null }),
   })
   .openapi("TaskLink");
 
