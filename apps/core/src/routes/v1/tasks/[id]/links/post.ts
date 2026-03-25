@@ -1,9 +1,13 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { Prisma } from "@sokosumi/database";
 
 import { requireUserTaskAccess } from "@/helpers/access-control";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import {
+  isPrismaTransactionConflict,
+  isPrismaUniqueViolation,
+} from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { mapTaskLinkForTask } from "@/helpers/task";
 import { assertTaskLinkAllowed } from "@/helpers/task-link";
@@ -54,27 +58,41 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
     const { toTaskId, type, note } = body;
 
-    const link = await prisma.$transaction(async (tx) => {
-      await requireUserTaskAccess(authContext, id, tx);
-      await requireUserTaskAccess(authContext, toTaskId, tx);
-      assertTaskLinkAllowed(id, toTaskId);
-
+    const link = await (async () => {
       try {
-        return await tx.taskLink.create({
-          data: {
-            fromTaskId: id,
-            toTaskId,
-            type,
-            note: note ?? null,
+        return await prisma.$transaction(
+          async (tx) => {
+            await requireUserTaskAccess(authContext, id, tx);
+            await requireUserTaskAccess(authContext, toTaskId, tx);
+            assertTaskLinkAllowed(id, toTaskId);
+
+            try {
+              return await tx.taskLink.create({
+                data: {
+                  fromTaskId: id,
+                  toTaskId,
+                  type,
+                  note: note ?? null,
+                },
+              });
+            } catch (error) {
+              if (isPrismaUniqueViolation(error)) {
+                throw conflict("This task link already exists");
+              }
+              throw error;
+            }
           },
-        });
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          },
+        );
       } catch (error) {
-        if (isPrismaUniqueViolation(error)) {
-          throw conflict("This task link already exists");
+        if (isPrismaTransactionConflict(error)) {
+          throw conflict("Task changed while creating the link. Please retry.");
         }
         throw error;
       }
-    });
+    })();
 
     return created(c, mapTaskLinkForTask(id, link));
   });

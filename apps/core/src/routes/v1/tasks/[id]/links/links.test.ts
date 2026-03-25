@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -333,6 +333,29 @@ describe("POST /tasks/{id}/links", () => {
     });
 
     expect(response.status).toBe(409);
+  });
+
+  it("uses a serializable transaction and returns 409 on transaction conflict", async () => {
+    prismaTransactionMock.mockRejectedValueOnce(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+
+    const app = createUserApp();
+    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toTaskId: "tsk_b",
+        type: TaskLinkType.RELATES,
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
   });
 
   it("returns 400 when a task is linked to itself", async () => {
