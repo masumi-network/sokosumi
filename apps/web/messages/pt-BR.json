@@ -1408,14 +1408,14 @@
           "revertToDraft": "Voltar para rascunho",
           "cancelRequest": "Solicitar cancelamento",
           "updateStatusSuccess": "Status da tarefa atualizado",
-          "moveToWorkspace": "Move to workspace",
-          "moveToWorkspaceTitle": "Move task to another workspace",
-          "moveToWorkspaceDescription": "Select the workspace you want to move this task to.",
-          "moveToWorkspaceButton": "Move task",
-          "moveToWorkspaceCancel": "Cancel",
-          "moveToWorkspaceSuccess": "Task moved successfully",
-          "moveToWorkspaceError": "Failed to move task",
-          "personalWorkspace": "Personal"
+          "moveToWorkspace": "Mover para outro espaço de trabalho",
+          "moveToWorkspaceTitle": "Mover a tarefa para outro espaço de trabalho",
+          "moveToWorkspaceDescription": "Selecione o espaço de trabalho para onde você quer mover esta tarefa.",
+          "moveToWorkspaceButton": "Mover tarefa",
+          "moveToWorkspaceCancel": "Cancelar",
+          "moveToWorkspaceSuccess": "Tarefa movida com sucesso",
+          "moveToWorkspaceError": "Não foi possível mover a tarefa",
+          "personalWorkspace": "Pessoal"
         },
         "switchedWorkspace": "Você mudou para a conta {account}"
       },

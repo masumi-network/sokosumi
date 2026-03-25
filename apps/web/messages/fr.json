@@ -1408,14 +1408,14 @@
           "revertToDraft": "Revenir au brouillon",
           "cancelRequest": "Annuler la demande",
           "updateStatusSuccess": "Statut de la tâche mis à jour",
-          "moveToWorkspace": "Move to workspace",
-          "moveToWorkspaceTitle": "Move task to another workspace",
-          "moveToWorkspaceDescription": "Select the workspace you want to move this task to.",
-          "moveToWorkspaceButton": "Move task",
-          "moveToWorkspaceCancel": "Cancel",
-          "moveToWorkspaceSuccess": "Task moved successfully",
-          "moveToWorkspaceError": "Failed to move task",
-          "personalWorkspace": "Personal"
+          "moveToWorkspace": "Déplacer vers un autre espace de travail",
+          "moveToWorkspaceTitle": "Déplacer la tâche vers un autre espace de travail",
+          "moveToWorkspaceDescription": "Sélectionnez l'espace de travail vers lequel vous souhaitez déplacer cette tâche.",
+          "moveToWorkspaceButton": "Déplacer la tâche",
+          "moveToWorkspaceCancel": "Annuler",
+          "moveToWorkspaceSuccess": "Tâche déplacée avec succès",
+          "moveToWorkspaceError": "Échec du déplacement de la tâche",
+          "personalWorkspace": "Personnel"
         },
         "switchedWorkspace": "Passage au compte {account}"
       },

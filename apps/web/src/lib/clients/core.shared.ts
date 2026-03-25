@@ -30,6 +30,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postUsersMeFiles as corePostUsersMeFiles,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
+  putTasksByIdWorkspace as corePutTasksByIdWorkspace,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
@@ -542,26 +543,12 @@ export function createCoreClient(getClient: GetClient) {
   ) {
     return executeOperation(
       getClient,
-      async (client) => {
-        const result = await client.put({
-          url: `/v1/tasks/${encodeURIComponent(id)}/workspace`,
-          security: [{ scheme: "bearer", type: "http" }],
+      (client) =>
+        corePutTasksByIdWorkspace({
+          client,
+          path: { id },
           body,
-        });
-        if (result.error) {
-          return {
-            data: undefined,
-            error: result.error,
-            response: result.response,
-          };
-        }
-        const envelope = result.data as { data?: unknown } | undefined;
-        return {
-          data: envelope?.data as Record<string, unknown> | undefined,
-          error: undefined,
-          response: result.response,
-        };
-      },
+        }),
       "Failed to move task to workspace",
     );
   }

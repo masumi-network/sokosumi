@@ -44,6 +44,7 @@ export default async function TaskDetailPage({
     locale,
     t,
     tOrganizationSwitcher,
+    tMembersTableHeader,
   ] = await Promise.all([
     coworkerService.listCoworkers(),
     agentService.getAvailableAgentsWithCreditsPrice(),
@@ -52,6 +53,7 @@ export default async function TaskDetailPage({
     getLocale(),
     getTranslations("App.Tasks.Detail"),
     getTranslations("Components.OrganizationSwitcher"),
+    getTranslations("Components.MembersTable.Header"),
   ]);
   let activeSubscriptions: ActiveSubscription[] = [];
   try {
@@ -90,6 +92,10 @@ export default async function TaskDetailPage({
     members,
     tOrganizationSwitcher("personalAccount"),
   );
+  const personalWorkspaceMoveLabel =
+    session?.user?.name?.trim() ||
+    session?.user?.email?.trim() ||
+    t("actions.personalWorkspace");
   const currentUser = session?.user
     ? {
         id: session.user.id,
@@ -128,8 +134,10 @@ export default async function TaskDetailPage({
           task={task}
           currentOrganizationId={targetOrganizationId}
           organizations={members}
+          personalWorkspaceLabel={personalWorkspaceMoveLabel}
           labels={{
             back: t("back"),
+            actionsMenuLabel: tMembersTableHeader("actions"),
             actions: {
               edit: t("actions.edit"),
               delete: t("actions.delete"),

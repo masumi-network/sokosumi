@@ -1408,14 +1408,14 @@
           "revertToDraft": "下書きに戻す",
           "cancelRequest": "キャンセルを申請",
           "updateStatusSuccess": "タスクステータスを更新しました",
-          "moveToWorkspace": "Move to workspace",
-          "moveToWorkspaceTitle": "Move task to another workspace",
-          "moveToWorkspaceDescription": "Select the workspace you want to move this task to.",
-          "moveToWorkspaceButton": "Move task",
-          "moveToWorkspaceCancel": "Cancel",
-          "moveToWorkspaceSuccess": "Task moved successfully",
-          "moveToWorkspaceError": "Failed to move task",
-          "personalWorkspace": "Personal"
+          "moveToWorkspace": "ワークスペースへ移動",
+          "moveToWorkspaceTitle": "タスクを別のワークスペースへ移動",
+          "moveToWorkspaceDescription": "このタスクを移動先のワークスペースを選択してください。",
+          "moveToWorkspaceButton": "タスクを移動",
+          "moveToWorkspaceCancel": "キャンセル",
+          "moveToWorkspaceSuccess": "タスクを移動しました",
+          "moveToWorkspaceError": "タスクを移動できませんでした",
+          "personalWorkspace": "個人"
         },
         "switchedWorkspace": "{account} アカウントに切り替えました"
       },

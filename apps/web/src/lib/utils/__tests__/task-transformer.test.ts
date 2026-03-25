@@ -34,6 +34,7 @@ describe("mapTaskToTaskWithCoworker", () => {
 
     expect(mapped.columnId).toBe("done");
     expect(mapped.status).toBe(TaskStatus.CANCELED);
+    expect(mapped.jobsCount).toBe(0);
   });
 
   it("keeps completed tasks in done column", () => {
@@ -80,5 +81,15 @@ describe("mapTaskToTaskWithCoworker", () => {
 
     expect(mapped.createdAt).toBe("2026-01-01T00:00:00.000Z");
     expect(mapped.updatedAt).toBe("2026-01-01T01:00:00.000Z");
+  });
+
+  it("maps jobs count from the API task", () => {
+    const task = buildTask(TaskStatus.READY, {
+      jobs: [{ id: "job-1" }] as TaskInput["jobs"],
+    });
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.jobsCount).toBe(1);
   });
 });

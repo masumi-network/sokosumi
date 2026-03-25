@@ -1408,14 +1408,14 @@
           "revertToDraft": "Ripristina bozza",
           "cancelRequest": "Annulla richiesta",
           "updateStatusSuccess": "Stato del task aggiornato",
-          "moveToWorkspace": "Move to workspace",
-          "moveToWorkspaceTitle": "Move task to another workspace",
-          "moveToWorkspaceDescription": "Select the workspace you want to move this task to.",
-          "moveToWorkspaceButton": "Move task",
-          "moveToWorkspaceCancel": "Cancel",
-          "moveToWorkspaceSuccess": "Task moved successfully",
-          "moveToWorkspaceError": "Failed to move task",
-          "personalWorkspace": "Personal"
+          "moveToWorkspace": "Sposta in un altro spazio di lavoro",
+          "moveToWorkspaceTitle": "Sposta il task in un altro spazio di lavoro",
+          "moveToWorkspaceDescription": "Seleziona lo spazio di lavoro in cui vuoi spostare questo task.",
+          "moveToWorkspaceButton": "Sposta task",
+          "moveToWorkspaceCancel": "Annulla",
+          "moveToWorkspaceSuccess": "Task spostato con successo",
+          "moveToWorkspaceError": "Impossibile spostare il task",
+          "personalWorkspace": "Personale"
         },
         "switchedWorkspace": "Passato all’account {account}"
       },

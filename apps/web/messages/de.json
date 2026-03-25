@@ -1377,14 +1377,14 @@
           "revertToDraft": "In Entwurf zurücksetzen",
           "cancelRequest": "Anfrage abbrechen",
           "updateStatusSuccess": "Task-Status aktualisiert",
-          "moveToWorkspace": "Move to workspace",
-          "moveToWorkspaceTitle": "Move task to another workspace",
-          "moveToWorkspaceDescription": "Select the workspace you want to move this task to.",
-          "moveToWorkspaceButton": "Move task",
-          "moveToWorkspaceCancel": "Cancel",
-          "moveToWorkspaceSuccess": "Task moved successfully",
-          "moveToWorkspaceError": "Failed to move task",
-          "personalWorkspace": "Personal"
+          "moveToWorkspace": "In anderen Arbeitsbereich verschieben",
+          "moveToWorkspaceTitle": "Task in einen anderen Arbeitsbereich verschieben",
+          "moveToWorkspaceDescription": "Wählen Sie den Arbeitsbereich, in den Sie diese Aufgabe verschieben möchten.",
+          "moveToWorkspaceButton": "Task verschieben",
+          "moveToWorkspaceCancel": "Abbrechen",
+          "moveToWorkspaceSuccess": "Task wurde verschoben",
+          "moveToWorkspaceError": "Task konnte nicht verschoben werden",
+          "personalWorkspace": "Persönlich"
         },
         "switchedWorkspace": "Zu {account}-Account gewechselt"
       },

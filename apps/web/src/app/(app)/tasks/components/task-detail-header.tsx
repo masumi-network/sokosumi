@@ -10,8 +10,11 @@ interface TaskDetailHeaderProps {
   task: TaskWithCoworker;
   currentOrganizationId?: string | null;
   organizations?: MemberWithOrganization[];
+  /** Shown when moving a task to the personal workspace (e.g. user name). */
+  personalWorkspaceLabel: string;
   labels: {
     back: string;
+    actionsMenuLabel: string;
     actions: {
       edit: string;
       delete: string;
@@ -29,6 +32,7 @@ export function TaskDetailHeader({
   task,
   currentOrganizationId,
   organizations,
+  personalWorkspaceLabel,
   labels,
 }: TaskDetailHeaderProps) {
   const canManage =
@@ -57,9 +61,12 @@ export function TaskDetailHeader({
           <TaskDetailActions
             taskId={task.id}
             status={task.status}
+            jobsCount={task.jobsCount}
+            actionsMenuLabel={labels.actionsMenuLabel}
             labels={labels.actions}
             currentOrganizationId={currentOrganizationId}
             organizations={organizations}
+            personalWorkspaceLabel={personalWorkspaceLabel}
           />
         ) : null}
       </div>

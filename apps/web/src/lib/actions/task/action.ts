@@ -3,6 +3,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import { revalidatePath } from "next/cache";
 
+import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { taskService } from "@/lib/services/task.service";
 import {
@@ -162,7 +163,7 @@ export const moveTaskToWorkspace = withSession<
     return { taskId };
   } catch (error) {
     console.error("Failed to move task to workspace", error);
-    throw new Error("Failed to move task to workspace");
+    throw new Error(toCoreApiActionError(error).message);
   }
 });
 

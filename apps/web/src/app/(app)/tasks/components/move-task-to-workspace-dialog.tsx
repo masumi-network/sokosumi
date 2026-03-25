@@ -23,12 +23,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { moveTaskToWorkspace } from "@/lib/actions/task/action";
 import { cn } from "@/lib/utils";
 
+import { buildWorkspaceMoveTargets } from "./workspace-move-targets";
+
 interface MoveTaskToWorkspaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   taskId: string;
   currentOrganizationId: string | null;
   organizations: MemberWithOrganization[];
+  /** Label for the personal workspace row (e.g. the signed-in user's name). */
+  personalWorkspaceLabel: string;
 }
 
 interface WorkspaceOption {
@@ -44,34 +48,27 @@ export function MoveTaskToWorkspaceDialog({
   taskId,
   currentOrganizationId,
   organizations,
+  personalWorkspaceLabel,
 }: MoveTaskToWorkspaceDialogProps) {
   const t = useTranslations("App.Tasks.Detail.actions");
   const router = useRouter();
   const [selectedValue, setSelectedValue] = useState<string>("");
   const [isPending, startTransition] = useTransition();
 
-  const workspaceOptions: WorkspaceOption[] = [];
-
-  // Add personal workspace option if current task is in an organization
-  if (currentOrganizationId !== null) {
-    workspaceOptions.push({
-      id: "personal",
-      organizationId: null,
-      name: t("personalWorkspace"),
-    });
-  }
-
-  // Add organization workspaces, excluding the current one
-  for (const member of organizations) {
-    if (member.organization.id !== currentOrganizationId) {
-      workspaceOptions.push({
-        id: member.organization.id,
-        organizationId: member.organization.id,
-        name: member.organization.name,
-        organization: member.organization,
-      });
-    }
-  }
+  const workspaceOptions: WorkspaceOption[] = buildWorkspaceMoveTargets(
+    currentOrganizationId,
+    organizations,
+  ).map((target) =>
+    target.id === "personal"
+      ? {
+          ...target,
+          name: personalWorkspaceLabel.trim() || t("personalWorkspace"),
+        }
+      : {
+          ...target,
+          name: target.organization?.name ?? target.id,
+        },
+  );
 
   const selectedOption = workspaceOptions.find((o) => o.id === selectedValue);
 
@@ -86,9 +83,14 @@ export function MoveTaskToWorkspaceDialog({
         });
         toast.success(t("moveToWorkspaceSuccess"));
         onOpenChange(false);
+        router.refresh();
         router.push("/tasks");
-      } catch {
-        toast.error(t("moveToWorkspaceError"));
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : t("moveToWorkspaceError");
+        toast.error(message);
       }
     });
   };
@@ -126,10 +128,7 @@ export function MoveTaskToWorkspaceDialog({
                   : "border-border hover:bg-muted/50",
               )}
             >
-              <RadioGroupItem
-                value={option.id}
-                id={`workspace-${option.id}`}
-              />
+              <RadioGroupItem value={option.id} id={`workspace-${option.id}`} />
               {option.organization ? (
                 <Avatar className="bg-muted size-6 items-center justify-center">
                   <OrganizationLogo

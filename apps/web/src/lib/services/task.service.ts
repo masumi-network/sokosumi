@@ -100,16 +100,16 @@ export const taskService = (() => {
   async function moveTaskToWorkspace(
     taskId: string,
     organizationId: string | null,
-  ) {
+  ): Promise<Task> {
     const result = await coreClient.moveTaskToWorkspace(taskId, {
       organizationId,
     });
 
-    if (!result) {
+    if (!result.data) {
       throw new Error("Failed to move task to workspace");
     }
 
-    return result;
+    return result.data;
   }
 
   async function deleteTask(taskId: string): Promise<Task> {
