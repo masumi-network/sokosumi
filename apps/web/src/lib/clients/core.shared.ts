@@ -30,6 +30,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postUsersMeFiles as corePostUsersMeFiles,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
+  putTasksByIdWorkspace as corePutTasksByIdWorkspace,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
@@ -536,6 +537,22 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function moveTaskToWorkspace(
+    id: string,
+    body: { organizationId: string | null },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutTasksByIdWorkspace({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to move task to workspace",
+    );
+  }
+
   async function postConversationsByIdRecoverResponse(id: string) {
     return executeOperation(
       getClient,
@@ -588,6 +605,7 @@ export function createCoreClient(getClient: GetClient) {
     getMyCredits,
     getMyOrganizations,
     getPendingNotices,
+    moveTaskToWorkspace,
     getTaskById,
     getTasks,
     patchTask,

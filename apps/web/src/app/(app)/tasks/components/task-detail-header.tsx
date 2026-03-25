@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { type MemberWithOrganization, TaskStatus } from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -8,8 +8,13 @@ import { TaskDetailActions } from "./task-detail-actions";
 
 interface TaskDetailHeaderProps {
   task: TaskWithCoworker;
+  currentOrganizationId?: string | null;
+  organizations?: MemberWithOrganization[];
+  /** Shown when moving a task to the personal workspace (e.g. user name). */
+  personalWorkspaceLabel: string;
   labels: {
     back: string;
+    actionsMenuLabel: string;
     actions: {
       edit: string;
       delete: string;
@@ -23,7 +28,13 @@ interface TaskDetailHeaderProps {
   };
 }
 
-export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
+export function TaskDetailHeader({
+  task,
+  currentOrganizationId,
+  organizations,
+  personalWorkspaceLabel,
+  labels,
+}: TaskDetailHeaderProps) {
   const canManage =
     task.status === TaskStatus.DRAFT ||
     task.status === TaskStatus.READY ||
@@ -50,7 +61,12 @@ export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
           <TaskDetailActions
             taskId={task.id}
             status={task.status}
+            jobsCount={task.jobsCount}
+            actionsMenuLabel={labels.actionsMenuLabel}
             labels={labels.actions}
+            currentOrganizationId={currentOrganizationId}
+            organizations={organizations}
+            personalWorkspaceLabel={personalWorkspaceLabel}
           />
         ) : null}
       </div>

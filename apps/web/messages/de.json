@@ -1376,7 +1376,15 @@
           "markAsReady": "Als bereit markieren",
           "revertToDraft": "In Entwurf zurücksetzen",
           "cancelRequest": "Anfrage abbrechen",
-          "updateStatusSuccess": "Task-Status aktualisiert"
+          "updateStatusSuccess": "Task-Status aktualisiert",
+          "moveToWorkspace": "In anderen Arbeitsbereich verschieben",
+          "moveToWorkspaceTitle": "Task in einen anderen Arbeitsbereich verschieben",
+          "moveToWorkspaceDescription": "Wählen Sie den Arbeitsbereich, in den Sie diese Aufgabe verschieben möchten.",
+          "moveToWorkspaceButton": "Task verschieben",
+          "moveToWorkspaceCancel": "Abbrechen",
+          "moveToWorkspaceSuccess": "Task wurde verschoben",
+          "moveToWorkspaceError": "Task konnte nicht verschoben werden",
+          "personalWorkspace": "Persönlich"
         },
         "switchedWorkspace": "Zu {account}-Account gewechselt"
       },

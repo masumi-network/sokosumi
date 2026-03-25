@@ -92,6 +92,7 @@ export function mapTaskToTaskWithCoworker(
     userId: task.userId,
     createdAt,
     updatedAt,
+    jobsCount: task.jobs.length,
     coworker,
     agents,
     commentsCount: getCommentsCount(task.events),
