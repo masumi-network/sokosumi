@@ -1,6 +1,8 @@
 "use client";
 
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
 
 import { useStreamingContent } from "@/app/chat/hooks/use-streaming-content";
 import { useStreamingPaused } from "@/app/chat/hooks/use-streaming-paused";
@@ -9,6 +11,11 @@ import { extractOAuthAuthorizationUrl } from "@/app/chat/utils/oauth-link";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import { ChatOAuthAuthenticateCta } from "./chat-oauth-authenticate-cta";
@@ -46,6 +53,17 @@ export default function ChatMessage({
   const isAssistantStreaming = !isUser && isStreaming;
   const displayContent = useStreamingContent(content, isAssistantStreaming);
   const isPaused = useStreamingPaused(content, isAssistantStreaming);
+
+  const [isPromptExpanded, setIsPromptExpanded] = useState(false);
+  const [showPromptToggle, setShowPromptToggle] = useState(false);
+  const userContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isUser || isPromptExpanded || !userContentRef.current) return;
+    const el = userContentRef.current;
+    const overflow = el.scrollHeight > el.clientHeight;
+    setShowPromptToggle(overflow);
+  }, [isUser, isPromptExpanded, displayContent]);
 
   const timestamp = createdAt
     ? formatter.dateTime(createdAt, {
@@ -171,14 +189,57 @@ export default function ChatMessage({
                 style={{ fontSize: "0.875rem" }}
               >
                 {displayContent && displayContent.trim() ? (
-                  <Markdown>{displayContent}</Markdown>
+                  isUser ? (
+                    <>
+                      <div
+                        ref={userContentRef}
+                        className={cn(!isPromptExpanded && "line-clamp-3")}
+                      >
+                        <Markdown>{displayContent}</Markdown>
+                      </div>
+                      {(showPromptToggle || isPromptExpanded) && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              aria-label={
+                                isPromptExpanded
+                                  ? t("collapsePrompt")
+                                  : t("expandPrompt")
+                              }
+                              className="text-muted-foreground hover:text-foreground mt-1 flex w-full justify-center rounded p-1 transition-colors"
+                              onClick={() =>
+                                setIsPromptExpanded((prev) => !prev)
+                              }
+                              type="button"
+                            >
+                              {isPromptExpanded ? (
+                                <ChevronUp className="size-4" />
+                              ) : (
+                                <ChevronDown className="size-4" />
+                              )}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            className="bg-popover text-popover-foreground border-border border"
+                            hideArrow
+                          >
+                            {isPromptExpanded
+                              ? t("collapsePrompt")
+                              : t("expandPrompt")}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </>
+                  ) : (
+                    <Markdown>{displayContent}</Markdown>
+                  )
                 ) : isAssistantStreaming ? (
                   <span className="reasoning-text-shine text-sm leading-5">
                     {t("reasoning.thinking")}
                   </span>
                 ) : (
                   <span className="text-muted-foreground italic">
-                    {isUser ? "(Empty message)" : "(No response yet)"}
+                    {isUser ? "(Empty message)" : t("noResponseConnectionLost")}
                   </span>
                 )}
               </div>

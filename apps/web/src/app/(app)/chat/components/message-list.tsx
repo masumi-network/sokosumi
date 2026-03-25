@@ -4,6 +4,7 @@ import type { UIMessage } from "ai";
 import { useTranslations } from "next-intl";
 import {
   forwardRef,
+  Fragment,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -18,11 +19,16 @@ import {
 } from "@/app/chat/utils/date-utils";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
+import { AssistantAvatarContent } from "./assistant-avatar-content";
 import ChatMessage from "./chat-message";
 import DaySeparator from "./day-separator";
 import LoadingIndicator from "./loading-indicator";
 import ReasoningLoaders from "./reasoning-loaders";
+import ThoughtSummaryBar from "./thought-summary-bar";
 
 export type MessageListHandle = Record<string, never>;
 
@@ -55,9 +61,22 @@ interface MessageListProps {
   userName?: string;
   isLoading: boolean;
   isPollingForPendingResponse?: boolean;
+  isRecovering?: boolean;
+  isRecoveringPolling?: boolean;
+  /** When true, show "connection lost" message instead of generic pending error */
+  isRecoveryNotFound?: boolean;
   pendingResponseFailed?: boolean;
+  hasPendingIdInMetadata?: boolean;
+  conversationCoworkerFallback?: {
+    id: string;
+    name?: string;
+    avatar?: string | null;
+  } | null;
   reasoningMessages?: Array<{ id: string; message: string }>;
+  reasoningStartedAt?: number;
+  reasoningEndedAt?: number;
   isCoworker?: boolean;
+  onResendLastMessage?: (lastUserMessageText: string) => void;
 }
 
 const MessageList = forwardRef<MessageListHandle, MessageListProps>(
@@ -71,9 +90,17 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       userName,
       isLoading,
       isPollingForPendingResponse = false,
+      isRecovering = false,
+      isRecoveringPolling = false,
+      isRecoveryNotFound = false,
       pendingResponseFailed = false,
+      hasPendingIdInMetadata = false,
+      conversationCoworkerFallback = null,
       reasoningMessages = [],
+      reasoningStartedAt,
+      reasoningEndedAt,
       isCoworker = false,
+      onResendLastMessage,
     },
     ref,
   ) {
@@ -122,32 +149,106 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         : "";
     const lastAssistantHasNoContent =
       lastMessage?.role === "assistant" && !lastMessageContent.trim();
+    const showPendingErrorForEmptyAssistant =
+      hasPendingIdInMetadata &&
+      lastMessage?.role === "assistant" &&
+      lastAssistantHasNoContent &&
+      !isLoading;
     const showLoadingArea =
-      (isLoading || isPollingForPendingResponse) &&
+      (isLoading || isPollingForPendingResponse || isRecovering) &&
       (!lastMessage ||
         lastMessage.role !== "assistant" ||
         lastAssistantHasNoContent);
     const showReasoningLoaders =
-      showLoadingArea && isCoworker && reasoningMessages.length > 0;
+      showLoadingArea &&
+      isCoworker &&
+      reasoningMessages.length > 0 &&
+      !isRecoveringPolling &&
+      !isRecovering;
+    const hasStreamingWithReasoning =
+      isCoworker &&
+      reasoningMessages.length > 0 &&
+      lastMessage?.role === "assistant" &&
+      lastMessageContent.trim().length > 0;
+    const recoveryInFlight = isRecovering || isRecoveringPolling;
+    const showPendingError =
+      !recoveryInFlight &&
+      (pendingResponseFailed || showPendingErrorForEmptyAssistant);
     const showLoadingIndicator =
-      showLoadingArea && !showReasoningLoaders && !pendingResponseFailed;
+      isRecovering ||
+      (showLoadingArea && !showReasoningLoaders && !showPendingError);
+    const loadingIndicatorLabel = undefined;
 
     const sections = groupMessagesIntoSection(messagesWithTimestamps);
 
-    useEffect(() => {
-      if (sections.length > 1) scrollToMax();
-    }, [sections.length, scrollToMax]);
-
     const selectedChat = chats.find((c) => c.id === selectedChatId);
-    const coworkerId = selectedChat?.coworker?.id;
-    const coworkerName = selectedChat?.coworker?.name;
+    const coworkerId =
+      selectedChat?.coworker?.id ?? conversationCoworkerFallback?.id;
+    const coworkerName =
+      selectedChat?.coworker?.name ?? conversationCoworkerFallback?.name;
     const coworkerFromList = coworkerId
       ? coworkers.find((c) => c.id === coworkerId)
       : undefined;
     const coworkerImageUrl =
-      selectedChat?.coworker?.avatar ?? coworkerFromList?.avatar;
+      selectedChat?.coworker?.avatar ??
+      conversationCoworkerFallback?.avatar ??
+      coworkerFromList?.avatar;
     const modelName = selectedChat?.model?.name;
     const modelId = selectedChat?.model?.id;
+
+    const lastUserMessageText = (() => {
+      for (let i = messagesWithTimestamps.length - 1; i >= 0; i--) {
+        const msg = messagesWithTimestamps[i];
+        if ((msg.role as string) === "user") {
+          const text = extractMessageContent(msg).trim();
+          if (text) return text;
+          return "";
+        }
+      }
+      return "";
+    })();
+
+    const canResend = Boolean(
+      showPendingError && onResendLastMessage && lastUserMessageText,
+    );
+
+    const pendingErrorMessage = isRecoveryNotFound
+      ? t("noResponseConnectionLost")
+      : t("pendingResponseFailed");
+    const pendingErrorBlock = showPendingError && (
+      <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
+        <Avatar
+          className={cn(
+            "size-8 shrink-0 overflow-hidden rounded-full",
+            modelId && "bg-white dark:bg-black",
+          )}
+        >
+          <AssistantAvatarContent
+            coworkerId={coworkerId ?? undefined}
+            coworkerImageUrl={coworkerImageUrl}
+            coworkerName={coworkerName}
+            modelId={modelId ?? undefined}
+            modelName={modelName}
+          />
+        </Avatar>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <p className="text-muted-foreground text-sm">{pendingErrorMessage}</p>
+          {canResend && (
+            <Button
+              className="bg-foreground text-background hover:bg-foreground/90 w-fit"
+              onClick={() => onResendLastMessage?.(lastUserMessageText)}
+              size="sm"
+            >
+              {t("resend")}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+
+    useEffect(() => {
+      if (sections.length > 1) scrollToMax();
+    }, [sections.length, scrollToMax]);
 
     function renderMessage(message: UIMessage, index: number) {
       const role = message.role as "user" | "assistant" | "system";
@@ -203,6 +304,11 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         !content.trim() &&
         isLoading &&
         (showReasoningLoaders || showLoadingIndicator);
+      const hideEmptyAssistantShowError =
+        isLastMessage &&
+        role === "assistant" &&
+        !content.trim() &&
+        showPendingErrorForEmptyAssistant;
       const stableKeyForLastAssistant = isLastMessage && role === "assistant";
       const messageKey = stableKeyForLastAssistant
         ? `${selectedChatId ?? "no-chat"}-${index}-last-assistant`
@@ -216,7 +322,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
               formatDaySeparator={formatDaySeparator}
             />
           )}
-          {!hideEmptyAssistantWhileLoading && (
+          {!hideEmptyAssistantWhileLoading && !hideEmptyAssistantShowError && (
             <div className="mb-1">
               <ChatMessage
                 role={role}
@@ -250,7 +356,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           <div className="flex flex-col items-center pt-20 pb-40 md:pt-4">
             <div className="flex w-full max-w-4xl flex-col">
               {sections.length === 0 &&
-                (showLoadingArea || pendingResponseFailed) && (
+                (showLoadingArea || pendingResponseFailed || isRecovering) && (
                   <>
                     {showReasoningLoaders && (
                       <ReasoningLoaders
@@ -260,12 +366,10 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                         coworkers={coworkers}
                       />
                     )}
-                    {showLoadingIndicator && <LoadingIndicator />}
-                    {pendingResponseFailed && (
-                      <div className="text-muted-foreground flex min-h-11 items-start gap-3 px-4 py-1.5 text-sm">
-                        {t("pendingResponseFailed")}
-                      </div>
+                    {showLoadingIndicator && (
+                      <LoadingIndicator label={loadingIndicatorLabel} />
                     )}
+                    {pendingErrorBlock}
                     <div
                       className="min-h-[160px] shrink-0"
                       aria-hidden
@@ -293,9 +397,27 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                     style={sectionStyle}
                     className="flex flex-col justify-start pt-4"
                   >
-                    {section.map((message, i) =>
-                      renderMessage(message, globalStart + i),
-                    )}
+                    {section.map((message, i) => {
+                      const isLastInSection = i === section.length - 1;
+                      const role = message.role as string;
+                      const showThoughtBar =
+                        sectionIndex === sections.length - 1 &&
+                        isLastInSection &&
+                        role === "assistant" &&
+                        hasStreamingWithReasoning;
+                      return (
+                        <Fragment key={`section-${sectionIndex}-msg-${i}`}>
+                          {showThoughtBar && (
+                            <ThoughtSummaryBar
+                              reasoningEndedAt={reasoningEndedAt ?? null}
+                              reasoningMessages={reasoningMessages}
+                              reasoningStartedAt={reasoningStartedAt ?? null}
+                            />
+                          )}
+                          {renderMessage(message, globalStart + i)}
+                        </Fragment>
+                      );
+                    })}
                     {sectionIndex === sections.length - 1 && (
                       <>
                         {showReasoningLoaders && (
@@ -306,12 +428,10 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                             coworkers={coworkers}
                           />
                         )}
-                        {showLoadingIndicator && <LoadingIndicator />}
-                        {pendingResponseFailed && (
-                          <div className="text-muted-foreground flex min-h-11 items-start gap-3 px-4 py-1.5 text-sm">
-                            {t("pendingResponseFailed")}
-                          </div>
+                        {showLoadingIndicator && (
+                          <LoadingIndicator label={loadingIndicatorLabel} />
                         )}
+                        {pendingErrorBlock}
                         {(showLoadingArea || pendingResponseFailed) && (
                           <div
                             className="min-h-[160px] shrink-0"

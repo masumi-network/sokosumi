@@ -1206,11 +1206,16 @@
         "modelAlt": "Modelo",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Avatar del usuario",
+        "expandPrompt": "Mostrar mensaje completo",
+        "collapsePrompt": "Mostrar menos",
         "reasoning": {
           "processing": "Procesando...",
           "thinking": "Pensando...",
           "searchingFiles": "Buscando archivos...",
-          "callingTools": "Usando herramientas..."
+          "callingTools": "Usando herramientas...",
+          "thoughtForSeconds": "Pensado durante {seconds}s",
+          "expandSteps": "Mostrar pasos de razonamiento",
+          "collapseSteps": "Ocultar pasos de razonamiento"
         },
         "chatErrorTitle": "Error en el chat",
         "errorFallbackDescription": "Hubo un problema con la interfaz del chat. Por favor, recarga la página o contacta con soporte si el problema persiste.",
@@ -1221,6 +1226,8 @@
         "tryAgain": "Intentar de nuevo",
         "networkErrorAfterRetry": "No se pudo conectar con el servidor tras varios intentos. Por favor, comprueba tu conexión e inténtalo de nuevo.",
         "pendingResponseFailed": "Algo salió mal de nuestro lado. Por favor, intenta reenviar tu último mensaje.",
+        "resend": "Reenviar",
+        "noResponseConnectionLost": "Se perdió la conexión. Por favor, actualiza el navegador e inténtalo de nuevo.",
         "authorize": "Autorizar"
       }
     },

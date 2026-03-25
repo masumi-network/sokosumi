@@ -1,38 +1,38 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+import { ReasoningStepText } from "./reasoning-step-text";
+
 interface ReasoningLoaderRowProps {
-  message: string;
+  loaderLabel: string;
+  subordinateSteps: string[];
   selectedChatId: string | null;
   chats: Chat[];
   coworkers?: Coworker[];
 }
 
-const REASONING_MESSAGE_KEYS: Record<
-  string,
-  "processing" | "thinking" | "searchingFiles" | "callingTools"
-> = {
-  "Processing...": "processing",
-  "Thinking...": "thinking",
-  "Searching files...": "searchingFiles",
-  "Calling tools...": "callingTools",
-};
-
 export default function ReasoningLoaderRow({
-  message,
+  loaderLabel,
+  subordinateSteps,
   selectedChatId,
   chats,
   coworkers = [],
 }: ReasoningLoaderRowProps) {
   const t = useTranslations("App.Chat.Chat");
-  const key = REASONING_MESSAGE_KEYS[message];
-  const displayMessage = key ? t(`reasoning.${key}`) : message;
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [subordinateSteps]);
+
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const coworkerId = selectedChat?.coworker?.id;
   const coworkerFromList = coworkerId
@@ -82,19 +82,41 @@ export default function ReasoningLoaderRow({
   }
 
   return (
-    <div className="flex min-h-11 items-start gap-3 px-4 py-1.5">
-      <Avatar
-        className={`size-8 shrink-0 overflow-hidden rounded-full ${
-          modelId ? "bg-white dark:bg-black" : ""
-        }`}
-      >
-        {getAvatarContent()}
-      </Avatar>
-      <div className="flex min-h-5 min-w-0 flex-1 items-start pt-1">
-        <span className="reasoning-text-shine text-sm leading-5">
-          {displayMessage}
-        </span>
+    <div className="flex flex-col gap-0">
+      <div className="flex min-h-11 items-start gap-3 px-4 py-1.5">
+        <Avatar
+          className={`size-8 shrink-0 overflow-hidden rounded-full ${
+            modelId ? "bg-white dark:bg-black" : ""
+          }`}
+        >
+          {getAvatarContent()}
+        </Avatar>
+        <div className="flex min-h-5 min-w-0 flex-1 items-start pt-1">
+          <span className="reasoning-text-shine text-sm leading-5">
+            {loaderLabel}
+          </span>
+        </div>
       </div>
+      {subordinateSteps.length > 0 && (
+        <div className="min-w-0 pt-0.5 pr-4 pb-1.5 pl-4">
+          <div
+            ref={viewportRef}
+            className="reasoning-steps-viewport ml-11 max-h-[3.75rem] overflow-x-hidden overflow-y-auto"
+            style={{ scrollBehavior: "smooth" }}
+          >
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              {subordinateSteps.map((step, index) => (
+                <p
+                  key={index}
+                  className="reasoning-step-in text-muted-foreground text-sm leading-5 break-words whitespace-pre-wrap"
+                >
+                  <ReasoningStepText text={step} />
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

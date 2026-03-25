@@ -1206,11 +1206,16 @@
         "modelAlt": "Modell",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Nutzer-Avatar",
+        "expandPrompt": "Vollständige Nachricht anzeigen",
+        "collapsePrompt": "Weniger anzeigen",
         "reasoning": {
           "processing": "Wird verarbeitet...",
           "thinking": "Denkt nach...",
           "searchingFiles": "Dateien werden durchsucht...",
-          "callingTools": "Tools werden aufgerufen..."
+          "callingTools": "Tools werden aufgerufen...",
+          "thoughtForSeconds": "Gedacht für {seconds}s",
+          "expandSteps": "Überlegungsschritte anzeigen",
+          "collapseSteps": "Überlegungsschritte ausblenden"
         },
         "chatErrorTitle": "Chat-Fehler",
         "errorFallbackDescription": "Bei der Chat-Oberfläche ist ein Problem aufgetreten. Bitte lade die Seite neu oder kontaktiere den Support, falls das Problem weiterhin besteht.",
@@ -1221,6 +1226,8 @@
         "tryAgain": "Erneut versuchen",
         "networkErrorAfterRetry": "Der Server konnte nach mehreren Versuchen nicht erreicht werden. Bitte prüfe deine Verbindung und versuche es erneut.",
         "pendingResponseFailed": "Bei uns ist etwas schiefgelaufen. Bitte sende deine letzte Nachricht erneut.",
+        "resend": "Erneut senden",
+        "noResponseConnectionLost": "Die Verbindung wurde unterbrochen. Bitte lade die Seite neu und versuche es erneut.",
         "authorize": "Autorisieren"
       }
     },

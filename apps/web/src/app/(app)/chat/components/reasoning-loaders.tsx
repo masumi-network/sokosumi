@@ -1,8 +1,21 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 
 import ReasoningLoaderRow from "./reasoning-loader-row";
+
+const GENERIC_LABELS = new Set([
+  "Processing...",
+  "Thinking...",
+  "Searching files...",
+  "Calling tools...",
+]);
+
+function isGenericLabel(message: string): boolean {
+  return GENERIC_LABELS.has(message) || message.trim() === "";
+}
 
 interface ReasoningLoadersProps {
   reasoningMessages: Array<{ id: string; message: string }>;
@@ -17,18 +30,28 @@ export default function ReasoningLoaders({
   chats,
   coworkers = [],
 }: ReasoningLoadersProps) {
+  const t = useTranslations("App.Chat.Chat");
   if (reasoningMessages.length === 0) return null;
 
-  const latest = reasoningMessages[reasoningMessages.length - 1];
+  const onlyProcessing =
+    reasoningMessages.length === 1 &&
+    reasoningMessages[0].message === "Processing...";
+  const loaderLabel = onlyProcessing
+    ? t("reasoning.processing")
+    : t("reasoning.thinking");
+
+  const subordinateSteps = reasoningMessages
+    .filter(({ message }) => !isGenericLabel(message))
+    .map(({ message }) => message.trim())
+    .filter(Boolean);
+
   return (
-    <div className="flex flex-col gap-0">
-      <ReasoningLoaderRow
-        key={latest.id}
-        message={latest.message}
-        selectedChatId={selectedChatId}
-        chats={chats}
-        coworkers={coworkers}
-      />
-    </div>
+    <ReasoningLoaderRow
+      loaderLabel={loaderLabel}
+      subordinateSteps={subordinateSteps}
+      selectedChatId={selectedChatId}
+      chats={chats}
+      coworkers={coworkers}
+    />
   );
 }

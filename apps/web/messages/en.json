@@ -1200,6 +1200,8 @@
         "uploadFileErrorRetry": "Failed to upload file, please try again!",
         "uploadPastedImageError": "Failed to upload pasted image(s)",
         "pendingResponseFailed": "Something went wrong on our side. Please try resending your last message again.",
+        "resend": "Resend",
+        "noResponseConnectionLost": "The connection was lost. Please refresh the browser and try again.",
         "waitForResponses": "Please wait for other responses to finish (max 3 at a time).",
         "imageAttachment": "An image attachment",
         "fileLabel": "File",
@@ -1207,12 +1209,17 @@
         "modelAlt": "Model",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "User avatar",
+        "expandPrompt": "Show full message",
+        "collapsePrompt": "Show less",
         "authorize": "Authorize",
         "reasoning": {
           "processing": "Processing...",
           "thinking": "Thinking...",
           "searchingFiles": "Searching files...",
-          "callingTools": "Calling tools..."
+          "callingTools": "Calling tools...",
+          "thoughtForSeconds": "Thought for {seconds}s",
+          "expandSteps": "Show reasoning steps",
+          "collapseSteps": "Hide reasoning steps"
         },
         "chatErrorTitle": "Chat Error",
         "errorFallbackDescription": "Something went wrong with the chat interface. Please try refreshing or contact support if the issue persists.",

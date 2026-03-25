@@ -1200,6 +1200,8 @@
         "uploadFileErrorRetry": "ファイルのアップロードに失敗しました。もう一度お試しください。",
         "uploadPastedImageError": "貼り付けた画像のアップロードに失敗しました",
         "pendingResponseFailed": "こちら側で問題が発生しました。最後のメッセージを再送してみてください。",
+        "resend": "再送信",
+        "noResponseConnectionLost": "接続が切断されました。ブラウザを更新してもう一度お試しください。",
         "waitForResponses": "他の回答が完了するまでお待ちください（同時最大3件）。",
         "imageAttachment": "画像の添付ファイル",
         "fileLabel": "ファイル",
@@ -1207,12 +1209,17 @@
         "modelAlt": "モデル",
         "coworkerAlt": "同僚",
         "userAvatarAlt": "ユーザーのアバター",
+        "expandPrompt": "メッセージ全文を表示",
+        "collapsePrompt": "折りたたむ",
         "authorize": "承認",
         "reasoning": {
           "processing": "処理中...",
           "thinking": "考え中...",
           "searchingFiles": "ファイルを検索中...",
-          "callingTools": "ツールを呼び出し中..."
+          "callingTools": "ツールを呼び出し中...",
+          "thoughtForSeconds": "{seconds}秒考えました",
+          "expandSteps": "推論ステップを表示",
+          "collapseSteps": "推論ステップを非表示"
         },
         "chatErrorTitle": "チャットエラー",
         "errorFallbackDescription": "チャット画面で問題が発生しました。ページを更新するか、問題が続く場合はサポートにお問い合わせください。",

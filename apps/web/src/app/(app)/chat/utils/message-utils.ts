@@ -96,6 +96,25 @@ export function extractMessageContent(message: unknown): string {
 }
 
 /**
+ * Deduplicate messages by id (first occurrence wins). Prevents duplicate display
+ * when recovery or API returns the same item more than once.
+ */
+export function deduplicateMessagesById<T extends { id?: string }>(
+  messages: T[],
+): T[] {
+  const seen = new Set<string>();
+  return messages.filter((m) => {
+    const id = m.id?.trim() ?? "";
+    if (!id) {
+      return true;
+    }
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+/**
  * Convert ConversationItem[] to UIMessage format
  */
 export function convertItemsToMessages(

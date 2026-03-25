@@ -3,16 +3,36 @@ import prisma from "@/lib/db/prisma";
 const SSE_DATA_PREFIX = "data: ";
 const UI_MESSAGE_EVENT_TEXT_DELTA = "text-delta";
 
+export interface ResponsesApiResponseIdRef {
+  current: string | null;
+}
+
+export interface StreamWithAssistantPersistenceOptions {
+  responsesApiResponseIdRef?: ResponsesApiResponseIdRef;
+}
+
+function isPrismaUniqueViolation(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code: string }).code === "P2002"
+  );
+}
+
 export function streamWithAssistantPersistence(
   upstreamStream: ReadableStream<Uint8Array>,
   conversationId: string,
   userId: string,
+  options?: StreamWithAssistantPersistenceOptions,
 ): ReadableStream<Uint8Array> {
   const reader = upstreamStream.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let accumulatedText = "";
   let persisted = false;
+  const responsesApiRef = options?.responsesApiResponseIdRef;
+  const useResponsesApiId = responsesApiRef != null;
 
   function tryPersist(text: string): Promise<void> {
     if (persisted || !text.trim()) return Promise.resolve();
@@ -24,11 +44,50 @@ export function streamWithAssistantPersistence(
           userId,
           archivedAt: null,
         },
-        select: { id: true },
+        select: useResponsesApiId ? { id: true, metadata: true } : { id: true },
       })
-      .then((conv) => {
+      .then(async (conv) => {
         if (!conv) return;
-        return prisma.conversationItem.create({
+
+        let responsesApiResponseId: string | null = null;
+        if (responsesApiRef) {
+          responsesApiResponseId = responsesApiRef.current ?? null;
+          if (!responsesApiResponseId && conv.metadata) {
+            const meta = conv.metadata as Record<string, unknown>;
+            const p = meta.pending_responses_api_response_id;
+            if (typeof p === "string" && p.length > 0) {
+              responsesApiResponseId = p;
+            }
+          }
+        }
+
+        if (responsesApiResponseId) {
+          const existing = await prisma.conversationItem.findFirst({
+            where: {
+              conversationId: conv.id,
+              responsesApiResponseId,
+            },
+            select: { id: true },
+          });
+          if (existing) return;
+          try {
+            await prisma.conversationItem.create({
+              data: {
+                conversationId: conv.id,
+                role: "assistant",
+                contentType: "output_text",
+                contentText: text,
+                responsesApiResponseId,
+              },
+            });
+          } catch (error) {
+            if (isPrismaUniqueViolation(error)) return;
+            throw error;
+          }
+          return;
+        }
+
+        await prisma.conversationItem.create({
           data: {
             conversationId: conv.id,
             role: "assistant",
