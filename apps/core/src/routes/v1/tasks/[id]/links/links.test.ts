@@ -7,6 +7,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountDeleteTaskLink from "./[linkId]/delete";
+import mountPatchTaskLink from "./[linkId]/patch";
 import mountGetTaskLinks from "./get";
 import mountPostTaskLink from "./post";
 
@@ -18,6 +19,7 @@ const {
   taskLinkCreateMock,
   taskLinkDeleteMock,
   taskLinkFindUniqueMock,
+  taskLinkUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireScopedTaskReadAccessMock: vi.fn(),
@@ -26,6 +28,7 @@ const {
   taskLinkCreateMock: vi.fn(),
   taskLinkDeleteMock: vi.fn(),
   taskLinkFindUniqueMock: vi.fn(),
+  taskLinkUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -83,6 +86,7 @@ function mockTx() {
       create: taskLinkCreateMock,
       findUnique: taskLinkFindUniqueMock,
       delete: taskLinkDeleteMock,
+      update: taskLinkUpdateMock,
     },
   };
 }
@@ -520,5 +524,152 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 
     expect(response.status).toBe(403);
     expect(taskLinkDeleteMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /tasks/{id}/links/{linkId}", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireUserTaskAccessMock.mockImplementation(
+      async (_auth, taskId: string) => ({
+        id: taskId,
+        userId: "user_123",
+        organizationId: "org_123",
+        archivedAt: null,
+        status: TaskStatus.READY,
+        coworkerId: null,
+        name: "T",
+        description: null,
+      }),
+    );
+    prismaTransactionMock.mockImplementation(
+      async (cb: (tx: unknown) => unknown) => {
+        return await cb(mockTx());
+      },
+    );
+    taskLinkFindUniqueMock.mockResolvedValue({
+      id: "tl_1",
+      fromTaskId: "tsk_a",
+      toTaskId: "tsk_b",
+      type: TaskLinkType.BLOCKS,
+      note: "Old note",
+    });
+    taskLinkUpdateMock.mockResolvedValue({
+      id: "tl_1",
+      createdAt: new Date("2026-03-25T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-25T10:05:00.000Z"),
+      fromTaskId: "tsk_a",
+      toTaskId: "tsk_b",
+      type: TaskLinkType.PARENT,
+      note: "Updated note",
+    });
+  });
+
+  it("returns 200 when the link metadata is updated", async () => {
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: TaskLinkType.PARENT,
+        note: "Updated note",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkUpdateMock).toHaveBeenCalledWith({
+      where: { id: "tl_1" },
+      data: {
+        type: TaskLinkType.PARENT,
+        note: "Updated note",
+      },
+    });
+  });
+
+  it("returns 200 when the link note is cleared", async () => {
+    taskLinkUpdateMock.mockResolvedValue({
+      id: "tl_1",
+      createdAt: new Date("2026-03-25T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-25T10:05:00.000Z"),
+      fromTaskId: "tsk_a",
+      toTaskId: "tsk_b",
+      type: TaskLinkType.BLOCKS,
+      note: null,
+    });
+
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        note: null,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkUpdateMock).toHaveBeenCalledWith({
+      where: { id: "tl_1" },
+      data: {
+        note: null,
+      },
+    });
+  });
+
+  it("returns 400 when no updatable fields are provided", async () => {
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(response.status).toBe(400);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the link does not involve the path task id", async () => {
+    taskLinkFindUniqueMock.mockResolvedValue({
+      id: "tl_1",
+      fromTaskId: "tsk_x",
+      toTaskId: "tsk_y",
+      type: TaskLinkType.RELATES,
+      note: null,
+    });
+
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: TaskLinkType.DUPLICATE,
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for coworker authentication", async () => {
+    const app = createCoworkerApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: TaskLinkType.DUPLICATE,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 });

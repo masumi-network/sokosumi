@@ -58,13 +58,23 @@ export type TaskLinkResponse = z.infer<typeof taskLinkSchema>;
 
 export const taskLinksSchema = z.array(taskLinkSchema);
 
-export const createTaskLinkRequestSchema = z
+export const createTaskLinkRequestSchema = z.object({
+  toTaskId: z.string().min(1).openapi({ example: "tsk_b" }),
+  type: z.enum(TaskLinkType).openapi({ example: TaskLinkType.RELATES }),
+  note: z.string().max(2000).nullish().openapi({ example: null }),
+});
+
+export const patchTaskLinkRequestSchema = z
   .object({
-    toTaskId: z.string().min(1).openapi({ example: "tsk_b" }),
-    type: z.enum(TaskLinkType).openapi({ example: TaskLinkType.RELATES }),
+    type: z.enum(TaskLinkType).optional().openapi({
+      example: TaskLinkType.RELATES,
+    }),
     note: z.string().max(2000).nullish().openapi({ example: null }),
   })
-  .openapi("CreateTaskLinkRequest");
+  .refine((data) => data.type !== undefined || data.note !== undefined, {
+    message: "At least one of type or note is required",
+    path: ["type", "note"],
+  });
 
 export const taskSchema = z
   .object({
@@ -84,7 +94,7 @@ export const taskSchema = z
   })
   .openapi("Task");
 
-export const tasksSchema = z.array(taskSchema).openapi("Tasks");
+export const tasksSchema = z.array(taskSchema);
 
 export const createTaskJobRequestSchema = createJobRequestSchema.extend({
   agentId: z.string().openapi({ example: "agent_123" }),
