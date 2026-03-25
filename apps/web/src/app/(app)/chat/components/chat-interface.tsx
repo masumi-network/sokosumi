@@ -425,12 +425,6 @@ export default function ChatInterface({
           : `reasoning-${slotIndex}-${Date.now()}`;
       setReasoningBySlot((prev) => {
         const list = prev[slotIndex] ?? [];
-        if (list.length === 0) {
-          setReasoningStartedAtBySlot((p) => ({
-            ...p,
-            [slotIndex]: Date.now(),
-          }));
-        }
         const existingIndex = list.findIndex((r) => r.id === id);
         const nextList =
           existingIndex >= 0
@@ -693,24 +687,45 @@ export default function ChatInterface({
     [slotToConversation, slotMessages],
   );
 
-  useEffect(() => {
-    let changed = false;
-    const next: Record<number, number> = {};
+  useLayoutEffect(() => {
+    const now = Date.now();
+    const effectiveStarted: Record<number, number> = {
+      ...reasoningStartedAtBySlot,
+    };
+    let needPersistStarted = false;
     for (let slot = 0; slot < NUM_SLOTS; slot++) {
-      const startedAt = reasoningStartedAtBySlot[slot];
+      const steps = reasoningBySlot[slot];
+      if (steps && steps.length > 0 && effectiveStarted[slot] == null) {
+        effectiveStarted[slot] = now;
+        needPersistStarted = true;
+      }
+    }
+    if (needPersistStarted) {
+      setReasoningStartedAtBySlot(effectiveStarted);
+    }
+
+    const nextEnded: Record<number, number> = {};
+    let needEnded = false;
+    for (let slot = 0; slot < NUM_SLOTS; slot++) {
+      const startedAt = effectiveStarted[slot];
       if (startedAt == null || reasoningEndedAtBySlot[slot] != null) continue;
       const messages = (slotMessages[slot] ?? []) as UIMessage[];
       const last = messages[messages.length - 1];
       if (!last || (last.role as string) !== "assistant") continue;
       const content = extractMessageContent(last).trim();
       if (content.length === 0) continue;
-      next[slot] = Date.now();
-      changed = true;
+      nextEnded[slot] = now;
+      needEnded = true;
     }
-    if (changed) {
-      setReasoningEndedAtBySlot((prev) => ({ ...prev, ...next }));
+    if (needEnded) {
+      setReasoningEndedAtBySlot((prev) => ({ ...prev, ...nextEnded }));
     }
-  }, [slotMessages, reasoningEndedAtBySlot, reasoningStartedAtBySlot]);
+  }, [
+    reasoningBySlot,
+    slotMessages,
+    reasoningEndedAtBySlot,
+    reasoningStartedAtBySlot,
+  ]);
 
   const sendInConversation = useCallback(
     (conversationId: string, text: string): boolean => {
@@ -790,7 +805,8 @@ export default function ChatInterface({
       selectedChatId != null
         ? conversationToSlot.get(selectedChatId)
         : undefined;
-    return slot !== undefined ? (reasoningStartedAtBySlot[slot] ?? null) : null;
+    if (slot === undefined) return null;
+    return reasoningStartedAtBySlot[slot] ?? null;
   }, [selectedChatId, conversationToSlot, reasoningStartedAtBySlot]);
 
   const selectedChatReasoningEndedAt = useMemo(() => {

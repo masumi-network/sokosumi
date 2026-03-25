@@ -73,9 +73,7 @@ export default function ChatMessage({
       })
     : null;
 
-  // Get avatar content for assistant messages
   const getAssistantAvatar = () => {
-    // If it's a model conversation, show model logo
     if (modelId) {
       return (
         <ChatModelIcon
@@ -87,7 +85,6 @@ export default function ChatMessage({
       );
     }
 
-    // If it's a coworker conversation, show coworker image
     if (coworkerId) {
       const imageUrl = coworkerImageUrl ?? getCoworkerImageUrl(coworkerId);
       if (imageUrl) {
@@ -104,7 +101,6 @@ export default function ChatMessage({
       }
     }
 
-    // Default fallback
     return (
       <AvatarFallback className="bg-primary text-primary-foreground">
         {coworkerName ? coworkerName.charAt(0).toUpperCase() : "A"}
@@ -171,18 +167,12 @@ export default function ChatMessage({
                   "prose prose-sm dark:prose-invert max-w-none",
 
                   isAssistantStreaming && "contain-layout",
-                  // Align first line with dots state: no top margin on first element
                   "[&>*:first-child]:mt-0",
-                  // Allow proper spacing for paragraphs and line breaks
                   "[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-                  // Ensure proper line height for readability
                   "**:leading-relaxed",
-                  // Prevent headings from being too large (keep them as regular text size)
                   "[&_h1]:text-base [&_h2]:text-base [&_h3]:text-base [&_h4]:text-base [&_h5]:text-base [&_h6]:text-base",
                   "[&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold",
-                  // Ensure bold text stays as bold, not headings
                   "[&_strong]:font-semibold [&_strong]:text-inherit",
-                  // Proper spacing for line breaks
                   "[&_br]:block [&_br]:h-3",
                   isUser && "prose-invert [&_strong]:text-primary-foreground",
                 )}

@@ -82,7 +82,7 @@ export default function ReasoningLoaderRow({
   }
 
   return (
-    <div className="flex flex-col gap-0">
+    <div className="flex flex-col">
       <div className="flex min-h-11 items-start gap-3 px-4 py-1.5">
         <Avatar
           className={`size-8 shrink-0 overflow-hidden rounded-full ${

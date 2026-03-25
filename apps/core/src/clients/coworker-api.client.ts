@@ -431,7 +431,9 @@ function createResponsesApiUiStream(
         closeStream(controller);
         return true;
       }
-    } catch (_) {}
+    } catch {
+      return false;
+    }
 
     return false;
   }

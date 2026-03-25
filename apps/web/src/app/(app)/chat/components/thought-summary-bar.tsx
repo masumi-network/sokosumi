@@ -4,18 +4,8 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
+import { isReasoningGenericLabel } from "@/app/chat/utils/reasoning-generic-labels";
 import { cn } from "@/lib/utils";
-
-const GENERIC_LABELS = new Set([
-  "Processing...",
-  "Thinking...",
-  "Searching files...",
-  "Calling tools...",
-]);
-
-function isGenericLabel(message: string): boolean {
-  return GENERIC_LABELS.has(message) || message.trim() === "";
-}
 
 interface ThoughtSummaryBarProps {
   reasoningMessages: Array<{ id: string; message: string }>;
@@ -39,7 +29,7 @@ export default function ThoughtSummaryBar({
     : 0;
 
   const subordinateSteps = reasoningMessages
-    .filter(({ message }) => !isGenericLabel(message))
+    .filter(({ message }) => !isReasoningGenericLabel(message))
     .map(({ message }) => message.trim())
     .filter(Boolean);
 
@@ -55,42 +45,48 @@ export default function ThoughtSummaryBar({
   }, [reasoningStartedAt, isFrozen]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (subordinateSteps.length === 0 || !isOpen) return;
     const el = viewportRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [isOpen, subordinateSteps]);
+  }, [subordinateSteps, isOpen]);
 
   const displaySeconds = isFrozen ? frozenSeconds : liveSeconds;
   const isRecordedView = reasoningEndedAt != null;
 
   return (
     <div className="mb-1 flex flex-col">
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="text-muted-foreground hover:text-foreground group flex w-full items-center gap-2 px-4 py-1.5 text-left text-sm transition-colors"
-        aria-expanded={isOpen}
-        aria-label={
-          isOpen ? t("reasoning.collapseSteps") : t("reasoning.expandSteps")
-        }
-      >
-        <span>
-          {t("reasoning.thoughtForSeconds", { seconds: displaySeconds })}
-        </span>
-        <span
-          className={cn(
-            "shrink-0 transition-opacity",
-            isOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-          )}
-          aria-hidden
+      {subordinateSteps.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="text-muted-foreground hover:text-foreground group flex w-full items-center gap-2 px-4 py-1.5 text-left text-sm transition-colors"
+          aria-expanded={isOpen}
+          aria-label={
+            isOpen ? t("reasoning.collapseSteps") : t("reasoning.expandSteps")
+          }
         >
-          {isOpen ? (
-            <ChevronDown className="size-4" />
-          ) : (
-            <ChevronRight className="size-4" />
-          )}
-        </span>
-      </button>
+          <span>
+            {t("reasoning.thoughtForSeconds", { seconds: displaySeconds })}
+          </span>
+          <span
+            className={cn(
+              "shrink-0 transition-opacity",
+              isOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            )}
+            aria-hidden
+          >
+            {isOpen ? (
+              <ChevronDown className="size-4" />
+            ) : (
+              <ChevronRight className="size-4" />
+            )}
+          </span>
+        </button>
+      ) : (
+        <div className="text-muted-foreground flex w-full items-center px-4 py-1.5 text-sm">
+          {t("reasoning.thoughtForSeconds", { seconds: displaySeconds })}
+        </div>
+      )}
       {isOpen && subordinateSteps.length > 0 && (
         <div className="min-w-0 px-4 pt-0.5 pb-1.5">
           <div
