@@ -17,7 +17,6 @@ const {
   taskFindUniqueMock,
   taskLinkCreateMock,
   taskLinkDeleteMock,
-  taskLinkFindFirstMock,
   taskLinkFindUniqueMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
@@ -26,7 +25,6 @@ const {
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
   taskLinkDeleteMock: vi.fn(),
-  taskLinkFindFirstMock: vi.fn(),
   taskLinkFindUniqueMock: vi.fn(),
 }));
 
@@ -83,7 +81,6 @@ function mockTx() {
     },
     taskLink: {
       create: taskLinkCreateMock,
-      findFirst: taskLinkFindFirstMock,
       findUnique: taskLinkFindUniqueMock,
       delete: taskLinkDeleteMock,
     },
@@ -189,7 +186,6 @@ describe("POST /tasks/{id}/links", () => {
         description: null,
       }),
     );
-    taskLinkFindFirstMock.mockResolvedValue(null);
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb(mockTx());
@@ -302,14 +298,7 @@ describe("POST /tasks/{id}/links", () => {
     expect(response.status).toBe(409);
   });
 
-  it("returns 409 when a link already exists in the opposite direction", async () => {
-    taskLinkFindFirstMock.mockResolvedValueOnce({
-      id: "tl_existing",
-      fromTaskId: "tsk_b",
-      toTaskId: "tsk_a",
-      type: TaskLinkType.RELATES,
-    });
-
+  it("returns 400 when a task is linked to itself", async () => {
     const app = createUserApp();
     mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
 
@@ -317,36 +306,12 @@ describe("POST /tasks/{id}/links", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        toTaskId: "tsk_b",
+        toTaskId: "tsk_a",
         type: TaskLinkType.BLOCKS,
       }),
     });
 
-    expect(response.status).toBe(409);
-    expect(taskLinkCreateMock).not.toHaveBeenCalled();
-  });
-
-  it("returns 409 when a link already exists in the same direction with another type", async () => {
-    taskLinkFindFirstMock.mockResolvedValueOnce({
-      id: "tl_existing",
-      fromTaskId: "tsk_a",
-      toTaskId: "tsk_b",
-      type: TaskLinkType.RELATES,
-    });
-
-    const app = createUserApp();
-    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
-
-    const response = await app.request("http://localhost/tsk_a/links", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        toTaskId: "tsk_b",
-        type: TaskLinkType.BLOCKS,
-      }),
-    });
-
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(400);
     expect(taskLinkCreateMock).not.toHaveBeenCalled();
   });
 });
