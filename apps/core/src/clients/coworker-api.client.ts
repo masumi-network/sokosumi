@@ -237,7 +237,6 @@ export async function getResponseById(
 
   return { status: "in_progress" };
 }
-
 interface CreateResponsesApiUiStreamOptions {
   onResponseCompleted?: (responseId: string) => void;
   onResponseStarted?: (responseId: string) => void;

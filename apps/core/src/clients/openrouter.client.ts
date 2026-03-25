@@ -215,7 +215,6 @@ export const openrouterClient = (() => {
     },
   };
 })();
-
 function createUIMessageStream(
   body: ReadableStream<Uint8Array>,
 ): ReadableStream<Uint8Array> {
