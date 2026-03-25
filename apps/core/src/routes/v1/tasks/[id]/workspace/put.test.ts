@@ -238,11 +238,6 @@ describe("PUT /tasks/{id}/workspace", () => {
         taskId: "tsk_123",
         transactionId: { not: null },
       },
-      select: {
-        transaction: {
-          select: { amount: true },
-        },
-      },
     });
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
       where: {
@@ -374,12 +369,20 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
-  it("returns 409 when the task is finalized", async () => {
+  it("moves a completed task when it has no jobs and no task events with transactions", async () => {
     requireUserTaskAccessMock.mockResolvedValue(
       createTaskRecord({
         status: TaskStatus.COMPLETED,
       }),
     );
+    taskFindUniqueOrThrowMock.mockResolvedValue({
+      ...createTaskRecord({
+        organizationId: "org_target",
+        status: TaskStatus.COMPLETED,
+      }),
+      events: [],
+      jobs: [],
+    });
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/tsk_123/workspace", {
@@ -392,9 +395,21 @@ describe("PUT /tasks/{id}/workspace", () => {
       }),
     });
 
-    expect(response.status).toBe(409);
-    expect(jobCountMock).not.toHaveBeenCalled();
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(jobCountMock).toHaveBeenCalled();
+    expect(taskEventFindManyMock).toHaveBeenCalled();
+    expect(taskUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        userId: "user_123",
+        organizationId: "org_current",
+        archivedAt: null,
+        status: TaskStatus.COMPLETED,
+      },
+      data: {
+        organizationId: "org_target",
+      },
+    });
   });
 
   it("returns 409 when the task already has jobs", async () => {
@@ -421,19 +436,13 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(taskUpdateManyMock).not.toHaveBeenCalled();
   });
 
-  it("returns 409 when the task already has charged task events", async () => {
+  it("returns 409 when the task already has task events linked to a transaction", async () => {
     requireUserTaskAccessMock.mockResolvedValue(
       createTaskRecord({
         status: TaskStatus.RUNNING,
       }),
     );
-    taskEventFindManyMock.mockResolvedValue([
-      {
-        transaction: {
-          amount: -10000000000n,
-        },
-      },
-    ]);
+    taskEventFindManyMock.mockResolvedValue([{ id: "tev_1" }]);
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/tsk_123/workspace", {
