@@ -5,16 +5,16 @@ import {
   type JobWithSokosumiStatus,
 } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import superJson from "superjson";
 
 import JobShareModal from "@/components/jobs/job-details/job-share-modal";
 
 const routerPushMock = vi.fn();
 const routerRefreshMock = vi.fn();
-const shareJobPubliclyMock = vi.fn();
-const deleteJobShareMock = vi.fn();
-const updateAllowSearchIndexingMock = vi.fn();
+const setQueryDataMock = vi.fn();
 const toastSuccessMock = vi.fn();
 const toastErrorMock = vi.fn();
+const fetchMock = vi.fn();
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -27,26 +27,17 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+vi.mock("@tanstack/react-query", () => ({
+  useQueryClient: () => ({
+    setQueryData: (...args: unknown[]) => setQueryDataMock(...args),
+  }),
+}));
+
 vi.mock("sonner", () => ({
   toast: {
     success: (...args: unknown[]) => toastSuccessMock(...args),
     error: (...args: unknown[]) => toastErrorMock(...args),
   },
-}));
-
-vi.mock("@/lib/actions", () => ({
-  CommonErrorCode: {
-    UNAUTHENTICATED: "UNAUTHENTICATED",
-    UNAUTHORIZED: "UNAUTHORIZED",
-  },
-  JobErrorCode: {
-    JOB_NOT_FOUND: "JOB_NOT_FOUND",
-    JOB_SHARE_NOT_FOUND: "JOB_SHARE_NOT_FOUND",
-  },
-  deleteJobShare: (...args: unknown[]) => deleteJobShareMock(...args),
-  shareJobPublicly: (...args: unknown[]) => shareJobPubliclyMock(...args),
-  updateAllowSearchIndexing: (...args: unknown[]) =>
-    updateAllowSearchIndexingMock(...args),
 }));
 
 function createJob(
@@ -107,6 +98,7 @@ function createJob(
 describe("JobShareModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    global.fetch = fetchMock as unknown as typeof fetch;
   });
 
   it("shows only public and private sharing options", () => {
@@ -120,14 +112,19 @@ describe("JobShareModal", () => {
   });
 
   it("enables public sharing and then shows search indexing controls", async () => {
-    shareJobPubliclyMock.mockResolvedValue({
-      ok: true,
-      data: {
-        id: "share-1",
-        token: "public-token",
-        allowSearchIndexing: true,
-      },
-    });
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: superJson.stringify({
+            id: "share-1",
+            token: "public-token",
+            allowSearchIndexing: true,
+          }),
+          timestamp: new Date().toISOString(),
+        }),
+      ),
+    );
 
     render(
       <JobShareModal open onOpenChange={vi.fn()} job={createJob({})} />,
@@ -136,8 +133,19 @@ describe("JobShareModal", () => {
     fireEvent.click(screen.getByText("publicAccessTitle"));
 
     await waitFor(() => {
-      expect(shareJobPubliclyMock).toHaveBeenCalledWith({ jobId: "job-1" });
+      expect(fetchMock).toHaveBeenCalledWith("/api/internal/jobs/job-1/share", {
+        method: "POST",
+        credentials: "include",
+        headers: undefined,
+        body: undefined,
+      });
     });
+
+    expect(setQueryDataMock).toHaveBeenCalledWith(
+      ["jobs", "job-1"],
+      expect.any(Function),
+    );
+    expect(routerRefreshMock).not.toHaveBeenCalled();
 
     expect(screen.getByText("allowSearchIndexing")).toBeInTheDocument();
     expect(
@@ -148,14 +156,19 @@ describe("JobShareModal", () => {
   });
 
   it("updates search indexing for public shares", async () => {
-    updateAllowSearchIndexingMock.mockResolvedValue({
-      ok: true,
-      data: {
-        id: "share-1",
-        token: "public-token",
-        allowSearchIndexing: false,
-      },
-    });
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: superJson.stringify({
+            id: "share-1",
+            token: "public-token",
+            allowSearchIndexing: false,
+          }),
+          timestamp: new Date().toISOString(),
+        }),
+      ),
+    );
 
     render(
       <JobShareModal
@@ -174,11 +187,65 @@ describe("JobShareModal", () => {
     fireEvent.click(screen.getByRole("checkbox"));
 
     await waitFor(() => {
-      expect(updateAllowSearchIndexingMock).toHaveBeenCalledWith({
-        jobShareId: "share-1",
-        allowSearchIndexing: false,
+      expect(fetchMock).toHaveBeenCalledWith("/api/internal/jobs/job-1/share", {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          allowSearchIndexing: false,
+        }),
       });
     });
+
+    expect(setQueryDataMock).toHaveBeenCalledWith(
+      ["jobs", "job-1"],
+      expect.any(Function),
+    );
+    expect(routerRefreshMock).not.toHaveBeenCalled();
+  });
+
+  it("removes public sharing without refreshing the page", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          timestamp: new Date().toISOString(),
+        }),
+      ),
+    );
+
+    render(
+      <JobShareModal
+        open
+        onOpenChange={vi.fn()}
+        job={createJob({
+          share: {
+            id: "share-1",
+            token: "public-token",
+            allowSearchIndexing: true,
+          } as never,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("privateAccessTitle"));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/internal/jobs/job-1/share", {
+        method: "DELETE",
+        credentials: "include",
+        headers: undefined,
+        body: undefined,
+      });
+    });
+
+    expect(setQueryDataMock).toHaveBeenCalledWith(
+      ["jobs", "job-1"],
+      expect.any(Function),
+    );
+    expect(routerRefreshMock).not.toHaveBeenCalled();
   });
 
   it("keeps public access selected when it is already public", async () => {
@@ -199,8 +266,7 @@ describe("JobShareModal", () => {
     fireEvent.click(screen.getByText("publicAccessTitle"));
 
     await waitFor(() => {
-      expect(shareJobPubliclyMock).not.toHaveBeenCalled();
-      expect(deleteJobShareMock).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 });

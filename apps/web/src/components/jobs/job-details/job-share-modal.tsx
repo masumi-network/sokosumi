@@ -1,10 +1,13 @@
 "use client";
+
 import { JobShare, JobWithSokosumiStatus } from "@sokosumi/database";
+import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import superJson from "superjson";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,14 +19,14 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import {
-  CommonErrorCode,
-  deleteJobShare,
-  JobErrorCode,
-  shareJobPublicly,
-  updateAllowSearchIndexing,
-} from "@/lib/actions";
+  apiErrorResponseSchema,
+  apiSuccessResponseSchema,
+} from "@/lib/api/schemas";
 import { cn } from "@/lib/utils";
+import { getJobQueryKey } from "@/queries";
 
 interface JobShareModalProps {
   open: boolean;
@@ -37,15 +40,9 @@ export default function JobShareModal({
   job,
 }: JobShareModalProps) {
   const t = useTranslations("Components.Jobs.JobDetails.JobShare.Modal");
-  const { id: jobId } = job;
-
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
-
-  // Need to refresh after modal is closed
-  const needRefresh = useRef(false);
-  // Track the last jobId to detect changes
-  const lastJobIdRef = useRef(jobId);
 
   // Detect client-side rendering without setState in useEffect
   const isClient = useSyncExternalStore(
@@ -63,6 +60,68 @@ export default function JobShareModal({
       ? new URL(`/share/jobs/${jobShare.token}`, window.location.origin)
       : null;
 
+  function syncJobShare(nextJobShare: JobShare | null) {
+    setJobShare(nextJobShare);
+    queryClient.setQueryData<JobWithSokosumiStatus>(
+      getJobQueryKey(job.id),
+      (currentJob) => {
+        if (!currentJob) {
+          return currentJob;
+        }
+
+        return {
+          ...currentJob,
+          share: nextJobShare,
+        };
+      },
+    );
+  }
+
+  async function requestJobShare(
+    method: "POST" | "PATCH" | "DELETE",
+    body?: Record<string, unknown>,
+  ): Promise<
+    | { ok: true; data: JobShare | null }
+    | { ok: false; error: { code?: string; message: string } }
+  > {
+    const response = await fetch(`/api/internal/jobs/${job.id}/share`, {
+      method,
+      credentials: "include",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      const parsedError = apiErrorResponseSchema.safeParse(await response.json());
+      if (parsedError.success) {
+        return {
+          ok: false,
+          error: {
+            code: parsedError.data.code,
+            message: parsedError.data.message,
+          },
+        };
+      }
+
+      return {
+        ok: false,
+        error: {
+          message: `Request failed with status ${response.status}`,
+        },
+      };
+    }
+
+    if (method === "DELETE") {
+      return { ok: true, data: null };
+    }
+
+    const parsedResponse = apiSuccessResponseSchema.parse(await response.json());
+    return {
+      ok: true,
+      data: superJson.parse<JobShare>(parsedResponse.data),
+    };
+  }
+
   const handleOnOpenChange = (open: boolean) => {
     if (isLoading) {
       return;
@@ -70,21 +129,7 @@ export default function JobShareModal({
 
     // When opening the modal, reset state to match current job data
     if (open) {
-      // Reset to current job state or detect if job changed
-      const jobChanged = lastJobIdRef.current !== jobId;
-      if (jobChanged) {
-        lastJobIdRef.current = jobId;
-      }
-
-      // Reset share state to current job data
       setJobShare(job.share);
-    }
-
-    // when close JobShareModal
-    // refresh router to show updated job-share indicator
-    if (!open && needRefresh.current) {
-      needRefresh.current = false;
-      router.refresh();
     }
     onOpenChange(open);
   };
@@ -95,11 +140,10 @@ export default function JobShareModal({
     }
 
     setIsLoading(true);
-    const result = await shareJobPublicly({ jobId: job.id });
+    const result = await requestJobShare("POST");
 
     if (result.ok) {
-      needRefresh.current = true;
-      setJobShare(result.data);
+      syncJobShare(result.data);
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
@@ -136,12 +180,11 @@ export default function JobShareModal({
     }
 
     setIsLoading(true);
-    const result = await updateAllowSearchIndexing({
-      jobShareId: jobShare.id,
+    const result = await requestJobShare("PATCH", {
       allowSearchIndexing: checked,
     });
     if (result.ok) {
-      setJobShare(result.data);
+      syncJobShare(result.data);
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
@@ -178,12 +221,9 @@ export default function JobShareModal({
     }
 
     setIsLoading(true);
-    const result = await deleteJobShare({
-      jobId: job.id,
-    });
+    const result = await requestJobShare("DELETE");
     if (result.ok) {
-      needRefresh.current = true;
-      setJobShare(null);
+      syncJobShare(null);
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
