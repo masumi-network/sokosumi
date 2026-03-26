@@ -39,7 +39,8 @@ function normalizeWhatsAppPhone(value: string): string {
 
 function getChannelHref(channel: CoworkerChannel): string | null {
   if (channel.origin === TaskEventOrigin.EMAIL) {
-    return `mailto:${channel.value}`;
+    const address = channel.value.trim();
+    return address ? `mailto:${address}` : null;
   }
 
   if (channel.origin === TaskEventOrigin.WHATSAPP) {

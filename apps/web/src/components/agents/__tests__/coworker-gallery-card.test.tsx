@@ -33,13 +33,54 @@ describe("CoworkerGalleryCard", () => {
     expect(img).toHaveAttribute("src", unsupportedSrc);
   });
 
+  it("does not use mailto link when email value is empty or whitespace-only", () => {
+    for (const value of ["", "   ", "\t"]) {
+      const { unmount } = render(
+        <CoworkerGalleryCard
+          slug="soko"
+          name="Soko"
+          channels={[{ origin: TaskEventOrigin.EMAIL, value }]}
+          action={<button type="button">Select</button>}
+        />,
+      );
+
+      expect(
+        screen.queryByRole("link", { name: "originApp.email" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "originApp.email" }),
+      ).toHaveAttribute("aria-pressed", "false");
+      unmount();
+    }
+  });
+
+  it("reveals raw value when expanded for whitespace-only email (no mailto)", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <CoworkerGalleryCard
+        slug="soko"
+        name="Soko"
+        channels={[{ origin: TaskEventOrigin.EMAIL, value: "   " }]}
+        action={<button type="button">Select</button>}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("link", { name: "originApp.email" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "originApp.email" }));
+    const expanded = container.querySelector("p.break-all");
+    expect(expanded?.textContent).toBe("   ");
+  });
+
   it("renders direct links for email and WhatsApp channels", () => {
     render(
       <CoworkerGalleryCard
         slug="soko"
         name="Soko"
         channels={[
-          { origin: TaskEventOrigin.EMAIL, value: "soko@example.com" },
+          { origin: TaskEventOrigin.EMAIL, value: "  soko@example.com  " },
           { origin: TaskEventOrigin.WHATSAPP, value: "+49 151-123 45" },
         ]}
         action={<button type="button">Select</button>}
