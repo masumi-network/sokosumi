@@ -1,4 +1,3 @@
-import { ArrowUpRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Session } from "@/lib/auth/auth";
@@ -6,8 +5,8 @@ import type { GetUsersMeCreditsResponse } from "@/lib/clients/generated/core/typ
 import { CreditUsage } from "@/lib/types/credit";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
-import BuyCreditsButton from "./buy-credits-button";
-import { resolveLowCreditsBillingPath } from "./top-notice-state";
+import CreditCta from "./credit-cta";
+import CreditUsageComponent from "./credit-usage";
 import UserAvatar from "./user-avatar";
 
 export type UserCreditsData = GetUsersMeCreditsResponse["data"]["credits"];
@@ -20,7 +19,6 @@ interface UserCreditsProps {
   showAvatar?: boolean;
   showCtaButtons?: boolean;
   showCreditUsage?: boolean;
-  showCreditUsageOnMobileOnly?: boolean;
 }
 
 export default async function UserCredits({
@@ -31,15 +29,12 @@ export default async function UserCredits({
   showAvatar = true,
   showCtaButtons = true,
   showCreditUsage = true,
-  showCreditUsageOnMobileOnly = false,
 }: UserCreditsProps) {
   const t = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
   const tSubscriptions = await getTranslations("App.Subscriptions");
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
   const hasActiveOrganization = activeOrganizationId !== null;
-  const primaryLabel =
-    session.user.name ?? session.user.email ?? t("unavailable");
 
   // Get appropriate credits based on context
   let planLabel: string;
@@ -95,30 +90,23 @@ export default async function UserCredits({
     }
   }
 
-  const billingPath = resolveLowCreditsBillingPath(currentPlan);
-
   return (
     <div className="flex w-full flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {showCtaButtons ? (
-        <BuyCreditsButton
-          label={tPlan("getMoreCredits")}
-          path={billingPath}
-          iconRight={<ArrowUpRight aria-hidden />}
-        />
-      ) : null}
+      {showCtaButtons ? <CreditCta currentPlan={currentPlan} /> : null}
       {showAvatar || showCreditUsage ? (
-        <UserAvatar
-          session={session}
-          showAvatar={showAvatar}
-          showCreditUsage={showCreditUsage}
-          showCreditUsageOnMobileOnly={showCreditUsageOnMobileOnly}
-          primaryLabel={primaryLabel}
-          secondaryLabel={planLabel}
-          creditsLabel={creditsLabel}
-          creditUsage={creditUsage}
-          subscriptionPeriodEndMs={subscriptionPeriodEndMs}
-          currentTimestampMs={currentTimestampMs}
-        />
+        <div className="flex w-full flex-col items-center gap-4">
+          {showCreditUsage ? (
+            <CreditUsageComponent
+              creditUsage={creditUsage}
+              creditsLabel={creditsLabel}
+              currentTimestampMs={currentTimestampMs}
+              subscriptionPeriodEndMs={subscriptionPeriodEndMs}
+            />
+          ) : null}
+          {showAvatar ? (
+            <UserAvatar session={session} secondaryLabel={planLabel} />
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

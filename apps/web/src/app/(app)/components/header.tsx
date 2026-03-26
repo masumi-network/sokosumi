@@ -2,29 +2,24 @@ import Link from "next/link";
 
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
-import { Session } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
 import ChatRailTrigger from "./chat-rail-trigger";
+import CreditCta from "./credit-cta";
 import HeaderUserSection from "./header-user-section";
 import CustomTrigger from "./sidebar/components/custom-trigger";
-import UserCredits, { type UserCreditsData } from "./user-credits";
+import { type UserCreditsData } from "./user-credits";
 
 interface HeaderProps {
   creditsData: UserCreditsData | null;
-  currentTimestampMs: number;
-  organizationName: string | null;
-  session: Session;
   className?: string | undefined;
 }
 
-export default async function Header({
-  creditsData,
-  currentTimestampMs,
-  organizationName,
-  session,
-  className,
-}: HeaderProps) {
+export default function Header({ creditsData, className }: HeaderProps) {
+  const currentPlan = creditsData
+    ? (creditsData.subscription?.plan ?? "free")
+    : null;
+
   return (
     <header
       className={cn(
@@ -51,13 +46,7 @@ export default async function Header({
         <BreadcrumbNavigation className="flex flex-1" />
         <HeaderUserSection>
           <div className="flex items-center gap-2">
-            <UserCredits
-              creditsData={creditsData}
-              currentTimestampMs={currentTimestampMs}
-              organizationName={organizationName}
-              session={session}
-              showAvatar={false}
-            />
+            <CreditCta currentPlan={currentPlan} />
             <ChatRailTrigger />
           </div>
         </HeaderUserSection>

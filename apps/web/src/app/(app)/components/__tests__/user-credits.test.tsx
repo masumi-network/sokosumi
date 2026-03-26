@@ -34,27 +34,32 @@ vi.mock("next-intl/server", () => ({
     }),
 }));
 
-vi.mock("../buy-credits-button", () => ({
+vi.mock("../credit-cta", () => ({
   __esModule: true,
-  default: ({ label, path }: { label?: string; path?: string }) => (
-    <div data-testid="buy-credits-button" data-label={label} data-path={path} />
-  ),
+  default: ({ currentPlan }: { currentPlan: string | null }) => {
+    const path =
+      currentPlan === null || currentPlan === "free"
+        ? "/billing?tab=subscription"
+        : "/billing?tab=credits";
+    return (
+      <div
+        data-testid="credit-cta"
+        data-label="Get more credits"
+        data-path={path}
+      />
+    );
+  },
+}));
+
+vi.mock("../credit-usage", () => ({
+  __esModule: true,
+  default: () => <div data-testid="credit-usage" />,
 }));
 
 vi.mock("../user-avatar", () => ({
   __esModule: true,
-  default: ({
-    creditsLabel,
-    secondaryLabel,
-  }: {
-    creditsLabel?: string;
-    secondaryLabel?: string;
-  }) => (
-    <div
-      data-testid="user-avatar"
-      data-credits-label={creditsLabel}
-      data-secondary-label={secondaryLabel}
-    />
+  default: ({ secondaryLabel }: { secondaryLabel?: string }) => (
+    <div data-testid="user-avatar" data-secondary-label={secondaryLabel} />
   ),
 }));
 
@@ -100,11 +105,11 @@ describe("UserCredits", () => {
 
     render(view);
 
-    expect(screen.getByTestId("buy-credits-button")).toHaveAttribute(
+    expect(screen.getByTestId("credit-cta")).toHaveAttribute(
       "data-label",
       "Get more credits",
     );
-    expect(screen.getByTestId("buy-credits-button")).toHaveAttribute(
+    expect(screen.getByTestId("credit-cta")).toHaveAttribute(
       "data-path",
       "/billing?tab=subscription",
     );
@@ -121,11 +126,11 @@ describe("UserCredits", () => {
 
     render(view);
 
-    expect(screen.getByTestId("buy-credits-button")).toHaveAttribute(
+    expect(screen.getByTestId("credit-cta")).toHaveAttribute(
       "data-label",
       "Get more credits",
     );
-    expect(screen.getByTestId("buy-credits-button")).toHaveAttribute(
+    expect(screen.getByTestId("credit-cta")).toHaveAttribute(
       "data-path",
       "/billing?tab=credits",
     );
@@ -142,7 +147,7 @@ describe("UserCredits", () => {
 
     render(view);
 
-    expect(screen.getByTestId("buy-credits-button")).toHaveAttribute(
+    expect(screen.getByTestId("credit-cta")).toHaveAttribute(
       "data-path",
       "/billing?tab=credits",
     );
@@ -159,7 +164,7 @@ describe("UserCredits", () => {
 
     render(view);
 
-    expect(screen.getByTestId("buy-credits-button")).toHaveAttribute(
+    expect(screen.getByTestId("credit-cta")).toHaveAttribute(
       "data-path",
       "/billing?tab=subscription",
     );
@@ -185,7 +190,7 @@ describe("UserCredits", () => {
 
     render(view);
 
-    expect(screen.queryByTestId("buy-credits-button")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("credit-cta")).not.toBeInTheDocument();
     expect(screen.getByTestId("user-avatar")).toHaveAttribute(
       "data-secondary-label",
       "Starter (Acme)",
