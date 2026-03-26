@@ -11,7 +11,6 @@ import JobShareModal from "@/components/jobs/job-details/job-share-modal";
 const routerPushMock = vi.fn();
 const routerRefreshMock = vi.fn();
 const shareJobPubliclyMock = vi.fn();
-const unshareJobPubliclyMock = vi.fn();
 const deleteJobShareMock = vi.fn();
 const updateAllowSearchIndexingMock = vi.fn();
 const toastSuccessMock = vi.fn();
@@ -46,7 +45,6 @@ vi.mock("@/lib/actions", () => ({
   },
   deleteJobShare: (...args: unknown[]) => deleteJobShareMock(...args),
   shareJobPublicly: (...args: unknown[]) => shareJobPubliclyMock(...args),
-  unshareJobPublicly: (...args: unknown[]) => unshareJobPubliclyMock(...args),
   updateAllowSearchIndexing: (...args: unknown[]) =>
     updateAllowSearchIndexingMock(...args),
 }));
@@ -138,7 +136,7 @@ describe("JobShareModal", () => {
     fireEvent.click(screen.getByText("publicAccessTitle"));
 
     await waitFor(() => {
-    expect(shareJobPubliclyMock).toHaveBeenCalledWith({ jobId: "job-1" });
+      expect(shareJobPubliclyMock).toHaveBeenCalledWith({ jobId: "job-1" });
     });
 
     expect(screen.getByText("allowSearchIndexing")).toBeInTheDocument();
@@ -180,6 +178,29 @@ describe("JobShareModal", () => {
         jobShareId: "share-1",
         allowSearchIndexing: false,
       });
+    });
+  });
+
+  it("keeps public access selected when it is already public", async () => {
+    render(
+      <JobShareModal
+        open
+        onOpenChange={vi.fn()}
+        job={createJob({
+          share: {
+            id: "share-1",
+            token: "public-token",
+            allowSearchIndexing: true,
+          } as never,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("publicAccessTitle"));
+
+    await waitFor(() => {
+      expect(shareJobPubliclyMock).not.toHaveBeenCalled();
+      expect(deleteJobShareMock).not.toHaveBeenCalled();
     });
   });
 });

@@ -412,16 +412,15 @@ export const requestRefundJobByBlockchainIdentifier = withSession<
 
 // Share Features
 
-interface ShareJobInPublicParameters extends AuthenticatedRequest {
+interface ShareJobPubliclyParameters extends AuthenticatedRequest {
   jobId: string;
-  sharePublic: boolean;
   allowSearchIndexing?: boolean;
 }
 
-const shareJobInPublic = withSession<
-  ShareJobInPublicParameters,
+export const shareJobPublicly = withSession<
+  ShareJobPubliclyParameters,
   Result<JobShare, ActionError>
->(async ({ jobId, sharePublic, allowSearchIndexing, session }) => {
+>(async ({ jobId, allowSearchIndexing, session }) => {
   const userId = session.user.id;
   try {
     return await prisma.$transaction(async (tx) => {
@@ -443,7 +442,6 @@ const shareJobInPublic = withSession<
 
       const share = await jobShareRepository.upsertPublicShare(
         jobId,
-        sharePublic,
         allowSearchIndexing,
         tx,
       );
@@ -456,35 +454,6 @@ const shareJobInPublic = withSession<
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
-});
-
-interface ShareJobPubliclyParameters extends AuthenticatedRequest {
-  jobId: string;
-  allowSearchIndexing?: boolean;
-}
-
-export const shareJobPublicly = withSession<
-  ShareJobPubliclyParameters,
-  Result<JobShare, ActionError>
->(async ({ jobId, allowSearchIndexing, session }) => {
-  return await shareJobInPublic({
-    jobId,
-    sharePublic: true,
-    allowSearchIndexing: allowSearchIndexing ?? true,
-    session,
-  });
-});
-
-export const unshareJobPublicly = withSession<
-  ShareJobPubliclyParameters,
-  Result<JobShare, ActionError>
->(async ({ jobId, allowSearchIndexing, session }) => {
-  return await shareJobInPublic({
-    jobId,
-    sharePublic: false,
-    allowSearchIndexing: allowSearchIndexing ?? true,
-    session,
-  });
 });
 
 interface UpdateAllowSearchIndexingParameters extends AuthenticatedRequest {
@@ -548,7 +517,6 @@ export const deleteJobShare = withSession<
   Result<void, ActionError>
 >(async ({ jobId, session }) => {
   const userId = session.user.id;
-  const organizationId = session.session.activeOrganizationId ?? null;
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -566,16 +534,6 @@ export const deleteJobShare = withSession<
           message: "Unauthorized",
           code: CommonErrorCode.UNAUTHORIZED,
         });
-      }
-
-      // If job belongs to an organization, require matching active organization
-      if (job.organizationId) {
-        if (!organizationId || organizationId !== job.organizationId) {
-          return Err({
-            message: "Unauthorized",
-            code: CommonErrorCode.UNAUTHORIZED,
-          });
-        }
       }
 
       await jobShareRepository.deleteShareByJobId(jobId, tx);

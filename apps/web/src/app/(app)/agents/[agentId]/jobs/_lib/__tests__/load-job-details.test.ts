@@ -50,7 +50,7 @@ describe("loadJobDetails", () => {
     vi.resetModules();
   });
 
-  it("redirects when the job is only organization-shared", async () => {
+  it("redirects when the job is not owned by the current user", async () => {
     getSessionMock.mockResolvedValue({
       user: { id: "user-1" },
       session: { activeOrganizationId: "org-1" },
@@ -60,7 +60,6 @@ describe("loadJobDetails", () => {
       id: "job-1",
       agent: { id: "agent-1" },
       userId: "other-user",
-      share: { organizationId: "org-1" },
     });
 
     const { loadJobDetails } = await import("../load-job-details");

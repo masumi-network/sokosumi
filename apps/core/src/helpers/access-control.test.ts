@@ -332,7 +332,7 @@ describe("requireJobAccess", () => {
     });
   });
 
-  it("rejects jobs that are only organization-shared", async () => {
+  it("rejects jobs that are not owned by the current user", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 

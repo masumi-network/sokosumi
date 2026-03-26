@@ -1672,9 +1672,9 @@ export type GetAgentsByIdJobsData = {
     };
     query?: {
         /**
-         * Comma-separated scope filters. Allowed values: context, owned, shared. Example: context,shared
+         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
          */
-        scope?: Array<'context' | 'owned' | 'shared'>;
+        scope?: Array<'context' | 'owned'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -5211,9 +5211,9 @@ export type GetJobsData = {
          */
         status?: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
         /**
-         * Comma-separated scope filters. Allowed values: context, owned, shared. Example: context,shared
+         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
          */
-        scope?: Array<'context' | 'owned' | 'shared'>;
+        scope?: Array<'context' | 'owned'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -5299,9 +5299,9 @@ export type GetJobsByIdData = {
     };
     query?: {
         /**
-         * Comma-separated scope filters. Allowed values: context, owned, shared. Example: context,shared
+         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
          */
-        scope?: Array<'context' | 'owned' | 'shared'>;
+        scope?: Array<'context' | 'owned'>;
     };
     url: '/jobs/{id}';
 };

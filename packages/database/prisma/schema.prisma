@@ -193,7 +193,6 @@ model Organization {
   tasks          Task[]
   jobSchedules   JobSchedule[]
   transactions   Transaction[]
-  jobShares      JobShare[]
   coworkerUsages CoworkerUsage[]
 
   stripeCustomerId String?
@@ -902,16 +901,12 @@ model JobShare {
   jobId String @unique
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
   // Security & Access
   token String? @unique
 
   // SEO Control
   allowSearchIndexing Boolean @default(true)
 
-  @@index([organizationId])
   @@map("jobShare")
 }
 

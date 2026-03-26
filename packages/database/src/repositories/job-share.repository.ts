@@ -8,14 +8,6 @@ import { jobShareInclude } from "../types/job-share.js";
  * Provides methods for creating, retrieving, and updating JobShare records.
  */
 export const jobShareRepository = {
-  async hasShareByJobId(jobId: string, tx: Prisma.TransactionClient) {
-    const share = await tx.jobShare.findUnique({
-      where: { jobId },
-      select: { id: true },
-    });
-    return share !== null;
-  },
-
   async getShareById(id: string, tx: Prisma.TransactionClient) {
     return await tx.jobShare.findUnique({
       where: { id },
@@ -32,16 +24,8 @@ export const jobShareRepository = {
     });
   },
 
-  async getShareByJobId(jobId: string, tx: Prisma.TransactionClient) {
-    return await tx.jobShare.findUnique({
-      where: { jobId },
-      include: jobShareInclude,
-    });
-  },
-
   async upsertPublicShare(
     jobId: string,
-    sharePublic: boolean,
     allowSearchIndexing: boolean = true,
     tx: Prisma.TransactionClient,
   ) {
@@ -50,19 +34,13 @@ export const jobShareRepository = {
       create: {
         job: { connect: { id: jobId } },
         allowSearchIndexing,
-        token: sharePublic ? uuidv4() : null,
+        token: uuidv4(),
       },
       update: {
         allowSearchIndexing,
-        token: sharePublic ? uuidv4() : null,
+        token: uuidv4(),
       },
       include: jobShareInclude,
-    });
-  },
-
-  async deleteShareById(id: string, tx: Prisma.TransactionClient) {
-    return await tx.jobShare.delete({
-      where: { id },
     });
   },
 

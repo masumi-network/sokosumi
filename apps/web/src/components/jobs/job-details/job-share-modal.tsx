@@ -21,7 +21,6 @@ import {
   deleteJobShare,
   JobErrorCode,
   shareJobPublicly,
-  unshareJobPublicly,
   updateAllowSearchIndexing,
 } from "@/lib/actions";
 import { cn } from "@/lib/utils";
@@ -91,11 +90,12 @@ export default function JobShareModal({
   };
 
   const handleTogglePublicShare = async () => {
+    if (jobShare?.token) {
+      return;
+    }
+
     setIsLoading(true);
-    const isCurrentlyPublic = jobShare && jobShare.token !== null;
-    const result = isCurrentlyPublic
-      ? await unshareJobPublicly({ jobId: job.id })
-      : await shareJobPublicly({ jobId: job.id });
+    const result = await shareJobPublicly({ jobId: job.id });
 
     if (result.ok) {
       needRefresh.current = true;
@@ -173,6 +173,11 @@ export default function JobShareModal({
   };
 
   const handleRemoveSharePerJob = async () => {
+    if (!jobShare?.token) {
+      return;
+    }
+
+    setIsLoading(true);
     const result = await deleteJobShare({
       jobId: job.id,
     });
@@ -203,6 +208,7 @@ export default function JobShareModal({
           break;
       }
     }
+    setIsLoading(false);
   };
 
   const handleCopyLink = async () => {
