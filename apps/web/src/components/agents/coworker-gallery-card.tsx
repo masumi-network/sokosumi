@@ -33,6 +33,23 @@ interface CoworkerGalleryCardProps {
   action?: React.ReactNode;
 }
 
+function normalizeWhatsAppPhone(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function getChannelHref(channel: CoworkerChannel): string | null {
+  if (channel.origin === TaskEventOrigin.EMAIL) {
+    return `mailto:${channel.value}`;
+  }
+
+  if (channel.origin === TaskEventOrigin.WHATSAPP) {
+    const normalizedPhone = normalizeWhatsAppPhone(channel.value);
+    return normalizedPhone ? `https://wa.me/${normalizedPhone}` : null;
+  }
+
+  return null;
+}
+
 function CoworkerGalleryCard({
   slug,
   name,
@@ -81,15 +98,33 @@ function CoworkerGalleryCard({
             const OriginIcon = ORIGIN_ICON_MAP[origin];
             const label = t(`originApp.${ORIGIN_APP_NAME_KEY_MAP[origin]}`);
             const isExpanded = expandedOrigin === origin;
+            const href = getChannelHref({ origin, value });
+            const sharedClasses = cn(
+              "inline-flex size-7 items-center justify-center rounded-md border border-transparent text-white/55 transition-colors hover:text-white",
+              isExpanded && "border-white/30 bg-white/15 text-white",
+            );
+
+            if (href) {
+              return (
+                <a
+                  key={`${origin}-${value.slice(0, 12)}`}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={sharedClasses}
+                  aria-label={label}
+                >
+                  <OriginIcon className="size-3.5 shrink-0" aria-hidden />
+                </a>
+              );
+            }
+
             return (
               <button
                 key={`${origin}-${value.slice(0, 12)}`}
                 type="button"
                 onClick={(event) => handleChannelButtonClick(event, origin)}
-                className={cn(
-                  "inline-flex size-7 items-center justify-center rounded-md border border-transparent text-white/55 transition-colors hover:text-white",
-                  isExpanded && "border-white/30 bg-white/15 text-white",
-                )}
+                className={sharedClasses}
                 aria-label={label}
                 aria-pressed={isExpanded}
               >

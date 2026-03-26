@@ -33,27 +33,49 @@ describe("CoworkerGalleryCard", () => {
     expect(img).toHaveAttribute("src", unsupportedSrc);
   });
 
-  it("reveals contact value when channel icon is clicked", async () => {
-    const user = userEvent.setup();
+  it("renders direct links for email and WhatsApp channels", () => {
     render(
       <CoworkerGalleryCard
         slug="soko"
         name="Soko"
         channels={[
           { origin: TaskEventOrigin.EMAIL, value: "soko@example.com" },
-          { origin: TaskEventOrigin.WHATSAPP, value: "+49151" },
+          { origin: TaskEventOrigin.WHATSAPP, value: "+49 151-123 45" },
         ]}
         action={<button type="button">Select</button>}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "originApp.email" }));
-    expect(screen.getByText("soko@example.com")).toBeInTheDocument();
+    const emailChannel = screen.getByRole("link", { name: "originApp.email" });
+    expect(emailChannel).toHaveAttribute("href", "mailto:soko@example.com");
+
+    const whatsAppChannel = screen.getByRole("link", {
+      name: "originApp.whatsapp",
+    });
+    expect(whatsAppChannel).toHaveAttribute("href", "https://wa.me/4915112345");
+  });
+
+  it("reveals contact value when non-link channel icon is clicked", async () => {
+    const user = userEvent.setup();
+    render(
+      <CoworkerGalleryCard
+        slug="soko"
+        name="Soko"
+        channels={[
+          { origin: TaskEventOrigin.TELEGRAM, value: "@soko-agent" },
+          { origin: TaskEventOrigin.DISCORD, value: "soko#1337" },
+        ]}
+        action={<button type="button">Select</button>}
+      />,
+    );
 
     await user.click(
-      screen.getByRole("button", { name: "originApp.whatsapp" }),
+      screen.getByRole("button", { name: "originApp.telegram" }),
     );
-    expect(screen.queryByText("soko@example.com")).not.toBeInTheDocument();
-    expect(screen.getByText("+49151")).toBeInTheDocument();
+    expect(screen.getByText("@soko-agent")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "originApp.discord" }));
+    expect(screen.queryByText("@soko-agent")).not.toBeInTheDocument();
+    expect(screen.getByText("soko#1337")).toBeInTheDocument();
   });
 });
