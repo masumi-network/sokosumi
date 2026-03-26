@@ -1,3 +1,4 @@
+import CreditCta from "@/app/components/credit-cta";
 import UserCredits, {
   type UserCreditsData,
 } from "@/app/components/user-credits";
@@ -52,16 +53,19 @@ export default function Sidebar({
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">
         <AnnouncementCards />
-        <div className="relative flex flex-1 gap-2 p-4 pt-0 group-data-[collapsible=icon]:hidden">
-          <UserCredits
-            creditsData={creditsData}
-            currentTimestampMs={currentTimestampMs}
-            organizationName={organizationName}
-            session={session}
-            showCtaButtons={false}
-            showCreditUsage
-            showAvatar={false}
-          />
+        <div className="relative flex flex-1 flex-col gap-4 p-2 pt-0 pb-4 group-data-[collapsible=icon]:hidden">
+          <div className="flex flex-col gap-2 px-2">
+            <UserCredits
+              creditsData={creditsData}
+              currentTimestampMs={currentTimestampMs}
+              organizationName={organizationName}
+              session={session}
+              showCtaButtons={false}
+              showCreditUsage
+              showAvatar={false}
+            />
+          </div>
+          <CreditCta currentPlan={creditsData?.subscription?.plan ?? "free"} />
         </div>
       </SidebarFooter>
     </ShadcnSidebar>
