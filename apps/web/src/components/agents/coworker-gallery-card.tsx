@@ -33,6 +33,37 @@ interface CoworkerGalleryCardProps {
   action?: React.ReactNode;
 }
 
+function normalizeWhatsAppPhone(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function getChannelHref(channel: CoworkerChannel): string | null {
+  if (channel.origin === TaskEventOrigin.EMAIL) {
+    const address = channel.value.trim();
+    return address ? `mailto:${address}` : null;
+  }
+
+  if (channel.origin === TaskEventOrigin.WHATSAPP) {
+    const normalizedPhone = normalizeWhatsAppPhone(channel.value);
+    return normalizedPhone ? `https://wa.me/${normalizedPhone}` : null;
+  }
+
+  return null;
+}
+
+function handleChannelExternalLinkClick(
+  event: MouseEvent<HTMLButtonElement>,
+  href: string,
+) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (href.startsWith("mailto:")) {
+    window.location.assign(href);
+    return;
+  }
+  window.open(href, "_blank", "noopener,noreferrer");
+}
+
 function CoworkerGalleryCard({
   slug,
   name,
@@ -64,6 +95,8 @@ function CoworkerGalleryCard({
   const canUseNextImage = canUseNextImageSrc(imageSrc);
   const displayDescription = description || DEFAULT_COWORKER_DESCRIPTION;
   const coworkerNewTaskHref = `/tasks?create=true&coworker=${encodeURIComponent(slug)}`;
+  /** Nested <a> inside Next.js <Link> is invalid HTML; use buttons when the card is link-wrapped. */
+  const useAnchorForExternalChannels = Boolean(action);
   const cardClassName = cn(
     "group block w-full rounded-lg focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 focus-visible:outline-none md:w-80",
     !action && "cursor-pointer",
@@ -81,19 +114,53 @@ function CoworkerGalleryCard({
             const OriginIcon = ORIGIN_ICON_MAP[origin];
             const label = t(`originApp.${ORIGIN_APP_NAME_KEY_MAP[origin]}`);
             const isExpanded = expandedOrigin === origin;
+            const href = getChannelHref({ origin, value });
+            const sharedClasses = cn(
+              "cursor-pointer inline-flex size-7 items-center justify-center rounded-md border border-transparent text-white/55 transition-colors hover:text-white",
+              isExpanded && "border-white/30 bg-white/15 text-white",
+            );
+
+            if (href && useAnchorForExternalChannels) {
+              return (
+                <a
+                  key={`${origin}-${value.slice(0, 12)}`}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={sharedClasses}
+                  aria-label={label}
+                >
+                  <OriginIcon className="size-4 shrink-0" aria-hidden />
+                </a>
+              );
+            }
+
+            if (href) {
+              return (
+                <button
+                  key={`${origin}-${value.slice(0, 12)}`}
+                  type="button"
+                  onClick={(event) =>
+                    handleChannelExternalLinkClick(event, href)
+                  }
+                  className={sharedClasses}
+                  aria-label={label}
+                >
+                  <OriginIcon className="size-4 shrink-0" aria-hidden />
+                </button>
+              );
+            }
+
             return (
               <button
                 key={`${origin}-${value.slice(0, 12)}`}
                 type="button"
                 onClick={(event) => handleChannelButtonClick(event, origin)}
-                className={cn(
-                  "inline-flex size-7 items-center justify-center rounded-md border border-transparent text-white/55 transition-colors hover:text-white",
-                  isExpanded && "border-white/30 bg-white/15 text-white",
-                )}
+                className={sharedClasses}
                 aria-label={label}
                 aria-pressed={isExpanded}
               >
-                <OriginIcon className="size-3.5 shrink-0" aria-hidden />
+                <OriginIcon className="size-4 shrink-0" aria-hidden />
               </button>
             );
           })}
