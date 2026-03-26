@@ -518,6 +518,23 @@ export type Task = {
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<Job>;
+    links: Array<TaskLink>;
+};
+
+export type TaskLink = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    type: 'RELATES' | 'BLOCKS' | 'PARENT' | 'DUPLICATE';
+    fromTaskId: string;
+    toTaskId: string;
+    peerTaskId: string;
+    direction: 'outgoing' | 'incoming';
+    note: string | null;
+};
+
+export type TaskLinkDeleted = {
+    deleted: true;
 };
 
 /**
@@ -7010,6 +7027,322 @@ export type PostTasksResponses = {
 };
 
 export type PostTasksResponse = PostTasksResponses[keyof PostTasksResponses];
+
+export type GetTasksByIdLinksData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
+         */
+        scope?: Array<'context' | 'owned'>;
+    };
+    url: '/tasks/{id}/links';
+};
+
+export type GetTasksByIdLinksErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdLinksError = GetTasksByIdLinksErrors[keyof GetTasksByIdLinksErrors];
+
+export type GetTasksByIdLinksResponses = {
+    /**
+     * Task links
+     */
+    200: {
+        data: Array<TaskLink>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdLinksResponse = GetTasksByIdLinksResponses[keyof GetTasksByIdLinksResponses];
+
+export type PostTasksByIdLinksData = {
+    body?: {
+        toTaskId: string;
+        type: 'RELATES' | 'BLOCKS' | 'PARENT' | 'DUPLICATE';
+        note?: string | null;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/links';
+};
+
+export type PostTasksByIdLinksErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdLinksError = PostTasksByIdLinksErrors[keyof PostTasksByIdLinksErrors];
+
+export type PostTasksByIdLinksResponses = {
+    /**
+     * Task link created
+     */
+    201: {
+        data: TaskLink;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdLinksResponse = PostTasksByIdLinksResponses[keyof PostTasksByIdLinksResponses];
+
+export type DeleteTasksByIdLinksByLinkIdData = {
+    body?: never;
+    path: {
+        id: string;
+        linkId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/links/{linkId}';
+};
+
+export type DeleteTasksByIdLinksByLinkIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksByIdLinksByLinkIdError = DeleteTasksByIdLinksByLinkIdErrors[keyof DeleteTasksByIdLinksByLinkIdErrors];
+
+export type DeleteTasksByIdLinksByLinkIdResponses = {
+    /**
+     * Task link deleted
+     */
+    200: {
+        data: TaskLinkDeleted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteTasksByIdLinksByLinkIdResponse = DeleteTasksByIdLinksByLinkIdResponses[keyof DeleteTasksByIdLinksByLinkIdResponses];
+
+export type PatchTasksByIdLinksByLinkIdData = {
+    body?: {
+        type?: 'RELATES' | 'BLOCKS' | 'PARENT' | 'DUPLICATE';
+        note?: string | null;
+    };
+    path: {
+        id: string;
+        linkId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/links/{linkId}';
+};
+
+export type PatchTasksByIdLinksByLinkIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchTasksByIdLinksByLinkIdError = PatchTasksByIdLinksByLinkIdErrors[keyof PatchTasksByIdLinksByLinkIdErrors];
+
+export type PatchTasksByIdLinksByLinkIdResponses = {
+    /**
+     * Task link updated
+     */
+    200: {
+        data: TaskLink;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchTasksByIdLinksByLinkIdResponse = PatchTasksByIdLinksByLinkIdResponses[keyof PatchTasksByIdLinksByLinkIdResponses];
 
 export type DeleteTasksByIdData = {
     body?: never;

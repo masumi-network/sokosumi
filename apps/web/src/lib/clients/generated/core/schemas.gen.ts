@@ -1911,6 +1911,13 @@ export const TaskSchema = {
                 $ref: '#/components/schemas/Job'
             },
             example: []
+        },
+        links: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskLink'
+            },
+            example: []
         }
     },
     required: [
@@ -1925,6 +1932,90 @@ export const TaskSchema = {
         'status',
         'credits',
         'events',
-        'jobs'
+        'jobs',
+        'links'
+    ]
+} as const;
+
+export const TaskLinkSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'tl_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        type: {
+            type: 'string',
+            enum: [
+                'RELATES',
+                'BLOCKS',
+                'PARENT',
+                'DUPLICATE'
+            ],
+            example: 'RELATES'
+        },
+        fromTaskId: {
+            type: 'string',
+            example: 'tsk_a'
+        },
+        toTaskId: {
+            type: 'string',
+            example: 'tsk_b'
+        },
+        peerTaskId: {
+            type: 'string',
+            example: 'tsk_b'
+        },
+        direction: {
+            type: 'string',
+            enum: [
+                'outgoing',
+                'incoming'
+            ],
+            example: 'outgoing'
+        },
+        note: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: null
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'type',
+        'fromTaskId',
+        'toTaskId',
+        'peerTaskId',
+        'direction',
+        'note'
+    ]
+} as const;
+
+export const TaskLinkDeletedSchema = {
+    type: 'object',
+    properties: {
+        deleted: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'deleted'
     ]
 } as const;
