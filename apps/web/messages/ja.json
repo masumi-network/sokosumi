@@ -1109,8 +1109,7 @@
     "cancel": "キャンセル",
     "save": "保存",
     "ChatRail": {
-      "chat": "チャット",
-      "askSokosumi": "Sokosumiに質問"
+      "chat": "チャット"
     },
     "Chat": {
       "Metadata": {
