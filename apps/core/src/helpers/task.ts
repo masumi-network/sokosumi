@@ -3,6 +3,7 @@ import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import { isCoworkerAuthContext } from "@/middleware/auth";
+import { type TaskLinkResponse, taskLinkSchema } from "@/schemas/task.schema";
 import { flattenJob } from "@/types/job";
 import type { TaskWithIncludes } from "@/types/task";
 
@@ -176,6 +177,36 @@ export function isTaskArchivableStatus(status: TaskStatus): boolean {
   );
 }
 
+type TaskLinkRow = TaskWithIncludes["linksFrom"][number];
+
+export function mapTaskLinkForTask(
+  taskId: string,
+  link: TaskLinkRow,
+): TaskLinkResponse {
+  const outgoing = link.fromTaskId === taskId;
+  return taskLinkSchema.parse({
+    id: link.id,
+    createdAt: link.createdAt,
+    updatedAt: link.updatedAt,
+    type: link.type,
+    note: link.note,
+    fromTaskId: link.fromTaskId,
+    toTaskId: link.toTaskId,
+    direction: outgoing ? "outgoing" : "incoming",
+    peerTaskId: outgoing ? link.toTaskId : link.fromTaskId,
+  });
+}
+
+export function mapTaskLinksForTask(
+  linksFrom: TaskLinkRow[],
+  linksTo: TaskLinkRow[],
+): TaskLinkResponse[] {
+  return [
+    ...linksFrom.map((link) => mapTaskLinkForTask(link.fromTaskId, link)),
+    ...linksTo.map((link) => mapTaskLinkForTask(link.toTaskId, link)),
+  ];
+}
+
 export function mapTask(task: TaskWithIncludes) {
   const jobs = task.jobs.map((job) => flattenJob(job));
   const events = task.events.map((event) => mapTaskEvent(event));
@@ -191,6 +222,7 @@ export function mapTask(task: TaskWithIncludes) {
 
     return total + convertCentsToCredits(amount * -1n);
   }, 0);
+  const links = mapTaskLinksForTask(task.linksFrom, task.linksTo);
   return {
     id: task.id,
     createdAt: task.createdAt,
@@ -204,5 +236,6 @@ export function mapTask(task: TaskWithIncludes) {
     events,
     jobs,
     credits,
+    links,
   };
 }

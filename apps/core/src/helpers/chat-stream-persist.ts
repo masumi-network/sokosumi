@@ -1,3 +1,4 @@
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
 const SSE_DATA_PREFIX = "data: ";
@@ -9,15 +10,6 @@ export interface ResponsesApiResponseIdRef {
 
 export interface StreamWithAssistantPersistenceOptions {
   responsesApiResponseIdRef?: ResponsesApiResponseIdRef;
-}
-
-function isPrismaUniqueViolation(error: unknown): boolean {
-  return (
-    error !== null &&
-    typeof error === "object" &&
-    "code" in error &&
-    (error as { code: string }).code === "P2002"
-  );
 }
 
 export function streamWithAssistantPersistence(
