@@ -47,7 +47,6 @@ export default async function JobDetailsPage({
         className="h-full"
         job={job}
         readOnly={readOnly}
-        activeOrganizationId={activeOrganizationId}
       />
     </HydrationBoundary>
   );

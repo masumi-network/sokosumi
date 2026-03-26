@@ -311,7 +311,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getJobs(query?: {
-    scope?: Array<"context" | "owned" | "shared">;
+    scope?: Array<"context" | "owned">;
     cursor?: string;
     limit?: number;
     agentId?: string;
@@ -337,7 +337,7 @@ export function createCoreClient(getClient: GetClient) {
 
   async function getJobById(
     id: string,
-    scope: Array<"context" | "owned" | "shared"> = ["context"],
+    scope: Array<"context" | "owned"> = ["context"],
   ) {
     return executeOperation(
       getClient,

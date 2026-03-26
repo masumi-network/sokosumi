@@ -56,7 +56,7 @@ describe("agents routes OpenAPI scope contract", () => {
     });
 
     expect(getScopeDescriptionFromGetOperation(doc, "/{id}/jobs")).toContain(
-      "Allowed values: context, owned, shared",
+      "Allowed values: context, owned",
     );
   });
 

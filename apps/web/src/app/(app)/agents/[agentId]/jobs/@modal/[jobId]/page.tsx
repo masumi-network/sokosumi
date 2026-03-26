@@ -44,7 +44,6 @@ export default async function JobDetailsModalPage({
         })}
       />
       <JobDetailsModal
-        activeOrganizationId={activeOrganizationId}
         agentId={agentId}
         job={job}
         readOnly={readOnly}

@@ -268,10 +268,6 @@
         "failed": "已失败",
         "unknown": "未知"
       },
-      "SharedBadge": {
-        "shared": "已共享",
-        "sharedBy": "共享者"
-      },
       "JobDetails": {
         "activity": "活动",
         "actionUpdatedStatus": "将状态更改为",
@@ -295,7 +291,6 @@
             "cancel": "取消",
             "noName": "无名称",
             "shared": "公开共享",
-            "organizationShared": "与组织共享",
             "private": "私有",
             "success": "任务名称更新成功",
             "error": "更新任务名称失败",
@@ -335,8 +330,6 @@
             "title": "分享任务",
             "publicAccessTitle": "公开访问",
             "publicAccessDescription": "任何拥有链接的人都可以查看",
-            "organizationAccessTitle": "组织访问",
-            "organizationAccessDescription": "{organizationName} 内的任何人都可以查看",
             "privateAccessTitle": "私有访问",
             "privateAccessDescription": "仅您可以查看",
             "allowSearchIndexing": "允许搜索引擎索引此结果",

@@ -97,7 +97,7 @@ function createJob(
 }
 
 describe("JobRow", () => {
-  it("renders shared avatar for jobs shared by another user", () => {
+  it("does not render sharing badges for non-owned jobs", () => {
     const job = createJob({
       userId: "another-user",
       user: {
@@ -116,11 +116,10 @@ describe("JobRow", () => {
         userId="current-user"
         selected={false}
         onClick={vi.fn()}
-        sharedByLabel="Shared by"
       />,
     );
 
-    expect(screen.getByTestId("shared-job-avatar")).toBeInTheDocument();
+    expect(screen.queryByTestId("shared-job-avatar")).not.toBeInTheDocument();
   });
 
   it("does not render shared avatar for owned jobs", () => {
@@ -135,7 +134,6 @@ describe("JobRow", () => {
         userId="current-user"
         selected={false}
         onClick={vi.fn()}
-        sharedByLabel="Shared by"
       />,
     );
 

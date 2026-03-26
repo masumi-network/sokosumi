@@ -48,7 +48,6 @@ interface JobDetailsProps {
   job: JobWithSokosumiStatus;
   readOnly?: boolean;
   className?: string;
-  activeOrganizationId?: string | null;
   showAgentHeader?: boolean;
 }
 
@@ -56,7 +55,6 @@ export default function JobDetails({
   job: initialJob,
   readOnly = false,
   className,
-  activeOrganizationId,
   showAgentHeader = true,
 }: JobDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
@@ -99,7 +97,6 @@ export default function JobDetails({
               <JobDetailsHeader
                 job={job}
                 readOnly={readOnly}
-                activeOrganizationId={activeOrganizationId}
               />
 
               <div className="md:hidden">
@@ -123,7 +120,6 @@ export default function JobDetails({
                         event={event}
                         isLatestEvent={index === 0}
                         readOnly={readOnly}
-                        activeOrganizationId={activeOrganizationId}
                       />
                       {shouldCollapse && index === 0 ? (
                         <CollapsedEventsButton
@@ -205,18 +201,15 @@ function JobDetailsRealtimeListener({
 function JobDetailsHeader({
   job,
   readOnly,
-  activeOrganizationId,
 }: {
   job: JobWithSokosumiStatus;
   readOnly: boolean;
-  activeOrganizationId?: string | null;
 }) {
   return (
     <div className="flex flex-col gap-2" key={`${job.id}-details-header`}>
       <JobDetailsName
         job={job}
         readOnly={readOnly}
-        activeOrganizationId={activeOrganizationId}
       />
     </div>
   );
@@ -281,13 +274,11 @@ function JobDetailsContent({
   event,
   isLatestEvent,
   readOnly,
-  activeOrganizationId,
 }: {
   job: JobWithSokosumiStatus;
   event: JobEventWithRelations;
   isLatestEvent: boolean;
   readOnly: boolean;
-  activeOrganizationId?: string | null;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails");
   const { formatTimeAgo } = useLocalizedDateTime();
@@ -369,12 +360,7 @@ function JobDetailsContent({
             <div className="space-y-4 pt-1">
               {event.result ? (
                 <section className="space-y-2">
-                  <JobDetailsOutputs
-                    job={job}
-                    event={event}
-                    readOnly={readOnly}
-                    activeOrganizationId={activeOrganizationId}
-                  />
+                  <JobDetailsOutputs job={job} event={event} readOnly={readOnly} />
                 </section>
               ) : null}
 

@@ -9,6 +9,7 @@ import type {
 import {
   requireCoworkerCapability,
   requireCoworkerChatCapability,
+  requireJobAccess,
   requireScopedJobReadAccess,
   requireScopedTaskReadAccess,
   requireTaskAccess,
@@ -260,7 +261,7 @@ describe("requireScopedJobReadAccess", () => {
     });
   });
 
-  it("uses shared scope for organization shares", async () => {
+  it("uses owned scope for cross-context ownership", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
@@ -269,14 +270,14 @@ describe("requireScopedJobReadAccess", () => {
     await requireScopedJobReadAccess(
       userAuthContext,
       "job_123",
-      ["shared"],
+      ["owned"],
       tx,
     );
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
         id: "job_123",
-        OR: [{ share: { organizationId: "org_123" } }],
+        OR: [{ userId: "user_123" }],
       },
     });
   });
@@ -290,30 +291,53 @@ describe("requireScopedJobReadAccess", () => {
     await requireScopedJobReadAccess(
       userAuthContext,
       "job_123",
-      ["owned", "shared"],
+      ["context", "owned"],
       tx,
     );
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
         id: "job_123",
-        OR: [{ userId: "user_123" }, { share: { organizationId: "org_123" } }],
+        OR: [
+          { userId: "user_123", organizationId: "org_123" },
+          { userId: "user_123" },
+        ],
       },
     });
   });
 
-  it("rejects shared-only scope when organization context is missing", async () => {
+  it("rejects when the requested job is outside the allowed scope", async () => {
     const tx = createTransactionClient();
-    const personalContext: UserAuthenticationContext = {
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-    };
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireScopedJobReadAccess(personalContext, "job_123", ["shared"], tx),
+      requireScopedJobReadAccess(userAuthContext, "job_123", ["context"], tx),
     ).rejects.toThrow("You can only access jobs within the requested scope");
+  });
+});
 
-    expect(tx.job.findFirst).not.toHaveBeenCalled();
+describe("requireJobAccess", () => {
+  it("allows only owned jobs", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+    } as never);
+
+    await requireJobAccess(userAuthContext, "job_123", tx);
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: {
+        OR: [{ id: "job_123", userId: "user_123" }],
+      },
+    });
+  });
+
+  it("rejects jobs that are only organization-shared", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireJobAccess(userAuthContext, "job_123", tx),
+    ).rejects.toThrow("You can only access your own jobs");
   });
 });

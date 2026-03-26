@@ -49,7 +49,6 @@ describe("JobDetailsModal", () => {
 
     render(
       <JobDetailsModal
-        activeOrganizationId={null}
         agentId="agent-1"
         job={{} as never}
         readOnly={false}
@@ -64,7 +63,6 @@ describe("JobDetailsModal", () => {
 
     render(
       <JobDetailsModal
-        activeOrganizationId={null}
         agentId="agent-1"
         job={{} as never}
         readOnly={false}
@@ -79,7 +77,6 @@ describe("JobDetailsModal", () => {
 
     render(
       <JobDetailsModal
-        activeOrganizationId={null}
         agentId="agent-1"
         job={{} as never}
         readOnly={false}
@@ -98,7 +95,6 @@ describe("JobDetailsModal", () => {
 
     render(
       <JobDetailsModal
-        activeOrganizationId={null}
         agentId="agent-1"
         job={{} as never}
         readOnly={false}

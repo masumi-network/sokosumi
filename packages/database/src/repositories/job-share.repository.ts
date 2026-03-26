@@ -39,28 +39,6 @@ export const jobShareRepository = {
     });
   },
 
-  async upsertOrganizationShare(
-    jobId: string,
-    organizationId: string | null,
-    tx: Prisma.TransactionClient,
-  ) {
-    return await tx.jobShare.upsert({
-      where: { jobId },
-      create: {
-        job: { connect: { id: jobId } },
-        ...(organizationId && {
-          organization: { connect: { id: organizationId } },
-        }),
-      },
-      update: {
-        organization: organizationId
-          ? { connect: { id: organizationId } }
-          : { disconnect: true },
-      },
-      include: jobShareInclude,
-    });
-  },
-
   async upsertPublicShare(
     jobId: string,
     sharePublic: boolean,

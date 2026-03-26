@@ -268,10 +268,6 @@
         "failed": "失敗",
         "unknown": "不明"
       },
-      "SharedBadge": {
-        "shared": "共有",
-        "sharedBy": "共有者"
-      },
       "JobDetails": {
         "activity": "アクティビティ",
         "actionUpdatedStatus": "ステータスを次に変更しました",
@@ -295,7 +291,6 @@
             "cancel": "キャンセル",
             "noName": "名前なし",
             "shared": "公開共有",
-            "organizationShared": "組織と共有",
             "private": "非公開",
             "success": "ジョブ名を更新しました",
             "error": "ジョブ名の更新に失敗しました",
@@ -335,8 +330,6 @@
             "title": "ジョブを共有",
             "publicAccessTitle": "公開アクセス",
             "publicAccessDescription": "リンクを知っている方は誰でも閲覧できます",
-            "organizationAccessTitle": "組織アクセス",
-            "organizationAccessDescription": "{organizationName} 内の方は誰でも閲覧できます",
             "privateAccessTitle": "非公開アクセス",
             "privateAccessDescription": "閲覧できるのはあなただけです",
             "allowSearchIndexing": "この結果を検索エンジンにインデックスさせる",

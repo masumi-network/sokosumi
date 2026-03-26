@@ -5,16 +5,11 @@ import { JobShare, PaidJobWithStatus } from "@sokosumi/database";
 import {
   jobRepository,
   jobShareRepository,
-  memberRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
-import {
-  ActionError,
-  CommonErrorCode,
-  OrganizationErrorCode,
-} from "@/lib/actions";
+import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import prisma from "@/lib/db/prisma";
 import {
@@ -26,7 +21,7 @@ import {
   startJobInputSchema,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { callAgentHiredWebHook, jobService, userService } from "@/lib/services";
+import { callAgentHiredWebHook, jobService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
@@ -492,97 +487,6 @@ export const unshareJobPublicly = withSession<
   });
 });
 
-interface ShareJobInOrganizationParameters extends AuthenticatedRequest {
-  jobId: string;
-  shareOrganization: boolean;
-}
-
-const shareJobInOrganization = withSession<
-  ShareJobInOrganizationParameters,
-  Result<JobShare, ActionError>
->(async ({ jobId, shareOrganization, session }) => {
-  const userId = session.user.id;
-  const organizationId = session.session.activeOrganizationId ?? null;
-  if (!organizationId) {
-    return Err({
-      message: "Unauthorized",
-      code: CommonErrorCode.UNAUTHORIZED,
-    });
-  }
-  return await prisma.$transaction(async (tx) => {
-    const job = await jobRepository.getJobById(jobId, tx);
-    if (!job) {
-      return Err({
-        message: "Job not found",
-        code: JobErrorCode.JOB_NOT_FOUND,
-      });
-    }
-
-    // must be job owner to share public
-    if (userId !== job.userId) {
-      return Err({
-        message: "Unauthorized",
-        code: CommonErrorCode.UNAUTHORIZED,
-      });
-    }
-
-    if (organizationId !== job.organizationId) {
-      return Err({
-        message: "Unauthorized",
-        code: CommonErrorCode.UNAUTHORIZED,
-      });
-    }
-
-    // Check if user is a member of the organization
-    const membership =
-      await memberRepository.getMemberByUserIdAndOrganizationId(
-        userId,
-        organizationId,
-        tx,
-      );
-    if (!membership) {
-      return Err({
-        message:
-          "You must be a member of the organization to share jobs with it",
-        code: OrganizationErrorCode.NOT_ORGANIZATION_MEMBER,
-      });
-    }
-
-    const share = await jobShareRepository.upsertOrganizationShare(
-      jobId,
-      shareOrganization ? organizationId : null,
-      tx,
-    );
-    return Ok(share);
-  });
-});
-
-interface ShareJobWithOrganizationParameters extends AuthenticatedRequest {
-  jobId: string;
-}
-
-export const shareJobWithOrganization = withSession<
-  ShareJobWithOrganizationParameters,
-  Result<JobShare, ActionError>
->(async ({ jobId, session }) => {
-  return await shareJobInOrganization({
-    jobId,
-    shareOrganization: true,
-    session,
-  });
-});
-
-export const unshareJobWithOrganization = withSession<
-  ShareJobWithOrganizationParameters,
-  Result<JobShare, ActionError>
->(async ({ jobId, session }) => {
-  return await shareJobInOrganization({
-    jobId,
-    shareOrganization: false,
-    session,
-  });
-});
-
 interface UpdateAllowSearchIndexingParameters extends AuthenticatedRequest {
   jobShareId: string;
   allowSearchIndexing: boolean;
@@ -629,10 +533,9 @@ export const updateAllowSearchIndexing = withSession<
 });
 
 /**
- * Remove job shares by job id and recipient organization id
+ * Remove a job share by job id.
  *
- * @param jobId - The id of the job to remove shares for
- * @param recipientOrganizationId - The id of the organization to remove shares for, if null, remove public shares
+ * @param jobId - The id of the job to remove the share for
  * @param session - The authentication context
  * @returns A result indicating success or failure
  */
@@ -680,45 +583,6 @@ export const deleteJobShare = withSession<
     });
   } catch (error) {
     console.error("Failed to remove job public share", error);
-    return Err({
-      message: "Internal server error",
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
-  }
-});
-
-export const getActiveOrganization = withSession<
-  AuthenticatedRequest,
-  Result<{ id: string; name: string; slug: string } | null, ActionError>
->(async () => {
-  try {
-    const organization = await userService.getActiveOrganization();
-    if (!organization) {
-      return Ok(null);
-    }
-    return Ok({
-      id: organization.id,
-      name: organization.name,
-      slug: organization.slug,
-    });
-  } catch (error) {
-    console.error("Failed to get active organization", error);
-    return Err({
-      message: "Internal server error",
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
-  }
-});
-
-export const getActiveOrganizationId = withSession<
-  AuthenticatedRequest,
-  Result<string | null, ActionError>
->(async () => {
-  try {
-    const organizationId = await userService.getActiveOrganizationId();
-    return Ok(organizationId);
-  } catch (error) {
-    console.error("Failed to get active organization id", error);
     return Err({
       message: "Internal server error",
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,

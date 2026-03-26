@@ -35,10 +35,10 @@ describe("jobs routes OpenAPI scope contract", () => {
     });
 
     expect(getScopeDescriptionFromGetOperation(doc, "/")).toContain(
-      "Allowed values: context, owned, shared",
+      "Allowed values: context, owned",
     );
     expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toContain(
-      "Allowed values: context, owned, shared",
+      "Allowed values: context, owned",
     );
   });
 });

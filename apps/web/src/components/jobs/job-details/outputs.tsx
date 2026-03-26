@@ -26,7 +26,6 @@ interface JobDetailsOutputsProps {
   job: JobWithSokosumiStatus;
   event: JobEventWithRelations;
   readOnly?: boolean;
-  activeOrganizationId?: string | null;
 }
 
 interface JobDetailsOutputsLayoutProps {
@@ -41,16 +40,10 @@ export default function JobDetailsOutputs({
   job,
   event,
   readOnly = false,
-  activeOrganizationId,
 }: JobDetailsOutputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsOutputsError />}>
-      <JobDetailsOutputsInner
-        job={job}
-        event={event}
-        readOnly={readOnly}
-        activeOrganizationId={activeOrganizationId}
-      />
+      <JobDetailsOutputsInner job={job} event={event} readOnly={readOnly} />
     </DefaultErrorBoundary>
   );
 }
@@ -59,7 +52,6 @@ function JobDetailsOutputsInner({
   job,
   event,
   readOnly,
-  activeOrganizationId,
 }: JobDetailsOutputsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Output");
   const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
@@ -96,12 +88,7 @@ function JobDetailsOutputsInner({
                   <div className="flex gap-1">
                     <DownloadButton markdown={result} />
                     <CopyMarkdown markdown={result} />
-                    {!readOnly && (
-                      <JobShareButton
-                        job={job}
-                        activeOrganizationId={activeOrganizationId}
-                      />
-                    )}
+                    {!readOnly && <JobShareButton job={job} />}
                   </div>
                 </div>
                 {!readOnly && isPaidJob(job) && (

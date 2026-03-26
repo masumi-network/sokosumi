@@ -10,13 +10,6 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getJobStatusDotColorClass } from "@/components/jobs/job-status-badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import { cn } from "@/lib/utils";
@@ -111,7 +104,6 @@ export function JobsList({
   selectedJobId,
 }: JobsListProps) {
   const t = useTranslations("Components.Jobs.JobsList");
-  const tSharedBadge = useTranslations("Components.Jobs.SharedBadge");
   const { locale } = useLocalizedDateTime();
   const routeParams = useParams<{ jobId?: string }>();
   const router = useRouter();
@@ -208,7 +200,6 @@ export function JobsList({
                           userId={userId}
                           selected={activeJobId === job.id}
                           onClick={handleJobClick}
-                          sharedByLabel={tSharedBadge("sharedBy")}
                         />
                       </li>
                     ))}
@@ -229,19 +220,15 @@ export function JobsList({
 
 export function JobRow({
   job,
-  userId,
   selected,
   onClick,
-  sharedByLabel,
 }: {
   job: JobWithSokosumiStatus;
   userId: string;
   selected: boolean;
   onClick: (job: JobWithSokosumiStatus) => void;
-  sharedByLabel: string;
 }) {
   const { formatTimeAgo } = useLocalizedDateTime();
-  const isSharedJob = job.userId !== userId && Boolean(job.share);
 
   return (
     <button
@@ -273,27 +260,6 @@ export function JobRow({
         >
           {formatTimeAgo(job.createdAt)}
         </p>
-        {isSharedJob ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span data-testid="shared-job-avatar">
-                  <Avatar className="size-6">
-                    <AvatarImage src={job.user.image ?? undefined} />
-                    <AvatarFallback className="text-[10px]">
-                      {job.user.name?.charAt(0)?.toUpperCase() ?? "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {sharedByLabel} {job.user.name}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : null}
       </div>
     </button>
   );
