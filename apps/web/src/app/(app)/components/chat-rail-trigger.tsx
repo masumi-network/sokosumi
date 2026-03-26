@@ -8,10 +8,12 @@ import { useAppChatRail } from "@/contexts/app-chat-rail-context";
 
 export default function ChatRailTrigger() {
   const t = useTranslations("App.ChatRail");
-  const { closeRail, open, openMobile, openNewChat } = useAppChatRail();
+  const { closeRail, isMobile, open, openMobile, openNewChat } =
+    useAppChatRail();
 
   function handleClick() {
-    if (open || openMobile) {
+    const isRailOpen = isMobile ? openMobile : open;
+    if (isRailOpen) {
       closeRail();
       return;
     }

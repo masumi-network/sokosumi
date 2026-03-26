@@ -5,7 +5,6 @@ import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { cn } from "@/lib/utils";
 
 import ChatRailTrigger from "./chat-rail-trigger";
-import HeaderUserSection from "./header-user-section";
 import CustomTrigger from "./sidebar/components/custom-trigger";
 
 interface HeaderProps {
@@ -38,9 +37,7 @@ export default function Header({ className }: HeaderProps) {
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
         <BreadcrumbNavigation className="flex flex-1" />
         <div className="flex items-center gap-2">
-          <HeaderUserSection>
-            <ChatRailTrigger />
-          </HeaderUserSection>
+          <ChatRailTrigger />
         </div>
       </div>
     </header>
