@@ -363,7 +363,7 @@ export default function ProfileSwitchClient({
                       />
                     </span>
                     <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-                      <div className="truncate text-sm font-bold text-current">
+                      <div className="truncate text-sm font-semibold text-current">
                         {activeWorkspace?.name}
                       </div>
                     </div>

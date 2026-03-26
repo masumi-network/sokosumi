@@ -226,7 +226,7 @@
     },
     "Breadcrumb": {
       "jobs": "Jobs",
-      "agents": "Galerie",
+      "agents": "Agenten",
       "credits": "Credits",
       "coupon": "Gutschein",
       "subscriptions": "Abonnements",
@@ -234,9 +234,9 @@
       "account": "Konto",
       "organizations": "Organisationen",
       "mcp": "Model Context Protocol (MCP)",
-      "schedules": "Geplante Agents",
+      "schedules": "Zeitpläne",
       "chat": "Chat",
-      "tasks": "Task Manager",
+      "tasks": "Aufgaben",
       "connections": "Verbindungen",
       "feed": "Mein Feed"
     },
@@ -1109,7 +1109,8 @@
     "cancel": "Abbrechen",
     "save": "Speichern",
     "ChatRail": {
-      "chat": "Chat"
+      "chat": "Chat",
+      "askSokosumi": "Sokosumi fragen"
     },
     "Chat": {
       "Metadata": {
@@ -1451,11 +1452,10 @@
       "Content": {
         "MenuItems": {
           "chat": "Chat",
-          "newChat": "Neuer Chat",
-          "exploreAgents": "Agents entdecken",
+          "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
-          "taskManager": "Task Manager",
-          "scheduledAgents": "Geplante Agents",
+          "taskManager": "Aufgaben",
+          "scheduledAgents": "Zeitpläne",
           "myFeed": "Mein Feed"
         },
         "ChatLists": {

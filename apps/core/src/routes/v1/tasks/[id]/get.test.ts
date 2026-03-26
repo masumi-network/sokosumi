@@ -3,10 +3,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type {
-  AuthenticationContext,
-  AuthVariables,
-} from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountGetTaskById from "./get";
 
