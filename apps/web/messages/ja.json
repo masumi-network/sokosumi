@@ -226,7 +226,7 @@
     },
     "Breadcrumb": {
       "jobs": "ジョブ",
-      "agents": "ギャラリー",
+      "agents": "エージェント",
       "credits": "クレジット",
       "coupon": "クーポン",
       "subscriptions": "サブスクリプション",
@@ -234,9 +234,9 @@
       "account": "アカウント",
       "organizations": "組織",
       "mcp": "Model Context Protocol（MCP）",
-      "schedules": "スケジュール済みエージェント",
+      "schedules": "スケジュール",
       "chat": "チャット",
-      "tasks": "タスク管理",
+      "tasks": "タスク",
       "connections": "接続",
       "feed": "マイフィード"
     },
@@ -1109,7 +1109,8 @@
     "cancel": "キャンセル",
     "save": "保存",
     "ChatRail": {
-      "chat": "チャット"
+      "chat": "チャット",
+      "askSokosumi": "Sokosumiに質問"
     },
     "Chat": {
       "Metadata": {
@@ -1482,12 +1483,11 @@
       "Content": {
         "MenuItems": {
           "chat": "チャット",
-          "newChat": "新しいチャット",
-          "exploreAgents": "エージェントを探す",
+          "exploreAgents": "エージェント",
           "myFeed": "マイフィード",
           "filesAndOutputs": "ファイルと出力",
-          "taskManager": "タスク管理",
-          "scheduledAgents": "スケジュール済みエージェント"
+          "taskManager": "タスク",
+          "scheduledAgents": "スケジュール"
         },
         "ChatLists": {
           "title": "最近のチャット",
