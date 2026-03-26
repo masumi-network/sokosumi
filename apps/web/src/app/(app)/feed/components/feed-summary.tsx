@@ -48,7 +48,7 @@ export function FeedSummary({
     .filter((bullet) => bullet.length > 0);
 
   return (
-    <Card className="dark:bg-card-background overflow-hidden bg-neutral-950 p-0 text-white">
+    <Card className="dark:bg-card-background overflow-hidden bg-neutral-950 bg-[url('/images/backgrounds/feed-bg.png')] bg-cover bg-center bg-no-repeat p-0 text-white">
       <CardContent className="p-0">
         <div className="grid h-full gap-6 p-4 md:grid-cols-[220px_1fr] md:gap-0 md:p-0">
           <div className="flex flex-col justify-start gap-4 md:border-r md:border-white/10 md:p-8">
