@@ -41,20 +41,32 @@ vi.mock("../buy-credits-button", () => ({
   ),
 }));
 
+vi.mock("../credit-cta", () => ({
+  __esModule: true,
+  default: ({ currentPlan }: { currentPlan: string | null }) => {
+    const path =
+      currentPlan === null || currentPlan === "free"
+        ? "/billing?tab=subscription"
+        : "/billing?tab=credits";
+    return (
+      <div
+        data-testid="buy-credits-button"
+        data-label="Get more credits"
+        data-path={path}
+      />
+    );
+  },
+}));
+
+vi.mock("../credit-usage", () => ({
+  __esModule: true,
+  default: () => <div data-testid="credit-usage" />,
+}));
+
 vi.mock("../user-avatar", () => ({
   __esModule: true,
-  default: ({
-    creditsLabel,
-    secondaryLabel,
-  }: {
-    creditsLabel?: string;
-    secondaryLabel?: string;
-  }) => (
-    <div
-      data-testid="user-avatar"
-      data-credits-label={creditsLabel}
-      data-secondary-label={secondaryLabel}
-    />
+  default: ({ secondaryLabel }: { secondaryLabel?: string }) => (
+    <div data-testid="user-avatar" data-secondary-label={secondaryLabel} />
   ),
 }));
 
