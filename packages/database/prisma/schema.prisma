@@ -1159,11 +1159,42 @@ model Task {
   events TaskEvent[]
   jobs   Job[]
 
+  linksFrom TaskLink[] @relation("TaskLinkFrom")
+  linksTo   TaskLink[] @relation("TaskLinkTo")
+
   @@index([organizationId])
   @@index([archivedAt])
   @@index([userId])
   @@index([userId, organizationId])
   @@map("task")
+}
+
+enum TaskLinkType {
+  RELATES
+  BLOCKS
+  PARENT
+  DUPLICATE
+}
+
+/// At most one row per unordered task pair (any direction or `TaskLinkType`).
+/// Enforced by DB index `task_link_task_pair_key` (see migration); Prisma cannot express LEAST/GREATEST unique constraints.
+model TaskLink {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fromTaskId String
+  fromTask   Task   @relation("TaskLinkFrom", fields: [fromTaskId], references: [id], onDelete: Cascade)
+
+  toTaskId String
+  toTask   Task   @relation("TaskLinkTo", fields: [toTaskId], references: [id], onDelete: Cascade)
+
+  type TaskLinkType
+  note String?
+
+  @@index([fromTaskId])
+  @@index([toTaskId])
+  @@map("task_link")
 }
 
 enum TaskStatus {

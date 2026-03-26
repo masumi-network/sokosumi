@@ -84,6 +84,9 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(
       getQueryDescriptionFromGetOperation(doc, "/{id}/jobs", "scope"),
     ).toContain("Allowed values: context, owned");
+    expect(
+      getQueryDescriptionFromGetOperation(doc, "/{id}/links", "scope"),
+    ).toContain("Allowed values: context, owned");
   });
 
   it("exposes multi-status query parameter for the task list endpoint", () => {
@@ -141,5 +144,28 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(patchSchema?.properties).not.toHaveProperty("organizationId");
     expect(workspaceSchema?.properties).toHaveProperty("organizationId");
     expect(workspaceResponses).toHaveProperty("409");
+  });
+
+  it("exposes a dedicated task-link metadata patch route", () => {
+    const doc = tasksRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Tasks API",
+        version: "1.0.0",
+      },
+    });
+
+    const patchSchema = getJsonRequestSchema(
+      doc,
+      "/{id}/links/{linkId}",
+      "patch",
+    ) as {
+      properties?: Record<string, unknown>;
+    } | null;
+
+    expect(patchSchema?.properties).toHaveProperty("type");
+    expect(patchSchema?.properties).toHaveProperty("note");
+    expect(patchSchema?.properties).not.toHaveProperty("fromTaskId");
+    expect(patchSchema?.properties).not.toHaveProperty("toTaskId");
   });
 });
