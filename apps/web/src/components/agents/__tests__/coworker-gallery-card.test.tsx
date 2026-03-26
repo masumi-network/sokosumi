@@ -55,6 +55,33 @@ describe("CoworkerGalleryCard", () => {
     expect(whatsAppChannel).toHaveAttribute("href", "https://wa.me/4915112345");
   });
 
+  it("uses buttons for email and WhatsApp when the card is link-wrapped (no action)", () => {
+    render(
+      <CoworkerGalleryCard
+        slug="soko"
+        name="Soko"
+        channels={[
+          { origin: TaskEventOrigin.EMAIL, value: "soko@example.com" },
+          { origin: TaskEventOrigin.WHATSAPP, value: "+49151" },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("link", { name: "originApp.email" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "originApp.whatsapp" }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: "originApp.email" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "originApp.whatsapp" }),
+    ).toBeInTheDocument();
+  });
+
   it("reveals contact value when non-link channel icon is clicked", async () => {
     const user = userEvent.setup();
     render(
