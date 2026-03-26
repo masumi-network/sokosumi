@@ -5,21 +5,14 @@ import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { cn } from "@/lib/utils";
 
 import ChatRailTrigger from "./chat-rail-trigger";
-import CreditCta from "./credit-cta";
 import HeaderUserSection from "./header-user-section";
 import CustomTrigger from "./sidebar/components/custom-trigger";
-import { type UserCreditsData } from "./user-credits";
 
 interface HeaderProps {
-  creditsData: UserCreditsData | null;
   className?: string | undefined;
 }
 
-export default function Header({ creditsData, className }: HeaderProps) {
-  const currentPlan = creditsData
-    ? (creditsData.subscription?.plan ?? "free")
-    : null;
-
+export default function Header({ className }: HeaderProps) {
   return (
     <header
       className={cn(
@@ -44,12 +37,11 @@ export default function Header({ creditsData, className }: HeaderProps) {
 
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
         <BreadcrumbNavigation className="flex flex-1" />
-        <HeaderUserSection>
-          <div className="flex items-center gap-2">
-            <CreditCta currentPlan={currentPlan} />
+        <div className="flex items-center gap-2">
+          <HeaderUserSection>
             <ChatRailTrigger />
-          </div>
-        </HeaderUserSection>
+          </HeaderUserSection>
+        </div>
       </div>
     </header>
   );
