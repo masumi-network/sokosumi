@@ -7,23 +7,25 @@ import {
   mapTaskLinksForTask,
 } from "./task-link";
 
-function createLink(overrides?: Partial<{
-  id: string;
-  fromTaskId: string;
-  toTaskId: string;
-  type: TaskLinkType;
-  note: string | null;
-  fromTask: {
+function createLink(
+  overrides?: Partial<{
     id: string;
-    name: string;
-    status: TaskStatus;
-  } | null;
-  toTask: {
-    id: string;
-    name: string;
-    status: TaskStatus;
-  } | null;
-}>) {
+    fromTaskId: string;
+    toTaskId: string;
+    type: TaskLinkType;
+    note: string | null;
+    fromTask: {
+      id: string;
+      name: string;
+      status: TaskStatus;
+    } | null;
+    toTask: {
+      id: string;
+      name: string;
+      status: TaskStatus;
+    } | null;
+  }>,
+) {
   return {
     id: overrides?.id ?? "tl_123",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
@@ -109,8 +111,16 @@ describe("mapTaskLinkForTask", () => {
 
 describe("mapTaskLinksForTask", () => {
   it("maps outgoing and incoming links into one response array", () => {
-    const outgoing = createLink({ id: "tl_out", fromTaskId: "tsk_a", toTaskId: "tsk_b" });
-    const incoming = createLink({ id: "tl_in", fromTaskId: "tsk_c", toTaskId: "tsk_a" });
+    const outgoing = createLink({
+      id: "tl_out",
+      fromTaskId: "tsk_a",
+      toTaskId: "tsk_b",
+    });
+    const incoming = createLink({
+      id: "tl_in",
+      fromTaskId: "tsk_c",
+      toTaskId: "tsk_a",
+    });
 
     const result = mapTaskLinksForTask([outgoing], [incoming]);
 

@@ -2,17 +2,15 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 
 import { requireUserTaskAccess } from "@/helpers/access-control";
-import { conflict } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
   isPrismaTransactionConflict,
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
-import {
-  assertTaskLinkAllowed,
-  mapTaskLinkForTask,
-} from "@/helpers/task-link";
+import { buildTaskScopeFilters } from "@/helpers/scope";
+import { assertTaskLinkAllowed, mapTaskLinkForTask } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -20,6 +18,7 @@ import {
   createTaskLinkRequestSchema,
   taskLinkSchema,
 } from "@/schemas/task-link.schema";
+import { taskLinkPeerTaskSelect } from "@/types/task-link";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -65,8 +64,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return await prisma.$transaction(
           async (tx) => {
             await requireUserTaskAccess(authContext, id, tx);
-            const peerTask = await requireUserTaskAccess(authContext, toTaskId, tx);
             assertTaskLinkAllowed(id, toTaskId);
+
+            const peerTask = await tx.task.findFirst({
+              where: {
+                id: toTaskId,
+                archivedAt: null,
+                OR: buildTaskScopeFilters(authContext),
+              },
+              select: taskLinkPeerTaskSelect,
+            });
+
+            if (!peerTask) {
+              throw notFound("Task not found");
+            }
 
             try {
               const link = await tx.taskLink.create({

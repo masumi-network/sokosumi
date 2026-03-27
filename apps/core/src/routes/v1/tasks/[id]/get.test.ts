@@ -53,10 +53,12 @@ function createApp(actor: "user" | "coworker" = "user") {
   return app;
 }
 
-function createTask(overrides?: Partial<{
-  linksFrom: unknown[];
-  linksTo: unknown[];
-}>) {
+function createTask(
+  overrides?: Partial<{
+    linksFrom: unknown[];
+    linksTo: unknown[];
+  }>,
+) {
   return {
     id: "tsk_a",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),

@@ -81,10 +81,7 @@ const route = withGlobalHeaderParameters(
       query,
     },
     responses: {
-      200: jsonPaginatedSuccessResponse(
-        taskListSchema,
-        "Retrieve all tasks",
-      ),
+      200: jsonPaginatedSuccessResponse(taskListSchema, "Retrieve all tasks"),
       401: jsonErrorResponse("Unauthorized"),
       500: jsonErrorResponse("Internal Server Error"),
     },
@@ -146,7 +143,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
 
     const hasMore = tasks.length === takePlusOne;
-    const mappedTasks = tasks.slice(0, take).map((task) => mapTaskListItem(task));
+    const mappedTasks = tasks
+      .slice(0, take)
+      .map((task) => mapTaskListItem(task));
     const paginationMeta = createPaginationMeta(
       mappedTasks,
       count,

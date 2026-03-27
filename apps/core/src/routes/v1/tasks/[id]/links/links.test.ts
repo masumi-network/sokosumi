@@ -330,32 +330,22 @@ describe("POST /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireUserTaskAccessMock.mockImplementation(
-      async (_auth, taskId: string) => {
-        if (taskId === "tsk_b") {
-          return {
-            id: taskId,
-            userId: "user_123",
-            organizationId: "org_123",
-            archivedAt: null,
-            status: TaskStatus.RUNNING,
-            coworkerId: null,
-            name: "Task B",
-            description: null,
-          };
-        }
-
-        return {
-          id: taskId,
-          userId: "user_123",
-          organizationId: "org_123",
-          archivedAt: null,
-          status: TaskStatus.READY,
-          coworkerId: null,
-          name: "Task A",
-          description: null,
-        };
-      },
+      async (_auth, taskId: string) => ({
+        id: taskId,
+        userId: "user_123",
+        organizationId: "org_123",
+        archivedAt: null,
+        status: TaskStatus.READY,
+        coworkerId: null,
+        name: "Task A",
+        description: null,
+      }),
     );
+    taskFindFirstMock.mockResolvedValue({
+      id: "tsk_b",
+      name: "Task B",
+      status: TaskStatus.RUNNING,
+    });
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb(mockTx());
@@ -394,6 +384,18 @@ describe("POST /tasks/{id}/links", () => {
         note: null,
       },
     });
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_b",
+        archivedAt: null,
+        OR: [{ userId: "user_123", organizationId: "org_123" }],
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+      },
+    });
     const body = (await response.json()) as {
       data: {
         peerTaskId: string;
@@ -428,23 +430,7 @@ describe("POST /tasks/{id}/links", () => {
   });
 
   it("returns 404 when the target task is not accessible", async () => {
-    requireUserTaskAccessMock.mockImplementation(
-      async (_auth, taskId: string) => {
-        if (taskId === "tsk_b") {
-          throw new HTTPException(404, { message: "Task not found" });
-        }
-        return {
-          id: taskId,
-          userId: "user_123",
-          organizationId: "org_123",
-          archivedAt: null,
-          status: TaskStatus.READY,
-          coworkerId: null,
-          name: "T",
-          description: null,
-        };
-      },
-    );
+    taskFindFirstMock.mockResolvedValue(null);
 
     const app = createUserApp();
     mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);

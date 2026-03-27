@@ -39,7 +39,7 @@ export function mapTaskLinkForTask(
   const peerTask =
     options && "peerTask" in options
       ? options.peerTask
-      : (outgoing ? link.toTask : link.fromTask) ?? null;
+      : ((outgoing ? link.toTask : link.fromTask) ?? null);
 
   return taskLinkSchema.parse({
     id: link.id,
