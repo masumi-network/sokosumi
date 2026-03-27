@@ -148,9 +148,12 @@ describe("GET /share/jobs/{token}", () => {
     });
     expect(body.data.share.allowSearchIndexing).toBe(false);
     expect(body.data.job.id).toBe("job_123");
+    expect(body.data.job.agentId).toBe("agent_123");
     expect(body.data.job.credits).toBe(0.0005);
     expect(body.data.job.onChainTransactionHash).toBe("0x123abc");
     expect(body.data.job.onChainStatus).toBeNull();
+    expect(body.data.job.userId).toBe("user_123");
+    expect(body.data.job.organizationId).toBe("org_123");
     expect(body.data.job.organization).toEqual({
       id: "org_123",
       name: "Acme Labs",

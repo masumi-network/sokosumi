@@ -143,7 +143,7 @@ export type PaginationMetadata = {
     nextCursor: string | null;
 };
 
-export type Job = {
+export type JobSummary = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
@@ -156,6 +156,8 @@ export type Job = {
     jobType: 'FREE' | 'PAID' | 'DEMO';
     status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
     credits: number;
+    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
+    onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
 };
@@ -361,6 +363,73 @@ export type BlobFileMetadata = {
     etag: string;
 };
 
+export type Job = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    completedAt?: Date | null;
+    agentId: string;
+    userId: string;
+    organizationId?: string | null;
+    taskId?: string | null;
+    name?: string | null;
+    jobType: 'FREE' | 'PAID' | 'DEMO';
+    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    credits: number;
+    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
+    onChainTransactionHash?: string | null;
+    result?: string | null;
+    resultHash?: string | null;
+    input?: string | null;
+    inputHash?: string | null;
+    inputSchema?: string | null;
+    agentJobId: string;
+    identifierFromPurchaser?: string | null;
+    user: {
+        id: string;
+        name: string;
+        image?: string | null;
+    };
+    organization?: {
+        id: string;
+        name: string;
+        slug: string;
+        logo: string | '' | null;
+    } | null;
+    agent: {
+        id: string;
+        name: string;
+        overrideName?: string | null;
+        icon?: string | null;
+        image?: string | null;
+        overrideImage?: string | null;
+        legalPrivacyPolicy?: string | null;
+        overrideLegalPrivacyPolicy?: string | null;
+        legalTerms?: string | null;
+        overrideLegalTerms?: string | null;
+        legalDpa?: string | null;
+        overrideLegalDpa?: string | null;
+        legalOther?: string | null;
+        overrideLegalOther?: string | null;
+    };
+    events: Array<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+        inputSchema?: string | null;
+        input?: {
+            id: string;
+            input: string;
+            inputHash?: string | null;
+            signature?: string | null;
+        } | null;
+        result?: string | null;
+        blobs: Array<File>;
+        links: Array<Link>;
+    }>;
+};
+
 export type File = {
     id: string;
     createdAt: Date;
@@ -423,6 +492,20 @@ export type JobEvent = {
     result?: string | null;
     files: Array<File>;
     links: Array<Link>;
+};
+
+export type JobShare = {
+    id: string;
+    jobId: string;
+    token: string;
+    allowSearchIndexing: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type PublicSharedJobResponse = {
+    job: Job;
+    share: JobShare;
 };
 
 export type Coworker = {
@@ -517,7 +600,7 @@ export type Task = {
     status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     credits: number;
     events: Array<TaskEvent>;
-    jobs: Array<Job>;
+    jobs: Array<JobSummary>;
     links: Array<TaskLink>;
 };
 
@@ -1749,7 +1832,7 @@ export type GetAgentsByIdJobsResponses = {
      * Retrieve all jobs for the agent
      */
     200: {
-        data: Array<Job>;
+        data: Array<JobSummary>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2780,7 +2863,7 @@ export type PostAgentsByIdJobsResponses = {
      * Job created successfully
      */
     201: {
-        data: Job;
+        data: JobSummary;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5275,7 +5358,7 @@ export type GetJobsResponses = {
      * Retrieve all jobs
      */
     200: {
-        data: Array<Job>;
+        data: Array<JobSummary>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5872,6 +5955,203 @@ export type GetJobsByIdEventsResponses = {
 };
 
 export type GetJobsByIdEventsResponse = GetJobsByIdEventsResponses[keyof GetJobsByIdEventsResponses];
+
+export type DeleteJobsByIdShareData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/jobs/{id}/share';
+};
+
+export type DeleteJobsByIdShareErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteJobsByIdShareError = DeleteJobsByIdShareErrors[keyof DeleteJobsByIdShareErrors];
+
+export type DeleteJobsByIdShareResponses = {
+    /**
+     * Delete a job share
+     */
+    200: {
+        data: {
+            [key: string]: unknown;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteJobsByIdShareResponse = DeleteJobsByIdShareResponses[keyof DeleteJobsByIdShareResponses];
+
+export type PutJobsByIdShareData = {
+    body?: {
+        allowSearchIndexing: boolean;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/jobs/{id}/share';
+};
+
+export type PutJobsByIdShareErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutJobsByIdShareError = PutJobsByIdShareErrors[keyof PutJobsByIdShareErrors];
+
+export type PutJobsByIdShareResponses = {
+    /**
+     * Create or update a job share
+     */
+    200: {
+        data: JobShare;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutJobsByIdShareResponse = PutJobsByIdShareResponses[keyof PutJobsByIdShareResponses];
+
+export type GetShareJobsByTokenData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/share/jobs/{token}';
+};
+
+export type GetShareJobsByTokenErrors = {
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetShareJobsByTokenError = GetShareJobsByTokenErrors[keyof GetShareJobsByTokenErrors];
+
+export type GetShareJobsByTokenResponses = {
+    /**
+     * Retrieve a publicly shared job
+     */
+    200: {
+        data: PublicSharedJobResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetShareJobsByTokenResponse = GetShareJobsByTokenResponses[keyof GetShareJobsByTokenResponses];
 
 export type GetCoworkersData = {
     body?: never;
@@ -7880,7 +8160,7 @@ export type GetTasksByIdJobsResponses = {
      * Retrieve task jobs
      */
     200: {
-        data: Array<Job>;
+        data: Array<JobSummary>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8906,7 +9186,7 @@ export type PostTasksByIdJobsResponses = {
      * Job added to task
      */
     201: {
-        data: Job;
+        data: JobSummary;
         meta: {
             timestamp: Date;
             requestId: string;

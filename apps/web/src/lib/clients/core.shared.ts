@@ -2,15 +2,19 @@ import type { Notice, NoticeKind } from "@sokosumi/database";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import {
-  parseCoreJobShare,
-  parseCorePublicSharedJobResponse,
+  mapCoreJobShare,
+  mapCorePublicSharedJobResponse,
 } from "@/lib/clients/core.job-share";
 import type {
+  DeleteJobsByIdShareError,
   GetCoworkersData,
+  GetShareJobsByTokenError,
   GetTasksData,
   PaginationMetadata,
+  PutJobsByIdShareError,
 } from "@/lib/clients/generated/core";
 import {
+  deleteJobsByIdShare as coreDeleteJobsByIdShare,
   deleteTasksById as coreDeleteTasksById,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
@@ -20,6 +24,7 @@ import {
   getCoworkers as coreGetCoworkers,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getShareJobsByToken as coreGetShareJobsByToken,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getUsersMeCredits as coreGetUsersMeCredits,
@@ -34,6 +39,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postUsersMeFiles as corePostUsersMeFiles,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
+  putJobsByIdShare as corePutJobsByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
@@ -596,25 +602,20 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       async (client) => {
-        const result = await client.put({
-          url: "/jobs/{id}/share",
+        const result = await corePutJobsByIdShare({
+          client,
           path: { id },
           body,
-          headers: {
-            "Content-Type": "application/json",
-          },
         });
         if (result.error) {
           return {
             data: undefined,
-            error: result.error,
+            error: result.error as PutJobsByIdShareError,
             response: result.response,
           };
         }
-
-        const envelope = result.data as { data?: unknown } | undefined;
         return {
-          data: parseCoreJobShare(envelope?.data),
+          data: mapCoreJobShare(result.data.data),
           error: undefined,
           response: result.response,
         };
@@ -627,14 +628,14 @@ export function createCoreClient(getClient: GetClient) {
     await executeOperation(
       getClient,
       async (client) => {
-        const result = await client.delete({
-          url: "/jobs/{id}/share",
+        const result = await coreDeleteJobsByIdShare({
+          client,
           path: { id },
         });
         if (result.error) {
           return {
             data: undefined,
-            error: result.error,
+            error: result.error as DeleteJobsByIdShareError,
             response: result.response,
           };
         }
@@ -653,22 +654,20 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       async (client) => {
-        const result = await client.get({
-          url: "/share/jobs/{token}",
+        const result = await coreGetShareJobsByToken({
+          client,
           path: { token },
           cache: "no-store",
         });
         if (result.error) {
           return {
             data: undefined,
-            error: result.error,
+            error: result.error as GetShareJobsByTokenError,
             response: result.response,
           };
         }
-
-        const envelope = result.data as { data?: unknown } | undefined;
         return {
-          data: parseCorePublicSharedJobResponse(envelope?.data),
+          data: mapCorePublicSharedJobResponse(result.data.data),
           error: undefined,
           response: result.response,
         };

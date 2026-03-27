@@ -505,7 +505,7 @@ export const PaginationMetadataSchema = {
     ]
 } as const;
 
-export const JobSchema = {
+export const JobSummarySchema = {
     type: 'object',
     properties: {
         id: {
@@ -589,6 +589,31 @@ export const JobSchema = {
         credits: {
             type: 'number',
             example: 5
+        },
+        onChainStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'FUNDS_LOCKED',
+                'FUNDS_OR_DATUM_INVALID',
+                'FUNDS_WITHDRAWN',
+                'RESULT_SUBMITTED',
+                'REFUND_REQUESTED',
+                'REFUND_WITHDRAWN',
+                'DISPUTED',
+                'DISPUTED_WITHDRAWN',
+                null
+            ],
+            example: 'RESULT_SUBMITTED'
+        },
+        onChainTransactionHash: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '0x123abc'
         },
         result: {
             type: [
@@ -1178,6 +1203,452 @@ export const BlobFileMetadataSchema = {
     ]
 } as const;
 
+export const JobSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'job_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        completedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        agentId: {
+            type: 'string',
+            example: 'agent_123'
+        },
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'organization_123'
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'task_123'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Research Task'
+        },
+        jobType: {
+            type: 'string',
+            enum: [
+                'FREE',
+                'PAID',
+                'DEMO'
+            ],
+            example: 'PAID'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'started',
+                'completed',
+                'processing',
+                'input_required',
+                'result_pending',
+                'failed',
+                'payment_pending',
+                'payment_failed',
+                'refund_pending',
+                'refund_resolved',
+                'dispute_pending',
+                'dispute_resolved'
+            ],
+            example: 'completed'
+        },
+        credits: {
+            type: 'number',
+            example: 5
+        },
+        onChainStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'FUNDS_LOCKED',
+                'FUNDS_OR_DATUM_INVALID',
+                'FUNDS_WITHDRAWN',
+                'RESULT_SUBMITTED',
+                'REFUND_REQUESTED',
+                'REFUND_WITHDRAWN',
+                'DISPUTED',
+                'DISPUTED_WITHDRAWN',
+                null
+            ],
+            example: 'RESULT_SUBMITTED'
+        },
+        onChainTransactionHash: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '0x123abc'
+        },
+        result: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '# Result'
+        },
+        resultHash: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'result_hash_123'
+        },
+        input: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '{"prompt":"How many planets are in the solar system?"}'
+        },
+        inputHash: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'input_hash_123'
+        },
+        inputSchema: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'input_schema_123'
+        },
+        agentJobId: {
+            type: 'string',
+            example: 'agent_job_123'
+        },
+        identifierFromPurchaser: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'identifier_123'
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/avatar.png'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
+        },
+        organization: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'org_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Labs'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-labs'
+                },
+                logo: {
+                    anyOf: [
+                        {
+                            type: 'string',
+                            format: 'uri'
+                        },
+                        {
+                            type: 'string',
+                            enum: [
+                                ''
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    example: 'https://example.com/logo.png'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug',
+                'logo'
+            ]
+        },
+        agent: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'agent_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Research Agent'
+                },
+                overrideName: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'My Research Agent'
+                },
+                icon: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/icon.png'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/image.png'
+                },
+                overrideImage: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/override-image.png'
+                },
+                legalPrivacyPolicy: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/privacy'
+                },
+                overrideLegalPrivacyPolicy: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/custom-privacy'
+                },
+                legalTerms: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/terms'
+                },
+                overrideLegalTerms: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/custom-terms'
+                },
+                legalDpa: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/dpa'
+                },
+                overrideLegalDpa: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/custom-dpa'
+                },
+                legalOther: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/support'
+                },
+                overrideLegalOther: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/custom-support'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
+        },
+        events: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        example: 'event_123'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    updatedAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'INITIATED',
+                            'AWAITING_PAYMENT',
+                            'AWAITING_INPUT',
+                            'RUNNING',
+                            'COMPLETED',
+                            'FAILED'
+                        ],
+                        example: 'COMPLETED'
+                    },
+                    inputSchema: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        example: 'input_schema_123'
+                    },
+                    input: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            id: {
+                                type: 'string',
+                                example: 'input_123'
+                            },
+                            input: {
+                                type: 'string',
+                                example: '{"prompt":"How many planets are in the solar system?"}'
+                            },
+                            inputHash: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                example: 'input_hash_123'
+                            },
+                            signature: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                example: 'signature_123'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'input'
+                        ]
+                    },
+                    result: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        example: '# Result'
+                    },
+                    blobs: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/File'
+                        },
+                        example: []
+                    },
+                    links: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/Link'
+                        },
+                        example: []
+                    }
+                },
+                required: [
+                    'id',
+                    'createdAt',
+                    'updatedAt',
+                    'status',
+                    'blobs',
+                    'links'
+                ]
+            }
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'agentId',
+        'userId',
+        'jobType',
+        'status',
+        'credits',
+        'agentJobId',
+        'user',
+        'agent',
+        'events'
+    ]
+} as const;
+
 export const FileSchema = {
     type: 'object',
     properties: {
@@ -1410,6 +1881,62 @@ export const Job_EventSchema = {
         'status',
         'files',
         'links'
+    ]
+} as const;
+
+export const JobShareSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'share_123'
+        },
+        jobId: {
+            type: 'string',
+            example: 'job_123'
+        },
+        token: {
+            type: 'string',
+            example: 'public-share-token'
+        },
+        allowSearchIndexing: {
+            type: 'boolean',
+            example: true
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'jobId',
+        'token',
+        'allowSearchIndexing',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const PublicSharedJobResponseSchema = {
+    type: 'object',
+    properties: {
+        job: {
+            $ref: '#/components/schemas/Job'
+        },
+        share: {
+            $ref: '#/components/schemas/JobShare'
+        }
+    },
+    required: [
+        'job',
+        'share'
     ]
 } as const;
 
@@ -1908,7 +2435,7 @@ export const TaskSchema = {
         jobs: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/Job'
+                $ref: '#/components/schemas/JobSummary'
             },
             example: []
         },

@@ -200,6 +200,8 @@ describe("GET /jobs/{id}", () => {
     expect(body.data.credits).toBe(0.0005);
     expect(body.data.onChainTransactionHash).toBe("0x123abc");
     expect(body.data.onChainStatus).toBeNull();
+    expect(body.data.userId).toBe("user_123");
+    expect(body.data.organizationId).toBe("org_123");
     expect(body.data.user.name).toBe("Ada Lovelace");
     expect(body.data.organization).toEqual({
       id: "org_123",
