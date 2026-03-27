@@ -10,7 +10,10 @@ import {
 } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { buildTaskScopeFilters } from "@/helpers/scope";
-import { assertTaskLinkAllowed, mapTaskLinkForTask } from "@/helpers/task-link";
+import {
+  assertTaskLinkAllowed,
+  mapTaskLink,
+} from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -112,6 +115,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     })();
 
-    return created(c, mapTaskLinkForTask(id, link, { peerTask }));
+    return created(c, mapTaskLink(id, link, peerTask));
   });
 }

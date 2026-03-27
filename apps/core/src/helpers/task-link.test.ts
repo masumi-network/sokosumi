@@ -7,6 +7,10 @@ import {
   mapTaskLinksForTask,
 } from "./task-link";
 
+function getTaskName(taskId: string) {
+  return `Task ${taskId.split("_").pop()?.toUpperCase() ?? "X"}`;
+}
+
 function createLink(
   overrides?: Partial<{
     id: string;
@@ -34,13 +38,20 @@ function createLink(
     toTaskId: overrides?.toTaskId ?? "tsk_b",
     type: overrides?.type ?? TaskLinkType.RELATES,
     note: overrides?.note ?? null,
-    fromTask: overrides?.fromTask ?? null,
+    fromTask:
+      overrides && "fromTask" in overrides
+        ? overrides.fromTask
+        : {
+            id: overrides?.fromTaskId ?? "tsk_a",
+            name: getTaskName(overrides?.fromTaskId ?? "tsk_a"),
+            status: TaskStatus.READY,
+          },
     toTask:
       overrides && "toTask" in overrides
         ? overrides.toTask
         : {
             id: overrides?.toTaskId ?? "tsk_b",
-            name: "Task B",
+            name: getTaskName(overrides?.toTaskId ?? "tsk_b"),
             status: TaskStatus.READY,
           },
   };
@@ -82,23 +93,23 @@ describe("mapTaskLinkForTask", () => {
     expect(result).toMatchObject({
       id: "tl_123",
       relation: "related",
-      peerTask: null,
+      peerTask: {
+        id: "tsk_a",
+        name: "Task A",
+        status: "READY",
+      },
     });
   });
 
-  it("maps peerTask as null when the peer task is not loaded", () => {
-    const result = mapTaskLinkForTask(
-      "tsk_a",
-      createLink({
-        toTask: null,
-      }),
-    );
-
-    expect(result).toMatchObject({
-      id: "tl_123",
-      relation: "related",
-      peerTask: null,
-    });
+  it("throws when the peer task is not loaded", () => {
+    expect(() =>
+      mapTaskLinkForTask(
+        "tsk_a",
+        createLink({
+          toTask: null,
+        }),
+      ),
+    ).toThrow("Task link tl_123 is missing peerTask");
   });
 
   it("maps directional block relations relative to the current task", () => {
@@ -202,7 +213,24 @@ describe("mapTaskLinksForTask", () => {
     expect(result[1]).toMatchObject({
       id: "tl_in",
       relation: "related",
-      peerTask: null,
+      peerTask: {
+        id: "tsk_c",
+        name: "Task C",
+        status: "READY",
+      },
     });
+  });
+
+  it("throws when a mapped list is missing a peer task relation", () => {
+    expect(() =>
+      mapTaskLinksForTask(
+        [
+          createLink({
+            toTask: null,
+          }),
+        ],
+        [],
+      ),
+    ).toThrow("Task link tl_123 is missing peerTask");
   });
 });

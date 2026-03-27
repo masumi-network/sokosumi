@@ -2599,10 +2599,7 @@ export const TaskLinkRelationSchema = {
 } as const;
 
 export const TaskLinkPeerTaskSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         id: {
             type: 'string',

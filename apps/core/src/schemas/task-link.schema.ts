@@ -32,7 +32,7 @@ export const taskLinkSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     relation: taskLinkRelationSchema.openapi({ example: "related" }),
-    peerTask: taskLinkPeerTaskSchema.nullable().openapi({
+    peerTask: taskLinkPeerTaskSchema.openapi({
       example: {
         id: "tsk_b",
         name: "Review onboarding",

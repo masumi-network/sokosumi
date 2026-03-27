@@ -260,7 +260,7 @@ describe("GET /tasks/{id}", () => {
       data: {
         links: Array<{
           relation: string;
-          peerTask: { id: string; name: string; status: TaskStatus } | null;
+          peerTask: { id: string; name: string; status: TaskStatus };
         }>;
       };
     };

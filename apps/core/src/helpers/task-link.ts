@@ -2,27 +2,11 @@ import { TaskLinkType } from "@sokosumi/database";
 
 import { badRequest } from "@/helpers/error";
 import {
-  type TaskLinkPeerTaskResponse,
-  taskLinkPeerTaskSchema,
   type TaskLinkRelationResponse,
   type TaskLinkResponse,
   taskLinkSchema,
 } from "@/schemas/task-link.schema";
 import type { TaskLinkPeerTaskRow, TaskLinkRow } from "@/types/task-link";
-
-interface MapTaskLinkOptions {
-  peerTask?: TaskLinkPeerTaskRow | null;
-}
-
-function mapTaskLinkPeerTask(
-  peerTask: TaskLinkPeerTaskRow | null | undefined,
-): TaskLinkPeerTaskResponse | null {
-  if (!peerTask) {
-    return null;
-  }
-
-  return taskLinkPeerTaskSchema.parse(peerTask);
-}
 
 function mapTaskLinkRelation(
   type: TaskLinkType,
@@ -49,16 +33,12 @@ export function assertTaskLinkAllowed(
   }
 }
 
-export function mapTaskLinkForTask(
+export function mapTaskLink(
   taskId: string,
   link: TaskLinkRow,
-  options?: MapTaskLinkOptions,
+  peerTask: TaskLinkPeerTaskRow,
 ): TaskLinkResponse {
   const outgoing = link.fromTaskId === taskId;
-  const peerTask =
-    options && "peerTask" in options
-      ? options.peerTask
-      : ((outgoing ? link.toTask : link.fromTask) ?? null);
 
   return taskLinkSchema.parse({
     id: link.id,
@@ -66,8 +46,25 @@ export function mapTaskLinkForTask(
     updatedAt: link.updatedAt,
     relation: mapTaskLinkRelation(link.type, outgoing),
     note: link.note,
-    peerTask: mapTaskLinkPeerTask(peerTask),
+    peerTask,
   });
+}
+
+function getLoadedPeerTaskForTask(
+  taskId: string,
+  link: TaskLinkRow,
+): TaskLinkPeerTaskRow {
+  const peerTask = link.fromTaskId === taskId ? link.toTask : link.fromTask;
+
+  if (!peerTask) {
+    throw new Error(`Task link ${link.id} is missing peerTask`);
+  }
+
+  return peerTask;
+}
+
+export function mapTaskLinkForTask(taskId: string, link: TaskLinkRow) {
+  return mapTaskLink(taskId, link, getLoadedPeerTaskForTask(taskId, link));
 }
 
 export function mapTaskLinksForTask(

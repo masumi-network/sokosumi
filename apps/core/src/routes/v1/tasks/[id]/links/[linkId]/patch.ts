@@ -5,7 +5,7 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { buildTaskScopeFilters } from "@/helpers/scope";
-import { mapTaskLinkForTask } from "@/helpers/task-link";
+import { mapTaskLink } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -57,26 +57,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { type, note } = c.req.valid("json");
 
     const { link, peerTask } = await prisma.$transaction(async (tx) => {
-      const currentLink = await tx.taskLink.findUnique({
+      const link = await tx.taskLink.findUnique({
         where: { id: linkId },
       });
 
-      if (
-        !currentLink ||
-        (currentLink.fromTaskId !== id && currentLink.toTaskId !== id)
-      ) {
+      if (!link || (link.fromTaskId !== id && link.toTaskId !== id)) {
         throw notFound("Task link not found");
       }
 
       await requireUserTaskAccess(authContext, id, tx);
-
-      const link = await tx.taskLink.update({
-        where: { id: linkId },
-        data: {
-          ...(type !== undefined ? { type } : {}),
-          ...(note !== undefined ? { note } : {}),
-        },
-      });
 
       const peerTaskId =
         link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
@@ -88,12 +77,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: taskLinkPeerTaskSelect,
       });
 
+      if (!peerTask) {
+        throw notFound("Peer task not found");
+      }
+
+      const updatedLink = await tx.taskLink.update({
+        where: { id: linkId },
+        data: {
+          ...(type !== undefined ? { type } : {}),
+          ...(note !== undefined ? { note } : {}),
+        },
+      });
+
       return {
-        link,
+        link: updatedLink,
         peerTask,
       };
     });
 
-    return ok(c, mapTaskLinkForTask(id, link, { peerTask }));
+    return ok(c, mapTaskLink(id, link, peerTask));
   });
 }

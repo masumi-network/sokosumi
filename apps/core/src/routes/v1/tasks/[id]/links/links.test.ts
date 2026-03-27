@@ -156,7 +156,7 @@ describe("GET /tasks/{id}/links", () => {
     const body = (await response.json()) as {
       data: Array<{
         relation: string;
-        peerTask: { id: string; name: string; status: TaskStatus } | null;
+        peerTask: { id: string; name: string; status: TaskStatus };
       }>;
     };
     expect(body.data).toHaveLength(1);
@@ -399,7 +399,7 @@ describe("POST /tasks/{id}/links", () => {
     const body = (await response.json()) as {
       data: {
         relation: string;
-        peerTask: { id: string; name: string; status: TaskStatus } | null;
+        peerTask: { id: string; name: string; status: TaskStatus };
       };
     };
     expect(body.data).toMatchObject({
@@ -734,7 +734,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     const body = (await response.json()) as {
       data: {
         relation: string;
-        peerTask: { id: string; name: string; status: TaskStatus } | null;
+        peerTask: { id: string; name: string; status: TaskStatus };
       };
     };
     expect(body.data).toMatchObject({
@@ -778,7 +778,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
   });
 
-  it("returns peerTask null when the peer task is outside the default read scope", async () => {
+  it("returns 404 when the peer task is outside the default read scope", async () => {
     taskFindFirstMock.mockResolvedValueOnce(null);
 
     const app = createUserApp();
@@ -792,17 +792,8 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       }),
     });
 
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      data: {
-        relation: string;
-        peerTask: { id: string; name: string; status: TaskStatus } | null;
-      };
-    };
-    expect(body.data).toMatchObject({
-      relation: "parent",
-      peerTask: null,
-    });
+    expect(response.status).toBe(404);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when no updatable fields are provided", async () => {
