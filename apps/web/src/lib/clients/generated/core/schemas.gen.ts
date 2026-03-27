@@ -2498,60 +2498,6 @@ export const TaskLinkSchema = {
                 'null'
             ],
             example: null
-        },
-        peerTask: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'tsk_b'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Follow up with reviewer'
-                },
-                status: {
-                    type: 'string',
-                    enum: [
-                        'DRAFT',
-                        'READY',
-                        'INPUT_REQUIRED',
-                        'AUTHENTICATION_REQUIRED',
-                        'OUT_OF_CREDITS',
-                        'CREDITS_TOPPED_UP',
-                        'RUNNING',
-                        'AWAITING_EXTERNAL',
-                        'COMPLETED',
-                        'FAILED',
-                        'CANCEL_REQUESTED',
-                        'CANCELED'
-                    ],
-                    example: 'READY'
-                },
-                archivedAt: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'date-time',
-                    example: null
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'status',
-                'archivedAt'
-            ],
-            example: {
-                id: 'tsk_b',
-                name: 'Follow up with reviewer',
-                status: 'READY',
-                archivedAt: null
-            }
         }
     },
     required: [
@@ -2563,8 +2509,7 @@ export const TaskLinkSchema = {
         'toTaskId',
         'peerTaskId',
         'direction',
-        'note',
-        'peerTask'
+        'note'
     ]
 } as const;
 

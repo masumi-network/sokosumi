@@ -3,15 +3,11 @@ import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import { isCoworkerAuthContext } from "@/middleware/auth";
-import { type TaskLinkResponse, taskLinkSchema } from "@/schemas/task.schema";
 import { flattenJob } from "@/types/job";
-import type {
-  TaskLinkPeerTask,
-  TaskLinkWithPeerTasks,
-  TaskWithIncludes,
-} from "@/types/task";
+import type { TaskWithIncludes } from "@/types/task";
 
 import { unprocessableEntity } from "./error";
+import { mapTaskLinksForTask } from "./task-link";
 
 type TaskEventWithOptionalTransaction = Omit<
   TaskWithIncludes["events"][number],
@@ -179,51 +175,6 @@ export function isTaskArchivableStatus(status: TaskStatus): boolean {
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.FAILED
   );
-}
-
-function mapTaskLinkPeerTask(peerTask: TaskLinkPeerTask | null) {
-  if (!peerTask) {
-    return null;
-  }
-
-  return {
-    id: peerTask.id,
-    name: peerTask.name,
-    status: peerTask.status,
-    archivedAt: peerTask.archivedAt,
-  };
-}
-
-export function mapTaskLinkForTask(
-  taskId: string,
-  link: TaskLinkWithPeerTasks,
-): TaskLinkResponse {
-  const outgoing = link.fromTaskId === taskId;
-  const peerTask = outgoing
-    ? mapTaskLinkPeerTask(link.toTask ?? null)
-    : mapTaskLinkPeerTask(link.fromTask ?? null);
-  return taskLinkSchema.parse({
-    id: link.id,
-    createdAt: link.createdAt,
-    updatedAt: link.updatedAt,
-    type: link.type,
-    note: link.note,
-    fromTaskId: link.fromTaskId,
-    toTaskId: link.toTaskId,
-    direction: outgoing ? "outgoing" : "incoming",
-    peerTaskId: outgoing ? link.toTaskId : link.fromTaskId,
-    peerTask,
-  });
-}
-
-export function mapTaskLinksForTask(
-  linksFrom: TaskWithIncludes["linksFrom"],
-  linksTo: TaskWithIncludes["linksTo"],
-): TaskLinkResponse[] {
-  return [
-    ...linksFrom.map((link) => mapTaskLinkForTask(link.fromTaskId, link)),
-    ...linksTo.map((link) => mapTaskLinkForTask(link.toTaskId, link)),
-  ];
 }
 
 export function mapTask(task: TaskWithIncludes) {

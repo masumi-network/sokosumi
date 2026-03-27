@@ -5,11 +5,11 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { taskScopeQuerySchema } from "@/helpers/scope";
-import { mapTaskLinksForTask } from "@/helpers/task";
+import { mapTaskLinksForTask } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { taskLinksSchema } from "@/schemas/task.schema";
-import { buildVisibleTaskLinksInclude } from "@/types/task";
+import { taskLinksSchema } from "@/schemas/task-link.schema";
+import { buildVisibleTaskLinksInclude } from "@/types/task-link";
 
 const paramsSchema = z.object({
   id: z.string().openapi({

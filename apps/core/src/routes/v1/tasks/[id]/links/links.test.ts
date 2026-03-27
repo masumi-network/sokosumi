@@ -91,13 +91,6 @@ function mockTx() {
   };
 }
 
-const peerTaskSelect = {
-  id: true,
-  name: true,
-  status: true,
-  archivedAt: true,
-};
-
 describe("GET /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -127,55 +120,6 @@ describe("GET /tasks/{id}/links", () => {
     expect(body.data).toEqual([]);
   });
 
-  it("returns peer task summaries for visible links", async () => {
-    taskFindUniqueMock.mockResolvedValueOnce({
-      id: "tsk_a",
-      linksFrom: [
-        {
-          id: "tl_1",
-          createdAt: new Date("2026-03-25T10:00:00.000Z"),
-          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-          fromTaskId: "tsk_a",
-          toTaskId: "tsk_b",
-          type: TaskLinkType.BLOCKS,
-          note: null,
-          toTask: {
-            id: "tsk_b",
-            name: "Task B",
-            status: TaskStatus.READY,
-            archivedAt: null,
-          },
-        },
-      ],
-      linksTo: [],
-    });
-
-    const app = createUserApp();
-    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
-
-    const response = await app.request(
-      "http://localhost/tsk_a/links?scope=context",
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      data: Array<{
-        peerTask: {
-          id: string;
-          name: string;
-          status: TaskStatus;
-          archivedAt: string | null;
-        } | null;
-      }>;
-    };
-    expect(body.data[0]?.peerTask).toEqual({
-      id: "tsk_b",
-      name: "Task B",
-      status: TaskStatus.READY,
-      archivedAt: null,
-    });
-  });
-
   it("filters linked peer tasks to those visible to the coworker", async () => {
     const app = createCoworkerApp();
     mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
@@ -199,24 +143,6 @@ describe("GET /tasks/{id}/links", () => {
               },
             },
           },
-          include: {
-            fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
-            },
-            toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
-            },
-          },
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
@@ -226,24 +152,6 @@ describe("GET /tasks/{id}/links", () => {
                 coworkerId: "cow_123",
                 archivedAt: null,
                 NOT: { status: { in: [TaskStatus.DRAFT] } },
-              },
-            },
-          },
-          include: {
-            fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
-            },
-            toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
               },
             },
           },
@@ -274,24 +182,6 @@ describe("GET /tasks/{id}/links", () => {
               },
             },
           },
-          include: {
-            fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
-            },
-            toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
-            },
-          },
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
@@ -299,24 +189,6 @@ describe("GET /tasks/{id}/links", () => {
             fromTask: {
               is: {
                 OR: [{ userId: "user_123", organizationId: "org_123" }],
-              },
-            },
-          },
-          include: {
-            fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
-            },
-            toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
               },
             },
           },
@@ -368,18 +240,6 @@ describe("POST /tasks/{id}/links", () => {
       toTaskId: "tsk_b",
       type: TaskLinkType.RELATES,
       note: null,
-      fromTask: {
-        id: "tsk_a",
-        name: "Task A",
-        status: TaskStatus.READY,
-        archivedAt: null,
-      },
-      toTask: {
-        id: "tsk_b",
-        name: "Task B",
-        status: TaskStatus.READY,
-        archivedAt: null,
-      },
     });
   });
 
@@ -404,30 +264,6 @@ describe("POST /tasks/{id}/links", () => {
         type: TaskLinkType.RELATES,
         note: null,
       },
-      include: {
-        fromTask: {
-          select: peerTaskSelect,
-        },
-        toTask: {
-          select: peerTaskSelect,
-        },
-      },
-    });
-    const body = (await response.json()) as {
-      data: {
-        peerTask: {
-          id: string;
-          name: string;
-          status: TaskStatus;
-          archivedAt: string | null;
-        } | null;
-      };
-    };
-    expect(body.data.peerTask).toEqual({
-      id: "tsk_b",
-      name: "Task B",
-      status: TaskStatus.READY,
-      archivedAt: null,
     });
   });
 
@@ -726,18 +562,6 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       toTaskId: "tsk_b",
       type: TaskLinkType.PARENT,
       note: "Updated note",
-      fromTask: {
-        id: "tsk_a",
-        name: "Task A",
-        status: TaskStatus.READY,
-        archivedAt: null,
-      },
-      toTask: {
-        id: "tsk_b",
-        name: "Task B",
-        status: TaskStatus.READY,
-        archivedAt: null,
-      },
     });
   });
 
@@ -761,30 +585,6 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
         type: TaskLinkType.PARENT,
         note: "Updated note",
       },
-      include: {
-        fromTask: {
-          select: peerTaskSelect,
-        },
-        toTask: {
-          select: peerTaskSelect,
-        },
-      },
-    });
-    const body = (await response.json()) as {
-      data: {
-        peerTask: {
-          id: string;
-          name: string;
-          status: TaskStatus;
-          archivedAt: string | null;
-        } | null;
-      };
-    };
-    expect(body.data.peerTask).toEqual({
-      id: "tsk_b",
-      name: "Task B",
-      status: TaskStatus.READY,
-      archivedAt: null,
     });
   });
 
@@ -797,18 +597,6 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       toTaskId: "tsk_b",
       type: TaskLinkType.BLOCKS,
       note: null,
-      fromTask: {
-        id: "tsk_a",
-        name: "Task A",
-        status: TaskStatus.READY,
-        archivedAt: null,
-      },
-      toTask: {
-        id: "tsk_b",
-        name: "Task B",
-        status: TaskStatus.READY,
-        archivedAt: null,
-      },
     });
 
     const app = createUserApp();
@@ -827,14 +615,6 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       where: { id: "tl_1" },
       data: {
         note: null,
-      },
-      include: {
-        fromTask: {
-          select: peerTaskSelect,
-        },
-        toTask: {
-          select: peerTaskSelect,
-        },
       },
     });
   });

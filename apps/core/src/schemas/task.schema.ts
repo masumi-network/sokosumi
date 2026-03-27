@@ -1,11 +1,12 @@
 import { z } from "@hono/zod-openapi";
-import { TaskEventOrigin, TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import {
   createJobRequestSchema,
   jobSummariesSchema,
 } from "@/schemas/job.schema";
+import { taskLinksSchema } from "@/schemas/task-link.schema";
 
 export const taskEventSchema = z
   .object({
@@ -40,60 +41,6 @@ export const taskCommentSchema = z
     coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
   })
   .openapi("TaskComment");
-
-export const taskLinkSchema = z
-  .object({
-    id: z.string().openapi({ example: "tl_123" }),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
-    type: z.enum(TaskLinkType).openapi({ example: TaskLinkType.RELATES }),
-    fromTaskId: z.string().openapi({ example: "tsk_a" }),
-    toTaskId: z.string().openapi({ example: "tsk_b" }),
-    peerTaskId: z.string().openapi({ example: "tsk_b" }),
-    direction: z
-      .enum(["outgoing", "incoming"])
-      .openapi({ example: "outgoing" }),
-    note: z.string().nullable().openapi({ example: null }),
-    peerTask: z
-      .object({
-        id: z.string().openapi({ example: "tsk_b" }),
-        name: z.string().openapi({ example: "Follow up with reviewer" }),
-        status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
-        archivedAt: dateTimeSchema.nullable().openapi({ example: null }),
-      })
-      .nullable()
-      .openapi({
-        example: {
-          id: "tsk_b",
-          name: "Follow up with reviewer",
-          status: TaskStatus.READY,
-          archivedAt: null,
-        },
-      }),
-  })
-  .openapi("TaskLink");
-
-export type TaskLinkResponse = z.infer<typeof taskLinkSchema>;
-
-export const taskLinksSchema = z.array(taskLinkSchema);
-
-export const createTaskLinkRequestSchema = z.object({
-  toTaskId: z.string().min(1).openapi({ example: "tsk_b" }),
-  type: z.enum(TaskLinkType).openapi({ example: TaskLinkType.RELATES }),
-  note: z.string().max(2000).nullish().openapi({ example: null }),
-});
-
-export const patchTaskLinkRequestSchema = z
-  .object({
-    type: z.enum(TaskLinkType).optional().openapi({
-      example: TaskLinkType.RELATES,
-    }),
-    note: z.string().max(2000).nullish().openapi({ example: null }),
-  })
-  .refine((data) => data.type !== undefined || data.note !== undefined, {
-    message: "At least one of type or note is required",
-    path: ["type", "note"],
-  });
 
 export const taskSchema = z
   .object({

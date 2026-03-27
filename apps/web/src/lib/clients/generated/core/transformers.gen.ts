@@ -483,11 +483,6 @@ export const patchCoworkersByIdWhitelistResponseTransformer = async (data: any):
 const taskLinkSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
-    if (data.peerTask) {
-        if (data.peerTask.archivedAt) {
-            data.peerTask.archivedAt = new Date(data.peerTask.archivedAt);
-        }
-    }
     return data;
 };
 

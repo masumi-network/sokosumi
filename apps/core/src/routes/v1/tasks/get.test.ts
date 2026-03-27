@@ -34,13 +34,6 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-const peerTaskSelect = {
-  id: true,
-  name: true,
-  status: true,
-  archivedAt: true,
-};
-
 function createApp(actor: "user" | "coworker" = "user") {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
@@ -135,14 +128,6 @@ describe("GET /tasks", () => {
                 },
               },
             },
-            include: {
-              fromTask: {
-                select: peerTaskSelect,
-              },
-              toTask: {
-                select: peerTaskSelect,
-              },
-            },
             orderBy: { createdAt: "asc" },
           },
           linksTo: {
@@ -151,14 +136,6 @@ describe("GET /tasks", () => {
                 is: {
                   OR: [{ userId: "user_123", organizationId: "org_123" }],
                 },
-              },
-            },
-            include: {
-              fromTask: {
-                select: peerTaskSelect,
-              },
-              toTask: {
-                select: peerTaskSelect,
               },
             },
             orderBy: { createdAt: "asc" },
@@ -187,14 +164,6 @@ describe("GET /tasks", () => {
                 },
               },
             },
-            include: {
-              fromTask: {
-                select: peerTaskSelect,
-              },
-              toTask: {
-                select: peerTaskSelect,
-              },
-            },
             orderBy: { createdAt: "asc" },
           },
           linksTo: {
@@ -205,14 +174,6 @@ describe("GET /tasks", () => {
                   archivedAt: null,
                   NOT: { status: { in: [TaskStatus.DRAFT] } },
                 },
-              },
-            },
-            include: {
-              fromTask: {
-                select: peerTaskSelect,
-              },
-              toTask: {
-                select: peerTaskSelect,
               },
             },
             orderBy: { createdAt: "asc" },

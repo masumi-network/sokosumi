@@ -4,15 +4,14 @@ import { requireUserTaskAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTaskLinkForTask } from "@/helpers/task";
+import { mapTaskLinkForTask } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   patchTaskLinkRequestSchema,
   taskLinkSchema,
-} from "@/schemas/task.schema";
-import { taskLinkWithPeerTasksInclude } from "@/types/task";
+} from "@/schemas/task-link.schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -75,7 +74,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...(type !== undefined ? { type } : {}),
           ...(note !== undefined ? { note } : {}),
         },
-        include: taskLinkWithPeerTasksInclude,
       });
     });
 

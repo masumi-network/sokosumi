@@ -9,16 +9,17 @@ import {
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
-import { mapTaskLinkForTask } from "@/helpers/task";
-import { assertTaskLinkAllowed } from "@/helpers/task-link";
+import {
+  assertTaskLinkAllowed,
+  mapTaskLinkForTask,
+} from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   createTaskLinkRequestSchema,
   taskLinkSchema,
-} from "@/schemas/task.schema";
-import { taskLinkWithPeerTasksInclude } from "@/types/task";
+} from "@/schemas/task-link.schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -75,7 +76,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   type,
                   note: note ?? null,
                 },
-                include: taskLinkWithPeerTasksInclude,
               });
             } catch (error) {
               if (isPrismaUniqueViolation(error)) {
