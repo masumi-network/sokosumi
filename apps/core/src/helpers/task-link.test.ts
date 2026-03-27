@@ -236,6 +236,26 @@ describe("mapTaskLinkRelationToTypeForExistingDirection", () => {
     ).toBe(TaskLinkType.PARENT);
   });
 
+  it("allows related relations from the incoming side of an existing link", () => {
+    expect(
+      mapTaskLinkRelationToTypeForExistingDirection(
+        "tsk_b",
+        createLink({ fromTaskId: "tsk_a", toTaskId: "tsk_b" }),
+        "related",
+      ),
+    ).toBe(TaskLinkType.RELATES);
+  });
+
+  it("allows duplicate relations from the incoming side of an existing link", () => {
+    expect(
+      mapTaskLinkRelationToTypeForExistingDirection(
+        "tsk_b",
+        createLink({ fromTaskId: "tsk_a", toTaskId: "tsk_b" }),
+        "duplicate",
+      ),
+    ).toBe(TaskLinkType.DUPLICATE);
+  });
+
   it("reuses the same stored edge shape as write-data mapping", () => {
     const link = createLink({ fromTaskId: "tsk_a", toTaskId: "tsk_b" });
 

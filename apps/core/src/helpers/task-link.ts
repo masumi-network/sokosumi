@@ -14,6 +14,12 @@ interface TaskLinkWriteData {
   type: TaskLinkType;
 }
 
+function isSymmetricTaskLinkRelation(
+  relation: TaskLinkRelationResponse,
+): boolean {
+  return relation === "related" || relation === "duplicate";
+}
+
 function mapTaskLinkRelation(
   type: TaskLinkType,
   outgoing: boolean,
@@ -91,6 +97,10 @@ export function mapTaskLinkRelationToTypeForExistingDirection(
 ): TaskLinkType {
   const peerTaskId = link.fromTaskId === taskId ? link.toTaskId : link.fromTaskId;
   const nextLink = mapTaskLinkRelationToWriteData(taskId, peerTaskId, relation);
+
+  if (isSymmetricTaskLinkRelation(relation)) {
+    return nextLink.type;
+  }
 
   if (
     nextLink.fromTaskId !== link.fromTaskId ||
