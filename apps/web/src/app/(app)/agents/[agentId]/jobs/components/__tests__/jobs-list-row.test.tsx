@@ -110,14 +110,7 @@ describe("JobRow", () => {
       } as never,
     });
 
-    render(
-      <JobRow
-        job={job}
-        userId="current-user"
-        selected={false}
-        onClick={vi.fn()}
-      />,
-    );
+    render(<JobRow job={job} selected={false} onClick={vi.fn()} />);
 
     expect(screen.queryByTestId("shared-job-avatar")).not.toBeInTheDocument();
   });
@@ -128,14 +121,7 @@ describe("JobRow", () => {
       share: null,
     });
 
-    render(
-      <JobRow
-        job={job}
-        userId="current-user"
-        selected={false}
-        onClick={vi.fn()}
-      />,
-    );
+    render(<JobRow job={job} selected={false} onClick={vi.fn()} />);
 
     expect(screen.queryByTestId("shared-job-avatar")).not.toBeInTheDocument();
   });

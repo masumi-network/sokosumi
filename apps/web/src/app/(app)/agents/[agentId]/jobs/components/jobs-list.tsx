@@ -197,7 +197,6 @@ export function JobsList({
                       <li key={job.id}>
                         <JobRow
                           job={job}
-                          userId={userId}
                           selected={activeJobId === job.id}
                           onClick={handleJobClick}
                         />
@@ -224,7 +223,6 @@ export function JobRow({
   onClick,
 }: {
   job: JobWithSokosumiStatus;
-  userId: string;
   selected: boolean;
   onClick: (job: JobWithSokosumiStatus) => void;
 }) {
