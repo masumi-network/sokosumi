@@ -8,7 +8,7 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
-import type { Job } from "@/lib/clients/generated/core/types.gen";
+import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 
 vi.mock("@/components/jobs/job-status-badge", () => ({
   JobStatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
@@ -38,16 +38,19 @@ vi.mock("@/lib/utils/datetime", () => ({
     `ago:${value instanceof Date ? value.toISOString() : value}`,
 }));
 
-function createJob(overrides: Partial<Job>): Job {
+function createJobSummary(overrides: Partial<JobSummary>): JobSummary {
   return {
     id: "job-1",
     agentId: "agent-1",
+    userId: "user-1",
     name: "Job name",
-    createdAt: "2026-02-09T10:00:00.000Z",
+    createdAt: new Date("2026-02-09T10:00:00.000Z"),
+    updatedAt: new Date("2026-02-09T10:00:00.000Z"),
     status: SokosumiJobStatus.PROCESSING,
     jobType: JobType.FREE,
+    credits: 0,
     ...overrides,
-  } as unknown as Job;
+  };
 }
 
 const baseProps = {
@@ -67,19 +70,21 @@ describe("TaskJobsSection", () => {
   });
 
   it("renders jobs newest first, links to agent job detail, and uses fallbacks", () => {
-    const jobs: Job[] = [
-      createJob({
+    const jobs: JobSummary[] = [
+      createJobSummary({
         id: "job-older",
         agentId: "agent-1",
         name: "Older job",
         createdAt: new Date("2026-02-09T10:00:00.000Z"),
+        updatedAt: new Date("2026-02-09T10:00:00.000Z"),
         status: SokosumiJobStatus.COMPLETED,
       }),
-      createJob({
+      createJobSummary({
         id: "job-newer",
         agentId: "agent-2",
         name: "   ",
         createdAt: new Date("2026-02-10T10:00:00.000Z"),
+        updatedAt: new Date("2026-02-10T10:00:00.000Z"),
         status: SokosumiJobStatus.PROCESSING,
       }),
     ];

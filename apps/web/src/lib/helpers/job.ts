@@ -37,13 +37,3 @@ export function getJobStatusData(job: JobWithSokosumiStatus): JobStatusData {
 export function isSharedPublicly(job: JobWithSokosumiStatus): boolean {
   return job.share !== null && job.share.token !== null;
 }
-
-export function isSharedWithOrganization(
-  job: JobWithSokosumiStatus,
-  organizationId?: string | null,
-): boolean {
-  if (!organizationId) {
-    return false;
-  }
-  return job.share !== null && job.share.organizationId === organizationId;
-}

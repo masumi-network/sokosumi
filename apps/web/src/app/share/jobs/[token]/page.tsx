@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { JobDetails } from "@/components/jobs";
+import { JobDetailsView } from "@/components/jobs";
 import { siteConfig } from "@/config/site";
 import { getAgentName, getAgentResolvedImage } from "@/lib/helpers/agent";
 import { jobService } from "@/lib/services";
@@ -80,7 +80,7 @@ export default async function JobPage({
     <div className="container mx-auto flex justify-center p-4 md:p-8">
       <div className="w-full space-y-4">
         <h1 className="text-2xl font-light">{agentName}</h1>
-        <JobDetails job={job} className="w-full" readOnly />
+        <JobDetailsView job={job} className="w-full" readOnly />
       </div>
     </div>
   );

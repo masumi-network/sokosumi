@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { JobWithSokosumiStatus } from "@sokosumi/database";
-import { Globe, Loader2, Lock, Users } from "lucide-react";
+import { Globe, Loader2, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ReactNode, useState } from "react";
@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 import useModal from "@/hooks/use-modal";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
-import { isSharedPublicly, isSharedWithOrganization } from "@/lib/helpers/job";
+import { isSharedPublicly } from "@/lib/helpers/job";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
@@ -38,7 +38,6 @@ interface JobNameContentProps {
   form: UseFormReturn<JobDetailsNameFormSchemaType>;
   name: string | null;
   sharedPublicly: boolean;
-  sharedWithOrganization: boolean;
   readOnly: boolean;
   handleSubmit: (data: JobDetailsNameFormSchemaType) => Promise<void>;
   handleCancel: () => void;
@@ -52,7 +51,6 @@ function JobNameContent({
   form,
   name,
   sharedPublicly,
-  sharedWithOrganization,
   readOnly,
   handleSubmit,
   handleCancel,
@@ -121,18 +119,12 @@ function JobNameContent({
           >
             {sharedPublicly ? (
               <Globe className="size-4" />
-            ) : sharedWithOrganization ? (
-              <Users className="size-4" />
             ) : (
               <Lock className="size-4" />
             )}
           </TooltipTrigger>
           <TooltipContent>
-            {sharedPublicly
-              ? t("shared")
-              : sharedWithOrganization
-                ? t("organizationShared")
-                : t("private")}
+            {sharedPublicly ? t("shared") : t("private")}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -175,27 +167,16 @@ function JobNameWrapper({
 export default function JobDetailsName({
   job,
   readOnly,
-  activeOrganizationId,
 }: {
   job: JobWithSokosumiStatus;
   readOnly: boolean;
-  activeOrganizationId?: string | null;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const { name } = job;
   const sharedPublicly = isSharedPublicly(job);
-  const sharedWithOrganization = isSharedWithOrganization(
-    job,
-    activeOrganizationId,
-  );
 
   const { showModal, Component } = useModal(({ open, onOpenChange }) => (
-    <JobShareModal
-      open={open}
-      onOpenChange={onOpenChange}
-      job={job}
-      activeOrganizationId={activeOrganizationId}
-    />
+    <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />
   ));
 
   const router = useRouter();
@@ -264,7 +245,6 @@ export default function JobDetailsName({
     form,
     name,
     sharedPublicly,
-    sharedWithOrganization,
     readOnly,
     handleSubmit,
     handleCancel,

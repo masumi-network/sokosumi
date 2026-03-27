@@ -15,9 +15,10 @@ import {
   createErrorResponse,
   HttpErrors,
 } from "@/lib/api/schemas/error";
-import { auth, type Session } from "@/lib/auth/auth";
+import type { Session } from "@/lib/auth/auth";
 
 export async function validateSession(headers: Headers): Promise<Session> {
+  const { auth } = await import("@/lib/auth/auth");
   const session = await auth.api.getSession({
     headers,
   });
@@ -85,6 +86,11 @@ export function handleApiError(
         status: 404,
         error: HttpErrors.NOT_FOUND,
         code: "JOB_NOT_FOUND",
+      },
+      JOB_SHARE_NOT_FOUND: {
+        status: 404,
+        error: HttpErrors.NOT_FOUND,
+        code: "JOB_SHARE_NOT_FOUND",
       },
       ORGANIZATION_NOT_FOUND: {
         status: 404,

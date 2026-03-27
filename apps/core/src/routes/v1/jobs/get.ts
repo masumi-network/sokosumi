@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { AgentJobStatus, JobType } from "@sokosumi/database";
+import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { getUserJobs } from "@/helpers/job";
@@ -18,7 +18,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { jobsSchema } from "@/schemas/job.schema.js";
+import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 const query = z
@@ -53,50 +53,58 @@ const route = withGlobalHeaderParameters(
       query,
     },
     responses: {
-      200: jsonPaginatedSuccessResponse(jobsSchema, "Retrieve all jobs", {
-        data: [
-          {
-            id: "cmi4gmksz000104l8wps8p7fp",
-            createdAt: "2025-01-15T10:30:00.000Z",
-            updatedAt: "2025-01-15T10:35:00.000Z",
-            agentId: "agent_123",
-            userId: "user_123",
-            organizationId: "organization_123",
-            name: "Research Task",
-            jobType: JobType.PAID,
-            status: SokosumiJobStatus.COMPLETED,
-            completedAt: "2025-01-15T10:35:00.000Z",
-            credits: 5,
-            result: "# Answer\n\nThere are 8 planets in the solar system.",
-            resultHash: "result_hash_123",
-          },
-          {
-            id: "cmi4gmksz000104l8wps8p8fp",
-            createdAt: "2025-01-15T11:00:00.000Z",
-            updatedAt: "2025-01-15T11:05:00.000Z",
-            agentId: "agent_456",
-            userId: "user_123",
-            organizationId: null,
-            name: "Analysis Job",
-            jobType: JobType.FREE,
-            status: SokosumiJobStatus.PROCESSING,
-            completedAt: null,
-            credits: 0,
-            result: null,
-            resultHash: null,
-          },
-        ],
-        meta: {
-          timestamp: "2025-01-15T12:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-          pagination: {
-            cursor: null,
-            limit: 20,
-            total: 200,
-            nextCursor: "cmi4gmksz000104l8wps8p8fp",
+      200: jsonPaginatedSuccessResponse(
+        jobSummariesSchema,
+        "Retrieve all jobs",
+        {
+          data: [
+            {
+              id: "cmi4gmksz000104l8wps8p7fp",
+              createdAt: "2025-01-15T10:30:00.000Z",
+              updatedAt: "2025-01-15T10:35:00.000Z",
+              agentId: "agent_123",
+              userId: "user_123",
+              organizationId: "organization_123",
+              name: "Research Task",
+              jobType: JobType.PAID,
+              status: SokosumiJobStatus.COMPLETED,
+              completedAt: "2025-01-15T10:35:00.000Z",
+              credits: 5,
+              onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+              onChainTransactionHash: "0x123abc",
+              result: "# Answer\n\nThere are 8 planets in the solar system.",
+              resultHash: "result_hash_123",
+            },
+            {
+              id: "cmi4gmksz000104l8wps8p8fp",
+              createdAt: "2025-01-15T11:00:00.000Z",
+              updatedAt: "2025-01-15T11:05:00.000Z",
+              agentId: "agent_456",
+              userId: "user_123",
+              organizationId: null,
+              name: "Analysis Job",
+              jobType: JobType.FREE,
+              status: SokosumiJobStatus.PROCESSING,
+              completedAt: null,
+              credits: 0,
+              onChainStatus: null,
+              onChainTransactionHash: null,
+              result: null,
+              resultHash: null,
+            },
+          ],
+          meta: {
+            timestamp: "2025-01-15T12:00:00.000Z",
+            requestId: "550e8400-e29b-41d4-a716-446655440000",
+            pagination: {
+              cursor: null,
+              limit: 20,
+              total: 200,
+              nextCursor: "cmi4gmksz000104l8wps8p8fp",
+            },
           },
         },
-      }),
+      ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       500: jsonErrorResponse("Internal Server Error"),
@@ -128,6 +136,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursor,
     );
 
-    return ok(c, jobsSchema.parse(jobs), paginationMeta);
+    return ok(c, jobSummariesSchema.parse(jobs), paginationMeta);
   });
 }

@@ -121,6 +121,8 @@ type BaseJobWithStatus = JobWithRelations & {
   credits: number;
   cents: bigint;
   resultHash: string | null;
+  onChainStatus: OnChainJobStatus | null;
+  onChainTransactionHash: string | null;
   result: string | null;
 };
 

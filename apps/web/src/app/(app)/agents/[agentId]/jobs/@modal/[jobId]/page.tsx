@@ -43,12 +43,7 @@ export default async function JobDetailsModalPage({
           account: targetAccountName,
         })}
       />
-      <JobDetailsModal
-        activeOrganizationId={activeOrganizationId}
-        agentId={agentId}
-        job={job}
-        readOnly={readOnly}
-      />
+      <JobDetailsModal agentId={agentId} job={job} readOnly={readOnly} />
     </HydrationBoundary>
   );
 }
