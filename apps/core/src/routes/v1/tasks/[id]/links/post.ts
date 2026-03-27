@@ -10,10 +10,7 @@ import {
 } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { buildTaskScopeFilters } from "@/helpers/scope";
-import {
-  assertTaskLinkAllowed,
-  mapTaskLink,
-} from "@/helpers/task-link";
+import { assertTaskLinkAllowed, mapTaskLink } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -72,7 +69,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             const peerTask = await tx.task.findFirst({
               where: {
                 id: toTaskId,
-                archivedAt: null,
                 OR: buildTaskScopeFilters(authContext),
               },
               select: taskLinkPeerTaskSelect,
