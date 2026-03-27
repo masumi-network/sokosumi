@@ -177,13 +177,45 @@ export function isTaskArchivableStatus(status: TaskStatus): boolean {
   );
 }
 
-type TaskLinkRow = TaskWithIncludes["linksFrom"][number];
+type TaskLinkPeerTaskSummary = {
+  id: string;
+  name: string;
+  status: TaskStatus;
+  archivedAt: Date | null;
+};
+type TaskLinkRow = {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  type: TaskWithIncludes["linksFrom"][number]["type"];
+  fromTaskId: string;
+  toTaskId: string;
+  note: string | null;
+  fromTask?: TaskLinkPeerTaskSummary | null;
+  toTask?: TaskLinkPeerTaskSummary | null;
+};
+
+function mapTaskLinkPeerTask(peerTask: TaskLinkPeerTaskSummary | null) {
+  if (!peerTask) {
+    return null;
+  }
+
+  return {
+    id: peerTask.id,
+    name: peerTask.name,
+    status: peerTask.status,
+    archivedAt: peerTask.archivedAt,
+  };
+}
 
 export function mapTaskLinkForTask(
   taskId: string,
   link: TaskLinkRow,
 ): TaskLinkResponse {
   const outgoing = link.fromTaskId === taskId;
+  const peerTask = outgoing
+    ? mapTaskLinkPeerTask(link.toTask ?? null)
+    : mapTaskLinkPeerTask(link.fromTask ?? null);
   return taskLinkSchema.parse({
     id: link.id,
     createdAt: link.createdAt,
@@ -194,6 +226,7 @@ export function mapTaskLinkForTask(
     toTaskId: link.toTaskId,
     direction: outgoing ? "outgoing" : "incoming",
     peerTaskId: outgoing ? link.toTaskId : link.fromTaskId,
+    peerTask,
   });
 }
 

@@ -51,6 +51,22 @@ export const taskLinkSchema = z
       .enum(["outgoing", "incoming"])
       .openapi({ example: "outgoing" }),
     note: z.string().nullable().openapi({ example: null }),
+    peerTask: z
+      .object({
+        id: z.string().openapi({ example: "tsk_b" }),
+        name: z.string().openapi({ example: "Follow up with reviewer" }),
+        status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+        archivedAt: dateTimeSchema.nullable().openapi({ example: null }),
+      })
+      .nullable()
+      .openapi({
+        example: {
+          id: "tsk_b",
+          name: "Follow up with reviewer",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      }),
   })
   .openapi("TaskLink");
 

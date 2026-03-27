@@ -105,6 +105,16 @@ describe("GET /tasks/{id}", () => {
               },
             },
           },
+          include: {
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+          },
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
@@ -112,6 +122,16 @@ describe("GET /tasks/{id}", () => {
             fromTask: {
               is: {
                 OR: [{ userId: "user_123", organizationId: "org_123" }],
+              },
+            },
+          },
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
               },
             },
           },
@@ -141,6 +161,16 @@ describe("GET /tasks/{id}", () => {
               },
             },
           },
+          include: {
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+          },
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
@@ -150,6 +180,16 @@ describe("GET /tasks/{id}", () => {
                 coworkerId: "cow_123",
                 archivedAt: null,
                 NOT: { status: { in: [TaskStatus.DRAFT] } },
+              },
+            },
+          },
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
               },
             },
           },

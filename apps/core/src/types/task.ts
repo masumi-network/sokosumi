@@ -34,14 +34,31 @@ const taskBaseInclude = {
   },
 } as const;
 
+export const taskLinkPeerTaskSelect = {
+  id: true,
+  name: true,
+  status: true,
+  archivedAt: true,
+} as const;
+
 export const taskInclude = {
   ...taskBaseInclude,
   linksFrom: {
+    include: {
+      toTask: {
+        select: taskLinkPeerTaskSelect,
+      },
+    },
     orderBy: {
       createdAt: "asc",
     },
   },
   linksTo: {
+    include: {
+      fromTask: {
+        select: taskLinkPeerTaskSelect,
+      },
+    },
     orderBy: {
       createdAt: "asc",
     },
@@ -82,6 +99,11 @@ export function buildVisibleTaskLinksInclude(
           is: peerTaskWhere,
         },
       },
+      include: {
+        toTask: {
+          select: taskLinkPeerTaskSelect,
+        },
+      },
       orderBy: {
         createdAt: "asc",
       },
@@ -90,6 +112,11 @@ export function buildVisibleTaskLinksInclude(
       where: {
         fromTask: {
           is: peerTaskWhere,
+        },
+      },
+      include: {
+        fromTask: {
+          select: taskLinkPeerTaskSelect,
         },
       },
       orderBy: {

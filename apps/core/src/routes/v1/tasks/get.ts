@@ -45,6 +45,17 @@ const taskStatusQuerySchema = z
 
 const query = z
   .object({
+    q: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .optional()
+      .openapi({
+        param: { name: "q", in: "query" },
+        description: "Case-insensitive task name filter",
+        example: "review",
+      }),
     status: taskStatusQuerySchema,
     coworkerId: z
       .string()
@@ -82,8 +93,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { status: statuses, coworkerId, scope } = queryParams;
+    const { q, status: statuses, coworkerId, scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const searchFilter = q
+      ? {
+          name: {
+            contains: q,
+            mode: "insensitive" as const,
+          },
+        }
+      : {};
 
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
@@ -98,6 +117,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         coworkerId: authContext.coworkerId,
         archivedAt: null,
         ...(statuses ? { status: { in: statuses } } : {}),
+        ...searchFilter,
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
@@ -106,6 +126,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         OR: buildTaskScopeFilters(authContext, scope),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
+        ...searchFilter,
       };
     }
 

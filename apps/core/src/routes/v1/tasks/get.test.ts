@@ -92,6 +92,25 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("applies a case-insensitive task name filter when q is provided", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?q=review");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          OR: [{ userId: "user_123", organizationId: "org_123" }],
+          name: {
+            contains: "review",
+            mode: "insensitive",
+          },
+        },
+      }),
+    );
+  });
+
   it("keeps archived peer links visible for user-scoped task reads", async () => {
     const app = createApp();
 
@@ -109,6 +128,16 @@ describe("GET /tasks", () => {
                 },
               },
             },
+            include: {
+              toTask: {
+                select: {
+                  id: true,
+                  name: true,
+                  status: true,
+                  archivedAt: true,
+                },
+              },
+            },
             orderBy: { createdAt: "asc" },
           },
           linksTo: {
@@ -116,6 +145,16 @@ describe("GET /tasks", () => {
               fromTask: {
                 is: {
                   OR: [{ userId: "user_123", organizationId: "org_123" }],
+                },
+              },
+            },
+            include: {
+              fromTask: {
+                select: {
+                  id: true,
+                  name: true,
+                  status: true,
+                  archivedAt: true,
                 },
               },
             },
@@ -145,6 +184,16 @@ describe("GET /tasks", () => {
                 },
               },
             },
+            include: {
+              toTask: {
+                select: {
+                  id: true,
+                  name: true,
+                  status: true,
+                  archivedAt: true,
+                },
+              },
+            },
             orderBy: { createdAt: "asc" },
           },
           linksTo: {
@@ -154,6 +203,16 @@ describe("GET /tasks", () => {
                   coworkerId: "cow_123",
                   archivedAt: null,
                   NOT: { status: { in: [TaskStatus.DRAFT] } },
+                },
+              },
+            },
+            include: {
+              fromTask: {
+                select: {
+                  id: true,
+                  name: true,
+                  status: true,
+                  archivedAt: true,
                 },
               },
             },
