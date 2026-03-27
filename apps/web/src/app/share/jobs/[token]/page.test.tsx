@@ -6,6 +6,8 @@ const notFoundMock = vi.fn(() => {
   throw new Error("notFound");
 });
 const JOB_TEST_LABEL_PREFIX = "job:";
+const jobDetailsMock = vi.fn();
+const jobDetailsViewMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: (...args: unknown[]) => notFoundMock(...args),
@@ -44,12 +46,19 @@ vi.mock("@/lib/services", () => ({
 }));
 
 vi.mock("@/components/jobs", () => ({
-  JobDetails: ({ job }: { job: { id: string } }) => (
-    <div>
-      {JOB_TEST_LABEL_PREFIX}
-      {job.id}
-    </div>
-  ),
+  JobDetails: (props: unknown) => {
+    jobDetailsMock(props);
+    return <div data-testid="job-details" />;
+  },
+  JobDetailsView: ({ job }: { job: { id: string } }) => {
+    jobDetailsViewMock(job);
+    return (
+      <div>
+        {JOB_TEST_LABEL_PREFIX}
+        {job.id}
+      </div>
+    );
+  },
 }));
 
 function createSharedJobResult(overrides?: {
@@ -128,6 +137,10 @@ describe("share job page", () => {
       screen.getByRole("heading", { name: "Research Agent" }),
     ).toBeVisible();
     expect(screen.getByText("job:job_123")).toBeVisible();
+    expect(jobDetailsViewMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "job_123" }),
+    );
+    expect(jobDetailsMock).not.toHaveBeenCalled();
   });
 
   it("delegates missing shared jobs to notFound in the page", async () => {
