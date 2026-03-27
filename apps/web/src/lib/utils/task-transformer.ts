@@ -1,7 +1,10 @@
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 
 import type { Coworker } from "@/lib/clients/generated/core";
-import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
+import type {
+  TaskEvent,
+  TaskListItem,
+} from "@/lib/clients/generated/core/types.gen";
 import { type TaskWithCoworker } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
@@ -68,7 +71,7 @@ function replaceMentionsWithAgentNames(
 }
 
 export function mapTaskToTaskWithCoworker(
-  task: Task,
+  task: TaskListItem,
   coworkersById: Map<string, Coworker>,
   agentsById: Map<string, AgentWithCreditsPrice>,
 ): TaskWithCoworker {
