@@ -63,6 +63,14 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
       name: job.user.name,
       image: job.user.image,
     },
+    organization: job.organization
+      ? {
+          id: job.organization.id,
+          name: job.organization.name,
+          slug: job.organization.slug,
+          logo: job.organization.logo,
+        }
+      : null,
     agent: {
       id: job.agent.id,
       name: job.agent.name,

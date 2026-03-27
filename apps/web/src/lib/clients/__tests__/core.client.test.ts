@@ -338,6 +338,12 @@ describe("core.client", () => {
               name: "Ada Lovelace",
               image: null,
             },
+            organization: {
+              id: "org_1",
+              name: "Acme Labs",
+              slug: "acme-labs",
+              logo: null,
+            },
             agent: {
               id: "agent_1",
               name: "Research Agent",
@@ -405,6 +411,12 @@ describe("core.client", () => {
     expect(response.job.credits).toBe(5);
     expect(response.job.onChainTransactionHash).toBe("0x123abc");
     expect(response.job.onChainStatus).toBeNull();
+    expect(response.job.organization).toEqual({
+      id: "org_1",
+      name: "Acme Labs",
+      slug: "acme-labs",
+      logo: null,
+    });
     expect(response.job.transaction).toBeNull();
     expect(response.job.purchase).toBeNull();
     expect(response.job.share?.token).toBe("public-share-token");

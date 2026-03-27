@@ -65,6 +65,13 @@ const corePublicSharedJobUserSchema = z.object({
   image: z.string().nullable(),
 });
 
+const corePublicSharedJobOrganizationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  logo: z.string().nullable(),
+});
+
 const corePublicSharedJobAgentSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -97,6 +104,7 @@ const corePublicSharedJobSchema = z.object({
   agentJobId: z.string(),
   identifierFromPurchaser: z.string().nullable(),
   user: corePublicSharedJobUserSchema,
+  organization: corePublicSharedJobOrganizationSchema.nullable(),
   agent: corePublicSharedJobAgentSchema,
   resultHash: z.string().nullable(),
   events: z.array(corePublicSharedJobEventSchema),
@@ -191,7 +199,7 @@ export function parseCorePublicSharedJobResponse(
     cents,
     jobStatusSettled: false,
     user: parsedJob.user,
-    organization: null,
+    organization: parsedJob.organization,
     agent: parsedJob.agent,
   } as unknown as JobWithSokosumiStatus;
 

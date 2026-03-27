@@ -67,6 +67,12 @@ const route = withGlobalHeaderParameters(
             name: "Ada Lovelace",
             image: null,
           },
+          organization: {
+            id: "organization_123",
+            name: "Acme Labs",
+            slug: "acme-labs",
+            logo: null,
+          },
           agent: {
             id: "agent_123",
             name: "Research Agent",

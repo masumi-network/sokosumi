@@ -30,7 +30,7 @@ function createJob() {
     completedAt: new Date("2026-03-26T10:10:00.000Z"),
     agentId: "agent_123",
     userId: "user_123",
-    organizationId: null,
+    organizationId: "org_123",
     taskId: null,
     name: "Shared Job",
     jobType: JobType.PAID,
@@ -66,7 +66,12 @@ function createJob() {
       legalOther: null,
       overrideLegalOther: null,
     },
-    organization: null,
+    organization: {
+      id: "org_123",
+      name: "Acme Labs",
+      slug: "acme-labs",
+      logo: null,
+    },
     transaction: {
       amount: BigInt(5000000),
     },
@@ -146,6 +151,12 @@ describe("GET /share/jobs/{token}", () => {
     expect(body.data.job.credits).toBe(0.0005);
     expect(body.data.job.onChainTransactionHash).toBe("0x123abc");
     expect(body.data.job.onChainStatus).toBeNull();
+    expect(body.data.job.organization).toEqual({
+      id: "org_123",
+      name: "Acme Labs",
+      slug: "acme-labs",
+      logo: null,
+    });
     expect(body.data.job).not.toHaveProperty("transaction");
     expect(body.data.job).not.toHaveProperty("purchase");
   });
