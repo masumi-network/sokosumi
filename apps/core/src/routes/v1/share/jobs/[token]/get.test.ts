@@ -158,7 +158,6 @@ describe("GET /share/jobs/{token}", () => {
       id: "org_123",
       name: "Acme Labs",
       slug: "acme-labs",
-      logo: null,
     });
     expect(body.data.job).not.toHaveProperty("transaction");
     expect(body.data.job).not.toHaveProperty("purchase");

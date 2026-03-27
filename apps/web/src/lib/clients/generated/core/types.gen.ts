@@ -394,7 +394,6 @@ export type Job = {
         id: string;
         name: string;
         slug: string;
-        logo: string | '' | null;
     } | null;
     agent: {
         id: string;

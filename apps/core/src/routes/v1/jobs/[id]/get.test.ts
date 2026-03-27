@@ -209,7 +209,6 @@ describe("GET /jobs/{id}", () => {
       id: "org_123",
       name: "Acme Labs",
       slug: "acme-labs",
-      logo: null,
     });
     expect(body.data.agent.id).toBe("agent_123");
     expect(body.data.events).toHaveLength(2);

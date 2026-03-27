@@ -86,11 +86,6 @@ export const jobDetailsOrganizationSchema = z.object({
   id: z.string().openapi({ example: "org_123" }),
   name: z.string().openapi({ example: "Acme Labs" }),
   slug: z.string().openapi({ example: "acme-labs" }),
-  logo: z
-    .httpUrl()
-    .or(z.literal(""))
-    .nullable()
-    .openapi({ example: "https://example.com/logo.png" }),
 });
 
 export const jobDetailsAgentSchema = z.object({

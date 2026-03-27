@@ -346,7 +346,6 @@ describe("core.client", () => {
               id: "org_1",
               name: "Acme Labs",
               slug: "acme-labs",
-              logo: null,
             },
             agent: {
               id: "agent_1",
@@ -421,7 +420,6 @@ describe("core.client", () => {
       id: "org_1",
       name: "Acme Labs",
       slug: "acme-labs",
-      logo: null,
     });
     expect(response.job.transaction).toBeNull();
     expect(response.job.purchase).toBeNull();

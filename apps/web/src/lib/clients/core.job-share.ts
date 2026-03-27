@@ -110,7 +110,6 @@ function mapCoreSharedJob(
           id: job.organization.id,
           name: job.organization.name,
           slug: job.organization.slug,
-          logo: job.organization.logo ?? null,
         }
       : null,
     agent: {

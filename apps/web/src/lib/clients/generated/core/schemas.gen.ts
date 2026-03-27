@@ -1400,31 +1400,12 @@ export const JobSchema = {
                 slug: {
                     type: 'string',
                     example: 'acme-labs'
-                },
-                logo: {
-                    anyOf: [
-                        {
-                            type: 'string',
-                            format: 'uri'
-                        },
-                        {
-                            type: 'string',
-                            enum: [
-                                ''
-                            ]
-                        },
-                        {
-                            type: 'null'
-                        }
-                    ],
-                    example: 'https://example.com/logo.png'
                 }
             },
             required: [
                 'id',
                 'name',
-                'slug',
-                'logo'
+                'slug'
             ]
         },
         agent: {

@@ -71,7 +71,6 @@ const route = withGlobalHeaderParameters(
             id: "organization_123",
             name: "Acme Labs",
             slug: "acme-labs",
-            logo: null,
           },
           agent: {
             id: "agent_123",
