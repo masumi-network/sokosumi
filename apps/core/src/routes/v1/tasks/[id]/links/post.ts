@@ -10,7 +10,11 @@ import {
 } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { buildTaskScopeFilters } from "@/helpers/scope";
-import { assertTaskLinkAllowed, mapTaskLink } from "@/helpers/task-link";
+import {
+  assertTaskLinkAllowed,
+  mapTaskLink,
+  mapTaskLinkRelationToWriteData,
+} from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -30,7 +34,7 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "post",
   path: "/{id}/links",
-  description: "Create a directed link from this task to another task",
+  description: "Create a link between this task and another task",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -57,18 +61,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const authContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
-    const { toTaskId, type, note } = body;
+    const { toTaskId: peerTaskId, relation, note } = body;
 
     const { link, peerTask } = await (async () => {
       try {
         return await prisma.$transaction(
           async (tx) => {
             await requireUserTaskAccess(authContext, id, tx);
-            assertTaskLinkAllowed(id, toTaskId);
+            assertTaskLinkAllowed(id, peerTaskId);
+            const linkData = mapTaskLinkRelationToWriteData(
+              id,
+              peerTaskId,
+              relation,
+            );
 
             const peerTask = await tx.task.findFirst({
               where: {
-                id: toTaskId,
+                id: peerTaskId,
                 OR: buildTaskScopeFilters(authContext),
               },
               select: taskLinkPeerTaskSelect,
@@ -81,9 +90,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             try {
               const link = await tx.taskLink.create({
                 data: {
-                  fromTaskId: id,
-                  toTaskId,
-                  type,
+                  ...linkData,
                   note: note ?? null,
                 },
               });

@@ -8,6 +8,12 @@ import {
 } from "@/schemas/task-link.schema";
 import type { TaskLinkPeerTaskRow, TaskLinkRow } from "@/types/task-link";
 
+interface TaskLinkWriteData {
+  fromTaskId: string;
+  toTaskId: string;
+  type: TaskLinkType;
+}
+
 function mapTaskLinkRelation(
   type: TaskLinkType,
   outgoing: boolean,
@@ -30,6 +36,51 @@ export function assertTaskLinkAllowed(
 ): void {
   if (fromTaskId === toTaskId) {
     throw badRequest("A task cannot link to itself");
+  }
+}
+
+export function mapTaskLinkRelationToWriteData(
+  taskId: string,
+  peerTaskId: string,
+  relation: TaskLinkRelationResponse,
+): TaskLinkWriteData {
+  switch (relation) {
+    case "related":
+      return {
+        fromTaskId: taskId,
+        toTaskId: peerTaskId,
+        type: TaskLinkType.RELATES,
+      };
+    case "blocks":
+      return {
+        fromTaskId: taskId,
+        toTaskId: peerTaskId,
+        type: TaskLinkType.BLOCKS,
+      };
+    case "blocked_by":
+      return {
+        fromTaskId: peerTaskId,
+        toTaskId: taskId,
+        type: TaskLinkType.BLOCKS,
+      };
+    case "parent":
+      return {
+        fromTaskId: taskId,
+        toTaskId: peerTaskId,
+        type: TaskLinkType.PARENT,
+      };
+    case "child":
+      return {
+        fromTaskId: peerTaskId,
+        toTaskId: taskId,
+        type: TaskLinkType.PARENT,
+      };
+    case "duplicate":
+      return {
+        fromTaskId: taskId,
+        toTaskId: peerTaskId,
+        type: TaskLinkType.DUPLICATE,
+      };
   }
 }
 

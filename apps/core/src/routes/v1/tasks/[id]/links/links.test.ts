@@ -371,7 +371,7 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        relation: "related",
       }),
     });
 
@@ -387,7 +387,6 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        archivedAt: null,
         OR: [{ userId: "user_123", organizationId: "org_123" }],
       },
       select: {
@@ -421,7 +420,7 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        relation: "related",
       }),
     });
 
@@ -440,7 +439,7 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        relation: "related",
       }),
     });
 
@@ -461,7 +460,7 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        relation: "related",
       }),
     });
 
@@ -481,7 +480,7 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        relation: "related",
       }),
     });
 
@@ -500,12 +499,52 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_a",
-        type: TaskLinkType.BLOCKS,
+        relation: "blocks",
       }),
     });
 
     expect(response.status).toBe(400);
     expect(taskLinkCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("creates reversed directional links from task-relative relations", async () => {
+    taskLinkCreateMock.mockResolvedValue({
+      id: "tl_1",
+      createdAt: new Date("2026-03-25T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+      fromTaskId: "tsk_b",
+      toTaskId: "tsk_a",
+      type: TaskLinkType.BLOCKS,
+      note: null,
+    });
+
+    const app = createUserApp();
+    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toTaskId: "tsk_b",
+        relation: "blocked_by",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskLinkCreateMock).toHaveBeenCalledWith({
+      data: {
+        fromTaskId: "tsk_b",
+        toTaskId: "tsk_a",
+        type: TaskLinkType.BLOCKS,
+        note: null,
+      },
+    });
+    const body = (await response.json()) as {
+      data: {
+        relation: string;
+      };
+    };
+    expect(body.data.relation).toBe("blocked_by");
   });
 });
 
@@ -707,7 +746,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: TaskLinkType.PARENT,
+        relation: "parent",
         note: "Updated note",
       }),
     });
@@ -716,6 +755,8 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkUpdateMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
       data: {
+        fromTaskId: "tsk_a",
+        toTaskId: "tsk_b",
         type: TaskLinkType.PARENT,
         note: "Updated note",
       },
@@ -788,7 +829,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: TaskLinkType.PARENT,
+        relation: "parent",
       }),
     });
 
@@ -826,7 +867,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: TaskLinkType.DUPLICATE,
+        relation: "duplicate",
       }),
     });
 
@@ -842,11 +883,50 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: TaskLinkType.DUPLICATE,
+        relation: "duplicate",
       }),
     });
 
     expect(response.status).toBe(403);
     expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("patches reversed directional links from task-relative relations", async () => {
+    taskLinkUpdateMock.mockResolvedValue({
+      id: "tl_1",
+      createdAt: new Date("2026-03-25T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-25T10:05:00.000Z"),
+      fromTaskId: "tsk_b",
+      toTaskId: "tsk_a",
+      type: TaskLinkType.PARENT,
+      note: "Old note",
+    });
+
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        relation: "child",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkUpdateMock).toHaveBeenCalledWith({
+      where: { id: "tl_1" },
+      data: {
+        fromTaskId: "tsk_b",
+        toTaskId: "tsk_a",
+        type: TaskLinkType.PARENT,
+      },
+    });
+    const body = (await response.json()) as {
+      data: {
+        relation: string;
+      };
+    };
+    expect(body.data.relation).toBe("child");
   });
 });

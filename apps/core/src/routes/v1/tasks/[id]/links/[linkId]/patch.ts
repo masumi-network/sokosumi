@@ -5,7 +5,10 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { buildTaskScopeFilters } from "@/helpers/scope";
-import { mapTaskLink } from "@/helpers/task-link";
+import {
+  mapTaskLink,
+  mapTaskLinkRelationToWriteData,
+} from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -29,7 +32,7 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "patch",
   path: "/{id}/links/{linkId}",
-  description: "Update a task link that involves this task",
+  description: "Update a link between this task and another task",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -54,7 +57,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
     const { id, linkId } = c.req.valid("param");
-    const { type, note } = c.req.valid("json");
+    const { relation, note } = c.req.valid("json");
 
     const { link, peerTask } = await prisma.$transaction(async (tx) => {
       const link = await tx.taskLink.findUnique({
@@ -81,10 +84,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Peer task not found");
       }
 
+      const linkData =
+        relation === undefined
+          ? undefined
+          : mapTaskLinkRelationToWriteData(id, peerTaskId, relation);
+
       const updatedLink = await tx.taskLink.update({
         where: { id: linkId },
         data: {
-          ...(type !== undefined ? { type } : {}),
+          ...(linkData ?? {}),
           ...(note !== undefined ? { note } : {}),
         },
       });

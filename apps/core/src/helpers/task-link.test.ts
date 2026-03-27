@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertTaskLinkAllowed,
   mapTaskLinkForTask,
+  mapTaskLinkRelationToWriteData,
   mapTaskLinksForTask,
 } from "./task-link";
 
@@ -181,6 +182,34 @@ describe("mapTaskLinkForTask", () => {
       ),
     ).toMatchObject({
       relation: "duplicate",
+    });
+  });
+});
+
+describe("mapTaskLinkRelationToWriteData", () => {
+  it("maps a symmetric relation to the current task as the stored source", () => {
+    expect(
+      mapTaskLinkRelationToWriteData("tsk_a", "tsk_b", "related"),
+    ).toEqual({
+      fromTaskId: "tsk_a",
+      toTaskId: "tsk_b",
+      type: TaskLinkType.RELATES,
+    });
+  });
+
+  it("maps reversed directional relations by flipping the stored edge", () => {
+    expect(
+      mapTaskLinkRelationToWriteData("tsk_a", "tsk_b", "blocked_by"),
+    ).toEqual({
+      fromTaskId: "tsk_b",
+      toTaskId: "tsk_a",
+      type: TaskLinkType.BLOCKS,
+    });
+
+    expect(mapTaskLinkRelationToWriteData("tsk_a", "tsk_b", "child")).toEqual({
+      fromTaskId: "tsk_b",
+      toTaskId: "tsk_a",
+      type: TaskLinkType.PARENT,
     });
   });
 });

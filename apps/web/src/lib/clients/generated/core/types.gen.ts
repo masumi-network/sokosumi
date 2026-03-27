@@ -7404,7 +7404,7 @@ export type GetTasksByIdLinksResponse = GetTasksByIdLinksResponses[keyof GetTask
 export type PostTasksByIdLinksData = {
     body?: {
         toTaskId: string;
-        type: 'RELATES' | 'BLOCKS' | 'PARENT' | 'DUPLICATE';
+        relation: TaskLinkRelation;
         note?: string | null;
     };
     path: {
@@ -7572,7 +7572,7 @@ export type DeleteTasksByIdLinksByLinkIdResponse = DeleteTasksByIdLinksByLinkIdR
 
 export type PatchTasksByIdLinksByLinkIdData = {
     body?: {
-        type?: 'RELATES' | 'BLOCKS' | 'PARENT' | 'DUPLICATE';
+        relation?: TaskLinkRelation;
         note?: string | null;
     };
     path: {

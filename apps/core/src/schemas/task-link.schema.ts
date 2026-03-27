@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 
@@ -49,18 +49,18 @@ export const taskLinksSchema = z.array(taskLinkSchema);
 
 export const createTaskLinkRequestSchema = z.object({
   toTaskId: z.string().min(1).openapi({ example: "tsk_b" }),
-  type: z.enum(TaskLinkType).openapi({ example: TaskLinkType.RELATES }),
+  relation: taskLinkRelationSchema.openapi({ example: "related" }),
   note: z.string().max(2000).nullish().openapi({ example: null }),
 });
 
 export const patchTaskLinkRequestSchema = z
   .object({
-    type: z.enum(TaskLinkType).optional().openapi({
-      example: TaskLinkType.RELATES,
+    relation: taskLinkRelationSchema.optional().openapi({
+      example: "related",
     }),
     note: z.string().max(2000).nullish().openapi({ example: null }),
   })
-  .refine((data) => data.type !== undefined || data.note !== undefined, {
-    message: "At least one of type or note is required",
-    path: ["type", "note"],
+  .refine((data) => data.relation !== undefined || data.note !== undefined, {
+    message: "At least one of relation or note is required",
+    path: ["relation", "note"],
   });
