@@ -3,11 +3,11 @@ import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import { isCoworkerAuthContext } from "@/middleware/auth";
-import { type TaskLinkResponse, taskLinkSchema } from "@/schemas/task.schema";
 import { flattenJob } from "@/types/job";
 import type { TaskWithIncludes } from "@/types/task";
 
 import { unprocessableEntity } from "./error";
+import { mapTaskLinksForTask } from "./task-link";
 
 type TaskEventWithOptionalTransaction = Omit<
   TaskWithIncludes["events"][number],
@@ -175,36 +175,6 @@ export function isTaskArchivableStatus(status: TaskStatus): boolean {
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.FAILED
   );
-}
-
-type TaskLinkRow = TaskWithIncludes["linksFrom"][number];
-
-export function mapTaskLinkForTask(
-  taskId: string,
-  link: TaskLinkRow,
-): TaskLinkResponse {
-  const outgoing = link.fromTaskId === taskId;
-  return taskLinkSchema.parse({
-    id: link.id,
-    createdAt: link.createdAt,
-    updatedAt: link.updatedAt,
-    type: link.type,
-    note: link.note,
-    fromTaskId: link.fromTaskId,
-    toTaskId: link.toTaskId,
-    direction: outgoing ? "outgoing" : "incoming",
-    peerTaskId: outgoing ? link.toTaskId : link.fromTaskId,
-  });
-}
-
-export function mapTaskLinksForTask(
-  linksFrom: TaskLinkRow[],
-  linksTo: TaskLinkRow[],
-): TaskLinkResponse[] {
-  return [
-    ...linksFrom.map((link) => mapTaskLinkForTask(link.fromTaskId, link)),
-    ...linksTo.map((link) => mapTaskLinkForTask(link.toTaskId, link)),
-  ];
 }
 
 export function mapTask(task: TaskWithIncludes) {

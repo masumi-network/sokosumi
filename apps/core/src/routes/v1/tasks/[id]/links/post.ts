@@ -9,15 +9,17 @@ import {
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
-import { mapTaskLinkForTask } from "@/helpers/task";
-import { assertTaskLinkAllowed } from "@/helpers/task-link";
+import {
+  assertTaskLinkAllowed,
+  mapTaskLinkForTask,
+} from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   createTaskLinkRequestSchema,
   taskLinkSchema,
-} from "@/schemas/task.schema";
+} from "@/schemas/task-link.schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({

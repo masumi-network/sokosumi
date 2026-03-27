@@ -4,14 +4,14 @@ import { requireUserTaskAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTaskLinkForTask } from "@/helpers/task";
+import { mapTaskLinkForTask } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   patchTaskLinkRequestSchema,
   taskLinkSchema,
-} from "@/schemas/task.schema";
+} from "@/schemas/task-link.schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
