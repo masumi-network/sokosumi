@@ -1,9 +1,6 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import { type JobWithSokosumiStatus } from "@sokosumi/database";
-import {
-  jobRepository,
-  jobShareRepository,
-} from "@sokosumi/database/repositories";
+import { jobInclude, type JobWithSokosumiStatus } from "@sokosumi/database";
+import { mapJobWithStatus } from "@sokosumi/database/helpers";
 
 import { notFound } from "@/helpers/error.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -113,23 +110,24 @@ export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const { token } = c.req.valid("param");
 
-    const result = await prisma.$transaction(async (tx) => {
-      const share = await jobShareRepository.getShareByToken(token, tx);
-      if (!share) {
-        throw notFound("Job share not found");
-      }
-
-      const job = await jobRepository.getJobById(share.jobId, tx);
-      if (!job) {
-        throw notFound("Job not found");
-      }
-
-      return {
-        job: serializePublicSharedJob(job),
-        share: jobShareSchema.parse(share),
-      };
+    const share = await prisma.jobShare.findUnique({
+      where: { token },
+      include: {
+        job: {
+          include: jobInclude,
+        },
+      },
     });
+    if (!share) {
+      throw notFound("Job share not found");
+    }
 
-    return ok(c, publicSharedJobResponseSchema.parse(result));
+    return ok(
+      c,
+      publicSharedJobResponseSchema.parse({
+        job: serializePublicSharedJob(mapJobWithStatus(share.job)),
+        share: jobShareSchema.parse(share),
+      }),
+    );
   });
 }

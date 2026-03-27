@@ -4,25 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import mountGetSharedJobByToken from "./get";
 
-const { prismaTransactionMock, getShareByTokenMock, getJobByIdMock } =
-  vi.hoisted(() => ({
-    prismaTransactionMock: vi.fn(),
-    getShareByTokenMock: vi.fn(),
-    getJobByIdMock: vi.fn(),
-  }));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  jobRepository: {
-    getJobById: (...args: unknown[]) => getJobByIdMock(...args),
-  },
-  jobShareRepository: {
-    getShareByToken: (...args: unknown[]) => getShareByTokenMock(...args),
-  },
+const { jobShareFindUniqueMock } = vi.hoisted(() => ({
+  jobShareFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    jobShare: {
+      findUnique: (...args: unknown[]) => jobShareFindUniqueMock(...args),
+    },
   },
 }));
 
@@ -109,18 +99,15 @@ function createJob() {
 describe("GET /share/jobs/{token}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
-    );
-    getShareByTokenMock.mockResolvedValue({
+    jobShareFindUniqueMock.mockResolvedValue({
       id: "share_123",
       jobId: "job_123",
       token: "public-share-token",
       allowSearchIndexing: false,
       createdAt: new Date("2026-03-26T10:00:00.000Z"),
       updatedAt: new Date("2026-03-26T10:00:00.000Z"),
+      job: createJob(),
     });
-    getJobByIdMock.mockResolvedValue(createJob());
   });
 
   it("returns the shared job for a valid token", async () => {
@@ -130,29 +117,26 @@ describe("GET /share/jobs/{token}", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(getShareByTokenMock).toHaveBeenCalledWith("public-share-token", {});
-    expect(getJobByIdMock).toHaveBeenCalledWith("job_123", {});
+    expect(jobShareFindUniqueMock).toHaveBeenCalledWith({
+      where: { token: "public-share-token" },
+      include: {
+        job: {
+          include: expect.any(Object),
+        },
+      },
+    });
     expect(body.data.share.allowSearchIndexing).toBe(false);
     expect(body.data.job.id).toBe("job_123");
     expect(body.data.job.transaction.amount).toBe("5000000");
   });
 
   it("returns 404 for an unknown token", async () => {
-    getShareByTokenMock.mockResolvedValue(null);
-    const app = createApp();
-
-    const response = await app.request("http://localhost/public-share-token");
-
-    expect(response.status).toBe(404);
-    expect(getJobByIdMock).not.toHaveBeenCalled();
-  });
-
-  it("returns 404 when the shared job is missing", async () => {
-    getJobByIdMock.mockResolvedValue(null);
+    jobShareFindUniqueMock.mockResolvedValue(null);
     const app = createApp();
 
     const response = await app.request("http://localhost/public-share-token");
 
     expect(response.status).toBe(404);
   });
+
 });
