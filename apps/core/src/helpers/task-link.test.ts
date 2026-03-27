@@ -24,11 +24,13 @@ function createLink(
       id: string;
       name: string;
       status: TaskStatus;
+      archivedAt?: Date | null;
     } | null;
     toTask: {
       id: string;
       name: string;
       status: TaskStatus;
+      archivedAt?: Date | null;
     } | null;
   }>,
 ) {
@@ -47,6 +49,7 @@ function createLink(
             id: overrides?.fromTaskId ?? "tsk_a",
             name: getTaskName(overrides?.fromTaskId ?? "tsk_a"),
             status: TaskStatus.READY,
+            archivedAt: null,
           },
     toTask:
       overrides && "toTask" in overrides
@@ -55,6 +58,7 @@ function createLink(
             id: overrides?.toTaskId ?? "tsk_b",
             name: getTaskName(overrides?.toTaskId ?? "tsk_b"),
             status: TaskStatus.READY,
+            archivedAt: null,
           },
   };
 }
@@ -82,6 +86,7 @@ describe("mapTaskLinkForTask", () => {
         id: "tsk_b",
         name: "Task B",
         status: "READY",
+        archivedAt: null,
       },
     });
   });
@@ -99,6 +104,7 @@ describe("mapTaskLinkForTask", () => {
         id: "tsk_a",
         name: "Task A",
         status: "READY",
+        archivedAt: null,
       },
     });
   });
@@ -298,6 +304,7 @@ describe("mapTaskLinksForTask", () => {
         id: "tsk_b",
         name: "Task B",
         status: "READY",
+        archivedAt: null,
       },
     });
     expect(result[1]).toMatchObject({
@@ -307,6 +314,7 @@ describe("mapTaskLinksForTask", () => {
         id: "tsk_c",
         name: "Task C",
         status: "READY",
+        archivedAt: null,
       },
     });
   });

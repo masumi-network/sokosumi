@@ -103,12 +103,20 @@ describe("GET /tasks/{id}", () => {
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({
         linksFrom: {
+          where: {
+            toTask: {
+              is: {
+                OR: [{ userId: "user_123", organizationId: "org_123" }],
+              },
+            },
+          },
           include: {
             fromTask: {
               select: {
                 id: true,
                 name: true,
                 status: true,
+                archivedAt: true,
               },
             },
             toTask: {
@@ -116,25 +124,27 @@ describe("GET /tasks/{id}", () => {
                 id: true,
                 name: true,
                 status: true,
-              },
-            },
-          },
-          where: {
-            toTask: {
-              is: {
-                OR: [{ userId: "user_123", organizationId: "org_123" }],
+                archivedAt: true,
               },
             },
           },
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                OR: [{ userId: "user_123", organizationId: "org_123" }],
+              },
+            },
+          },
           include: {
             fromTask: {
               select: {
                 id: true,
                 name: true,
                 status: true,
+                archivedAt: true,
               },
             },
             toTask: {
@@ -142,13 +152,7 @@ describe("GET /tasks/{id}", () => {
                 id: true,
                 name: true,
                 status: true,
-              },
-            },
-          },
-          where: {
-            fromTask: {
-              is: {
-                OR: [{ userId: "user_123", organizationId: "org_123" }],
+                archivedAt: true,
               },
             },
           },
@@ -169,40 +173,52 @@ describe("GET /tasks/{id}", () => {
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({
         linksFrom: {
-          include: {
-            fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-              },
-            },
-            toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-              },
-            },
-          },
           where: {
             toTask: {
               is: {
                 coworkerId: "cow_123",
                 archivedAt: null,
                 NOT: { status: { in: [TaskStatus.DRAFT] } },
+              },
+            },
+          },
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
               },
             },
           },
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                coworkerId: "cow_123",
+                archivedAt: null,
+                NOT: { status: { in: [TaskStatus.DRAFT] } },
+              },
+            },
+          },
           include: {
             fromTask: {
               select: {
                 id: true,
                 name: true,
                 status: true,
+                archivedAt: true,
               },
             },
             toTask: {
@@ -210,15 +226,7 @@ describe("GET /tasks/{id}", () => {
                 id: true,
                 name: true,
                 status: true,
-              },
-            },
-          },
-          where: {
-            fromTask: {
-              is: {
-                coworkerId: "cow_123",
-                archivedAt: null,
-                NOT: { status: { in: [TaskStatus.DRAFT] } },
+                archivedAt: true,
               },
             },
           },
@@ -244,6 +252,7 @@ describe("GET /tasks/{id}", () => {
               id: "tsk_b",
               name: "Task B",
               status: TaskStatus.RUNNING,
+              archivedAt: null,
             },
           },
         ],
@@ -260,7 +269,12 @@ describe("GET /tasks/{id}", () => {
       data: {
         links: Array<{
           relation: string;
-          peerTask: { id: string; name: string; status: TaskStatus };
+          peerTask: {
+            id: string;
+            name: string;
+            status: TaskStatus;
+            archivedAt: string | null;
+          };
         }>;
       };
     };
@@ -271,6 +285,7 @@ describe("GET /tasks/{id}", () => {
         id: "tsk_b",
         name: "Task B",
         status: TaskStatus.RUNNING,
+        archivedAt: null,
       },
     });
   });

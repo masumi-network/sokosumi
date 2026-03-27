@@ -139,6 +139,7 @@ describe("GET /tasks/{id}/links", () => {
             id: "tsk_b",
             name: "Task B",
             status: TaskStatus.RUNNING,
+            archivedAt: null,
           },
         },
       ],
@@ -156,7 +157,12 @@ describe("GET /tasks/{id}/links", () => {
     const body = (await response.json()) as {
       data: Array<{
         relation: string;
-        peerTask: { id: string; name: string; status: TaskStatus };
+        peerTask: {
+          id: string;
+          name: string;
+          status: TaskStatus;
+          archivedAt: string | null;
+        };
       }>;
     };
     expect(body.data).toHaveLength(1);
@@ -166,6 +172,7 @@ describe("GET /tasks/{id}/links", () => {
         id: "tsk_b",
         name: "Task B",
         status: TaskStatus.RUNNING,
+        archivedAt: null,
       },
     });
   });
@@ -184,40 +191,52 @@ describe("GET /tasks/{id}/links", () => {
       select: {
         id: true,
         linksFrom: {
-          include: {
-            fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-              },
-            },
-            toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-              },
-            },
-          },
           where: {
             toTask: {
               is: {
                 coworkerId: "cow_123",
                 archivedAt: null,
                 NOT: { status: { in: [TaskStatus.DRAFT] } },
+              },
+            },
+          },
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
               },
             },
           },
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                coworkerId: "cow_123",
+                archivedAt: null,
+                NOT: { status: { in: [TaskStatus.DRAFT] } },
+              },
+            },
+          },
           include: {
             fromTask: {
               select: {
                 id: true,
                 name: true,
                 status: true,
+                archivedAt: true,
               },
             },
             toTask: {
@@ -225,15 +244,7 @@ describe("GET /tasks/{id}/links", () => {
                 id: true,
                 name: true,
                 status: true,
-              },
-            },
-          },
-          where: {
-            fromTask: {
-              is: {
-                coworkerId: "cow_123",
-                archivedAt: null,
-                NOT: { status: { in: [TaskStatus.DRAFT] } },
+                archivedAt: true,
               },
             },
           },
@@ -257,12 +268,20 @@ describe("GET /tasks/{id}/links", () => {
       select: {
         id: true,
         linksFrom: {
+          where: {
+            toTask: {
+              is: {
+                OR: [{ userId: "user_123", organizationId: "org_123" }],
+              },
+            },
+          },
           include: {
             fromTask: {
               select: {
                 id: true,
                 name: true,
                 status: true,
+                archivedAt: true,
               },
             },
             toTask: {
@@ -270,25 +289,27 @@ describe("GET /tasks/{id}/links", () => {
                 id: true,
                 name: true,
                 status: true,
-              },
-            },
-          },
-          where: {
-            toTask: {
-              is: {
-                OR: [{ userId: "user_123", organizationId: "org_123" }],
+                archivedAt: true,
               },
             },
           },
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                OR: [{ userId: "user_123", organizationId: "org_123" }],
+              },
+            },
+          },
           include: {
             fromTask: {
               select: {
                 id: true,
                 name: true,
                 status: true,
+                archivedAt: true,
               },
             },
             toTask: {
@@ -296,13 +317,7 @@ describe("GET /tasks/{id}/links", () => {
                 id: true,
                 name: true,
                 status: true,
-              },
-            },
-          },
-          where: {
-            fromTask: {
-              is: {
-                OR: [{ userId: "user_123", organizationId: "org_123" }],
+                archivedAt: true,
               },
             },
           },
@@ -393,12 +408,18 @@ describe("POST /tasks/{id}/links", () => {
         id: true,
         name: true,
         status: true,
+        archivedAt: true,
       },
     });
     const body = (await response.json()) as {
       data: {
         relation: string;
-        peerTask: { id: string; name: string; status: TaskStatus };
+        peerTask: {
+          id: string;
+          name: string;
+          status: TaskStatus;
+          archivedAt: string | null;
+        };
       };
     };
     expect(body.data).toMatchObject({
@@ -407,6 +428,7 @@ describe("POST /tasks/{id}/links", () => {
         id: "tsk_b",
         name: "Task B",
         status: TaskStatus.RUNNING,
+        archivedAt: null,
       },
     });
   });
@@ -768,12 +790,18 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
         id: true,
         name: true,
         status: true,
+        archivedAt: true,
       },
     });
     const body = (await response.json()) as {
       data: {
         relation: string;
-        peerTask: { id: string; name: string; status: TaskStatus };
+        peerTask: {
+          id: string;
+          name: string;
+          status: TaskStatus;
+          archivedAt: string | null;
+        };
       };
     };
     expect(body.data).toMatchObject({
@@ -782,6 +810,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
         id: "tsk_b",
         name: "Task B",
         status: TaskStatus.RUNNING,
+        archivedAt: null,
       },
     });
   });
