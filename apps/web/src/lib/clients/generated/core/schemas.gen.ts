@@ -2561,38 +2561,11 @@ export const TaskLinkSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
-        type: {
-            type: 'string',
-            enum: [
-                'RELATES',
-                'BLOCKS',
-                'PARENT',
-                'DUPLICATE'
-            ],
-            example: 'RELATES'
-        },
-        fromTaskId: {
-            type: 'string',
-            example: 'tsk_a'
-        },
-        toTaskId: {
-            type: 'string',
-            example: 'tsk_b'
-        },
-        peerTaskId: {
-            type: 'string',
-            example: 'tsk_b'
+        relation: {
+            $ref: '#/components/schemas/TaskLinkRelation'
         },
         peerTask: {
             $ref: '#/components/schemas/TaskLinkPeerTask'
-        },
-        direction: {
-            type: 'string',
-            enum: [
-                'outgoing',
-                'incoming'
-            ],
-            example: 'outgoing'
         },
         note: {
             type: [
@@ -2606,14 +2579,23 @@ export const TaskLinkSchema = {
         'id',
         'createdAt',
         'updatedAt',
-        'type',
-        'fromTaskId',
-        'toTaskId',
-        'peerTaskId',
+        'relation',
         'peerTask',
-        'direction',
         'note'
     ]
+} as const;
+
+export const TaskLinkRelationSchema = {
+    type: 'string',
+    enum: [
+        'related',
+        'blocks',
+        'blocked_by',
+        'parent',
+        'child',
+        'duplicate'
+    ],
+    example: 'related'
 } as const;
 
 export const TaskLinkPeerTaskSchema = {

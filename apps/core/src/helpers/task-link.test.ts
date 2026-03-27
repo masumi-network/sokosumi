@@ -64,10 +64,7 @@ describe("mapTaskLinkForTask", () => {
 
     expect(result).toMatchObject({
       id: "tl_123",
-      fromTaskId: "tsk_a",
-      toTaskId: "tsk_b",
-      direction: "outgoing",
-      peerTaskId: "tsk_b",
+      relation: "related",
       peerTask: {
         id: "tsk_b",
         name: "Task B",
@@ -84,10 +81,7 @@ describe("mapTaskLinkForTask", () => {
 
     expect(result).toMatchObject({
       id: "tl_123",
-      fromTaskId: "tsk_a",
-      toTaskId: "tsk_b",
-      direction: "incoming",
-      peerTaskId: "tsk_a",
+      relation: "related",
       peerTask: null,
     });
   });
@@ -102,9 +96,80 @@ describe("mapTaskLinkForTask", () => {
 
     expect(result).toMatchObject({
       id: "tl_123",
-      direction: "outgoing",
-      peerTaskId: "tsk_b",
+      relation: "related",
       peerTask: null,
+    });
+  });
+
+  it("maps directional block relations relative to the current task", () => {
+    expect(
+      mapTaskLinkForTask(
+        "tsk_a",
+        createLink({
+          type: TaskLinkType.BLOCKS,
+        }),
+      ),
+    ).toMatchObject({
+      relation: "blocks",
+    });
+
+    expect(
+      mapTaskLinkForTask(
+        "tsk_b",
+        createLink({
+          type: TaskLinkType.BLOCKS,
+        }),
+      ),
+    ).toMatchObject({
+      relation: "blocked_by",
+    });
+  });
+
+  it("maps parent relations relative to the current task", () => {
+    expect(
+      mapTaskLinkForTask(
+        "tsk_a",
+        createLink({
+          type: TaskLinkType.PARENT,
+        }),
+      ),
+    ).toMatchObject({
+      relation: "parent",
+    });
+
+    expect(
+      mapTaskLinkForTask(
+        "tsk_b",
+        createLink({
+          type: TaskLinkType.PARENT,
+        }),
+      ),
+    ).toMatchObject({
+      relation: "child",
+    });
+  });
+
+  it("maps duplicate relations symmetrically", () => {
+    expect(
+      mapTaskLinkForTask(
+        "tsk_a",
+        createLink({
+          type: TaskLinkType.DUPLICATE,
+        }),
+      ),
+    ).toMatchObject({
+      relation: "duplicate",
+    });
+
+    expect(
+      mapTaskLinkForTask(
+        "tsk_b",
+        createLink({
+          type: TaskLinkType.DUPLICATE,
+        }),
+      ),
+    ).toMatchObject({
+      relation: "duplicate",
     });
   });
 });
@@ -127,8 +192,7 @@ describe("mapTaskLinksForTask", () => {
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
       id: "tl_out",
-      direction: "outgoing",
-      peerTaskId: "tsk_b",
+      relation: "related",
       peerTask: {
         id: "tsk_b",
         name: "Task B",
@@ -137,8 +201,7 @@ describe("mapTaskLinksForTask", () => {
     });
     expect(result[1]).toMatchObject({
       id: "tl_in",
-      direction: "incoming",
-      peerTaskId: "tsk_c",
+      relation: "related",
       peerTask: null,
     });
   });

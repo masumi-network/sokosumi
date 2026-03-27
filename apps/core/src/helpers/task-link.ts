@@ -1,7 +1,10 @@
+import { TaskLinkType } from "@sokosumi/database";
+
 import { badRequest } from "@/helpers/error";
 import {
   type TaskLinkPeerTaskResponse,
   taskLinkPeerTaskSchema,
+  type TaskLinkRelationResponse,
   type TaskLinkResponse,
   taskLinkSchema,
 } from "@/schemas/task-link.schema";
@@ -19,6 +22,22 @@ function mapTaskLinkPeerTask(
   }
 
   return taskLinkPeerTaskSchema.parse(peerTask);
+}
+
+function mapTaskLinkRelation(
+  type: TaskLinkType,
+  outgoing: boolean,
+): TaskLinkRelationResponse {
+  switch (type) {
+    case TaskLinkType.RELATES:
+      return "related";
+    case TaskLinkType.BLOCKS:
+      return outgoing ? "blocks" : "blocked_by";
+    case TaskLinkType.PARENT:
+      return outgoing ? "parent" : "child";
+    case TaskLinkType.DUPLICATE:
+      return "duplicate";
+  }
 }
 
 export function assertTaskLinkAllowed(
@@ -45,12 +64,8 @@ export function mapTaskLinkForTask(
     id: link.id,
     createdAt: link.createdAt,
     updatedAt: link.updatedAt,
-    type: link.type,
+    relation: mapTaskLinkRelation(link.type, outgoing),
     note: link.note,
-    fromTaskId: link.fromTaskId,
-    toTaskId: link.toTaskId,
-    direction: outgoing ? "outgoing" : "incoming",
-    peerTaskId: outgoing ? link.toTaskId : link.fromTaskId,
     peerTask: mapTaskLinkPeerTask(peerTask),
   });
 }

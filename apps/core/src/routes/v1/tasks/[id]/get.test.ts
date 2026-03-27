@@ -259,14 +259,14 @@ describe("GET /tasks/{id}", () => {
     const body = (await response.json()) as {
       data: {
         links: Array<{
-          peerTaskId: string;
+          relation: string;
           peerTask: { id: string; name: string; status: TaskStatus } | null;
         }>;
       };
     };
     expect(body.data.links).toHaveLength(1);
     expect(body.data.links[0]).toMatchObject({
-      peerTaskId: "tsk_b",
+      relation: "related",
       peerTask: {
         id: "tsk_b",
         name: "Task B",

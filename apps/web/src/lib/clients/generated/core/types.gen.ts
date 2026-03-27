@@ -622,14 +622,21 @@ export type TaskLink = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    type: 'RELATES' | 'BLOCKS' | 'PARENT' | 'DUPLICATE';
-    fromTaskId: string;
-    toTaskId: string;
-    peerTaskId: string;
+    relation: TaskLinkRelation;
     peerTask: TaskLinkPeerTask;
-    direction: 'outgoing' | 'incoming';
     note: string | null;
 };
+
+export const TaskLinkRelation = {
+    RELATED: 'related',
+    BLOCKS: 'blocks',
+    BLOCKED_BY: 'blocked_by',
+    PARENT: 'parent',
+    CHILD: 'child',
+    DUPLICATE: 'duplicate'
+} as const;
+
+export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRelation];
 
 export type TaskLinkPeerTask = {
     id: string;

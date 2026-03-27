@@ -155,13 +155,13 @@ describe("GET /tasks/{id}/links", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
       data: Array<{
-        peerTaskId: string;
+        relation: string;
         peerTask: { id: string; name: string; status: TaskStatus } | null;
       }>;
     };
     expect(body.data).toHaveLength(1);
     expect(body.data[0]).toMatchObject({
-      peerTaskId: "tsk_b",
+      relation: "related",
       peerTask: {
         id: "tsk_b",
         name: "Task B",
@@ -398,12 +398,12 @@ describe("POST /tasks/{id}/links", () => {
     });
     const body = (await response.json()) as {
       data: {
-        peerTaskId: string;
+        relation: string;
         peerTask: { id: string; name: string; status: TaskStatus } | null;
       };
     };
     expect(body.data).toMatchObject({
-      peerTaskId: "tsk_b",
+      relation: "related",
       peerTask: {
         id: "tsk_b",
         name: "Task B",
@@ -733,12 +733,12 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
     const body = (await response.json()) as {
       data: {
-        peerTaskId: string;
+        relation: string;
         peerTask: { id: string; name: string; status: TaskStatus } | null;
       };
     };
     expect(body.data).toMatchObject({
-      peerTaskId: "tsk_b",
+      relation: "parent",
       peerTask: {
         id: "tsk_b",
         name: "Task B",
@@ -795,12 +795,12 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
       data: {
-        peerTaskId: string;
+        relation: string;
         peerTask: { id: string; name: string; status: TaskStatus } | null;
       };
     };
     expect(body.data).toMatchObject({
-      peerTaskId: "tsk_b",
+      relation: "parent",
       peerTask: null,
     });
   });

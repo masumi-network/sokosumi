@@ -13,18 +13,25 @@ export const taskLinkPeerTaskSchema = z
 
 export type TaskLinkPeerTaskResponse = z.infer<typeof taskLinkPeerTaskSchema>;
 
+export const taskLinkRelationSchema = z
+  .enum([
+    "related",
+    "blocks",
+    "blocked_by",
+    "parent",
+    "child",
+    "duplicate",
+  ])
+  .openapi("TaskLinkRelation");
+
+export type TaskLinkRelationResponse = z.infer<typeof taskLinkRelationSchema>;
+
 export const taskLinkSchema = z
   .object({
     id: z.string().openapi({ example: "tl_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    type: z.enum(TaskLinkType).openapi({ example: TaskLinkType.RELATES }),
-    direction: z
-      .enum(["outgoing", "incoming"])
-      .openapi({ example: "outgoing" }),
-    fromTaskId: z.string().openapi({ example: "tsk_a" }),
-    toTaskId: z.string().openapi({ example: "tsk_b" }),
-    peerTaskId: z.string().openapi({ example: "tsk_b" }),
+    relation: taskLinkRelationSchema.openapi({ example: "related" }),
     peerTask: taskLinkPeerTaskSchema.nullable().openapi({
       example: {
         id: "tsk_b",
