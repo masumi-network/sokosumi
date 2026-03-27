@@ -24,9 +24,8 @@ describe("scope query schema", () => {
   });
 
   it("parses repeated job query values into a typed array", () => {
-    expect(jobScopeQuerySchema.parse(["context", "shared,owned"])).toEqual([
+    expect(jobScopeQuerySchema.parse(["context", "owned"])).toEqual([
       "context",
-      "shared",
       "owned",
     ]);
   });
@@ -38,6 +37,10 @@ describe("scope query schema", () => {
   it("rejects empty scope values", () => {
     expect(() => taskScopeQuerySchema.parse("context,")).toThrow();
   });
+
+  it("rejects removed shared job scope values", () => {
+    expect(() => jobScopeQuerySchema.parse("shared")).toThrow();
+  });
 });
 
 describe("buildJobScopeFilters", () => {
@@ -47,23 +50,25 @@ describe("buildJobScopeFilters", () => {
     ]);
   });
 
-  it("builds context and shared filters with OR-compatible clauses", () => {
-    expect(
-      buildJobScopeFilters(userAuthContext, ["context", "shared"]),
-    ).toEqual([
-      { userId: "user_123", organizationId: "org_123" },
-      { share: { organizationId: "org_123" } },
-    ]);
+  it("builds context and owned filters with OR-compatible clauses", () => {
+    expect(buildJobScopeFilters(userAuthContext, ["context", "owned"])).toEqual(
+      [
+        { userId: "user_123", organizationId: "org_123" },
+        { userId: "user_123" },
+      ],
+    );
   });
 
-  it("omits shared filter when organization context is missing", () => {
+  it("keeps personal context scope when organization context is missing", () => {
     const personalContext: UserAuthenticationContext = {
       actor: "user",
       userId: "user_123",
       organizationId: null,
     };
 
-    expect(buildJobScopeFilters(personalContext, ["shared"])).toEqual([]);
+    expect(buildJobScopeFilters(personalContext, ["context"])).toEqual([
+      { userId: "user_123", organizationId: null },
+    ]);
   });
 });
 

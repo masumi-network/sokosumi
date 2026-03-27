@@ -1,11 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { JobType } from "@sokosumi/database";
-import {
-  jobWithEvents,
-  jobWithPurchase,
-  jobWithTransaction,
-  SokosumiJobStatus,
-} from "@sokosumi/database/types/job";
+import { jobInclude, JobType, OnChainJobStatus } from "@sokosumi/database";
+import { mapJobWithStatus } from "@sokosumi/database/helpers";
+import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { requireScopedJobReadAccess } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
@@ -19,7 +15,7 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { jobSchema } from "@/schemas/job.schema.js";
-import { flattenJob } from "@/types/job";
+import { serializeJobDetails } from "@/types/job";
 
 const params = z.object({
   id: z.string().openapi({
@@ -51,16 +47,48 @@ const route = withGlobalHeaderParameters(
           agentId: "agent_123",
           userId: "user_123",
           organizationId: "organization_123",
+          taskId: "task_123",
           name: "Research Task",
           jobType: JobType.PAID,
           status: SokosumiJobStatus.COMPLETED,
           completedAt: "2025-01-15T10:35:00.000Z",
           credits: 5,
+          onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+          onChainTransactionHash: "0x123abc",
+          result: "# Answer\n\nThere are 8 planets in the solar system.",
+          resultHash: "result_hash_123",
           input: '{"prompt":"How many planets are in the solar system?"}',
           inputHash: "input_hash_123",
           inputSchema: "input_schema_123",
-          result: "# Answer\n\nThere are 8 planets in the solar system.",
-          resultHash: "result_hash_123",
+          agentJobId: "agent_job_123",
+          identifierFromPurchaser: "identifier_123",
+          user: {
+            id: "user_123",
+            name: "Ada Lovelace",
+            image: null,
+          },
+          organization: {
+            id: "organization_123",
+            name: "Acme Labs",
+            slug: "acme-labs",
+          },
+          agent: {
+            id: "agent_123",
+            name: "Research Agent",
+            overrideName: null,
+            icon: null,
+            image: null,
+            overrideImage: null,
+            legalPrivacyPolicy: null,
+            overrideLegalPrivacyPolicy: null,
+            legalTerms: null,
+            overrideLegalTerms: null,
+            legalDpa: null,
+            overrideLegalDpa: null,
+            legalOther: null,
+            overrideLegalOther: null,
+          },
+          events: [],
         },
         meta: {
           timestamp: "2025-01-15T12:00:00.000Z",
@@ -85,16 +113,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireScopedJobReadAccess(authContext, id, scope, tx);
       const job = await tx.job.findUnique({
         where: { id },
-        include: {
-          ...jobWithEvents,
-          ...jobWithTransaction,
-          ...jobWithPurchase,
-        },
+        include: jobInclude,
       });
       if (!job) {
         throw notFound("Job not found");
       }
-      return flattenJob(job);
+      return serializeJobDetails(mapJobWithStatus(job));
     });
 
     return ok(c, jobSchema.parse(job));

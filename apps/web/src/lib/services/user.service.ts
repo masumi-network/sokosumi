@@ -84,7 +84,7 @@ export const userService = (() => {
 
   /**
    * Retrieves jobs for the currently authenticated user filtered by agent ID.
-   * If the user has an active organization, returns jobs associated with that organization.
+   * If the user has an active organization, returns jobs in that organization context.
    * Otherwise, returns personal jobs for the user and agent.
    *
    * @param {string} agentId - The ID of the agent to filter jobs by.
@@ -108,21 +108,7 @@ export const userService = (() => {
       },
       prisma,
     );
-
-    // Get shared jobs from organization if user is in an organization
-    let sharedJobs: JobWithSokosumiStatus[] = [];
-    if (activeOrganizationId) {
-      sharedJobs = await jobRepository.getJobsSharedWithOrganization(
-        userId,
-        agentId,
-        activeOrganizationId,
-        prisma,
-      );
-    }
-
-    // Combine and sort all jobs
-    const allJobs = [...ownedJobs, ...sharedJobs];
-    return allJobs.sort(
+    return ownedJobs.sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
@@ -144,9 +130,6 @@ export const userService = (() => {
           userId: session.user.id,
           organizationId: activeOrganizationId,
         },
-        ...(activeOrganizationId
-          ? [{ share: { organizationId: activeOrganizationId } }]
-          : []),
       ],
     };
 

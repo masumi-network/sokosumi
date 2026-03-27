@@ -1,12 +1,20 @@
 import type { Notice, NoticeKind } from "@sokosumi/database";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import {
+  mapCoreJobShare,
+  mapCorePublicSharedJobResponse,
+} from "@/lib/clients/core.job-share";
 import type {
+  DeleteJobsByIdShareError,
   GetCoworkersData,
+  GetShareJobsByTokenError,
   GetTasksData,
   PaginationMetadata,
+  PutJobsByIdShareError,
 } from "@/lib/clients/generated/core";
 import {
+  deleteJobsByIdShare as coreDeleteJobsByIdShare,
   deleteTasksById as coreDeleteTasksById,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
@@ -16,6 +24,7 @@ import {
   getCoworkers as coreGetCoworkers,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getShareJobsByToken as coreGetShareJobsByToken,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getUsersMeCredits as coreGetUsersMeCredits,
@@ -30,6 +39,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postUsersMeFiles as corePostUsersMeFiles,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
+  putJobsByIdShare as corePutJobsByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
@@ -311,7 +321,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getJobs(query?: {
-    scope?: Array<"context" | "owned" | "shared">;
+    scope?: Array<"context" | "owned">;
     cursor?: string;
     limit?: number;
     agentId?: string;
@@ -337,7 +347,7 @@ export function createCoreClient(getClient: GetClient) {
 
   async function getJobById(
     id: string,
-    scope: Array<"context" | "owned" | "shared"> = ["context"],
+    scope: Array<"context" | "owned"> = ["context"],
   ) {
     return executeOperation(
       getClient,
@@ -585,6 +595,87 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function putJobShare(
+    id: string,
+    body: { allowSearchIndexing: boolean },
+  ) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await corePutJobsByIdShare({
+          client,
+          path: { id },
+          body,
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error as PutJobsByIdShareError,
+            response: result.response,
+          };
+        }
+        return {
+          data: mapCoreJobShare(result.data.data),
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to update job share",
+    );
+  }
+
+  async function deleteJobShare(id: string) {
+    await executeOperation(
+      getClient,
+      async (client) => {
+        const result = await coreDeleteJobsByIdShare({
+          client,
+          path: { id },
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error as DeleteJobsByIdShareError,
+            response: result.response,
+          };
+        }
+
+        return {
+          data: true,
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to delete job share",
+    );
+  }
+
+  async function getSharedJobByToken(token: string) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await coreGetShareJobsByToken({
+          client,
+          path: { token },
+          cache: "no-store",
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error as GetShareJobsByTokenError,
+            response: result.response,
+          };
+        }
+        return {
+          data: mapCorePublicSharedJobResponse(result.data.data),
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to fetch shared job",
+    );
+  }
+
   return {
     acknowledgeNotice,
     addConversationItem,
@@ -592,6 +683,7 @@ export function createCoreClient(getClient: GetClient) {
     createConversation,
     createTask,
     createTaskEvent,
+    deleteJobShare,
     deleteTask,
     getConversation,
     getConversationItems,
@@ -605,10 +697,12 @@ export function createCoreClient(getClient: GetClient) {
     getMyCredits,
     getMyOrganizations,
     getPendingNotices,
+    getSharedJobByToken,
     moveTaskToWorkspace,
     getTaskById,
     getTasks,
     patchTask,
+    putJobShare,
     updateConversation,
     uploadMyFile,
   };

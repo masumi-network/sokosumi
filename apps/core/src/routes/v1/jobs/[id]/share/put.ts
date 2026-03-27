@@ -1,0 +1,82 @@
+import { createRoute, z } from "@hono/zod-openapi";
+import { jobShareRepository } from "@sokosumi/database/repositories";
+
+import { forbidden, notFound } from "@/helpers/error.js";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  jobShareSchema,
+  putJobShareRequestSchema,
+} from "@/schemas/job-share.schema.js";
+
+const paramsSchema = z.object({
+  id: z.string().openapi({
+    param: { name: "id", in: "path" },
+    example: "job_123",
+  }),
+});
+
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "put",
+    path: "/{id}/share",
+    description: "Create or update the public share for a job",
+    tags: ["Jobs"],
+    request: {
+      params: paramsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: putJobShareRequestSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(jobShareSchema, "Create or update a job share"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+    },
+  }),
+);
+
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const authContext = requireUserAuthContext(c.var.authContext);
+    const { id } = c.req.valid("param");
+    const { allowSearchIndexing } = c.req.valid("json");
+
+    const share = await prisma.$transaction(async (tx) => {
+      const job = await tx.job.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          userId: true,
+        },
+      });
+
+      if (!job) {
+        throw notFound("Job not found");
+      }
+
+      if (job.userId !== authContext.userId) {
+        throw forbidden("You can only manage sharing for your own jobs");
+      }
+
+      return await jobShareRepository.upsertPublicShare(
+        id,
+        allowSearchIndexing,
+        tx,
+      );
+    });
+
+    return ok(c, jobShareSchema.parse(share));
+  });
+}

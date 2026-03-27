@@ -4,7 +4,7 @@ import { coreClient } from "@/lib/clients/core.client";
 import type {
   Agent,
   Coworker,
-  Job,
+  JobSummary,
   Task,
   TaskEvent,
 } from "@/lib/clients/generated/core/types.gen";
@@ -80,7 +80,7 @@ function getLatestTaskEvent(task: Task): TaskEvent | null {
 }
 
 function toFeedJobItems(
-  jobs: Job[],
+  jobs: JobSummary[],
   agentsById: Map<string, Agent | null>,
 ): FeedJobItem[] {
   return jobs
@@ -176,7 +176,7 @@ export const feedService = (() => {
   }): Promise<FeedPoolPage> {
     const [jobsResult, tasksResult] = await Promise.all([
       coreClient.getJobs({
-        scope: ["context", "shared"],
+        scope: ["context"],
         status: "COMPLETED",
         cursor: params.jobsCursor,
         limit: params.limitPerSource,
@@ -244,7 +244,7 @@ export const feedService = (() => {
     const [jobsResult, tasksResult] = await Promise.all([
       shouldFetchJobs
         ? coreClient.getJobs({
-            scope: ["context", "shared"],
+            scope: ["context"],
             status: "COMPLETED",
             cursor: params.jobsCursor ?? undefined,
             limit: limitPerSource,
@@ -296,7 +296,6 @@ export const feedService = (() => {
         const { data: job } = await coreClient.getJobById(jobId, [
           "context",
           "owned",
-          "shared",
         ]);
         if (job.status !== "completed" || !job.result) {
           return null;

@@ -9,7 +9,6 @@ import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobPurchaseRepository,
-  jobShareRepository,
 } from "@sokosumi/database/repositories";
 import {
   type JobWithEvents,
@@ -41,7 +40,7 @@ import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
-import { badRequest, forbidden, notFound, unprocessableEntity } from "./error";
+import { badRequest, notFound, unprocessableEntity } from "./error";
 import { transformPurchaseToJobUpdate } from "./purchase";
 import { buildJobScopeFilters, type JobScope } from "./scope";
 import { getCents } from "./user";
@@ -220,63 +219,6 @@ async function createFreeJob(
       ...jobWithPurchase,
     },
   });
-}
-
-/**
- * Shares job with current context (organization if in org context, publicly if personal)
- */
-export async function shareJob(
-  jobId: string,
-  authContext: UserAuthenticationContext,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  // Verify job exists and user owns it
-  const job = await tx.job.findUnique({
-    where: { id: jobId },
-    select: { id: true, userId: true, organizationId: true },
-  });
-
-  if (!job) {
-    throw notFound("Job not found");
-  }
-
-  if (job.userId !== authContext.userId) {
-    throw forbidden("You can only share your own jobs");
-  }
-
-  if (authContext.organizationId) {
-    // Share with organization
-    if (job.organizationId !== authContext.organizationId) {
-      throw forbidden(
-        "Job must belong to the same organization to share with it",
-      );
-    }
-
-    // Verify user is a member of the organization
-    const membership = await tx.member.findUnique({
-      where: {
-        userId_organizationId: {
-          userId: authContext.userId,
-          organizationId: authContext.organizationId,
-        },
-      },
-    });
-
-    if (!membership) {
-      throw forbidden(
-        "You must be a member of the organization to share jobs with it",
-      );
-    }
-
-    await jobShareRepository.upsertOrganizationShare(
-      jobId,
-      authContext.organizationId,
-      tx,
-    );
-  } else {
-    // Share publicly
-    await jobShareRepository.upsertPublicShare(jobId, true, true, tx);
-  }
 }
 
 interface CreateAgentJobInput {

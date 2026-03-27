@@ -7,7 +7,7 @@ import Link from "next/link";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { makeAgentJobsChannelName } from "@/lib/ably";
-import type { Job } from "@/lib/clients/generated/core/types.gen";
+import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 
@@ -20,7 +20,7 @@ import {
 interface TaskJobsProps {
   title: string;
   agents: AgentWithCreditsPrice[];
-  jobs: Job[];
+  jobs: JobSummary[];
   userId: string | null;
   locale?: string;
   emptyLabel: string;

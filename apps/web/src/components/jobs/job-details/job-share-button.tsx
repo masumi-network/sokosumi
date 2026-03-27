@@ -13,22 +13,15 @@ import JobShareModal from "./job-share-modal";
 interface JobShareButtonProps {
   job: JobWithSokosumiStatus;
   className?: string;
-  activeOrganizationId?: string | null;
 }
 
 export default function JobShareButton({
   job,
   className,
-  activeOrganizationId,
 }: JobShareButtonProps) {
   const t = useTranslations("Components.Jobs.JobDetails.JobShare");
   const { showModal, Component } = useModal(({ open, onOpenChange }) => (
-    <JobShareModal
-      open={open}
-      onOpenChange={onOpenChange}
-      job={job}
-      activeOrganizationId={activeOrganizationId}
-    />
+    <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />
   ));
 
   return (

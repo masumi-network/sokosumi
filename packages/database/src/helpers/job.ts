@@ -379,6 +379,8 @@ export function mapJobWithStatus(
     completedAt,
     cents: getCents(job),
     credits: getCredits(job),
+    onChainStatus: job.purchase?.onChainStatus ?? null,
+    onChainTransactionHash: job.purchase?.onChainTransactionHash ?? null,
     result: getResult(job),
     resultHash: getResultHash(job),
   };

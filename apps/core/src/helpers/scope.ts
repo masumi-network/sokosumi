@@ -11,7 +11,7 @@ import {
 export const DEFAULT_SCOPE = "context" as const;
 
 export const TASK_SCOPE_VALUES = ["context", "owned"] as const;
-export const JOB_SCOPE_VALUES = ["context", "owned", "shared"] as const;
+export const JOB_SCOPE_VALUES = ["context", "owned"] as const;
 
 export type TaskScope = (typeof TASK_SCOPE_VALUES)[number];
 export type JobScope = (typeof JOB_SCOPE_VALUES)[number];
@@ -69,14 +69,6 @@ export function buildJobScopeFilters(
     });
   }
 
-  if (uniqueScopes.has("shared") && authContext.organizationId) {
-    filters.push({
-      share: {
-        organizationId: authContext.organizationId,
-      },
-    });
-  }
-
   return filters;
 }
 
@@ -100,6 +92,6 @@ export const jobScopeQuerySchema = z
   .openapi({
     param: { name: "scope", in: "query" },
     description:
-      "Comma-separated scope filters. Allowed values: context, owned, shared. Example: context,shared",
+      "Comma-separated scope filters. Allowed values: context, owned. Example: context,owned",
     example: "context",
   });

@@ -7,7 +7,7 @@ import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
-import { jobSchema } from "@/schemas/job.schema";
+import { jobSummarySchema } from "@/schemas/job.schema";
 import { createTaskJobRequestSchema } from "@/schemas/task.schema";
 import { flattenJob } from "@/types/job";
 
@@ -34,7 +34,7 @@ const route = createRoute({
     },
   },
   responses: {
-    201: jsonSuccessResponse(jobSchema, "Job added to task"),
+    201: jsonSuccessResponse(jobSummarySchema, "Job added to task"),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -72,6 +72,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return job;
     });
-    return created(c, jobSchema.parse(flattenJob(job)));
+    return created(c, jobSummarySchema.parse(flattenJob(job)));
   });
 }

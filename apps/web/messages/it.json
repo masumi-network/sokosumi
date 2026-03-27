@@ -268,10 +268,6 @@
         "failed": "Fallito",
         "unknown": "Sconosciuto"
       },
-      "SharedBadge": {
-        "shared": "Condiviso",
-        "sharedBy": "Condiviso da"
-      },
       "JobDetails": {
         "activity": "Attività",
         "actionUpdatedStatus": "ha cambiato lo stato in",
@@ -295,7 +291,6 @@
             "cancel": "Annulla",
             "noName": "Senza nome",
             "shared": "Condiviso pubblicamente",
-            "organizationShared": "Condiviso con l’organizzazione",
             "private": "Privato",
             "success": "Nome del job aggiornato correttamente",
             "error": "Impossibile aggiornare il nome del job",
@@ -335,8 +330,6 @@
             "title": "Condividi job",
             "publicAccessTitle": "Accesso pubblico",
             "publicAccessDescription": "Chiunque abbia il link può visualizzare",
-            "organizationAccessTitle": "Accesso organizzazione",
-            "organizationAccessDescription": "Chiunque in {organizationName} può visualizzare",
             "privateAccessTitle": "Accesso privato",
             "privateAccessDescription": "Solo tu puoi visualizzare",
             "allowSearchIndexing": "Consenti l’indicizzazione di questo risultato da parte dei motori di ricerca",

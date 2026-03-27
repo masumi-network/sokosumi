@@ -10,7 +10,6 @@ import { cache } from "react";
 import { type Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
-import { isSharedWithOrganization } from "@/lib/helpers/job";
 import { getJobQueryKey, getQueryClient } from "@/queries";
 
 interface LoadJobDetailsParams {
@@ -39,19 +38,7 @@ async function canAccessJob(
   job: JobWithSokosumiStatus,
   session: Session,
 ): Promise<boolean> {
-  if (job.userId === session.user.id) {
-    // Allow access to all jobs for the user, regardless of organization
-    return true;
-  }
-
-  if (
-    session.session.activeOrganizationId &&
-    isSharedWithOrganization(job, session.session.activeOrganizationId)
-  ) {
-    return true;
-  }
-
-  return false;
+  return job.userId === session.user.id;
 }
 
 export async function loadJobDetails({

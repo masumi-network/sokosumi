@@ -43,12 +43,7 @@ export default async function JobDetailsPage({
           account: targetAccountName,
         })}
       />
-      <JobDetails
-        className="h-full"
-        job={job}
-        readOnly={readOnly}
-        activeOrganizationId={activeOrganizationId}
-      />
+      <JobDetails className="h-full" job={job} readOnly={readOnly} />
     </HydrationBoundary>
   );
 }

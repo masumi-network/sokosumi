@@ -1,7 +1,6 @@
 "use client";
 
 import { JobWithSokosumiStatus } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -57,12 +56,10 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
           </KeyValueRow>
         ) : null}
 
-        {job.transaction ? (
+        {job.credits > 0 ? (
           <KeyValueRow label={t("credits")}>
             <span className="text-muted-foreground text-sm">
-              {formatCreditsForDisplay(
-                Math.abs(convertCentsToCredits(job.transaction.amount)),
-              )}
+              {formatCreditsForDisplay(job.credits)}
             </span>
           </KeyValueRow>
         ) : null}
@@ -93,10 +90,10 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
 
         <KeyValueRow label={t("txId")} layout="column">
           <div className="w-full text-sm">
-            {job.purchase?.onChainTransactionHash ? (
+            {job.onChainTransactionHash ? (
               <Link
                 href={buildJobTransactionUrl(
-                  job.purchase.onChainTransactionHash,
+                  job.onChainTransactionHash,
                   isMainnet,
                 )}
                 className="hover:text-foreground inline-flex items-center gap-1 text-sm underline-offset-2 hover:underline"
@@ -104,7 +101,7 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
                 rel="noreferrer"
               >
                 <LinkIcon className="size-4" />
-                <MiddleTruncate text={job.purchase.onChainTransactionHash} />
+                <MiddleTruncate text={job.onChainTransactionHash} />
               </Link>
             ) : (
               <span className="text-muted-foreground">—</span>
