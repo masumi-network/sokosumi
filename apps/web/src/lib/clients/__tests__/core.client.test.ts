@@ -332,9 +332,9 @@ describe("core.client", () => {
             onChainStatus: null,
             onChainTransactionHash: "0x123abc",
             result: "# Result",
-            input: "{\"prompt\":\"hello\"}",
+            input: '{"prompt":"hello"}',
             inputHash: null,
-            inputSchema: "{\"input_data\":[]}",
+            inputSchema: '{"input_data":[]}',
             agentJobId: "agent_job_1",
             identifierFromPurchaser: "identifier_123",
             user: {
@@ -382,10 +382,10 @@ describe("core.client", () => {
                 createdAt: new Date("2026-03-26T10:00:00.000Z"),
                 updatedAt: new Date("2026-03-26T10:00:00.000Z"),
                 status: "INITIATED",
-                inputSchema: "{\"input_data\":[]}",
+                inputSchema: '{"input_data":[]}',
                 input: {
                   id: "input_1",
-                  input: "{\"prompt\":\"hello\"}",
+                  input: '{"prompt":"hello"}',
                   inputHash: null,
                   signature: null,
                 },
@@ -411,7 +411,9 @@ describe("core.client", () => {
       },
     });
     expect(response.share.allowSearchIndexing).toBe(false);
-    expect(response.job.createdAt).toEqual(new Date("2026-03-26T10:00:00.000Z"));
+    expect(response.job.createdAt).toEqual(
+      new Date("2026-03-26T10:00:00.000Z"),
+    );
     expect(response.job.credits).toBe(5);
     expect(response.job.onChainTransactionHash).toBe("0x123abc");
     expect(response.job.onChainStatus).toBeNull();

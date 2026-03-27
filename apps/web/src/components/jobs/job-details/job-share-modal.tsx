@@ -87,7 +87,8 @@ export default function JobShareModal({
   };
 
   function handleShareError(error: unknown) {
-    const status = error instanceof CoreApiRequestError ? error.status : undefined;
+    const status =
+      error instanceof CoreApiRequestError ? error.status : undefined;
 
     switch (status) {
       case 401:

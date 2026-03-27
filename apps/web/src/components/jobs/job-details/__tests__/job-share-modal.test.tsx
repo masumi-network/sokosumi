@@ -121,13 +121,13 @@ describe("JobShareModal", () => {
   });
 
   it("shows only public and private sharing options", () => {
-    render(
-      <JobShareModal open onOpenChange={vi.fn()} job={createJob({})} />,
-    );
+    render(<JobShareModal open onOpenChange={vi.fn()} job={createJob({})} />);
 
     expect(screen.getByText("publicAccessTitle")).toBeInTheDocument();
     expect(screen.getByText("privateAccessTitle")).toBeInTheDocument();
-    expect(screen.queryByText("organizationAccessTitle")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("organizationAccessTitle"),
+    ).not.toBeInTheDocument();
   });
 
   it("enables public sharing and then shows search indexing controls", async () => {
@@ -140,9 +140,7 @@ describe("JobShareModal", () => {
       updatedAt: new Date("2026-02-13T10:00:00.000Z"),
     });
 
-    render(
-      <JobShareModal open onOpenChange={vi.fn()} job={createJob({})} />,
-    );
+    render(<JobShareModal open onOpenChange={vi.fn()} job={createJob({})} />);
 
     fireEvent.click(screen.getByText("publicAccessTitle"));
 
@@ -193,7 +191,7 @@ describe("JobShareModal", () => {
 
     await waitFor(() => {
       expect(putJobShareMock).toHaveBeenCalledWith("job-1", {
-          allowSearchIndexing: false,
+        allowSearchIndexing: false,
       });
     });
 
@@ -259,9 +257,7 @@ describe("JobShareModal", () => {
       new MockCoreApiRequestError("Unauthorized", { status: 401 }),
     );
 
-    render(
-      <JobShareModal open onOpenChange={vi.fn()} job={createJob({})} />,
-    );
+    render(<JobShareModal open onOpenChange={vi.fn()} job={createJob({})} />);
 
     fireEvent.click(screen.getByText("publicAccessTitle"));
 

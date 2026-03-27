@@ -30,10 +30,7 @@ import { type JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
-import {
-  CoreApiRequestError,
-  coreClient,
-} from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import { getJobStatusData } from "@/lib/helpers/job";
 import {

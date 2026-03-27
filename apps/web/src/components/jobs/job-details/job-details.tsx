@@ -94,10 +94,7 @@ export default function JobDetails({
           <div className="max-w-4xl min-w-0 flex-1">
             {showAgentHeader && jobsHeader ? <Header {...jobsHeader} /> : null}
             <div className="space-y-8 pb-20">
-              <JobDetailsHeader
-                job={job}
-                readOnly={readOnly}
-              />
+              <JobDetailsHeader job={job} readOnly={readOnly} />
 
               <div className="md:hidden">
                 <JobMetaDetails job={job} />
@@ -207,10 +204,7 @@ function JobDetailsHeader({
 }) {
   return (
     <div className="flex flex-col gap-2" key={`${job.id}-details-header`}>
-      <JobDetailsName
-        job={job}
-        readOnly={readOnly}
-      />
+      <JobDetailsName job={job} readOnly={readOnly} />
     </div>
   );
 }
@@ -360,7 +354,11 @@ function JobDetailsContent({
             <div className="space-y-4 pt-1">
               {event.result ? (
                 <section className="space-y-2">
-                  <JobDetailsOutputs job={job} event={event} readOnly={readOnly} />
+                  <JobDetailsOutputs
+                    job={job}
+                    event={event}
+                    readOnly={readOnly}
+                  />
                 </section>
               ) : null}
 

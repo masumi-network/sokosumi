@@ -124,7 +124,9 @@ describe("share job page", () => {
       }),
     );
 
-    expect(screen.getByRole("heading", { name: "Research Agent" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Research Agent" }),
+    ).toBeVisible();
     expect(screen.getByText("job:job_123")).toBeVisible();
   });
 

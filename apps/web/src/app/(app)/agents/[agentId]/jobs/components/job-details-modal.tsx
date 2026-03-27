@@ -127,11 +127,7 @@ export function JobDetailsModal({
                 <span>{t("back")}</span>
               </Button>
             </div>
-            <JobDetails
-              job={job}
-              readOnly={readOnly}
-              showAgentHeader={false}
-            />
+            <JobDetails job={job} readOnly={readOnly} showAgentHeader={false} />
           </div>
         </ScrollArea>
       </DialogContent>

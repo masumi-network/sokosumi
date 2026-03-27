@@ -267,12 +267,7 @@ describe("requireScopedJobReadAccess", () => {
       id: "job_123",
     } as never);
 
-    await requireScopedJobReadAccess(
-      userAuthContext,
-      "job_123",
-      ["owned"],
-      tx,
-    );
+    await requireScopedJobReadAccess(userAuthContext, "job_123", ["owned"], tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {

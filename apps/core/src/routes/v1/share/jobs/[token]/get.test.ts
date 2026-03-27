@@ -172,5 +172,4 @@ describe("GET /share/jobs/{token}", () => {
 
     expect(response.status).toBe(404);
   });
-
 });

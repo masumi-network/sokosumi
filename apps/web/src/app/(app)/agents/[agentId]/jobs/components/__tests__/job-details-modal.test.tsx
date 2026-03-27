@@ -48,11 +48,7 @@ describe("JobDetailsModal", () => {
     mockMatchMedia(true);
 
     render(
-      <JobDetailsModal
-        agentId="agent-1"
-        job={{} as never}
-        readOnly={false}
-      />,
+      <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />,
     );
 
     expect(await screen.findByTestId("job-details")).toBeInTheDocument();
@@ -62,11 +58,7 @@ describe("JobDetailsModal", () => {
     mockMatchMedia(false);
 
     render(
-      <JobDetailsModal
-        agentId="agent-1"
-        job={{} as never}
-        readOnly={false}
-      />,
+      <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />,
     );
 
     expect(screen.queryByTestId("job-details")).not.toBeInTheDocument();
@@ -76,11 +68,7 @@ describe("JobDetailsModal", () => {
     mockMatchMedia(true);
 
     render(
-      <JobDetailsModal
-        agentId="agent-1"
-        job={{} as never}
-        readOnly={false}
-      />,
+      <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /back/i }));
@@ -94,11 +82,7 @@ describe("JobDetailsModal", () => {
     mockMatchMedia(true);
 
     render(
-      <JobDetailsModal
-        agentId="agent-1"
-        job={{} as never}
-        readOnly={false}
-      />,
+      <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />,
     );
 
     const modalSurface = await screen.findByTestId("job-details-modal-surface");

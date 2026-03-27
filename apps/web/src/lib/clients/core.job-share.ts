@@ -129,7 +129,7 @@ function mapCoreSharedJob(
       legalOther: job.agent.legalOther ?? null,
       overrideLegalOther: job.agent.overrideLegalOther ?? null,
     },
-  } as JobWithSokosumiStatus;
+  } as unknown as JobWithSokosumiStatus;
 }
 
 export function mapCorePublicSharedJobResponse(data: PublicSharedJobResponse): {

@@ -16,15 +16,11 @@ describe("jobShareRepository.upsertPublicShare", () => {
   });
 
   it("creates a token once and preserves it on later updates", async () => {
-    await jobShareRepository.upsertPublicShare(
-      "job_123",
-      false,
-      {
-        jobShare: {
-          upsert: upsertMock,
-        },
-      } as never,
-    );
+    await jobShareRepository.upsertPublicShare("job_123", false, {
+      jobShare: {
+        upsert: upsertMock,
+      },
+    } as never);
 
     expect(upsertMock).toHaveBeenCalledWith(
       expect.objectContaining({

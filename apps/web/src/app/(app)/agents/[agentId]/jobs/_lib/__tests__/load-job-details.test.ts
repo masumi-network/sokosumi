@@ -17,7 +17,8 @@ vi.mock("@/lib/auth/utils", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   agentRepository: {
-    getAgentWithRelationsById: (...args: unknown[]) => getAgentByIdMock(...args),
+    getAgentWithRelationsById: (...args: unknown[]) =>
+      getAgentByIdMock(...args),
   },
   jobRepository: {
     getJobById: (...args: unknown[]) => getJobByIdMock(...args),
