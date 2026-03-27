@@ -40,14 +40,7 @@ export const taskLinkPeerTaskSchema = z
 export type TaskLinkPeerTaskResponse = z.infer<typeof taskLinkPeerTaskSchema>;
 
 export const taskLinkRelationSchema = z
-  .enum([
-    "related",
-    "blocks",
-    "blocked_by",
-    "parent",
-    "child",
-    "duplicate",
-  ])
+  .enum(["related", "blocks", "blocked_by", "parent", "child", "duplicate"])
   .openapi("TaskLinkRelation");
 
 export type TaskLinkRelationResponse = z.infer<typeof taskLinkRelationSchema>;
@@ -73,15 +66,17 @@ export type TaskLinkResponse = z.infer<typeof taskLinkSchema>;
 
 export const taskLinksSchema = z.array(taskLinkSchema);
 
-export const createTaskLinkRequestSchema = z.object({
-  toTaskId: z.string().min(1).openapi({ example: "tsk_b" }),
-  relation: taskLinkRelationSchema.openapi({ example: "blocked_by" }),
-  note: z
-    .string()
-    .max(2000)
-    .nullish()
-    .openapi({ example: "Blocked until onboarding copy is approved" }),
-}).openapi({ example: createTaskLinkRequestExample });
+export const createTaskLinkRequestSchema = z
+  .object({
+    toTaskId: z.string().min(1).openapi({ example: "tsk_b" }),
+    relation: taskLinkRelationSchema.openapi({ example: "blocked_by" }),
+    note: z
+      .string()
+      .max(2000)
+      .nullish()
+      .openapi({ example: "Blocked until onboarding copy is approved" }),
+  })
+  .openapi({ example: createTaskLinkRequestExample });
 
 export const patchTaskLinkRequestSchema = z
   .object({

@@ -6,51 +6,6 @@ import {
   isCoworkerAuthContext,
 } from "@/middleware/auth";
 
-export const taskLinksInclude = {
-  linksFrom: {
-    include: {
-      fromTask: {
-        select: {
-          id: true,
-          name: true,
-          status: true,
-        },
-      },
-      toTask: {
-        select: {
-          id: true,
-          name: true,
-          status: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-  },
-  linksTo: {
-    include: {
-      fromTask: {
-        select: {
-          id: true,
-          name: true,
-          status: true,
-        },
-      },
-      toTask: {
-        select: {
-          id: true,
-          name: true,
-          status: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-  },
-} as const;
-
 export const taskLinkPeerTaskSelect = {
   id: true,
   name: true,
@@ -63,6 +18,21 @@ const taskLinkPeerTaskInclude = {
   },
   toTask: {
     select: taskLinkPeerTaskSelect,
+  },
+} as const;
+
+export const taskLinksInclude = {
+  linksFrom: {
+    include: taskLinkPeerTaskInclude,
+    orderBy: {
+      createdAt: "asc",
+    },
+  },
+  linksTo: {
+    include: taskLinkPeerTaskInclude,
+    orderBy: {
+      createdAt: "asc",
+    },
   },
 } as const;
 

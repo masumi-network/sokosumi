@@ -79,11 +79,9 @@ function getJsonResponseSchema(
   }
 
   const jsonBody = response.content?.["application/json"];
-  const wrapperSchema = resolveSchema(doc, jsonBody?.schema) as
-    | {
-        properties?: Record<string, unknown>;
-      }
-    | null;
+  const wrapperSchema = resolveSchema(doc, jsonBody?.schema) as {
+    properties?: Record<string, unknown>;
+  } | null;
 
   return resolveSchema(doc, wrapperSchema?.properties?.data);
 }

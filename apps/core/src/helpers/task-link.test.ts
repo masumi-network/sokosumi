@@ -188,13 +188,13 @@ describe("mapTaskLinkForTask", () => {
 
 describe("mapTaskLinkRelationToWriteData", () => {
   it("maps a symmetric relation to the current task as the stored source", () => {
-    expect(
-      mapTaskLinkRelationToWriteData("tsk_a", "tsk_b", "related"),
-    ).toEqual({
-      fromTaskId: "tsk_a",
-      toTaskId: "tsk_b",
-      type: TaskLinkType.RELATES,
-    });
+    expect(mapTaskLinkRelationToWriteData("tsk_a", "tsk_b", "related")).toEqual(
+      {
+        fromTaskId: "tsk_a",
+        toTaskId: "tsk_b",
+        type: TaskLinkType.RELATES,
+      },
+    );
   });
 
   it("maps reversed directional relations by flipping the stored edge", () => {
