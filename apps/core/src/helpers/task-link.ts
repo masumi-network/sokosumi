@@ -89,38 +89,19 @@ export function mapTaskLinkRelationToTypeForExistingDirection(
   link: TaskLinkRow,
   relation: TaskLinkRelationResponse,
 ): TaskLinkType {
-  const outgoing = link.fromTaskId === taskId;
+  const peerTaskId = link.fromTaskId === taskId ? link.toTaskId : link.fromTaskId;
+  const nextLink = mapTaskLinkRelationToWriteData(taskId, peerTaskId, relation);
 
-  switch (relation) {
-    case "related":
-      return TaskLinkType.RELATES;
-    case "duplicate":
-      return TaskLinkType.DUPLICATE;
-    case "blocks":
-      if (outgoing) {
-        return TaskLinkType.BLOCKS;
-      }
-      break;
-    case "blocked_by":
-      if (!outgoing) {
-        return TaskLinkType.BLOCKS;
-      }
-      break;
-    case "parent":
-      if (outgoing) {
-        return TaskLinkType.PARENT;
-      }
-      break;
-    case "child":
-      if (!outgoing) {
-        return TaskLinkType.PARENT;
-      }
-      break;
+  if (
+    nextLink.fromTaskId !== link.fromTaskId ||
+    nextLink.toTaskId !== link.toTaskId
+  ) {
+    throw badRequest(
+      `Relation ${relation} would require reversing the existing link`,
+    );
   }
 
-  throw badRequest(
-    `Relation ${relation} would require reversing the existing link`,
-  );
+  return nextLink.type;
 }
 
 export function mapTaskLink(

@@ -236,6 +236,14 @@ describe("mapTaskLinkRelationToTypeForExistingDirection", () => {
     ).toBe(TaskLinkType.PARENT);
   });
 
+  it("reuses the same stored edge shape as write-data mapping", () => {
+    const link = createLink({ fromTaskId: "tsk_a", toTaskId: "tsk_b" });
+
+    expect(
+      mapTaskLinkRelationToTypeForExistingDirection("tsk_a", link, "blocks"),
+    ).toBe(mapTaskLinkRelationToWriteData("tsk_a", "tsk_b", "blocks").type);
+  });
+
   it("rejects relations that would require reversing the stored edge", () => {
     expect(() =>
       mapTaskLinkRelationToTypeForExistingDirection(
