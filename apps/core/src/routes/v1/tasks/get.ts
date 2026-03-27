@@ -43,19 +43,21 @@ const taskStatusQuerySchema = z
     example: "READY,COMPLETED",
   });
 
+const taskNameQuerySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .optional()
+  .openapi({
+    param: { name: "q", in: "query" },
+    description: "Case-insensitive task name filter",
+    example: "review",
+  });
+
 const query = z
   .object({
-    q: z
-      .string()
-      .trim()
-      .min(1)
-      .max(200)
-      .optional()
-      .openapi({
-        param: { name: "q", in: "query" },
-        description: "Case-insensitive task name filter",
-        example: "review",
-      }),
+    q: taskNameQuerySchema,
     status: taskStatusQuerySchema,
     coworkerId: z
       .string()
