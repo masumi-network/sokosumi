@@ -695,7 +695,7 @@ export const getTasksByIdLinks = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Create a directed link from this task to another task
+ * Create a link between this task and another task
  */
 export const postTasksByIdLinks = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdLinksData, ThrowOnError>) => (options.client ?? client).post<PostTasksByIdLinksResponses, PostTasksByIdLinksErrors, ThrowOnError>({
     responseTransformer: postTasksByIdLinksResponseTransformer,
@@ -719,7 +719,7 @@ export const deleteTasksByIdLinksByLinkId = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Update a task link that involves this task
+ * Update a link between this task and another task
  */
 export const patchTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false>(options: Options<PatchTasksByIdLinksByLinkIdData, ThrowOnError>) => (options.client ?? client).patch<PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdLinksByLinkIdErrors, ThrowOnError>({
     responseTransformer: patchTasksByIdLinksByLinkIdResponseTransformer,

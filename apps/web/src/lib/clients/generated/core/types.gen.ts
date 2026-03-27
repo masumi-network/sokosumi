@@ -587,6 +587,21 @@ export type CreateCoworkerApiKeyResponse = {
     expiresAt: Date | null;
 };
 
+export type TaskListItem = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string;
+    organizationId: string | null;
+    coworkerId: string | null;
+    name: string;
+    description: string | null;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    credits: number;
+    events: Array<TaskEvent>;
+    jobs: Array<JobSummary>;
+};
+
 export type Task = {
     id: string;
     createdAt: Date;
@@ -607,12 +622,26 @@ export type TaskLink = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    type: 'RELATES' | 'BLOCKS' | 'PARENT' | 'DUPLICATE';
-    fromTaskId: string;
-    toTaskId: string;
-    peerTaskId: string;
-    direction: 'outgoing' | 'incoming';
+    relation: TaskLinkRelation;
+    peerTask: TaskLinkPeerTask;
     note: string | null;
+};
+
+export const TaskLinkRelation = {
+    RELATED: 'related',
+    BLOCKS: 'blocks',
+    BLOCKED_BY: 'blocked_by',
+    PARENT: 'parent',
+    CHILD: 'child',
+    DUPLICATE: 'duplicate'
+} as const;
+
+export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRelation];
+
+export type TaskLinkPeerTask = {
+    id: string;
+    name: string;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
 };
 
 export type TaskLinkDeleted = {
@@ -7218,7 +7247,7 @@ export type GetTasksResponses = {
      * Retrieve all tasks
      */
     200: {
-        data: Array<Task>;
+        data: Array<TaskListItem>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7375,7 +7404,7 @@ export type GetTasksByIdLinksResponse = GetTasksByIdLinksResponses[keyof GetTask
 export type PostTasksByIdLinksData = {
     body?: {
         toTaskId: string;
-        type: 'RELATES' | 'BLOCKS' | 'PARENT' | 'DUPLICATE';
+        relation: TaskLinkRelation;
         note?: string | null;
     };
     path: {
@@ -7543,7 +7572,7 @@ export type DeleteTasksByIdLinksByLinkIdResponse = DeleteTasksByIdLinksByLinkIdR
 
 export type PatchTasksByIdLinksByLinkIdData = {
     body?: {
-        type?: 'RELATES' | 'BLOCKS' | 'PARENT' | 'DUPLICATE';
+        relation?: TaskLinkRelation;
         note?: string | null;
     };
     path: {

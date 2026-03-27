@@ -102,9 +102,14 @@ export function TaskForm({
   );
   const defaultCoworkerId = (() => {
     const elenaCoworker = coworkerOptions.find(
-      (option) => option.slug === "elena"
+      (option) => option.slug === "elena",
     );
-    return initialValues?.coworkerId ?? elenaCoworker?.id ?? coworkerOptions[0]?.id ?? "";
+    return (
+      initialValues?.coworkerId ??
+      elenaCoworker?.id ??
+      coworkerOptions[0]?.id ??
+      ""
+    );
   })();
 
   const [coworkerId, setCoworkerId] = useState<string>(defaultCoworkerId);

@@ -2,16 +2,18 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 
 import { requireUserTaskAccess } from "@/helpers/access-control";
-import { conflict } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
   isPrismaTransactionConflict,
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
+import { buildTaskScopeFilters } from "@/helpers/scope";
 import {
   assertTaskLinkAllowed,
-  mapTaskLinkForTask,
+  mapTaskLink,
+  mapTaskLinkRelationToWriteData,
 } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -20,6 +22,7 @@ import {
   createTaskLinkRequestSchema,
   taskLinkSchema,
 } from "@/schemas/task-link.schema";
+import { taskLinkPeerTaskSelect } from "@/types/task-link";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -31,7 +34,7 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "post",
   path: "/{id}/links",
-  description: "Create a directed link from this task to another task",
+  description: "Create a link between this task and another task",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -58,25 +61,44 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const authContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
-    const { toTaskId, type, note } = body;
+    const { toTaskId: peerTaskId, relation, note } = body;
 
-    const link = await (async () => {
+    const { link, peerTask } = await (async () => {
       try {
         return await prisma.$transaction(
           async (tx) => {
             await requireUserTaskAccess(authContext, id, tx);
-            await requireUserTaskAccess(authContext, toTaskId, tx);
-            assertTaskLinkAllowed(id, toTaskId);
+            assertTaskLinkAllowed(id, peerTaskId);
+            const linkData = mapTaskLinkRelationToWriteData(
+              id,
+              peerTaskId,
+              relation,
+            );
+
+            const peerTask = await tx.task.findFirst({
+              where: {
+                id: peerTaskId,
+                OR: buildTaskScopeFilters(authContext),
+              },
+              select: taskLinkPeerTaskSelect,
+            });
+
+            if (!peerTask) {
+              throw notFound("Task not found");
+            }
 
             try {
-              return await tx.taskLink.create({
+              const link = await tx.taskLink.create({
                 data: {
-                  fromTaskId: id,
-                  toTaskId,
-                  type,
+                  ...linkData,
                   note: note ?? null,
                 },
               });
+
+              return {
+                link,
+                peerTask,
+              };
             } catch (error) {
               if (isPrismaUniqueViolation(error)) {
                 throw conflict("This task link already exists");
@@ -96,6 +118,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     })();
 
-    return created(c, mapTaskLinkForTask(id, link));
+    return created(c, mapTaskLink(id, link, peerTask));
   });
 }

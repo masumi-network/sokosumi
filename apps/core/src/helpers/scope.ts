@@ -28,7 +28,7 @@ function deduplicateScopes<T extends string>(
 
 export function buildTaskScopeFilters(
   authContext: UserAuthenticationContext,
-  scopes: readonly TaskScope[] | undefined,
+  scopes: readonly TaskScope[] = [DEFAULT_SCOPE],
 ): Prisma.TaskWhereInput[] {
   const uniqueScopes = new Set(deduplicateScopes(scopes));
   const filters: Prisma.TaskWhereInput[] = [];
@@ -51,7 +51,7 @@ export function buildTaskScopeFilters(
 
 export function buildJobScopeFilters(
   authContext: UserAuthenticationContext,
-  scopes: readonly JobScope[] | undefined,
+  scopes: readonly JobScope[] = [DEFAULT_SCOPE],
 ): Prisma.JobWhereInput[] {
   const uniqueScopes = new Set(deduplicateScopes(scopes));
   const filters: Prisma.JobWhereInput[] = [];

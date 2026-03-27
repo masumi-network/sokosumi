@@ -4,7 +4,11 @@ import { requireUserTaskAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTaskLinkForTask } from "@/helpers/task-link";
+import { buildTaskScopeFilters } from "@/helpers/scope";
+import {
+  mapTaskLink,
+  mapTaskLinkRelationToTypeForExistingDirection,
+} from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -12,6 +16,7 @@ import {
   patchTaskLinkRequestSchema,
   taskLinkSchema,
 } from "@/schemas/task-link.schema";
+import { taskLinkPeerTaskSelect } from "@/types/task-link";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -27,7 +32,7 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "patch",
   path: "/{id}/links/{linkId}",
-  description: "Update a task link that involves this task",
+  description: "Update a link between this task and another task",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -52,31 +57,52 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
     const { id, linkId } = c.req.valid("param");
-    const { type, note } = c.req.valid("json");
+    const { relation, note } = c.req.valid("json");
 
-    const link = await prisma.$transaction(async (tx) => {
-      const currentLink = await tx.taskLink.findUnique({
+    const { link, peerTask } = await prisma.$transaction(async (tx) => {
+      const link = await tx.taskLink.findUnique({
         where: { id: linkId },
       });
 
-      if (
-        !currentLink ||
-        (currentLink.fromTaskId !== id && currentLink.toTaskId !== id)
-      ) {
+      if (!link || (link.fromTaskId !== id && link.toTaskId !== id)) {
         throw notFound("Task link not found");
       }
 
       await requireUserTaskAccess(authContext, id, tx);
 
-      return await tx.taskLink.update({
+      const peerTaskId =
+        link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
+      const peerTask = await tx.task.findFirst({
+        where: {
+          id: peerTaskId,
+          OR: buildTaskScopeFilters(authContext),
+        },
+        select: taskLinkPeerTaskSelect,
+      });
+
+      if (!peerTask) {
+        throw notFound("Peer task not found");
+      }
+
+      const nextType =
+        relation === undefined
+          ? undefined
+          : mapTaskLinkRelationToTypeForExistingDirection(id, link, relation);
+
+      const updatedLink = await tx.taskLink.update({
         where: { id: linkId },
         data: {
-          ...(type !== undefined ? { type } : {}),
+          ...(nextType !== undefined ? { type: nextType } : {}),
           ...(note !== undefined ? { note } : {}),
         },
       });
+
+      return {
+        link: updatedLink,
+        peerTask,
+      };
     });
 
-    return ok(c, mapTaskLinkForTask(id, link));
+    return ok(c, mapTaskLink(id, link, peerTask));
   });
 }

@@ -5,8 +5,8 @@ import type {
   Agent,
   Coworker,
   JobSummary,
-  Task,
   TaskEvent,
+  TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
 import {
   getFirstMarkdownHeading,
@@ -67,7 +67,7 @@ function getDateTimestamp(value: Date | string): number {
   return new Date(value).getTime();
 }
 
-function getLatestTaskEvent(task: Task): TaskEvent | null {
+function getLatestTaskEvent(task: TaskListItem): TaskEvent | null {
   if (task.events.length === 0) {
     return null;
   }
@@ -112,7 +112,7 @@ function toFeedJobItems(
 }
 
 function toFeedTaskItems(
-  tasks: Task[],
+  tasks: TaskListItem[],
   coworkersById: Map<string, Coworker>,
 ): FeedTaskItem[] {
   return tasks

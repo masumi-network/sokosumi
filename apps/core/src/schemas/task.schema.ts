@@ -42,23 +42,30 @@ export const taskCommentSchema = z
   })
   .openapi("TaskComment");
 
-export const taskSchema = z
-  .object({
-    id: z.string().openapi({ example: "tsk_123" }),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
-    userId: z.string().openapi({ example: "user_123" }),
-    organizationId: z.string().nullable().openapi({ example: "org_123" }),
-    coworkerId: z.string().nullable().openapi({ example: "cow_123" }),
-    name: z.string().openapi({ example: "Review onboarding" }),
-    description: z.string().nullable().openapi({ example: "Notes go here" }),
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
-    credits: z.number().openapi({ example: 5 }),
-    events: z.array(taskEventSchema).openapi({ example: [] }),
-    jobs: jobSummariesSchema.openapi({ example: [] }),
+const taskBaseSchema = z.object({
+  id: z.string().openapi({ example: "tsk_123" }),
+  createdAt: dateTimeSchema,
+  updatedAt: dateTimeSchema,
+  userId: z.string().openapi({ example: "user_123" }),
+  organizationId: z.string().nullable().openapi({ example: "org_123" }),
+  coworkerId: z.string().nullable().openapi({ example: "cow_123" }),
+  name: z.string().openapi({ example: "Review onboarding" }),
+  description: z.string().nullable().openapi({ example: "Notes go here" }),
+  status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+  credits: z.number().openapi({ example: 5 }),
+  events: z.array(taskEventSchema).openapi({ example: [] }),
+  jobs: jobSummariesSchema.openapi({ example: [] }),
+});
+
+export const taskListItemSchema = taskBaseSchema.openapi("TaskListItem");
+
+export const taskSchema = taskBaseSchema
+  .extend({
     links: taskLinksSchema.openapi({ example: [] }),
   })
   .openapi("Task");
+
+export const taskListSchema = z.array(taskListItemSchema);
 
 export const tasksSchema = z.array(taskSchema);
 

@@ -65,6 +65,27 @@ function getJsonRequestSchema(
   return resolveSchema(doc, jsonBody?.schema);
 }
 
+function getJsonResponseSchema(
+  doc: ReturnType<typeof tasksRouter.getOpenAPI31Document>,
+  path: string,
+  method: "get" | "post" | "patch",
+  status: "200" | "201",
+) {
+  const operation = doc.paths?.[path]?.[method];
+  const response = operation?.responses?.[status];
+
+  if (!response || typeof response !== "object" || !("content" in response)) {
+    return null;
+  }
+
+  const jsonBody = response.content?.["application/json"];
+  const wrapperSchema = resolveSchema(doc, jsonBody?.schema) as {
+    properties?: Record<string, unknown>;
+  } | null;
+
+  return resolveSchema(doc, wrapperSchema?.properties?.data);
+}
+
 describe("tasks routes OpenAPI query contract", () => {
   it("exposes scope query parameter for task endpoints", () => {
     const doc = tasksRouter.getOpenAPI31Document({
@@ -163,9 +184,36 @@ describe("tasks routes OpenAPI query contract", () => {
       properties?: Record<string, unknown>;
     } | null;
 
-    expect(patchSchema?.properties).toHaveProperty("type");
+    expect(patchSchema?.properties).toHaveProperty("relation");
     expect(patchSchema?.properties).toHaveProperty("note");
     expect(patchSchema?.properties).not.toHaveProperty("fromTaskId");
     expect(patchSchema?.properties).not.toHaveProperty("toTaskId");
+  });
+
+  it("exposes task-relative link responses", () => {
+    const doc = tasksRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Tasks API",
+        version: "1.0.0",
+      },
+    });
+
+    const taskLinkSchema = getJsonResponseSchema(
+      doc,
+      "/{id}/links/{linkId}",
+      "patch",
+      "200",
+    ) as {
+      properties?: Record<string, unknown>;
+    } | null;
+
+    expect(taskLinkSchema?.properties).toHaveProperty("relation");
+    expect(taskLinkSchema?.properties).toHaveProperty("peerTask");
+    expect(taskLinkSchema?.properties).not.toHaveProperty("type");
+    expect(taskLinkSchema?.properties).not.toHaveProperty("direction");
+    expect(taskLinkSchema?.properties).not.toHaveProperty("fromTaskId");
+    expect(taskLinkSchema?.properties).not.toHaveProperty("toTaskId");
+    expect(taskLinkSchema?.properties).not.toHaveProperty("peerTaskId");
   });
 });

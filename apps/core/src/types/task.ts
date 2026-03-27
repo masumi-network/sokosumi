@@ -35,6 +35,8 @@ const taskBaseInclude = {
   },
 } as const;
 
+export const taskListInclude = taskBaseInclude;
+
 export const taskInclude = {
   ...taskBaseInclude,
   ...taskLinksInclude,
@@ -49,6 +51,10 @@ export function buildTaskIncludeForViewer(
     ...buildVisibleTaskLinksInclude(authContext, scopes),
   } satisfies Prisma.TaskInclude;
 }
+
+export type TaskListItemWithIncludes = Prisma.TaskGetPayload<{
+  include: typeof taskListInclude;
+}>;
 
 export type TaskWithIncludes = Prisma.TaskGetPayload<{
   include: typeof taskInclude;

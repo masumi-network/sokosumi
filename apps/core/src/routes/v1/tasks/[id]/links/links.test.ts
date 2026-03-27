@@ -15,6 +15,7 @@ const {
   prismaTransactionMock,
   requireScopedTaskReadAccessMock,
   requireUserTaskAccessMock,
+  taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
   taskLinkDeleteMock,
@@ -24,6 +25,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requireScopedTaskReadAccessMock: vi.fn(),
   requireUserTaskAccessMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
   taskLinkDeleteMock: vi.fn(),
@@ -80,6 +82,7 @@ function createCoworkerApp() {
 function mockTx() {
   return {
     task: {
+      findFirst: taskFindFirstMock,
       findUnique: taskFindUniqueMock,
     },
     taskLink: {
@@ -120,6 +123,53 @@ describe("GET /tasks/{id}/links", () => {
     expect(body.data).toEqual([]);
   });
 
+  it("returns nested peerTask summaries for visible links", async () => {
+    taskFindUniqueMock.mockResolvedValue({
+      id: "tsk_a",
+      linksFrom: [
+        {
+          id: "tl_1",
+          createdAt: new Date("2026-03-25T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+          fromTaskId: "tsk_a",
+          toTaskId: "tsk_b",
+          type: TaskLinkType.RELATES,
+          note: null,
+          toTask: {
+            id: "tsk_b",
+            name: "Task B",
+            status: TaskStatus.RUNNING,
+          },
+        },
+      ],
+      linksTo: [],
+    });
+
+    const app = createUserApp();
+    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request(
+      "http://localhost/tsk_a/links?scope=context",
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: Array<{
+        relation: string;
+        peerTask: { id: string; name: string; status: TaskStatus };
+      }>;
+    };
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).toMatchObject({
+      relation: "related",
+      peerTask: {
+        id: "tsk_b",
+        name: "Task B",
+        status: TaskStatus.RUNNING,
+      },
+    });
+  });
+
   it("filters linked peer tasks to those visible to the coworker", async () => {
     const app = createCoworkerApp();
     mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
@@ -134,6 +184,22 @@ describe("GET /tasks/{id}/links", () => {
       select: {
         id: true,
         linksFrom: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             toTask: {
               is: {
@@ -146,6 +212,22 @@ describe("GET /tasks/{id}/links", () => {
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             fromTask: {
               is: {
@@ -175,6 +257,22 @@ describe("GET /tasks/{id}/links", () => {
       select: {
         id: true,
         linksFrom: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             toTask: {
               is: {
@@ -185,6 +283,22 @@ describe("GET /tasks/{id}/links", () => {
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             fromTask: {
               is: {
@@ -223,10 +337,15 @@ describe("POST /tasks/{id}/links", () => {
         archivedAt: null,
         status: TaskStatus.READY,
         coworkerId: null,
-        name: "T",
+        name: "Task A",
         description: null,
       }),
     );
+    taskFindFirstMock.mockResolvedValue({
+      id: "tsk_b",
+      name: "Task B",
+      status: TaskStatus.RUNNING,
+    });
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb(mockTx());
@@ -252,7 +371,7 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        relation: "related",
       }),
     });
 
@@ -263,6 +382,31 @@ describe("POST /tasks/{id}/links", () => {
         toTaskId: "tsk_b",
         type: TaskLinkType.RELATES,
         note: null,
+      },
+    });
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_b",
+        OR: [{ userId: "user_123", organizationId: "org_123" }],
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+      },
+    });
+    const body = (await response.json()) as {
+      data: {
+        relation: string;
+        peerTask: { id: string; name: string; status: TaskStatus };
+      };
+    };
+    expect(body.data).toMatchObject({
+      relation: "related",
+      peerTask: {
+        id: "tsk_b",
+        name: "Task B",
+        status: TaskStatus.RUNNING,
       },
     });
   });
@@ -276,7 +420,7 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        relation: "related",
       }),
     });
 
@@ -285,23 +429,7 @@ describe("POST /tasks/{id}/links", () => {
   });
 
   it("returns 404 when the target task is not accessible", async () => {
-    requireUserTaskAccessMock.mockImplementation(
-      async (_auth, taskId: string) => {
-        if (taskId === "tsk_b") {
-          throw new HTTPException(404, { message: "Task not found" });
-        }
-        return {
-          id: taskId,
-          userId: "user_123",
-          organizationId: "org_123",
-          archivedAt: null,
-          status: TaskStatus.READY,
-          coworkerId: null,
-          name: "T",
-          description: null,
-        };
-      },
-    );
+    taskFindFirstMock.mockResolvedValue(null);
 
     const app = createUserApp();
     mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
@@ -311,7 +439,7 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        relation: "related",
       }),
     });
 
@@ -332,7 +460,7 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        relation: "related",
       }),
     });
 
@@ -352,7 +480,7 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_b",
-        type: TaskLinkType.RELATES,
+        relation: "related",
       }),
     });
 
@@ -371,12 +499,52 @@ describe("POST /tasks/{id}/links", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toTaskId: "tsk_a",
-        type: TaskLinkType.BLOCKS,
+        relation: "blocks",
       }),
     });
 
     expect(response.status).toBe(400);
     expect(taskLinkCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("creates reversed directional links from task-relative relations", async () => {
+    taskLinkCreateMock.mockResolvedValue({
+      id: "tl_1",
+      createdAt: new Date("2026-03-25T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+      fromTaskId: "tsk_b",
+      toTaskId: "tsk_a",
+      type: TaskLinkType.BLOCKS,
+      note: null,
+    });
+
+    const app = createUserApp();
+    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toTaskId: "tsk_b",
+        relation: "blocked_by",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskLinkCreateMock).toHaveBeenCalledWith({
+      data: {
+        fromTaskId: "tsk_b",
+        toTaskId: "tsk_a",
+        type: TaskLinkType.BLOCKS,
+        note: null,
+      },
+    });
+    const body = (await response.json()) as {
+      data: {
+        relation: string;
+      };
+    };
+    expect(body.data.relation).toBe("blocked_by");
   });
 });
 
@@ -563,6 +731,11 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       type: TaskLinkType.PARENT,
       note: "Updated note",
     });
+    taskFindFirstMock.mockResolvedValue({
+      id: "tsk_b",
+      name: "Task B",
+      status: TaskStatus.RUNNING,
+    });
   });
 
   it("returns 200 when the link metadata is updated", async () => {
@@ -573,7 +746,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: TaskLinkType.PARENT,
+        relation: "parent",
         note: "Updated note",
       }),
     });
@@ -584,6 +757,31 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       data: {
         type: TaskLinkType.PARENT,
         note: "Updated note",
+      },
+    });
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_b",
+        OR: [{ userId: "user_123", organizationId: "org_123" }],
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+      },
+    });
+    const body = (await response.json()) as {
+      data: {
+        relation: string;
+        peerTask: { id: string; name: string; status: TaskStatus };
+      };
+    };
+    expect(body.data).toMatchObject({
+      relation: "parent",
+      peerTask: {
+        id: "tsk_b",
+        name: "Task B",
+        status: TaskStatus.RUNNING,
       },
     });
   });
@@ -619,6 +817,24 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
   });
 
+  it("returns 404 when the peer task is outside the default read scope", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(null);
+
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        relation: "parent",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when no updatable fields are provided", async () => {
     const app = createUserApp();
     mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
@@ -649,7 +865,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: TaskLinkType.DUPLICATE,
+        relation: "duplicate",
       }),
     });
 
@@ -665,11 +881,78 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: TaskLinkType.DUPLICATE,
+        relation: "duplicate",
       }),
     });
 
     expect(response.status).toBe(403);
     expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("patches reversed directional links from task-relative relations", async () => {
+    taskLinkFindUniqueMock.mockResolvedValue({
+      id: "tl_1",
+      fromTaskId: "tsk_a",
+      toTaskId: "tsk_b",
+      type: TaskLinkType.BLOCKS,
+      note: "Old note",
+    });
+
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        relation: "child",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("patches directional relations that match the existing stored edge", async () => {
+    taskLinkFindUniqueMock.mockResolvedValue({
+      id: "tl_1",
+      fromTaskId: "tsk_b",
+      toTaskId: "tsk_a",
+      type: TaskLinkType.BLOCKS,
+      note: "Old note",
+    });
+    taskLinkUpdateMock.mockResolvedValue({
+      id: "tl_1",
+      createdAt: new Date("2026-03-25T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-25T10:05:00.000Z"),
+      fromTaskId: "tsk_b",
+      toTaskId: "tsk_a",
+      type: TaskLinkType.PARENT,
+      note: "Old note",
+    });
+    taskFindFirstMock.mockResolvedValue({
+      id: "tsk_b",
+      name: "Task B",
+      status: TaskStatus.RUNNING,
+    });
+
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        relation: "child",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkUpdateMock).toHaveBeenCalledWith({
+      where: { id: "tl_1" },
+      data: {
+        type: TaskLinkType.PARENT,
+      },
+    });
   });
 });

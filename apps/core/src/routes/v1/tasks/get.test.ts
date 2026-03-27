@@ -61,6 +61,22 @@ function createApp(actor: "user" | "coworker" = "user") {
   return app;
 }
 
+function createTask() {
+  return {
+    id: "tsk_a",
+    createdAt: new Date("2026-03-25T10:00:00.000Z"),
+    updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+    userId: "user_123",
+    organizationId: "org_123",
+    coworkerId: "cow_123",
+    name: "Task A",
+    description: null,
+    status: TaskStatus.READY,
+    events: [],
+    jobs: [],
+  };
+}
+
 describe("GET /tasks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -111,76 +127,41 @@ describe("GET /tasks", () => {
     );
   });
 
-  it("keeps archived peer links visible for user-scoped task reads", async () => {
+  it("does not include task links for user-scoped task list reads", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/?scope=context");
 
     expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        include: expect.objectContaining({
-          linksFrom: {
-            where: {
-              toTask: {
-                is: {
-                  OR: [{ userId: "user_123", organizationId: "org_123" }],
-                },
-              },
-            },
-            orderBy: { createdAt: "asc" },
-          },
-          linksTo: {
-            where: {
-              fromTask: {
-                is: {
-                  OR: [{ userId: "user_123", organizationId: "org_123" }],
-                },
-              },
-            },
-            orderBy: { createdAt: "asc" },
-          },
-        }),
-      }),
-    );
+    const include = taskFindManyMock.mock.calls[0]?.[0]?.include;
+    expect(include).not.toHaveProperty("linksFrom");
+    expect(include).not.toHaveProperty("linksTo");
   });
 
-  it("continues to exclude archived peer links for coworker-scoped task reads", async () => {
+  it("does not include task links for coworker-scoped task list reads", async () => {
     const app = createApp("coworker");
 
     const response = await app.request("http://localhost/?scope=context");
 
     expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        include: expect.objectContaining({
-          linksFrom: {
-            where: {
-              toTask: {
-                is: {
-                  coworkerId: "cow_123",
-                  archivedAt: null,
-                  NOT: { status: { in: [TaskStatus.DRAFT] } },
-                },
-              },
-            },
-            orderBy: { createdAt: "asc" },
-          },
-          linksTo: {
-            where: {
-              fromTask: {
-                is: {
-                  coworkerId: "cow_123",
-                  archivedAt: null,
-                  NOT: { status: { in: [TaskStatus.DRAFT] } },
-                },
-              },
-            },
-            orderBy: { createdAt: "asc" },
-          },
-        }),
-      }),
-    );
+    const include = taskFindManyMock.mock.calls[0]?.[0]?.include;
+    expect(include).not.toHaveProperty("linksFrom");
+    expect(include).not.toHaveProperty("linksTo");
+  });
+
+  it("returns task list items without links", async () => {
+    taskFindManyMock.mockResolvedValue([createTask()]);
+    taskCountMock.mockResolvedValue(1);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: Array<Record<string, unknown>>;
+    };
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).not.toHaveProperty("links");
   });
 
   it("rejects coworker requests that include DRAFT", async () => {
