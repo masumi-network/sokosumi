@@ -5,7 +5,11 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import { isCoworkerAuthContext } from "@/middleware/auth";
 import { type TaskLinkResponse, taskLinkSchema } from "@/schemas/task.schema";
 import { flattenJob } from "@/types/job";
-import type { TaskWithIncludes } from "@/types/task";
+import type {
+  TaskLinkPeerTask,
+  TaskLinkWithPeerTasks,
+  TaskWithIncludes,
+} from "@/types/task";
 
 import { unprocessableEntity } from "./error";
 
@@ -177,25 +181,7 @@ export function isTaskArchivableStatus(status: TaskStatus): boolean {
   );
 }
 
-type TaskLinkPeerTaskSummary = {
-  id: string;
-  name: string;
-  status: TaskStatus;
-  archivedAt: Date | null;
-};
-type TaskLinkRow = {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  type: TaskWithIncludes["linksFrom"][number]["type"];
-  fromTaskId: string;
-  toTaskId: string;
-  note: string | null;
-  fromTask?: TaskLinkPeerTaskSummary | null;
-  toTask?: TaskLinkPeerTaskSummary | null;
-};
-
-function mapTaskLinkPeerTask(peerTask: TaskLinkPeerTaskSummary | null) {
+function mapTaskLinkPeerTask(peerTask: TaskLinkPeerTask | null) {
   if (!peerTask) {
     return null;
   }
@@ -210,7 +196,7 @@ function mapTaskLinkPeerTask(peerTask: TaskLinkPeerTaskSummary | null) {
 
 export function mapTaskLinkForTask(
   taskId: string,
-  link: TaskLinkRow,
+  link: TaskLinkWithPeerTasks,
 ): TaskLinkResponse {
   const outgoing = link.fromTaskId === taskId;
   const peerTask = outgoing
@@ -231,8 +217,8 @@ export function mapTaskLinkForTask(
 }
 
 export function mapTaskLinksForTask(
-  linksFrom: TaskLinkRow[],
-  linksTo: TaskLinkRow[],
+  linksFrom: TaskWithIncludes["linksFrom"],
+  linksTo: TaskWithIncludes["linksTo"],
 ): TaskLinkResponse[] {
   return [
     ...linksFrom.map((link) => mapTaskLinkForTask(link.fromTaskId, link)),

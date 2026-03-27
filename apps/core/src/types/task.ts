@@ -41,24 +41,33 @@ export const taskLinkPeerTaskSelect = {
   archivedAt: true,
 } as const;
 
+export type TaskLinkPeerTask = Prisma.TaskGetPayload<{
+  select: typeof taskLinkPeerTaskSelect;
+}>;
+
+export const taskLinkWithPeerTasksInclude = {
+  fromTask: {
+    select: taskLinkPeerTaskSelect,
+  },
+  toTask: {
+    select: taskLinkPeerTaskSelect,
+  },
+} as const;
+
+export type TaskLinkWithPeerTasks = Prisma.TaskLinkGetPayload<{
+  include: typeof taskLinkWithPeerTasksInclude;
+}>;
+
 export const taskInclude = {
   ...taskBaseInclude,
   linksFrom: {
-    include: {
-      toTask: {
-        select: taskLinkPeerTaskSelect,
-      },
-    },
+    include: taskLinkWithPeerTasksInclude,
     orderBy: {
       createdAt: "asc",
     },
   },
   linksTo: {
-    include: {
-      fromTask: {
-        select: taskLinkPeerTaskSelect,
-      },
-    },
+    include: taskLinkWithPeerTasksInclude,
     orderBy: {
       createdAt: "asc",
     },
@@ -99,11 +108,7 @@ export function buildVisibleTaskLinksInclude(
           is: peerTaskWhere,
         },
       },
-      include: {
-        toTask: {
-          select: taskLinkPeerTaskSelect,
-        },
-      },
+      include: taskLinkWithPeerTasksInclude,
       orderBy: {
         createdAt: "asc",
       },
@@ -114,11 +119,7 @@ export function buildVisibleTaskLinksInclude(
           is: peerTaskWhere,
         },
       },
-      include: {
-        fromTask: {
-          select: taskLinkPeerTaskSelect,
-        },
-      },
+      include: taskLinkWithPeerTasksInclude,
       orderBy: {
         createdAt: "asc",
       },

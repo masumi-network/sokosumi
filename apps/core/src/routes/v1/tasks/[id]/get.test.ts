@@ -27,6 +27,13 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+const peerTaskSelect = {
+  id: true,
+  name: true,
+  status: true,
+  archivedAt: true,
+};
+
 function createApp(actor: "user" | "coworker" = "user") {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
@@ -106,13 +113,11 @@ describe("GET /tasks/{id}", () => {
             },
           },
           include: {
+            fromTask: {
+              select: peerTaskSelect,
+            },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: peerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -127,12 +132,10 @@ describe("GET /tasks/{id}", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: peerTaskSelect,
+            },
+            toTask: {
+              select: peerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -162,13 +165,11 @@ describe("GET /tasks/{id}", () => {
             },
           },
           include: {
+            fromTask: {
+              select: peerTaskSelect,
+            },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: peerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -185,12 +186,10 @@ describe("GET /tasks/{id}", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: peerTaskSelect,
+            },
+            toTask: {
+              select: peerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },

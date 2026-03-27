@@ -18,6 +18,7 @@ import {
   createTaskLinkRequestSchema,
   taskLinkSchema,
 } from "@/schemas/task.schema";
+import { taskLinkWithPeerTasksInclude } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -74,6 +75,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   type,
                   note: note ?? null,
                 },
+                include: taskLinkWithPeerTasksInclude,
               });
             } catch (error) {
               if (isPrismaUniqueViolation(error)) {

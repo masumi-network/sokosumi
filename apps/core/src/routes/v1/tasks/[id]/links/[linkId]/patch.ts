@@ -12,6 +12,7 @@ import {
   patchTaskLinkRequestSchema,
   taskLinkSchema,
 } from "@/schemas/task.schema";
+import { taskLinkWithPeerTasksInclude } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -74,6 +75,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...(type !== undefined ? { type } : {}),
           ...(note !== undefined ? { note } : {}),
         },
+        include: taskLinkWithPeerTasksInclude,
       });
     });
 
