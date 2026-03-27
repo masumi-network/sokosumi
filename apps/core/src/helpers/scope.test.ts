@@ -74,7 +74,7 @@ describe("buildJobScopeFilters", () => {
 
 describe("buildTaskScopeFilters", () => {
   it("defaults to context scope when scopes are missing", () => {
-    expect(buildTaskScopeFilters(userAuthContext, undefined)).toEqual([
+    expect(buildTaskScopeFilters(userAuthContext)).toEqual([
       { userId: "user_123", organizationId: "org_123" },
     ]);
   });

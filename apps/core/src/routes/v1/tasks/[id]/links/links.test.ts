@@ -730,6 +730,18 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
         note: "Updated note",
       },
     });
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_b",
+        archivedAt: null,
+        OR: [{ userId: "user_123", organizationId: "org_123" }],
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+      },
+    });
     const body = (await response.json()) as {
       data: {
         peerTaskId: string;

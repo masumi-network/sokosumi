@@ -78,12 +78,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      const peerTaskId = link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
+      const peerTaskId =
+        link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
       const peerTask = await tx.task.findFirst({
         where: {
           id: peerTaskId,
           archivedAt: null,
-          OR: buildTaskScopeFilters(authContext, undefined),
+          OR: buildTaskScopeFilters(authContext),
         },
         select: taskLinkPeerTaskSelect,
       });
