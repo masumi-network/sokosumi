@@ -38,7 +38,6 @@ export const jobShareRepository = {
       },
       update: {
         allowSearchIndexing,
-        token: uuidv4(),
       },
       include: jobShareInclude,
     });

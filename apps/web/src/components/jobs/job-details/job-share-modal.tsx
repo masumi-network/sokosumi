@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import superJson from "superjson";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,12 +18,10 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import {
-  apiErrorResponseSchema,
-  apiSuccessResponseSchema,
-} from "@/lib/api/schemas";
+  CoreApiRequestError,
+  coreClient,
+} from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import { getJobQueryKey } from "@/queries";
 
@@ -77,51 +74,6 @@ export default function JobShareModal({
     );
   }
 
-  async function requestJobShare(
-    method: "POST" | "PATCH" | "DELETE",
-    body?: Record<string, unknown>,
-  ): Promise<
-    | { ok: true; data: JobShare | null }
-    | { ok: false; error: { code?: string; message: string } }
-  > {
-    const response = await fetch(`/api/internal/jobs/${job.id}/share`, {
-      method,
-      credentials: "include",
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    if (!response.ok) {
-      const parsedError = apiErrorResponseSchema.safeParse(await response.json());
-      if (parsedError.success) {
-        return {
-          ok: false,
-          error: {
-            code: parsedError.data.code,
-            message: parsedError.data.message,
-          },
-        };
-      }
-
-      return {
-        ok: false,
-        error: {
-          message: `Request failed with status ${response.status}`,
-        },
-      };
-    }
-
-    if (method === "DELETE") {
-      return { ok: true, data: null };
-    }
-
-    const parsedResponse = apiSuccessResponseSchema.parse(await response.json());
-    return {
-      ok: true,
-      data: superJson.parse<JobShare>(parsedResponse.data),
-    };
-  }
-
   const handleOnOpenChange = (open: boolean) => {
     if (isLoading) {
       return;
@@ -134,41 +86,49 @@ export default function JobShareModal({
     onOpenChange(open);
   };
 
+  function handleShareError(error: unknown) {
+    const status = error instanceof CoreApiRequestError ? error.status : undefined;
+
+    switch (status) {
+      case 401:
+        toast.error(t("Errors.unauthenticated"), {
+          action: {
+            label: t("Errors.unauthenticatedAction"),
+            onClick: () => {
+              router.push(`/login`);
+            },
+          },
+        });
+        break;
+      case 403:
+        toast.error(t("Errors.unauthorized"));
+        break;
+      case 404:
+        toast.error(t("Errors.jobNotFound"));
+        break;
+      default:
+        toast.error(t("Error.share"));
+        break;
+    }
+  }
+
   const handleTogglePublicShare = async () => {
     if (jobShare?.token) {
       return;
     }
 
     setIsLoading(true);
-    const result = await requestJobShare("POST");
-
-    if (result.ok) {
-      syncJobShare(result.data);
+    try {
+      const nextJobShare = await coreClient.putJobShare(job.id, {
+        allowSearchIndexing: true,
+      });
+      syncJobShare(nextJobShare);
       toast.success(t("Success.share"));
-    } else {
-      switch (result.error.code) {
-        case CommonErrorCode.UNAUTHENTICATED:
-          toast.error(t("Errors.unauthenticated"), {
-            action: {
-              label: t("Errors.unauthenticatedAction"),
-              onClick: () => {
-                router.push(`/login`);
-              },
-            },
-          });
-          break;
-        case CommonErrorCode.UNAUTHORIZED:
-          toast.error(t("Errors.unauthorized"));
-          break;
-        case JobErrorCode.JOB_NOT_FOUND:
-          toast.error(t("Errors.jobNotFound"));
-          break;
-        default:
-          toast.error(t("Error.share"));
-          break;
-      }
+    } catch (error) {
+      handleShareError(error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleAllowSearchIndexingChange = async (
@@ -180,39 +140,17 @@ export default function JobShareModal({
     }
 
     setIsLoading(true);
-    const result = await requestJobShare("PATCH", {
-      allowSearchIndexing: checked,
-    });
-    if (result.ok) {
-      syncJobShare(result.data);
+    try {
+      const nextJobShare = await coreClient.putJobShare(job.id, {
+        allowSearchIndexing: checked,
+      });
+      syncJobShare(nextJobShare);
       toast.success(t("Success.share"));
-    } else {
-      switch (result.error.code) {
-        case CommonErrorCode.UNAUTHENTICATED:
-          toast.error(t("Errors.unauthenticated"), {
-            action: {
-              label: t("Errors.unauthenticatedAction"),
-              onClick: () => {
-                router.push(`/login`);
-              },
-            },
-          });
-          break;
-        case CommonErrorCode.UNAUTHORIZED:
-          toast.error(t("Errors.unauthorized"));
-          break;
-        case JobErrorCode.JOB_NOT_FOUND:
-          toast.error(t("Errors.jobNotFound"));
-          break;
-        case JobErrorCode.JOB_SHARE_NOT_FOUND:
-          toast.error(t("Errors.jobShareNotFound"));
-          break;
-        default:
-          toast.error(t("Error.share"));
-          break;
-      }
+    } catch (error) {
+      handleShareError(error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleRemoveSharePerJob = async () => {
@@ -221,34 +159,15 @@ export default function JobShareModal({
     }
 
     setIsLoading(true);
-    const result = await requestJobShare("DELETE");
-    if (result.ok) {
+    try {
+      await coreClient.deleteJobShare(job.id);
       syncJobShare(null);
       toast.success(t("Success.share"));
-    } else {
-      switch (result.error.code) {
-        case CommonErrorCode.UNAUTHENTICATED:
-          toast.error(t("Errors.unauthenticated"), {
-            action: {
-              label: t("Errors.unauthenticatedAction"),
-              onClick: () => {
-                router.push(`/login`);
-              },
-            },
-          });
-          break;
-        case CommonErrorCode.UNAUTHORIZED:
-          toast.error(t("Errors.unauthorized"));
-          break;
-        case JobErrorCode.JOB_NOT_FOUND:
-          toast.error(t("Errors.jobNotFound"));
-          break;
-        default:
-          toast.error(t("Error.share"));
-          break;
-      }
+    } catch (error) {
+      handleShareError(error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleCopyLink = async () => {

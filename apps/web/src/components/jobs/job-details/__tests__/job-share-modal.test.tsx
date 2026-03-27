@@ -5,16 +5,29 @@ import {
   type JobWithSokosumiStatus,
 } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import superJson from "superjson";
 
 import JobShareModal from "@/components/jobs/job-details/job-share-modal";
 
+const { MockCoreApiRequestError } = vi.hoisted(() => {
+  class MockCoreApiRequestError extends Error {
+    status?: number;
+
+    constructor(message: string, options?: { status?: number }) {
+      super(message);
+      this.name = "CoreApiRequestError";
+      this.status = options?.status;
+    }
+  }
+
+  return { MockCoreApiRequestError };
+});
+
 const routerPushMock = vi.fn();
-const routerRefreshMock = vi.fn();
 const setQueryDataMock = vi.fn();
 const toastSuccessMock = vi.fn();
 const toastErrorMock = vi.fn();
-const fetchMock = vi.fn();
+const putJobShareMock = vi.fn();
+const deleteJobShareMock = vi.fn();
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -23,7 +36,6 @@ vi.mock("next-intl", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: routerPushMock,
-    refresh: routerRefreshMock,
   }),
 }));
 
@@ -37,6 +49,14 @@ vi.mock("sonner", () => ({
   toast: {
     success: (...args: unknown[]) => toastSuccessMock(...args),
     error: (...args: unknown[]) => toastErrorMock(...args),
+  },
+}));
+
+vi.mock("@/lib/clients/core.browser.client", () => ({
+  CoreApiRequestError: MockCoreApiRequestError,
+  coreClient: {
+    putJobShare: (...args: unknown[]) => putJobShareMock(...args),
+    deleteJobShare: (...args: unknown[]) => deleteJobShareMock(...args),
   },
 }));
 
@@ -98,7 +118,6 @@ function createJob(
 describe("JobShareModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = fetchMock as unknown as typeof fetch;
   });
 
   it("shows only public and private sharing options", () => {
@@ -112,19 +131,14 @@ describe("JobShareModal", () => {
   });
 
   it("enables public sharing and then shows search indexing controls", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          success: true,
-          data: superJson.stringify({
-            id: "share-1",
-            token: "public-token",
-            allowSearchIndexing: true,
-          }),
-          timestamp: new Date().toISOString(),
-        }),
-      ),
-    );
+    putJobShareMock.mockResolvedValue({
+      id: "share-1",
+      jobId: "job-1",
+      token: "public-token",
+      allowSearchIndexing: true,
+      createdAt: new Date("2026-02-13T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-13T10:00:00.000Z"),
+    });
 
     render(
       <JobShareModal open onOpenChange={vi.fn()} job={createJob({})} />,
@@ -133,11 +147,8 @@ describe("JobShareModal", () => {
     fireEvent.click(screen.getByText("publicAccessTitle"));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/internal/jobs/job-1/share", {
-        method: "POST",
-        credentials: "include",
-        headers: undefined,
-        body: undefined,
+      expect(putJobShareMock).toHaveBeenCalledWith("job-1", {
+        allowSearchIndexing: true,
       });
     });
 
@@ -145,7 +156,6 @@ describe("JobShareModal", () => {
       ["jobs", "job-1"],
       expect.any(Function),
     );
-    expect(routerRefreshMock).not.toHaveBeenCalled();
 
     expect(screen.getByText("allowSearchIndexing")).toBeInTheDocument();
     expect(
@@ -156,19 +166,14 @@ describe("JobShareModal", () => {
   });
 
   it("updates search indexing for public shares", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          success: true,
-          data: superJson.stringify({
-            id: "share-1",
-            token: "public-token",
-            allowSearchIndexing: false,
-          }),
-          timestamp: new Date().toISOString(),
-        }),
-      ),
-    );
+    putJobShareMock.mockResolvedValue({
+      id: "share-1",
+      jobId: "job-1",
+      token: "public-token",
+      allowSearchIndexing: false,
+      createdAt: new Date("2026-02-13T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-13T10:00:00.000Z"),
+    });
 
     render(
       <JobShareModal
@@ -187,15 +192,8 @@ describe("JobShareModal", () => {
     fireEvent.click(screen.getByRole("checkbox"));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/internal/jobs/job-1/share", {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      expect(putJobShareMock).toHaveBeenCalledWith("job-1", {
           allowSearchIndexing: false,
-        }),
       });
     });
 
@@ -203,18 +201,10 @@ describe("JobShareModal", () => {
       ["jobs", "job-1"],
       expect.any(Function),
     );
-    expect(routerRefreshMock).not.toHaveBeenCalled();
   });
 
   it("removes public sharing without refreshing the page", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          success: true,
-          timestamp: new Date().toISOString(),
-        }),
-      ),
-    );
+    deleteJobShareMock.mockResolvedValue(undefined);
 
     render(
       <JobShareModal
@@ -233,19 +223,13 @@ describe("JobShareModal", () => {
     fireEvent.click(screen.getByText("privateAccessTitle"));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/internal/jobs/job-1/share", {
-        method: "DELETE",
-        credentials: "include",
-        headers: undefined,
-        body: undefined,
-      });
+      expect(deleteJobShareMock).toHaveBeenCalledWith("job-1");
     });
 
     expect(setQueryDataMock).toHaveBeenCalledWith(
       ["jobs", "job-1"],
       expect.any(Function),
     );
-    expect(routerRefreshMock).not.toHaveBeenCalled();
   });
 
   it("keeps public access selected when it is already public", async () => {
@@ -266,7 +250,28 @@ describe("JobShareModal", () => {
     fireEvent.click(screen.getByText("publicAccessTitle"));
 
     await waitFor(() => {
-      expect(fetchMock).not.toHaveBeenCalled();
+      expect(putJobShareMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("routes unauthenticated share errors to the login toast action", async () => {
+    putJobShareMock.mockRejectedValue(
+      new MockCoreApiRequestError("Unauthorized", { status: 401 }),
+    );
+
+    render(
+      <JobShareModal open onOpenChange={vi.fn()} job={createJob({})} />,
+    );
+
+    fireEvent.click(screen.getByText("publicAccessTitle"));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("Errors.unauthenticated", {
+        action: {
+          label: "Errors.unauthenticatedAction",
+          onClick: expect.any(Function),
+        },
+      });
     });
   });
 });

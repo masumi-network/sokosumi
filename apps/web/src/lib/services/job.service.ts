@@ -20,7 +20,6 @@ import {
   jobInputRepository,
   jobPurchaseRepository,
   jobRepository,
-  jobShareRepository,
 } from "@sokosumi/database/repositories";
 import { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics/server";
@@ -31,6 +30,10 @@ import { type JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
+import {
+  CoreApiRequestError,
+  coreClient,
+} from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import { getJobStatusData } from "@/lib/helpers/job";
 import {
@@ -749,19 +752,15 @@ export const jobService = (() => {
   const getPubliclySharedJob = async (
     token: string,
   ): Promise<{ job: JobWithSokosumiStatus; share: JobShare } | null> => {
-    return await prisma.$transaction(async (tx) => {
-      const share = await jobShareRepository.getShareByToken(token, tx);
-      if (!share) {
+    try {
+      return await coreClient.getSharedJobByToken(token);
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
         return null;
       }
 
-      const job = await jobRepository.getJobById(share.jobId, tx);
-      if (!job) {
-        return null;
-      }
-
-      return { job, share };
-    });
+      throw error;
+    }
   };
 
   /**

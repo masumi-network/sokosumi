@@ -9,9 +9,17 @@ const getUsersMeNoticesPendingMock = vi.fn();
 const postUsersMeNoticesByIdAcknowledgeMock = vi.fn();
 const getUsersMeCreditsMock = vi.fn();
 const getUsersMeOrganizationsMock = vi.fn();
+const clientDeleteMock = vi.fn();
+const clientGetMock = vi.fn();
+const clientPutMock = vi.fn();
 const createClientMock = vi.fn();
 const headersMock = vi.fn();
-const mockClient = { id: "core-client" } as never;
+const mockClient = {
+  delete: (...args: unknown[]) => clientDeleteMock(...args),
+  get: (...args: unknown[]) => clientGetMock(...args),
+  id: "core-client",
+  put: (...args: unknown[]) => clientPutMock(...args),
+} as never;
 
 vi.mock("next/headers", () => ({
   headers: () => headersMock(),
@@ -261,5 +269,164 @@ describe("core.client", () => {
       path: { id: "notice_1" },
     });
     expect(response.noticeId).toBe("notice_1");
+  });
+
+  it("updates public job shares through the server transport", async () => {
+    clientPutMock.mockResolvedValue({
+      data: {
+        data: {
+          id: "share_1",
+          jobId: "job_1",
+          token: "public-share-token",
+          allowSearchIndexing: true,
+          createdAt: "2026-03-26T10:00:00.000Z",
+          updatedAt: "2026-03-26T10:00:00.000Z",
+        },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.putJobShare("job_1", {
+      allowSearchIndexing: true,
+    });
+
+    expect(clientPutMock).toHaveBeenCalledWith({
+      body: {
+        allowSearchIndexing: true,
+      },
+      headers: {
+        "Content-Type": "application/json",
+      },
+      path: {
+        id: "job_1",
+      },
+      url: "/jobs/{id}/share",
+    });
+    expect(response.createdAt).toEqual(new Date("2026-03-26T10:00:00.000Z"));
+    expect(response.token).toBe("public-share-token");
+  });
+
+  it("fetches shared jobs through the public server transport", async () => {
+    clientGetMock.mockResolvedValue({
+      data: {
+        data: {
+          share: {
+            id: "share_1",
+            jobId: "job_1",
+            token: "public-share-token",
+            allowSearchIndexing: false,
+            createdAt: "2026-03-26T10:00:00.000Z",
+            updatedAt: "2026-03-26T10:00:00.000Z",
+          },
+          job: {
+            id: "job_1",
+            createdAt: "2026-03-26T10:00:00.000Z",
+            updatedAt: "2026-03-26T10:05:00.000Z",
+            completedAt: "2026-03-26T10:10:00.000Z",
+            taskId: null,
+            name: "Shared Job",
+            jobType: "PAID",
+            status: "completed",
+            credits: 5,
+            agentJobId: "agent_job_1",
+            identifierFromPurchaser: "identifier_123",
+            user: {
+              id: "user_1",
+              name: "Ada Lovelace",
+              image: null,
+            },
+            agent: {
+              id: "agent_1",
+              name: "Research Agent",
+              overrideName: null,
+              icon: null,
+              image: null,
+              overrideImage: null,
+              legalPrivacyPolicy: null,
+              overrideLegalPrivacyPolicy: null,
+              legalTerms: null,
+              overrideLegalTerms: null,
+              legalDpa: null,
+              overrideLegalDpa: null,
+              legalOther: null,
+              overrideLegalOther: null,
+            },
+            transaction: {
+              amount: "5000000",
+            },
+            purchase: {
+              onChainStatus: null,
+              onChainTransactionHash: "0x123abc",
+              resultHash: "result_hash_123",
+            },
+            events: [
+              {
+                id: "event_completed",
+                createdAt: "2026-03-26T10:10:00.000Z",
+                updatedAt: "2026-03-26T10:10:00.000Z",
+                status: "COMPLETED",
+                inputSchema: null,
+                input: null,
+                result: "# Result",
+                blobs: [],
+                links: [],
+              },
+              {
+                id: "event_initiated",
+                createdAt: "2026-03-26T10:00:00.000Z",
+                updatedAt: "2026-03-26T10:00:00.000Z",
+                status: "INITIATED",
+                inputSchema: "{\"input_data\":[]}",
+                input: {
+                  id: "input_1",
+                  input: "{\"prompt\":\"hello\"}",
+                  inputHash: null,
+                  signature: null,
+                },
+                result: null,
+                blobs: [],
+                links: [],
+              },
+            ],
+          },
+        },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.getSharedJobByToken("public-share-token");
+
+    expect(clientGetMock).toHaveBeenCalledWith({
+      cache: "no-store",
+      path: {
+        token: "public-share-token",
+      },
+      url: "/share/jobs/{token}",
+    });
+    expect(response.share.allowSearchIndexing).toBe(false);
+    expect(response.job.createdAt).toEqual(new Date("2026-03-26T10:00:00.000Z"));
+    expect(response.job.transaction?.amount).toBe(BigInt(5000000));
+    expect(response.job.share?.token).toBe("public-share-token");
+  });
+
+  it("deletes public job shares through the server transport", async () => {
+    clientDeleteMock.mockResolvedValue({
+      data: {
+        data: {},
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    await coreClient.deleteJobShare("job_1");
+
+    expect(clientDeleteMock).toHaveBeenCalledWith({
+      path: {
+        id: "job_1",
+      },
+      url: "/jobs/{id}/share",
+    });
   });
 });

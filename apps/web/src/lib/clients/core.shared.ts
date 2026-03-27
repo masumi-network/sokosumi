@@ -1,6 +1,10 @@
 import type { Notice, NoticeKind } from "@sokosumi/database";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import {
+  parseCoreJobShare,
+  parseCorePublicSharedJobResponse,
+} from "@/lib/clients/core.job-share";
 import type {
   GetCoworkersData,
   GetTasksData,
@@ -585,6 +589,94 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function putJobShare(
+    id: string,
+    body: { allowSearchIndexing: boolean },
+  ) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await client.put({
+          url: "/jobs/{id}/share",
+          path: { id },
+          body,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error,
+            response: result.response,
+          };
+        }
+
+        const envelope = result.data as { data?: unknown } | undefined;
+        return {
+          data: parseCoreJobShare(envelope?.data),
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to update job share",
+    );
+  }
+
+  async function deleteJobShare(id: string) {
+    await executeOperation(
+      getClient,
+      async (client) => {
+        const result = await client.delete({
+          url: "/jobs/{id}/share",
+          path: { id },
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error,
+            response: result.response,
+          };
+        }
+
+        return {
+          data: true,
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to delete job share",
+    );
+  }
+
+  async function getSharedJobByToken(token: string) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await client.get({
+          url: "/share/jobs/{token}",
+          path: { token },
+          cache: "no-store",
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error,
+            response: result.response,
+          };
+        }
+
+        const envelope = result.data as { data?: unknown } | undefined;
+        return {
+          data: parseCorePublicSharedJobResponse(envelope?.data),
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to fetch shared job",
+    );
+  }
+
   return {
     acknowledgeNotice,
     addConversationItem,
@@ -592,6 +684,7 @@ export function createCoreClient(getClient: GetClient) {
     createConversation,
     createTask,
     createTaskEvent,
+    deleteJobShare,
     deleteTask,
     getConversation,
     getConversationItems,
@@ -605,10 +698,12 @@ export function createCoreClient(getClient: GetClient) {
     getMyCredits,
     getMyOrganizations,
     getPendingNotices,
+    getSharedJobByToken,
     moveTaskToWorkspace,
     getTaskById,
     getTasks,
     patchTask,
+    putJobShare,
     updateConversation,
     uploadMyFile,
   };

@@ -37,8 +37,27 @@ describe("jobs routes OpenAPI scope contract", () => {
     expect(getScopeDescriptionFromGetOperation(doc, "/")).toContain(
       "Allowed values: context, owned",
     );
+    expect(getScopeDescriptionFromGetOperation(doc, "/")).not.toContain(
+      "shared",
+    );
     expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toContain(
       "Allowed values: context, owned",
     );
+    expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).not.toContain(
+      "shared",
+    );
+  });
+
+  it("documents dedicated share mutation routes", () => {
+    const doc = jobsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Jobs API",
+        version: "1.0.0",
+      },
+    });
+
+    expect(doc.paths?.["/{id}/share"]?.put?.responses).toHaveProperty("200");
+    expect(doc.paths?.["/{id}/share"]?.delete?.responses).toHaveProperty("200");
   });
 });
