@@ -7,7 +7,7 @@ import { ok } from "@/helpers/response";
 import { buildTaskScopeFilters } from "@/helpers/scope";
 import {
   mapTaskLink,
-  mapTaskLinkRelationToWriteData,
+  mapTaskLinkRelationToTypeForExistingDirection,
 } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -84,15 +84,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Peer task not found");
       }
 
-      const linkData =
+      const nextType =
         relation === undefined
           ? undefined
-          : mapTaskLinkRelationToWriteData(id, peerTaskId, relation);
+          : mapTaskLinkRelationToTypeForExistingDirection(id, link, relation);
 
       const updatedLink = await tx.taskLink.update({
         where: { id: linkId },
         data: {
-          ...(linkData ?? {}),
+          ...(nextType !== undefined ? { type: nextType } : {}),
           ...(note !== undefined ? { note } : {}),
         },
       });

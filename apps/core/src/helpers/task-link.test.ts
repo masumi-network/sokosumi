@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertTaskLinkAllowed,
   mapTaskLinkForTask,
+  mapTaskLinkRelationToTypeForExistingDirection,
   mapTaskLinkRelationToWriteData,
   mapTaskLinksForTask,
 } from "./task-link";
@@ -211,6 +212,38 @@ describe("mapTaskLinkRelationToWriteData", () => {
       toTaskId: "tsk_a",
       type: TaskLinkType.PARENT,
     });
+  });
+});
+
+describe("mapTaskLinkRelationToTypeForExistingDirection", () => {
+  it("maps relations that fit the existing outgoing direction", () => {
+    expect(
+      mapTaskLinkRelationToTypeForExistingDirection(
+        "tsk_a",
+        createLink({ fromTaskId: "tsk_a", toTaskId: "tsk_b" }),
+        "parent",
+      ),
+    ).toBe(TaskLinkType.PARENT);
+  });
+
+  it("maps relations that fit the existing incoming direction", () => {
+    expect(
+      mapTaskLinkRelationToTypeForExistingDirection(
+        "tsk_a",
+        createLink({ fromTaskId: "tsk_b", toTaskId: "tsk_a" }),
+        "child",
+      ),
+    ).toBe(TaskLinkType.PARENT);
+  });
+
+  it("rejects relations that would require reversing the stored edge", () => {
+    expect(() =>
+      mapTaskLinkRelationToTypeForExistingDirection(
+        "tsk_a",
+        createLink({ fromTaskId: "tsk_a", toTaskId: "tsk_b" }),
+        "child",
+      ),
+    ).toThrow("Relation child would require reversing the existing link");
   });
 });
 

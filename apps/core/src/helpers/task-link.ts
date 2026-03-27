@@ -84,6 +84,45 @@ export function mapTaskLinkRelationToWriteData(
   }
 }
 
+export function mapTaskLinkRelationToTypeForExistingDirection(
+  taskId: string,
+  link: TaskLinkRow,
+  relation: TaskLinkRelationResponse,
+): TaskLinkType {
+  const outgoing = link.fromTaskId === taskId;
+
+  switch (relation) {
+    case "related":
+      return TaskLinkType.RELATES;
+    case "duplicate":
+      return TaskLinkType.DUPLICATE;
+    case "blocks":
+      if (outgoing) {
+        return TaskLinkType.BLOCKS;
+      }
+      break;
+    case "blocked_by":
+      if (!outgoing) {
+        return TaskLinkType.BLOCKS;
+      }
+      break;
+    case "parent":
+      if (outgoing) {
+        return TaskLinkType.PARENT;
+      }
+      break;
+    case "child":
+      if (!outgoing) {
+        return TaskLinkType.PARENT;
+      }
+      break;
+  }
+
+  throw badRequest(
+    `Relation ${relation} would require reversing the existing link`,
+  );
+}
+
 export function mapTaskLink(
   taskId: string,
   link: TaskLinkRow,

@@ -755,8 +755,6 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkUpdateMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
       data: {
-        fromTaskId: "tsk_a",
-        toTaskId: "tsk_b",
         type: TaskLinkType.PARENT,
         note: "Updated note",
       },
@@ -892,6 +890,37 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
   });
 
   it("patches reversed directional links from task-relative relations", async () => {
+    taskLinkFindUniqueMock.mockResolvedValue({
+      id: "tl_1",
+      fromTaskId: "tsk_a",
+      toTaskId: "tsk_b",
+      type: TaskLinkType.BLOCKS,
+      note: "Old note",
+    });
+
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        relation: "child",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("patches directional relations that match the existing stored edge", async () => {
+    taskLinkFindUniqueMock.mockResolvedValue({
+      id: "tl_1",
+      fromTaskId: "tsk_b",
+      toTaskId: "tsk_a",
+      type: TaskLinkType.BLOCKS,
+      note: "Old note",
+    });
     taskLinkUpdateMock.mockResolvedValue({
       id: "tl_1",
       createdAt: new Date("2026-03-25T10:00:00.000Z"),
@@ -900,6 +929,11 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       toTaskId: "tsk_a",
       type: TaskLinkType.PARENT,
       note: "Old note",
+    });
+    taskFindFirstMock.mockResolvedValue({
+      id: "tsk_b",
+      name: "Task B",
+      status: TaskStatus.RUNNING,
     });
 
     const app = createUserApp();
@@ -917,16 +951,8 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkUpdateMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
       data: {
-        fromTaskId: "tsk_b",
-        toTaskId: "tsk_a",
         type: TaskLinkType.PARENT,
       },
     });
-    const body = (await response.json()) as {
-      data: {
-        relation: string;
-      };
-    };
-    expect(body.data.relation).toBe("child");
   });
 });
