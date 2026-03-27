@@ -226,7 +226,7 @@
     },
     "Breadcrumb": {
       "jobs": "作业",
-      "agents": "智能体画廊",
+      "agents": "智能体",
       "credits": "积分",
       "coupon": "优惠券",
       "subscriptions": "订阅",
@@ -234,9 +234,9 @@
       "account": "账户",
       "organizations": "组织",
       "mcp": "模型上下文协议（MCP）",
-      "schedules": "计划智能体",
+      "schedules": "日程",
       "chat": "聊天",
-      "tasks": "任务管理",
+      "tasks": "任务",
       "connections": "连接",
       "feed": "我的动态"
     },
@@ -1475,12 +1475,11 @@
       "Content": {
         "MenuItems": {
           "chat": "聊天",
-          "newChat": "新建聊天",
-          "exploreAgents": "探索智能体",
+          "exploreAgents": "智能体",
           "myFeed": "我的动态",
           "filesAndOutputs": "文件与输出",
-          "taskManager": "任务管理",
-          "scheduledAgents": "计划智能体"
+          "taskManager": "任务",
+          "scheduledAgents": "日程"
         },
         "ChatLists": {
           "title": "最近聊天",

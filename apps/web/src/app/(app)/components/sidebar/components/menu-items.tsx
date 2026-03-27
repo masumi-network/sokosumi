@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Rss, Search, SquareCheckBig } from "lucide-react";
+import { CalendarClock, Rss, Sparkles, SquareCheckBig } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -38,10 +38,10 @@ export default function MenuItems() {
 
   const items: MenuItemConfig[] = [
     {
-      key: "explore-agents",
-      href: "/agents",
-      label: t("exploreAgents"),
-      Icon: Search,
+      key: "task-manager",
+      href: "/tasks",
+      label: t("taskManager"),
+      Icon: SquareCheckBig,
     },
     {
       key: "my-feed",
@@ -50,10 +50,10 @@ export default function MenuItems() {
       Icon: Rss,
     },
     {
-      key: "task-manager",
-      href: "/tasks",
-      label: t("taskManager"),
-      Icon: SquareCheckBig,
+      key: "explore-agents",
+      href: "/agents",
+      label: t("exploreAgents"),
+      Icon: Sparkles,
     },
     {
       key: "scheduled-agents",
@@ -64,7 +64,7 @@ export default function MenuItems() {
   ];
 
   return (
-    <SidebarGroup className="w-full pt-0">
+    <SidebarGroup className="w-full">
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           {items.map(({ key, href, label, Icon, hasIndicator }) => {

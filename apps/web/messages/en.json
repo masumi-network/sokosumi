@@ -226,7 +226,7 @@
     },
     "Breadcrumb": {
       "jobs": "Jobs",
-      "agents": "Gallery",
+      "agents": "Agents",
       "credits": "Credits",
       "coupon": "Coupon",
       "subscriptions": "Subscriptions",
@@ -234,9 +234,9 @@
       "account": "Account",
       "organizations": "Organizations",
       "mcp": "Model Context Protocol (MCP)",
-      "schedules": "Scheduled Agents",
+      "schedules": "Schedules",
       "chat": "Chat",
-      "tasks": "Task Manager",
+      "tasks": "Tasks",
       "connections": "Connections",
       "feed": "My Feed"
     },
@@ -1475,12 +1475,11 @@
       "Content": {
         "MenuItems": {
           "chat": "Chat",
-          "newChat": "New Chat",
-          "exploreAgents": "Explore Agents",
+          "exploreAgents": "Agents",
           "myFeed": "My Feed",
           "filesAndOutputs": "Files and Outputs",
-          "taskManager": "Task Manager",
-          "scheduledAgents": "Scheduled Agents"
+          "taskManager": "Tasks",
+          "scheduledAgents": "Schedules"
         },
         "ChatLists": {
           "title": "Recent Chats",

@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquarePlus, PanelRightIcon } from "lucide-react";
+import { PanelRightIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -43,7 +43,6 @@ export default function ChatRail({
     selectedConversationId,
     setSelectedConversationId,
     isNewChat,
-    openNewChat,
     openConversation,
   } = useAppChatRail();
   const { conversations } = useConversationsContext();
@@ -183,18 +182,9 @@ export default function ChatRail({
       className="bg-background flex h-full min-h-0 w-full flex-col"
       data-chat-rail-anchor
     >
-      <div className="border-border flex h-16 items-center justify-end border-b px-4 py-3">
-        <div className="flex w-full items-center justify-between gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={openNewChat}
-          >
-            <MessageSquarePlus className="size-4" aria-hidden />
-            <span className="hidden lg:inline">{tChat("newChat")}</span>
-          </Button>
+      <div className="border-border flex h-16 items-center justify-between border-b px-4 py-3">
+        <p className="text-sm font-medium">{tChatRail("chat")}</p>
+        <div className="flex items-center gap-2">
           <Button
             type="button"
             variant="ghost"

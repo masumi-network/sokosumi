@@ -16,16 +16,16 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function NewChatButton() {
-  const t = useTranslations("App.Sidebar.Content.MenuItems");
+  const tChat = useTranslations("App.Chat.Chat");
   const pathname = usePathname();
-  const isActive = pathname === "/chat";
+  const isActive = pathname === "/chat" || pathname.startsWith("/chat/");
 
   return (
     <SidebarGroup className="w-full pb-0">
       <SidebarGroupContent>
-        <SidebarMenu>
-          <SidebarMenuItem className="gap-0">
-            <SidebarMenuButton asChild isActive={isActive} className="">
+        <SidebarMenu className="gap-0">
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive}>
               <SheetClose asChild>
                 <Link
                   href="/chat"
@@ -38,7 +38,7 @@ export default function NewChatButton() {
                   )}
                 >
                   <MessageSquarePlus className="size-4" aria-hidden />
-                  <span className="flex-1 truncate">{t("newChat")}</span>
+                  <span className="flex-1 truncate">{tChat("newChat")}</span>
                 </Link>
               </SheetClose>
             </SidebarMenuButton>

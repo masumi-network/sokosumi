@@ -23,7 +23,6 @@ export interface AppChatRailContextValue {
   setSelectedConversationId: (conversationId: string | null) => void;
   isNewChat: boolean;
   closeRail: () => void;
-  toggleRail: () => void;
   openConversation: (conversationId: string) => void;
   openLatestChat: () => void;
   openNewChat: () => void;
@@ -61,15 +60,6 @@ export function AppChatRailProvider({
 
     setOpen(false);
   }, [isMobile, setOpen]);
-
-  const toggleRail = useCallback(() => {
-    if (isMobile) {
-      setOpenMobile((currentOpen) => !currentOpen);
-      return;
-    }
-
-    setOpen(!open);
-  }, [isMobile, open, setOpen]);
 
   const openConversation = useCallback(
     (conversationId: string) => {
@@ -121,7 +111,6 @@ export function AppChatRailProvider({
       setSelectedConversationId,
       isNewChat,
       closeRail,
-      toggleRail,
       openConversation,
       openLatestChat,
       openNewChat,
@@ -137,7 +126,6 @@ export function AppChatRailProvider({
       openNewChat,
       selectedConversationId,
       setOpen,
-      toggleRail,
     ],
   );
 
