@@ -692,7 +692,11 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       type: TaskLinkType.PARENT,
       note: "Updated note",
     });
-    taskFindFirstMock.mockResolvedValue(null);
+    taskFindFirstMock.mockResolvedValue({
+      id: "tsk_b",
+      name: "Task B",
+      status: TaskStatus.RUNNING,
+    });
   });
 
   it("returns 200 when the link metadata is updated", async () => {
@@ -719,7 +723,6 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        archivedAt: null,
         OR: [{ userId: "user_123", organizationId: "org_123" }],
       },
       select: {
@@ -736,7 +739,11 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     };
     expect(body.data).toMatchObject({
       peerTaskId: "tsk_b",
-      peerTask: null,
+      peerTask: {
+        id: "tsk_b",
+        name: "Task B",
+        status: TaskStatus.RUNNING,
+      },
     });
   });
 
@@ -772,6 +779,8 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
   });
 
   it("returns peerTask null when the peer task is outside the default read scope", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(null);
+
     const app = createUserApp();
     mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
 
