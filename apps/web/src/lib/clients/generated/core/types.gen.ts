@@ -587,6 +587,21 @@ export type CreateCoworkerApiKeyResponse = {
     expiresAt: Date | null;
 };
 
+export type TaskListItem = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string;
+    organizationId: string | null;
+    coworkerId: string | null;
+    name: string;
+    description: string | null;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    credits: number;
+    events: Array<TaskEvent>;
+    jobs: Array<JobSummary>;
+};
+
 export type Task = {
     id: string;
     createdAt: Date;
@@ -611,9 +626,16 @@ export type TaskLink = {
     fromTaskId: string;
     toTaskId: string;
     peerTaskId: string;
+    peerTask: TaskLinkPeerTask;
     direction: 'outgoing' | 'incoming';
     note: string | null;
 };
+
+export type TaskLinkPeerTask = {
+    id: string;
+    name: string;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+} | null;
 
 export type TaskLinkDeleted = {
     deleted: true;
@@ -7218,7 +7240,7 @@ export type GetTasksResponses = {
      * Retrieve all tasks
      */
     200: {
-        data: Array<Task>;
+        data: Array<TaskListItem>;
         meta: {
             timestamp: Date;
             requestId: string;

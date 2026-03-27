@@ -60,16 +60,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
     const { toTaskId, type, note } = body;
 
-    const link = await (async () => {
+    const { link, peerTask } = await (async () => {
       try {
         return await prisma.$transaction(
           async (tx) => {
             await requireUserTaskAccess(authContext, id, tx);
-            await requireUserTaskAccess(authContext, toTaskId, tx);
+            const peerTask = await requireUserTaskAccess(authContext, toTaskId, tx);
             assertTaskLinkAllowed(id, toTaskId);
 
             try {
-              return await tx.taskLink.create({
+              const link = await tx.taskLink.create({
                 data: {
                   fromTaskId: id,
                   toTaskId,
@@ -77,6 +77,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   note: note ?? null,
                 },
               });
+
+              return {
+                link,
+                peerTask,
+              };
             } catch (error) {
               if (isPrismaUniqueViolation(error)) {
                 throw conflict("This task link already exists");
@@ -96,6 +101,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     })();
 
-    return created(c, mapTaskLinkForTask(id, link));
+    return created(c, mapTaskLinkForTask(id, link, { peerTask }));
   });
 }

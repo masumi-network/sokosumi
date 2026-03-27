@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -53,7 +53,10 @@ function createApp(actor: "user" | "coworker" = "user") {
   return app;
 }
 
-function createTask() {
+function createTask(overrides?: Partial<{
+  linksFrom: unknown[];
+  linksTo: unknown[];
+}>) {
   return {
     id: "tsk_a",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
@@ -66,8 +69,8 @@ function createTask() {
     status: TaskStatus.READY,
     events: [],
     jobs: [],
-    linksFrom: [],
-    linksTo: [],
+    linksFrom: overrides?.linksFrom ?? [],
+    linksTo: overrides?.linksTo ?? [],
   };
 }
 
@@ -98,6 +101,22 @@ describe("GET /tasks/{id}", () => {
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({
         linksFrom: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             toTask: {
               is: {
@@ -108,6 +127,22 @@ describe("GET /tasks/{id}", () => {
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             fromTask: {
               is: {
@@ -132,6 +167,22 @@ describe("GET /tasks/{id}", () => {
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({
         linksFrom: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             toTask: {
               is: {
@@ -144,6 +195,22 @@ describe("GET /tasks/{id}", () => {
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             fromTask: {
               is: {
@@ -156,6 +223,53 @@ describe("GET /tasks/{id}", () => {
           orderBy: { createdAt: "asc" },
         },
       }),
+    });
+  });
+
+  it("returns nested peerTask summaries on task detail links", async () => {
+    taskFindUniqueMock.mockResolvedValue(
+      createTask({
+        linksFrom: [
+          {
+            id: "tl_1",
+            createdAt: new Date("2026-03-25T10:00:00.000Z"),
+            updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+            fromTaskId: "tsk_a",
+            toTaskId: "tsk_b",
+            type: TaskLinkType.RELATES,
+            note: null,
+            toTask: {
+              id: "tsk_b",
+              name: "Task B",
+              status: TaskStatus.RUNNING,
+            },
+          },
+        ],
+      }),
+    );
+
+    const app = createApp();
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a?scope=context");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: {
+        links: Array<{
+          peerTaskId: string;
+          peerTask: { id: string; name: string; status: TaskStatus } | null;
+        }>;
+      };
+    };
+    expect(body.data.links).toHaveLength(1);
+    expect(body.data.links[0]).toMatchObject({
+      peerTaskId: "tsk_b",
+      peerTask: {
+        id: "tsk_b",
+        name: "Task B",
+        status: TaskStatus.RUNNING,
+      },
     });
   });
 });

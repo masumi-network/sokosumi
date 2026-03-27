@@ -4,6 +4,7 @@ import { requireUserTaskAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { buildTaskScopeFilters } from "@/helpers/scope";
 import { mapTaskLinkForTask } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -12,6 +13,7 @@ import {
   patchTaskLinkRequestSchema,
   taskLinkSchema,
 } from "@/schemas/task-link.schema";
+import { taskLinkPeerTaskSelect } from "@/types/task-link";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -54,7 +56,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id, linkId } = c.req.valid("param");
     const { type, note } = c.req.valid("json");
 
-    const link = await prisma.$transaction(async (tx) => {
+    const { link, peerTask } = await prisma.$transaction(async (tx) => {
       const currentLink = await tx.taskLink.findUnique({
         where: { id: linkId },
       });
@@ -68,15 +70,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       await requireUserTaskAccess(authContext, id, tx);
 
-      return await tx.taskLink.update({
+      const link = await tx.taskLink.update({
         where: { id: linkId },
         data: {
           ...(type !== undefined ? { type } : {}),
           ...(note !== undefined ? { note } : {}),
         },
       });
+
+      const peerTaskId = link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
+      const peerTask = await tx.task.findFirst({
+        where: {
+          id: peerTaskId,
+          archivedAt: null,
+          OR: buildTaskScopeFilters(authContext, undefined),
+        },
+        select: taskLinkPeerTaskSelect,
+      });
+
+      return {
+        link,
+        peerTask,
+      };
     });
 
-    return ok(c, mapTaskLinkForTask(id, link));
+    return ok(c, mapTaskLinkForTask(id, link, { peerTask }));
   });
 }

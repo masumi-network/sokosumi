@@ -1,4 +1,4 @@
-import { TaskLinkType } from "@sokosumi/database";
+import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,6 +13,16 @@ function createLink(overrides?: Partial<{
   toTaskId: string;
   type: TaskLinkType;
   note: string | null;
+  fromTask: {
+    id: string;
+    name: string;
+    status: TaskStatus;
+  } | null;
+  toTask: {
+    id: string;
+    name: string;
+    status: TaskStatus;
+  } | null;
 }>) {
   return {
     id: overrides?.id ?? "tl_123",
@@ -22,6 +32,15 @@ function createLink(overrides?: Partial<{
     toTaskId: overrides?.toTaskId ?? "tsk_b",
     type: overrides?.type ?? TaskLinkType.RELATES,
     note: overrides?.note ?? null,
+    fromTask: overrides?.fromTask ?? null,
+    toTask:
+      overrides && "toTask" in overrides
+        ? overrides.toTask
+        : {
+            id: overrides?.toTaskId ?? "tsk_b",
+            name: "Task B",
+            status: TaskStatus.READY,
+          },
   };
 }
 
@@ -47,6 +66,11 @@ describe("mapTaskLinkForTask", () => {
       toTaskId: "tsk_b",
       direction: "outgoing",
       peerTaskId: "tsk_b",
+      peerTask: {
+        id: "tsk_b",
+        name: "Task B",
+        status: "READY",
+      },
     });
   });
 
@@ -62,6 +86,23 @@ describe("mapTaskLinkForTask", () => {
       toTaskId: "tsk_b",
       direction: "incoming",
       peerTaskId: "tsk_a",
+      peerTask: null,
+    });
+  });
+
+  it("maps peerTask as null when the peer task is not loaded", () => {
+    const result = mapTaskLinkForTask(
+      "tsk_a",
+      createLink({
+        toTask: null,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      id: "tl_123",
+      direction: "outgoing",
+      peerTaskId: "tsk_b",
+      peerTask: null,
     });
   });
 });
@@ -78,11 +119,17 @@ describe("mapTaskLinksForTask", () => {
       id: "tl_out",
       direction: "outgoing",
       peerTaskId: "tsk_b",
+      peerTask: {
+        id: "tsk_b",
+        name: "Task B",
+        status: "READY",
+      },
     });
     expect(result[1]).toMatchObject({
       id: "tl_in",
       direction: "incoming",
       peerTaskId: "tsk_c",
+      peerTask: null,
     });
   });
 });

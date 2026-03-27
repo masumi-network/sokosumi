@@ -480,6 +480,20 @@ export const patchCoworkersByIdWhitelistResponseTransformer = async (data: any):
     return data;
 };
 
+const taskListItemSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
+    data.events = data.events.map((item: any) => taskEventSchemaResponseTransformer(item));
+    data.jobs = data.jobs.map((item: any) => jobSummarySchemaResponseTransformer(item));
+    return data;
+};
+
+export const getTasksResponseTransformer = async (data: any): Promise<GetTasksResponse> => {
+    data.data = data.data.map((item: any) => taskListItemSchemaResponseTransformer(item));
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
 const taskLinkSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
@@ -492,12 +506,6 @@ const taskSchemaResponseTransformer = (data: any) => {
     data.events = data.events.map((item: any) => taskEventSchemaResponseTransformer(item));
     data.jobs = data.jobs.map((item: any) => jobSummarySchemaResponseTransformer(item));
     data.links = data.links.map((item: any) => taskLinkSchemaResponseTransformer(item));
-    return data;
-};
-
-export const getTasksResponseTransformer = async (data: any): Promise<GetTasksResponse> => {
-    data.data = data.data.map((item: any) => taskSchemaResponseTransformer(item));
-    data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
 

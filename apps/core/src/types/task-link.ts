@@ -8,14 +8,61 @@ import {
 
 export const taskLinksInclude = {
   linksFrom: {
+    include: {
+      fromTask: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+        },
+      },
+      toTask: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+        },
+      },
+    },
     orderBy: {
       createdAt: "asc",
     },
   },
   linksTo: {
+    include: {
+      fromTask: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+        },
+      },
+      toTask: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+        },
+      },
+    },
     orderBy: {
       createdAt: "asc",
     },
+  },
+} as const;
+
+export const taskLinkPeerTaskSelect = {
+  id: true,
+  name: true,
+  status: true,
+} as const;
+
+const taskLinkPeerTaskInclude = {
+  fromTask: {
+    select: taskLinkPeerTaskSelect,
+  },
+  toTask: {
+    select: taskLinkPeerTaskSelect,
   },
 } as const;
 
@@ -53,6 +100,7 @@ export function buildVisibleTaskLinksInclude(
           is: peerTaskWhere,
         },
       },
+      include: taskLinkPeerTaskInclude,
       orderBy: {
         createdAt: "asc",
       },
@@ -63,6 +111,7 @@ export function buildVisibleTaskLinksInclude(
           is: peerTaskWhere,
         },
       },
+      include: taskLinkPeerTaskInclude,
       orderBy: {
         createdAt: "asc",
       },
@@ -70,4 +119,11 @@ export function buildVisibleTaskLinksInclude(
   } satisfies Pick<Prisma.TaskInclude, "linksFrom" | "linksTo">;
 }
 
-export type TaskLinkRow = Prisma.TaskLinkGetPayload<Record<string, never>>;
+export type TaskLinkPeerTaskRow = Prisma.TaskGetPayload<{
+  select: typeof taskLinkPeerTaskSelect;
+}>;
+
+export type TaskLinkRow = Prisma.TaskLinkGetPayload<Record<string, never>> & {
+  fromTask?: TaskLinkPeerTaskRow | null;
+  toTask?: TaskLinkPeerTaskRow | null;
+};

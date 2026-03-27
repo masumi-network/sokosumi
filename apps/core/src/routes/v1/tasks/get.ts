@@ -17,7 +17,7 @@ import {
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import { buildTaskScopeFilters, taskScopeQuerySchema } from "@/helpers/scope";
-import { mapTask } from "@/helpers/task";
+import { mapTaskListItem } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -25,8 +25,8 @@ import {
 } from "@/lib/hono";
 import { isCoworkerAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { taskSchema } from "@/schemas/task.schema";
-import { buildTaskIncludeForViewer } from "@/types/task";
+import { taskListSchema } from "@/schemas/task.schema";
+import { taskListInclude } from "@/types/task";
 
 const taskStatusQuerySchema = z
   .preprocess(
@@ -82,7 +82,7 @@ const route = withGlobalHeaderParameters(
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(taskSchema),
+        taskListSchema,
         "Retrieve all tasks",
       ),
       401: jsonErrorResponse("Unauthorized"),
@@ -140,13 +140,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         skip,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        include: buildTaskIncludeForViewer(authContext, scope),
+        include: taskListInclude,
       }),
       prisma.task.count({ where }),
     ]);
 
     const hasMore = tasks.length === takePlusOne;
-    const mappedTasks = tasks.slice(0, take).map((task) => mapTask(task));
+    const mappedTasks = tasks.slice(0, take).map((task) => mapTaskListItem(task));
     const paginationMeta = createPaginationMeta(
       mappedTasks,
       count,
@@ -155,6 +155,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursor,
     );
 
-    return ok(c, z.array(taskSchema).parse(mappedTasks), paginationMeta);
+    return ok(c, taskListSchema.parse(mappedTasks), paginationMeta);
   });
 }

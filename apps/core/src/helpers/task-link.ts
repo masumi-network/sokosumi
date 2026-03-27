@@ -1,9 +1,25 @@
 import { badRequest } from "@/helpers/error";
 import {
+  type TaskLinkPeerTaskResponse,
+  taskLinkPeerTaskSchema,
   type TaskLinkResponse,
   taskLinkSchema,
 } from "@/schemas/task-link.schema";
-import type { TaskLinkRow } from "@/types/task-link";
+import type { TaskLinkPeerTaskRow, TaskLinkRow } from "@/types/task-link";
+
+interface MapTaskLinkOptions {
+  peerTask?: TaskLinkPeerTaskRow | null;
+}
+
+function mapTaskLinkPeerTask(
+  peerTask: TaskLinkPeerTaskRow | null | undefined,
+): TaskLinkPeerTaskResponse | null {
+  if (!peerTask) {
+    return null;
+  }
+
+  return taskLinkPeerTaskSchema.parse(peerTask);
+}
 
 export function assertTaskLinkAllowed(
   fromTaskId: string,
@@ -17,8 +33,14 @@ export function assertTaskLinkAllowed(
 export function mapTaskLinkForTask(
   taskId: string,
   link: TaskLinkRow,
+  options?: MapTaskLinkOptions,
 ): TaskLinkResponse {
   const outgoing = link.fromTaskId === taskId;
+  const peerTask =
+    options && "peerTask" in options
+      ? options.peerTask
+      : (outgoing ? link.toTask : link.fromTask) ?? null;
+
   return taskLinkSchema.parse({
     id: link.id,
     createdAt: link.createdAt,
@@ -29,6 +51,7 @@ export function mapTaskLinkForTask(
     toTaskId: link.toTaskId,
     direction: outgoing ? "outgoing" : "incoming",
     peerTaskId: outgoing ? link.toTaskId : link.fromTaskId,
+    peerTask: mapTaskLinkPeerTask(peerTask),
   });
 }
 

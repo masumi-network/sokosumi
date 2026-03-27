@@ -2338,6 +2338,105 @@ export const CreateCoworkerApiKeyResponseSchema = {
     ]
 } as const;
 
+export const TaskListItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'tsk_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        },
+        coworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cow_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Review onboarding'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Notes go here'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED'
+            ],
+            example: 'READY'
+        },
+        credits: {
+            type: 'number',
+            example: 5
+        },
+        events: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskEvent'
+            },
+            example: []
+        },
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/JobSummary'
+            },
+            example: []
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'userId',
+        'organizationId',
+        'coworkerId',
+        'name',
+        'description',
+        'status',
+        'credits',
+        'events',
+        'jobs'
+    ]
+} as const;
+
 export const TaskSchema = {
     type: 'object',
     properties: {
@@ -2484,6 +2583,9 @@ export const TaskLinkSchema = {
             type: 'string',
             example: 'tsk_b'
         },
+        peerTask: {
+            $ref: '#/components/schemas/TaskLinkPeerTask'
+        },
         direction: {
             type: 'string',
             enum: [
@@ -2508,9 +2610,55 @@ export const TaskLinkSchema = {
         'fromTaskId',
         'toTaskId',
         'peerTaskId',
+        'peerTask',
         'direction',
         'note'
     ]
+} as const;
+
+export const TaskLinkPeerTaskSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            example: 'tsk_b'
+        },
+        name: {
+            type: 'string',
+            example: 'Review onboarding'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED'
+            ],
+            example: 'READY'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'status'
+    ],
+    example: {
+        id: 'tsk_b',
+        name: 'Review onboarding',
+        status: 'READY'
+    }
 } as const;
 
 export const TaskLinkDeletedSchema = {

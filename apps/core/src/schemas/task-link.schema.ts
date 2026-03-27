@@ -1,7 +1,17 @@
 import { z } from "@hono/zod-openapi";
-import { TaskLinkType } from "@sokosumi/database";
+import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
+
+export const taskLinkPeerTaskSchema = z
+  .object({
+    id: z.string().openapi({ example: "tsk_b" }),
+    name: z.string().openapi({ example: "Review onboarding" }),
+    status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+  })
+  .openapi("TaskLinkPeerTask");
+
+export type TaskLinkPeerTaskResponse = z.infer<typeof taskLinkPeerTaskSchema>;
 
 export const taskLinkSchema = z
   .object({
@@ -12,6 +22,13 @@ export const taskLinkSchema = z
     fromTaskId: z.string().openapi({ example: "tsk_a" }),
     toTaskId: z.string().openapi({ example: "tsk_b" }),
     peerTaskId: z.string().openapi({ example: "tsk_b" }),
+    peerTask: taskLinkPeerTaskSchema.nullable().openapi({
+      example: {
+        id: "tsk_b",
+        name: "Review onboarding",
+        status: "READY",
+      },
+    }),
     direction: z
       .enum(["outgoing", "incoming"])
       .openapi({ example: "outgoing" }),

@@ -15,6 +15,7 @@ const {
   prismaTransactionMock,
   requireScopedTaskReadAccessMock,
   requireUserTaskAccessMock,
+  taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
   taskLinkDeleteMock,
@@ -24,6 +25,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requireScopedTaskReadAccessMock: vi.fn(),
   requireUserTaskAccessMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
   taskLinkDeleteMock: vi.fn(),
@@ -80,6 +82,7 @@ function createCoworkerApp() {
 function mockTx() {
   return {
     task: {
+      findFirst: taskFindFirstMock,
       findUnique: taskFindUniqueMock,
     },
     taskLink: {
@@ -120,6 +123,53 @@ describe("GET /tasks/{id}/links", () => {
     expect(body.data).toEqual([]);
   });
 
+  it("returns nested peerTask summaries for visible links", async () => {
+    taskFindUniqueMock.mockResolvedValue({
+      id: "tsk_a",
+      linksFrom: [
+        {
+          id: "tl_1",
+          createdAt: new Date("2026-03-25T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+          fromTaskId: "tsk_a",
+          toTaskId: "tsk_b",
+          type: TaskLinkType.RELATES,
+          note: null,
+          toTask: {
+            id: "tsk_b",
+            name: "Task B",
+            status: TaskStatus.RUNNING,
+          },
+        },
+      ],
+      linksTo: [],
+    });
+
+    const app = createUserApp();
+    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request(
+      "http://localhost/tsk_a/links?scope=context",
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: Array<{
+        peerTaskId: string;
+        peerTask: { id: string; name: string; status: TaskStatus } | null;
+      }>;
+    };
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).toMatchObject({
+      peerTaskId: "tsk_b",
+      peerTask: {
+        id: "tsk_b",
+        name: "Task B",
+        status: TaskStatus.RUNNING,
+      },
+    });
+  });
+
   it("filters linked peer tasks to those visible to the coworker", async () => {
     const app = createCoworkerApp();
     mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
@@ -134,6 +184,22 @@ describe("GET /tasks/{id}/links", () => {
       select: {
         id: true,
         linksFrom: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             toTask: {
               is: {
@@ -146,6 +212,22 @@ describe("GET /tasks/{id}/links", () => {
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             fromTask: {
               is: {
@@ -175,6 +257,22 @@ describe("GET /tasks/{id}/links", () => {
       select: {
         id: true,
         linksFrom: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             toTask: {
               is: {
@@ -185,6 +283,22 @@ describe("GET /tasks/{id}/links", () => {
           orderBy: { createdAt: "asc" },
         },
         linksTo: {
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
           where: {
             fromTask: {
               is: {
@@ -216,16 +330,31 @@ describe("POST /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireUserTaskAccessMock.mockImplementation(
-      async (_auth, taskId: string) => ({
-        id: taskId,
-        userId: "user_123",
-        organizationId: "org_123",
-        archivedAt: null,
-        status: TaskStatus.READY,
-        coworkerId: null,
-        name: "T",
-        description: null,
-      }),
+      async (_auth, taskId: string) => {
+        if (taskId === "tsk_b") {
+          return {
+            id: taskId,
+            userId: "user_123",
+            organizationId: "org_123",
+            archivedAt: null,
+            status: TaskStatus.RUNNING,
+            coworkerId: null,
+            name: "Task B",
+            description: null,
+          };
+        }
+
+        return {
+          id: taskId,
+          userId: "user_123",
+          organizationId: "org_123",
+          archivedAt: null,
+          status: TaskStatus.READY,
+          coworkerId: null,
+          name: "Task A",
+          description: null,
+        };
+      },
     );
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
@@ -263,6 +392,20 @@ describe("POST /tasks/{id}/links", () => {
         toTaskId: "tsk_b",
         type: TaskLinkType.RELATES,
         note: null,
+      },
+    });
+    const body = (await response.json()) as {
+      data: {
+        peerTaskId: string;
+        peerTask: { id: string; name: string; status: TaskStatus } | null;
+      };
+    };
+    expect(body.data).toMatchObject({
+      peerTaskId: "tsk_b",
+      peerTask: {
+        id: "tsk_b",
+        name: "Task B",
+        status: TaskStatus.RUNNING,
       },
     });
   });
@@ -563,6 +706,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       type: TaskLinkType.PARENT,
       note: "Updated note",
     });
+    taskFindFirstMock.mockResolvedValue(null);
   });
 
   it("returns 200 when the link metadata is updated", async () => {
@@ -585,6 +729,16 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
         type: TaskLinkType.PARENT,
         note: "Updated note",
       },
+    });
+    const body = (await response.json()) as {
+      data: {
+        peerTaskId: string;
+        peerTask: { id: string; name: string; status: TaskStatus } | null;
+      };
+    };
+    expect(body.data).toMatchObject({
+      peerTaskId: "tsk_b",
+      peerTask: null,
     });
   });
 
@@ -616,6 +770,31 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       data: {
         note: null,
       },
+    });
+  });
+
+  it("returns peerTask null when the peer task is outside the default read scope", async () => {
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: TaskLinkType.PARENT,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: {
+        peerTaskId: string;
+        peerTask: { id: string; name: string; status: TaskStatus } | null;
+      };
+    };
+    expect(body.data).toMatchObject({
+      peerTaskId: "tsk_b",
+      peerTask: null,
     });
   });
 

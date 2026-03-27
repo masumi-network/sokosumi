@@ -4,7 +4,7 @@ import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { isCoworkerAuthContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
-import type { TaskWithIncludes } from "@/types/task";
+import type { TaskListItemWithIncludes, TaskWithIncludes } from "@/types/task";
 
 import { unprocessableEntity } from "./error";
 import { mapTaskLinksForTask } from "./task-link";
@@ -177,7 +177,7 @@ export function isTaskArchivableStatus(status: TaskStatus): boolean {
   );
 }
 
-export function mapTask(task: TaskWithIncludes) {
+function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const jobs = task.jobs.map((job) => flattenJob(job));
   const events = task.events.map((event) => mapTaskEvent(event));
   const credits = task.events.reduce((total, event) => {
@@ -192,7 +192,7 @@ export function mapTask(task: TaskWithIncludes) {
 
     return total + convertCentsToCredits(amount * -1n);
   }, 0);
-  const links = mapTaskLinksForTask(task.linksFrom, task.linksTo);
+
   return {
     id: task.id,
     createdAt: task.createdAt,
@@ -206,6 +206,18 @@ export function mapTask(task: TaskWithIncludes) {
     events,
     jobs,
     credits,
+  };
+}
+
+export function mapTask(task: TaskWithIncludes) {
+  const links = mapTaskLinksForTask(task.linksFrom, task.linksTo);
+
+  return {
+    ...mapTaskBase(task),
     links,
   };
+}
+
+export function mapTaskListItem(task: TaskListItemWithIncludes) {
+  return mapTaskBase(task);
 }
