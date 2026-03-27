@@ -186,7 +186,7 @@ describe("tasks routes OpenAPI query contract", () => {
       properties?: Record<string, unknown>;
     } | null;
 
-    expect(patchSchema?.properties).toHaveProperty("type");
+    expect(patchSchema?.properties).toHaveProperty("relation");
     expect(patchSchema?.properties).toHaveProperty("note");
     expect(patchSchema?.properties).not.toHaveProperty("fromTaskId");
     expect(patchSchema?.properties).not.toHaveProperty("toTaskId");
