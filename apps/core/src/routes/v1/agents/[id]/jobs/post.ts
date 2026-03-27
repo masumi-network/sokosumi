@@ -8,7 +8,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { createJobRequestSchema, jobSchema } from "@/schemas/job.schema";
+import { createJobRequestSchema, jobSummarySchema } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
 
 const params = z.object({
@@ -35,7 +35,7 @@ const route = withGlobalHeaderParameters(
       },
     },
     responses: {
-      201: jsonSuccessResponse(jobSchema, "Job created successfully"),
+      201: jsonSuccessResponse(jobSummarySchema, "Job created successfully"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -66,6 +66,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     });
 
-    return created(c, jobSchema.parse(flattenJob(job)));
+    return created(c, jobSummarySchema.parse(flattenJob(job)));
   });
 }

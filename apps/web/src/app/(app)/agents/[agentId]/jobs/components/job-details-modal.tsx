@@ -23,14 +23,12 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface JobDetailsModalProps {
-  activeOrganizationId: string | null;
   agentId: string;
   job: JobWithSokosumiStatus;
   readOnly: boolean;
 }
 
 export function JobDetailsModal({
-  activeOrganizationId,
   agentId,
   job,
   readOnly,
@@ -129,12 +127,7 @@ export function JobDetailsModal({
                 <span>{t("back")}</span>
               </Button>
             </div>
-            <JobDetails
-              job={job}
-              readOnly={readOnly}
-              activeOrganizationId={activeOrganizationId}
-              showAgentHeader={false}
-            />
+            <JobDetails job={job} readOnly={readOnly} showAgentHeader={false} />
           </div>
         </ScrollArea>
       </DialogContent>

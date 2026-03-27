@@ -8,7 +8,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useEffect } from "react";
 
 import { DataTableColumnHeader } from "@/components/data-table";
-import { JobSharedBadge, JobStatusBadge } from "@/components/jobs";
+import { JobStatusBadge } from "@/components/jobs";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { HighlightedText } from "@/components/ui/highlighted-text";
 import useAgentJobStatusData from "@/hooks/use-agent-job-status";
@@ -53,23 +53,6 @@ export function getJobColumns(
         <DataTableColumnHeader column={column} title={t("Header.status")} />
       ),
       cell: ({ row }) => {
-        const job = row.original;
-        const isSharedJob = job.userId !== userId;
-        const share = job.share;
-        // If it's a shared job, show the sharing indicator instead of status
-        if (isSharedJob && share) {
-          return (
-            <div className="p-2">
-              <JobSharedBadge
-                key={`${row.original.id}-${share.id}`}
-                creatorName={job.user.name}
-                creatorImage={job.user.image}
-              />
-            </div>
-          );
-        }
-
-        // For owned jobs, show the status badge as normal
         return (
           <div className="p-2">
             {isDemoJob(row.original) ? (

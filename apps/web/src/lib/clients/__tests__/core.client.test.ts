@@ -5,13 +5,18 @@ vi.mock("server-only", () => ({}));
 
 const getConversationsMock = vi.fn();
 const getAgentsByIdInputSchemaMock = vi.fn();
+const getShareJobsByTokenMock = vi.fn();
 const getUsersMeNoticesPendingMock = vi.fn();
 const postUsersMeNoticesByIdAcknowledgeMock = vi.fn();
+const putJobsByIdShareMock = vi.fn();
 const getUsersMeCreditsMock = vi.fn();
 const getUsersMeOrganizationsMock = vi.fn();
+const deleteJobsByIdShareMock = vi.fn();
 const createClientMock = vi.fn();
 const headersMock = vi.fn();
-const mockClient = { id: "core-client" } as never;
+const mockClient = {
+  id: "core-client",
+} as never;
 
 vi.mock("next/headers", () => ({
   headers: () => headersMock(),
@@ -27,12 +32,15 @@ vi.mock("@/lib/clients/generated/core/client", () => ({
 }));
 
 vi.mock("@/lib/clients/generated/core", () => ({
+  deleteJobsByIdShare: deleteJobsByIdShareMock,
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
   getConversations: getConversationsMock,
+  getShareJobsByToken: getShareJobsByTokenMock,
   getUsersMeNoticesPending: getUsersMeNoticesPendingMock,
   postUsersMeNoticesByIdAcknowledge: postUsersMeNoticesByIdAcknowledgeMock,
   getUsersMeCredits: getUsersMeCreditsMock,
   getUsersMeOrganizations: getUsersMeOrganizationsMock,
+  putJobsByIdShare: putJobsByIdShareMock,
 }));
 
 describe("core.client", () => {
@@ -261,5 +269,179 @@ describe("core.client", () => {
       path: { id: "notice_1" },
     });
     expect(response.noticeId).toBe("notice_1");
+  });
+
+  it("updates public job shares through the server transport", async () => {
+    putJobsByIdShareMock.mockResolvedValue({
+      data: {
+        data: {
+          id: "share_1",
+          jobId: "job_1",
+          token: "public-share-token",
+          allowSearchIndexing: true,
+          createdAt: new Date("2026-03-26T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-26T10:00:00.000Z"),
+        },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.putJobShare("job_1", {
+      allowSearchIndexing: true,
+    });
+
+    expect(putJobsByIdShareMock).toHaveBeenCalledWith({
+      body: {
+        allowSearchIndexing: true,
+      },
+      client: mockClient,
+      path: {
+        id: "job_1",
+      },
+    });
+    expect(response.createdAt).toEqual(new Date("2026-03-26T10:00:00.000Z"));
+    expect(response.token).toBe("public-share-token");
+  });
+
+  it("fetches shared jobs through the public server transport", async () => {
+    getShareJobsByTokenMock.mockResolvedValue({
+      data: {
+        data: {
+          share: {
+            id: "share_1",
+            jobId: "job_1",
+            token: "public-share-token",
+            allowSearchIndexing: false,
+            createdAt: new Date("2026-03-26T10:00:00.000Z"),
+            updatedAt: new Date("2026-03-26T10:00:00.000Z"),
+          },
+          job: {
+            id: "job_1",
+            createdAt: new Date("2026-03-26T10:00:00.000Z"),
+            updatedAt: new Date("2026-03-26T10:05:00.000Z"),
+            completedAt: new Date("2026-03-26T10:10:00.000Z"),
+            agentId: "agent_1",
+            userId: "user_1",
+            organizationId: "org_1",
+            taskId: null,
+            name: "Shared Job",
+            jobType: "PAID",
+            status: "completed",
+            credits: 5,
+            onChainStatus: null,
+            onChainTransactionHash: "0x123abc",
+            result: "# Result",
+            input: '{"prompt":"hello"}',
+            inputHash: null,
+            inputSchema: '{"input_data":[]}',
+            agentJobId: "agent_job_1",
+            identifierFromPurchaser: "identifier_123",
+            user: {
+              id: "user_1",
+              name: "Ada Lovelace",
+              image: null,
+            },
+            organization: {
+              id: "org_1",
+              name: "Acme Labs",
+              slug: "acme-labs",
+            },
+            agent: {
+              id: "agent_1",
+              name: "Research Agent",
+              overrideName: null,
+              icon: null,
+              image: null,
+              overrideImage: null,
+              legalPrivacyPolicy: null,
+              overrideLegalPrivacyPolicy: null,
+              legalTerms: null,
+              overrideLegalTerms: null,
+              legalDpa: null,
+              overrideLegalDpa: null,
+              legalOther: null,
+              overrideLegalOther: null,
+            },
+            resultHash: "result_hash_123",
+            events: [
+              {
+                id: "event_completed",
+                createdAt: new Date("2026-03-26T10:10:00.000Z"),
+                updatedAt: new Date("2026-03-26T10:10:00.000Z"),
+                status: "COMPLETED",
+                inputSchema: null,
+                input: null,
+                result: "# Result",
+                blobs: [],
+                links: [],
+              },
+              {
+                id: "event_initiated",
+                createdAt: new Date("2026-03-26T10:00:00.000Z"),
+                updatedAt: new Date("2026-03-26T10:00:00.000Z"),
+                status: "INITIATED",
+                inputSchema: '{"input_data":[]}',
+                input: {
+                  id: "input_1",
+                  input: '{"prompt":"hello"}',
+                  inputHash: null,
+                  signature: null,
+                },
+                result: null,
+                blobs: [],
+                links: [],
+              },
+            ],
+          },
+        },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.getSharedJobByToken("public-share-token");
+
+    expect(getShareJobsByTokenMock).toHaveBeenCalledWith({
+      cache: "no-store",
+      client: mockClient,
+      path: {
+        token: "public-share-token",
+      },
+    });
+    expect(response.share.allowSearchIndexing).toBe(false);
+    expect(response.job.createdAt).toEqual(
+      new Date("2026-03-26T10:00:00.000Z"),
+    );
+    expect(response.job.credits).toBe(5);
+    expect(response.job.onChainTransactionHash).toBe("0x123abc");
+    expect(response.job.onChainStatus).toBeNull();
+    expect(response.job.organization).toEqual({
+      id: "org_1",
+      name: "Acme Labs",
+      slug: "acme-labs",
+    });
+    expect(response.job.transaction).toBeNull();
+    expect(response.job.purchase).toBeNull();
+    expect(response.job.share?.token).toBe("public-share-token");
+  });
+
+  it("deletes public job shares through the server transport", async () => {
+    deleteJobsByIdShareMock.mockResolvedValue({
+      data: {
+        data: {},
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    await coreClient.deleteJobShare("job_1");
+
+    expect(deleteJobsByIdShareMock).toHaveBeenCalledWith({
+      client: mockClient,
+      path: {
+        id: "job_1",
+      },
+    });
   });
 });

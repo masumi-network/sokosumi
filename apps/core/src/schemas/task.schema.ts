@@ -2,7 +2,10 @@ import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskLinkType, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
-import { createJobRequestSchema, jobsSchema } from "@/schemas/job.schema";
+import {
+  createJobRequestSchema,
+  jobSummariesSchema,
+} from "@/schemas/job.schema";
 
 export const taskEventSchema = z
   .object({
@@ -89,7 +92,7 @@ export const taskSchema = z
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
     credits: z.number().openapi({ example: 5 }),
     events: z.array(taskEventSchema).openapi({ example: [] }),
-    jobs: jobsSchema.openapi({ example: [] }),
+    jobs: jobSummariesSchema.openapi({ example: [] }),
     links: taskLinksSchema.openapi({ example: [] }),
   })
   .openapi("Task");

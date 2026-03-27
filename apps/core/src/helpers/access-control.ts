@@ -25,7 +25,7 @@ import {
 
 /**
  * Validates job access and returns the job if valid
- * Checks both direct ownership and organization-level sharing
+ * Checks direct ownership only
  * Throws 404 if job doesn't exist, 403 if user doesn't have access
  *
  * @param authContext - The authenticated user context
@@ -53,17 +53,12 @@ export async function requireJobAccess(
 ): Promise<Job> {
   const job = await tx.job.findFirst({
     where: {
-      OR: [
-        { id: jobId, userId: authContext.userId },
-        { id: jobId, share: { organizationId: authContext.organizationId } },
-      ],
+      OR: [{ id: jobId, userId: authContext.userId }],
     },
   });
 
   if (!job) {
-    throw forbidden(
-      "You can only access your own jobs or jobs shared with your organization",
-    );
+    throw forbidden("You can only access your own jobs");
   }
   return job;
 }

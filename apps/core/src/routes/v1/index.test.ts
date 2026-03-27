@@ -50,8 +50,10 @@ describe("v1 router", () => {
       "true",
     );
     const body = (await response.json()) as {
+      paths?: Record<string, { get?: { security?: [] } }>;
       servers: Array<{ url: string }>;
     };
     expect(body.servers).toEqual([{ url: "/v1" }]);
+    expect(body.paths?.["/share/jobs/{token}"]?.get?.security).toEqual([]);
   });
 });

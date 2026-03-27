@@ -71,7 +71,7 @@ describe("getUserJobs", () => {
     await getUserJobs(orgAuthContext, {
       take: 20,
       tx,
-      scopes: ["context", "shared"],
+      scopes: ["context", "owned"],
     });
 
     expect(tx.job.findMany).toHaveBeenCalledWith(
@@ -81,7 +81,7 @@ describe("getUserJobs", () => {
             {
               OR: [
                 { userId: "user_123", organizationId: "org_123" },
-                { share: { organizationId: "org_123" } },
+                { userId: "user_123" },
               ],
             },
           ],
@@ -90,7 +90,7 @@ describe("getUserJobs", () => {
     );
   });
 
-  it("returns empty result for shared-only scope without organization", async () => {
+  it("uses personal context when organization is missing", async () => {
     const tx = createTransactionClient();
     const personalContext: UserAuthenticationContext = {
       actor: "user",
@@ -98,19 +98,23 @@ describe("getUserJobs", () => {
       organizationId: null,
     };
 
-    const result = await getUserJobs(personalContext, {
+    await getUserJobs(personalContext, {
       take: 20,
       tx,
-      scopes: ["shared"],
+      scopes: ["context"],
     });
 
-    expect(result).toEqual({
-      jobs: [],
-      count: 0,
-      hasMore: false,
-    });
-    expect(tx.job.findMany).not.toHaveBeenCalled();
-    expect(tx.job.count).not.toHaveBeenCalled();
+    expect(tx.job.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              OR: [{ userId: "user_123", organizationId: null }],
+            },
+          ],
+        },
+      }),
+    );
   });
 
   it("accepts any agent job status query without throwing", async () => {
@@ -119,7 +123,7 @@ describe("getUserJobs", () => {
     await getUserJobs(orgAuthContext, {
       take: 20,
       tx,
-      scopes: ["context", "shared"],
+      scopes: ["context", "owned"],
       status: AgentJobStatus.COMPLETED,
     });
 
@@ -130,7 +134,7 @@ describe("getUserJobs", () => {
             {
               OR: [
                 { userId: "user_123", organizationId: "org_123" },
-                { share: { organizationId: "org_123" } },
+                { userId: "user_123" },
               ],
             },
             {

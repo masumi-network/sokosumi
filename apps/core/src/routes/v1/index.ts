@@ -11,6 +11,7 @@ import coworkersRouter from "./coworkers/index.js";
 import creditCostsRouter from "./credit-costs/index.js";
 import jobsRouter from "./jobs/index.js";
 import organizationsRouter from "./organizations/index.js";
+import shareRouter from "./share/index.js";
 import tasksRouter from "./tasks/index.js";
 import usersRouter from "./users/index.js";
 
@@ -70,6 +71,7 @@ app.route("/credit-costs", creditCostsRouter);
 app.route("/users", usersRouter);
 app.route("/organizations", organizationsRouter);
 app.route("/jobs", jobsRouter);
+app.route("/share", shareRouter);
 app.route("/coworkers", coworkersRouter);
 app.route("/tasks", tasksRouter);
 
