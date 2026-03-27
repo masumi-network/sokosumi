@@ -64,7 +64,7 @@ function JobDetailsOutputsInner({
     return hashResult(result, job.identifierFromPurchaser);
   }, [result, job.identifierFromPurchaser]);
 
-  const onChainResultHash = job.purchase?.resultHash ?? null;
+  const onChainResultHash = job.resultHash ?? null;
   const isCompleted = event.status === AgentJobStatus.COMPLETED;
   const highlightTerm = (searchParams?.get("query") ?? "").trim();
 
@@ -100,7 +100,7 @@ function JobDetailsOutputsInner({
                 label={tMeta("resultHash")}
                 direction="result"
                 jobType={job.jobType}
-                onChainStatus={job.purchase?.onChainStatus}
+                onChainStatus={job.onChainStatus}
                 identifierFromPurchaser={job.identifierFromPurchaser}
                 result={result}
                 externalHash={onChainResultHash}

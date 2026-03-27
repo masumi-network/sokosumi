@@ -329,6 +329,8 @@ describe("core.client", () => {
             jobType: "PAID",
             status: "completed",
             credits: 5,
+            onChainStatus: null,
+            onChainTransactionHash: "0x123abc",
             agentJobId: "agent_job_1",
             identifierFromPurchaser: "identifier_123",
             user: {
@@ -352,14 +354,7 @@ describe("core.client", () => {
               legalOther: null,
               overrideLegalOther: null,
             },
-            transaction: {
-              amount: "5000000",
-            },
-            purchase: {
-              onChainStatus: null,
-              onChainTransactionHash: "0x123abc",
-              resultHash: "result_hash_123",
-            },
+            resultHash: "result_hash_123",
             events: [
               {
                 id: "event_completed",
@@ -407,7 +402,11 @@ describe("core.client", () => {
     });
     expect(response.share.allowSearchIndexing).toBe(false);
     expect(response.job.createdAt).toEqual(new Date("2026-03-26T10:00:00.000Z"));
-    expect(response.job.transaction?.amount).toBe(BigInt(5000000));
+    expect(response.job.credits).toBe(5);
+    expect(response.job.onChainTransactionHash).toBe("0x123abc");
+    expect(response.job.onChainStatus).toBeNull();
+    expect(response.job.transaction).toBeNull();
+    expect(response.job.purchase).toBeNull();
     expect(response.job.share?.token).toBe("public-share-token");
   });
 

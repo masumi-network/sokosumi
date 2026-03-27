@@ -11,7 +11,7 @@ import { ok } from "@/helpers/response";
 import { taskScopeQuerySchema } from "@/helpers/scope";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { jobsSchema } from "@/schemas/job.schema";
+import { jobSummariesSchema } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
 
 const paramsSchema = z.object({
@@ -35,7 +35,7 @@ const route = createRoute({
     query: querySchema,
   },
   responses: {
-    200: jsonSuccessResponse(jobsSchema, "Retrieve task jobs"),
+    200: jsonSuccessResponse(jobSummariesSchema, "Retrieve task jobs"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
   },
@@ -63,6 +63,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return jobsList.map((job) => flattenJob(job));
     });
 
-    return ok(c, jobsSchema.parse(jobs));
+    return ok(c, jobSummariesSchema.parse(jobs));
   });
 }

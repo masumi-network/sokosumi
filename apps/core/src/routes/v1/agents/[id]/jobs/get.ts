@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { JobType } from "@sokosumi/database";
+import { JobType, OnChainJobStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { getUserJobs } from "@/helpers/job";
@@ -18,7 +18,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { jobsSchema } from "@/schemas/job.schema.js";
+import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 const params = z.object({
@@ -46,7 +46,7 @@ const route = withGlobalHeaderParameters(
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        jobsSchema,
+        jobSummariesSchema,
         "Retrieve all jobs for the agent",
         {
           data: [
@@ -62,6 +62,8 @@ const route = withGlobalHeaderParameters(
               status: SokosumiJobStatus.COMPLETED,
               completedAt: "2025-01-15T10:35:00.000Z",
               credits: 5,
+              onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+              onChainTransactionHash: "0x123abc",
               result: "# Answer\n\nThere are 8 planets in the solar system.",
               resultHash: "result_hash_123",
             },
@@ -77,6 +79,8 @@ const route = withGlobalHeaderParameters(
               status: SokosumiJobStatus.PROCESSING,
               completedAt: null,
               credits: 0,
+              onChainStatus: null,
+              onChainTransactionHash: null,
               result: null,
               resultHash: null,
             },
@@ -125,6 +129,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursor,
     );
 
-    return ok(c, jobsSchema.parse(jobs), paginationMeta);
+    return ok(c, jobSummariesSchema.parse(jobs), paginationMeta);
   });
 }

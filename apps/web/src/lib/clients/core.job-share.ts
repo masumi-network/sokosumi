@@ -6,6 +6,7 @@ import {
   OnChainJobStatus,
   SokosumiJobStatus,
 } from "@sokosumi/database";
+import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { z } from "zod";
 
 const coreJobShareSchema = z.object({
@@ -91,22 +92,13 @@ const corePublicSharedJobSchema = z.object({
   jobType: z.enum(JobType),
   status: z.enum(SokosumiJobStatus),
   credits: z.number(),
+  onChainStatus: z.enum(OnChainJobStatus).nullable(),
+  onChainTransactionHash: z.string().nullable(),
   agentJobId: z.string(),
   identifierFromPurchaser: z.string().nullable(),
   user: corePublicSharedJobUserSchema,
   agent: corePublicSharedJobAgentSchema,
-  transaction: z
-    .object({
-      amount: z.string(),
-    })
-    .nullable(),
-  purchase: z
-    .object({
-      onChainStatus: z.enum(OnChainJobStatus).nullable(),
-      onChainTransactionHash: z.string().nullable(),
-      resultHash: z.string().nullable(),
-    })
-    .nullable(),
+  resultHash: z.string().nullable(),
   events: z.array(corePublicSharedJobEventSchema),
 });
 
@@ -153,9 +145,7 @@ export function parseCorePublicSharedJobResponse(
 
   const initiatedEvent = events.at(-1) ?? null;
   const latestResultEvent = events.find((event) => event.result !== null) ?? null;
-  const cents = parsedJob.transaction
-    ? BigInt(parsedJob.transaction.amount)
-    : BigInt(0);
+  const cents = convertCreditsToCents(parsedJob.credits);
 
   const job = {
     id: parsedJob.id,
@@ -172,8 +162,10 @@ export function parseCorePublicSharedJobResponse(
     jobType: parsedJob.jobType,
     status: parsedJob.status,
     credits: parsedJob.credits,
+    onChainStatus: parsedJob.onChainStatus,
+    onChainTransactionHash: parsedJob.onChainTransactionHash,
     result: latestResultEvent?.result ?? null,
-    resultHash: parsedJob.purchase?.resultHash ?? null,
+    resultHash: parsedJob.resultHash,
     input: initiatedEvent?.input?.input ?? null,
     inputHash: initiatedEvent?.input?.inputHash ?? null,
     inputSchema: initiatedEvent?.inputSchema ?? null,
@@ -185,18 +177,14 @@ export function parseCorePublicSharedJobResponse(
     unlockTime: null,
     externalDisputeUnlockTime: null,
     sellerVkey: null,
-    purchaseId: parsedJob.purchase ? `share:${share.id}` : null,
-    transactionId: parsedJob.transaction ? `share:${share.id}` : null,
+    purchaseId: null,
+    transactionId: null,
     refundedTransaction: null,
     refundedTransactionId: null,
     share,
     task: null,
-    purchase: parsedJob.purchase,
-    transaction: parsedJob.transaction
-      ? {
-          amount: cents,
-        }
-      : null,
+    purchase: null,
+    transaction: null,
     jobScheduleId: null,
     jobSchedule: null,
     events,

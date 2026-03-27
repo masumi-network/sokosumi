@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { AgentJobStatus, JobType, SokosumiJobStatus } from "@sokosumi/database";
+import { AgentJobStatus, JobType } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import mountGetSharedJobByToken from "./get";
@@ -28,13 +28,23 @@ function createJob() {
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
     updatedAt: new Date("2026-03-26T10:05:00.000Z"),
     completedAt: new Date("2026-03-26T10:10:00.000Z"),
+    agentId: "agent_123",
+    userId: "user_123",
+    organizationId: null,
     taskId: null,
     name: "Shared Job",
     jobType: JobType.PAID,
-    status: SokosumiJobStatus.COMPLETED,
-    credits: 5,
     agentJobId: "agent_job_123",
     identifierFromPurchaser: "identifier_123",
+    payByTime: null,
+    submitResultTime: null,
+    unlockTime: null,
+    externalDisputeUnlockTime: null,
+    blockchainIdentifier: null,
+    sellerVkey: null,
+    refundedTransaction: null,
+    refundedTransactionId: null,
+    share: null,
     user: {
       id: "user_123",
       name: "Ada Lovelace",
@@ -56,14 +66,20 @@ function createJob() {
       legalOther: null,
       overrideLegalOther: null,
     },
+    organization: null,
     transaction: {
       amount: BigInt(5000000),
     },
+    transactionId: "txn_123",
     purchase: {
       onChainStatus: null,
       onChainTransactionHash: "0x123abc",
       resultHash: "result_hash_123",
+      nextAction: null,
     },
+    purchaseId: "purchase_123",
+    jobScheduleId: null,
+    jobSchedule: null,
     events: [
       {
         id: "event_completed",
@@ -127,7 +143,11 @@ describe("GET /share/jobs/{token}", () => {
     });
     expect(body.data.share.allowSearchIndexing).toBe(false);
     expect(body.data.job.id).toBe("job_123");
-    expect(body.data.job.transaction.amount).toBe("5000000");
+    expect(body.data.job.credits).toBe(0.0005);
+    expect(body.data.job.onChainTransactionHash).toBe("0x123abc");
+    expect(body.data.job.onChainStatus).toBeNull();
+    expect(body.data.job).not.toHaveProperty("transaction");
+    expect(body.data.job).not.toHaveProperty("purchase");
   });
 
   it("returns 404 for an unknown token", async () => {
