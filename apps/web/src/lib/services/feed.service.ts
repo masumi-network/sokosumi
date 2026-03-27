@@ -4,7 +4,7 @@ import { coreClient } from "@/lib/clients/core.client";
 import type {
   Agent,
   Coworker,
-  Job,
+  JobSummary,
   Task,
   TaskEvent,
 } from "@/lib/clients/generated/core/types.gen";
@@ -80,7 +80,7 @@ function getLatestTaskEvent(task: Task): TaskEvent | null {
 }
 
 function toFeedJobItems(
-  jobs: Job[],
+  jobs: JobSummary[],
   agentsById: Map<string, Agent | null>,
 ): FeedJobItem[] {
   return jobs

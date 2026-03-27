@@ -22,6 +22,7 @@ function buildTask(
     credits: 0,
     events: [],
     jobs: [],
+    links: [],
     ...overrides,
   };
 }
