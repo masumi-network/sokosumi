@@ -100,9 +100,14 @@ export function TaskForm({
   const [description, setDescription] = useState(
     initialValues?.description ?? "",
   );
-  const [coworkerId, setCoworkerId] = useState<string>(
-    initialValues?.coworkerId ?? coworkerOptions[0]?.id ?? "",
-  );
+  const defaultCoworkerId = (() => {
+    const elenaCoworker = coworkerOptions.find(
+      (option) => option.slug === "elena"
+    );
+    return initialValues?.coworkerId ?? elenaCoworker?.id ?? coworkerOptions[0]?.id ?? "";
+  })();
+
+  const [coworkerId, setCoworkerId] = useState<string>(defaultCoworkerId);
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
