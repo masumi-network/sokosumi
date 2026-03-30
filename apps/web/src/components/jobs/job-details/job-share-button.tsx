@@ -10,6 +10,20 @@ import { cn } from "@/lib/utils";
 
 import JobShareModal from "./job-share-modal";
 
+interface JobShareModalHostProps {
+  open: boolean;
+  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
+  job: JobWithSokosumiStatus;
+}
+
+function JobShareModalHost({
+  open,
+  onOpenChange,
+  job,
+}: JobShareModalHostProps) {
+  return <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />;
+}
+
 interface JobShareButtonProps {
   job: JobWithSokosumiStatus;
   label?: string;
@@ -27,9 +41,7 @@ export default function JobShareButton({
 }: JobShareButtonProps) {
   const t = useTranslations("Components.Jobs.JobDetails.JobShare");
   const resolvedLabel = label ?? t("share");
-  const { showModal, Component } = useModal(({ open, onOpenChange }) => (
-    <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />
-  ));
+  const { showModal, Component } = useModal(JobShareModalHost, { job });
 
   return (
     <>

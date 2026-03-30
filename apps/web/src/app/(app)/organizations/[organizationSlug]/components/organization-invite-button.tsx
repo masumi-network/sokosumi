@@ -11,18 +11,34 @@ interface OrganizationInviteButtonProps {
   className?: string | undefined;
 }
 
-export default function OrganizationInviteButton({
+interface OrganizationMemberInviteModalHostProps {
+  open: boolean;
+  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
+  organizationId: string;
+}
+
+function OrganizationMemberInviteModalHost({
+  open,
+  onOpenChange,
   organizationId,
-  className,
-}: OrganizationInviteButtonProps) {
-  const t = useTranslations("App.Organizations.OrganizationDetail");
-  const { Component, showModal } = useModal(({ open, onOpenChange }) => (
+}: OrganizationMemberInviteModalHostProps) {
+  return (
     <OrganizationMemberInviteModal
       open={open}
       onOpenChange={onOpenChange}
       organizationId={organizationId}
     />
-  ));
+  );
+}
+
+export default function OrganizationInviteButton({
+  organizationId,
+  className,
+}: OrganizationInviteButtonProps) {
+  const t = useTranslations("App.Organizations.OrganizationDetail");
+  const { Component, showModal } = useModal(OrganizationMemberInviteModalHost, {
+    organizationId,
+  });
 
   return (
     <>

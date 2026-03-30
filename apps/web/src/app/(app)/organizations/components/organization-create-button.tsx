@@ -15,13 +15,9 @@ export default function OrganizationCreateButton({
   className,
 }: OrganizationCreateButtonProps) {
   const t = useTranslations("App.Organizations");
-  const { Component, showModal } = useModal(({ open, onOpenChange }) => (
-    <OrganizationInformationModal
-      open={open}
-      onOpenChange={onOpenChange}
-      organization={null}
-    />
-  ));
+  const { Component, showModal } = useModal(OrganizationInformationModal, {
+    organization: null,
+  });
 
   return (
     <>
