@@ -31,13 +31,6 @@ export const putJobShareRequestSchema = z.object({
 
 export const putTaskShareRequestSchema = putJobShareRequestSchema;
 
-export const publicSharedJobResponseSchema = z
-  .object({
-    job: jobSchema,
-    share: jobShareSchema,
-  })
-  .openapi("PublicSharedJobResponse");
-
 export const publicSharedTaskCoworkerSchema = z
   .object({
     id: z.string().openapi({ example: "cow_123" }),
@@ -89,13 +82,6 @@ export const publicSharedTaskSchema = z
     events: z.array(publicSharedTaskMilestoneSchema).openapi({ example: [] }),
   })
   .openapi("PublicSharedTask");
-
-export const publicSharedTaskResponseSchema = z
-  .object({
-    task: publicSharedTaskSchema,
-    share: taskShareSchema,
-  })
-  .openapi("PublicSharedTaskResponse");
 
 export const publicSharedJobResourceSchema = z
   .object({
