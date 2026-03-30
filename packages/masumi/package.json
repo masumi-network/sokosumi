@@ -56,8 +56,7 @@
     "test:watch": "vitest",
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
-    "generate:api": "pnpm run generate:registry && pnpm run generate:payment",
-    "lint:report": "biome check --reporter=json . > lint-report.json"
+    "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
   },
   "dependencies": {
     "json-canonicalize": "2.0.0",

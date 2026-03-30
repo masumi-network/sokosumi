@@ -33,8 +33,7 @@
     "format:check": "biome format .",
     "test": "vitest run",
     "test:ci": "vitest run",
-    "test:watch": "vitest",
-    "lint:report": "biome check --reporter=json . > lint-report.json"
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "24.12.0",

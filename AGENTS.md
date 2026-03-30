@@ -185,7 +185,6 @@ const config = {
 | `pnpm web:start`       | Smoke test production build   |
 | `pnpm lint`            | Run Biome checks across the codebase |
 | `pnpm web:lint`        | Run Biome checks for the web app     |
-| `pnpm web:lint:report` | CI-friendly lint report       |
 | `pnpm test`            | Run tests locally             |
 | `pnpm core:test`       | Run core API tests            |
 | `pnpm web:test`        | Run web app tests             |
