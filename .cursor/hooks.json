@@ -3,11 +3,8 @@
   "hooks": {
     "afterFileEdit": [
       {
-        "command": "pnpm lint:fix"
+        "command": "pnpm check:write"
       },
-      {
-        "command": "pnpm format"
-      }
     ]
   }
 }

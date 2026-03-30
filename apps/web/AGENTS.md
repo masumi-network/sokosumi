@@ -63,8 +63,9 @@ See [.cursor/rules/effects.mdc](.cursor/rules/effects.mdc) for examples and refe
 
 The web app uses the shared Biome configuration from the repo root. See [root AGENTS.md](../../AGENTS.md#linting--formatting) for base rules.
 
-- `pnpm web:lint` runs `biome check`, so it enforces linting, formatting, and import organization
-- `pnpm web:lint:fix` applies Biome fixes, including import organization
+- `pnpm web:check` runs `biome check`, so it enforces linting, formatting, and import organization
+- `pnpm web:check:write` applies Biome fixes, including import organization
+- `pnpm web:lint` runs `biome lint`, so it checks lint rules only
 - Some older ESLint-only rules were intentionally removed during the Biome migration and are now conventions rather than enforced diagnostics
 
 #### Environment Variables
@@ -134,7 +135,8 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 | `pnpm web:dev`    | Start development server  |
 | `pnpm web:build`  | Build for production      |
 | `pnpm web:start`  | Test production build     |
-| `pnpm web:lint`   | Run Biome checks for the web app |
+| `pnpm web:lint`   | Run Biome lint rules for the web app |
+| `pnpm web:check`  | Run full Biome checks for the web app |
 | `pnpm web:test`   | Run web app tests         |
 | `pnpm web:format` | Format code with Biome |
 

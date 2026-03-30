@@ -26,8 +26,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Run lint checks
-        run: pnpm lint
+      - name: Run Biome checks
+        run: pnpm check
 
   biome-annotations:
     name: Biome PR annotations

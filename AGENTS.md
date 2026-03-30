@@ -107,7 +107,8 @@ The monorepo uses a shared Biome configuration at the repo root.
 
 **Import Organization**:
 
-- `pnpm lint` runs `biome check`, which enforces linting, formatting, and import organization
+- `pnpm check` runs `biome check`, which enforces linting, formatting, and import organization
+- `pnpm lint` runs `biome lint`, which checks lint rules only
 - Unused imports are reported and can be auto-fixed by Biome
 
 **TypeScript Rules**:
@@ -154,7 +155,7 @@ const config = {
 | Error                               | Solution                          |
 | ----------------------------------- | --------------------------------- |
 | `lint/correctness/noUnusedImports`  | Remove import or use it           |
-| `assist/source/organizeImports`     | Run `pnpm lint:fix` or `pnpm format` |
+| `assist/source/organizeImports`     | Run `pnpm check:write` or `pnpm format` |
 
 ## Environment & Tooling
 
@@ -183,8 +184,10 @@ const config = {
 | `pnpm web:build`       | Build web app for production  |
 | `pnpm core:build`      | Build core API for production |
 | `pnpm web:start`       | Smoke test production build   |
-| `pnpm lint`            | Run Biome checks across the codebase |
-| `pnpm web:lint`        | Run Biome checks for the web app     |
+| `pnpm lint`            | Run Biome lint rules across the codebase |
+| `pnpm check`           | Run full Biome checks across the codebase |
+| `pnpm web:lint`        | Run Biome lint rules for the web app |
+| `pnpm web:check`       | Run full Biome checks for the web app |
 | `pnpm test`            | Run tests locally             |
 | `pnpm core:test`       | Run core API tests            |
 | `pnpm web:test`        | Run web app tests             |
