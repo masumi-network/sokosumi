@@ -1,9 +1,9 @@
-import { InputMultiselectSchemaType } from "@sokosumi/masumi/schemas";
-import { InputType } from "@sokosumi/masumi/types";
+import type { InputMultiselectSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputType } from "@sokosumi/masumi/types";
 
 import MultipleSelect from "@/components/multiple-select";
 
-import { JobInputComponentProps } from "./types";
+import type { JobInputComponentProps } from "./types";
 
 export function MultiselectInput({
   field,

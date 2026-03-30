@@ -8,14 +8,14 @@ import {
 } from "../generated/prisma/browser.js";
 import type { Job } from "../generated/prisma/client.js";
 import {
-  DemoJobWithStatus,
-  FreeJobWithStatus,
+  type DemoJobWithStatus,
+  type FreeJobWithStatus,
   type JobEventWithRelations,
   type JobWithEvents,
-  JobWithPurchase,
-  JobWithSokosumiStatus,
-  JobWithTransaction,
-  PaidJobWithStatus,
+  type JobWithPurchase,
+  type JobWithSokosumiStatus,
+  type JobWithTransaction,
+  type PaidJobWithStatus,
   SokosumiJobStatus,
 } from "../types/job.js";
 

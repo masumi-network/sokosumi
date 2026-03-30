@@ -1,4 +1,4 @@
-import { InputSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 

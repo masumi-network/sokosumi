@@ -56,7 +56,13 @@ function getAuditPaths() {
     ? raw.split(",").map((p) => p.trim().replace(/^\//, ""))
     : [(process.env.AUDIT_PATH || DEFAULT_AUDIT_PATH).replace(/^\//, "")];
   return paths
-    .map((p) => "/" + p.replace(/\{\{agentId\}\}/gi, agentId).replace(/\{\{jobId\}\}/gi, jobId))
+    .map(
+      (p) =>
+        "/" +
+        p
+          .replace(/\{\{agentId\}\}/gi, agentId)
+          .replace(/\{\{jobId\}\}/gi, jobId),
+    )
     .filter((p) => p !== "/");
 }
 
@@ -117,8 +123,7 @@ async function main() {
       "  Throttling: high-latency (~400ms RTT, 1 Mbps down) — simulates distant user (e.g. Canada)",
     );
   }
-  const outputSuffix =
-    auditPaths.length === 1 ? ".report" : ".report-<slug>";
+  const outputSuffix = auditPaths.length === 1 ? ".report" : ".report-<slug>";
   console.log("  Output:     ", `${outputBase}${outputSuffix}.{html,json}`);
   console.log("");
 
@@ -129,9 +134,7 @@ async function main() {
   });
 
   console.log("Chrome launched. Sign in in the browser window.");
-  console.log(
-    "Then go to any app page (e.g. /agents) and press Enter here.",
-  );
+  console.log("Then go to any app page (e.g. /agents) and press Enter here.");
   await waitForEnter("Press Enter when you are logged in and ready... ");
 
   const outputDir = dirname(outputBase);
@@ -163,7 +166,11 @@ async function main() {
     const pathBase = outputBase + pathSuffix;
 
     console.log(`[${i + 1}/${auditPaths.length}] Auditing ${path} ...`);
-    const runnerResult = await lighthouse(auditUrl, { port: DEBUG_PORT }, config);
+    const runnerResult = await lighthouse(
+      auditUrl,
+      { port: DEBUG_PORT },
+      config,
+    );
     if (!runnerResult) {
       console.error(`  No result for ${path}`);
       continue;
@@ -181,7 +188,9 @@ async function main() {
   console.log("Done. Reports:");
   for (const { path, slug, score } of results) {
     const pathSuffix = auditPaths.length === 1 ? ".report" : `.report-${slug}`;
-    console.log(`  ${score != null ? score : "N/A"}  ${path}  ${outputBase}${pathSuffix}.html`);
+    console.log(
+      `  ${score != null ? score : "N/A"}  ${path}  ${outputBase}${pathSuffix}.html`,
+    );
   }
 }
 

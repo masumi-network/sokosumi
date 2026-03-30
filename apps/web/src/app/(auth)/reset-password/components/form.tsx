@@ -10,8 +10,8 @@ import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { resetPasswordFormData } from "@/auth/reset-password/data";
 import { resetPassword } from "@/lib/auth/auth.client";
 import {
+  type ResetPasswordFormSchemaType,
   resetPasswordFormSchema,
-  ResetPasswordFormSchemaType,
 } from "@/lib/schemas";
 
 interface ResetPasswordFormProps {

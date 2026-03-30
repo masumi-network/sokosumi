@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { InputType } from "@sokosumi/masumi/types";
+import { describe, expect, it } from "vitest";
 
 import { getReadonlyNoneInputValues } from "@/lib/utils/job-input-transformers";
 

@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { TranslationFunction } from "./types";
+import type { TranslationFunction } from "./types";
 
 export function createApiKeySchema(t: TranslationFunction) {
   return z.object({

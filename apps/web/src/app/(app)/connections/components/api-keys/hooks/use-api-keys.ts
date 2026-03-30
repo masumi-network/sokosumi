@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import {
+import type {
   ApiKeyRecord,
   CreateApiKeyRequest,
   CreateApiKeyResult,

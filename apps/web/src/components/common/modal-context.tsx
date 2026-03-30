@@ -1,8 +1,11 @@
 "use client";
 
-import { createContext, ReactNode, useContext, useState } from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 
-import { BetterAuthClientError, BetterAuthClientResult } from "@/lib/actions";
+import type {
+  BetterAuthClientError,
+  BetterAuthClientResult,
+} from "@/lib/actions";
 
 export interface ModalContextType<TItem, TAction> {
   open: boolean;

@@ -1,6 +1,9 @@
 "use client";
 
-import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
+import type {
+  AgentWithCreditsPrice,
+  AgentWithRelations,
+} from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { ArrowLeft } from "lucide-react";
 import Image from "next/image";

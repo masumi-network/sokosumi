@@ -1,6 +1,6 @@
-import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
-import { UseFormReturn } from "react-hook-form";
+import type { UseFormReturn } from "react-hook-form";
 
 import {
   FormControl,
@@ -10,7 +10,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { JobInputsFormSchemaType } from "@/lib/job-input";
+import type { JobInputsFormSchemaType } from "@/lib/job-input";
 
 import { InputField } from "./inputs/input-field";
 import { isOptional } from "./util";

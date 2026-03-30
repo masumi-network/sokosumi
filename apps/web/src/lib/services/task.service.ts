@@ -1,6 +1,6 @@
 import "server-only";
 
-import { TaskStatus } from "@sokosumi/database";
+import type { TaskStatus } from "@sokosumi/database";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";

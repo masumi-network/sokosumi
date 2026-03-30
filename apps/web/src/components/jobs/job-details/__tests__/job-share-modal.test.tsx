@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   JobType,
-  SokosumiJobStatus,
   type JobWithSokosumiStatus,
+  SokosumiJobStatus,
 } from "@sokosumi/database";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import JobShareModal from "@/components/jobs/job-details/job-share-modal";

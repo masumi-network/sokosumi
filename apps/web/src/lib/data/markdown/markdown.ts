@@ -3,7 +3,7 @@ import "server-only";
 import { readFile } from "fs/promises";
 import path from "path";
 
-import { MarkdownFilePathMappings, MarkdownFileType } from "./types";
+import { MarkdownFilePathMappings, type MarkdownFileType } from "./types";
 
 export async function readMarkdownFileContent(
   fileType: MarkdownFileType,

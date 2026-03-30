@@ -1,4 +1,4 @@
-import { JobShare } from "@sokosumi/database";
+import type { JobShare } from "@sokosumi/database";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 

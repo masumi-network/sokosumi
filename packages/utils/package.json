@@ -22,19 +22,20 @@
     "build": "tsc",
     "clean": "rm -rf dist && rm -f tsconfig.tsbuildinfo",
     "prepare": "pnpm build",
-    "lint": "eslint --max-warnings 0 .",
-    "lint:fix": "eslint --fix .",
-    "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\"",
+    "lint": "biome lint .",
+    "lint:write": "biome lint --write .",
+    "check": "biome check .",
+    "check:write": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "test": "vitest run",
     "test:ci": "vitest run",
-    "test:watch": "vitest",
-    "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json ."
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "24.12.0",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
-    "vitest": "4.1.1"
+    "vitest": "4.1.2"
   }
 }

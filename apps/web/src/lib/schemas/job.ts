@@ -1,9 +1,9 @@
 import {
-  InputFieldSchemaType,
+  type InputFieldSchemaType,
+  type InputSchemaSchemaType,
   inputGroupsSchema,
   inputSchema,
   inputSchemaResponseSchema,
-  InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
 

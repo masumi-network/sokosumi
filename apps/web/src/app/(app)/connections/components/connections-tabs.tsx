@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 

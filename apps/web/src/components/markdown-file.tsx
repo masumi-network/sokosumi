@@ -1,4 +1,7 @@
-import { MarkdownFileType, readMarkdownFileContent } from "@/lib/data/markdown";
+import {
+  type MarkdownFileType,
+  readMarkdownFileContent,
+} from "@/lib/data/markdown";
 
 import Markdown from "./markdown";
 

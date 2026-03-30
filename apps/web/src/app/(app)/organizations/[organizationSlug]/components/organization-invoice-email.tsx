@@ -2,9 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  Member,
+  type Member,
   MemberRole,
-  OrganizationWithRelations,
+  type OrganizationWithRelations,
 } from "@sokosumi/database";
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import { Loader2, Mail } from "lucide-react";

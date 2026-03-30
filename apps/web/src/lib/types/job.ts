@@ -1,4 +1,4 @@
-import { ScheduleType, SokosumiJobStatus } from "@sokosumi/database";
+import { ScheduleType, type SokosumiJobStatus } from "@sokosumi/database";
 
 export type JobScheduleSelectionType = {
   mode: JobScheduleType;

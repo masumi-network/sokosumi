@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import type {
   JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
@@ -349,7 +349,7 @@ function getJobEventActor({
     },
   };
 
-  if (Boolean(event.input)) {
+  if (event.input) {
     // Show the user for input-provided events (fallback to agent).
     return job.user
       ? {

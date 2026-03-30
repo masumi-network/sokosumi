@@ -1,9 +1,9 @@
-import { render, screen } from "@testing-library/react";
 import {
   JobType,
-  SokosumiJobStatus,
   type JobWithSokosumiStatus,
+  SokosumiJobStatus,
 } from "@sokosumi/database";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { JobMetaDetails } from "@/components/jobs/job-details/job-meta-details";

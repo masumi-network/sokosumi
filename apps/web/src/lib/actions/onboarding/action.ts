@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 
-import { ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { userService } from "@/lib/services";
-import { Err, Ok, Result } from "@/lib/ts-res";
+import { Err, Ok, type Result } from "@/lib/ts-res";
 
 export async function completeOnboarding(): Promise<
   Result<{ redirectUrl: string }, ActionError>

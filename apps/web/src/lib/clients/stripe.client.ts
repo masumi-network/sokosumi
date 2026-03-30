@@ -6,7 +6,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
   CREDIT_TOPUP_LOOKUP_KEYS,
-  CreditTopUpLookupKey,
+  type CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
   type StandardCreditTopUpLookupKey,
 } from "@/lib/stripe/credit-topup-pricing";

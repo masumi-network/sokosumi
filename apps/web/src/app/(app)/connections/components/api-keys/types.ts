@@ -1,4 +1,4 @@
-import { useTranslations } from "next-intl";
+import type { useTranslations } from "next-intl";
 
 import type { authClient } from "@/lib/auth/auth.client";
 

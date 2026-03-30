@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import React from "react";
 
-import { AgentLegal } from "@/lib/types/agent";
+import type { AgentLegal } from "@/lib/types/agent";
 
 interface AcceptTermsOfServiceProps {
   legal?: AgentLegal | null | undefined;

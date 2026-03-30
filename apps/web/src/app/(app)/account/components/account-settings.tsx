@@ -1,4 +1,4 @@
-import { type Account } from "@/lib/auth/auth";
+import type { Account } from "@/lib/auth/auth";
 import { AccountProvider } from "@/lib/auth/types";
 
 import { DeleteAccountForm } from "./delete-account-form";

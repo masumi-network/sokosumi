@@ -1,4 +1,4 @@
-import { Stripe } from "stripe";
+import type { Stripe } from "stripe";
 
 import { CouponTypeError } from "@/lib/errors/coupon-errors";
 import { isPositiveIntegerCredits } from "@/lib/stripe/credit-topup-pricing";

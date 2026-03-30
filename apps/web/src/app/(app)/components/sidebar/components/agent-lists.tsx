@@ -1,4 +1,4 @@
-import { Agent } from "@sokosumi/database";
+import type { Agent } from "@sokosumi/database";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { agentService, jobService } from "@/lib/services";
-import { AgentWithAvailability } from "@/lib/types/agent";
+import type { AgentWithAvailability } from "@/lib/types/agent";
 
 import AgentListsClient from "./agent-lists.client";
 

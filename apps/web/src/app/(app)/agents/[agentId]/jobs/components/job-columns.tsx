@@ -1,10 +1,10 @@
 "use client";
 
-import { JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { isDemoJob } from "@sokosumi/database/helpers";
 import { useQueryClient } from "@tanstack/react-query";
-import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
-import { useFormatter, useTranslations } from "next-intl";
+import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
+import type { useFormatter, useTranslations } from "next-intl";
 import { useEffect } from "react";
 
 import { DataTableColumnHeader } from "@/components/data-table";

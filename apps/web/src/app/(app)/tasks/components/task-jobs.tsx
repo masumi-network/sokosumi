@@ -13,8 +13,8 @@ import { formatTimeAgo } from "@/lib/utils/datetime";
 
 import { TaskJobStatusBadge } from "./task-job-status-badge.client";
 import {
-  TaskJobsRealtimeProvider,
   TaskJobStatusChannelProvider,
+  TaskJobsRealtimeProvider,
 } from "./task-jobs-realtime-provider.client";
 
 interface TaskJobsProps {

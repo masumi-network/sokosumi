@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { ApiKeysHeaderProps } from "./types";
+import type { ApiKeysHeaderProps } from "./types";
 
 export function ApiKeysHeader({ onCreateClick }: ApiKeysHeaderProps) {
   const t = useTranslations("App.Account.ApiKeys");

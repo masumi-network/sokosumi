@@ -1,10 +1,10 @@
 "use client";
 
-import {
+import type {
   JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
-import { type InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,10 +13,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React, { useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import { JobInputsFlatForm } from "@/components/create-job-modal/job-input/job-inputs-flat-form";
-import { FormFooterProps } from "@/components/create-job-modal/job-input/job-inputs-form-builder";
+import type { FormFooterProps } from "@/components/create-job-modal/job-input/job-inputs-form-builder";
 import { JobInputsGroupedForm } from "@/components/create-job-modal/job-input/job-inputs-grouped-form";
 import { Button } from "@/components/ui/button";
 import { useInputs } from "@/hooks/use-inputs";

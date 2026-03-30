@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/database";
 import { FREE_CREDITS_EXPIRY_DAYS } from "@sokosumi/database/helpers";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -30,9 +30,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-  claimFreeCreditsWithCoupon,
   CommonErrorCode,
   CreditsErrorCode,
+  claimFreeCreditsWithCoupon,
 } from "@/lib/actions";
 import { fireGTMEvent } from "@/lib/gtm-events";
 

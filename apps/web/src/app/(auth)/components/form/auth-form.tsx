@@ -1,13 +1,13 @@
 "use client";
 
-import { ReactNode } from "react";
-import { FieldValues, UseFormReturn } from "react-hook-form";
+import type { ReactNode } from "react";
+import type { FieldValues, UseFormReturn } from "react-hook-form";
 
-import { FormData } from "@/lib/form";
+import type { FormData } from "@/lib/form";
 
 import { BaseForm } from "./base-form";
 import { FormFields } from "./form-fields";
-import { AuthNamespace } from "./types";
+import type { AuthNamespace } from "./types";
 
 interface AuthFormProps<T extends FieldValues> {
   form: UseFormReturn<T>;

@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { AgentStatus } from "@sokosumi/database";
+import { describe, expect, it } from "vitest";
 
 import {
   SPECIAL_AGENT_CATEGORY_SLUGS,

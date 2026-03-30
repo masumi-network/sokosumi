@@ -2,8 +2,8 @@
 
 import {
   AgentJobStatus,
-  JobEventWithRelations,
-  JobWithSokosumiStatus,
+  type JobEventWithRelations,
+  type JobWithSokosumiStatus,
 } from "@sokosumi/database";
 import { isPaidJob } from "@sokosumi/database/helpers";
 import { hashResult } from "@sokosumi/masumi";

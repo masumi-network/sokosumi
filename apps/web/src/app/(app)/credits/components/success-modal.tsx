@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { Suspense } from "react";

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { TaskStatus } from "@sokosumi/database";
+import { describe, expect, it } from "vitest";
 
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 

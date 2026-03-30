@@ -3,13 +3,13 @@ import "server-only";
 import {
   AgentListType,
   AgentStatus,
-  AgentWithCreditsPrice,
-  AgentWithJobs,
-  AgentWithPricing,
-  AgentWithRelations,
-  CreditCost,
+  type AgentWithCreditsPrice,
+  type AgentWithJobs,
+  type AgentWithPricing,
+  type AgentWithRelations,
+  type CreditCost,
   PricingType,
-  Prisma,
+  type Prisma,
 } from "@sokosumi/database";
 import {
   agentListRepository,
@@ -259,9 +259,7 @@ export const agentService = (() => {
                 cents: creditsPriceCents,
               },
             });
-          } catch {
-            continue;
-          }
+          } catch {}
         }
 
         return agentsWithCreditsPrice;

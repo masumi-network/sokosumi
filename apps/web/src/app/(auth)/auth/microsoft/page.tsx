@@ -1,4 +1,4 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import SocialSignupAutoInitiator from "@/auth/components/social-signup-auto-initiator";

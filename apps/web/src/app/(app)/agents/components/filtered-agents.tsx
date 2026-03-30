@@ -14,7 +14,7 @@ import {
 } from "@/components/agents";
 import { Skeleton } from "@/components/ui/skeleton";
 import useGalleryFilter, {
-  GalleryFilterState,
+  type GalleryFilterState,
 } from "@/hooks/use-gallery-filter";
 import { filterAgents } from "@/lib/helpers/agent-filter";
 import { groupAgentsByCategory } from "@/lib/helpers/agent-grouping";

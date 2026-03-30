@@ -1,14 +1,14 @@
 "use client";
 
-import { AgentWithCreditsPrice } from "@sokosumi/database";
-import { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInputs } from "@/hooks/use-inputs";
 import { getAgentDemoValues, getAgentLegal } from "@/lib/helpers/agent";
-import { AgentDemoValues } from "@/lib/types/agent";
+import type { AgentDemoValues } from "@/lib/types/agent";
 import { getAgentInputSchemaQueryOptions } from "@/queries/agents";
 
 import { JobInputsFlatForm } from "./job-inputs-flat-form";

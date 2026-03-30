@@ -26,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { ApiKeySuccessDisplay } from "./api-key-success-display";
-import { CreateApiKeyDialogProps, CreateApiKeyFormData } from "./types";
+import type { CreateApiKeyDialogProps, CreateApiKeyFormData } from "./types";
 import { createApiKeySchema, DEFAULT_CREATE_FORM_VALUES } from "./utils";
 
 export function CreateApiKeyDialog({

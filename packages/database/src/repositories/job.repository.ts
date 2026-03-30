@@ -10,9 +10,9 @@ import { mapJobWithStatus } from "../helpers/job.js";
 import { buildJobsNeedingAgentStatusSyncWhere } from "../helpers/job-sync.js";
 import {
   finalizedAgentJobStatuses,
+  type JobWithSokosumiStatus,
   jobInclude,
   jobOrderBy,
-  type JobWithSokosumiStatus,
 } from "../types/job.js";
 import { creditBucketRepository } from "./credit-bucket.repository.js";
 
@@ -294,7 +294,7 @@ export const jobRepository = {
     };
 
     switch (data.jobType) {
-      case JobType.FREE:
+      case JobType.FREE: {
         const freeJob = await tx.job.create({
           data: {
             ...baseJobData,
@@ -309,7 +309,8 @@ export const jobRepository = {
           include: jobInclude,
         });
         return mapJobWithStatus(freeJob);
-      case JobType.PAID:
+      }
+      case JobType.PAID: {
         const consumptions = await creditBucketRepository.prepareConsumption(
           data.userId,
           data.organizationId ?? null,
@@ -356,6 +357,7 @@ export const jobRepository = {
           include: jobInclude,
         });
         return mapJobWithStatus(paidJob);
+      }
       default: {
         const _exhaustive: never = data;
         throw new Error(`Unsupported job type: ${_exhaustive}`);

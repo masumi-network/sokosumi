@@ -3,7 +3,7 @@ import "server-only";
 import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/nextjs";
-import { put, PutBlobResult } from "@vercel/blob";
+import { type PutBlobResult, put } from "@vercel/blob";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 

@@ -1,4 +1,4 @@
-import { SocialProviderId } from "@/lib/schemas/auth";
+import type { SocialProviderId } from "@/lib/schemas/auth";
 
 import { fireEvent } from "./utils";
 

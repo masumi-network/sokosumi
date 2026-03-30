@@ -6,12 +6,12 @@ import { v4 as uuidv4 } from "uuid";
 import * as z from "zod";
 
 import {
-  ApiSuccessResponse,
+  type ApiSuccessResponse,
   createEmptyResponse,
   createSuccessResponse,
 } from "@/lib/api/schemas/base";
 import {
-  ApiErrorResponse,
+  type ApiErrorResponse,
   createErrorResponse,
   HttpErrors,
 } from "@/lib/api/schemas/error";
@@ -179,9 +179,7 @@ export function createApiSuccessResponse<T>(
  * @returns NextResponse with standardized success format
  */
 export function createApiEmptyResponse(
-  options: {
-    status?: number;
-  } = {},
+  options: { status?: number } = {},
 ): NextResponse {
   const emptyResponse = createEmptyResponse();
 

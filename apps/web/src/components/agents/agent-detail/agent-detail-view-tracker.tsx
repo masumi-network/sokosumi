@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { useEffect } from "react";
 

@@ -1,7 +1,10 @@
-import type { AgentRatingStats } from "@sokosumi/database";
-import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
+import type {
+  AgentRatingStats,
+  AgentWithCreditsPrice,
+  AgentWithRelations,
+} from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
-import { cva, VariantProps } from "class-variance-authority";
+import { cva, type VariantProps } from "class-variance-authority";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";

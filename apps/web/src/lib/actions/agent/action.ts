@@ -1,14 +1,14 @@
 "use server";
 
-import { AgentListType } from "@sokosumi/database";
+import type { AgentListType } from "@sokosumi/database";
 import { agentListRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
-import { ActionError } from "@/lib/actions";
+import type { ActionError } from "@/lib/actions";
 import prisma from "@/lib/db/prisma";
-import { Ok, Result } from "@/lib/ts-res";
+import { Ok, type Result } from "@/lib/ts-res";
 import {
-  AuthenticatedRequest,
+  type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 

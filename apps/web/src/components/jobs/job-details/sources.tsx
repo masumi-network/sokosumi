@@ -1,5 +1,5 @@
 "use client";
-import { JobEventWithRelations } from "@sokosumi/database";
+import type { JobEventWithRelations } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";

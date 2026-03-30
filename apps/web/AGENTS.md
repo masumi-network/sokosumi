@@ -61,13 +61,18 @@ See [.cursor/rules/effects.mdc](.cursor/rules/effects.mdc) for examples and refe
 
 ### Linting & Formatting
 
-The web app extends the monorepo's base linting rules with web-specific constraints. See [root AGENTS.md](../../AGENTS.md#linting--formatting) for base rules.
+The web app uses the shared Biome configuration from the repo root. See [root AGENTS.md](../../AGENTS.md#linting--formatting) for base rules.
+
+- `pnpm web:check` runs `biome check`, so it enforces linting, formatting, and import organization
+- `pnpm web:check:write` applies Biome fixes, including import organization
+- `pnpm web:lint` runs `biome lint`, so it checks lint rules only
+- Some older ESLint-only rules were intentionally removed during the Biome migration and are now conventions rather than enforced diagnostics
 
 #### Environment Variables
 
 **Critical**: Never use `process.env` directly in web app code.
 
-- **Error**: `no-restricted-properties` on `process.env`
+- **Status**: This is a repository convention and code review rule; it is no longer enforced by the formatter/linter.
 - **Fix**: Use typed config functions:
   - `getEnvSecrets()` - for sensitive variables (API keys, database URLs)
   - `getEnvConfig()` - for public configuration (feature flags, URLs)
@@ -75,7 +80,7 @@ The web app extends the monorepo's base linting rules with web-specific constrai
 **Example**:
 
 ```typescript
-// ❌ Wrong - will fail linting
+// ❌ Wrong
 const apiKey = process.env.API_KEY;
 
 // ✅ Correct - type-safe and validated
@@ -85,7 +90,7 @@ const apiKey = getEnvSecrets().API_KEY;
 
 #### Import Paths
 
-- **No relative imports** across directories (enforced by `no-relative-import-paths`)
+- **No relative imports** across directories
 - Same-folder relative imports are allowed: `import { helper } from "./helper"`
 - Use `@/` alias for all cross-directory imports
 - For App Router modules, always import via `@/app/<subpath>` and never `src/app/(app)` in import paths
@@ -99,14 +104,13 @@ import { getUser } from "@/lib/services/user";
 import { JobsList } from "@/app/agents/[agentId]/jobs/components/jobs-list";
 import { helper } from "./helper"; // same folder
 
-// ❌ Wrong - will fail linting
+// ❌ Wrong
 import { Button } from "../../components/ui/button";
 import { getUser } from "../services/user";
 import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-list";
 ```
 
-**Error**: `no-relative-import-paths/no-relative-import-paths`
-**Fix**: Convert to absolute path with `@/` alias
+**Fix**: Convert cross-directory imports to absolute paths with `@/`
 
 #### Next.js Specific
 
@@ -114,8 +118,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Never use `<a>` tags for page navigation
 - Optimize images with `<Image>` component
 
-**Error**: `@next/next/no-html-link-for-pages`
-**Fix**: Replace `<a href="/path">Link</a>` with `<Link href="/path">Link</Link>`
+- **Status**: This remains the expected project convention, but it is not currently enforced by Biome
 
 #### Internationalization (i18next)
 
@@ -123,8 +126,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Use `useTranslations()` hook in components
 - Add new keys to `messages/en.json`
 
-**Error**: `i18next/no-literal-string` (when enabled)
-**Fix**: Extract string to translation key
+- **Status**: This remains the expected project convention, but it is not currently enforced by Biome
 
 ## App-Specific Commands
 
@@ -133,9 +135,10 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 | `pnpm web:dev`    | Start development server  |
 | `pnpm web:build`  | Build for production      |
 | `pnpm web:start`  | Test production build     |
-| `pnpm web:lint`   | Lint web app              |
+| `pnpm web:lint`   | Run Biome lint rules for the web app |
+| `pnpm web:check`  | Run full Biome checks for the web app |
 | `pnpm web:test`   | Run web app tests         |
-| `pnpm web:format` | Format code with Prettier |
+| `pnpm web:format` | Format code with Biome |
 
 ## App-Specific Testing
 
@@ -200,7 +203,7 @@ Env vars that must be set per environment: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_
 1. **Start Development**: `pnpm web:dev`
 2. **Database Changes**: Run migrations with `pnpm prisma:migrate:dev`
 3. **Testing**: Run `pnpm web:test` before committing
-4. **Formatting**: Run `pnpm web:format` after changes
+4. **Formatting**: Run `pnpm format` after changes
 
 ## Common Patterns
 

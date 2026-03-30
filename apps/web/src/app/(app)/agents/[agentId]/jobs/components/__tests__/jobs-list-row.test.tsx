@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
 import {
   JobType,
-  SokosumiJobStatus,
   type JobWithSokosumiStatus,
+  SokosumiJobStatus,
 } from "@sokosumi/database";
+import { render, screen } from "@testing-library/react";
 import { type ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { JobRow } from "@/app/agents/[agentId]/jobs/components/jobs-list";
 

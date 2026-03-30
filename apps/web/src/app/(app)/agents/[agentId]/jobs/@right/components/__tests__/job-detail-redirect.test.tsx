@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import JobDetailRedirect from "@/app/agents/[agentId]/jobs/@right/components/job-detail-redirect";
 

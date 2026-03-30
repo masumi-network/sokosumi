@@ -1,5 +1,5 @@
 import { resolveBetterAuthCookieName } from "@sokosumi/utils";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 

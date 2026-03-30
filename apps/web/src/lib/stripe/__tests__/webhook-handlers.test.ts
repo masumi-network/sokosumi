@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildOrganizationInvoiceCreditReferenceId,
   buildOrganizationMemberSubscriptionReferenceId,
@@ -7,6 +6,7 @@ import {
   FREE_CREDITS_EXPIRY_DAYS,
   getCreditExpiryDate,
 } from "@sokosumi/database/helpers";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -1099,40 +1099,39 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
-  it.each(["0"])(
-    "sets no expiry for free top-up when ttl_days is %s",
-    async (ttlDaysValue) => {
-      const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+  it.each([
+    "0",
+  ])("sets no expiry for free top-up when ttl_days is %s", async (ttlDaysValue) => {
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
-      await handleInvoicePaidEvent(
-        createInvoice({
-          amountPaid: 0,
-          billingReason: "manual",
-          id: `in_topup_free_coupon_ttl_${ttlDaysValue}`,
-          lines: [{ productId: "prod_credit", quantity: 3 }],
-          metadata: { ttl_days: ttlDaysValue },
-        }) as never,
-      );
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        billingReason: "manual",
+        id: `in_topup_free_coupon_ttl_${ttlDaysValue}`,
+        lines: [{ productId: "prod_credit", quantity: 3 }],
+        metadata: { ttl_days: ttlDaysValue },
+      }) as never,
+    );
 
-      expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
 
-      const createCall = createTransactionMock.mock.calls[0][0] as {
-        data: {
-          sourceCreditBucket: {
-            create: {
-              expiresAt: Date | null;
-              referenceType: string;
-            };
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            expiresAt: Date | null;
+            referenceType: string;
           };
         };
       };
+    };
 
-      expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
-        "STRIPE_FREE",
-      );
-      expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
-    },
-  );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_FREE",
+    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
+  });
 
   it("falls back to default free expiry for invalid ttl_days metadata", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");

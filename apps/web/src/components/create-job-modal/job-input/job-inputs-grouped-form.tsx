@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import type {
   InputGroupSchemaType,
@@ -16,7 +16,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React, { useCallback, useMemo, useState } from "react";
+import type React from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { GroupedInputTabs } from "@/components/common/grouped-input-tabs";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
@@ -25,15 +26,15 @@ import { Button } from "@/components/ui/button";
 import { useJobSchedule } from "@/hooks/use-job-schedule";
 import { useJobSubmission } from "@/hooks/use-job-submission";
 import { useOSDetection } from "@/hooks/use-os-detection";
-import { defaultValues, JobInputsFormSchemaType } from "@/lib/job-input";
-import { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
-import { JobScheduleSelectionType } from "@/lib/types/job";
+import { defaultValues, type JobInputsFormSchemaType } from "@/lib/job-input";
+import type { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
+import type { JobScheduleSelectionType } from "@/lib/types/job";
 import { cn, formatDuration } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import { AcceptTermsOfService } from "./accept-terms-of-service";
 import {
-  FormFooterProps,
+  type FormFooterProps,
   JobInputsFormBuilder,
 } from "./job-inputs-form-builder";
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { Invitation } from "@sokosumi/database";
-import { User } from "better-auth";
+import type { Invitation } from "@sokosumi/database";
+import type { User } from "better-auth";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

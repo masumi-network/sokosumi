@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { createCredentialAccount } from "@/lib/actions";
-import { newPasswordFormSchema, NewPasswordFormType } from "@/lib/schemas";
+import { type NewPasswordFormType, newPasswordFormSchema } from "@/lib/schemas";
 
 export function NewPasswordForm() {
   const t = useTranslations("App.Account.NewPassword");

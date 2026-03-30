@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics";
@@ -18,9 +18,15 @@ import {
 import { createSchedule } from "@/lib/actions/job-schedule";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
-import { JobInputsFormSchemaType, prepareInputValues } from "@/lib/job-input";
-import { AgentDemoValues } from "@/lib/types/agent";
-import { JobScheduleSelectionType, JobScheduleType } from "@/lib/types/job";
+import {
+  type JobInputsFormSchemaType,
+  prepareInputValues,
+} from "@/lib/job-input";
+import type { AgentDemoValues } from "@/lib/types/agent";
+import {
+  type JobScheduleSelectionType,
+  JobScheduleType,
+} from "@/lib/types/job";
 
 export interface UseJobSubmissionOptions {
   agent: AgentWithCreditsPrice;

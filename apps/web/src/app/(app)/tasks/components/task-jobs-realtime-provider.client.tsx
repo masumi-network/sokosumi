@@ -1,7 +1,7 @@
 "use client";
 
 import { ChannelProvider } from "ably/react";
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 

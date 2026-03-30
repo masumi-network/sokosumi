@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { StripePlan } from "@better-auth/stripe";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 

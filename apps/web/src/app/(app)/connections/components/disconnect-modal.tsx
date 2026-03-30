@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Account } from "@/lib/auth/auth";
+import type { Account } from "@/lib/auth/auth";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface DisconnectModalProps {

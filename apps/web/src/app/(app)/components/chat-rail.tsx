@@ -120,7 +120,9 @@ export default function ChatRail({
         document.querySelector<HTMLElement>(
           "[data-chat-input-border-anchor]",
         ) ??
-        document.querySelector<HTMLElement>("[data-testid='multimodal-input']"),
+          document.querySelector<HTMLElement>(
+            "[data-testid='multimodal-input']",
+          ),
       );
 
     const isPanelFullyOpen = () => {

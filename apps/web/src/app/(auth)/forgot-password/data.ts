@@ -1,5 +1,5 @@
-import { FormData } from "@/lib/form";
-import { ForgotPasswordFormSchemaType } from "@/lib/schemas";
+import type { FormData } from "@/lib/form";
+import type { ForgotPasswordFormSchemaType } from "@/lib/schemas";
 
 export const forgotPasswordFormData: FormData<
   ForgotPasswordFormSchemaType,

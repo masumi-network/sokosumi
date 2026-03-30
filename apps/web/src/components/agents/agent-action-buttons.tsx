@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentWithRelations } from "@sokosumi/database";
+import type { AgentWithRelations } from "@sokosumi/database";
 import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";

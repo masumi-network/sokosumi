@@ -50,7 +50,6 @@ export const sourceImportService = (() => {
           );
         } catch (error) {
           Sentry.captureException(error);
-          continue;
         }
       }
       for (const url of httpLinks) {
@@ -66,7 +65,6 @@ export const sourceImportService = (() => {
           );
         } catch (error) {
           Sentry.captureException(error);
-          continue;
         }
       }
     });

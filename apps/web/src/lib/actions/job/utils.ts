@@ -1,6 +1,6 @@
 import "server-only";
 
-import { InputSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputSchemaType } from "@sokosumi/masumi/schemas";
 
 import { uploadFileForUser } from "@/lib/blob/utils";
 

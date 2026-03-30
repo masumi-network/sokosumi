@@ -1,9 +1,9 @@
-import { JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { queryOptions } from "@tanstack/react-query";
 import superJson from "superjson";
 
 import { apiSuccessResponseSchema } from "@/lib/api/schemas";
-import { Session } from "@/lib/auth/auth";
+import type { Session } from "@/lib/auth/auth";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 
 export const getJobQueryKey = (jobId: string) => ["jobs", jobId];

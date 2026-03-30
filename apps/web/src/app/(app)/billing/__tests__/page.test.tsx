@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 vi.mock("server-only", () => ({}));
 
-import { render } from "@testing-library/react";
 import { MemberRole } from "@sokosumi/database";
+import { render } from "@testing-library/react";
 
 const listActiveSubscriptionsMock = vi.fn();
 const getSessionMock = vi.fn();

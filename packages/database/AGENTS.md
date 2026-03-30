@@ -150,7 +150,7 @@ export const userRepository = {
 | ---------------------------- | ----------------------------- |
 | `pnpm database:build`        | Build TypeScript to JS        |
 | `pnpm database:lint`         | Lint package code             |
-| `pnpm database:format`       | Format code with Prettier     |
+| `pnpm database:format`       | Format code with Biome        |
 | `pnpm prisma:generate`       | Generate Prisma client        |
 | `pnpm prisma:migrate:dev`    | Create new migration          |
 | `pnpm prisma:migrate:deploy` | Apply migrations (production) |

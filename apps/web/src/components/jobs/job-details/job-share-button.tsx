@@ -1,6 +1,6 @@
 "use client";
 
-import { JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { Share } from "lucide-react";
 import { useTranslations } from "next-intl";
 

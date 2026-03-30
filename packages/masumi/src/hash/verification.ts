@@ -95,14 +95,16 @@ function isHashMatching(
 ): boolean {
   if (!hashToMatch) return false;
   switch (mode) {
-    case "input":
+    case "input": {
       const inputHash = hashInput(data, identifierFromPurchaser);
       if (hashToMatch === inputHash) return true;
       const deprecated = hashInputDeprecated(data, identifierFromPurchaser);
       if (hashToMatch === deprecated) return true;
       return false;
-    case "result":
+    }
+    case "result": {
       const resultHash = hashResult(data, identifierFromPurchaser);
       return hashToMatch === resultHash;
+    }
   }
 }

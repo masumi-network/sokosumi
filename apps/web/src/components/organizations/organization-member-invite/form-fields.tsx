@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
+import type {
   ControllerRenderProps,
   FieldValues,
   Path,
@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { FormData } from "@/lib/form";
+import type { FormData } from "@/lib/form";
 
 type OrganizationInviteFormNamespace =
   "Components.Organizations.InviteMemberModal.Form";

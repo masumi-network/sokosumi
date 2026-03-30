@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { prepareInputValues, JobInputsFormSchemaType } from "@/lib/job-input";
+import { JobInputsFormSchemaType, prepareInputValues } from "@/lib/job-input";
 
 describe("prepareInputValues", () => {
   it("keeps date and datetime-local strings and removes null/undefined entries", () => {

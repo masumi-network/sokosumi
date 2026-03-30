@@ -256,16 +256,17 @@ async function main() {
           cb."createdAt" ASC
       `;
 
-      const buckets = await prisma.$queryRawUnsafe<
-        Array<{
-          id: string;
-          amount: bigint;
-          consumed: bigint;
-          available: bigint;
-          expiresAt: Date | null;
-          createdAt: Date;
-        }>
-      >(sqlQuery);
+      const buckets =
+        await prisma.$queryRawUnsafe<
+          Array<{
+            id: string;
+            amount: bigint;
+            consumed: bigint;
+            available: bigint;
+            expiresAt: Date | null;
+            createdAt: Date;
+          }>
+        >(sqlQuery);
 
       if (buckets.length === 0) {
         console.warn(

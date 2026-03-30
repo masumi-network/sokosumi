@@ -1,12 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { Globe, Loader2, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ReactNode, useState } from "react";
-import { useForm, UseFormReturn } from "react-hook-form";
+import { type ReactNode, useState } from "react";
+import { type UseFormReturn, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -27,8 +27,8 @@ import useModal from "@/hooks/use-modal";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
 import { isSharedPublicly } from "@/lib/helpers/job";
 import {
+  type JobDetailsNameFormSchemaType,
   jobDetailsNameFormSchema,
-  JobDetailsNameFormSchemaType,
 } from "@/lib/schemas";
 
 import JobShareModal from "./job-share-modal";

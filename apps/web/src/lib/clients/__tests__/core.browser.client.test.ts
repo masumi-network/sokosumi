@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 export {};
 
 const getAgentsByIdInputSchemaMock = vi.fn();
@@ -57,8 +58,9 @@ describe("core.browser.client", () => {
   });
 
   it("re-exports shared action error mapping", async () => {
-    const { CoreApiRequestError, toCoreApiActionError } =
-      await import("../core.browser.client");
+    const { CoreApiRequestError, toCoreApiActionError } = await import(
+      "../core.browser.client"
+    );
     const { CommonErrorCode } = await import("@/lib/actions/errors");
 
     expect(

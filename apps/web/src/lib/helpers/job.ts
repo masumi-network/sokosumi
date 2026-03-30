@@ -1,6 +1,6 @@
 import { JobType, type JobWithSokosumiStatus } from "@sokosumi/database";
 
-import { type JobStatusData } from "@/lib/ably";
+import type { JobStatusData } from "@/lib/ably";
 
 /**
  * Get the job status data for the job which is used on sidebar job status indicator

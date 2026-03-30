@@ -1,8 +1,8 @@
 "use client";
 
-import { JobType } from "@sokosumi/database";
+import type { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi";
-import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import { isUrlArray, isUrlString } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";

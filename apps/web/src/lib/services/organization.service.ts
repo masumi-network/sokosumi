@@ -1,6 +1,6 @@
 import "server-only";
 
-import {
+import type {
   Invitation,
   InvitationWithRelations,
   MemberRole,

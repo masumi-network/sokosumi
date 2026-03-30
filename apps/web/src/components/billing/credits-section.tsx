@@ -1,4 +1,4 @@
-import { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/database";
 
 import CreditsCancelModal from "@/app/credits/components/cancel-modal";
 import PurchaseTracker from "@/app/credits/components/purchase-tracker";
@@ -6,7 +6,7 @@ import CreditsSuccessModal from "@/app/credits/components/success-modal";
 import CreditsForm from "@/components/credits/credits-form";
 import { stripeClient } from "@/lib/clients";
 import { agentService } from "@/lib/services";
-import { type CreditTopUpLookupKey } from "@/lib/stripe/credit-topup-pricing";
+import type { CreditTopUpLookupKey } from "@/lib/stripe/credit-topup-pricing";
 
 interface CreditsSectionProps {
   isPurchaseEnabled?: boolean;

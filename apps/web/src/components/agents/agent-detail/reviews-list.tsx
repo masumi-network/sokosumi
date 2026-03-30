@@ -1,6 +1,6 @@
 "use client";
 
-import { UserAgentRatingWithUser } from "@sokosumi/database";
+import type { UserAgentRatingWithUser } from "@sokosumi/database";
 import {
   ChevronLeft,
   ChevronRight,

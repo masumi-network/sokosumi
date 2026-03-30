@@ -9,7 +9,7 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { Session } from "@/lib/auth/auth";
+import type { Session } from "@/lib/auth/auth";
 
 import AgentLists from "./components/agent-lists";
 import AnnouncementCards from "./components/announcement-cards";

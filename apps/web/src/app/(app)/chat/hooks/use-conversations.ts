@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { ActionError, CommonErrorCode } from "@/lib/actions";
+import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import {
   type Conversation,
   type ConversationWithItems,

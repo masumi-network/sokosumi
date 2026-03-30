@@ -1,13 +1,12 @@
 import "server-only";
 
 import { flag } from "flags/next";
-
 import { getSession } from "@/lib/auth/utils";
 import {
   type CreditTopUpLookupKey,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "@/lib/stripe/credit-topup-pricing";
-import { getEmailDomain } from "@/lib/utils/email";
+import { getEmailDomain } from "../utils";
 
 const ZERO_MARGIN_TOP_UP_DOMAINS = new Set([
   "aladin-freelance.com",

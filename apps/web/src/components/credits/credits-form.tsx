@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/database";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -33,7 +33,7 @@ import {
   CreditsErrorCode,
   purchaseCredits,
 } from "@/lib/actions";
-import { CreditTopUpPriceCatalog } from "@/lib/clients/stripe.client";
+import type { CreditTopUpPriceCatalog } from "@/lib/clients/stripe.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,

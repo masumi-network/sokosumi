@@ -1,5 +1,5 @@
-import Image, { ImageProps } from "next/image";
-import { type ComponentType, type SVGProps } from "react";
+import Image, { type ImageProps } from "next/image";
+import type { ComponentType, SVGProps } from "react";
 
 import { cn } from "@/lib/utils";
 

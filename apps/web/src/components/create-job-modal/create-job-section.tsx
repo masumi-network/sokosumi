@@ -1,6 +1,9 @@
 "use client";
 
-import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
+import type {
+  AgentWithCreditsPrice,
+  AgentWithRelations,
+} from "@sokosumi/database";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 

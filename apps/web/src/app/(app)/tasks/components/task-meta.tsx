@@ -4,7 +4,7 @@ import { MessageSquare, UserCog } from "lucide-react";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { type TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/lib/types/task";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface TaskMetaDetailsProps {

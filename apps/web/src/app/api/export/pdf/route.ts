@@ -1,5 +1,5 @@
 import { sanitizeFileName } from "@sokosumi/utils";
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 

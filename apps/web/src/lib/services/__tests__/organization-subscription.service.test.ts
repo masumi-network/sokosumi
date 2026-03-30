@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 vi.mock("server-only", () => ({}));
 
 vi.mock("better-auth/api", () => ({
@@ -65,8 +66,9 @@ describe("organizationSubscriptionService", () => {
 
   describe("ensureCanCreateInvitation", () => {
     it("allows creating invitations without an active organization subscription", async () => {
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
 
       await expect(
         organizationSubscriptionService.ensureCanCreateInvitation("org-1"),
@@ -81,8 +83,9 @@ describe("organizationSubscriptionService", () => {
         stripeSubscriptionId: "sub_stripe_1",
       });
 
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
 
       await organizationSubscriptionService.ensureCanCreateInvitation("org-1");
 
@@ -98,8 +101,9 @@ describe("organizationSubscriptionService", () => {
     it("throws when no active organization subscription exists", async () => {
       findSubscriptionMock.mockResolvedValue(null);
 
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
 
       await expect(
         organizationSubscriptionService.ensureCanAcceptInvitation("org-1"),
@@ -129,8 +133,9 @@ describe("organizationSubscriptionService", () => {
       updateStripeSubscriptionMock.mockResolvedValue({});
       updateSubscriptionRecordMock.mockResolvedValue({});
 
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
 
       await organizationSubscriptionService.ensureCanAcceptInvitation("org-1");
 
@@ -182,8 +187,9 @@ describe("organizationSubscriptionService", () => {
       updateStripeSubscriptionMock.mockResolvedValue({});
       updateSubscriptionRecordMock.mockResolvedValue({});
 
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
 
       await organizationSubscriptionService.ensureCanAcceptInvitation("org-1");
 
@@ -214,8 +220,9 @@ describe("organizationSubscriptionService", () => {
         stripeSubscriptionId: "sub_stripe_1",
       });
 
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
 
       await organizationSubscriptionService.ensureCanAcceptInvitation("org-1");
 
@@ -231,8 +238,9 @@ describe("organizationSubscriptionService", () => {
         role: "member",
       });
 
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
 
       await expect(
         organizationSubscriptionService.updateOrganizationSeatsImmediately(
@@ -251,8 +259,9 @@ describe("organizationSubscriptionService", () => {
       });
       findSubscriptionMock.mockResolvedValue(null);
 
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
 
       await expect(
         organizationSubscriptionService.updateOrganizationSeatsImmediately(
@@ -276,8 +285,9 @@ describe("organizationSubscriptionService", () => {
         stripeSubscriptionId: "sub_stripe_1",
       });
 
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
 
       await expect(
         organizationSubscriptionService.updateOrganizationSeatsImmediately(
@@ -312,8 +322,9 @@ describe("organizationSubscriptionService", () => {
       updateStripeSubscriptionMock.mockResolvedValue({});
       updateSubscriptionRecordMock.mockResolvedValue({});
 
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
 
       await expect(
         organizationSubscriptionService.updateOrganizationSeatsImmediately(

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { Session } from "@/lib/auth/auth";
+import type { Session } from "@/lib/auth/auth";
 import { userService } from "@/lib/services";
 
 import UserAvatarClient from "./user-avatar.client";

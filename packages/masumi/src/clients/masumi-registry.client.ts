@@ -1,11 +1,11 @@
-import { err, ok, Result } from "neverthrow";
+import { err, ok, type Result } from "neverthrow";
 
 import { createClient } from "./openapi/generated/registry/client/index.js";
 import {
+  type PostRegistryDiffResponse,
+  type PostRegistryEntryResponse,
   postRegistryDiff,
-  PostRegistryDiffResponse,
   postRegistryEntry,
-  PostRegistryEntryResponse,
 } from "./openapi/generated/registry/index.js";
 
 interface RegistryClientRequestOptions {

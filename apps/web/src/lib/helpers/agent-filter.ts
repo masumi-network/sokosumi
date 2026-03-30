@@ -1,6 +1,6 @@
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 
-import { GalleryFilterState } from "@/hooks/use-gallery-filter";
+import type { GalleryFilterState } from "@/hooks/use-gallery-filter";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { getAgentCategorySlugs } from "@/lib/helpers/agent";
 

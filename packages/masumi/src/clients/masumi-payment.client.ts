@@ -2,15 +2,15 @@ import type {
   InputSchemaType,
   StartPaidJobResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
-import { err, ok, Result } from "neverthrow";
+import { err, ok, type Result } from "neverthrow";
 
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
   getPurchase,
+  type PostPurchaseResponses,
   postPurchase,
   postPurchaseRequestRefund,
   postPurchaseResolveBlockchainIdentifier,
-  type PostPurchaseResponses,
 } from "./openapi/generated/payment/index.js";
 
 interface PaymentClientRequestOptions {
@@ -75,7 +75,7 @@ export function createPaymentClient(
         if (
           response.error ||
           !response.data ||
-          response.data.data.Purchases.length != 1
+          response.data.data.Purchases.length !== 1
         ) {
           return err(response.error ? String(response.error) : "Unknown error");
         }

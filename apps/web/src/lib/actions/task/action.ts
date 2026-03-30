@@ -1,6 +1,6 @@
 "use server";
 
-import { TaskStatus } from "@sokosumi/database";
+import type { TaskStatus } from "@sokosumi/database";
 import { revalidatePath } from "next/cache";
 
 import { toCoreApiActionError } from "@/lib/clients/core.client";

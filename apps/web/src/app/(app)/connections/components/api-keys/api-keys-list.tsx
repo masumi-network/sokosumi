@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { DataTable } from "@/components/data-table";
 
 import { getApiKeyColumns } from "./api-keys-columns";
-import { ApiKeysListProps } from "./types";
+import type { ApiKeysListProps } from "./types";
 
 export function ApiKeysList({
   apiKeys,

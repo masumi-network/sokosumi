@@ -5,7 +5,7 @@ import type {
   TaskEvent,
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
-import { type TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 import { getColumnId } from "@/lib/utils/task-column";

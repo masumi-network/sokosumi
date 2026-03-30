@@ -1,6 +1,6 @@
 "use client";
 
-import { PaidJobWithStatus, SokosumiJobStatus } from "@sokosumi/database";
+import { type PaidJobWithStatus, SokosumiJobStatus } from "@sokosumi/database";
 import {
   ExternalLink,
   HandCoins,
@@ -32,7 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  ActionError,
+  type ActionError,
   CommonErrorCode,
   JobErrorCode,
   requestRefundJobByBlockchainIdentifier,

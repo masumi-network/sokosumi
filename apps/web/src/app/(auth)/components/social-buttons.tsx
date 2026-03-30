@@ -6,8 +6,8 @@ import { KeyRound, Loader2, Mail } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
-  ComponentProps,
-  FormEvent,
+  type ComponentProps,
+  type FormEvent,
   useCallback,
   useEffect,
   useMemo,

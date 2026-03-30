@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useClipboard } from "@/hooks/use-clipboard";
 
-import { ApiKeySuccessDisplayProps } from "./types";
+import type { ApiKeySuccessDisplayProps } from "./types";
 
 export function ApiKeySuccessDisplay({
   apiKey,

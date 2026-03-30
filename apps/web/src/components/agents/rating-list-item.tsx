@@ -1,6 +1,6 @@
 "use client";
 
-import { UserAgentRatingWithUser } from "@sokosumi/database";
+import type { UserAgentRatingWithUser } from "@sokosumi/database";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { useState } from "react";

@@ -2,7 +2,7 @@
 
 import type { Notice, NoticeKind } from "@sokosumi/database";
 
-import { type ActionError } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors";
 import { coreClient, toCoreApiActionError } from "@/lib/clients/core.client";
 
 export type PendingNotice = Notice;

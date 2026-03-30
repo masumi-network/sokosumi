@@ -1,14 +1,14 @@
 import {
-  Agent,
-  AgentWithCategories,
-  AgentWithCreditsPrice,
+  type Agent,
+  type AgentWithCategories,
+  type AgentWithCreditsPrice,
   type AgentWithExampleOutput,
   type AgentWithPricing,
   type AgentWithTags,
-  ExampleOutput,
+  type ExampleOutput,
   PricingType,
 } from "@sokosumi/database";
-import { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
@@ -19,12 +19,12 @@ import {
 } from "@/lib/schemas";
 import { categoryStylesSchema } from "@/lib/schemas/category";
 import { flattenInputs } from "@/lib/schemas/job";
-import {
-  type AgentDemoData,
-  type AgentDemoValues,
-  type AgentLegal,
+import type {
+  AgentDemoData,
+  AgentDemoValues,
+  AgentLegal,
 } from "@/lib/types/agent";
-import { CategoryStyles } from "@/lib/types/category";
+import type { CategoryStyles } from "@/lib/types/category";
 
 /** Agent type including legal/author fields from schema (Prisma client may not expose them). */
 type AgentWithOverrides = Agent & {

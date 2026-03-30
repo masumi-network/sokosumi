@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { JobDetailsFooter } from "@/components/jobs/job-details/job-details-footer";
 

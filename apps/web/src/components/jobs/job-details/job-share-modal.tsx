@@ -1,6 +1,6 @@
 "use client";
 
-import { JobShare, JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobShare, JobWithSokosumiStatus } from "@sokosumi/database";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
