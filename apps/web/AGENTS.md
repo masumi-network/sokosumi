@@ -63,6 +63,10 @@ See [.cursor/rules/effects.mdc](.cursor/rules/effects.mdc) for examples and refe
 
 The web app uses the shared Biome configuration from the repo root. See [root AGENTS.md](../../AGENTS.md#linting--formatting) for base rules.
 
+- `pnpm web:lint` runs `biome check`, so it enforces linting, formatting, and import organization
+- `pnpm web:lint:fix` applies Biome fixes, including import organization
+- Some older ESLint-only rules were intentionally removed during the Biome migration and are now conventions rather than enforced diagnostics
+
 #### Environment Variables
 
 **Critical**: Never use `process.env` directly in web app code.
@@ -113,8 +117,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Never use `<a>` tags for page navigation
 - Optimize images with `<Image>` component
 
-**Error**: `@next/next/no-html-link-for-pages`
-**Fix**: Replace `<a href="/path">Link</a>` with `<Link href="/path">Link</Link>`
+- **Status**: This remains the expected project convention, but it is not currently enforced by Biome
 
 #### Internationalization (i18next)
 
@@ -122,8 +125,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Use `useTranslations()` hook in components
 - Add new keys to `messages/en.json`
 
-**Error**: `i18next/no-literal-string` (when enabled)
-**Fix**: Extract string to translation key
+- **Status**: This remains the expected project convention, but it is not currently enforced by Biome
 
 ## App-Specific Commands
 
@@ -132,7 +134,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 | `pnpm web:dev`    | Start development server  |
 | `pnpm web:build`  | Build for production      |
 | `pnpm web:start`  | Test production build     |
-| `pnpm web:lint`   | Lint web app              |
+| `pnpm web:lint`   | Run Biome checks for the web app |
 | `pnpm web:test`   | Run web app tests         |
 | `pnpm web:format` | Format code with Biome |
 
@@ -199,7 +201,7 @@ Env vars that must be set per environment: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_
 1. **Start Development**: `pnpm web:dev`
 2. **Database Changes**: Run migrations with `pnpm prisma:migrate:dev`
 3. **Testing**: Run `pnpm web:test` before committing
-4. **Formatting**: Run `pnpm web:format` after changes
+4. **Formatting**: Run `pnpm format` after changes
 
 ## Common Patterns
 

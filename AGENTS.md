@@ -107,7 +107,7 @@ The monorepo uses a shared Biome configuration at the repo root.
 
 **Import Organization**:
 
-- Imports are organized by Biome
+- `pnpm lint` runs `biome check`, which enforces linting, formatting, and import organization
 - Unused imports are reported and can be auto-fixed by Biome
 
 **TypeScript Rules**:
@@ -151,10 +151,10 @@ const config = {
 
 #### Common Linter Fixes
 
-| Error                               | Solution                         |
-| ----------------------------------- | -------------------------------- |
-| `lint/correctness/noUnusedImports` | Remove import or use it         |
-| `import/no-duplicates`              | Combine imports from same module |
+| Error                               | Solution                          |
+| ----------------------------------- | --------------------------------- |
+| `lint/correctness/noUnusedImports`  | Remove import or use it           |
+| `assist/source/organizeImports`     | Run `pnpm lint:fix` or `pnpm format` |
 
 ## Environment & Tooling
 
@@ -183,8 +183,8 @@ const config = {
 | `pnpm web:build`       | Build web app for production  |
 | `pnpm core:build`      | Build core API for production |
 | `pnpm web:start`       | Smoke test production build   |
-| `pnpm lint`            | Lint entire codebase          |
-| `pnpm web:lint`        | Lint web app                  |
+| `pnpm lint`            | Run Biome checks across the codebase |
+| `pnpm web:lint`        | Run Biome checks for the web app     |
 | `pnpm web:lint:report` | CI-friendly lint report       |
 | `pnpm test`            | Run tests locally             |
 | `pnpm core:test`       | Run core API tests            |
