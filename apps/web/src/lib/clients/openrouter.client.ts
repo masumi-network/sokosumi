@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { InputSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { generateText } from "ai";
 
 import { getEnvSecrets } from "@/config/env.secrets";

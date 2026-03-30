@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 import Image from "next/image";
-import { CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 

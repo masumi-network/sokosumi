@@ -2,17 +2,18 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
-import React, { useRef } from "react";
-import { SubmitHandler, useForm } from "react-hook-form";
+import type React from "react";
+import { useRef } from "react";
+import { type SubmitHandler, useForm } from "react-hook-form";
 
 import { Form } from "@/components/ui/form";
 import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
   defaultValues as getDefaultValues,
+  type JobInputsFormSchemaType,
   jobInputsFormSchema,
-  JobInputsFormSchemaType,
 } from "@/lib/job-input";
-import { JobInputFormIntlPath } from "@/lib/job-input/type";
+import type { JobInputFormIntlPath } from "@/lib/job-input/type";
 import { cn } from "@/lib/utils";
 
 import JobInput from "./job-input";

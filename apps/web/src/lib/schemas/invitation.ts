@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { FormData } from "@/lib/form";
+import type { FormData } from "@/lib/form";
 
 export const inviteFormSchema = (
   t?: IntlTranslation<"Components.Organizations.InviteMemberModal.Schema">,

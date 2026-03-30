@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import "dotenv/config";
 
 import type { PrismaConfig } from "prisma/config";
 
@@ -10,6 +10,8 @@ export default {
   datasource: {
     // Use placeholder URL for generate if DATABASE_URL is not available
     // Prisma generate doesn't connect to the database, it only validates the URL format
-    url: process.env.DATABASE_URL || "postgresql://user:password@localhost:5432/sokosumi?schema=public",
-  }
+    url:
+      process.env.DATABASE_URL ||
+      "postgresql://user:password@localhost:5432/sokosumi?schema=public",
+  },
 } satisfies PrismaConfig;

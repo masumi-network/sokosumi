@@ -8,11 +8,12 @@ import { COLUMN_STATUS_COLORS, type KanbanColumnId } from "@/lib/types/task";
 
 import { ColumnHeader } from "./column-header";
 import { JobListItem } from "./job-list-item";
-import { type JobsFailedFilterMode } from "./jobs-filter-dropdown";
+import type { JobsFailedFilterMode } from "./jobs-filter-dropdown";
 
 const JOBS_LAST_SEEN_AT_STORAGE_KEY = "sokosumi.tasks.jobs.lastSeenAt";
 const RECENT_SECTION_COLOR_CLASS = "bg-violet-500";
 const RECENT_RETENTION_MS = 1000 * 60 * 60 * 24;
+
 export type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 
 interface JobsListViewProps {

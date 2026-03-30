@@ -1,7 +1,7 @@
 "use server";
 
 import {
-  ActionError,
+  type ActionError,
   CommonErrorCode,
   CreditsErrorCode,
 } from "@/lib/actions/errors";
@@ -11,10 +11,10 @@ import { resolveZeroMarginTopUpLookupKey } from "@/lib/flags/zero-margin-top-up"
 import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
 import { isPositiveIntegerCredits } from "@/lib/stripe/credit-topup-pricing";
-import { Err, Ok, Result } from "@/lib/ts-res";
+import { Err, Ok, type Result } from "@/lib/ts-res";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
 import {
-  AuthenticatedRequest,
+  type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 

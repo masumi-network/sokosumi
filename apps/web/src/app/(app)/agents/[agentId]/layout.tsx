@@ -1,5 +1,5 @@
 import { agentRepository } from "@sokosumi/database/repositories";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import prisma from "@/lib/db/prisma";

@@ -1,4 +1,4 @@
-import { CoworkerMetadata } from "@/lib/clients/generated/core/types.gen";
+import type { CoworkerMetadata } from "@/lib/clients/generated/core/types.gen";
 
 export type ChatStatus = "active" | "awaiting" | "resolved";
 

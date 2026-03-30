@@ -1,8 +1,8 @@
 import type { AgentList, AgentListType } from "../generated/prisma/client.js";
 import { Prisma } from "../generated/prisma/client.js";
 import {
-  agentListInclude,
   type AgentListWithAgents,
+  agentListInclude,
 } from "../types/agentList.js";
 
 /**

@@ -6,9 +6,10 @@ import { useCallback, useEffect, useRef } from "react";
 import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
 import { getConversationItems } from "@/lib/actions/conversation/core-api-actions";
 
-interface SetMessagesForConversation {
-  (convId: string, messages: UIMessage[]): void;
-}
+type SetMessagesForConversation = (
+  convId: string,
+  messages: UIMessage[],
+) => void;
 
 interface UseChatMessagesProps {
   selectedChatId: string | null;

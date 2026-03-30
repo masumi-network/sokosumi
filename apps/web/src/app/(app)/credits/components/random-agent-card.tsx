@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { Suspense, use } from "react";
 
 import { AgentCard, AgentCardSkeleton } from "@/components/agents";

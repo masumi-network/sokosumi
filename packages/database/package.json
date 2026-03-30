@@ -53,14 +53,14 @@
     "prisma:migrate:deploy": "pnpm exec prisma migrate deploy",
     "prisma:migrate:reset": "pnpm exec prisma migrate reset",
     "prisma:studio": "pnpm exec prisma studio",
-    "lint": "eslint --max-warnings 0 .",
-    "lint:fix": "eslint --fix .",
-    "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\"",
+    "lint": "biome lint .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest",
-    "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json ."
+    "lint:report": "biome lint --reporter=json . > lint-report.json"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.6.0",

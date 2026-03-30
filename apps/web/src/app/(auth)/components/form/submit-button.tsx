@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { ComponentProps } from "react";
+import type { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
 

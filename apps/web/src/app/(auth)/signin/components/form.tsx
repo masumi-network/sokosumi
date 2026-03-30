@@ -17,9 +17,9 @@ import { Button } from "@/components/ui/button";
 import { AuthErrorCode } from "@/lib/actions";
 import { signInEmail } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
-import { FormData } from "@/lib/form";
+import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
+import { type SignInFormSchemaType, signInFormSchema } from "@/lib/schemas";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,

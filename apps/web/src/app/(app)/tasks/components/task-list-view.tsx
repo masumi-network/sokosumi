@@ -1,8 +1,8 @@
 import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
-import {
-  type KanbanColumnDefinition,
-  type KanbanColumnId,
-  type TaskWithCoworker,
+import type {
+  KanbanColumnDefinition,
+  KanbanColumnId,
+  TaskWithCoworker,
 } from "@/lib/types/task";
 
 import { DraggableTask, DroppableColumn, isDnDColumn } from "./task-dnd";

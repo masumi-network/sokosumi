@@ -15,7 +15,7 @@ import {
 } from "@/lib/job-input/date-value";
 import { parseISOWeek, parseMonth } from "@/lib/utils";
 
-import { JobInputFormIntlPath } from "./type";
+import type { JobInputFormIntlPath } from "./type";
 
 /**
  * Minimum length for required string inputs when no explicit min validation is provided

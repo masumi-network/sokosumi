@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React, { useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import { DeleteApiKeyDialogProps, DeleteApiKeyFormData } from "./types";
+import type { DeleteApiKeyDialogProps, DeleteApiKeyFormData } from "./types";
 import {
   DEFAULT_DELETE_FORM_VALUES,
   deleteApiKeySchema,

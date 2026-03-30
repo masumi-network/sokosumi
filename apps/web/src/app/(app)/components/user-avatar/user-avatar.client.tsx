@@ -1,6 +1,6 @@
 "use client";
 
-import { MemberRole, MemberWithOrganization } from "@sokosumi/database";
+import { MemberRole, type MemberWithOrganization } from "@sokosumi/database";
 import {
   BookOpen,
   Building2,

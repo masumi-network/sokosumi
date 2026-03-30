@@ -1,4 +1,4 @@
-import { ScheduleListItem } from "@sokosumi/database";
+import type { ScheduleListItem } from "@sokosumi/database";
 import { jobScheduleRepository } from "@sokosumi/database/repositories";
 import { CalendarClock } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -9,13 +9,16 @@ import AgentIcon from "@/components/agents/agent-icon";
 import {
   computeScheduleTitleInfo,
   formatScheduleTitle,
-  TranslateFn,
+  type TranslateFn,
 } from "@/components/schedules/format";
 import ScheduleItem from "@/components/schedules/schedule-item.client";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
-import { JobScheduleType, mapPrismaToUiScheduleType } from "@/lib/types/job";
+import {
+  type JobScheduleType,
+  mapPrismaToUiScheduleType,
+} from "@/lib/types/job";
 
 export default async function SchedulesPage() {
   const session = await getSession();

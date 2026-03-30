@@ -49,8 +49,7 @@ sokosumi/
 │   └── utils/                # Shared utilities (@sokosumi/utils)
 │       └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
 ├── docs/                      # Documentation (future)
-├── eslint.config.mjs          # Root ESLint configuration
-└── prettier.config.mjs        # Root Prettier configuration
+└── biome.jsonc                # Root Biome configuration
 ```
 
 ## Authoritative Conventions
@@ -95,29 +94,26 @@ sokosumi/
 
 ### Code Style
 
-- **Indentation**: Two spaces, semicolons enforced by Prettier
-- **Formatting**: Run `pnpm web:format` after substantial edits
+- **Indentation**: Two spaces, semicolons enforced by Biome
+- **Formatting**: Run `pnpm format` after substantial edits
 - **Imports**: Relative within features, use aliases (`@/lib/*`) otherwise
 - **Components**: Default to Server Components; add `'use client'` only for browser APIs
 
 ### Linting & Formatting
 
-#### ESLint Configuration
+#### Biome Configuration
 
-The monorepo uses a comprehensive ESLint setup with the following enforced rules:
+The monorepo uses a shared Biome configuration at the repo root.
 
 **Import Organization**:
 
-- Auto-sorted imports via `simple-import-sort` plugin (run `pnpm web:format` to fix)
-- No unused imports (`unused-imports/no-unused-imports`)
-- Import statements must appear first with newline after
-- No duplicate imports from same module
+- Imports are organized by Biome
+- Unused imports are reported and can be auto-fixed by Biome
 
 **TypeScript Rules**:
 
-- Unused variables/arguments trigger warnings (not errors)
-- Prefix unused identifiers with underscore to suppress: `const _unused = value;`
-- Applies to: variables, function arguments, caught errors, destructured arrays
+- Unused variables/arguments should be prefixed with `_` when intentionally unused
+- Applies to variables, function arguments, caught errors, and destructured arrays
 
 **Example of valid unused variable patterns**:
 
@@ -134,7 +130,7 @@ function handler(_req, res) {
 }
 ```
 
-#### Prettier Configuration
+#### Formatting Configuration
 
 All code must follow these formatting rules:
 
@@ -142,7 +138,7 @@ All code must follow these formatting rules:
 - **Semicolons**: Required
 - **Quotes**: Double quotes (not single)
 - **Trailing Commas**: Required in multi-line structures
-- **Auto-fix**: Run `pnpm web:format`
+- **Auto-fix**: Run `pnpm format`
 
 **Example**:
 
@@ -157,9 +153,7 @@ const config = {
 
 | Error                               | Solution                         |
 | ----------------------------------- | -------------------------------- |
-| `simple-import-sort/imports`        | Run `pnpm web:format`            |
-| `unused-imports/no-unused-imports`  | Remove import or use it          |
-| `@typescript-eslint/no-unused-vars` | Use variable or prefix with `_`  |
+| `lint/correctness/noUnusedImports` | Remove import or use it         |
 | `import/no-duplicates`              | Combine imports from same module |
 
 ## Environment & Tooling
@@ -197,7 +191,7 @@ const config = {
 | `pnpm web:test`        | Run web app tests             |
 | `pnpm masumi:test`     | Run masumi package tests      |
 | `pnpm web:test:ci`     | CI test execution             |
-| `pnpm web:format`      | Format web app code           |
+| `pnpm web:format`      | Format web app code with Biome |
 | `pnpm database:format` | Format database package code  |
 
 ## Testing Guidelines

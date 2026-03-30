@@ -1,9 +1,9 @@
-import { InputCheckboxSchemaType } from "@sokosumi/masumi/schemas";
-import { InputType } from "@sokosumi/masumi/types";
+import type { InputCheckboxSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputType } from "@sokosumi/masumi/types";
 
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { JobInputComponentProps } from "./types";
+import type { JobInputComponentProps } from "./types";
 
 export function CheckboxInput({
   id,

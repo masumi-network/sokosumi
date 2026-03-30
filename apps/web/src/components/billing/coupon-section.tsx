@@ -1,4 +1,4 @@
-import { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/database";
 
 import CreditsCancelModal from "@/app/credits/components/cancel-modal";
 import PurchaseTracker from "@/app/credits/components/purchase-tracker";

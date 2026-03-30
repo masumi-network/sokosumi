@@ -1,4 +1,4 @@
-import { type JobShare, type JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobShare, JobWithSokosumiStatus } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
 import type {

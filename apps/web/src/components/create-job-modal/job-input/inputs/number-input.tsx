@@ -1,9 +1,9 @@
-import { InputNumberSchemaType } from "@sokosumi/masumi/schemas";
-import { InputType } from "@sokosumi/masumi/types";
+import type { InputNumberSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputType } from "@sokosumi/masumi/types";
 
 import { Input } from "@/components/ui/input";
 
-import { JobInputComponentProps } from "./types";
+import type { JobInputComponentProps } from "./types";
 
 export function NumberInput({
   id,

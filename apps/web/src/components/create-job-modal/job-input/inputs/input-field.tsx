@@ -1,9 +1,9 @@
-import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
-import { ComponentType } from "react";
-import { ControllerRenderProps, UseFormReturn } from "react-hook-form";
+import type { ComponentType } from "react";
+import type { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 
-import { JobInputsFormSchemaType } from "@/lib/job-input";
+import type { JobInputsFormSchemaType } from "@/lib/job-input";
 
 import {
   BooleanInput,
@@ -14,7 +14,7 @@ import {
   EmailInput,
   FileInput,
   HiddenInput,
-  JobInputComponentProps,
+  type JobInputComponentProps,
   MonthInput,
   MultiselectInput,
   NoneInput,

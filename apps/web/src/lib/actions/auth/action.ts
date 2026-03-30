@@ -1,10 +1,10 @@
 "use server";
 
-import { User } from "better-auth";
+import type { User } from "better-auth";
 import { headers } from "next/headers";
 
 import {
-  ActionError,
+  type ActionError,
   AuthErrorCode,
   betterAuthApiErrorSchema,
   CommonErrorCode,
@@ -12,15 +12,15 @@ import {
 import { auth } from "@/lib/auth/auth";
 import { emailSchema } from "@/lib/auth/data";
 import {
+  type NewPasswordFormType,
   newPasswordFormSchema,
-  NewPasswordFormType,
+  type SignInFormSchemaType,
+  type SignUpFormSchemaType,
   signInFormSchema,
-  SignInFormSchemaType,
   signUpFormSchema,
-  SignUpFormSchemaType,
 } from "@/lib/schemas";
 import { utmService } from "@/lib/services/utm.service";
-import { Err, Ok, Result } from "@/lib/ts-res";
+import { Err, Ok, type Result } from "@/lib/ts-res";
 
 function getSafeCallbackURL(callbackURL?: string): string {
   return callbackURL &&

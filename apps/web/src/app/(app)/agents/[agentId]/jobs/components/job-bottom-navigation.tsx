@@ -1,6 +1,9 @@
 "use client";
 
-import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
+import type {
+  AgentWithCreditsPrice,
+  AgentWithRelations,
+} from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { useTranslations } from "next-intl";
 

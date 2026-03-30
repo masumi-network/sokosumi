@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ComponentProps } from "react";
+import type { ComponentProps } from "react";
 
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";

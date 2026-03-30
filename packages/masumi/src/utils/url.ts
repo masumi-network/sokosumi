@@ -9,7 +9,7 @@ export function safeAddPathComponent(url: URL, pathComponent: string): URL {
 
     // Preserve existing pathname and append new component
     const currentPath = url.pathname.replace(/\/+$/, ""); // Remove trailing slashes
-    const newPath = currentPath + "/" + encodeURI(cleanPath);
+    const newPath = `${currentPath}/${encodeURI(cleanPath)}`;
     const newUrl = new URL(url.href);
     newUrl.pathname = newPath;
 

@@ -1,7 +1,7 @@
-import { Agent } from "@sokosumi/database";
+import type { Agent } from "@sokosumi/database";
 
-import { JobInputsFormSchemaType } from "@/lib/job-input";
-import { JobStatusResponseSchemaType } from "@/lib/schemas";
+import type { JobInputsFormSchemaType } from "@/lib/job-input";
+import type { JobStatusResponseSchemaType } from "@/lib/schemas";
 
 export type AgentWithAvailability = {
   agent: Agent;

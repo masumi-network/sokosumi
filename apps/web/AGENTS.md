@@ -61,13 +61,13 @@ See [.cursor/rules/effects.mdc](.cursor/rules/effects.mdc) for examples and refe
 
 ### Linting & Formatting
 
-The web app extends the monorepo's base linting rules with web-specific constraints. See [root AGENTS.md](../../AGENTS.md#linting--formatting) for base rules.
+The web app uses the shared Biome configuration from the repo root. See [root AGENTS.md](../../AGENTS.md#linting--formatting) for base rules.
 
 #### Environment Variables
 
 **Critical**: Never use `process.env` directly in web app code.
 
-- **Error**: `no-restricted-properties` on `process.env`
+- **Status**: This is a repository convention and code review rule; it is no longer enforced by the formatter/linter.
 - **Fix**: Use typed config functions:
   - `getEnvSecrets()` - for sensitive variables (API keys, database URLs)
   - `getEnvConfig()` - for public configuration (feature flags, URLs)
@@ -75,7 +75,7 @@ The web app extends the monorepo's base linting rules with web-specific constrai
 **Example**:
 
 ```typescript
-// ❌ Wrong - will fail linting
+// ❌ Wrong
 const apiKey = process.env.API_KEY;
 
 // ✅ Correct - type-safe and validated
@@ -85,7 +85,7 @@ const apiKey = getEnvSecrets().API_KEY;
 
 #### Import Paths
 
-- **No relative imports** across directories (enforced by `no-relative-import-paths`)
+- **No relative imports** across directories
 - Same-folder relative imports are allowed: `import { helper } from "./helper"`
 - Use `@/` alias for all cross-directory imports
 - For App Router modules, always import via `@/app/<subpath>` and never `src/app/(app)` in import paths
@@ -99,14 +99,13 @@ import { getUser } from "@/lib/services/user";
 import { JobsList } from "@/app/agents/[agentId]/jobs/components/jobs-list";
 import { helper } from "./helper"; // same folder
 
-// ❌ Wrong - will fail linting
+// ❌ Wrong
 import { Button } from "../../components/ui/button";
 import { getUser } from "../services/user";
 import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-list";
 ```
 
-**Error**: `no-relative-import-paths/no-relative-import-paths`
-**Fix**: Convert to absolute path with `@/` alias
+**Fix**: Convert cross-directory imports to absolute paths with `@/`
 
 #### Next.js Specific
 
@@ -135,7 +134,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 | `pnpm web:start`  | Test production build     |
 | `pnpm web:lint`   | Lint web app              |
 | `pnpm web:test`   | Run web app tests         |
-| `pnpm web:format` | Format code with Prettier |
+| `pnpm web:format` | Format code with Biome |
 
 ## App-Specific Testing
 

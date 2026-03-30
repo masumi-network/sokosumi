@@ -1,5 +1,5 @@
-import {
-  type AgentRatingStats,
+import type {
+  AgentRatingStats,
   UserAgentRatingWithUser,
 } from "@sokosumi/database";
 import { getTranslations } from "next-intl/server";

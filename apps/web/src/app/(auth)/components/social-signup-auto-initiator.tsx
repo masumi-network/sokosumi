@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
-import { SocialProviderId } from "@/lib/schemas";
+import type { SocialProviderId } from "@/lib/schemas";
 import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
 import { buildAuthCallbackUrl } from "@/lib/utils/url";
 

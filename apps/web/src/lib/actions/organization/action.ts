@@ -8,7 +8,7 @@ import {
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import * as z from "zod";
 
-import { ActionError, CommonErrorCode } from "@/lib/actions";
+import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { coreClient, toCoreApiActionError } from "@/lib/clients/core.client";
 import {
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
@@ -16,17 +16,17 @@ import {
 } from "@/lib/constants/organization-logo";
 import prisma from "@/lib/db/prisma";
 import {
+  type OrganizationInformationFormSchemaType,
   organizationInformationFormSchema,
-  OrganizationInformationFormSchemaType,
 } from "@/lib/schemas";
 import {
   organizationService,
   preferredOrganizationService,
   stripeService,
 } from "@/lib/services";
-import { Err, Ok, Result } from "@/lib/ts-res";
+import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
-  AuthenticatedRequest,
+  type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 
@@ -107,7 +107,8 @@ const updateInvoiceEmailSchema = z.object({
   invoiceEmail: z.email().nullable(),
 });
 
-interface UpdateOrganizationInvoiceEmailParameters extends AuthenticatedRequest {
+interface UpdateOrganizationInvoiceEmailParameters
+  extends AuthenticatedRequest {
   organizationId: string;
   invoiceEmail: string | null;
 }

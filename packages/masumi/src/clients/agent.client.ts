@@ -2,19 +2,19 @@ import { err, ok, type Result } from "neverthrow";
 
 import { hashCanonicalJsonValue, hashInputSchema } from "../hash/index.js";
 import {
+  type InputSchemaResponseSchemaType,
+  type InputSchemaType,
   inputSchemaResponseSchema,
-  InputSchemaResponseSchemaType,
-  InputSchemaType,
+  type JobStatusResponseSchemaType,
   jobStatusResponseSchema,
-  JobStatusResponseSchemaType,
+  type ProvideInputRequestSchemaType,
+  type ProvideInputResponseSchemaType,
   provideInputRequestSchema,
-  ProvideInputRequestSchemaType,
   provideInputResponseSchema,
-  ProvideInputResponseSchemaType,
+  type StartFreeJobResponseSchemaType,
+  type StartPaidJobResponseSchemaType,
   startFreeJobResponseSchema,
-  StartFreeJobResponseSchemaType,
   startPaidJobResponseSchema,
-  StartPaidJobResponseSchemaType,
 } from "../schemas/index.js";
 import type { Agent } from "../types/agent.js";
 import { safeAddPathComponent } from "../utils/url.js";
@@ -78,7 +78,7 @@ function isInternalHostname(hostname: string): boolean {
       if (
         parts.some(
           (p) =>
-            isNaN(parseInt(p, 10)) ||
+            Number.isNaN(parseInt(p, 10)) ||
             parseInt(p, 10) < 0 ||
             parseInt(p, 10) > 255,
         )

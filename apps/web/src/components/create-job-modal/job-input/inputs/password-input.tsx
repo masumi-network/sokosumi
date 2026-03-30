@@ -1,13 +1,13 @@
 "use client";
 
-import { InputPasswordSchemaType } from "@sokosumi/masumi/schemas";
-import { InputType } from "@sokosumi/masumi/types";
+import type { InputPasswordSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputType } from "@sokosumi/masumi/types";
 import { Eye, EyeOff } from "lucide-react";
 import * as React from "react";
 
 import { Input } from "@/components/ui/input";
 
-import { JobInputComponentProps } from "./types";
+import type { JobInputComponentProps } from "./types";
 
 export function PasswordInput({
   id,

@@ -1,5 +1,5 @@
 import { jobRepository } from "@sokosumi/database/repositories";
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest, NextResponse } from "next/server";
 import superJson from "superjson";
 
 import { createApiSuccessResponse, handleApiError } from "@/lib/api";

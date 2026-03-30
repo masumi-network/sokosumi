@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { changePassword } from "@/lib/auth/auth.client";
-import { passwordFormSchema, PasswordFormType } from "@/lib/schemas";
+import { type PasswordFormType, passwordFormSchema } from "@/lib/schemas";
 
 export function PasswordForm() {
   const t = useTranslations("App.Account.Password");

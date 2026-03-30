@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { GoogleIcon, MicrosoftIcon } from "@/components/social-icons";
 import { Button } from "@/components/ui/button";
-import { type Account } from "@/lib/auth/auth";
+import type { Account } from "@/lib/auth/auth";
 import { authClient } from "@/lib/auth/auth.client";
 import { AccountProvider } from "@/lib/auth/types";
 

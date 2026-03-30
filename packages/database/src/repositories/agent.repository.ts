@@ -1,11 +1,11 @@
 import type { Agent, AgentStatus, Prisma } from "../generated/prisma/client.js";
 import {
-  agentInclude,
-  agentOrderBy,
-  agentPricingInclude,
   type AgentWithJobs,
   type AgentWithPricing,
   type AgentWithRelations,
+  agentInclude,
+  agentOrderBy,
+  agentPricingInclude,
 } from "../types/agent.js";
 
 /**

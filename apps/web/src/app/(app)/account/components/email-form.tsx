@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { changeEmail } from "@/lib/auth/auth.client";
-import { emailFormSchema, EmailFormType } from "@/lib/schemas";
+import { type EmailFormType, emailFormSchema } from "@/lib/schemas";
 
 export function EmailForm() {
   const t = useTranslations("App.Account.Email");

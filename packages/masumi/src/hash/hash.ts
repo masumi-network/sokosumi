@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { canonicalizeEx } from "json-canonicalize";
 
 import { normalizeAndValidateInputSchema } from "../schemas/input/input.schema.js";
@@ -111,5 +111,5 @@ export const hashResult = (result: string, identifierFromPurchaser: string) => {
   // JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
   // Slicing to remove the quotes
   const escaped = JSON.stringify(result).slice(1, -1);
-  return createHash(identifierFromPurchaser + ";" + escaped);
+  return createHash(`${identifierFromPurchaser};${escaped}`);
 };

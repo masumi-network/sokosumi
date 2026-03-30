@@ -5,7 +5,7 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
-    // Enable it explicitly for the ESLint rule `typescript-eslint/prefer-nullish-coalescing`.
+    // Kept explicit for strict null handling across the web app.
     "strictNullChecks": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -38,7 +38,6 @@
   },
   "include": [
     "next-env.d.ts",
-    "eslint.config.mjs",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",

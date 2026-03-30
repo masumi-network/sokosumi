@@ -1,13 +1,16 @@
 "use client";
 
-import { MemberRole, MemberWithUser } from "@sokosumi/database";
+import { MemberRole, type MemberWithUser } from "@sokosumi/database";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
-import { BetterAuthClientError, BetterAuthClientResult } from "@/lib/actions";
+import type {
+  BetterAuthClientError,
+  BetterAuthClientResult,
+} from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 
 export enum MemberAction {

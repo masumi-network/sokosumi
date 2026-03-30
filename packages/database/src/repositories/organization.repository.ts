@@ -2,10 +2,10 @@ import { parseOrganizationMetadata } from "@sokosumi/utils";
 
 import type { Organization, Prisma } from "../generated/prisma/client.js";
 import {
+  type OrganizationWithLimitedInfo,
+  type OrganizationWithRelations,
   organizationInclude,
   organizationLimitedInfoInclude,
-  OrganizationWithLimitedInfo,
-  OrganizationWithRelations,
 } from "../types/organization.js";
 
 /**

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { type TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 
 import type { DragHandleProps } from "./task-dnd";

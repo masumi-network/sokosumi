@@ -1,6 +1,6 @@
 "use client";
 
-import { OAuthConsent, Scope } from "@better-auth/oauth-provider";
+import type { OAuthConsent, Scope } from "@better-auth/oauth-provider";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

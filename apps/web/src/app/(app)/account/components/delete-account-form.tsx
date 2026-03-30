@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { deleteUser } from "@/lib/auth/auth.client";
-import { DeleteAccountFormType, deleteAccountSchema } from "@/lib/schemas";
+import { type DeleteAccountFormType, deleteAccountSchema } from "@/lib/schemas";
 
 export function DeleteAccountForm() {
   const t = useTranslations("App.Account.Delete");

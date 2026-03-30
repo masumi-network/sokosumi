@@ -1,5 +1,5 @@
-import { InputFileSchemaType } from "@sokosumi/masumi/schemas";
-import { InputType } from "@sokosumi/masumi/types";
+import type { InputFileSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputType } from "@sokosumi/masumi/types";
 import { CloudUpload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -17,7 +17,7 @@ import {
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
 
-import { JobInputComponentProps } from "./types";
+import type { JobInputComponentProps } from "./types";
 
 export function FileInput({
   id,

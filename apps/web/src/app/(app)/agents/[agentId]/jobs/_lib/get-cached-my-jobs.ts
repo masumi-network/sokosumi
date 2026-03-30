@@ -1,4 +1,4 @@
-import { type JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { cache } from "react";
 
 import { userService } from "@/lib/services";

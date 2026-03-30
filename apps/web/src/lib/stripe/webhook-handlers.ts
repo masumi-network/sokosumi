@@ -3,7 +3,7 @@ import "server-only";
 import {
   CreditBucketReferenceType,
   MemberRole,
-  Prisma,
+  type Prisma,
   TaskEventOrigin,
   TaskStatus,
 } from "@sokosumi/database";

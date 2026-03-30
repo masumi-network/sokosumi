@@ -1,6 +1,6 @@
-import { MessageKeys, NestedKeyOf, NestedValueOf } from "next-intl";
-import * as z from "zod";
-import { ZodSchema } from "zod";
+import type { MessageKeys, NestedKeyOf, NestedValueOf } from "next-intl";
+import type * as z from "zod";
+import type { ZodSchema } from "zod";
 
 type EndsWithFormString<T extends string> = T extends `${string}.Form`
   ? T

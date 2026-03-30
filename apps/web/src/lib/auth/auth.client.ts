@@ -16,7 +16,7 @@ import { createAuthClient } from "better-auth/react";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 
-import { auth } from "./auth";
+import type { auth } from "./auth";
 
 function getLastUsedLoginMethodCookieName(): string {
   const env = getEnvPublicConfig();

@@ -4,15 +4,15 @@ import { headers } from "next/headers";
 import * as z from "zod";
 
 import {
-  ActionError,
+  type ActionError,
   betterAuthApiErrorSchema,
   CommonErrorCode,
 } from "@/lib/actions/errors";
 import { auth } from "@/lib/auth/auth";
 import { organizationSubscriptionService } from "@/lib/services";
-import { Err, Ok, Result } from "@/lib/ts-res";
+import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
-  AuthenticatedRequest,
+  type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 
@@ -190,7 +190,8 @@ export const openPersonalBillingPortal = withSession<
   }
 });
 
-interface UpgradeOrganizationSubscriptionParameters extends AuthenticatedRequest {
+interface UpgradeOrganizationSubscriptionParameters
+  extends AuthenticatedRequest {
   organizationId: string;
   plan: "free" | "starter" | "standard" | "pro";
   returnPath: string;
@@ -282,7 +283,8 @@ export const openOrganizationBillingPortal = withSession<
   }
 });
 
-interface UpdateOrganizationSubscriptionSeatsParameters extends AuthenticatedRequest {
+interface UpdateOrganizationSubscriptionSeatsParameters
+  extends AuthenticatedRequest {
   organizationId: string;
   seats: number;
 }

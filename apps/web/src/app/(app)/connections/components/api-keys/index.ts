@@ -9,9 +9,9 @@ export { useApiKeys } from "./hooks/use-api-keys";
 export { useDialogState } from "./hooks/use-dialog-state";
 export type {
   ApiKeyActionCallbacks,
+  ApiKeySuccessDisplayProps,
   ApiKeysHeaderProps,
   ApiKeysListProps,
-  ApiKeySuccessDisplayProps,
   CreateApiKeyDialogProps,
   CreateApiKeyFormData,
   CreateApiKeyRequest,
@@ -30,8 +30,8 @@ export {
   createApiKeySchema,
   DEFAULT_CREATE_FORM_VALUES,
   DEFAULT_DELETE_FORM_VALUES,
-  deleteApiKeySchema,
   DIALOG_CLEANUP_TIMEOUT,
+  deleteApiKeySchema,
   formatApiKeyDisplay,
   getToggleActionText,
   validateConfirmationName,

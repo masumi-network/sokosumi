@@ -10,7 +10,7 @@ import { CreateApiKeyDialog } from "./create-api-key-dialog";
 import { DeleteApiKeyDialog } from "./delete-api-key-dialog";
 import { useApiKeys } from "./hooks/use-api-keys";
 import { useDialogState } from "./hooks/use-dialog-state";
-import { ApiKeyRecord, CreateApiKeyResult } from "./types";
+import type { ApiKeyRecord, CreateApiKeyResult } from "./types";
 
 export function ApiKeysSection() {
   const {

@@ -30,5 +30,4 @@ publicHoistPattern:
   - "@prisma/adapter-pg"
   - pg
   - pg-pool
-  - eslint
-  - prettier
+  - "@biomejs/biome"

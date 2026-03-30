@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  Invitation,
+  type Invitation,
   InvitationStatus,
-  Member,
+  type Member,
   MemberRole,
-  MemberWithUser,
+  type MemberWithUser,
 } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
@@ -17,7 +17,7 @@ import { InvitationActionsModalContextProvider } from "./invitation-actions-moda
 import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
 import { getMembersTableColumns } from "./members-table-columns";
-import { MemberRowData } from "./types";
+import type { MemberRowData } from "./types";
 
 interface MembersTableProps {
   me: Member;
