@@ -30,22 +30,22 @@
     "@better-auth/prisma-adapter": "1.5.6",
     "@better-auth/utils": "0.3.1",
     "@hono/node-server": "1.19.11",
-    "@hono/zod-openapi": "1.2.3",
+    "@hono/zod-openapi": "1.2.4",
     "@openrouter/ai-sdk-provider": "2.3.3",
-    "@scalar/hono-api-reference": "0.10.4",
-    "@scalar/openapi-to-markdown": "0.4.13",
-    "@sentry/node": "10.45.0",
-    "@sentry/profiling-node": "10.45.0",
+    "@scalar/hono-api-reference": "0.10.5",
+    "@scalar/openapi-to-markdown": "0.4.15",
+    "@sentry/node": "10.46.0",
+    "@sentry/profiling-node": "10.46.0",
     "@sokosumi/chat": "workspace:*",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/email": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
     "@sokosumi/utils": "workspace:*",
-    "@vercel/blob": "2.3.1",
+    "@vercel/blob": "2.3.2",
     "@vercel/functions": "3.4.3",
     "@vercel/related-projects": "1.0.1",
     "ably": "2.21.0",
-    "ai": "6.0.138",
+    "ai": "6.0.141",
     "better-auth": "1.5.6",
     "cron-parser": "5.5.0",
     "dotenv": "17.3.1",
@@ -54,7 +54,7 @@
     "p-limit": "7.3.0",
     "postmark": "4.0.7",
     "slugify": "1.6.8",
-    "stripe": "20.4.1",
+    "stripe": "21.0.1",
     "uuid": "13.0.0"
   },
   "devDependencies": {
@@ -62,6 +62,6 @@
     "tsup": "8.5.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
-    "vitest": "4.1.1"
+    "vitest": "4.1.2"
   }
 }
