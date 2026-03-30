@@ -52,7 +52,7 @@
     "@openrouter/ai-sdk-provider": "2.3.3",
     "@radix-ui/react-slot": "1.2.4",
     "@react-email/components": "1.0.10",
-    "@sentry/nextjs": "10.45.0",
+    "@sentry/nextjs": "10.46.0",
     "@sokosumi/chat": "workspace:*",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/email": "workspace:*",
