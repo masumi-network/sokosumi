@@ -64,7 +64,7 @@
     "@types/unist": "3.0.3",
     "@usersnap/browser": "1.0.2",
     "@vercel/analytics": "2.0.1",
-    "@vercel/blob": "2.3.1",
+    "@vercel/blob": "2.3.2",
     "@vercel/related-projects": "1.0.1",
     "@vercel/speed-insights": "2.0.0",
     "ably": "2.21.0",
