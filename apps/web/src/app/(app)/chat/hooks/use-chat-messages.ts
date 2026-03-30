@@ -6,11 +6,6 @@ import { useCallback, useEffect, useRef } from "react";
 import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
 import { getConversationItems } from "@/lib/actions/conversation/core-api-actions";
 
-type SetMessagesForConversation = (
-  convId: string,
-  messages: UIMessage[],
-) => void;
-
 interface UseChatMessagesProps {
   selectedChatId: string | null;
   selectedConversation: {
@@ -24,7 +19,7 @@ interface UseChatMessagesProps {
     metadata?: Record<string, unknown> | null;
   } | null;
   skipLoadWhenPendingId?: boolean;
-  setMessagesForConversation: SetMessagesForConversation;
+  setMessagesForConversation: (convId: string, messages: UIMessage[]) => void;
   previousChatIdRef: React.MutableRefObject<string | null>;
   messagesChatIdRef: React.MutableRefObject<string | null>;
   chatMessagesRef: React.MutableRefObject<Map<string, unknown[]>>;
