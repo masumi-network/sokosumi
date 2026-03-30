@@ -6,6 +6,7 @@ import JobDetailsView from "@/components/jobs/job-details/job-details-view";
 
 const useSessionMock = vi.fn();
 const useQueryMock = vi.fn();
+const useJobsHeaderMock = vi.fn();
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -32,11 +33,13 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/app/agents/[agentId]/jobs/components/header", () => ({
-  default: () => <div data-testid="jobs-header" />,
+  default: ({ detailActions }: { detailActions?: React.ReactNode }) => (
+    <div data-testid="jobs-header">{detailActions}</div>
+  ),
 }));
 
 vi.mock("@/app/agents/[agentId]/jobs/components/jobs-header-context", () => ({
-  useJobsHeader: () => null,
+  useJobsHeader: (...args: unknown[]) => useJobsHeaderMock(...args),
 }));
 
 vi.mock("@/lib/helpers/agent", () => ({
@@ -45,8 +48,21 @@ vi.mock("@/lib/helpers/agent", () => ({
 }));
 
 vi.mock("@/components/jobs/job-details/job-details-name", () => ({
-  default: ({ job }: { job: { id: string } }) => (
-    <div data-testid="job-details-name">{job.id}</div>
+  default: ({ name }: { name: string }) => (
+    <div data-testid="job-details-name">{name}</div>
+  ),
+  useJobDetailsNameController: () => ({
+    editing: false,
+    form: {},
+    startEditing: vi.fn(),
+    cancelEditing: vi.fn(),
+    submit: vi.fn(),
+  }),
+}));
+
+vi.mock("@/components/jobs/job-details/job-share-button", () => ({
+  default: ({ label }: { label?: string }) => (
+    <button type="button" aria-label={label ?? "share"} />
   ),
 }));
 
@@ -146,13 +162,37 @@ function createJob(): JobWithSokosumiStatus {
 describe("JobDetailsView", () => {
   it("renders from props without session or private query hooks", () => {
     const job = createJob();
+    useJobsHeaderMock.mockReturnValue(null);
 
     render(<JobDetailsView job={job} readOnly showAgentHeader={false} />);
 
-    expect(screen.getByTestId("job-details-name")).toHaveTextContent("job-1");
+    expect(screen.getByTestId("job-details-name")).toHaveTextContent(
+      "Shared Job",
+    );
     expect(screen.getAllByTestId("job-meta-details")).toHaveLength(2);
     expect(screen.getByTestId("job-details-footer")).toBeInTheDocument();
     expect(useSessionMock).not.toHaveBeenCalled();
     expect(useQueryMock).not.toHaveBeenCalled();
+  });
+
+  it("renders edit and share controls in the top header when agent header is shown", () => {
+    useJobsHeaderMock.mockReturnValue({
+      agent: {
+        id: "agent-1",
+        creditsPrice: { cents: BigInt(100) },
+      },
+      favoriteAgents: [],
+      ratingStats: { averageRating: 0, ratingCount: 0 },
+      canRate: false,
+      existingRating: null,
+      disabled: false,
+    });
+
+    render(
+      <JobDetailsView job={createJob()} readOnly={false} showAgentHeader />,
+    );
+
+    expect(screen.getByLabelText("edit")).toBeInTheDocument();
+    expect(screen.getByLabelText("share")).toBeInTheDocument();
   });
 });

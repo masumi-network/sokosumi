@@ -653,6 +653,38 @@ describe("isTaskArchivableStatus", () => {
 });
 
 describe("mapTask", () => {
+  it("preserves the raw share relation for schema parsing to shape later", () => {
+    const share = {
+      id: "share_123",
+      token: "public-share-token",
+      allowSearchIndexing: true,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      jobId: null,
+      taskId: "tsk_123",
+    };
+    const task = {
+      id: "tsk_123",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      userId: "user_123",
+      organizationId: null,
+      coworkerId: "cow_123",
+      name: "Task with share",
+      description: null,
+      status: TaskStatus.READY,
+      share,
+      jobs: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+    } as unknown as TaskWithIncludes;
+
+    const result = mapTask(task);
+
+    expect(result.share).toEqual(share);
+  });
+
   it("aggregates credits from multiple charged events", () => {
     const task = {
       id: "tsk_123",

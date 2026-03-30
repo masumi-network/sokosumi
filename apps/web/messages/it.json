@@ -290,8 +290,6 @@
             "save": "Salva",
             "cancel": "Annulla",
             "noName": "Senza nome",
-            "shared": "Condiviso pubblicamente",
-            "private": "Privato",
             "success": "Nome del job aggiornato correttamente",
             "error": "Impossibile aggiornare il nome del job",
             "Errors": {
@@ -1400,6 +1398,7 @@
           "markAsReady": "Segna come pronto",
           "revertToDraft": "Ripristina bozza",
           "cancelRequest": "Annulla richiesta",
+          "share": "Share",
           "updateStatusSuccess": "Stato del task aggiornato",
           "moveToWorkspace": "Sposta in un altro spazio di lavoro",
           "moveToWorkspaceTitle": "Sposta il task in un altro spazio di lavoro",
@@ -1409,6 +1408,28 @@
           "moveToWorkspaceSuccess": "Task spostato con successo",
           "moveToWorkspaceError": "Impossibile spostare il task",
           "personalWorkspace": "Personale"
+        },
+        "ShareModal": {
+          "title": "Share task",
+          "publicAccessTitle": "Public access",
+          "publicAccessDescription": "Anyone with the link can view this task summary.",
+          "privateAccessTitle": "Private access",
+          "privateAccessDescription": "Only you can access this task.",
+          "allowSearchIndexing": "Allow search engines to index this page",
+          "Success": {
+            "share": "Task sharing updated",
+            "copyLink": "Public link copied"
+          },
+          "Error": {
+            "share": "Failed to update task sharing",
+            "copyLink": "Failed to copy public link"
+          },
+          "Errors": {
+            "unauthenticated": "Please sign in to manage task sharing",
+            "unauthenticatedAction": "Sign in",
+            "unauthorized": "You are not allowed to manage this task share",
+            "taskNotFound": "Task not found"
+          }
         },
         "switchedWorkspace": "Passato all’account {account}"
       },
@@ -2305,6 +2326,24 @@
         "title": "{name}",
         "defaultName": "Senza titolo",
         "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
+      }
+    },
+    "Tasks": {
+      "Metadata": {
+        "title": "{name}",
+        "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
+      },
+      "Page": {
+        "eyebrow": "Public task",
+        "descriptionEmpty": "No description provided.",
+        "jobsEmpty": "No linked jobs.",
+        "milestonesTitle": "Milestones",
+        "milestonesEmpty": "No milestones yet.",
+        "jobCreatedAt": "Created {date}",
+        "jobCompletedAt": "Completed {date}",
+        "publicJobLink": "Open public job",
+        "privateJobLink": "Private job",
+        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
       }
     },
     "CTA": {

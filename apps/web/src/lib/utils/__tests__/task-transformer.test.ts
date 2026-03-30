@@ -96,6 +96,23 @@ describe("mapTaskToTaskWithCoworker", () => {
 
     expect(mapped.jobsCount).toBe(1);
   });
+
+  it("preserves share information from task detail responses", () => {
+    const task = buildTask(TaskStatus.READY, {
+      share: {
+        id: "share-1",
+        taskId: "task-1",
+        token: "public-share-token",
+        allowSearchIndexing: true,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      } as never,
+    });
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.share?.token).toBe("public-share-token");
+  });
 });
 
 describe("clampTaskNameForCoreApi", () => {

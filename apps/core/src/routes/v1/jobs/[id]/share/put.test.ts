@@ -8,7 +8,7 @@ const {
   authContextState,
   prismaTransactionMock,
   jobFindUniqueMock,
-  upsertPublicShareMock,
+  upsertForJobMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -23,7 +23,7 @@ const {
   },
   prismaTransactionMock: vi.fn(),
   jobFindUniqueMock: vi.fn(),
-  upsertPublicShareMock: vi.fn(),
+  upsertForJobMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -59,8 +59,8 @@ vi.mock("@/middleware/auth", () => ({
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  jobShareRepository: {
-    upsertPublicShare: (...args: unknown[]) => upsertPublicShareMock(...args),
+  publicShareRepository: {
+    upsertForJob: (...args: unknown[]) => upsertForJobMock(...args),
   },
 }));
 
@@ -96,7 +96,7 @@ describe("PUT /jobs/{id}/share", () => {
       id: "job_123",
       userId: "user_123",
     });
-    upsertPublicShareMock.mockResolvedValue({
+    upsertForJobMock.mockResolvedValue({
       id: "share_123",
       jobId: "job_123",
       token: "public-share-token",
@@ -121,7 +121,7 @@ describe("PUT /jobs/{id}/share", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(upsertPublicShareMock).toHaveBeenCalledWith(
+    expect(upsertForJobMock).toHaveBeenCalledWith(
       "job_123",
       true,
       expect.any(Object),
@@ -149,7 +149,7 @@ describe("PUT /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(401);
-    expect(upsertPublicShareMock).not.toHaveBeenCalled();
+    expect(upsertForJobMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the job is owned by another user", async () => {
@@ -170,7 +170,7 @@ describe("PUT /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(upsertPublicShareMock).not.toHaveBeenCalled();
+    expect(upsertForJobMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the job does not exist", async () => {
@@ -188,6 +188,6 @@ describe("PUT /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(upsertPublicShareMock).not.toHaveBeenCalled();
+    expect(upsertForJobMock).not.toHaveBeenCalled();
   });
 });

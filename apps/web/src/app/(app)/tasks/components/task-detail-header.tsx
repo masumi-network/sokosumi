@@ -1,4 +1,4 @@
-import { type MemberWithOrganization, TaskStatus } from "@sokosumi/database";
+import type { MemberWithOrganization } from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -24,6 +24,7 @@ interface TaskDetailHeaderProps {
       markAsReady: string;
       revertToDraft: string;
       cancelRequest: string;
+      share: string;
     };
   };
 }
@@ -35,16 +36,6 @@ export function TaskDetailHeader({
   personalWorkspaceLabel,
   labels,
 }: TaskDetailHeaderProps) {
-  const canManage =
-    task.status === TaskStatus.DRAFT ||
-    task.status === TaskStatus.READY ||
-    task.status === TaskStatus.INPUT_REQUIRED ||
-    task.status === TaskStatus.AUTHENTICATION_REQUIRED ||
-    task.status === TaskStatus.OUT_OF_CREDITS ||
-    task.status === TaskStatus.CREDITS_TOPPED_UP ||
-    task.status === TaskStatus.RUNNING ||
-    task.status === TaskStatus.CANCELED;
-
   return (
     <div className="space-y-4">
       {/* Top bar with back and actions */}
@@ -57,18 +48,17 @@ export function TaskDetailHeader({
           <span>{labels.back}</span>
         </Link>
 
-        {canManage ? (
-          <TaskDetailActions
-            taskId={task.id}
-            status={task.status}
-            jobsCount={task.jobsCount}
-            actionsMenuLabel={labels.actionsMenuLabel}
-            labels={labels.actions}
-            currentOrganizationId={currentOrganizationId}
-            organizations={organizations}
-            personalWorkspaceLabel={personalWorkspaceLabel}
-          />
-        ) : null}
+        <TaskDetailActions
+          taskId={task.id}
+          share={task.share ?? null}
+          status={task.status}
+          jobsCount={task.jobsCount}
+          actionsMenuLabel={labels.actionsMenuLabel}
+          labels={labels.actions}
+          currentOrganizationId={currentOrganizationId}
+          organizations={organizations}
+          personalWorkspaceLabel={personalWorkspaceLabel}
+        />
       </div>
 
       {/* Title */}

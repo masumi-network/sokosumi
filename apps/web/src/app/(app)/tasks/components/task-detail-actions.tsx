@@ -10,6 +10,7 @@ import {
   Loader2,
   Pencil,
   RotateCcw,
+  Share,
   Trash,
 } from "lucide-react";
 import Link from "next/link";
@@ -33,11 +34,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { deleteTask, setTaskStatusFromDrag } from "@/lib/actions/task/action";
+import type { TaskShare } from "@/lib/clients/generated/core";
 
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
+import { TaskShareButton } from "./task-share-button";
+import { TaskShareModal } from "./task-share-modal";
 import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 
 interface TaskDetailActionsLabels {
@@ -49,10 +54,12 @@ interface TaskDetailActionsLabels {
   markAsReady: string;
   revertToDraft: string;
   cancelRequest: string;
+  share: string;
 }
 
 interface TaskDetailActionsProps {
   taskId: string;
+  share: TaskShare | null;
   status: TaskStatus;
   jobsCount: number;
   actionsMenuLabel: string;
@@ -64,6 +71,7 @@ interface TaskDetailActionsProps {
 
 export function TaskDetailActions({
   taskId,
+  share,
   status,
   jobsCount,
   actionsMenuLabel,
@@ -80,10 +88,21 @@ export function TaskDetailActions({
   const [isDeletePending, startDeleteTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [pendingStatusTarget, setPendingStatusTarget] =
     useState<TaskStatus | null>(null);
 
   const statusActions = getTaskStatusActions(status, labels);
+  const mobilePrimaryStatusAction =
+    statusActions.find((action) => action.target === TaskStatus.READY) ??
+    statusActions[0] ??
+    null;
+  const mobileOverflowStatusActions = statusActions.filter(
+    (action) => action.target !== mobilePrimaryStatusAction?.target,
+  );
+  const MobilePrimaryStatusIcon = mobilePrimaryStatusAction
+    ? getStatusActionMenuIcon(mobilePrimaryStatusAction.target)
+    : CheckCircle2;
   const canEditOrDelete =
     status === TaskStatus.DRAFT || status === TaskStatus.READY;
   const isFinalized =
@@ -130,81 +149,126 @@ export function TaskDetailActions({
   };
 
   const actionsDisabled = isStatusPending || isDeletePending;
+  const isMobileActionsMenuDisabled = isDeletePending;
 
   return (
     <>
-      <div className="hidden items-center gap-1.5 md:flex">
-        {statusActions.map((action) => {
-          const StatusIcon = getStatusActionMenuIcon(action.target);
-
-          return (
-            <Button
-              key={action.target}
-              variant="outline"
-              size="sm"
-              onClick={() => handleStatusToggle(action.target)}
-              disabled={isStatusPending}
-              className="h-7 gap-1.5 px-2.5 text-xs"
+      <div className="hidden items-center gap-3 md:flex">
+        <div
+          className="flex items-center gap-1.5"
+          data-testid="task-secondary-actions"
+        >
+          <TaskShareButton
+            task={{ id: taskId, share }}
+            label={labels.share}
+            variant="ghost"
+            size="icon"
+            className="size-7"
+          />
+          {canEditOrDelete ? (
+            <Link
+              href={`/tasks/${taskId}/edit`}
+              aria-disabled={isStatusPending}
+              tabIndex={isStatusPending ? -1 : 0}
+              aria-label={labels.edit}
+              title={labels.edit}
+              className={`inline-flex items-center ${isStatusPending ? "pointer-events-none opacity-70" : ""}`}
             >
-              {isStatusPending && pendingStatusTarget === action.target ? (
-                <Loader2 className="size-3 animate-spin" aria-hidden />
-              ) : (
-                <StatusIcon className="size-3" aria-hidden />
-              )}
-              <span>{action.label}</span>
-            </Button>
-          );
-        })}
-        {canEditOrDelete ? (
-          <Link
-            href={`/tasks/${taskId}/edit`}
-            aria-disabled={isStatusPending}
-            tabIndex={isStatusPending ? -1 : 0}
-            className={`inline-flex items-center ${isStatusPending ? "pointer-events-none opacity-70" : ""}`}
-          >
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                disabled={isStatusPending}
+                tabIndex={-1}
+              >
+                <span>
+                  <Pencil className="size-4" aria-hidden />
+                </span>
+              </Button>
+            </Link>
+          ) : null}
+          {canMove ? (
             <Button
-              asChild
+              type="button"
               variant="ghost"
-              size="sm"
-              className="h-7 gap-1 px-2 text-xs"
-              disabled={isStatusPending}
-              tabIndex={-1}
+              size="icon"
+              className="size-7"
+              aria-label={tDetailActions("moveToWorkspace")}
+              title={tDetailActions("moveToWorkspace")}
+              disabled={actionsDisabled}
+              onClick={() => setIsMoveOpen(true)}
             >
-              <span className="flex items-center gap-1">
-                <Pencil className="size-3" aria-hidden />
-                <span>{labels.edit}</span>
-              </span>
+              <ArrowLeftRight className="size-4" aria-hidden />
             </Button>
-          </Link>
-        ) : null}
-        {canMove ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground h-7 gap-1 px-2 text-xs"
-            disabled={actionsDisabled}
-            onClick={() => setIsMoveOpen(true)}
+          ) : null}
+          {canEditOrDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              aria-label={labels.delete}
+              title={labels.delete}
+              disabled={isDeletePending || isStatusPending}
+              onClick={() => setIsOpen(true)}
+            >
+              <Trash className="size-4" aria-hidden />
+            </Button>
+          ) : null}
+        </div>
+        {statusActions.length > 0 ? (
+          <div
+            className="flex items-center gap-1.5 border-l pl-3"
+            data-testid="task-status-actions"
           >
-            <ArrowLeftRight className="size-3" aria-hidden />
-            <span>{tDetailActions("moveToWorkspace")}</span>
-          </Button>
-        ) : null}
-        {canEditOrDelete ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-destructive h-7 gap-1 px-2 text-xs"
-            disabled={isDeletePending || isStatusPending}
-            onClick={() => setIsOpen(true)}
-          >
-            <Trash className="size-3" aria-hidden />
-            <span>{labels.delete}</span>
-          </Button>
+            {statusActions.map((action) => {
+              const StatusIcon = getStatusActionMenuIcon(action.target);
+
+              return (
+                <Button
+                  key={action.target}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleStatusToggle(action.target)}
+                  disabled={isStatusPending}
+                  className="h-7 gap-1.5 px-2.5 text-xs"
+                >
+                  {isStatusPending && pendingStatusTarget === action.target ? (
+                    <Loader2 className="size-3 animate-spin" aria-hidden />
+                  ) : (
+                    <StatusIcon className="size-3" aria-hidden />
+                  )}
+                  <span>{action.label}</span>
+                </Button>
+              );
+            })}
+          </div>
         ) : null}
       </div>
 
-      <div className="md:hidden">
+      <div
+        className="flex items-center gap-1 md:hidden"
+        data-testid="task-mobile-actions"
+      >
+        {mobilePrimaryStatusAction ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleStatusToggle(mobilePrimaryStatusAction.target)}
+            disabled={isStatusPending}
+            className="h-8 gap-1.5 px-2.5 text-xs"
+          >
+            {isStatusPending &&
+            pendingStatusTarget === mobilePrimaryStatusAction.target ? (
+              <Loader2 className="size-3 animate-spin" aria-hidden />
+            ) : (
+              <MobilePrimaryStatusIcon className="size-3" aria-hidden />
+            )}
+            <span>{mobilePrimaryStatusAction.label}</span>
+          </Button>
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -213,13 +277,13 @@ export function TaskDetailActions({
               size="icon"
               className="size-8 shrink-0"
               aria-label={actionsMenuLabel}
-              disabled={actionsDisabled}
+              disabled={isMobileActionsMenuDisabled}
             >
               <Ellipsis className="size-4" aria-hidden />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            {statusActions.map((action) => {
+            {mobileOverflowStatusActions.map((action) => {
               const StatusIcon = getStatusActionMenuIcon(action.target);
 
               return (
@@ -237,6 +301,13 @@ export function TaskDetailActions({
                 </DropdownMenuItem>
               );
             })}
+            {mobileOverflowStatusActions.length > 0 ? (
+              <DropdownMenuSeparator />
+            ) : null}
+            <DropdownMenuItem onSelect={() => setIsShareOpen(true)}>
+              <Share className="size-4" aria-hidden />
+              {labels.share}
+            </DropdownMenuItem>
             {canEditOrDelete ? (
               <DropdownMenuItem asChild disabled={isStatusPending}>
                 <Link
@@ -297,6 +368,13 @@ export function TaskDetailActions({
           </AlertDialogContent>
         </AlertDialog>
       ) : null}
+
+      <TaskShareModal
+        open={isShareOpen}
+        onOpenChange={setIsShareOpen}
+        taskId={taskId}
+        share={share}
+      />
 
       {canMove ? (
         <MoveTaskToWorkspaceDialog

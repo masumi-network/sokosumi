@@ -1,9 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 
-import jobsRouter from "./jobs/index.js";
+import mountGetSharedResourceByToken from "./[token]/get.js";
 
 const app = new OpenAPIHono();
 
-app.route("/jobs", jobsRouter);
+mountGetSharedResourceByToken(app);
 
 export default app;

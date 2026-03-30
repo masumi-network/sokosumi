@@ -2,6 +2,7 @@ import type { AgentWithCreditsPrice } from "@sokosumi/database";
 
 import type { Coworker } from "@/lib/clients/generated/core";
 import type {
+  Task,
   TaskEvent,
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
@@ -80,7 +81,7 @@ function replaceMentionsWithAgentNames(
 }
 
 export function mapTaskToTaskWithCoworker(
-  task: TaskListItem,
+  task: TaskListItem | Task,
   coworkersById: Map<string, Coworker>,
   agentsById: Map<string, AgentWithCreditsPrice>,
 ): TaskWithCoworker {
@@ -106,6 +107,7 @@ export function mapTaskToTaskWithCoworker(
     updatedAt,
     jobsCount: task.jobs.length,
     coworker,
+    share: "share" in task ? (task.share ?? null) : null,
     agents,
     commentsCount: getCommentsCount(task.events),
     columnId: getColumnId(task.status),
