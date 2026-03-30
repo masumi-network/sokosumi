@@ -31,6 +31,8 @@ export type PaymentInformation = {
         };
     } | {
         pricingType: 'Free';
+    } | {
+        pricingType: 'Dynamic';
     };
     name: string;
     description: string | null;
@@ -100,6 +102,8 @@ export type RegistryEntry = {
         };
     } | {
         pricingType: 'Free';
+    } | {
+        pricingType: 'Dynamic';
     };
     ExampleOutput: Array<{
         name: string;
@@ -214,7 +218,7 @@ export type PostRegistryEntryData = {
                 version?: string;
             };
         };
-        minHealthCheckDate?: Date;
+        minHealthCheckDate?: Date | Date;
     };
     path?: never;
     query?: never;
@@ -346,7 +350,7 @@ export type PostRegistrySourceResponse = PostRegistrySourceResponses[keyof PostR
 export type PostRegistryDiffData = {
     body?: {
         network: 'Preprod' | 'Mainnet';
-        statusUpdatedAfter: Date;
+        statusUpdatedAfter: Date | Date;
         limit?: number;
         /**
          * The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward)

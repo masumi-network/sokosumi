@@ -5,8 +5,18 @@ import type {
   OnChainJobStatus,
   OnChainTransactionStatus,
 } from "@sokosumi/database";
+import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 
 import type { JobStatusValue } from "@/lib/schemas";
+
+type PaymentPurchase = PostPurchaseResponses["200"]["data"];
+type PurchaseOnChainState = PaymentPurchase["onChainState"];
+type PurchaseNextAction = PaymentPurchase["NextAction"];
+type PurchaseRequestedAction = PurchaseNextAction["requestedAction"];
+type PurchaseErrorType = PurchaseNextAction["errorType"];
+type CurrentTransactionStatus = NonNullable<
+  PaymentPurchase["CurrentTransaction"]
+>["status"];
 
 /**
  * Job transformation utilities.
@@ -128,12 +138,7 @@ export function jobStatusToAgentJobStatus(
 }
 
 export function transactionStatusToOnChainTransactionStatus(
-  currentTransactionStatus:
-    | "Pending"
-    | "Confirmed"
-    | "FailedViaTimeout"
-    | "RolledBack"
-    | "FailedViaManualReset",
+  currentTransactionStatus: CurrentTransactionStatus,
 ): OnChainTransactionStatus {
   switch (currentTransactionStatus) {
     case "Pending":
@@ -155,22 +160,16 @@ export function transactionStatusToOnChainTransactionStatus(
  * Minimal purchase shape used for job update. Accepts both web-generated (Date
  * fields) and @sokosumi/masumi client (string dates) response types.
  */
-interface PurchaseForJobUpdate {
-  id: string;
-  onChainState: PurchaseOnChainState;
-  inputHash: string;
-  resultHash: string | null;
-  NextAction: PurchaseNextAction;
-  CurrentTransaction: {
-    txHash: string | null;
-    status:
-      | "Pending"
-      | "Confirmed"
-      | "FailedViaTimeout"
-      | "RolledBack"
-      | "FailedViaManualReset";
-  } | null;
-}
+interface PurchaseForJobUpdate
+  extends Pick<
+    PaymentPurchase,
+    | "id"
+    | "onChainState"
+    | "inputHash"
+    | "resultHash"
+    | "NextAction"
+    | "CurrentTransaction"
+  > {}
 
 /**
  * Transform a Purchase from external API to database update data structure.
