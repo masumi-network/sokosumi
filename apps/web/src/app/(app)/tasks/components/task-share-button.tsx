@@ -18,11 +18,11 @@ interface TaskShareModalHostProps {
 }
 
 /**
- * Stable component identity for useModal: an inline render prop creates a new
- * component type every render, so React remounts TaskShareModal and re-runs
- * useState(share) from a potentially stale RSC prop before router.refresh()
- * finishes. A module-level host keeps TaskShareModal mounted across parent
- * re-renders so local share state and server refresh stay aligned.
+ * useModal renders its first argument as the modal component type. Passing an
+ * inline render prop there creates a fresh component type every render, so
+ * React remounts TaskShareModal and re-runs useState(share) from a potentially
+ * stale RSC prop before router.refresh() finishes. Keep the host component
+ * stable and pass changing task props separately through the hook.
  */
 function TaskShareModalHost({
   open,
@@ -55,13 +55,10 @@ export function TaskShareButton({
   variant = "ghost",
   size = "icon",
 }: TaskShareButtonProps) {
-  const { showModal, Component } = useModal((props) => (
-    <TaskShareModalHost
-      {...props}
-      taskId={task.id}
-      share={task.share ?? null}
-    />
-  ));
+  const { showModal, Component } = useModal(TaskShareModalHost, {
+    taskId: task.id,
+    share: task.share ?? null,
+  });
 
   return (
     <>
