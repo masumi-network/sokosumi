@@ -8,7 +8,7 @@ const {
   authContextState,
   prismaTransactionMock,
   jobFindUniqueMock,
-  deleteShareByJobIdMock,
+  deleteByJobIdMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -23,7 +23,7 @@ const {
   },
   prismaTransactionMock: vi.fn(),
   jobFindUniqueMock: vi.fn(),
-  deleteShareByJobIdMock: vi.fn(),
+  deleteByJobIdMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -59,8 +59,8 @@ vi.mock("@/middleware/auth", () => ({
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  jobShareRepository: {
-    deleteShareByJobId: (...args: unknown[]) => deleteShareByJobIdMock(...args),
+  publicShareRepository: {
+    deleteByJobId: (...args: unknown[]) => deleteByJobIdMock(...args),
   },
 }));
 
@@ -96,7 +96,7 @@ describe("DELETE /jobs/{id}/share", () => {
       id: "job_123",
       userId: "user_123",
     });
-    deleteShareByJobIdMock.mockResolvedValue({ count: 1 });
+    deleteByJobIdMock.mockResolvedValue({ count: 1 });
   });
 
   it("deletes the share for an owned job", async () => {
@@ -108,7 +108,7 @@ describe("DELETE /jobs/{id}/share", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(deleteShareByJobIdMock).toHaveBeenCalledWith(
+    expect(deleteByJobIdMock).toHaveBeenCalledWith(
       "job_123",
       expect.any(Object),
     );
@@ -124,7 +124,7 @@ describe("DELETE /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(401);
-    expect(deleteShareByJobIdMock).not.toHaveBeenCalled();
+    expect(deleteByJobIdMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the job is owned by another user", async () => {
@@ -139,7 +139,7 @@ describe("DELETE /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(deleteShareByJobIdMock).not.toHaveBeenCalled();
+    expect(deleteByJobIdMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the job does not exist", async () => {
@@ -151,6 +151,6 @@ describe("DELETE /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(deleteShareByJobIdMock).not.toHaveBeenCalled();
+    expect(deleteByJobIdMock).not.toHaveBeenCalled();
   });
 });

@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import mountPutJobShareById from "./put";
+import mountDeleteTaskShareById from "./delete";
 
 const {
   authContextState,
   prismaTransactionMock,
-  jobFindUniqueMock,
-  upsertForJobMock,
+  taskFindUniqueMock,
+  deleteByTaskIdMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -22,8 +22,8 @@ const {
     } | null,
   },
   prismaTransactionMock: vi.fn(),
-  jobFindUniqueMock: vi.fn(),
-  upsertForJobMock: vi.fn(),
+  taskFindUniqueMock: vi.fn(),
+  deleteByTaskIdMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -60,7 +60,7 @@ vi.mock("@/middleware/auth", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   publicShareRepository: {
-    upsertForJob: (...args: unknown[]) => upsertForJobMock(...args),
+    deleteByTaskId: (...args: unknown[]) => deleteByTaskIdMock(...args),
   },
 }));
 
@@ -72,11 +72,11 @@ vi.mock("@/lib/db/prisma", () => ({
 
 function createApp() {
   const app = new OpenAPIHonoWithAuth({ includeOrganizationHeader: false });
-  mountPutJobShareById(app);
+  mountDeleteTaskShareById(app);
   return app;
 }
 
-describe("PUT /jobs/{id}/share", () => {
+describe("DELETE /tasks/{id}/share", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authContextState.current = {
@@ -87,107 +87,70 @@ describe("PUT /jobs/{id}/share", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
         await callback({
-          job: {
-            findUnique: jobFindUniqueMock,
+          task: {
+            findUnique: taskFindUniqueMock,
           },
         }),
     );
-    jobFindUniqueMock.mockResolvedValue({
-      id: "job_123",
+    taskFindUniqueMock.mockResolvedValue({
+      id: "tsk_123",
       userId: "user_123",
     });
-    upsertForJobMock.mockResolvedValue({
-      id: "share_123",
-      jobId: "job_123",
-      token: "public-share-token",
-      allowSearchIndexing: true,
-      createdAt: new Date("2026-03-26T10:00:00.000Z"),
-      updatedAt: new Date("2026-03-26T10:00:00.000Z"),
-    });
+    deleteByTaskIdMock.mockResolvedValue({ count: 1 });
   });
 
-  it("creates a share for an owned job", async () => {
+  it("deletes the share for an owned task", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/job_123/share", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        allowSearchIndexing: true,
-      }),
+    const response = await app.request("http://localhost/tsk_123/share", {
+      method: "DELETE",
     });
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(upsertForJobMock).toHaveBeenCalledWith(
-      "job_123",
-      true,
+    expect(deleteByTaskIdMock).toHaveBeenCalledWith(
+      "tsk_123",
       expect.any(Object),
     );
-    expect(body.data).toMatchObject({
-      id: "share_123",
-      jobId: "job_123",
-      token: "public-share-token",
-      allowSearchIndexing: true,
-    });
+    expect(body.data).toEqual({});
   });
 
   it("returns 401 for unauthenticated requests", async () => {
     authContextState.current = null;
     const app = createApp();
 
-    const response = await app.request("http://localhost/job_123/share", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        allowSearchIndexing: true,
-      }),
+    const response = await app.request("http://localhost/tsk_123/share", {
+      method: "DELETE",
     });
 
     expect(response.status).toBe(401);
-    expect(upsertForJobMock).not.toHaveBeenCalled();
+    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when the job is owned by another user", async () => {
-    jobFindUniqueMock.mockResolvedValue({
-      id: "job_123",
+  it("returns 403 when the task is owned by another user", async () => {
+    taskFindUniqueMock.mockResolvedValue({
+      id: "tsk_123",
       userId: "other_user",
     });
     const app = createApp();
 
-    const response = await app.request("http://localhost/job_123/share", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        allowSearchIndexing: true,
-      }),
+    const response = await app.request("http://localhost/tsk_123/share", {
+      method: "DELETE",
     });
 
     expect(response.status).toBe(403);
-    expect(upsertForJobMock).not.toHaveBeenCalled();
+    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the job does not exist", async () => {
-    jobFindUniqueMock.mockResolvedValue(null);
+  it("returns 404 when the task does not exist", async () => {
+    taskFindUniqueMock.mockResolvedValue(null);
     const app = createApp();
 
-    const response = await app.request("http://localhost/job_123/share", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        allowSearchIndexing: true,
-      }),
+    const response = await app.request("http://localhost/tsk_123/share", {
+      method: "DELETE",
     });
 
     expect(response.status).toBe(404);
-    expect(upsertForJobMock).not.toHaveBeenCalled();
+    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
   });
 });

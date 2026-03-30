@@ -39,6 +39,7 @@ export const taskListInclude = taskBaseInclude;
 
 export const taskInclude = {
   ...taskBaseInclude,
+  share: true,
   ...taskLinksInclude,
 } as const;
 
@@ -48,6 +49,7 @@ export function buildTaskIncludeForViewer(
 ) {
   return {
     ...taskBaseInclude,
+    share: true,
     ...buildVisibleTaskLinksInclude(authContext, scopes),
   } satisfies Prisma.TaskInclude;
 }

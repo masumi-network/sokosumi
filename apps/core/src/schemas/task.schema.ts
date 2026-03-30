@@ -6,6 +6,7 @@ import {
   createJobRequestSchema,
   jobSummariesSchema,
 } from "@/schemas/job.schema";
+import { taskShareSchema } from "@/schemas/public-share.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 
 export const taskEventSchema = z
@@ -61,6 +62,7 @@ export const taskListItemSchema = taskBaseSchema.openapi("TaskListItem");
 
 export const taskSchema = taskBaseSchema
   .extend({
+    share: taskShareSchema.nullable().openapi({ example: null }),
     links: taskLinksSchema.openapi({ example: [] }),
   })
   .openapi("Task");

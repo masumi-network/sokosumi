@@ -63,10 +63,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
   jobPurchaseRepository: {
     createJobPurchase: vi.fn(),
   },
-  jobShareRepository: {
-    upsertOrganizationShare: vi.fn(),
-    upsertPublicShare: vi.fn(),
-  },
 }));
 
 function createAgentRecord() {
