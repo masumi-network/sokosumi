@@ -37,7 +37,7 @@ describe("coworkers routes OpenAPI contract", () => {
 
     const getCoworkersOperation = doc.paths?.["/"]?.get;
     const parameterNames = (getCoworkersOperation?.parameters ?? []).map(
-      (parameter) => parameter.name,
+      (parameter) => ("name" in parameter ? parameter.name : null),
     );
 
     expect(parameterNames).toContain("capability");

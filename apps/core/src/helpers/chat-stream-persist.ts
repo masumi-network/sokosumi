@@ -24,7 +24,6 @@ export function streamWithAssistantPersistence(
   let accumulatedText = "";
   let persisted = false;
   const responsesApiRef = options?.responsesApiResponseIdRef;
-  const useResponsesApiId = responsesApiRef != null;
 
   function tryPersist(text: string): Promise<void> {
     if (persisted || !text.trim()) return Promise.resolve();
@@ -36,7 +35,7 @@ export function streamWithAssistantPersistence(
           userId,
           archivedAt: null,
         },
-        select: useResponsesApiId ? { id: true, metadata: true } : { id: true },
+        select: { id: true, metadata: true },
       })
       .then(async (conv) => {
         if (!conv) return;

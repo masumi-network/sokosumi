@@ -1,3 +1,5 @@
+import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -83,6 +85,16 @@ function createAgentRecord() {
 }
 
 function createInput(overrides: Record<string, unknown> = {}) {
+  const inputSchema = {
+    input_data: [
+      {
+        id: "prompt",
+        type: InputType.STRING,
+        name: "prompt",
+      },
+    ],
+  } satisfies InputSchemaSchemaType;
+
   return {
     owner: {
       userId: "user_1",
@@ -91,15 +103,7 @@ function createInput(overrides: Record<string, unknown> = {}) {
     agentInput: {
       agentId: "agent_1",
       inputData: { prompt: "hello" },
-      inputSchema: {
-        input_data: [
-          {
-            id: "prompt",
-            type: "string",
-            name: "prompt",
-          },
-        ],
-      },
+      inputSchema,
       maxAcceptedCents: BigInt(10),
       name: "Scheduled Job",
     },

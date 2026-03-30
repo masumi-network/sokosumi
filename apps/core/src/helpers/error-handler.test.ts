@@ -75,7 +75,12 @@ describe("errorHandler", () => {
   it("reports unhandled validation errors to Sentry as internal server errors", async () => {
     const app = createApp();
     app.get("/", () => {
-      z.string().parse(123);
+      const result = z.string().safeParse(123);
+      if (result.success) {
+        return new Response(result.data);
+      }
+
+      throw result.error;
     });
 
     const response = await app.request("http://localhost/");

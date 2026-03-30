@@ -8,6 +8,7 @@ describe("shouldShowTasksEmptyStateOverlay", () => {
         activeTab: "tasks",
         taskCount: 0,
         viewMode: "board",
+        guideCompleted: false,
       }),
     ).toBe(true);
   });
@@ -18,6 +19,7 @@ describe("shouldShowTasksEmptyStateOverlay", () => {
         activeTab: "tasks",
         taskCount: 1,
         viewMode: "board",
+        guideCompleted: false,
       }),
     ).toBe(false);
   });
@@ -28,6 +30,7 @@ describe("shouldShowTasksEmptyStateOverlay", () => {
         activeTab: "jobs",
         taskCount: 0,
         viewMode: "board",
+        guideCompleted: false,
       }),
     ).toBe(false);
   });
@@ -38,6 +41,7 @@ describe("shouldShowTasksEmptyStateOverlay", () => {
         activeTab: "tasks",
         taskCount: 0,
         viewMode: "list",
+        guideCompleted: false,
       }),
     ).toBe(false);
   });
