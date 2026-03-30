@@ -95,7 +95,8 @@ export function mapTaskLinkRelationToTypeForExistingDirection(
   link: TaskLinkRow,
   relation: TaskLinkRelationResponse,
 ): TaskLinkType {
-  const peerTaskId = link.fromTaskId === taskId ? link.toTaskId : link.fromTaskId;
+  const peerTaskId =
+    link.fromTaskId === taskId ? link.toTaskId : link.fromTaskId;
   const nextLink = mapTaskLinkRelationToWriteData(taskId, peerTaskId, relation);
 
   if (isSymmetricTaskLinkRelation(relation)) {
