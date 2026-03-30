@@ -1,9 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Organization } from "@sokosumi/database";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ImgHTMLAttributes } from "react";
-
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OrganizationLogo } from "@/components/organizations/organization-logo";
 

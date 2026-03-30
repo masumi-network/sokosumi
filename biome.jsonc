@@ -24,7 +24,6 @@
       "!**/src/clients/openapi/generated/**",
       "!apps/web/src/components/ui/**",
       "!apps/web/public/js/**/*.js",
-      "!apps/web/**/__tests__/**",
       "!apps/web/next-env.d.ts"
     ]
   },

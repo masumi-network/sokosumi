@@ -1,8 +1,7 @@
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
-
-import { JobWithSokosumiStatus } from "@sokosumi/database";
 
 import JobDetails from "@/components/jobs/job-details/job-details";
 

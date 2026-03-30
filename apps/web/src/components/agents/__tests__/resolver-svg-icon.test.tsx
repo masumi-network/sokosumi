@@ -1,8 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import DOMPurify from "dompurify";
-import { render, waitFor } from "@testing-library/react";
-
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { render, waitFor } from "@testing-library/react";
+import DOMPurify from "dompurify";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ResolverSVGIcon } from "@/components/agents/resolver-svg-icon";
 

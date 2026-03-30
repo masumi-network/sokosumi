@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 const dashMock = vi.fn(() => "dash-plugin");
 const sentinelMock = vi.fn(() => "sentinel-plugin");
 

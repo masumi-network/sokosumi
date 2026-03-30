@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   formatDatetimeLocalValue,
   isDateValueOutOfBounds,
-  normalizeDateValidationBound,
   normalizeDatetimeLocalValidationBound,
+  normalizeDateValidationBound,
 } from "@/lib/job-input/date-value";
 
 describe("normalizeDateValidationBound", () => {

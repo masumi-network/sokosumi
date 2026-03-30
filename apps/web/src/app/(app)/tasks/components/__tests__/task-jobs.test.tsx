@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
 import {
+  type AgentWithCreditsPrice,
   JobType,
   SokosumiJobStatus,
-  type AgentWithCreditsPrice,
 } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";

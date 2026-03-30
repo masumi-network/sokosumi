@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  parseLastUsedAuthMethod,
   type LastUsedAuthMethod,
+  parseLastUsedAuthMethod,
 } from "@/lib/utils/last-used-auth-method";
 
 describe("parseLastUsedAuthMethod", () => {

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { AgentWithCategories } from "@sokosumi/database";
+import { describe, expect, it } from "vitest";
 
 import { getAgentLegal } from "@/lib/helpers/agent";
 

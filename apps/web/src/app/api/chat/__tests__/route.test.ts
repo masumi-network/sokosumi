@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 const getSessionMock = vi.fn();
 const headersMock = vi.fn();
 const captureExceptionMock = vi.fn();

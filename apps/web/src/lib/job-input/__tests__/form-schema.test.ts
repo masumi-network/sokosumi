@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
   InputDateSchemaType,
   InputDatetimeSchemaType,
@@ -6,6 +5,7 @@ import {
   InputRadioGroupSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { InputType, InputValidation } from "@sokosumi/masumi/types";
+import { describe, expect, it } from "vitest";
 
 import { jobInputsFormSchema } from "@/lib/job-input";
 

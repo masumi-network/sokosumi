@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_LOCALE } from "@/i18n/locales";
 import {
   parseLocalePreference,
   resolveLocaleFromAcceptLanguage,
   resolveRequestLocale,
 } from "@/i18n/locale-resolution";
+import { DEFAULT_LOCALE } from "@/i18n/locales";
 
 describe("parseLocalePreference", () => {
   it("returns exact locale match when supported", () => {

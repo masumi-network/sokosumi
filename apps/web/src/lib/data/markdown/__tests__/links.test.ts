@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { extractFileLikeLinks } from "@sokosumi/utils";
+import { describe, expect, it } from "vitest";
 
 const memeMarkdown = `
 The agent is now working on your task. Please check back soon.
