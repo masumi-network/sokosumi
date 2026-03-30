@@ -31,6 +31,8 @@ export type PaymentInformation = {
         };
     } | {
         pricingType: 'Free';
+    } | {
+        pricingType: 'Dynamic';
     };
     name: string;
     description: string | null;
@@ -100,6 +102,8 @@ export type RegistryEntry = {
         };
     } | {
         pricingType: 'Free';
+    } | {
+        pricingType: 'Dynamic';
     };
     ExampleOutput: Array<{
         name: string;
