@@ -1,10 +1,24 @@
+import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 import { describe, expect, it } from "vitest";
+
 import {
   transactionStatusToOnChainTransactionStatus,
   transformPurchaseToJobUpdate,
 } from "@/lib/utils/job-transformers";
 
-type PurchaseInput = Parameters<typeof transformPurchaseToJobUpdate>[0];
+type TransformPurchaseInput = Parameters<
+  typeof transformPurchaseToJobUpdate
+>[0];
+type PaymentPurchase = PostPurchaseResponses["200"]["data"];
+type PurchaseInput = Pick<
+  PaymentPurchase,
+  | "id"
+  | "onChainState"
+  | "inputHash"
+  | "resultHash"
+  | "NextAction"
+  | "CurrentTransaction"
+>;
 
 function buildPurchase(overrides?: Partial<PurchaseInput>): PurchaseInput {
   return {
@@ -37,7 +51,7 @@ describe("transactionStatusToOnChainTransactionStatus", () => {
 
 describe("transformPurchaseToJobUpdate", () => {
   it("maps FailedViaManualReset transaction status to FAILED", () => {
-    const purchase = buildPurchase();
+    const purchase: TransformPurchaseInput = buildPurchase();
 
     const transformedPurchase = transformPurchaseToJobUpdate(purchase);
 

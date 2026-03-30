@@ -1,14 +1,14 @@
 import { defaultPlugins } from "@hey-api/openapi-ts";
 
 const config = {
-  input: "https://masumi-payment-sokosumi-agvae.ondigitalocean.app/api-docs",
+  input:
+    "https://masumi-payment-sokosumi-dev-5xwcb.ondigitalocean.app/api-docs",
   output: {
     path: "./src/clients/openapi/generated/payment",
     tsConfigPath: "./tsconfig.json",
     importFileExtension: "js",
   },
   name: "MasumiPaymentClient",
-  baseUrl: "https://masumi-payment-sokosumi-agvae.ondigitalocean.app/api/v1",
   plugins: [
     ...defaultPlugins,
     "@hey-api/client-next",
