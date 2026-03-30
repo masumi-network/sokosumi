@@ -50,18 +50,19 @@ export async function generateMetadata({
     return notFound();
   }
 
-  if (!resource.share.allowSearchIndexing) {
-    return {
-      robots: {
-        index: false,
-        follow: false,
-        googleBot: {
+  const disallowIndexing = !resource.share.allowSearchIndexing;
+  const robotsMetadata: Pick<Metadata, "robots"> | undefined = disallowIndexing
+    ? {
+        robots: {
           index: false,
           follow: false,
+          googleBot: {
+            index: false,
+            follow: false,
+          },
         },
-      },
-    };
-  }
+      }
+    : undefined;
 
   if (resource.kind === "job") {
     const agentImage = getAgentResolvedImage(resource.job.agent);
@@ -88,6 +89,7 @@ export async function generateMetadata({
             ]
           : [],
       },
+      ...robotsMetadata,
     };
   }
 
@@ -110,6 +112,7 @@ export async function generateMetadata({
           ]
         : [],
     },
+    ...robotsMetadata,
   };
 }
 
