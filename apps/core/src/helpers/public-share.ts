@@ -39,7 +39,7 @@ const publicTaskInclude = {
       ...jobWithShare,
       agent: true,
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
   },
   events: {
     include: {
@@ -48,7 +48,7 @@ const publicTaskInclude = {
       },
     },
     orderBy: {
-      createdAt: "desc",
+      createdAt: "asc",
     },
   },
 } as const satisfies Prisma.TaskInclude;
