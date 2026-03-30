@@ -13,6 +13,8 @@
     "lint:write": "biome lint --write .",
     "check": "biome check .",
     "check:write": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest",
@@ -21,8 +23,6 @@
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
     "prisma:migrate:reset": "pnpm --filter @sokosumi/database prisma:migrate:reset",
     "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
     "generate:core": "openapi-ts -f openapi-ts.core.config.ts",
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:api": "pnpm run generate:payment && pnpm run generate:core"
