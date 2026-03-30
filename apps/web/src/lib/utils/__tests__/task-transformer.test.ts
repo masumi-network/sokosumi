@@ -1,7 +1,10 @@
 import { TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
+import {
+  clampTaskNameForCoreApi,
+  mapTaskToTaskWithCoworker,
+} from "@/lib/utils/task-transformer";
 
 type TaskInput = Parameters<typeof mapTaskToTaskWithCoworker>[0];
 
@@ -91,5 +94,25 @@ describe("mapTaskToTaskWithCoworker", () => {
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 
     expect(mapped.jobsCount).toBe(1);
+  });
+});
+
+describe("clampTaskNameForCoreApi", () => {
+  it("returns names under the limit unchanged", () => {
+    expect(clampTaskNameForCoreApi("Review onboarding flow")).toBe(
+      "Review onboarding flow",
+    );
+  });
+
+  it("trims surrounding whitespace before returning the name", () => {
+    expect(clampTaskNameForCoreApi("  Review onboarding flow  ")).toBe(
+      "Review onboarding flow",
+    );
+  });
+
+  it("truncates names that exceed the Core API limit", () => {
+    const longName = "a".repeat(130);
+
+    expect(clampTaskNameForCoreApi(longName)).toBe("a".repeat(120));
   });
 });

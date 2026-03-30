@@ -200,6 +200,31 @@ describe("TaskForm", () => {
     );
   });
 
+  it("limits the edit name field to the Core API max length", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          coworkerId: "coworker-1",
+          status: TaskStatus.DRAFT,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Task name")).toHaveAttribute(
+      "maxlength",
+      "120",
+    );
+  });
+
   it("selects initialValues.coworkerId when provided", () => {
     render(
       <TaskForm

@@ -318,6 +318,7 @@ export function TaskForm({
               <Label htmlFor="task-name">{labels.name}</Label>
               <Input
                 id="task-name"
+                maxLength={120}
                 placeholder={labels.namePlaceholder}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
