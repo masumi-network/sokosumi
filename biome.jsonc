@@ -15,6 +15,7 @@
       "!**/dist/**",
       "!**/coverage/**",
       "!**/node_modules/**",
+      "!packages/database/prisma/migrations",
       "!**/prisma/generated/**",
       "!**/src/generated/**",
       "!**/src/lib/clients/generated/**",
@@ -42,7 +43,8 @@
     "rules": {
       "recommended": false,
       "correctness": {
-        "noUnusedImports": "error"
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
       }
     }
   },
