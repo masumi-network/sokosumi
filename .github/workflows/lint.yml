@@ -6,13 +6,11 @@ env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
 
 jobs:
-  eslint:
-    name: ESLint
+  biome:
+    name: Biome
     runs-on: ubuntu-latest
     permissions:
-      # Need to add these 2 for eslint-annotate-action
-      pull-requests: read
-      checks: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,49 +26,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Generate ESLint JSON reports
-        run: pnpm lint:report
-        continue-on-error: true
-
-      - name: Annotate web lint results
-        if: always()
-        continue-on-error: true
-        uses: ataylorme/eslint-annotate-action@v3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: "apps/web/lint-report.json"
-
-      - name: Annotate core lint results
-        if: always()
-        continue-on-error: true
-        uses: ataylorme/eslint-annotate-action@v3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: "apps/core/lint-report.json"
-
-      - name: Annotate database lint results
-        if: always()
-        continue-on-error: true
-        uses: ataylorme/eslint-annotate-action@v3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: "packages/database/lint-report.json"
-
-      - name: Annotate masumi lint results
-        if: always()
-        continue-on-error: true
-        uses: ataylorme/eslint-annotate-action@v3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: "packages/masumi/lint-report.json"
-
-      - name: Annotate chat lint results
-        if: always()
-        continue-on-error: true
-        uses: ataylorme/eslint-annotate-action@v3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: "packages/chat/lint-report.json"
-
       - name: Run lint checks
         run: pnpm lint
+
+  biome-annotations:
+    name: Biome PR annotations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Biome with reviewdog
+        uses: mongolyy/reviewdog-action-biome@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review
+          filter_mode: added
+          fail_level: none
+          biome_flags: .
