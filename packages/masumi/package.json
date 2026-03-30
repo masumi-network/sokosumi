@@ -47,7 +47,7 @@
     "build": "tsc",
     "clean": "rm -rf dist && rm -f tsconfig.tsbuildinfo",
     "prepare": "pnpm build",
-    "lint": "biome lint .",
+    "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",
@@ -57,7 +57,7 @@
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment",
-    "lint:report": "biome lint --reporter=json . > lint-report.json"
+    "lint:report": "biome check --reporter=json . > lint-report.json"
   },
   "dependencies": {
     "json-canonicalize": "2.0.0",

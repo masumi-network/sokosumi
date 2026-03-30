@@ -17,9 +17,9 @@
     "start": "node dist/index.js",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "lint": "biome lint .",
+    "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "lint:report": "biome lint --reporter=json . > lint-report.json",
+    "lint:report": "biome check --reporter=json . > lint-report.json",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest"

@@ -17,8 +17,8 @@ import {
   jobRepository,
 } from "@sokosumi/database/repositories";
 import {
-  jobInclude,
   type JobWithSokosumiStatus,
+  jobInclude,
 } from "@sokosumi/database/types/job";
 import {
   type JobFailureNotificationEmailProps,
