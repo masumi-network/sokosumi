@@ -147,6 +147,7 @@ export default async function TaskDetailPage({
               markAsReady: t("actions.markAsReady"),
               revertToDraft: t("actions.revertToDraft"),
               cancelRequest: t("actions.cancelRequest"),
+              share: t("actions.share"),
             },
           }}
         />

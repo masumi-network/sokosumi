@@ -3,6 +3,7 @@
 import type { AgentWithRelations } from "@sokosumi/database";
 import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useSyncExternalStore } from "react";
 
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
@@ -19,6 +20,7 @@ interface AgentActionButtonsProps {
   showShareButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
+  trailingActions?: ReactNode;
   className?: string | undefined;
 }
 
@@ -29,6 +31,7 @@ function AgentActionButtons({
   showShareButton = true,
   showCloseButton = false,
   onClose,
+  trailingActions,
   className,
 }: AgentActionButtonsProps) {
   const router = useRouter();
@@ -98,9 +101,11 @@ function AgentActionButtons({
           <AgentBookmarkButton
             agentId={agent.id}
             isFavorite={isFavorite ?? false}
+            variant="ghost"
             className="size-8 md:size-7"
           />
         )}
+        {trailingActions}
         {showShareButton && url ? (
           <ShareButton url={url} className="size-8 md:size-7" />
         ) : null}

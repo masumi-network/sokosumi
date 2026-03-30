@@ -6,6 +6,7 @@ export * from "./job.service";
 export * from "./organization.service";
 export * from "./organization-subscription.service";
 export * from "./preferred-organization.service";
+export * from "./share.service";
 export * from "./stripe.service";
 export * from "./user.service";
 export * from "./utm.service";

@@ -18,7 +18,6 @@ import { Separator } from "@/components/ui/separator";
 import CopyMarkdown from "./copy-markdown";
 import DownloadButton from "./download-button";
 import { HashGroupRow } from "./hash-group-row";
-import JobShareButton from "./job-share-button";
 import MaximizeMarkdown from "./maximize-markdown";
 import RequestRefundButton from "./refund-request";
 
@@ -88,7 +87,6 @@ function JobDetailsOutputsInner({
                   <div className="flex gap-1">
                     <DownloadButton markdown={result} />
                     <CopyMarkdown markdown={result} />
-                    {!readOnly && <JobShareButton job={job} />}
                   </div>
                 </div>
                 {!readOnly && isPaidJob(job) && (

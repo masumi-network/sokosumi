@@ -5,7 +5,6 @@ import {
   AgentJobStatus,
   type AgentWithRelations,
   type JobEvent,
-  type JobShare,
   JobType,
   type JobWithSokosumiStatus,
   NextJobAction,
@@ -30,7 +29,6 @@ import type { JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import { getJobStatusData } from "@/lib/helpers/job";
 import type {
@@ -741,26 +739,6 @@ export const jobService = (() => {
   };
 
   /**
-   * Retrieves a job that is publicly shared by a token.
-   *
-   * @param token - The token of the job share to get the job for.
-   * @returns The job that is publicly shared by the token, or null if not found or not accessible.
-   */
-  const getPubliclySharedJob = async (
-    token: string,
-  ): Promise<{ job: JobWithSokosumiStatus; share: JobShare } | null> => {
-    try {
-      return await coreClient.getSharedJobByToken(token);
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-
-      throw error;
-    }
-  };
-
-  /**
    * Provides input for a job that is awaiting input (human-in-the-loop).
    *
    * This function:
@@ -910,7 +888,6 @@ export const jobService = (() => {
     startDemoJob,
     requestRefund,
     getJobStatusesDataForAgents,
-    getPubliclySharedJob,
     provideJobInput,
   };
 })();

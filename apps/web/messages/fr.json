@@ -290,8 +290,6 @@
             "save": "Enregistrer",
             "cancel": "Annuler",
             "noName": "Sans nom",
-            "shared": "Partagé publiquement",
-            "private": "Privé",
             "success": "Nom du job mis à jour avec succès",
             "error": "Échec de la mise à jour du nom du job",
             "Errors": {
@@ -1400,6 +1398,7 @@
           "markAsReady": "Marquer comme prêt",
           "revertToDraft": "Revenir au brouillon",
           "cancelRequest": "Annuler la demande",
+          "share": "Share",
           "updateStatusSuccess": "Statut de la tâche mis à jour",
           "moveToWorkspace": "Déplacer vers un autre espace de travail",
           "moveToWorkspaceTitle": "Déplacer la tâche vers un autre espace de travail",
@@ -1409,6 +1408,28 @@
           "moveToWorkspaceSuccess": "Tâche déplacée avec succès",
           "moveToWorkspaceError": "Échec du déplacement de la tâche",
           "personalWorkspace": "Personnel"
+        },
+        "ShareModal": {
+          "title": "Share task",
+          "publicAccessTitle": "Public access",
+          "publicAccessDescription": "Anyone with the link can view this task summary.",
+          "privateAccessTitle": "Private access",
+          "privateAccessDescription": "Only you can access this task.",
+          "allowSearchIndexing": "Allow search engines to index this page",
+          "Success": {
+            "share": "Task sharing updated",
+            "copyLink": "Public link copied"
+          },
+          "Error": {
+            "share": "Failed to update task sharing",
+            "copyLink": "Failed to copy public link"
+          },
+          "Errors": {
+            "unauthenticated": "Please sign in to manage task sharing",
+            "unauthenticatedAction": "Sign in",
+            "unauthorized": "You are not allowed to manage this task share",
+            "taskNotFound": "Task not found"
+          }
         },
         "switchedWorkspace": "Passage au compte {account}"
       },
@@ -2305,6 +2326,24 @@
         "title": "{name}",
         "defaultName": "Sans titre",
         "description": "Engagez un agent pour terminer vos tâches les plus chronophages"
+      }
+    },
+    "Tasks": {
+      "Metadata": {
+        "title": "{name}",
+        "description": "Engagez un agent pour terminer vos tâches les plus chronophages"
+      },
+      "Page": {
+        "eyebrow": "Public task",
+        "descriptionEmpty": "No description provided.",
+        "jobsEmpty": "No linked jobs.",
+        "milestonesTitle": "Milestones",
+        "milestonesEmpty": "No milestones yet.",
+        "jobCreatedAt": "Created {date}",
+        "jobCompletedAt": "Completed {date}",
+        "publicJobLink": "Open public job",
+        "privateJobLink": "Private job",
+        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
       }
     },
     "CTA": {

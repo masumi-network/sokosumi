@@ -290,8 +290,6 @@
             "save": "Save",
             "cancel": "Cancel",
             "noName": "No name",
-            "shared": "Shared publicly",
-            "private": "Private",
             "success": "Job name updated successfully",
             "error": "Failed to update job name",
             "Errors": {
@@ -1400,6 +1398,7 @@
           "markAsReady": "Mark as Ready",
           "revertToDraft": "Revert to Draft",
           "cancelRequest": "Cancel Request",
+          "share": "Share",
           "updateStatusSuccess": "Task status updated",
           "moveToWorkspace": "Move to workspace",
           "moveToWorkspaceTitle": "Move task to another workspace",
@@ -1409,6 +1408,28 @@
           "moveToWorkspaceSuccess": "Task moved successfully",
           "moveToWorkspaceError": "Failed to move task",
           "personalWorkspace": "Personal"
+        },
+        "ShareModal": {
+          "title": "Share task",
+          "publicAccessTitle": "Public access",
+          "publicAccessDescription": "Anyone with the link can view this task summary.",
+          "privateAccessTitle": "Private access",
+          "privateAccessDescription": "Only you can access this task.",
+          "allowSearchIndexing": "Allow search engines to index this page",
+          "Success": {
+            "share": "Task sharing updated",
+            "copyLink": "Public link copied"
+          },
+          "Error": {
+            "share": "Failed to update task sharing",
+            "copyLink": "Failed to copy public link"
+          },
+          "Errors": {
+            "unauthenticated": "Please sign in to manage task sharing",
+            "unauthenticatedAction": "Sign in",
+            "unauthorized": "You are not allowed to manage this task share",
+            "taskNotFound": "Task not found"
+          }
         },
         "switchedWorkspace": "Switched to {account} account"
       },
@@ -2305,6 +2326,24 @@
         "title": "{name}",
         "defaultName": "Untitled",
         "description": "Hire yourself an agent to finish the most time consuming tasks"
+      }
+    },
+    "Tasks": {
+      "Metadata": {
+        "title": "{name}",
+        "description": "Hire yourself an agent to finish the most time consuming tasks"
+      },
+      "Page": {
+        "eyebrow": "Public task",
+        "descriptionEmpty": "No description provided.",
+        "jobsEmpty": "No linked jobs.",
+        "milestonesTitle": "Milestones",
+        "milestonesEmpty": "No milestones yet.",
+        "jobCreatedAt": "Created {date}",
+        "jobCompletedAt": "Completed {date}",
+        "publicJobLink": "Open public job",
+        "privateJobLink": "Private job",
+        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
       }
     },
     "CTA": {

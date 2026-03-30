@@ -1,7 +1,5 @@
 "use client";
 
-import type { JobShare, JobWithSokosumiStatus } from "@sokosumi/database";
-import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -22,68 +20,54 @@ import {
   CoreApiRequestError,
   coreClient,
 } from "@/lib/clients/core.browser.client";
+import type { TaskShare } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { getJobQueryKey } from "@/queries";
 
-interface JobShareModalProps {
+interface TaskShareModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  job: JobWithSokosumiStatus;
+  taskId: string;
+  share: TaskShare | null;
 }
 
-export default function JobShareModal({
+export function TaskShareModal({
   open,
   onOpenChange,
-  job,
-}: JobShareModalProps) {
-  const t = useTranslations("Components.Jobs.JobDetails.JobShare.Modal");
+  taskId,
+  share,
+}: TaskShareModalProps) {
+  const t = useTranslations("App.Tasks.Detail.ShareModal");
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Detect client-side rendering without setState in useEffect
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
 
-  // Derive share state from job data - these will be reset via handleOnOpenChange
-  const [jobShare, setJobShare] = useState<JobShare | null>(job.share ?? null);
+  const [taskShare, setTaskShare] = useState<TaskShare | null>(share);
 
-  // Compute link on client only - derived from jobShare state
   const link =
-    isClient && jobShare?.token
-      ? new URL(`/share/${jobShare.token}`, window.location.origin)
+    isClient && taskShare?.token
+      ? new URL(`/share/${taskShare.token}`, window.location.origin)
       : null;
 
-  function syncJobShare(nextJobShare: JobShare | null) {
-    setJobShare(nextJobShare);
-    queryClient.setQueryData<JobWithSokosumiStatus>(
-      getJobQueryKey(job.id),
-      (currentJob) => {
-        if (!currentJob) {
-          return currentJob;
-        }
-
-        return {
-          ...currentJob,
-          share: nextJobShare,
-        };
-      },
-    );
+  function syncTaskShare(nextTaskShare: TaskShare | null) {
+    setTaskShare(nextTaskShare);
+    router.refresh();
   }
 
-  const handleOnOpenChange = (open: boolean) => {
+  const handleOnOpenChange = (nextOpen: boolean) => {
     if (isLoading) {
       return;
     }
 
-    // When opening the modal, reset state to match current job data
-    if (open) {
-      setJobShare(job.share);
+    if (nextOpen) {
+      setTaskShare(share);
     }
-    onOpenChange(open);
+
+    onOpenChange(nextOpen);
   };
 
   function handleShareError(error: unknown) {
@@ -96,7 +80,7 @@ export default function JobShareModal({
           action: {
             label: t("Errors.unauthenticatedAction"),
             onClick: () => {
-              router.push(`/login`);
+              router.push("/login");
             },
           },
         });
@@ -105,7 +89,7 @@ export default function JobShareModal({
         toast.error(t("Errors.unauthorized"));
         break;
       case 404:
-        toast.error(t("Errors.jobNotFound"));
+        toast.error(t("Errors.taskNotFound"));
         break;
       default:
         toast.error(t("Error.share"));
@@ -114,16 +98,16 @@ export default function JobShareModal({
   }
 
   const handleTogglePublicShare = async () => {
-    if (jobShare?.token) {
+    if (taskShare?.token) {
       return;
     }
 
     setIsLoading(true);
     try {
-      const nextJobShare = await coreClient.putJobShare(job.id, {
+      const nextTaskShare = await coreClient.putTaskShare(taskId, {
         allowSearchIndexing: true,
       });
-      syncJobShare(nextJobShare);
+      syncTaskShare(nextTaskShare);
       toast.success(t("Success.share"));
     } catch (error) {
       handleShareError(error);
@@ -133,19 +117,18 @@ export default function JobShareModal({
   };
 
   const handleAllowSearchIndexingChange = async (
-    v: boolean | "indeterminate",
+    value: boolean | "indeterminate",
   ) => {
-    const checked = v === true;
-    if (!jobShare) {
+    if (!taskShare) {
       return;
     }
 
     setIsLoading(true);
     try {
-      const nextJobShare = await coreClient.putJobShare(job.id, {
-        allowSearchIndexing: checked,
+      const nextTaskShare = await coreClient.putTaskShare(taskId, {
+        allowSearchIndexing: value === true,
       });
-      syncJobShare(nextJobShare);
+      syncTaskShare(nextTaskShare);
       toast.success(t("Success.share"));
     } catch (error) {
       handleShareError(error);
@@ -154,15 +137,15 @@ export default function JobShareModal({
     }
   };
 
-  const handleRemoveSharePerJob = async () => {
-    if (!jobShare?.token) {
+  const handleRemoveTaskShare = async () => {
+    if (!taskShare?.token) {
       return;
     }
 
     setIsLoading(true);
     try {
-      await coreClient.deleteJobShare(job.id);
-      syncJobShare(null);
+      await coreClient.deleteTaskShare(taskId);
+      syncTaskShare(null);
       toast.success(t("Success.share"));
     } catch (error) {
       handleShareError(error);
@@ -175,6 +158,7 @@ export default function JobShareModal({
     if (!link) {
       return;
     }
+
     try {
       await navigator.clipboard.writeText(link.toString());
       toast.success(t("Success.copyLink"));
@@ -208,9 +192,9 @@ export default function JobShareModal({
                     {t("publicAccessDescription")}
                   </p>
                 </div>
-                {jobShare && jobShare.token !== null && (
+                {taskShare?.token ? (
                   <Check className="text-semantic-success size-4" />
-                )}
+                ) : null}
               </div>
               <div
                 className={cn(
@@ -219,7 +203,7 @@ export default function JobShareModal({
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
                 )}
-                onClick={handleRemoveSharePerJob}
+                onClick={handleRemoveTaskShare}
               >
                 <Lock />
                 <div className="flex-1">
@@ -228,12 +212,12 @@ export default function JobShareModal({
                     {t("privateAccessDescription")}
                   </p>
                 </div>
-                {(!jobShare || jobShare.token === null) && (
+                {!taskShare?.token ? (
                   <Check className="text-semantic-success size-4" />
-                )}
+                ) : null}
               </div>
             </div>
-            {link && jobShare?.token !== null && (
+            {link && taskShare?.token ? (
               <div className="flex w-full items-center gap-2 rounded-md border p-2">
                 <a
                   href={link.toString()}
@@ -247,31 +231,30 @@ export default function JobShareModal({
                   <Copy className="size-4" />
                 </Button>
               </div>
-            )}
-            {jobShare && jobShare.token !== null && (
+            ) : null}
+            {taskShare?.token ? (
               <div className="flex items-center gap-2">
                 <Checkbox
-                  id="allow-search-indexing"
+                  id="allow-task-search-indexing"
                   disabled={isLoading}
                   className={cn({
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   })}
-                  checked={jobShare.allowSearchIndexing}
-                  onCheckedChange={(v) => handleAllowSearchIndexingChange(v)}
+                  checked={taskShare.allowSearchIndexing}
+                  onCheckedChange={(value) =>
+                    handleAllowSearchIndexingChange(value)
+                  }
                 />
-                <Label htmlFor="allow-search-indexing">
+                <Label
+                  htmlFor="allow-task-search-indexing"
+                  className={cn("cursor-pointer", {
+                    "pointer-events-none animate-pulse opacity-60": isLoading,
+                  })}
+                >
                   {t("allowSearchIndexing")}
                 </Label>
               </div>
-            )}
-            <div className="flex justify-end">
-              <Button
-                variant="secondary"
-                onClick={() => handleOnOpenChange(false)}
-              >
-                {t("close")}
-              </Button>
-            </div>
+            ) : null}
           </div>
         </ScrollArea>
       </DialogContent>

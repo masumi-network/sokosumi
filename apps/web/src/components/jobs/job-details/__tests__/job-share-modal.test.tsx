@@ -158,7 +158,7 @@ describe("JobShareModal", () => {
     expect(screen.getByText("allowSearchIndexing")).toBeInTheDocument();
     expect(
       screen.getByRole("link", {
-        name: "http://localhost:3000/share/jobs/public-token",
+        name: "http://localhost:3000/share/public-token",
       }),
     ).toBeInTheDocument();
   });

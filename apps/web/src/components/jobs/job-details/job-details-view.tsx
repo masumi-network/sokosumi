@@ -4,7 +4,7 @@ import type {
   JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
-import { List, Plus } from "lucide-react";
+import { List, Pencil, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -17,6 +17,7 @@ import {
   getAgentStatusDotColorClass,
 } from "@/components/jobs/agent-job-status-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -30,8 +31,11 @@ import {
   splitInitiatedEvent,
 } from "./job-details-events.utils";
 import { JobDetailsFooter } from "./job-details-footer";
-import JobDetailsName from "./job-details-name";
+import JobDetailsName, {
+  useJobDetailsNameController,
+} from "./job-details-name";
 import { JobMetaDetails } from "./job-meta-details";
+import JobShareButton from "./job-share-button";
 import JobDetailsOutputs from "./outputs";
 import JobDetailsProvideInput from "./provide-input";
 import JotOutputSources from "./sources";
@@ -52,6 +56,7 @@ export default function JobDetailsView({
   const t = useTranslations("Components.Jobs.JobDetails");
   const [showAllEvents, setShowAllEvents] = useState(false);
   const jobsHeader = useJobsHeader();
+  const nameController = useJobDetailsNameController(job);
 
   const { initiatedEvent, timelineEvents } = splitInitiatedEvent(job.events);
   const { collapsedCount, shouldCollapse, visibleEvents } =
@@ -67,9 +72,27 @@ export default function JobDetailsView({
       <div className="flex w-full flex-col gap-4 md:h-full md:flex-row">
         <div className="flex w-full min-w-0 justify-center">
           <div className="max-w-4xl min-w-0 flex-1">
-            {showAgentHeader && jobsHeader ? <Header {...jobsHeader} /> : null}
+            {showAgentHeader && jobsHeader ? (
+              <Header
+                {...jobsHeader}
+                detailActions={
+                  !readOnly ? (
+                    <JobDetailsTopBarActions
+                      job={job}
+                      editing={nameController.editing}
+                      onEdit={nameController.startEditing}
+                    />
+                  ) : undefined
+                }
+              />
+            ) : null}
             <div className="space-y-8 pb-20">
-              <JobDetailsHeader job={job} readOnly={readOnly} />
+              <JobDetailsHeader
+                job={job}
+                readOnly={readOnly}
+                showInlineActions={!showAgentHeader}
+                controller={nameController}
+              />
 
               <div className="md:hidden">
                 <JobMetaDetails job={job} />
@@ -125,13 +148,67 @@ export default function JobDetailsView({
 function JobDetailsHeader({
   job,
   readOnly,
+  showInlineActions,
+  controller,
 }: {
   job: JobWithSokosumiStatus;
   readOnly: boolean;
+  showInlineActions: boolean;
+  controller: ReturnType<typeof useJobDetailsNameController>;
 }) {
   return (
     <div className="flex flex-col gap-2" key={`${job.id}-details-header`}>
-      <JobDetailsName job={job} readOnly={readOnly} />
+      {!readOnly && showInlineActions ? (
+        <div className="flex justify-end">
+          <JobDetailsTopBarActions
+            job={job}
+            editing={controller.editing}
+            onEdit={controller.startEditing}
+          />
+        </div>
+      ) : null}
+      <JobDetailsName
+        editing={controller.editing}
+        name={job.name}
+        form={controller.form}
+        handleSubmit={controller.submit}
+        handleCancel={controller.cancelEditing}
+      />
+    </div>
+  );
+}
+
+function JobDetailsTopBarActions({
+  job,
+  editing,
+  onEdit,
+}: {
+  job: JobWithSokosumiStatus;
+  editing: boolean;
+  onEdit: () => void;
+}) {
+  const tName = useTranslations("Components.Jobs.JobDetails.Header.JobName");
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-8 md:size-7"
+        onClick={onEdit}
+        title={tName("edit")}
+        aria-label={tName("edit")}
+        disabled={editing}
+      >
+        <Pencil className="size-4" />
+      </Button>
+      <JobShareButton
+        job={job}
+        variant="ghost"
+        size="icon"
+        className="size-8 text-foreground md:size-7"
+      />
     </div>
   );
 }

@@ -1,34 +1,36 @@
 "use client";
 
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { Share } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
+import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 
-import JobShareModal from "./job-share-modal";
+import { TaskShareModal } from "./task-share-modal";
 
-interface JobShareButtonProps {
-  job: JobWithSokosumiStatus;
-  label?: string;
+interface TaskShareButtonProps {
+  task: Pick<TaskWithCoworker, "id" | "share">;
+  label: string;
   className?: string;
   variant?: React.ComponentProps<typeof Button>["variant"];
   size?: React.ComponentProps<typeof Button>["size"];
 }
 
-export default function JobShareButton({
-  job,
+export function TaskShareButton({
+  task,
   label,
   className,
   variant = "ghost",
   size = "icon",
-}: JobShareButtonProps) {
-  const t = useTranslations("Components.Jobs.JobDetails.JobShare");
-  const resolvedLabel = label ?? t("share");
+}: TaskShareButtonProps) {
   const { showModal, Component } = useModal(({ open, onOpenChange }) => (
-    <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />
+    <TaskShareModal
+      open={open}
+      onOpenChange={onOpenChange}
+      taskId={task.id}
+      share={task.share ?? null}
+    />
   ));
 
   return (
@@ -38,8 +40,8 @@ export default function JobShareButton({
         size={size}
         onClick={showModal}
         className={cn(className)}
-        title={resolvedLabel}
-        aria-label={resolvedLabel}
+        title={label}
+        aria-label={label}
       >
         <Share className="size-4" />
       </Button>

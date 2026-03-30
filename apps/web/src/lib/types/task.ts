@@ -1,7 +1,10 @@
 import type { AgentWithCreditsPrice, TaskStatus } from "@sokosumi/database";
 
 import type { Coworker } from "@/lib/clients/generated/core";
-import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
+import type {
+  TaskEvent,
+  TaskShare,
+} from "@/lib/clients/generated/core/types.gen";
 
 export type { TaskEvent };
 
@@ -21,6 +24,7 @@ export interface TaskWithCoworker {
   updatedAt: string;
   jobsCount: number;
   coworker?: Coworker | null;
+  share?: TaskShare | null;
   commentsCount: number;
   columnId: KanbanColumnId;
   description?: string | null;
