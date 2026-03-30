@@ -125,6 +125,20 @@ export const PaymentInformationSchema = {
                     required: [
                         'pricingType'
                     ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        pricingType: {
+                            type: 'string',
+                            enum: [
+                                'Dynamic'
+                            ]
+                        }
+                    },
+                    required: [
+                        'pricingType'
+                    ]
                 }
             ]
         },
@@ -447,6 +461,20 @@ export const RegistryEntrySchema = {
                             type: 'string',
                             enum: [
                                 'Free'
+                            ]
+                        }
+                    },
+                    required: [
+                        'pricingType'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        pricingType: {
+                            type: 'string',
+                            enum: [
+                                'Dynamic'
                             ]
                         }
                     },
