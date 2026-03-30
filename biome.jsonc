@@ -9,6 +9,8 @@
     "ignoreUnknown": true,
     "includes": [
       "**",
+      "!.agents/**",
+      "!**/.agents/**",
       "!**/.next/**",
       "!**/out/**",
       "!**/build/**",
