@@ -2572,7 +2572,7 @@ export const TaskLinkSchema = {
                 'string',
                 'null'
             ],
-            example: null
+            example: 'Blocked until onboarding copy is approved'
         }
     },
     required: [
@@ -2582,7 +2582,20 @@ export const TaskLinkSchema = {
         'relation',
         'peerTask',
         'note'
-    ]
+    ],
+    example: {
+        id: 'tl_123',
+        createdAt: '2026-03-25T10:00:00.000Z',
+        updatedAt: '2026-03-25T10:05:00.000Z',
+        relation: 'blocked_by',
+        peerTask: {
+            id: 'tsk_b',
+            name: 'Review onboarding copy',
+            status: 'READY',
+            archivedAt: null
+        },
+        note: 'Blocked until onboarding copy is approved'
+    }
 } as const;
 
 export const TaskLinkRelationSchema = {
@@ -2595,7 +2608,7 @@ export const TaskLinkRelationSchema = {
         'child',
         'duplicate'
     ],
-    example: 'related'
+    example: 'blocked_by'
 } as const;
 
 export const TaskLinkPeerTaskSchema = {
@@ -2607,7 +2620,7 @@ export const TaskLinkPeerTaskSchema = {
         },
         name: {
             type: 'string',
-            example: 'Review onboarding'
+            example: 'Review onboarding copy'
         },
         status: {
             type: 'string',
@@ -2626,17 +2639,27 @@ export const TaskLinkPeerTaskSchema = {
                 'CANCELED'
             ],
             example: 'READY'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null
         }
     },
     required: [
         'id',
         'name',
-        'status'
+        'status',
+        'archivedAt'
     ],
     example: {
         id: 'tsk_b',
-        name: 'Review onboarding',
-        status: 'READY'
+        name: 'Review onboarding copy',
+        status: 'READY',
+        archivedAt: null
     }
 } as const;
 
