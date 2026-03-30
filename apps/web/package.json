@@ -164,7 +164,7 @@
     "puppeteer": "24.35.0",
     "tailwindcss": "4.2.2",
     "tsx": "4.21.0",
-    "typescript": "5.9.3",
+    "typescript": "6.0.2",
     "vite": "8.0.3",
     "vitest": "4.1.2"
   }
