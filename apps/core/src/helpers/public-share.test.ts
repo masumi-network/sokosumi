@@ -221,4 +221,33 @@ describe("getPublicSharedResourceByToken", () => {
       new Date("2026-03-30T10:08:00.000Z"),
     );
   });
+
+  it("returns null for archived shared tasks", async () => {
+    publicShareFindUniqueMock.mockResolvedValue({
+      id: "share_archived_task",
+      taskId: "tsk_archived",
+      jobId: null,
+      token: "archived-task-token",
+      allowSearchIndexing: true,
+      createdAt: new Date("2026-03-30T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+      job: null,
+      task: {
+        id: "tsk_archived",
+        archivedAt: new Date("2026-03-30T11:00:00.000Z"),
+        createdAt: new Date("2026-03-30T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T10:10:00.000Z"),
+        name: "Archived shared task",
+        description: null,
+        status: "READY",
+        coworker: null,
+        jobs: [],
+        events: [],
+      },
+    });
+
+    await expect(
+      getPublicSharedResourceByToken("archived-task-token"),
+    ).resolves.toBeNull();
+  });
 });

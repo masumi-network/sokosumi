@@ -140,6 +140,10 @@ export async function getPublicSharedResourceByToken(token: string) {
   }
 
   if (share.task) {
+    if (share.task.archivedAt) {
+      return null;
+    }
+
     return {
       kind: "task" as const,
       share,
