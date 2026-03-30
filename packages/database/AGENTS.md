@@ -30,7 +30,6 @@ packages/database/
 │   │   ├── job-input.repository.ts
 │   │   ├── job-purchase.repository.ts
 │   │   ├── job-schedule.repository.ts
-│   │   ├── job-share.repository.ts
 │   │   ├── link.repository.ts
 │   │   ├── lock.repository.ts
 │   │   ├── member.repository.ts
@@ -51,7 +50,7 @@ packages/database/
 │       ├── invitation.ts
 │       ├── job.ts
 │       ├── job-schedule.ts
-│       ├── job-share.ts
+│       ├── public-share.ts
 │       ├── link.ts
 │       ├── member.ts
 │       ├── organization.ts
