@@ -204,12 +204,14 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
     userFindManyMock.mockResolvedValue([{ id: "user-1" }]);
     organizationFindManyMock.mockResolvedValue([{ id: "organization-1" }]);
 
-    let resolveFirstCreate: (() => void) | null = null;
+    let resolveFirstCreate: (() => void) | undefined;
     createUserCustomerMock
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
-            resolveFirstCreate = resolve;
+            resolveFirstCreate = () => {
+              resolve(undefined);
+            };
           }),
       )
       .mockResolvedValueOnce({ id: "cus_user_2" });
@@ -227,7 +229,12 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
 
     expect(settled).toBe(false);
 
-    resolveFirstCreate?.();
+    const resolve = resolveFirstCreate;
+    if (!resolve) {
+      throw new Error("Expected first create resolver to be assigned");
+    }
+
+    resolve();
     await runPromise;
 
     expect(settled).toBe(true);

@@ -10,7 +10,7 @@ const jobDetailsMock = vi.fn();
 const jobDetailsViewMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  notFound: (...args: unknown[]) => notFoundMock(...args),
+  notFound: notFoundMock,
 }));
 
 vi.mock("next-intl/server", () => ({
@@ -40,8 +40,7 @@ vi.mock("next-intl/server", () => ({
 
 vi.mock("@/lib/services", () => ({
   jobService: {
-    getPubliclySharedJob: (...args: unknown[]) =>
-      getPubliclySharedJobMock(...args),
+    getPubliclySharedJob: getPubliclySharedJobMock,
   },
 }));
 

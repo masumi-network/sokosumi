@@ -1,7 +1,9 @@
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import { createTaskEventRequestSchema, MIN_CHARGEABLE_CREDITS } from "./schema";
+import { LIMITS } from "@/config/constants";
+
+import { createTaskEventRequestSchema } from "./schema";
 
 describe("createTaskEventRequestSchema", () => {
   it("accepts a valid origin", () => {
@@ -204,7 +206,7 @@ describe("createTaskEventRequestSchema", () => {
   it("rejects credits below minimum for completed tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.COMPLETED,
-      credits: MIN_CHARGEABLE_CREDITS / 10,
+      credits: LIMITS.MIN_CHARGEABLE_CREDITS / 10,
     });
 
     expect(result.success).toBe(false);
@@ -222,7 +224,7 @@ describe("createTaskEventRequestSchema", () => {
   it("accepts credits at minimum for completed tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.COMPLETED,
-      credits: MIN_CHARGEABLE_CREDITS,
+      credits: LIMITS.MIN_CHARGEABLE_CREDITS,
     });
 
     expect(result.success).toBe(true);
