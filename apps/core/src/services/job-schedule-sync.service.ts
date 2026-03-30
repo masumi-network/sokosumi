@@ -3,9 +3,9 @@ import { type JobSchedule, ScheduleType } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { jobScheduleRepository } from "@sokosumi/database/repositories";
 import {
-  inputSchema as inputDataSchema,
   type InputSchemaSchemaType,
   type InputSchemaType,
+  inputSchema as inputDataSchema,
   normalizeAndValidateInputSchema,
 } from "@sokosumi/masumi/schemas";
 import pLimit from "p-limit";

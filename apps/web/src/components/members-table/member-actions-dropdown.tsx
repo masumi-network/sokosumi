@@ -1,4 +1,8 @@
-import { Member, MemberRole, MemberWithUser } from "@sokosumi/database";
+import {
+  type Member,
+  MemberRole,
+  type MemberWithUser,
+} from "@sokosumi/database";
 import { Ellipsis } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";

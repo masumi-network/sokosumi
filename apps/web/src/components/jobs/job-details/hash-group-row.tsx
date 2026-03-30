@@ -1,6 +1,6 @@
 "use client";
 
-import { JobType, OnChainJobStatus } from "@sokosumi/database";
+import type { JobType, OnChainJobStatus } from "@sokosumi/database";
 
 import { CopyableValue } from "@/components/copyable-value";
 import {

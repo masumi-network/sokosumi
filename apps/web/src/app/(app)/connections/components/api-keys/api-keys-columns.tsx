@@ -1,8 +1,8 @@
 "use client";
 
-import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
+import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { Eye, EyeOff, Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import type { useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { Button } from "@/components/ui/button";

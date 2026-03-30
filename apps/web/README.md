@@ -80,7 +80,8 @@ apps/web
 - `pnpm start` - Start the production server
 - `pnpm test` - Run tests
 - `pnpm test:watch` - Run tests in watch mode
-- `pnpm lint` - Run ESLint
+- `pnpm lint` - Run Biome lint rules
+- `pnpm check` - Run full Biome checks
 
 ## Testing
 

@@ -4,9 +4,9 @@ import { createContext, useContext } from "react";
 
 import { useConversations } from "@/app/chat/hooks/use-conversations";
 import type { ActionError } from "@/lib/actions";
-import {
-  type Conversation,
-  type ConversationWithItems,
+import type {
+  Conversation,
+  ConversationWithItems,
 } from "@/lib/actions/conversation/core-api-actions";
 
 type RefreshConversationsResult = Conversation[] | undefined;

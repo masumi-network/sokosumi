@@ -11,7 +11,7 @@ import Stripe from "stripe";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
-import { Price, stripeClient } from "@/lib/clients/stripe.client";
+import { type Price, stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import { CouponNotFoundError } from "@/lib/errors/coupon-errors";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";

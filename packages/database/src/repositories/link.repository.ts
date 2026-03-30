@@ -1,5 +1,9 @@
 import type { Prisma } from "../generated/prisma/client.js";
-import { flattenLinkJobId, linkInclude, LinkWithJobId } from "../types/link.js";
+import {
+  flattenLinkJobId,
+  type LinkWithJobId,
+  linkInclude,
+} from "../types/link.js";
 
 export const linkRepository = {
   async upsertLink(

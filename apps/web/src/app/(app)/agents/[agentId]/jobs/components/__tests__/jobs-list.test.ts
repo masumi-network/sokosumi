@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
   JobType,
-  SokosumiJobStatus,
   type JobWithSokosumiStatus,
+  SokosumiJobStatus,
 } from "@sokosumi/database";
+import { describe, expect, it } from "vitest";
 
 import { buildJobDayGroups } from "../jobs-list.utils";
 

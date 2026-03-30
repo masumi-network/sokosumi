@@ -1,7 +1,7 @@
 "use client";
 
-import { ReactNode } from "react";
-import { FieldValues, UseFormReturn } from "react-hook-form";
+import type { ReactNode } from "react";
+import type { FieldValues, UseFormReturn } from "react-hook-form";
 
 import { Form } from "@/components/ui/form";
 import { cn } from "@/lib/utils";

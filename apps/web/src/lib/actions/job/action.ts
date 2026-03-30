@@ -1,26 +1,26 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import { PaidJobWithStatus } from "@sokosumi/database";
+import type { PaidJobWithStatus } from "@sokosumi/database";
 import { jobRepository, userRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
-import { ActionError, CommonErrorCode } from "@/lib/actions";
+import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import prisma from "@/lib/db/prisma";
 import {
+  type JobDetailsNameFormSchemaType,
+  type JobStatusResponseSchemaType,
   jobDetailsNameFormSchema,
-  JobDetailsNameFormSchemaType,
-  JobStatusResponseSchemaType,
+  type ProvideJobInputSchemaType,
   provideJobInputSchema,
-  ProvideJobInputSchemaType,
+  type StartJobInputSchemaType,
   startJobInputSchema,
-  StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { callAgentHiredWebHook, jobService } from "@/lib/services";
-import { Err, Ok, Result } from "@/lib/ts-res";
+import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
-  AuthenticatedRequest,
+  type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 
@@ -374,7 +374,8 @@ export const updateJobName = withSession<
   return Ok();
 });
 
-interface RequestRefundJobByBlockchainIdentifierParameters extends AuthenticatedRequest {
+interface RequestRefundJobByBlockchainIdentifierParameters
+  extends AuthenticatedRequest {
   blockchainIdentifier: string;
 }
 

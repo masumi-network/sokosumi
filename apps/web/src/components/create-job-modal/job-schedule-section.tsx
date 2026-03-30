@@ -27,12 +27,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   computeNextOccurrence,
   DOW,
-  Dow,
+  type Dow,
   parseCron,
 } from "@/lib/schedules/cron";
 import {
   JobScheduleEndsMode,
-  JobScheduleSelectionType,
+  type JobScheduleSelectionType,
   JobScheduleType,
 } from "@/lib/types/job";
 import { cn } from "@/lib/utils";

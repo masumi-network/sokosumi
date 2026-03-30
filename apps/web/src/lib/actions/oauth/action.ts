@@ -1,9 +1,9 @@
 "use server";
 
-import { ActionError, CommonErrorCode } from "@/lib/actions";
+import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
-import { Err, Ok, Result } from "@/lib/ts-res";
+import { Err, Ok, type Result } from "@/lib/ts-res";
 
 /**
  * Revokes OAuth client access by deleting consent, revoking refresh tokens, and deleting access tokens.

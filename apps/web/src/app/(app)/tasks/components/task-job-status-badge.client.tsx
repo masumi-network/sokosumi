@@ -1,6 +1,6 @@
 "use client";
 
-import { type JobType, type SokosumiJobStatus } from "@sokosumi/database";
+import type { JobType, SokosumiJobStatus } from "@sokosumi/database";
 import { useChannel } from "ably/react";
 import { useEffect, useState } from "react";
 

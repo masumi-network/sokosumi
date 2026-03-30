@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import {
-  AuthRedirectSearchParams,
+  type AuthRedirectSearchParams,
   getRedirectQueryString,
 } from "@/lib/utils/auth-redirect";
 

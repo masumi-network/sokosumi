@@ -1,6 +1,6 @@
-import {
-  type InputFieldSchemaType,
-  type InputSchemaType,
+import type {
+  InputFieldSchemaType,
+  InputSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 

@@ -1,11 +1,11 @@
 import type { Member, Prisma } from "../generated/prisma/client.js";
 import {
+  type MemberWithOrganization,
+  type MemberWithUser,
   memberOrderBy,
   memberOrganizationInclude,
   memberRoleOrderBy,
   memberUserInclude,
-  MemberWithOrganization,
-  MemberWithUser,
 } from "../types/member.js";
 import { MemberRole } from "../types/organization.js";
 

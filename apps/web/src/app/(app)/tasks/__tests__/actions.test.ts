@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 const listCoworkersMock = vi.fn();
 const getAvailableAgentsWithCreditsPriceMock = vi.fn();
 const getTasksColumnPageMock = vi.fn();

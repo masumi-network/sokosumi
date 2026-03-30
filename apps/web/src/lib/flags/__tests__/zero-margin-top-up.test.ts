@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 export {};
 
 vi.mock("server-only", () => ({}));
@@ -69,8 +70,9 @@ describe("zeroMarginTopUpEnabled", () => {
   });
 
   it("resolves the override lookup key only for allowlisted emails", async () => {
-    const { resolveZeroMarginTopUpLookupKey } =
-      await import("../zero-margin-top-up");
+    const { resolveZeroMarginTopUpLookupKey } = await import(
+      "../zero-margin-top-up"
+    );
 
     expect(resolveZeroMarginTopUpLookupKey("member@nmkr.io")).toBe(
       "credit_0_margin",

@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import { auth, Session } from "@/lib/auth/auth";
+import { auth, type Session } from "@/lib/auth/auth";
 
 interface GetSessionOptions {
   refresh?: boolean;

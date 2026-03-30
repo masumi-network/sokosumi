@@ -1,8 +1,8 @@
 import type { Invitation, Prisma } from "../generated/prisma/client.js";
 import {
-  invitationInclude,
   InvitationStatus,
-  InvitationWithRelations,
+  type InvitationWithRelations,
+  invitationInclude,
 } from "../types/invitation.js";
 
 /**

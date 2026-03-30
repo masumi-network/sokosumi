@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from "vitest";
 import {
   createEvent,
   fireEvent,
@@ -6,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { MarkdownEditor } from "@/app/tasks/components/markdown-editor";
 

@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CreditUsage as CreditUsageType } from "@/lib/types/credit";
+import type { CreditUsage as CreditUsageType } from "@/lib/types/credit";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 interface CreditUsageProps {

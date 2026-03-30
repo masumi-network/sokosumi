@@ -44,7 +44,7 @@ import {
 } from "@/lib/actions/job-schedule";
 import {
   JobScheduleEndsMode,
-  JobScheduleSelectionType,
+  type JobScheduleSelectionType,
   JobScheduleType,
 } from "@/lib/types/job";
 

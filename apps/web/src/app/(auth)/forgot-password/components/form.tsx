@@ -10,8 +10,8 @@ import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { forgotPasswordFormData } from "@/auth/forgot-password/data";
 import { requestPasswordReset } from "@/lib/auth/auth.client";
 import {
+  type ForgotPasswordFormSchemaType,
   forgotPasswordFormSchema,
-  ForgotPasswordFormSchemaType,
 } from "@/lib/schemas";
 
 interface ForgotPasswordFormProps {

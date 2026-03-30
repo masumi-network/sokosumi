@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
+import type {
   ApiKeyRecord,
   DialogState,
 } from "@/app/connections/components/api-keys/types";

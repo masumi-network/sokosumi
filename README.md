@@ -11,8 +11,7 @@ sokosumi/
 ├── packages/
 │   └── database/    # Shared database layer with Prisma and repositories
 ├── docs/            # Documentation (future)
-├── eslint.config.mjs    # Root ESLint configuration
-├── prettier.config.mjs  # Root Prettier configuration
+├── biome.jsonc      # Root Biome configuration
 ├── package.json     # Monorepo root config
 ├── pnpm-workspace.yaml # Monorepo workspace config
 └── ...              # Other config and shared files
@@ -53,8 +52,8 @@ pnpm dev
 Other available scripts:
 
 - `pnpm build` — TypeScript build
-- `pnpm lint` — Lint source files
-- `pnpm format` — Format source files
+- `pnpm lint` — Lint source files with Biome
+- `pnpm format` — Format source files with Biome
 
 ## Testing
 

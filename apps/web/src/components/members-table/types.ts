@@ -1,4 +1,4 @@
-import { Invitation, MemberWithUser } from "@sokosumi/database";
+import type { Invitation, MemberWithUser } from "@sokosumi/database";
 
 export interface MemberRowData {
   name?: string | undefined;

@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { AgentStatus } from "@sokosumi/database";
+import { describe, expect, it } from "vitest";
 
 import type { GalleryFilterState } from "@/hooks/use-gallery-filter";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";

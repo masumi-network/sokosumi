@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import UserCredits from "@/app/components/user-credits";
 import type { Session } from "@/lib/auth/auth";

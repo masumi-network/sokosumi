@@ -14,9 +14,9 @@ import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/signup/data";
 import { AuthErrorCode, signUpEmail } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
-import { FormData } from "@/lib/form";
+import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
+import { type SignUpFormSchemaType, signUpFormSchema } from "@/lib/schemas";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,

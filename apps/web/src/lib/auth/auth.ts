@@ -7,7 +7,7 @@ import { passkey } from "@better-auth/passkey";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
-import { MemberRole, User } from "@sokosumi/database";
+import { MemberRole, type User } from "@sokosumi/database";
 import { memberRepository } from "@sokosumi/database/repositories";
 import {
   renderMagicLinkEmail,

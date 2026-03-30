@@ -1,4 +1,4 @@
-import { type JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import {
   agentRepository,
   jobRepository,
@@ -7,7 +7,7 @@ import { dehydrate } from "@tanstack/react-query";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 
-import { type Session } from "@/lib/auth/auth";
+import type { Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getJobQueryKey, getQueryClient } from "@/queries";

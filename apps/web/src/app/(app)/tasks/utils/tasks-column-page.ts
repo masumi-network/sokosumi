@@ -1,6 +1,6 @@
 import "server-only";
 
-import { type AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 
 import type { Coworker } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";

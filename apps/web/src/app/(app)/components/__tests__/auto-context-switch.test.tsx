@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { updatePreferredOrganization } from "@/lib/actions/organization";

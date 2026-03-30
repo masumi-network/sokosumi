@@ -1,4 +1,4 @@
-import {
+import type {
   InvitationWithRelations,
   MemberWithOrganization,
 } from "@sokosumi/database";

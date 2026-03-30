@@ -1,4 +1,4 @@
-import {
+import type {
   InputCheckboxSchemaType,
   InputColorSchemaType,
   InputDateSchemaType,
@@ -37,7 +37,7 @@ import {
   isStringBasedType,
 } from "./form-schema-helpers";
 import { getOptionSelectMode } from "./option-select-mode";
-import { JobInputFormIntlPath } from "./type";
+import type { JobInputFormIntlPath } from "./type";
 
 /**
  * String-based input types that share common validation logic

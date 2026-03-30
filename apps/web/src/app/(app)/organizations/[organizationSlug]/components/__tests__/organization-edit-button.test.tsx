@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Organization } from "@sokosumi/database";
 import {
   act,
@@ -10,10 +9,10 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-
-import OrganizationEditButton from "../organization-edit-button";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { uploadOrganizationLogo } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
+import OrganizationEditButton from "../organization-edit-button";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({

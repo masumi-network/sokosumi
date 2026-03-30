@@ -1,7 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
-
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import type { TaskEvent } from "@/lib/types/task";

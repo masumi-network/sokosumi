@@ -1,5 +1,10 @@
-import React, { useCallback, useEffect, useRef } from "react";
-import { FieldValues, SubmitHandler, UseFormReturn } from "react-hook-form";
+import type React from "react";
+import { useCallback, useEffect, useRef } from "react";
+import type {
+  FieldValues,
+  SubmitHandler,
+  UseFormReturn,
+} from "react-hook-form";
 
 export default function usePreventEnterSubmit<T extends FieldValues>(
   form: UseFormReturn<T>,

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 export {};
 
 vi.mock("server-only", () => ({}));
@@ -42,8 +43,9 @@ describe("preferredOrganizationService", () => {
       id: "member-1",
     });
 
-    const { preferredOrganizationService } =
-      await import("../preferred-organization.service");
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
     const result =
       await preferredOrganizationService.resolveActiveOrganizationIdForSession(
         "user-1",
@@ -64,8 +66,9 @@ describe("preferredOrganizationService", () => {
       preferredOrganizationId: null,
     });
 
-    const { preferredOrganizationService } =
-      await import("../preferred-organization.service");
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
     const result =
       await preferredOrganizationService.resolveActiveOrganizationIdForSession(
         "user-1",
@@ -82,8 +85,9 @@ describe("preferredOrganizationService", () => {
     });
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
 
-    const { preferredOrganizationService } =
-      await import("../preferred-organization.service");
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
     const result =
       await preferredOrganizationService.resolveActiveOrganizationIdForSession(
         "user-1",
@@ -103,8 +107,9 @@ describe("preferredOrganizationService", () => {
       preferredOrganizationId: null,
     });
 
-    const { preferredOrganizationService } =
-      await import("../preferred-organization.service");
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
     const result =
       await preferredOrganizationService.persistPreferredOrganizationId(
         "user-1",
@@ -132,8 +137,9 @@ describe("preferredOrganizationService", () => {
       preferredOrganizationId: "org-1",
     });
 
-    const { preferredOrganizationService } =
-      await import("../preferred-organization.service");
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
     const result =
       await preferredOrganizationService.persistPreferredOrganizationId(
         "user-1",
@@ -159,8 +165,9 @@ describe("preferredOrganizationService", () => {
   it("rejects persisting an organization preference when the user is not a member", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
 
-    const { preferredOrganizationService } =
-      await import("../preferred-organization.service");
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
     const result =
       await preferredOrganizationService.persistPreferredOrganizationId(
         "user-1",

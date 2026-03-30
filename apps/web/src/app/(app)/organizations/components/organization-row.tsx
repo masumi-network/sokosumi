@@ -1,4 +1,4 @@
-import { MemberWithOrganization } from "@sokosumi/database";
+import type { MemberWithOrganization } from "@sokosumi/database";
 import { Building2 } from "lucide-react";
 import Link from "next/link";
 

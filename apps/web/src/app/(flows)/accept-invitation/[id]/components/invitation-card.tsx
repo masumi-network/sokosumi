@@ -1,5 +1,5 @@
-import { InvitationWithRelations } from "@sokosumi/database";
-import { User } from "better-auth";
+import type { InvitationWithRelations } from "@sokosumi/database";
+import type { User } from "better-auth";
 import { AlertCircle, CheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";

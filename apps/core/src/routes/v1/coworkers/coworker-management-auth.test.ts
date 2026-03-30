@@ -119,48 +119,55 @@ describe("coworker management endpoints auth guard", () => {
     });
   });
 
-  it.each(RESTRICTED_ENDPOINTS)(
-    "returns 403 for non-owner non-admin user on $method $path",
-    async ({ method, path, body, restriction }) => {
-      const app = createApp({
-        actor: "user",
-        userId: "user_123",
-        organizationId: null,
+  it.each(
+    RESTRICTED_ENDPOINTS,
+  )("returns 403 for non-owner non-admin user on $method $path", async ({
+    method,
+    path,
+    body,
+    restriction,
+  }) => {
+    const app = createApp({
+      actor: "user",
+      userId: "user_123",
+      organizationId: null,
+    });
+
+    const response = await app.request(`http://localhost${path}`, {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    expect(response.status).toBe(403);
+    if (restriction === "creator-or-admin") {
+      expect(coworkerFindFirstMock).toHaveBeenCalledWith({
+        where: { id: "cow_123", archivedAt: null },
+        select: { id: true, userId: true },
       });
+    }
+  });
 
-      const response = await app.request(`http://localhost${path}`, {
-        method,
-        headers: body ? { "Content-Type": "application/json" } : undefined,
-        body: body ? JSON.stringify(body) : undefined,
-      });
+  it.each(
+    RESTRICTED_ENDPOINTS,
+  )("returns 403 for coworker actor on $method $path", async ({
+    method,
+    path,
+    body,
+  }) => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+    });
 
-      expect(response.status).toBe(403);
-      if (restriction === "creator-or-admin") {
-        expect(coworkerFindFirstMock).toHaveBeenCalledWith({
-          where: { id: "cow_123", archivedAt: null },
-          select: { id: true, userId: true },
-        });
-      }
-    },
-  );
+    const response = await app.request(`http://localhost${path}`, {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
 
-  it.each(RESTRICTED_ENDPOINTS)(
-    "returns 403 for coworker actor on $method $path",
-    async ({ method, path, body }) => {
-      const app = createApp({
-        actor: "coworker",
-        coworkerId: "cow_123",
-      });
-
-      const response = await app.request(`http://localhost${path}`, {
-        method,
-        headers: body ? { "Content-Type": "application/json" } : undefined,
-        body: body ? JSON.stringify(body) : undefined,
-      });
-
-      expect(response.status).toBe(403);
-    },
-  );
+    expect(response.status).toBe(403);
+  });
 
   it("returns 403 for coworker actor on POST /", async () => {
     const app = createApp({

@@ -819,10 +819,10 @@ export default function ChatInterface({
 
   const isSelectedChatCoworker = Boolean(
     selectedChatId &&
-    ((selectedConversation?.id === selectedChatId &&
-      (selectedConversation.metadata as Record<string, unknown> | null)
-        ?.type === "coworker") ||
-      Boolean(chats.find((c) => c.id === selectedChatId)?.coworker)),
+      ((selectedConversation?.id === selectedChatId &&
+        (selectedConversation.metadata as Record<string, unknown> | null)
+          ?.type === "coworker") ||
+        Boolean(chats.find((c) => c.id === selectedChatId)?.coworker)),
   );
 
   const conversationForRecovery =
@@ -833,15 +833,15 @@ export default function ChatInterface({
         : null;
   const hasPendingIdInMetadata = Boolean(
     selectedChatId &&
-    conversationForRecovery &&
-    (() => {
-      const meta = (conversationForRecovery.metadata ?? {}) as Record<
-        string,
-        unknown
-      >;
-      const id = meta.pending_responses_api_response_id;
-      return typeof id === "string" && id.length > 0;
-    })(),
+      conversationForRecovery &&
+      (() => {
+        const meta = (conversationForRecovery.metadata ?? {}) as Record<
+          string,
+          unknown
+        >;
+        const id = meta.pending_responses_api_response_id;
+        return typeof id === "string" && id.length > 0;
+      })(),
   );
 
   useChatSelection({

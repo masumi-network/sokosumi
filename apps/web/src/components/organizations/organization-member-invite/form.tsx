@@ -5,7 +5,7 @@ import { MemberRole } from "@sokosumi/database";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -13,9 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { authClient } from "@/lib/auth/auth.client";
 import {
+  type InviteFormSchemaType,
   inviteFormData,
   inviteFormSchema,
-  InviteFormSchemaType,
 } from "@/lib/schemas";
 
 import { FormFields } from "./form-fields";

@@ -9,11 +9,11 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import type {
-  Conversation as CoreConversation,
   ConversationItem,
+  Conversation as CoreConversation,
 } from "@/lib/clients/generated/core/types.gen";
 import {
-  AuthenticatedRequest,
+  type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 

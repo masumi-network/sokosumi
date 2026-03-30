@@ -1,8 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
-
-import { useApiKeys } from "@/app/connections/components/api-keys/hooks/use-api-keys";
 import { toast } from "sonner";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useApiKeys } from "@/app/connections/components/api-keys/hooks/use-api-keys";
 
 const listMock = vi.fn();
 const createMock = vi.fn();

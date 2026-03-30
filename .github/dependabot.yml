@@ -12,7 +12,6 @@ updates:
         patterns:
           - "next"
           - "@next/third-parties"
-          - "eslint-config-next"
           - "next-openapi-gen"
       react:
         patterns:
@@ -39,7 +38,6 @@ updates:
           - "tailwind-merge"
           - "tailwindcss-animate"
           - "tw-animate-css"
-          - "prettier-plugin-tailwindcss"
       better-auth:
         patterns:
           - "better-auth"

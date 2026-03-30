@@ -2,8 +2,11 @@ import { createMiddleware } from "hono/factory";
 
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import { type AuthEnv, isUserAuthContext } from "@/middleware/auth";
-import { setAuthContext } from "@/middleware/auth";
+import {
+  type AuthEnv,
+  isUserAuthContext,
+  setAuthContext,
+} from "@/middleware/auth";
 
 /**
  * Resolves organization ID from slug and verifies user membership.

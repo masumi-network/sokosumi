@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { InputOptionSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType, InputValidation } from "@sokosumi/masumi/types";
+import { describe, expect, it } from "vitest";
 
 import { isSingleOption } from "@/components/create-job-modal/job-input/util";
 

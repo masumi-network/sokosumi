@@ -1,8 +1,8 @@
 import { getTranslations } from "next-intl/server";
 
-import { Session } from "@/lib/auth/auth";
+import type { Session } from "@/lib/auth/auth";
 import type { GetUsersMeCreditsResponse } from "@/lib/clients/generated/core/types.gen";
-import { CreditUsage } from "@/lib/types/credit";
+import type { CreditUsage } from "@/lib/types/credit";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import CreditCta from "./credit-cta";

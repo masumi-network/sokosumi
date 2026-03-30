@@ -1,15 +1,15 @@
 "use client";
 
-import { Member } from "@sokosumi/database";
-import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
-import { useTranslations } from "next-intl";
+import type { Member } from "@sokosumi/database";
+import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
+import type { useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import MemberActionsDropdown from "./member-actions-dropdown";
-import { MemberRowData } from "./types";
+import type { MemberRowData } from "./types";
 
 const columnHelper = createColumnHelper<MemberRowData>();
 

@@ -230,7 +230,7 @@ pnpm run prisma:studio
 pnpm run lint
 
 # Fix linting issues
-pnpm run lint:fix
+pnpm run lint:write
 
 # Format code
 pnpm run format

@@ -1,4 +1,4 @@
-import {
+import type {
   InputCheckboxSchemaType,
   InputColorSchemaType,
   InputFieldSchemaType,
@@ -11,7 +11,7 @@ import * as z from "zod";
 
 import { makeZodSchemaFromJobInputSchema } from "./form-schema";
 import { isBooleanType } from "./form-schema-helpers";
-import { JobInputFormIntlPath } from "./type";
+import type { JobInputFormIntlPath } from "./type";
 
 /**
  * Type Relationship Documentation:

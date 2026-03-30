@@ -1,7 +1,7 @@
 import {
-  Member,
+  type Member,
   MemberRole,
-  OrganizationWithRelations,
+  type OrganizationWithRelations,
 } from "@sokosumi/database";
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import Link from "next/link";

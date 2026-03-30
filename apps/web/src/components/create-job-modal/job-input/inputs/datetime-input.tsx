@@ -1,5 +1,5 @@
-import { InputDatetimeSchemaType } from "@sokosumi/masumi/schemas";
-import { InputType } from "@sokosumi/masumi/types";
+import type { InputDatetimeSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputType } from "@sokosumi/masumi/types";
 import { useMemo } from "react";
 
 import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
@@ -20,7 +20,7 @@ import {
   TIME_VALUE_REGEX,
 } from "@/lib/job-input/date-value";
 
-import { JobInputComponentProps } from "./types";
+import type { JobInputComponentProps } from "./types";
 
 export function DatetimeInput({
   id,

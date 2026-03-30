@@ -1,6 +1,6 @@
 "use client";
 
-import { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { LeaveOrganizationModal } from "@/components/organizations";

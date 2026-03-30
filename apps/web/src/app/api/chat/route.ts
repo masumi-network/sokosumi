@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 import { headers } from "next/headers";
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { getSession } from "@/lib/auth/utils";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";

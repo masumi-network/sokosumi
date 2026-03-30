@@ -1,7 +1,7 @@
-import { ValidationSchemaType } from "@sokosumi/masumi/schemas";
+import type { ValidationSchemaType } from "@sokosumi/masumi/schemas";
 import { InputValidation } from "@sokosumi/masumi/types";
 
-import { OptionSelectMode } from "@/lib/job-input/form-schema-helpers";
+import type { OptionSelectMode } from "@/lib/job-input/form-schema-helpers";
 
 export function getOptionSelectMode(
   validations: ValidationSchemaType[] | null | undefined,

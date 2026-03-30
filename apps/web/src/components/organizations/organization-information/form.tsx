@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/database";
 import {
   getOrganizationMetadata,
   normalizeOrganizationLogo,
@@ -10,7 +10,13 @@ import {
 import { Building2, CloudUpload, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Dispatch, SetStateAction, useCallback, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -38,8 +44,8 @@ import {
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
 import {
+  type OrganizationInformationFormSchemaType,
   organizationInformationFormSchema,
-  OrganizationInformationFormSchemaType,
 } from "@/lib/schemas";
 
 import { organizationInformationFormData } from "./data";

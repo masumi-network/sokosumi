@@ -2,7 +2,7 @@
 
 import { Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { KeyboardEvent, MouseEvent } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { toast } from "sonner";
 
 import { MiddleTruncate } from "@/components/middle-truncate";

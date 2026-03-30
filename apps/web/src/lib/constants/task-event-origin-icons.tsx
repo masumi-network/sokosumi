@@ -5,7 +5,7 @@ import {
   Mail,
   MessageSquare,
 } from "lucide-react";
-import { type ComponentType } from "react";
+import type { ComponentType } from "react";
 import { PiMicrosoftTeamsLogo } from "react-icons/pi";
 import {
   SiDiscord,
@@ -27,10 +27,8 @@ function SokosumiOriginIcon(
   return <SokosumiIcon {...props} animated={false} />;
 }
 
-export interface TaskEventOriginIconProps extends Omit<
-  LucideProps,
-  "ref" | "size"
-> {
+export interface TaskEventOriginIconProps
+  extends Omit<LucideProps, "ref" | "size"> {
   size?: number;
 }
 

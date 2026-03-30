@@ -3,7 +3,10 @@
 import { useFormatter } from "next-intl";
 import { useMemo, useState } from "react";
 
-import { JobScheduleSelectionType, JobScheduleType } from "@/lib/types/job";
+import {
+  type JobScheduleSelectionType,
+  JobScheduleType,
+} from "@/lib/types/job";
 import { computeNextRun } from "@/lib/utils/cron";
 
 export interface UseJobScheduleReturn {

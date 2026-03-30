@@ -2,8 +2,8 @@
 "use no memo";
 
 import {
-  ColumnDef,
-  ColumnFiltersState,
+  type ColumnDef,
+  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
@@ -11,9 +11,9 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  SortingState,
+  type SortingState,
   useReactTable,
-  VisibilityState,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import * as React from "react";
@@ -120,7 +120,7 @@ export default function DataTable<TData, TValue>({
     const onClick = onRowClick?.(row.original);
     const currentKey = getGroupKey?.(row.original) ?? null;
     const needsHeader = !!currentKey && currentKey !== lastGroupKey;
-    if (!!currentKey) lastGroupKey = currentKey;
+    if (currentKey) lastGroupKey = currentKey;
 
     return (
       <React.Fragment key={row.id}>

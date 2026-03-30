@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 export {};
 
 import { UnAuthenticatedError } from "@/lib/auth/errors";

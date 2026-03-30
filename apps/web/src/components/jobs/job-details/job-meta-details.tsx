@@ -1,10 +1,10 @@
 "use client";
 
-import { JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { CopyableValue } from "@/components/copyable-value";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";

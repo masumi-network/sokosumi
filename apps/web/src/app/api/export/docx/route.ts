@@ -16,8 +16,8 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
-import { EmptyNode, IPlugin, toDocx } from "mdast2docx";
-import { NextRequest, NextResponse } from "next/server";
+import { type EmptyNode, type IPlugin, toDocx } from "mdast2docx";
+import { type NextRequest, NextResponse } from "next/server";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";

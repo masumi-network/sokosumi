@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentWithRelations } from "@sokosumi/database";
+import type { AgentWithRelations } from "@sokosumi/database";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 

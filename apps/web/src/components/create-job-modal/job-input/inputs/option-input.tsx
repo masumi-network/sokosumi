@@ -1,5 +1,5 @@
-import { InputOptionSchemaType } from "@sokosumi/masumi/schemas";
-import { InputType } from "@sokosumi/masumi/types";
+import type { InputOptionSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputType } from "@sokosumi/masumi/types";
 
 import { isSingleOption } from "@/components/create-job-modal/job-input/util";
 import MultipleSelect from "@/components/multiple-select";
@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { JobInputComponentProps } from "./types";
+import type { JobInputComponentProps } from "./types";
 
 export function OptionInput({
   field,

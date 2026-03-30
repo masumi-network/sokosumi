@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { createContext, useContext, useMemo, useState } from "react";
 
 interface CreateJobModalContextType {

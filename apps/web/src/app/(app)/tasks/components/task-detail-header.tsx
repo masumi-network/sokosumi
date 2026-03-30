@@ -2,7 +2,7 @@ import { type MemberWithOrganization, TaskStatus } from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-import { type TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/lib/types/task";
 
 import { TaskDetailActions } from "./task-detail-actions";
 

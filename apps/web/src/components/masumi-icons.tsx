@@ -1,4 +1,4 @@
-import Image, { ImageProps } from "next/image";
+import Image, { type ImageProps } from "next/image";
 
 export function SokosumiIcon({ ...props }: Omit<ImageProps, "src" | "alt">) {
   return (

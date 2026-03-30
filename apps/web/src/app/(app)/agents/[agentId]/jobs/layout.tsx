@@ -3,7 +3,7 @@ import {
   agentRepository,
   jobRepository,
 } from "@sokosumi/database/repositories";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 

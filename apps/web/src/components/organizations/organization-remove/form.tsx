@@ -1,11 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/database";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -25,8 +25,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
 import {
+  type RemoveOrganizationSchemaType,
   removeOrganizationSchema,
-  RemoveOrganizationSchemaType,
 } from "@/lib/schemas/organization";
 
 interface OrganizationRemoveFormProps {

@@ -2,7 +2,7 @@ import { useFormatter } from "next-intl";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/lib/types/task";
 
 import { TaskStatusBadge } from "./task-status-badge";
 

@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import useAgentJobStatusData from "@/hooks/use-agent-job-status";
-import { type JobStatusData } from "@/lib/ably";
+import type { JobStatusData } from "@/lib/ably";
 import { cn } from "@/lib/utils";
 
 interface AgentJobStatusIndicatorProps {

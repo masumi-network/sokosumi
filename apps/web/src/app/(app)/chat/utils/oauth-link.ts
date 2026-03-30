@@ -30,9 +30,7 @@ function getTrustedOAuthDomains(): Set<string> {
   for (const baseUrl of trustedBaseUrls) {
     try {
       domains.add(new URL(baseUrl).hostname.toLowerCase());
-    } catch {
-      continue;
-    }
+    } catch {}
   }
 
   if (typeof window !== "undefined") {
@@ -73,9 +71,7 @@ export function extractOAuthAuthorizationUrl(text: string): string | null {
       if (isOAuthStartLink || isGenericAuthorizeLink) {
         return parsedUrl.toString();
       }
-    } catch {
-      continue;
-    }
+    } catch {}
   }
 
   return null;

@@ -49,8 +49,7 @@ sokosumi/
 │   └── utils/                # Shared utilities (@sokosumi/utils)
 │       └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
 ├── docs/                      # Documentation (future)
-├── eslint.config.mjs          # Root ESLint configuration
-└── prettier.config.mjs        # Root Prettier configuration
+└── biome.jsonc                # Root Biome configuration
 ```
 
 ## Authoritative Conventions
@@ -95,29 +94,27 @@ sokosumi/
 
 ### Code Style
 
-- **Indentation**: Two spaces, semicolons enforced by Prettier
-- **Formatting**: Run `pnpm web:format` after substantial edits
+- **Indentation**: Two spaces, semicolons enforced by Biome
+- **Formatting**: Run `pnpm format` after substantial edits
 - **Imports**: Relative within features, use aliases (`@/lib/*`) otherwise
 - **Components**: Default to Server Components; add `'use client'` only for browser APIs
 
 ### Linting & Formatting
 
-#### ESLint Configuration
+#### Biome Configuration
 
-The monorepo uses a comprehensive ESLint setup with the following enforced rules:
+The monorepo uses a shared Biome configuration at the repo root.
 
 **Import Organization**:
 
-- Auto-sorted imports via `simple-import-sort` plugin (run `pnpm web:format` to fix)
-- No unused imports (`unused-imports/no-unused-imports`)
-- Import statements must appear first with newline after
-- No duplicate imports from same module
+- `pnpm check` runs `biome check`, which enforces linting, formatting, and import organization
+- `pnpm lint` runs `biome lint`, which checks lint rules only
+- Unused imports are reported and can be auto-fixed by Biome
 
 **TypeScript Rules**:
 
-- Unused variables/arguments trigger warnings (not errors)
-- Prefix unused identifiers with underscore to suppress: `const _unused = value;`
-- Applies to: variables, function arguments, caught errors, destructured arrays
+- Unused variables/arguments should be prefixed with `_` when intentionally unused
+- Applies to variables, function arguments, caught errors, and destructured arrays
 
 **Example of valid unused variable patterns**:
 
@@ -134,7 +131,7 @@ function handler(_req, res) {
 }
 ```
 
-#### Prettier Configuration
+#### Formatting Configuration
 
 All code must follow these formatting rules:
 
@@ -142,7 +139,7 @@ All code must follow these formatting rules:
 - **Semicolons**: Required
 - **Quotes**: Double quotes (not single)
 - **Trailing Commas**: Required in multi-line structures
-- **Auto-fix**: Run `pnpm web:format`
+- **Auto-fix**: Run `pnpm format`
 
 **Example**:
 
@@ -155,12 +152,10 @@ const config = {
 
 #### Common Linter Fixes
 
-| Error                               | Solution                         |
-| ----------------------------------- | -------------------------------- |
-| `simple-import-sort/imports`        | Run `pnpm web:format`            |
-| `unused-imports/no-unused-imports`  | Remove import or use it          |
-| `@typescript-eslint/no-unused-vars` | Use variable or prefix with `_`  |
-| `import/no-duplicates`              | Combine imports from same module |
+| Error                               | Solution                          |
+| ----------------------------------- | --------------------------------- |
+| `lint/correctness/noUnusedImports`  | Remove import or use it           |
+| `assist/source/organizeImports`     | Run `pnpm check:write` or `pnpm format` |
 
 ## Environment & Tooling
 
@@ -189,15 +184,16 @@ const config = {
 | `pnpm web:build`       | Build web app for production  |
 | `pnpm core:build`      | Build core API for production |
 | `pnpm web:start`       | Smoke test production build   |
-| `pnpm lint`            | Lint entire codebase          |
-| `pnpm web:lint`        | Lint web app                  |
-| `pnpm web:lint:report` | CI-friendly lint report       |
+| `pnpm lint`            | Run Biome lint rules across the codebase |
+| `pnpm check`           | Run full Biome checks across the codebase |
+| `pnpm web:lint`        | Run Biome lint rules for the web app |
+| `pnpm web:check`       | Run full Biome checks for the web app |
 | `pnpm test`            | Run tests locally             |
 | `pnpm core:test`       | Run core API tests            |
 | `pnpm web:test`        | Run web app tests             |
 | `pnpm masumi:test`     | Run masumi package tests      |
 | `pnpm web:test:ci`     | CI test execution             |
-| `pnpm web:format`      | Format web app code           |
+| `pnpm web:format`      | Format web app code with Biome |
 | `pnpm database:format` | Format database package code  |
 
 ## Testing Guidelines
