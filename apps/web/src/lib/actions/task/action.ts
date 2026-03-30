@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { taskService } from "@/lib/services/task.service";
+import { clampTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -62,7 +63,7 @@ export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
       const generatedName =
         await openrouterClient.generateTaskName(trimmedDescription);
       const candidate = generatedName ?? buildFallbackName(description);
-      const name = candidate.trim() || "Untitled Task";
+      const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
       const task = await taskService.createTask({
         name,
         description: trimmedDescription,
@@ -89,7 +90,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
     desiredStatus,
   }) => {
     const trimmedDescription = description.trim();
-    const trimmedName = name.trim();
+    const trimmedName = clampTaskNameForCoreApi(name);
     if (!trimmedDescription) {
       throw new Error("Description required");
     }
