@@ -905,7 +905,7 @@ model PublicShare {
   task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   // Security & Access
-  token String? @unique
+  token String @unique
 
   // SEO Control
   allowSearchIndexing Boolean @default(true)

@@ -3,6 +3,9 @@ ALTER TABLE "jobShare"
 ALTER COLUMN "jobId" DROP NOT NULL;
 
 ALTER TABLE "jobShare"
+ALTER COLUMN "token" SET NOT NULL;
+
+ALTER TABLE "jobShare"
 ADD COLUMN "taskId" TEXT;
 
 CREATE UNIQUE INDEX "jobShare_taskId_key" ON "jobShare"("taskId");
