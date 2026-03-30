@@ -9,7 +9,6 @@ const config = {
     importFileExtension: "js",
   },
   name: "MasumiPaymentClient",
-  baseUrl: "https://masumi-payment-sokosumi-agvae.ondigitalocean.app/api/v1",
   plugins: [
     ...defaultPlugins,
     "@hey-api/client-next",

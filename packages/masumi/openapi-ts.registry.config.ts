@@ -9,7 +9,6 @@ const config = {
     importFileExtension: "js",
   },
   name: "MasumiRegistryClient",
-  baseUrl: "https://masumi-registry-sokosumi-3cxkj.ondigitalocean.app/api/v1",
   plugins: [
     ...defaultPlugins,
     "@hey-api/client-next",
