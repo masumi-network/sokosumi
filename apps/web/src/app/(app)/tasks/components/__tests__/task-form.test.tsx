@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
+import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
 
 const markdownEditorPropsSpy = vi.fn();
 
@@ -221,7 +222,7 @@ describe("TaskForm", () => {
 
     expect(screen.getByLabelText("Task name")).toHaveAttribute(
       "maxlength",
-      "120",
+      String(DEFAULT_TASK_NAME_MAX_LENGTH),
     );
   });
 

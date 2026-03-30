@@ -10,7 +10,7 @@ import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 import { getColumnId } from "@/lib/utils/task-column";
 
-const DEFAULT_TASK_NAME_MAX_LENGTH = 120;
+export const DEFAULT_TASK_NAME_MAX_LENGTH = 120;
 
 export function clampTaskNameForCoreApi(
   name: string,

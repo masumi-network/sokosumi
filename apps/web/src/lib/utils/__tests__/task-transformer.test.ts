@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   clampTaskNameForCoreApi,
+  DEFAULT_TASK_NAME_MAX_LENGTH,
   mapTaskToTaskWithCoworker,
 } from "@/lib/utils/task-transformer";
 
@@ -111,8 +112,10 @@ describe("clampTaskNameForCoreApi", () => {
   });
 
   it("truncates names that exceed the Core API limit", () => {
-    const longName = "a".repeat(130);
+    const longName = "a".repeat(DEFAULT_TASK_NAME_MAX_LENGTH + 10);
 
-    expect(clampTaskNameForCoreApi(longName)).toBe("a".repeat(120));
+    expect(clampTaskNameForCoreApi(longName)).toBe(
+      "a".repeat(DEFAULT_TASK_NAME_MAX_LENGTH),
+    );
   });
 });
