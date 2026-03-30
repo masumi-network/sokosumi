@@ -2,56 +2,56 @@
   "folders": [
     {
       "name": "Root",
-      "path": ".",
+      "path": "."
     },
     {
       "name": "App: Web",
-      "path": "apps/web",
+      "path": "apps/web"
     },
     {
       "name": "App: Core",
-      "path": "apps/core",
+      "path": "apps/core"
     },
     {
       "name": "Package: Database",
-      "path": "packages/database",
+      "path": "packages/database"
     },
     {
       "name": "Package: Masumi",
-      "path": "packages/masumi",
+      "path": "packages/masumi"
     },
     {
       "name": "Package: Email",
-      "path": "packages/email",
+      "path": "packages/email"
     },
     {
       "name": "Package: Chat",
-      "path": "packages/chat",
+      "path": "packages/chat"
     },
     {
       "name": "Package: Utils",
-      "path": "packages/utils",
-    },
+      "path": "packages/utils"
+    }
   ],
   "settings": {
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "biomejs.biome",
     "[prisma]": {
-      "editor.defaultFormatter": "Prisma.prisma",
+      "editor.defaultFormatter": "Prisma.prisma"
     },
     "editor.wordWrap": "on",
     "editor.tabSize": 2,
     "editor.codeActionsOnSave": {
       "source.fixAll.biome": "explicit",
-      "source.organizeImports.biome": "explicit",
+      "source.organizeImports.biome": "explicit"
     },
     "files.associations": {
-      "*.css": "tailwindcss",
+      "*.css": "tailwindcss"
     },
     "i18n-ally.localesPaths": ["/apps/web/messages", "/apps/web/src/i18n"],
     "i18n-ally.keystyle": "nested",
     "[typescriptreact]": {
-      "editor.defaultFormatter": "biomejs.biome",
+      "editor.defaultFormatter": "biomejs.biome"
     },
     "workbench.editor.customLabels.patterns": {
       "**/src/app/**/page.tsx": "${dirname}/page.tsx",
@@ -60,9 +60,9 @@
       "**/src/app/**/error.tsx": "${dirname}/error.tsx",
       "**/src/app/**/loading.tsx": "${dirname}/loading.tsx",
       "**/src/app/**/route.ts": "${dirname}/route.ts",
-      "**/src/app/**/layout.tsx": "${dirname}/layout.tsx",
+      "**/src/app/**/layout.tsx": "${dirname}/layout.tsx"
     },
-    "npm.packageManager": "pnpm",
+    "npm.packageManager": "pnpm"
   },
   "extensions": {
     "recommendations": [
@@ -70,7 +70,7 @@
       "biomejs.biome",
       "streetsidesoftware.code-spell-checker",
       "prisma.prisma",
-      "lokalise.i18n-ally",
-    ],
-  },
+      "lokalise.i18n-ally"
+    ]
+  }
 }
