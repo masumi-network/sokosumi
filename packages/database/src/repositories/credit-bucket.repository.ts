@@ -159,12 +159,13 @@ async function getFifoBucketsToCoverSpend(
         cb.id,
         (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
         cb."expiresAt",
-        cb."createdAt"
+        cb."createdAt",
+        cb."referenceType"
       FROM credit_bucket cb
       LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
       WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
-      GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
+      GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt", cb."referenceType"
       HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
     ),
     ordered AS (
@@ -173,15 +174,24 @@ async function getFifoBucketsToCoverSpend(
         available,
         "expiresAt",
         "createdAt",
+        "referenceType",
         SUM(available) OVER (
-          ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
+          ORDER BY
+            CASE WHEN "referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD' THEN 0 ELSE 1 END ASC,
+            "expiresAt" ASC NULLS LAST,
+            "createdAt" ASC,
+            id ASC
         ) AS running_total
       FROM bucket_avail
     )
     SELECT id, available
     FROM ordered
     WHERE running_total - available < ${cents}
-    ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
+    ORDER BY
+      CASE WHEN "referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD' THEN 0 ELSE 1 END ASC,
+      "expiresAt" ASC NULLS LAST,
+      "createdAt" ASC,
+      id ASC
   `;
 }
 
