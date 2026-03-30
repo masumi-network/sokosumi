@@ -29,6 +29,7 @@ import {
   sanitizeTaskAttachmentLabel,
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
+import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
 
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 
@@ -318,6 +319,7 @@ export function TaskForm({
               <Label htmlFor="task-name">{labels.name}</Label>
               <Input
                 id="task-name"
+                maxLength={DEFAULT_TASK_NAME_MAX_LENGTH}
                 placeholder={labels.namePlaceholder}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
