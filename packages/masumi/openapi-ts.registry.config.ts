@@ -1,7 +1,8 @@
 import { defaultPlugins } from "@hey-api/openapi-ts";
 
 const config = {
-  input: "https://masumi-registry-sokosumi-3cxkj.ondigitalocean.app/api-docs",
+  input:
+    "https://masumi-registry-sokosumi-dev-9f342.ondigitalocean.app/api-docs",
   output: {
     path: "./src/clients/openapi/generated/registry",
     tsConfigPath: "./tsconfig.json",
