@@ -227,6 +227,11 @@ export function TaskDetailActions({
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
   const canRemoveParent =
     canManageRelations && typeof currentParentLink !== "undefined";
+  const hasOverflowMenuActions =
+    statusActions.length > 0 ||
+    canEditOrDelete ||
+    canManageRelations ||
+    canMove;
   const taskPickerOptions = useMemo(
     () => buildTaskPickerOptions(tDetailActions),
     [tDetailActions],
@@ -500,213 +505,268 @@ export function TaskDetailActions({
         size="icon"
         className="size-7"
       />
-      <DropdownMenu
-        open={isDropdownOpen}
-        onOpenChange={handleDropdownOpenChange}
-      >
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="size-8 shrink-0"
-            aria-label={actionsMenuLabel}
-            disabled={actionsDisabled}
-          >
-            <Ellipsis className="size-4" aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          {statusActions.map((action) => {
-            const StatusIcon = getStatusActionMenuIcon(action.target);
+      {hasOverflowMenuActions ? (
+        <DropdownMenu
+          open={isDropdownOpen}
+          onOpenChange={handleDropdownOpenChange}
+        >
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-8 shrink-0"
+              aria-label={actionsMenuLabel}
+              disabled={actionsDisabled}
+            >
+              <Ellipsis className="size-4" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {statusActions.map((action) => {
+              const StatusIcon = getStatusActionMenuIcon(action.target);
 
-            return (
-              <DropdownMenuItem
-                className="cursor-pointer"
-                key={action.target}
-                disabled={actionsDisabled}
-                onSelect={() => handleStatusToggle(action.target)}
-              >
-                {isStatusPending && pendingStatusTarget === action.target ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <StatusIcon className="size-4" aria-hidden />
-                )}
-                <span>{action.label}</span>
+              return (
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  key={action.target}
+                  disabled={actionsDisabled}
+                  onSelect={() => handleStatusToggle(action.target)}
+                >
+                  {isStatusPending && pendingStatusTarget === action.target ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <StatusIcon className="size-4" aria-hidden />
+                  )}
+                  <span>{action.label}</span>
+                </DropdownMenuItem>
+              );
+            })}
+
+            {statusActions.length > 0 &&
+            (canEditOrDelete || canManageRelations || canMove) ? (
+              <DropdownMenuSeparator />
+            ) : null}
+
+            {canEditOrDelete ? (
+              <DropdownMenuItem asChild disabled={actionsDisabled}>
+                <Link
+                  href={`/tasks/${taskId}/edit`}
+                  className={
+                    actionsDisabled ? "pointer-events-none opacity-70" : ""
+                  }
+                >
+                  <Pencil className="size-4" aria-hidden />
+                  {labels.edit}
+                </Link>
               </DropdownMenuItem>
-            );
-          })}
+            ) : null}
 
-          {statusActions.length > 0 &&
-          (canEditOrDelete || canManageRelations || canMove) ? (
-            <DropdownMenuSeparator />
-          ) : null}
-
-          {canEditOrDelete ? (
-            <DropdownMenuItem asChild disabled={actionsDisabled}>
-              <Link
-                href={`/tasks/${taskId}/edit`}
-                className={
-                  actionsDisabled ? "pointer-events-none opacity-70" : ""
-                }
-              >
-                <Pencil className="size-4" aria-hidden />
-                {labels.edit}
-              </Link>
-            </DropdownMenuItem>
-          ) : null}
-
-          {canManageRelations ? (
-            <>
-              {isMobile ? (
-                <>
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    disabled={actionsDisabled}
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      setIsMarkAsSectionOpen((previous) => !previous);
-                    }}
-                  >
-                    <FlagTriangleRight
-                      className="size-4 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <span>{tDetailActions("markAs")}</span>
-                    <ChevronDown
-                      className={cn(
-                        "ml-auto size-4 text-muted-foreground transition-transform",
-                        isMarkAsSectionOpen ? "rotate-180" : "",
-                      )}
-                      aria-hidden
-                    />
-                  </DropdownMenuItem>
-                  {isMarkAsSectionOpen
-                    ? taskPickerOptions.map((option) => (
-                        <DropdownMenuItem
-                          key={option.id}
-                          className="cursor-pointer pl-8"
-                          disabled={actionsDisabled}
-                          onSelect={() => handleOpenTaskPicker(option)}
-                        >
-                          <option.icon className="size-4" aria-hidden />
-                          <span>{option.label}</span>
-                        </DropdownMenuItem>
-                      ))
-                    : null}
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    disabled={actionsDisabled}
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      setIsCreateRelatedSectionOpen((previous) => !previous);
-                    }}
-                  >
-                    <LucideSquareMousePointer
-                      className="size-4 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <span>{tDetailActions("createRelated")}</span>
-                    <ChevronDown
-                      className={cn(
-                        "ml-auto size-4 text-muted-foreground transition-transform",
-                        isCreateRelatedSectionOpen ? "rotate-180" : "",
-                      )}
-                      aria-hidden
-                    />
-                  </DropdownMenuItem>
-                  {isCreateRelatedSectionOpen
-                    ? createRelatedOptions.map((option) => (
-                        <DropdownMenuItem
-                          key={option.id}
-                          className="cursor-pointer pl-8"
-                          disabled={actionsDisabled}
-                          onSelect={() => handleOpenCreateRelated(option)}
-                        >
-                          <option.icon className="size-4" aria-hidden />
-                          <span>{option.label}</span>
-                        </DropdownMenuItem>
-                      ))
-                    : null}
-                </>
-              ) : (
-                <>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger
-                      className="gap-2"
-                      disabled={actionsDisabled}
-                    >
-                      <FlagTriangleRight
-                        className="size-4 text-muted-foreground"
-                        aria-hidden
-                      />
-                      {tDetailActions("markAs")}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-56">
-                      {taskPickerOptions.map((option) => (
-                        <DropdownMenuItem
-                          key={option.id}
-                          disabled={actionsDisabled}
-                          onSelect={() => handleOpenTaskPicker(option)}
-                        >
-                          <option.icon className="size-4" aria-hidden />
-                          {option.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger
-                      className="gap-2"
-                      disabled={actionsDisabled}
-                    >
-                      <LucideSquareMousePointer
-                        className="size-4 text-muted-foreground"
-                        aria-hidden
-                      />
-                      {tDetailActions("createRelated")}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-56">
-                      {createRelatedOptions.map((option) => (
-                        <DropdownMenuItem
-                          key={option.id}
-                          disabled={actionsDisabled}
-                          onSelect={() => handleOpenCreateRelated(option)}
-                        >
-                          <option.icon className="size-4" aria-hidden />
-                          {option.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                </>
-              )}
-              {canRemoveRelated ? (
-                isMobile ? (
+            {canManageRelations ? (
+              <>
+                {isMobile ? (
                   <>
                     <DropdownMenuItem
                       className="cursor-pointer"
                       disabled={actionsDisabled}
                       onSelect={(event) => {
                         event.preventDefault();
-                        setIsRemoveRelatedSectionOpen((previous) => !previous);
+                        setIsMarkAsSectionOpen((previous) => !previous);
                       }}
                     >
-                      <ListX
+                      <FlagTriangleRight
                         className="size-4 text-muted-foreground"
                         aria-hidden
                       />
-                      <span>{tDetailActions("removeRelated")}</span>
+                      <span>{tDetailActions("markAs")}</span>
                       <ChevronDown
                         className={cn(
                           "ml-auto size-4 text-muted-foreground transition-transform",
-                          isRemoveRelatedSectionOpen ? "rotate-180" : "",
+                          isMarkAsSectionOpen ? "rotate-180" : "",
                         )}
                         aria-hidden
                       />
                     </DropdownMenuItem>
-                    {isRemoveRelatedSectionOpen
-                      ? removableTaskLinks.map((link) => {
+                    {isMarkAsSectionOpen
+                      ? taskPickerOptions.map((option) => (
+                          <DropdownMenuItem
+                            key={option.id}
+                            className="cursor-pointer pl-8"
+                            disabled={actionsDisabled}
+                            onSelect={() => handleOpenTaskPicker(option)}
+                          >
+                            <option.icon className="size-4" aria-hidden />
+                            <span>{option.label}</span>
+                          </DropdownMenuItem>
+                        ))
+                      : null}
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      disabled={actionsDisabled}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setIsCreateRelatedSectionOpen((previous) => !previous);
+                      }}
+                    >
+                      <LucideSquareMousePointer
+                        className="size-4 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <span>{tDetailActions("createRelated")}</span>
+                      <ChevronDown
+                        className={cn(
+                          "ml-auto size-4 text-muted-foreground transition-transform",
+                          isCreateRelatedSectionOpen ? "rotate-180" : "",
+                        )}
+                        aria-hidden
+                      />
+                    </DropdownMenuItem>
+                    {isCreateRelatedSectionOpen
+                      ? createRelatedOptions.map((option) => (
+                          <DropdownMenuItem
+                            key={option.id}
+                            className="cursor-pointer pl-8"
+                            disabled={actionsDisabled}
+                            onSelect={() => handleOpenCreateRelated(option)}
+                          >
+                            <option.icon className="size-4" aria-hidden />
+                            <span>{option.label}</span>
+                          </DropdownMenuItem>
+                        ))
+                      : null}
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger
+                        className="gap-2"
+                        disabled={actionsDisabled}
+                      >
+                        <FlagTriangleRight
+                          className="size-4 text-muted-foreground"
+                          aria-hidden
+                        />
+                        {tDetailActions("markAs")}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-56">
+                        {taskPickerOptions.map((option) => (
+                          <DropdownMenuItem
+                            key={option.id}
+                            disabled={actionsDisabled}
+                            onSelect={() => handleOpenTaskPicker(option)}
+                          >
+                            <option.icon className="size-4" aria-hidden />
+                            {option.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger
+                        className="gap-2"
+                        disabled={actionsDisabled}
+                      >
+                        <LucideSquareMousePointer
+                          className="size-4 text-muted-foreground"
+                          aria-hidden
+                        />
+                        {tDetailActions("createRelated")}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-56">
+                        {createRelatedOptions.map((option) => (
+                          <DropdownMenuItem
+                            key={option.id}
+                            disabled={actionsDisabled}
+                            onSelect={() => handleOpenCreateRelated(option)}
+                          >
+                            <option.icon className="size-4" aria-hidden />
+                            {option.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  </>
+                )}
+                {canRemoveRelated ? (
+                  isMobile ? (
+                    <>
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        disabled={actionsDisabled}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          setIsRemoveRelatedSectionOpen(
+                            (previous) => !previous,
+                          );
+                        }}
+                      >
+                        <ListX
+                          className="size-4 text-muted-foreground"
+                          aria-hidden
+                        />
+                        <span>{tDetailActions("removeRelated")}</span>
+                        <ChevronDown
+                          className={cn(
+                            "ml-auto size-4 text-muted-foreground transition-transform",
+                            isRemoveRelatedSectionOpen ? "rotate-180" : "",
+                          )}
+                          aria-hidden
+                        />
+                      </DropdownMenuItem>
+                      {isRemoveRelatedSectionOpen
+                        ? removableTaskLinks.map((link) => {
+                            const RelationIcon = getTaskLinkRelationIcon(
+                              link.relation,
+                            );
+
+                            return (
+                              <DropdownMenuItem
+                                key={link.id}
+                                disabled={actionsDisabled}
+                                onSelect={() => handleRemoveRelated(link)}
+                                className="cursor-pointer pl-8"
+                              >
+                                {isRemoveRelatedPending &&
+                                pendingRemoveLinkId === link.id ? (
+                                  <Loader2
+                                    className="size-4 animate-spin"
+                                    aria-hidden
+                                  />
+                                ) : (
+                                  <RelationIcon
+                                    className={
+                                      link.relation ===
+                                        TaskLinkRelation.BLOCKS ||
+                                      link.relation ===
+                                        TaskLinkRelation.BLOCKED_BY
+                                        ? "text-destructive size-4"
+                                        : "size-4"
+                                    }
+                                    aria-hidden
+                                  />
+                                )}
+                                <span className="truncate">
+                                  {link.peerTask.name}
+                                </span>
+                              </DropdownMenuItem>
+                            );
+                          })
+                        : null}
+                    </>
+                  ) : (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger
+                        className="gap-2"
+                        disabled={actionsDisabled}
+                      >
+                        <ListX
+                          className="size-4 text-muted-foreground"
+                          aria-hidden
+                        />
+                        {tDetailActions("removeRelated")}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-56">
+                        {removableTaskLinks.map((link) => {
                           const RelationIcon = getTaskLinkRelationIcon(
                             link.relation,
                           );
@@ -716,7 +776,7 @@ export function TaskDetailActions({
                               key={link.id}
                               disabled={actionsDisabled}
                               onSelect={() => handleRemoveRelated(link)}
-                              className="cursor-pointer pl-8"
+                              className="cursor-pointer"
                             >
                               {isRemoveRelatedPending &&
                               pendingRemoveLinkId === link.id ? (
@@ -741,108 +801,59 @@ export function TaskDetailActions({
                               </span>
                             </DropdownMenuItem>
                           );
-                        })
-                      : null}
-                  </>
-                ) : (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger
-                      className="gap-2"
-                      disabled={actionsDisabled}
-                    >
-                      <ListX
-                        className="size-4 text-muted-foreground"
-                        aria-hidden
-                      />
-                      {tDetailActions("removeRelated")}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-56">
-                      {removableTaskLinks.map((link) => {
-                        const RelationIcon = getTaskLinkRelationIcon(
-                          link.relation,
-                        );
+                        })}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )
+                ) : null}
+                {canRemoveParent ? (
+                  <DropdownMenuItem
+                    disabled={actionsDisabled}
+                    onSelect={handleRemoveParent}
+                  >
+                    {isParentRemovalPending ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <SquareArrowRightExit className="size-4" aria-hidden />
+                    )}
+                    {tDetailActions("removeParent")}
+                  </DropdownMenuItem>
+                ) : null}
+              </>
+            ) : null}
 
-                        return (
-                          <DropdownMenuItem
-                            key={link.id}
-                            disabled={actionsDisabled}
-                            onSelect={() => handleRemoveRelated(link)}
-                            className="cursor-pointer"
-                          >
-                            {isRemoveRelatedPending &&
-                            pendingRemoveLinkId === link.id ? (
-                              <Loader2
-                                className="size-4 animate-spin"
-                                aria-hidden
-                              />
-                            ) : (
-                              <RelationIcon
-                                className={
-                                  link.relation === TaskLinkRelation.BLOCKS ||
-                                  link.relation === TaskLinkRelation.BLOCKED_BY
-                                    ? "text-destructive size-4"
-                                    : "size-4"
-                                }
-                                aria-hidden
-                              />
-                            )}
-                            <span className="truncate">
-                              {link.peerTask.name}
-                            </span>
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                )
-              ) : null}
-              {canRemoveParent ? (
-                <DropdownMenuItem
-                  disabled={actionsDisabled}
-                  onSelect={handleRemoveParent}
-                >
-                  {isParentRemovalPending ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <SquareArrowRightExit className="size-4" aria-hidden />
-                  )}
-                  {tDetailActions("removeParent")}
-                </DropdownMenuItem>
-              ) : null}
-            </>
-          ) : null}
+            {(canEditOrDelete || canManageRelations) && canMove ? (
+              <DropdownMenuSeparator />
+            ) : null}
 
-          {(canEditOrDelete || canManageRelations) && canMove ? (
-            <DropdownMenuSeparator />
-          ) : null}
+            {canMove ? (
+              <DropdownMenuItem
+                disabled={actionsDisabled}
+                onSelect={() => setIsMoveOpen(true)}
+              >
+                <ArrowLeftRight className="size-4" aria-hidden />
+                {tDetailActions("moveToWorkspace")}
+              </DropdownMenuItem>
+            ) : null}
 
-          {canMove ? (
-            <DropdownMenuItem
-              disabled={actionsDisabled}
-              onSelect={() => setIsMoveOpen(true)}
-            >
-              <ArrowLeftRight className="size-4" aria-hidden />
-              {tDetailActions("moveToWorkspace")}
-            </DropdownMenuItem>
-          ) : null}
+            {canEditOrDelete &&
+            (statusActions.length > 0 || canManageRelations || canMove) ? (
+              <DropdownMenuSeparator />
+            ) : null}
 
-          {canEditOrDelete &&
-          (statusActions.length > 0 || canManageRelations || canMove) ? (
-            <DropdownMenuSeparator />
-          ) : null}
-
-          {canEditOrDelete ? (
-            <DropdownMenuItem
-              variant="destructive"
-              disabled={actionsDisabled}
-              onSelect={() => setIsOpen(true)}
-            >
-              <Trash className="size-4" aria-hidden />
-              {labels.delete}
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            {canEditOrDelete ? (
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={actionsDisabled}
+                onSelect={() => setIsOpen(true)}
+              >
+                <Trash className="size-4" aria-hidden />
+                {labels.delete}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
 
       {canEditOrDelete ? (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>

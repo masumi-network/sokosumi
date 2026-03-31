@@ -570,6 +570,18 @@ describe("TaskDetailActions", () => {
     vi.useRealTimers();
   });
 
+  it.each([
+    TASK_STATUS.COMPLETED,
+    TASK_STATUS.FAILED,
+    TASK_STATUS.CANCEL_REQUESTED,
+  ] as const)("does not render the overflow menu for finalized status %s", (status) => {
+    renderActions({ status });
+    expect(
+      screen.queryByRole("button", { name: actionsMenuLabel }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: labels.share })).toBeVisible();
+  });
+
   it("disables the actions trigger while a status update is pending", async () => {
     const user = userEvent.setup();
     const deferred = createDeferred<{ taskId: string }>();
