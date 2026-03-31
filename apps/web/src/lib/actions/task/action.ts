@@ -184,16 +184,34 @@ async function rollbackCreatedParentLink(input: {
   createdLinkId: string;
   deletedParentLinks: TaskLink[];
 }): Promise<void> {
+  const rollbackFailures: string[] = [];
+
   try {
     await taskService.deleteTaskLink(input.taskId, input.createdLinkId);
   } catch (rollbackError) {
     console.error("Failed to rollback created parent link", rollbackError);
+    rollbackFailures.push(
+      rollbackError instanceof Error
+        ? rollbackError.message
+        : String(rollbackError),
+    );
   }
 
   try {
     await restoreParentLinks(input.taskId, input.deletedParentLinks);
   } catch (rollbackError) {
     console.error("Failed to restore previous parent links", rollbackError);
+    rollbackFailures.push(
+      rollbackError instanceof Error
+        ? rollbackError.message
+        : String(rollbackError),
+    );
+  }
+
+  if (rollbackFailures.length > 0) {
+    throw new Error(
+      `Task links may be inconsistent after a failed parent replacement. Rollback failed: ${rollbackFailures.join("; ")}`,
+    );
   }
 }
 
@@ -210,11 +228,23 @@ async function deletePreviousParentLinks(input: {
       deletedParentLinks.push(parentLink);
     }
   } catch (error) {
-    await rollbackCreatedParentLink({
-      taskId: input.taskId,
-      createdLinkId: input.createdLinkId,
-      deletedParentLinks,
-    });
+    try {
+      await rollbackCreatedParentLink({
+        taskId: input.taskId,
+        createdLinkId: input.createdLinkId,
+        deletedParentLinks,
+      });
+    } catch (rollbackError) {
+      const originalMessage =
+        error instanceof Error ? error.message : String(error);
+      const rollbackMessage =
+        rollbackError instanceof Error
+          ? rollbackError.message
+          : String(rollbackError);
+      throw new Error(
+        `${rollbackMessage} (while recovering from: ${originalMessage})`,
+      );
+    }
     throw error;
   }
 }

@@ -174,7 +174,10 @@ export function TaskDetailActions({
     !isFinalized &&
     jobsCount === 0 &&
     getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
-  const currentParentLink = taskLinks.find((link) => link.relation === "child");
+  const parentLinks = useMemo(
+    () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
+    [taskLinks],
+  );
   const removableTaskLinks = useMemo(
     () =>
       taskLinks.filter(
@@ -185,8 +188,7 @@ export function TaskDetailActions({
     [taskLinks],
   );
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
-  const canRemoveParent =
-    canManageRelations && typeof currentParentLink !== "undefined";
+  const canRemoveParent = canManageRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
     statusActions.length > 0 ||
     canEditOrDelete ||
@@ -308,14 +310,16 @@ export function TaskDetailActions({
   };
 
   const handleRemoveParent = () => {
-    if (!currentParentLink) return;
+    if (parentLinks.length === 0) return;
 
     startParentRemovalTransition(async () => {
       try {
-        await deleteTaskLink({
-          taskId,
-          linkId: currentParentLink.id,
-        });
+        for (const link of parentLinks) {
+          await deleteTaskLink({
+            taskId,
+            linkId: link.id,
+          });
+        }
         router.refresh();
         toast.success(tDetailActions("removeParentSuccess"));
       } catch (error) {

@@ -993,6 +993,49 @@ describe("TaskDetailActions", () => {
     });
   });
 
+  it("remove parent deletes every child-relation link when multiple exist", async () => {
+    const user = userEvent.setup();
+    const deleteTaskLinkMock = vi.mocked(deleteTaskLink);
+    deleteTaskLinkMock.mockResolvedValue({
+      taskId: "task-1",
+      linkId: "link-parent",
+      relatedTaskId: "task-parent",
+    });
+
+    const secondParentLink = {
+      id: "link-parent-2",
+      createdAt: new Date("2024-01-02T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-02T00:00:00.000Z"),
+      relation: TaskLinkRelation.CHILD,
+      note: null,
+      peerTask: {
+        id: "task-parent-2",
+        name: "Other parent",
+        status: TASK_STATUS.READY,
+        archivedAt: null,
+      },
+    } as const;
+
+    renderActions({
+      taskLinks: [...defaultTaskLinks, secondParentLink],
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Remove parent" }));
+
+    await waitFor(() => {
+      expect(deleteTaskLinkMock).toHaveBeenCalledTimes(2);
+      expect(deleteTaskLinkMock).toHaveBeenNthCalledWith(1, {
+        taskId: "task-1",
+        linkId: "link-parent",
+      });
+      expect(deleteTaskLinkMock).toHaveBeenNthCalledWith(2, {
+        taskId: "task-1",
+        linkId: "link-parent-2",
+      });
+    });
+  });
+
   it("shows remove related only for non-parent visible links", async () => {
     const user = userEvent.setup();
 

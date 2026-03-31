@@ -189,6 +189,7 @@ export function TaskLinkTaskPickerDialog({
         relation: selectedOption?.label ?? "",
       })}
       description={tDetailActions("taskPickerDescription")}
+      commandProps={{ shouldFilter: false }}
     >
       <CommandInput
         placeholder={tDetailActions("taskPickerSearchPlaceholder")}

@@ -81,9 +81,19 @@ function buildTask(overrides?: Partial<{ id: string; name: string }>) {
 describe("task link actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    toCoreApiActionErrorMock.mockReturnValue({
-      message: "Core API failed",
-    });
+    taskServiceMock.listTaskLinks.mockReset();
+    taskServiceMock.deleteTaskLink.mockReset();
+    taskServiceMock.createTaskLink.mockReset();
+    taskServiceMock.createTask.mockReset();
+    taskServiceMock.deleteTask.mockReset();
+    generateTaskNameMock.mockReset();
+    toCoreApiActionErrorMock.mockReset();
+    toCoreApiActionErrorMock.mockImplementation((error: unknown) => ({
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to communicate with Core API",
+    }));
   });
 
   it("creates the new parent link before deleting previous parent links", async () => {
@@ -168,7 +178,7 @@ describe("task link actions", () => {
         type: TaskLinkType.PARENT,
         direction: "incoming",
       }),
-    ).rejects.toThrow("Core API failed");
+    ).rejects.toThrow("link failed");
 
     expect(taskServiceMock.deleteTaskLink).not.toHaveBeenCalled();
   });
@@ -221,7 +231,7 @@ describe("task link actions", () => {
         type: TaskLinkType.PARENT,
         direction: "incoming",
       }),
-    ).rejects.toThrow("Core API failed");
+    ).rejects.toThrow("cleanup failed");
 
     expect(taskServiceMock.deleteTaskLink).toHaveBeenNthCalledWith(
       1,
@@ -249,6 +259,32 @@ describe("task link actions", () => {
     );
   });
 
+  it("throws when parent replacement rollback fails after cleanup errors", async () => {
+    taskServiceMock.listTaskLinks.mockResolvedValue([buildTaskLink()]);
+    taskServiceMock.createTaskLink.mockResolvedValue({
+      id: "link-new",
+      peerTask: {
+        id: "task-parent-new",
+      },
+    });
+    taskServiceMock.deleteTaskLink
+      .mockRejectedValueOnce(new Error("cleanup failed"))
+      .mockRejectedValueOnce(new Error("rollback delete failed"));
+
+    const { createTaskLink } = await import("../action");
+
+    await expect(
+      createTaskLink({
+        taskId: "task-1",
+        relatedTaskId: "task-parent-new",
+        type: TaskLinkType.PARENT,
+        direction: "incoming",
+      }),
+    ).rejects.toThrow(
+      /inconsistent after a failed parent replacement.*rollback delete failed.*while recovering from: cleanup failed/s,
+    );
+  });
+
   it("archives the created task when creating the link fails after task creation", async () => {
     generateTaskNameMock.mockResolvedValue("Generated task name");
     taskServiceMock.createTask.mockResolvedValue(buildTask());
@@ -266,7 +302,7 @@ describe("task link actions", () => {
         type: TaskLinkType.PARENT,
         direction: "incoming",
       }),
-    ).rejects.toThrow("Core API failed");
+    ).rejects.toThrow("link failed");
 
     expect(taskServiceMock.createTask).toHaveBeenCalledWith({
       name: "Generated task name",
@@ -323,7 +359,7 @@ describe("task link actions", () => {
         type: TaskLinkType.PARENT,
         direction: "incoming",
       }),
-    ).rejects.toThrow("Core API failed");
+    ).rejects.toThrow("cleanup failed");
 
     expect(taskServiceMock.deleteTaskLink).toHaveBeenNthCalledWith(
       1,
