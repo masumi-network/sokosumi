@@ -1,6 +1,8 @@
 import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
@@ -129,6 +131,27 @@ describe("task link actions", () => {
       taskId: "task-1",
       relatedTaskId: "task-parent-new",
       linkId: "link-new",
+    });
+  });
+
+  it("clamps generated task names before creating a task", async () => {
+    const longGeneratedName = "A".repeat(DEFAULT_TASK_NAME_MAX_LENGTH + 25);
+    generateTaskNameMock.mockResolvedValue(longGeneratedName);
+    taskServiceMock.createTask.mockResolvedValue(buildTask());
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Created related task",
+      coworkerId: null,
+      status: TaskStatus.READY,
+    });
+
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith({
+      name: "A".repeat(DEFAULT_TASK_NAME_MAX_LENGTH),
+      description: "Created related task",
+      coworkerId: null,
+      status: TaskStatus.READY,
     });
   });
 

@@ -39,13 +39,17 @@ export function TaskRelationRow({
         {relationLabel ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <RelationIcon
+              <span
+                aria-label={relationLabel}
                 className={cn(
-                  "size-4",
-                  relationTone === "destructive" ? "text-destructive" : "",
+                  "inline-flex size-6 shrink-0 items-center justify-center rounded-full",
+                  relationTone === "destructive"
+                    ? "bg-destructive text-destructive-foreground"
+                    : "bg-muted text-muted-foreground",
                 )}
-                aria-hidden
-              />
+              >
+                <RelationIcon className="size-4" aria-hidden />
+              </span>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={6}>
               {relationLabel}

@@ -140,7 +140,7 @@ async function createTaskFromDescription(input: {
   const generatedName =
     await openrouterClient.generateTaskName(trimmedDescription);
   const candidate = generatedName ?? buildFallbackName(input.description);
-  const name = candidate.trim() || "Untitled Task";
+  const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
 
   return taskService.createTask({
     name,

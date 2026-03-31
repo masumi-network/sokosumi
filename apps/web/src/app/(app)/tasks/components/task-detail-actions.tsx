@@ -9,12 +9,12 @@ import {
   Ellipsis,
   FlagTriangleRight,
   Link2,
+  ListX,
   Loader2,
   LucideSquareMousePointer,
   OctagonMinus,
   Pencil,
   RotateCcw,
-  ListX,
   SquareMinus,
   SquareMousePointer,
   SquarePlus,
@@ -388,7 +388,7 @@ export function TaskDetailActions({
           q: query || undefined,
           cursor: cursor ?? undefined,
           limit: TASK_PICKER_PAGE_SIZE,
-          scope: ["owned"],
+          scope: ["context"],
         });
 
         if (requestId !== taskPickerRequestIdRef.current) {

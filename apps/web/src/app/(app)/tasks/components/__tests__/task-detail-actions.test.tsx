@@ -546,7 +546,7 @@ describe("TaskDetailActions", () => {
         q: undefined,
         cursor: undefined,
         limit: 20,
-        scope: ["owned"],
+        scope: ["context"],
       });
     });
 
@@ -612,7 +612,7 @@ describe("TaskDetailActions", () => {
           q: "Beta",
           cursor: undefined,
           limit: 20,
-          scope: ["owned"],
+          scope: ["context"],
         });
       },
       { timeout: 2000 },
@@ -743,7 +743,7 @@ describe("TaskDetailActions", () => {
         q: undefined,
         cursor: "task-2",
         limit: 20,
-        scope: ["owned"],
+        scope: ["context"],
       });
     });
 
