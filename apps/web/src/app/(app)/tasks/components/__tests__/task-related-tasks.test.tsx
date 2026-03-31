@@ -118,7 +118,7 @@ describe("TaskRelatedTasks", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Blocks")).toHaveClass("bg-destructive");
-    expect(screen.getByLabelText("Blocked by")).toHaveClass("bg-destructive");
+    expect(screen.getByLabelText("Blocks")).toHaveClass("text-destructive");
+    expect(screen.getByLabelText("Blocked by")).toHaveClass("text-destructive");
   });
 });

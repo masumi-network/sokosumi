@@ -1,0 +1,23 @@
+import { TaskStatus } from "@sokosumi/database";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
+import { TaskRelationRow } from "@/app/tasks/components/task-relation-row";
+
+describe("TaskRelationRow", () => {
+  it("renders the relation icon even when the translated label is missing", () => {
+    render(
+      <TaskRelationRow
+        taskId="task-2"
+        taskName="Dependency cleanup"
+        taskStatus={TaskStatus.READY}
+        relation="blocked_by"
+      />,
+    );
+
+    expect(screen.getByLabelText("Blocked by")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Dependency cleanup/i }),
+    ).toHaveAttribute("href", "/tasks/task-2");
+  });
+});

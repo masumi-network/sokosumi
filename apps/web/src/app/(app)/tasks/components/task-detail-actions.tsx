@@ -18,8 +18,8 @@ import {
   SquareMinus,
   SquareMousePointer,
   SquarePlus,
+  SquareArrowRightExit,
   Trash,
-  Unlink,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -636,7 +636,7 @@ export function TaskDetailActions({
                   {isParentRemovalPending ? (
                     <Loader2 className="size-4 animate-spin" aria-hidden />
                   ) : (
-                    <Unlink className="size-4" aria-hidden />
+                    <SquareArrowRightExit className="size-4" aria-hidden />
                   )}
                   {tDetailActions("removeParent")}
                 </DropdownMenuItem>
@@ -790,7 +790,7 @@ export function TaskDetailActions({
                     ) : (
                       <PickerIcon className="size-4" aria-hidden />
                     )}
-                    <span>{taskOption.name}</span>
+                    <span className="truncate">{taskOption.name}</span>
                   </CommandItem>
                 );
               })}

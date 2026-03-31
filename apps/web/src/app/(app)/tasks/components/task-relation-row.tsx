@@ -20,6 +20,23 @@ interface TaskRelationRowProps {
   relationTone?: "default" | "destructive";
 }
 
+function getFallbackRelationLabel(relation: TaskLinkRelation): string {
+  switch (relation) {
+    case "related":
+      return "Related";
+    case "blocks":
+      return "Blocks";
+    case "blocked_by":
+      return "Blocked by";
+    case "parent":
+      return "Sub-task";
+    case "child":
+      return "Parent task";
+    case "duplicate":
+      return "Duplicate";
+  }
+}
+
 export function TaskRelationRow({
   taskId,
   taskName,
@@ -29,6 +46,21 @@ export function TaskRelationRow({
   relationTone = "default",
 }: TaskRelationRowProps) {
   const RelationIcon = getTaskLinkRelationIcon(relation);
+  const badgeLabel = relationLabel ?? getFallbackRelationLabel(relation);
+  const iconBadge = (
+    <span
+      aria-label={badgeLabel}
+      title={badgeLabel}
+      className={cn(
+        "inline-flex size-6 shrink-0 items-center justify-center",
+        relationTone === "destructive"
+          ? "text-destructive"
+          : "text-muted-foreground",
+      )}
+    >
+      <RelationIcon className="size-4" aria-hidden />
+    </span>
+  );
 
   return (
     <Link
@@ -37,25 +69,15 @@ export function TaskRelationRow({
     >
       <div className="flex min-w-0 items-center gap-2">
         {relationLabel ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                aria-label={relationLabel}
-                className={cn(
-                  "inline-flex size-6 shrink-0 items-center justify-center rounded-full",
-                  relationTone === "destructive"
-                    ? "bg-destructive text-destructive-foreground"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                <RelationIcon className="size-4" aria-hidden />
-              </span>
-            </TooltipTrigger>
+          <Tooltip key={`${taskId}-${relation}`}>
+            <TooltipTrigger asChild>{iconBadge}</TooltipTrigger>
             <TooltipContent side="top" sideOffset={6}>
               {relationLabel}
             </TooltipContent>
           </Tooltip>
-        ) : null}
+        ) : (
+          iconBadge
+        )}
         <p className="truncate text-sm">{taskName}</p>
       </div>
       <TaskStatusBadge status={taskStatus} className="shrink-0" />
