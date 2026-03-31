@@ -1,9 +1,14 @@
 "use server";
 
-import type { TaskStatus } from "@sokosumi/database";
+import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { revalidatePath } from "next/cache";
 
 import { toCoreApiActionError } from "@/lib/clients/core.client";
+import type {
+  Task,
+  TaskLink,
+  TaskLinkRelation,
+} from "@/lib/clients/generated/core/types.gen";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { taskService } from "@/lib/services/task.service";
 import { clampTaskNameForCoreApi } from "@/lib/utils/task-transformer";
@@ -46,28 +51,198 @@ interface CreateTaskCommentParameters extends AuthenticatedRequest {
   comment: string;
 }
 
+interface CreateTaskLinkParameters extends AuthenticatedRequest {
+  taskId: string;
+  relatedTaskId: string;
+  type: TaskLinkType;
+  direction?: "outgoing" | "incoming";
+  note?: string | null;
+  replaceExistingParent?: boolean;
+}
+
+interface UpdateTaskLinkParameters extends AuthenticatedRequest {
+  taskId: string;
+  linkId: string;
+  relation?: TaskLinkRelation;
+  note?: string | null;
+}
+
+interface DeleteTaskLinkParameters extends AuthenticatedRequest {
+  taskId: string;
+  linkId: string;
+}
+
+interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
+  taskId: string;
+  description: string;
+  coworkerId: string | null;
+  status: Extract<TaskStatus, "DRAFT" | "READY">;
+  type: TaskLinkType;
+  direction?: "outgoing" | "incoming";
+  note?: string | null;
+  replaceExistingParent?: boolean;
+}
+
 function buildFallbackName(description: string): string {
   const firstLine = description.split("\n").find((line) => line.trim());
 
   return (firstLine ?? "").trim().slice(0, 60);
 }
 
+function normalizeLinkNote(note?: string | null): string | null | undefined {
+  if (typeof note === "undefined") {
+    return undefined;
+  }
+
+  const trimmedNote = note?.trim();
+  return trimmedNote ? trimmedNote : null;
+}
+
+function taskLinkTypeAndDirectionToRelation(
+  type: TaskLinkType,
+  direction: "outgoing" | "incoming",
+): TaskLinkRelation {
+  switch (type) {
+    case TaskLinkType.RELATES:
+      return "related";
+    case TaskLinkType.BLOCKS:
+      return direction === "outgoing" ? "blocks" : "blocked_by";
+    case TaskLinkType.PARENT:
+      return direction === "outgoing" ? "parent" : "child";
+    case TaskLinkType.DUPLICATE:
+      return "duplicate";
+    default: {
+      const _exhaustive: never = type;
+      throw new Error(`Unsupported link type: ${_exhaustive}`);
+    }
+  }
+}
+
+function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
+
+  if (relatedTaskId) {
+    revalidatePath(`/tasks/${relatedTaskId}`);
+  }
+}
+
+async function createTaskFromDescription(input: {
+  description: string;
+  coworkerId: string | null;
+  status: Extract<TaskStatus, "DRAFT" | "READY">;
+}): Promise<Task> {
+  const trimmedDescription = input.description.trim();
+  if (!trimmedDescription) {
+    throw new Error("Description required");
+  }
+
+  const generatedName =
+    await openrouterClient.generateTaskName(trimmedDescription);
+  const candidate = generatedName ?? buildFallbackName(input.description);
+  const name = candidate.trim() || "Untitled Task";
+
+  return taskService.createTask({
+    name,
+    description: trimmedDescription,
+    coworkerId: input.coworkerId ? input.coworkerId : null,
+    status: input.status,
+  });
+}
+
+async function collectParentLinksToReplace(input: {
+  taskId: string;
+  nextParentTaskId: string;
+  type: TaskLinkType;
+  direction: "outgoing" | "incoming";
+  replaceExistingParent?: boolean;
+}): Promise<TaskLink[]> {
+  const shouldReplaceParent =
+    input.type === TaskLinkType.PARENT &&
+    input.direction === "incoming" &&
+    input.replaceExistingParent !== false;
+
+  if (!shouldReplaceParent) {
+    return [];
+  }
+
+  const links = await taskService.listTaskLinks(input.taskId);
+  return links.filter(
+    (link) =>
+      link.relation === "child" && link.peerTask.id !== input.nextParentTaskId,
+  );
+}
+
+async function restoreParentLinks(
+  taskId: string,
+  parentLinks: TaskLink[],
+): Promise<void> {
+  for (const parentLink of parentLinks) {
+    await taskService.createTaskLink(taskId, {
+      toTaskId: parentLink.peerTask.id,
+      relation: "child",
+      note: parentLink.note,
+    });
+  }
+}
+
+async function rollbackCreatedParentLink(input: {
+  taskId: string;
+  createdLinkId: string;
+  deletedParentLinks: TaskLink[];
+}): Promise<void> {
+  try {
+    await taskService.deleteTaskLink(input.taskId, input.createdLinkId);
+  } catch (rollbackError) {
+    console.error("Failed to rollback created parent link", rollbackError);
+  }
+
+  try {
+    await restoreParentLinks(input.taskId, input.deletedParentLinks);
+  } catch (rollbackError) {
+    console.error("Failed to restore previous parent links", rollbackError);
+  }
+}
+
+async function deletePreviousParentLinks(input: {
+  taskId: string;
+  createdLinkId: string;
+  parentLinksToReplace: TaskLink[];
+}): Promise<void> {
+  const deletedParentLinks: TaskLink[] = [];
+
+  try {
+    for (const parentLink of input.parentLinksToReplace) {
+      await taskService.deleteTaskLink(input.taskId, parentLink.id);
+      deletedParentLinks.push(parentLink);
+    }
+  } catch (error) {
+    await rollbackCreatedParentLink({
+      taskId: input.taskId,
+      createdLinkId: input.createdLinkId,
+      deletedParentLinks,
+    });
+    throw error;
+  }
+}
+
+async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
+  try {
+    await taskService.deleteTask(taskId);
+  } catch (cleanupError) {
+    console.error(
+      "Failed to archive created task after link failure",
+      cleanupError,
+    );
+  }
+}
+
 export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
   async ({ description, coworkerId, status }) => {
-    const trimmedDescription = description.trim();
-    if (!trimmedDescription) {
-      throw new Error("Description required");
-    }
-
     try {
-      const generatedName =
-        await openrouterClient.generateTaskName(trimmedDescription);
-      const candidate = generatedName ?? buildFallbackName(description);
-      const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
-      const task = await taskService.createTask({
-        name,
-        description: trimmedDescription,
-        coworkerId: coworkerId ? coworkerId : null,
+      const task = await createTaskFromDescription({
+        description,
+        coworkerId,
         status,
       });
 
@@ -185,6 +360,199 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
     } catch (error) {
       console.error("Failed to create task comment", error);
       throw new Error("Failed to create task comment");
+    }
+  },
+);
+
+export const createTaskLink = withSession<
+  CreateTaskLinkParameters,
+  { taskId: string; linkId: string; relatedTaskId: string }
+>(
+  async ({
+    taskId,
+    relatedTaskId,
+    type,
+    direction,
+    note,
+    replaceExistingParent,
+  }) => {
+    const normalizedTaskId = taskId.trim();
+    const normalizedRelatedTaskId = relatedTaskId.trim();
+    if (!normalizedTaskId || !normalizedRelatedTaskId) {
+      throw new Error("Task required");
+    }
+
+    const normalizedDirection = direction ?? "outgoing";
+    const relation = taskLinkTypeAndDirectionToRelation(
+      type,
+      normalizedDirection,
+    );
+
+    try {
+      const parentLinksToReplace = await collectParentLinksToReplace({
+        taskId: normalizedTaskId,
+        nextParentTaskId: normalizedRelatedTaskId,
+        type,
+        direction: normalizedDirection,
+        replaceExistingParent,
+      });
+
+      const link = await taskService.createTaskLink(normalizedTaskId, {
+        toTaskId: normalizedRelatedTaskId,
+        relation,
+        note: normalizeLinkNote(note),
+      });
+
+      await deletePreviousParentLinks({
+        taskId: normalizedTaskId,
+        createdLinkId: link.id,
+        parentLinksToReplace,
+      });
+
+      revalidateTaskMutationRoutes(normalizedTaskId, normalizedRelatedTaskId);
+      return {
+        taskId: normalizedTaskId,
+        relatedTaskId: normalizedRelatedTaskId,
+        linkId: link.id,
+      };
+    } catch (error) {
+      console.error("Failed to create task link", error);
+      const { message } = toCoreApiActionError(error);
+      throw new Error(message ?? "Failed to create task link");
+    }
+  },
+);
+
+export const updateTaskLink = withSession<
+  UpdateTaskLinkParameters,
+  { taskId: string; linkId: string; relatedTaskId: string }
+>(async ({ taskId, linkId, relation, note }) => {
+  const normalizedTaskId = taskId.trim();
+  const normalizedLinkId = linkId.trim();
+  if (!normalizedTaskId || !normalizedLinkId) {
+    throw new Error("Task link required");
+  }
+
+  try {
+    const link = await taskService.updateTaskLink(
+      normalizedTaskId,
+      normalizedLinkId,
+      {
+        relation,
+        note: normalizeLinkNote(note),
+      },
+    );
+    revalidateTaskMutationRoutes(normalizedTaskId, link.peerTask.id);
+    return {
+      taskId: normalizedTaskId,
+      linkId: normalizedLinkId,
+      relatedTaskId: link.peerTask.id,
+    };
+  } catch (error) {
+    console.error("Failed to update task link", error);
+    const { message } = toCoreApiActionError(error);
+    throw new Error(message ?? "Failed to update task link");
+  }
+});
+
+export const deleteTaskLink = withSession<
+  DeleteTaskLinkParameters,
+  { taskId: string; linkId: string; relatedTaskId?: string }
+>(async ({ taskId, linkId }) => {
+  const normalizedTaskId = taskId.trim();
+  const normalizedLinkId = linkId.trim();
+  if (!normalizedTaskId || !normalizedLinkId) {
+    throw new Error("Task link required");
+  }
+
+  try {
+    const taskLinks = await taskService.listTaskLinks(normalizedTaskId);
+    const link = taskLinks.find(
+      (candidate) => candidate.id === normalizedLinkId,
+    );
+
+    await taskService.deleteTaskLink(normalizedTaskId, normalizedLinkId);
+    revalidateTaskMutationRoutes(normalizedTaskId, link?.peerTask.id);
+
+    return {
+      taskId: normalizedTaskId,
+      linkId: normalizedLinkId,
+      relatedTaskId: link?.peerTask.id,
+    };
+  } catch (error) {
+    console.error("Failed to delete task link", error);
+    const { message } = toCoreApiActionError(error);
+    throw new Error(message ?? "Failed to delete task link");
+  }
+});
+
+export const createTaskAndLink = withSession<
+  CreateAndLinkTaskParameters,
+  { taskId: string; createdTaskId: string; linkId: string }
+>(
+  async ({
+    taskId,
+    description,
+    coworkerId,
+    status,
+    type,
+    direction,
+    note,
+    replaceExistingParent,
+  }) => {
+    const normalizedTaskId = taskId.trim();
+    if (!normalizedTaskId) {
+      throw new Error("Task required");
+    }
+
+    const normalizedDirection = direction ?? "outgoing";
+    const relation = taskLinkTypeAndDirectionToRelation(
+      type,
+      normalizedDirection,
+    );
+
+    let createdTask: Task | null = null;
+
+    try {
+      createdTask = await createTaskFromDescription({
+        description,
+        coworkerId,
+        status,
+      });
+
+      const parentLinksToReplace = await collectParentLinksToReplace({
+        taskId: normalizedTaskId,
+        nextParentTaskId: createdTask.id,
+        type,
+        direction: normalizedDirection,
+        replaceExistingParent,
+      });
+
+      const link = await taskService.createTaskLink(normalizedTaskId, {
+        toTaskId: createdTask.id,
+        relation,
+        note: normalizeLinkNote(note),
+      });
+
+      await deletePreviousParentLinks({
+        taskId: normalizedTaskId,
+        createdLinkId: link.id,
+        parentLinksToReplace,
+      });
+
+      revalidateTaskMutationRoutes(normalizedTaskId, createdTask.id);
+      return {
+        taskId: normalizedTaskId,
+        createdTaskId: createdTask.id,
+        linkId: link.id,
+      };
+    } catch (error) {
+      if (createdTask) {
+        await archiveCreatedTaskAfterFailure(createdTask.id);
+      }
+      console.error("Failed to create and link task", error);
+      const { message } = toCoreApiActionError(error);
+      throw new Error(message ?? "Failed to create and link task");
     }
   },
 );

@@ -493,9 +493,17 @@ const taskShareSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const taskLinkPeerTaskSchemaResponseTransformer = (data: any) => {
+    if (data.archivedAt) {
+        data.archivedAt = new Date(data.archivedAt);
+    }
+    return data;
+};
+
 const taskLinkSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
+    data.peerTask = taskLinkPeerTaskSchemaResponseTransformer(data.peerTask);
     return data;
 };
 

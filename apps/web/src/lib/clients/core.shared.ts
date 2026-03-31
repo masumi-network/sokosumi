@@ -12,12 +12,15 @@ import type {
   GetShareByTokenError,
   GetTasksData,
   PaginationMetadata,
+  PatchTasksByIdLinksByLinkIdData,
+  PostTasksByIdLinksData,
   PutJobsByIdShareError,
   PutTasksByIdShareError,
 } from "@/lib/clients/generated/core";
 import {
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
   deleteTasksById as coreDeleteTasksById,
+  deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
@@ -30,16 +33,19 @@ import {
   getShareByToken as coreGetShareByToken,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
+  getTasksByIdLinks as coreGetTasksByIdLinks,
   getUsersMeCredits as coreGetUsersMeCredits,
   getUsersMeNoticesPending as coreGetUsersMeNoticesPending,
   getUsersMeOrganizations as coreGetUsersMeOrganizations,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchTasksById as corePatchTasksById,
+  patchTasksByIdLinksByLinkId as corePatchTasksByIdLinksByLinkId,
   postConversations as corePostConversations,
   postConversationsByIdItems as corePostConversationsByIdItems,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
+  postTasksByIdLinks as corePostTasksByIdLinks,
   postUsersMeFiles as corePostUsersMeFiles,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
   putJobsByIdShare as corePutJobsByIdShare,
@@ -502,6 +508,64 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getTaskLinks(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetTasksByIdLinks({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch task links",
+    );
+  }
+
+  async function createTaskLink(
+    id: string,
+    body: NonNullable<PostTasksByIdLinksData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostTasksByIdLinks({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to create task link",
+    );
+  }
+
+  async function updateTaskLink(
+    id: string,
+    linkId: string,
+    body: NonNullable<PatchTasksByIdLinksByLinkIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchTasksByIdLinksByLinkId({
+          client,
+          path: { id, linkId },
+          body,
+        }),
+      "Failed to update task link",
+    );
+  }
+
+  async function deleteTaskLink(id: string, linkId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteTasksByIdLinksByLinkId({
+          client,
+          path: { id, linkId },
+        }),
+      "Failed to delete task link",
+    );
+  }
+
   async function deleteTask(id: string) {
     return executeOperation(
       getClient,
@@ -788,9 +852,11 @@ export function createCoreClient(getClient: GetClient) {
     archiveConversation,
     createConversation,
     createTask,
+    createTaskLink,
     createTaskEvent,
     deleteJobShare,
     deleteTaskShare,
+    deleteTaskLink,
     deleteTask,
     getConversation,
     getConversationItems,
@@ -807,10 +873,12 @@ export function createCoreClient(getClient: GetClient) {
     getSharedResourceByToken,
     moveTaskToWorkspace,
     getTaskById,
+    getTaskLinks,
     getTasks,
     patchTask,
     putJobShare,
     putTaskShare,
+    updateTaskLink,
     updateConversation,
     uploadMyFile,
   };

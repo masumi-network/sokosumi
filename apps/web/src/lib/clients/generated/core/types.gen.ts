@@ -705,6 +705,7 @@ export type TaskLinkPeerTask = {
     id: string;
     name: string;
     status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    archivedAt: Date | null;
 };
 
 export type TaskLinkDeleted = {

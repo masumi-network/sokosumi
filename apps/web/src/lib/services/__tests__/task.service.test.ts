@@ -5,12 +5,16 @@ vi.mock("server-only", () => ({}));
 import { TaskStatus } from "@sokosumi/database";
 
 const coreClientMock = {
+  createTaskLink: vi.fn(),
   createTask: vi.fn(),
   createTaskEvent: vi.fn(),
+  deleteTaskLink: vi.fn(),
   deleteTask: vi.fn(),
   getTaskById: vi.fn(),
+  getTaskLinks: vi.fn(),
   getTasks: vi.fn(),
   patchTask: vi.fn(),
+  updateTaskLink: vi.fn(),
 };
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -30,6 +34,22 @@ function buildTask() {
     status: TaskStatus.READY,
     events: [],
     jobs: [],
+  };
+}
+
+function buildTaskLink() {
+  return {
+    id: "link-1",
+    createdAt: new Date("2026-02-19T10:00:00.000Z"),
+    updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+    relation: "related" as const,
+    note: null,
+    peerTask: {
+      id: "task-2",
+      name: "Peer task",
+      status: TaskStatus.READY,
+      archivedAt: null,
+    },
   };
 }
 
@@ -55,6 +75,8 @@ describe("task.service", () => {
     const result = await taskService.listTasks({
       status: TaskStatus.READY,
       coworkerId: "cow-1",
+      q: "alpha",
+      scope: ["owned"],
       cursor: "task-1",
       limit: 20,
     });
@@ -62,6 +84,8 @@ describe("task.service", () => {
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: [TaskStatus.READY],
       coworkerId: "cow-1",
+      q: "alpha",
+      scope: ["owned"],
       cursor: "task-1",
       limit: 20,
     });
@@ -98,6 +122,8 @@ describe("task.service", () => {
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: [TaskStatus.READY, TaskStatus.COMPLETED],
       coworkerId: undefined,
+      q: undefined,
+      scope: undefined,
       cursor: undefined,
       limit: 20,
     });
@@ -159,5 +185,63 @@ describe("task.service", () => {
         comment: "in progress",
       }),
     ).rejects.toThrow("Failed to create task event");
+  });
+
+  it("lists task links via core client", async () => {
+    const taskLink = buildTaskLink();
+    coreClientMock.getTaskLinks.mockResolvedValue({
+      data: [taskLink],
+      meta: {},
+    });
+
+    const { taskService } = await import("../task.service");
+    const result = await taskService.listTaskLinks("task-1");
+
+    expect(coreClientMock.getTaskLinks).toHaveBeenCalledWith("task-1");
+    expect(result).toEqual([taskLink]);
+  });
+
+  it("creates, updates, and deletes task links via core client methods", async () => {
+    const taskLink = buildTaskLink();
+    coreClientMock.createTaskLink.mockResolvedValue({
+      data: taskLink,
+    });
+    coreClientMock.updateTaskLink.mockResolvedValue({
+      data: { ...taskLink, note: "updated note" },
+    });
+    coreClientMock.deleteTaskLink.mockResolvedValue({
+      data: { deleted: true },
+    });
+
+    const { taskService } = await import("../task.service");
+    const created = await taskService.createTaskLink("task-1", {
+      toTaskId: "task-2",
+      relation: "related",
+      note: null,
+    });
+    const updated = await taskService.updateTaskLink("task-1", "link-1", {
+      note: "updated note",
+    });
+    const deleted = await taskService.deleteTaskLink("task-1", "link-1");
+
+    expect(coreClientMock.createTaskLink).toHaveBeenCalledWith("task-1", {
+      toTaskId: "task-2",
+      relation: "related",
+      note: null,
+    });
+    expect(coreClientMock.updateTaskLink).toHaveBeenCalledWith(
+      "task-1",
+      "link-1",
+      {
+        note: "updated note",
+      },
+    );
+    expect(coreClientMock.deleteTaskLink).toHaveBeenCalledWith(
+      "task-1",
+      "link-1",
+    );
+    expect(created).toEqual(taskLink);
+    expect(updated).toEqual({ ...taskLink, note: "updated note" });
+    expect(deleted).toEqual({ deleted: true });
   });
 });
