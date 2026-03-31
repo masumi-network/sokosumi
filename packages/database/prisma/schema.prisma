@@ -1088,6 +1088,7 @@ model Coworker {
   archivedAt DateTime?
 
   isWhitelisted Boolean  @default(false)
+  priority      Int      @default(0)
   capabilities  String[] @default([])
 
   slug        String  @unique

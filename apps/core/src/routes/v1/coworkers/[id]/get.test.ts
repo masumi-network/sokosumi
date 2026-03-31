@@ -62,6 +62,7 @@ describe("GET /coworkers/{id}", () => {
       updatedAt: new Date("2026-02-25T10:00:00.000Z"),
       archivedAt: null,
       isWhitelisted: true,
+      priority: 10,
       capabilities: ["chat"],
       slug: "ops-agent",
       name: "Ops Agent",
@@ -74,6 +75,7 @@ describe("GET /coworkers/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.isWhitelisted).toBe(true);
+    expect(body.data.priority).toBe(10);
     expect(body.data.capabilities).toEqual(["chat"]);
     expect(body.data.baseURL).toBeNull();
   });
@@ -85,6 +87,7 @@ describe("GET /coworkers/{id}", () => {
       updatedAt: new Date("2026-02-25T10:00:00.000Z"),
       archivedAt: new Date("2026-02-25T11:00:00.000Z"),
       isWhitelisted: true,
+      priority: 0,
       capabilities: ["chat", "tasks"],
       slug: "ops-agent",
       name: "Ops Agent",

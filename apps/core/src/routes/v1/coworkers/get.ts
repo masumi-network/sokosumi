@@ -83,7 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const coworkers = await prisma.coworker.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ priority: "desc" }, { slug: "asc" }],
     });
 
     return ok(c, z.array(coworkerSchema).parse(coworkers));

@@ -25,6 +25,9 @@ describe("createCoworkerRequestSchema", () => {
     });
 
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.priority).toBeUndefined();
+    }
   });
 
   it("accepts capabilities and normalizes them", () => {
@@ -37,6 +40,27 @@ describe("createCoworkerRequestSchema", () => {
     if (result.success) {
       expect(result.data.capabilities).toEqual(["chat", "tasks"]);
     }
+  });
+
+  it("accepts explicit integer priority", () => {
+    const result = createCoworkerRequestSchema.safeParse({
+      name: "Ops Agent",
+      priority: 10,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.priority).toBe(10);
+    }
+  });
+
+  it("rejects non-integer priority", () => {
+    const result = createCoworkerRequestSchema.safeParse({
+      name: "Ops Agent",
+      priority: 2.5,
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it("rejects unsupported capabilities", () => {
@@ -147,6 +171,17 @@ describe("patchCoworkerRequestSchema", () => {
     }
   });
 
+  it("accepts priority-only updates", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      priority: 10,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.priority).toBe(10);
+    }
+  });
+
   it("rejects invalid url updates", () => {
     const result = patchCoworkerRequestSchema.safeParse({
       url: "not-a-url",
@@ -166,6 +201,14 @@ describe("patchCoworkerRequestSchema", () => {
   it("rejects invalid capabilities updates", () => {
     const result = patchCoworkerRequestSchema.safeParse({
       capabilities: ["search"],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-integer priority updates", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      priority: 2.5,
     });
 
     expect(result.success).toBe(false);

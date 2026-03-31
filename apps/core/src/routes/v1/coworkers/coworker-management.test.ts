@@ -93,6 +93,7 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
     updatedAt: new Date("2026-02-20T10:00:00.000Z"),
     archivedAt: null,
     isWhitelisted: false,
+    priority: 0,
     capabilities: [],
     slug: "ops-agent",
     name: "Ops Agent",
@@ -153,6 +154,7 @@ describe("coworker management CRUD endpoints", () => {
         data: expect.objectContaining({
           userId: "user_123",
           isWhitelisted: false,
+          priority: 0,
           baseURL: null,
         }),
       }),
@@ -200,6 +202,72 @@ describe("coworker management CRUD endpoints", () => {
       }),
     );
     expect(body.data.baseURL).toBe("https://responses.example.com/v1");
+  });
+
+  it("creates coworker with explicit priority", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      role: "admin",
+    });
+    const tx: TransactionMock = {
+      coworker: {
+        findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
+        findFirst: coworkerFindFirstTxMock,
+        create: coworkerCreateMock.mockResolvedValue(
+          createCoworkerRecord({
+            priority: 10,
+          }),
+        ),
+        updateMany: coworkerUpdateManyMock,
+      },
+      coworkerApiKey: {
+        updateMany: coworkerApiKeyUpdateManyMock,
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      userId: "admin_123",
+    });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Ops Agent",
+        priority: 10,
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(coworkerCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "admin_123",
+          priority: 10,
+        }),
+      }),
+    );
+    expect(body.data.priority).toBe(10);
+  });
+
+  it("rejects explicit priority on create for non-admin", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Ops Agent",
+        priority: 10,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("creates coworker with normalized capabilities", async () => {
@@ -574,6 +642,69 @@ describe("coworker management CRUD endpoints", () => {
       }),
     );
     expect(body.data.capabilities).toEqual(["chat", "tasks"]);
+  });
+
+  it("updates coworker priority", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      role: "admin",
+    });
+    const tx: TransactionMock = {
+      coworker: {
+        findUnique: coworkerFindUniqueMock,
+        findFirst: coworkerFindFirstTxMock.mockResolvedValue(
+          createCoworkerRecord({
+            priority: 10,
+          }),
+        ),
+        create: coworkerCreateMock,
+        updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 1 }),
+      },
+      coworkerApiKey: {
+        updateMany: coworkerApiKeyUpdateManyMock,
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      userId: "admin_123",
+    });
+    const response = await app.request("http://localhost/cow_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        priority: 10,
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(coworkerUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          priority: 10,
+        }),
+      }),
+    );
+    expect(body.data.priority).toBe(10);
+  });
+
+  it("rejects priority updates for non-admin owner", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/cow_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        priority: 10,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("updates coworker metadata channels", async () => {
