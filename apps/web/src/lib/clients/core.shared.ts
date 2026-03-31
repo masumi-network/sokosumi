@@ -12,7 +12,6 @@ import type {
   GetShareByTokenError,
   GetTasksData,
   PaginationMetadata,
-  PatchTasksByIdLinksByLinkIdData,
   PostTasksByIdLinksData,
   PutJobsByIdShareError,
   PutTasksByIdShareError,
@@ -40,7 +39,6 @@ import {
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchTasksById as corePatchTasksById,
-  patchTasksByIdLinksByLinkId as corePatchTasksByIdLinksByLinkId,
   postConversations as corePostConversations,
   postConversationsByIdItems as corePostConversationsByIdItems,
   postTasks as corePostTasks,
@@ -537,23 +535,6 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function updateTaskLink(
-    id: string,
-    linkId: string,
-    body: NonNullable<PatchTasksByIdLinksByLinkIdData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePatchTasksByIdLinksByLinkId({
-          client,
-          path: { id, linkId },
-          body,
-        }),
-      "Failed to update task link",
-    );
-  }
-
   async function deleteTaskLink(id: string, linkId: string) {
     return executeOperation(
       getClient,
@@ -878,7 +859,6 @@ export function createCoreClient(getClient: GetClient) {
     patchTask,
     putJobShare,
     putTaskShare,
-    updateTaskLink,
     updateConversation,
     uploadMyFile,
   };

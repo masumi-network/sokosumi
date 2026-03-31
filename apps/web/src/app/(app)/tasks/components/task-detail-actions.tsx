@@ -9,7 +9,6 @@ import {
   ChevronDown,
   Ellipsis,
   FlagTriangleRight,
-  Link2,
   ListX,
   Loader2,
   LucideSquareMousePointer,
@@ -25,14 +24,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -46,14 +38,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,29 +56,27 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
-import { coreClient } from "@/lib/clients/core.browser.client";
 import type { TaskShare } from "@/lib/clients/generated/core";
 import {
   type TaskLink,
   TaskLinkRelation,
-  type TaskLinkRelation as TaskLinkRelationValue,
 } from "@/lib/clients/generated/core/types.gen";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
-
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import {
   getTaskLinkActionInput,
-  mapTaskListItemToTaskPickerTask,
   TASK_STATUS,
-  type TaskPickerTask,
   type TaskStatus,
 } from "./task-detail-api-types";
 import { TaskForm, type TaskFormLabels } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
+import {
+  type TaskLinkActionOption,
+  TaskLinkTaskPickerDialog,
+} from "./task-link-task-picker-dialog";
 import { TaskShareButton } from "./task-share-button";
-import { TaskShareModal } from "./task-share-modal";
 import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 
 interface TaskDetailActionsLabels {
@@ -124,15 +106,6 @@ interface TaskDetailActionsProps {
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel: string;
 }
-
-interface TaskLinkActionOption {
-  id: string;
-  label: string;
-  relation: TaskLinkRelationValue;
-  icon: LucideIcon;
-}
-
-const TASK_PICKER_PAGE_SIZE = 20;
 
 export function TaskDetailActions({
   taskId,
@@ -165,7 +138,6 @@ export function TaskDetailActions({
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
   const [isMarkAsSectionOpen, setIsMarkAsSectionOpen] = useState(false);
   const [isCreateRelatedSectionOpen, setIsCreateRelatedSectionOpen] =
@@ -187,18 +159,6 @@ export function TaskDetailActions({
   const [pendingRemoveLinkId, setPendingRemoveLinkId] = useState<string | null>(
     null,
   );
-  const [taskPickerQuery, setTaskPickerQuery] = useState("");
-  const [debouncedTaskPickerQuery, setDebouncedTaskPickerQuery] = useState("");
-  const [taskPickerResults, setTaskPickerResults] = useState<TaskPickerTask[]>(
-    [],
-  );
-  const [taskPickerNextCursor, setTaskPickerNextCursor] = useState<
-    string | null
-  >(null);
-  const [taskPickerError, setTaskPickerError] = useState<string | null>(null);
-  const [isTaskPickerLoading, setIsTaskPickerLoading] = useState(false);
-  const [isTaskPickerLoadingMore, setIsTaskPickerLoadingMore] = useState(false);
-  const taskPickerRequestIdRef = useRef(0);
 
   const statusActions = getTaskStatusActions(status, labels);
 
@@ -391,110 +351,6 @@ export function TaskDetailActions({
     isLinkPending ||
     isParentRemovalPending ||
     isRemoveRelatedPending;
-
-  const loadTaskPickerTasks = useEffectEvent(
-    async ({
-      query,
-      cursor,
-      append,
-    }: {
-      query: string;
-      cursor?: string | null;
-      append: boolean;
-    }) => {
-      const requestId = ++taskPickerRequestIdRef.current;
-
-      if (append) {
-        setIsTaskPickerLoadingMore(true);
-      } else {
-        setIsTaskPickerLoading(true);
-      }
-
-      setTaskPickerError(null);
-
-      try {
-        const response = await coreClient.getTasks({
-          q: query || undefined,
-          cursor: cursor ?? undefined,
-          limit: TASK_PICKER_PAGE_SIZE,
-          scope: ["context"],
-        });
-
-        if (requestId !== taskPickerRequestIdRef.current) {
-          return;
-        }
-
-        const nextTasks = response.data
-          .map(mapTaskListItemToTaskPickerTask)
-          .filter((taskOption) => taskOption.id !== taskId);
-
-        setTaskPickerResults((currentResults) =>
-          append ? [...currentResults, ...nextTasks] : nextTasks,
-        );
-        setTaskPickerNextCursor(response.meta?.pagination?.nextCursor ?? null);
-      } catch (_error) {
-        if (requestId !== taskPickerRequestIdRef.current) {
-          return;
-        }
-
-        const message = append
-          ? tDetailActions("taskPickerLoadMoreError")
-          : tDetailActions("taskPickerError");
-
-        if (!append) {
-          setTaskPickerResults([]);
-          setTaskPickerNextCursor(null);
-        }
-
-        setTaskPickerError(message);
-      } finally {
-        if (requestId !== taskPickerRequestIdRef.current) {
-          return;
-        }
-
-        if (append) {
-          setIsTaskPickerLoadingMore(false);
-        } else {
-          setIsTaskPickerLoading(false);
-        }
-      }
-    },
-  );
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedTaskPickerQuery(taskPickerQuery.trim());
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [taskPickerQuery]);
-
-  useEffect(() => {
-    if (!isTaskPickerOpen) {
-      return;
-    }
-
-    void loadTaskPickerTasks({
-      query: debouncedTaskPickerQuery,
-      append: false,
-    });
-  }, [debouncedTaskPickerQuery, isTaskPickerOpen]);
-
-  const handleLoadMoreTaskOptions = () => {
-    if (
-      !taskPickerNextCursor ||
-      isTaskPickerLoadingMore ||
-      isTaskPickerLoading
-    ) {
-      return;
-    }
-
-    void loadTaskPickerTasks({
-      query: debouncedTaskPickerQuery,
-      cursor: taskPickerNextCursor,
-      append: true,
-    });
-  };
 
   return (
     <div className="flex items-center gap-2">
@@ -880,13 +736,6 @@ export function TaskDetailActions({
         </AlertDialog>
       ) : null}
 
-      <TaskShareModal
-        open={isShareOpen}
-        onOpenChange={setIsShareOpen}
-        taskId={taskId}
-        share={share}
-      />
-
       {canMove ? (
         <MoveTaskToWorkspaceDialog
           open={isMoveOpen}
@@ -898,106 +747,21 @@ export function TaskDetailActions({
         />
       ) : null}
 
-      <CommandDialog
+      <TaskLinkTaskPickerDialog
+        taskId={taskId}
         open={isTaskPickerOpen}
         onOpenChange={(open) => {
           setIsTaskPickerOpen(open);
           if (!open) {
             setPendingLinkTaskId(null);
             setSelectedTaskPickerOption(null);
-            setTaskPickerQuery("");
-            setDebouncedTaskPickerQuery("");
-            setTaskPickerResults([]);
-            setTaskPickerNextCursor(null);
-            setTaskPickerError(null);
-            setIsTaskPickerLoading(false);
-            setIsTaskPickerLoadingMore(false);
-            taskPickerRequestIdRef.current += 1;
           }
         }}
-        title={tDetailActions("taskPickerTitle", {
-          relation: selectedTaskPickerOption?.label ?? "",
-        })}
-        description={tDetailActions("taskPickerDescription")}
-      >
-        <CommandInput
-          placeholder={tDetailActions("taskPickerSearchPlaceholder")}
-          value={taskPickerQuery}
-          onValueChange={setTaskPickerQuery}
-        />
-        <CommandList>
-          {isTaskPickerLoading && taskPickerResults.length === 0 ? (
-            <div className="text-muted-foreground px-2 py-6 text-center text-sm">
-              {tDetailActions("taskPickerLoading")}
-            </div>
-          ) : null}
-
-          {!isTaskPickerLoading &&
-          taskPickerError &&
-          taskPickerResults.length === 0 ? (
-            <div className="text-muted-foreground px-2 py-6 text-center text-sm">
-              {taskPickerError}
-            </div>
-          ) : null}
-
-          {!isTaskPickerLoading &&
-          !taskPickerError &&
-          taskPickerResults.length === 0 ? (
-            <CommandEmpty>{tDetailActions("taskPickerEmpty")}</CommandEmpty>
-          ) : null}
-
-          {taskPickerResults.length > 0 ? (
-            <CommandGroup heading={selectedTaskPickerOption?.label}>
-              {taskPickerResults.map((taskOption) => {
-                const PickerIcon = selectedTaskPickerOption?.icon ?? Link2;
-
-                return (
-                  <CommandItem
-                    key={taskOption.id}
-                    value={`${taskOption.name} ${taskOption.id}`}
-                    disabled={isLinkPending}
-                    onSelect={() => {
-                      if (!selectedTaskPickerOption) return;
-                      handleSelectLinkableTask(
-                        selectedTaskPickerOption,
-                        taskOption.id,
-                      );
-                    }}
-                  >
-                    {isLinkPending && pendingLinkTaskId === taskOption.id ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                    ) : (
-                      <PickerIcon className="size-4" aria-hidden />
-                    )}
-                    <span className="truncate">{taskOption.name}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          ) : null}
-
-          {taskPickerResults.length > 0 && taskPickerError ? (
-            <div className="text-muted-foreground px-2 py-3 text-sm">
-              {taskPickerError}
-            </div>
-          ) : null}
-
-          {taskPickerNextCursor ? (
-            <CommandItem
-              value="load-more"
-              disabled={isTaskPickerLoadingMore || isTaskPickerLoading}
-              onSelect={handleLoadMoreTaskOptions}
-            >
-              {isTaskPickerLoadingMore ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <Link2 className="size-4" aria-hidden />
-              )}
-              <span>{tDetailActions("taskPickerLoadMore")}</span>
-            </CommandItem>
-          ) : null}
-        </CommandList>
-      </CommandDialog>
+        selectedOption={selectedTaskPickerOption}
+        isLinkPending={isLinkPending}
+        pendingLinkTaskId={pendingLinkTaskId}
+        onSelectTask={handleSelectLinkableTask}
+      />
 
       {selectedCreateRelatedOption ? (
         <TaskFormModal

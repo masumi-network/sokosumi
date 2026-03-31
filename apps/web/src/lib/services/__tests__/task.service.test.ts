@@ -14,7 +14,6 @@ const coreClientMock = {
   getTaskLinks: vi.fn(),
   getTasks: vi.fn(),
   patchTask: vi.fn(),
-  updateTaskLink: vi.fn(),
 };
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -201,13 +200,10 @@ describe("task.service", () => {
     expect(result).toEqual([taskLink]);
   });
 
-  it("creates, updates, and deletes task links via core client methods", async () => {
+  it("creates and deletes task links via core client methods", async () => {
     const taskLink = buildTaskLink();
     coreClientMock.createTaskLink.mockResolvedValue({
       data: taskLink,
-    });
-    coreClientMock.updateTaskLink.mockResolvedValue({
-      data: { ...taskLink, note: "updated note" },
     });
     coreClientMock.deleteTaskLink.mockResolvedValue({
       data: { deleted: true },
@@ -219,9 +215,6 @@ describe("task.service", () => {
       relation: "related",
       note: null,
     });
-    const updated = await taskService.updateTaskLink("task-1", "link-1", {
-      note: "updated note",
-    });
     const deleted = await taskService.deleteTaskLink("task-1", "link-1");
 
     expect(coreClientMock.createTaskLink).toHaveBeenCalledWith("task-1", {
@@ -229,19 +222,11 @@ describe("task.service", () => {
       relation: "related",
       note: null,
     });
-    expect(coreClientMock.updateTaskLink).toHaveBeenCalledWith(
-      "task-1",
-      "link-1",
-      {
-        note: "updated note",
-      },
-    );
     expect(coreClientMock.deleteTaskLink).toHaveBeenCalledWith(
       "task-1",
       "link-1",
     );
     expect(created).toEqual(taskLink);
-    expect(updated).toEqual({ ...taskLink, note: "updated note" });
     expect(deleted).toEqual({ deleted: true });
   });
 });

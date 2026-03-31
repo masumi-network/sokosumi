@@ -60,13 +60,6 @@ interface CreateTaskLinkParameters extends AuthenticatedRequest {
   replaceExistingParent?: boolean;
 }
 
-interface UpdateTaskLinkParameters extends AuthenticatedRequest {
-  taskId: string;
-  linkId: string;
-  relation?: TaskLinkRelation;
-  note?: string | null;
-}
-
 interface DeleteTaskLinkParameters extends AuthenticatedRequest {
   taskId: string;
   linkId: string;
@@ -422,38 +415,6 @@ export const createTaskLink = withSession<
     }
   },
 );
-
-export const updateTaskLink = withSession<
-  UpdateTaskLinkParameters,
-  { taskId: string; linkId: string; relatedTaskId: string }
->(async ({ taskId, linkId, relation, note }) => {
-  const normalizedTaskId = taskId.trim();
-  const normalizedLinkId = linkId.trim();
-  if (!normalizedTaskId || !normalizedLinkId) {
-    throw new Error("Task link required");
-  }
-
-  try {
-    const link = await taskService.updateTaskLink(
-      normalizedTaskId,
-      normalizedLinkId,
-      {
-        relation,
-        note: normalizeLinkNote(note),
-      },
-    );
-    revalidateTaskMutationRoutes(normalizedTaskId, link.peerTask.id);
-    return {
-      taskId: normalizedTaskId,
-      linkId: normalizedLinkId,
-      relatedTaskId: link.peerTask.id,
-    };
-  } catch (error) {
-    console.error("Failed to update task link", error);
-    const { message } = toCoreApiActionError(error);
-    throw new Error(message ?? "Failed to update task link");
-  }
-});
 
 export const deleteTaskLink = withSession<
   DeleteTaskLinkParameters,

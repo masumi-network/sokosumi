@@ -367,10 +367,6 @@ vi.mock("@/app/tasks/components/task-share-button", () => ({
   TaskShareButton: ({ label }: { label: string }) => <button>{label}</button>,
 }));
 
-vi.mock("@/app/tasks/components/task-share-modal", () => ({
-  TaskShareModal: () => null,
-}));
-
 vi.mock("@/app/tasks/components/task-form", () => ({
   TaskForm: ({
     initialValues,

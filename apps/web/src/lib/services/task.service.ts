@@ -44,11 +44,6 @@ interface CreateTaskLinkInput {
   note?: string | null;
 }
 
-interface UpdateTaskLinkInput {
-  relation?: TaskLinkRelation;
-  note?: string | null;
-}
-
 export const taskService = (() => {
   async function listTasks(params: ListTasksParams = {}) {
     const result = await coreClient.getTasks({
@@ -151,20 +146,6 @@ export const taskService = (() => {
     return result.data;
   }
 
-  async function updateTaskLink(
-    taskId: string,
-    linkId: string,
-    input: UpdateTaskLinkInput,
-  ): Promise<TaskLink> {
-    const result = await coreClient.updateTaskLink(taskId, linkId, input);
-
-    if (!result.data) {
-      throw new Error("Failed to update task link");
-    }
-
-    return result.data;
-  }
-
   async function deleteTaskLink(
     taskId: string,
     linkId: string,
@@ -198,7 +179,6 @@ export const taskService = (() => {
     moveTaskToWorkspace,
     patchTask,
     listTaskLinks,
-    updateTaskLink,
     deleteTask,
   };
 })();
