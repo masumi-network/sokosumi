@@ -534,7 +534,7 @@
         "confirmLabelPrefix": "Escribe",
         "confirmLabelSuffix": "para confirmar la eliminación:",
         "Errors": {
-          "additionalMembers": "Remove all other members before deleting this organization.",
+          "additionalMembers": "Elimina primero a todos los demás miembros antes de eliminar esta organización.",
           "unauthorizedAction": "Iniciar sesión"
         },
         "Schema": {

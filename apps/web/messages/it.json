@@ -534,7 +534,7 @@
         "confirmLabelPrefix": "Digita",
         "confirmLabelSuffix": "per confermare l’eliminazione:",
         "Errors": {
-          "additionalMembers": "Remove all other members before deleting this organization.",
+          "additionalMembers": "Rimuovi tutti gli altri membri prima di eliminare questa organizzazione.",
           "unauthorizedAction": "Accedi"
         },
         "Schema": {

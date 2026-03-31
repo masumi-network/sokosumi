@@ -534,7 +534,7 @@
         "confirmLabelPrefix": "Tippe",
         "confirmLabelSuffix": "zur Bestätigung der Löschung:",
         "Errors": {
-          "additionalMembers": "Remove all other members before deleting this organization.",
+          "additionalMembers": "Entferne alle anderen Mitglieder, bevor du diese Organisation löschst.",
           "unauthorizedAction": "Anmelden"
         },
         "Schema": {

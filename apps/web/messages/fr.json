@@ -534,7 +534,7 @@
         "confirmLabelPrefix": "Tapez",
         "confirmLabelSuffix": "pour confirmer la suppression :",
         "Errors": {
-          "additionalMembers": "Remove all other members before deleting this organization.",
+          "additionalMembers": "Supprimez d’abord tous les autres membres avant de supprimer cette organisation.",
           "unauthorizedAction": "Se connecter"
         },
         "Schema": {
