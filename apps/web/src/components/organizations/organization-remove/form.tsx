@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   type RemoveOrganizationSchemaType,
@@ -61,7 +62,10 @@ export default function OrganizationRemoveForm({
       organizationId: organization.id,
     });
     if (result.error) {
-      const errorMessage = result.error.message ?? t("error");
+      const errorMessage =
+        result.error.code === ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE
+          ? t("Errors.additionalMembers")
+          : (result.error.message ?? t("error"));
       if (result.error.status === 401) {
         toast.error(errorMessage, {
           action: {

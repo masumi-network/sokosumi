@@ -43,6 +43,7 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { resolveRequestLocale } from "@/i18n/locale-resolution";
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME } from "@/i18n/locales";
+import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@/lib/actions/errors/better-auth";
 import { getInfraAuthPlugins } from "@/lib/auth/infra-plugins";
 import { uploadProfileImage } from "@/lib/blob/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
@@ -139,6 +140,26 @@ function getEmailLocale(
     acceptLanguageHeader,
     defaultLocale: DEFAULT_LOCALE,
   });
+}
+
+async function ensureOrganizationHasNoAdditionalMembers(
+  organizationId: string,
+  userId: string,
+): Promise<void> {
+  const members = await memberRepository.getMembersByOrganizationId(
+    organizationId,
+    prisma,
+  );
+  const hasAdditionalMembers = members.some(
+    (member) => member.userId !== userId,
+  );
+
+  if (hasAdditionalMembers) {
+    throw new APIError("BAD_REQUEST", {
+      code: ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
+      message: "Remove all other members before deleting this organization.",
+    });
+  }
 }
 
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
@@ -529,6 +550,12 @@ export const auth = betterAuth({
         beforeCreateInvitation: async ({ organization }) => {
           await organizationSubscriptionService.ensureCanCreateInvitation(
             organization.id,
+          );
+        },
+        beforeDeleteOrganization: async ({ organization, user }) => {
+          await ensureOrganizationHasNoAdditionalMembers(
+            organization.id,
+            user.id,
           );
         },
       },

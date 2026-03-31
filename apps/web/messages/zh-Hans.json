@@ -534,6 +534,7 @@
         "confirmLabelPrefix": "请输入",
         "confirmLabelSuffix": "以确认删除：",
         "Errors": {
+          "additionalMembers": "请先移除所有其他成员，然后再删除此组织。",
           "unauthorizedAction": "登录"
         },
         "Schema": {
