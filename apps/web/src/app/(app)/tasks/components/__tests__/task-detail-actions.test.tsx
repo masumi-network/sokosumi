@@ -1,7 +1,15 @@
 import type { MemberWithOrganization } from "@sokosumi/database";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ComponentProps, ReactNode } from "react";
+import {
+  type ComponentProps,
+  cloneElement,
+  createContext,
+  isValidElement,
+  type ReactNode,
+  useContext,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,13 +27,15 @@ import {
 } from "@/lib/actions/task/action";
 import { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
 
-const { pushMock, refreshMock, browserCoreClientMock } = vi.hoisted(() => ({
-  pushMock: vi.fn(),
-  refreshMock: vi.fn(),
-  browserCoreClientMock: {
-    getTasks: vi.fn(),
-  },
-}));
+const { pushMock, refreshMock, browserCoreClientMock, isMobileMock } =
+  vi.hoisted(() => ({
+    pushMock: vi.fn(),
+    refreshMock: vi.fn(),
+    browserCoreClientMock: {
+      getTasks: vi.fn(),
+    },
+    isMobileMock: vi.fn(),
+  }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -73,6 +83,10 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: isMobileMock,
+}));
+
 vi.mock("@/components/ui/command", () => ({
   CommandDialog: ({
     open,
@@ -118,38 +132,188 @@ vi.mock("@/components/ui/command", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => children,
-  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DropdownMenuItem: ({
+vi.mock("@/components/ui/dropdown-menu", () => {
+  interface DropdownMenuContextValue {
+    open: boolean;
+    setOpen: (open: boolean) => void;
+  }
+
+  interface DropdownMenuSubContextValue {
+    open: boolean;
+    setOpen: (open: boolean) => void;
+  }
+
+  const DropdownMenuContext = createContext<DropdownMenuContextValue | null>(
+    null,
+  );
+  const DropdownMenuSubContext =
+    createContext<DropdownMenuSubContextValue | null>(null);
+
+  function DropdownMenu({
     children,
-    onSelect,
+    open: openProp,
+    onOpenChange,
   }: {
     children: ReactNode;
-    onSelect?: () => void;
-  }) => (
-    <button type="button" role="menuitem" onClick={onSelect}>
-      {children}
-    </button>
-  ),
-  DropdownMenuSeparator: () => <div data-slot="dropdown-menu-separator" />,
-  DropdownMenuSub: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DropdownMenuSubTrigger: ({ children }: { children: ReactNode }) => (
-    <button type="button" role="menuitem">
-      {children}
-    </button>
-  ),
-  DropdownMenuSubContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-}));
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) {
+    const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+    const open = openProp ?? uncontrolledOpen;
+
+    const setOpen = (nextOpen: boolean) => {
+      if (typeof openProp === "undefined") {
+        setUncontrolledOpen(nextOpen);
+      }
+      onOpenChange?.(nextOpen);
+    };
+
+    return (
+      <DropdownMenuContext.Provider value={{ open, setOpen }}>
+        <div>{children}</div>
+      </DropdownMenuContext.Provider>
+    );
+  }
+
+  function DropdownMenuTrigger({
+    children,
+    asChild,
+  }: {
+    children: ReactNode;
+    asChild?: boolean;
+  }) {
+    const context = useContext(DropdownMenuContext);
+    if (!context) return null;
+
+    const handleClick = () => {
+      context.setOpen(!context.open);
+    };
+
+    if (asChild && isValidElement(children)) {
+      return cloneElement(children, {
+        onClick: handleClick,
+      });
+    }
+
+    return (
+      <button type="button" onClick={handleClick}>
+        {children}
+      </button>
+    );
+  }
+
+  function DropdownMenuContent({ children }: { children: ReactNode }) {
+    const context = useContext(DropdownMenuContext);
+
+    if (!context?.open) {
+      return null;
+    }
+
+    return <div>{children}</div>;
+  }
+
+  function DropdownMenuItem({
+    children,
+    onSelect,
+    disabled,
+    asChild,
+  }: {
+    children: ReactNode;
+    onSelect?: (event: { preventDefault: () => void }) => void;
+    disabled?: boolean;
+    asChild?: boolean;
+  }) {
+    const context = useContext(DropdownMenuContext);
+
+    const handleSelect = () => {
+      if (!context || disabled) return;
+
+      let defaultPrevented = false;
+      onSelect?.({
+        preventDefault: () => {
+          defaultPrevented = true;
+        },
+      });
+
+      if (!defaultPrevented) {
+        context.setOpen(false);
+      }
+    };
+
+    if (asChild && isValidElement(children)) {
+      return cloneElement(children, {
+        onClick: handleSelect,
+      });
+    }
+
+    return (
+      <button
+        type="button"
+        role="menuitem"
+        disabled={disabled}
+        onClick={handleSelect}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  function DropdownMenuSeparator() {
+    return <div data-slot="dropdown-menu-separator" />;
+  }
+
+  function DropdownMenuSub({ children }: { children: ReactNode }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+      <DropdownMenuSubContext.Provider value={{ open, setOpen }}>
+        <div>{children}</div>
+      </DropdownMenuSubContext.Provider>
+    );
+  }
+
+  function DropdownMenuSubTrigger({
+    children,
+    disabled,
+  }: {
+    children: ReactNode;
+    disabled?: boolean;
+  }) {
+    const context = useContext(DropdownMenuSubContext);
+
+    return (
+      <button
+        type="button"
+        role="menuitem"
+        disabled={disabled}
+        onClick={() => context?.setOpen(!context.open)}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  function DropdownMenuSubContent({ children }: { children: ReactNode }) {
+    const context = useContext(DropdownMenuSubContext);
+
+    if (!context?.open) {
+      return null;
+    }
+
+    return <div>{children}</div>;
+  }
+
+  return {
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
+  };
+});
 
 vi.mock("@/lib/actions/task/action", () => ({
   setTaskStatusFromDrag: vi.fn(),
@@ -394,6 +558,7 @@ function renderActions(
 describe("TaskDetailActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    isMobileMock.mockReturnValue(false);
     browserCoreClientMock.getTasks.mockReset();
     vi.mocked(setTaskStatusFromDrag).mockReset();
     vi.mocked(createTaskLink).mockReset();
@@ -832,6 +997,7 @@ describe("TaskDetailActions", () => {
     expect(
       screen.getByRole("menuitem", { name: "Remove related" }),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Remove related" }));
     expect(
       screen.getByRole("menuitem", { name: "Related task" }),
     ).toBeInTheDocument();
@@ -880,6 +1046,7 @@ describe("TaskDetailActions", () => {
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Remove related" }));
     await user.click(screen.getByRole("menuitem", { name: "Related task" }));
 
     await waitFor(() => {
@@ -902,6 +1069,7 @@ describe("TaskDetailActions", () => {
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Remove related" }));
     await user.click(screen.getByRole("menuitem", { name: "Related task" }));
 
     await waitFor(() => {
@@ -926,5 +1094,143 @@ describe("TaskDetailActions", () => {
     expect(
       document.querySelectorAll('[data-slot="dropdown-menu-separator"]').length,
     ).toBe(3);
+  });
+
+  it("keeps desktop submenu behavior for mark as actions", async () => {
+    const user = userEvent.setup();
+    browserCoreClientMock.getTasks.mockResolvedValue({
+      data: [buildTaskListItem()],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 20,
+          total: 1,
+          nextCursor: null,
+        },
+      },
+    });
+
+    renderActions();
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    expect(screen.queryByRole("menuitem", { name: "Related" })).toBeNull();
+
+    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getByRole("menuitem", { name: "Related" }));
+
+    await waitFor(() => {
+      expect(browserCoreClientMock.getTasks).toHaveBeenCalled();
+    });
+  });
+
+  it("expands mark as inline on mobile and opens the picker", async () => {
+    const user = userEvent.setup();
+    isMobileMock.mockReturnValue(true);
+    browserCoreClientMock.getTasks.mockResolvedValue({
+      data: [buildTaskListItem()],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 20,
+          total: 1,
+          nextCursor: null,
+        },
+      },
+    });
+
+    renderActions();
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    expect(screen.queryByRole("menuitem", { name: "Related" })).toBeNull();
+
+    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getByRole("menuitem", { name: "Related" }));
+
+    await waitFor(() => {
+      expect(browserCoreClientMock.getTasks).toHaveBeenCalled();
+    });
+  });
+
+  it("expands create related inline on mobile and still opens the modal flow", async () => {
+    const user = userEvent.setup();
+    isMobileMock.mockReturnValue(true);
+    const createTaskAndLinkMock = vi.mocked(createTaskAndLink);
+    createTaskAndLinkMock.mockResolvedValue({
+      taskId: "task-1",
+      createdTaskId: "task-created",
+      linkId: "link-created",
+    });
+
+    renderActions();
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    expect(screen.queryByRole("menuitem", { name: "Add sub-task" })).toBeNull();
+
+    await user.click(screen.getByRole("menuitem", { name: "Create related" }));
+    await user.click(screen.getByRole("menuitem", { name: "Add sub-task" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Submit related task" }),
+    );
+
+    await waitFor(() => {
+      expect(createTaskAndLinkMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        description: "Created related task",
+        coworkerId: "coworker-1",
+        status: TASK_STATUS.READY,
+        ...getTaskLinkActionInput(TaskLinkRelation.PARENT),
+      });
+    });
+  });
+
+  it("expands remove related inline on mobile and removes the selected task", async () => {
+    const user = userEvent.setup();
+    isMobileMock.mockReturnValue(true);
+    const deleteTaskLinkMock = vi.mocked(deleteTaskLink);
+    deleteTaskLinkMock.mockResolvedValue({
+      taskId: "task-1",
+      linkId: "link-related",
+      relatedTaskId: "task-related",
+    });
+
+    renderActions({
+      taskLinks: [...removableTaskLinks],
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    expect(screen.queryByRole("menuitem", { name: "Related task" })).toBeNull();
+
+    await user.click(screen.getByRole("menuitem", { name: "Remove related" }));
+    await user.click(screen.getByRole("menuitem", { name: "Related task" }));
+
+    await waitFor(() => {
+      expect(deleteTaskLinkMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        linkId: "link-related",
+      });
+    });
+  });
+
+  it("resets expanded mobile sections when the dropdown closes", async () => {
+    const user = userEvent.setup();
+    isMobileMock.mockReturnValue(true);
+
+    renderActions();
+
+    const actionsButton = screen.getByRole("button", {
+      name: actionsMenuLabel,
+    });
+
+    await user.click(actionsButton);
+    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+
+    expect(
+      screen.getByRole("menuitem", { name: "Related" }),
+    ).toBeInTheDocument();
+
+    await user.click(actionsButton);
+    await user.click(actionsButton);
+
+    expect(screen.queryByRole("menuitem", { name: "Related" })).toBeNull();
   });
 });
