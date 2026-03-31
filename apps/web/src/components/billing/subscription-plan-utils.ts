@@ -14,6 +14,32 @@ export interface ActiveSubscription {
   seats?: number | null;
 }
 
+interface SplitSubscriptionPlansResult {
+  freePlan: SubscriptionPlanView | null;
+  paidPlans: SubscriptionPlanView[];
+}
+
+export function splitSubscriptionPlans(
+  plans: SubscriptionPlanView[],
+): SplitSubscriptionPlansResult {
+  let freePlan: SubscriptionPlanView | null = null;
+  const paidPlans: SubscriptionPlanView[] = [];
+
+  for (const plan of plans) {
+    if (plan.name === "free") {
+      freePlan = plan;
+      continue;
+    }
+
+    paidPlans.push(plan);
+  }
+
+  return {
+    freePlan,
+    paidPlans,
+  };
+}
+
 export function getPlanTranslationKey(plan: SubscriptionPlanName): string {
   switch (plan) {
     case "free":

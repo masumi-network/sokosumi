@@ -20,10 +20,12 @@ import {
 } from "@/lib/actions/subscription";
 import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
+import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
 import {
   getPlanTranslationKey,
   type SubscriptionPlanView,
+  splitSubscriptionPlans,
 } from "./subscription-plan-utils";
 
 interface OrganizationSubscriptionSectionProps {
@@ -48,6 +50,10 @@ export function OrganizationSubscriptionSection({
   );
   const tSubscriptions = useTranslations("App.Subscriptions");
   const router = useRouter();
+  const { freePlan, paidPlans } = useMemo(
+    () => splitSubscriptionPlans(plans),
+    [plans],
+  );
 
   const minimumSeats = useMemo(() => Math.max(memberCount, 1), [memberCount]);
   const [targetSeats, setTargetSeats] = useState(
@@ -171,6 +177,23 @@ export function OrganizationSubscriptionSection({
     ],
   );
 
+  function getPlanPresentationProps(plan: SubscriptionPlanView) {
+    const hasSamePlanAndSeats = plan.isCurrent && currentSeats === targetSeats;
+
+    return {
+      actionLabel: getPlanActionLabel(plan, hasSamePlanAndSeats),
+      creditsText: t("includedCreditsPerSeat", {
+        credits: plan.credits,
+      }),
+      isDisabled:
+        pendingPlan !== null ||
+        hasSamePlanAndSeats ||
+        targetSeats < minimumSeats,
+      isPlanPending: pendingPlan === plan.name,
+      loadingLabel: t("updating"),
+    };
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -221,34 +244,35 @@ export function OrganizationSubscriptionSection({
           </div>
         </CardContent>
       </Card>
-      <div className="grid gap-4 md:grid-cols-2">
-        {plans.map((plan) => {
-          const isPlanPending = pendingPlan === plan.name;
-          const hasSamePlanAndSeats =
-            plan.isCurrent && currentSeats === targetSeats;
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-3">
+          {paidPlans.map((plan) => {
+            const planPresentationProps = getPlanPresentationProps(plan);
 
-          return (
-            <SubscriptionPlanCard
-              key={plan.name}
-              actionLabel={getPlanActionLabel(plan, hasSamePlanAndSeats)}
-              creditsText={t("includedCreditsPerSeat", {
-                credits: plan.credits,
-              })}
-              isAnyPlanPending={pendingPlan !== null}
-              isDisabled={
-                pendingPlan !== null ||
-                hasSamePlanAndSeats ||
-                targetSeats < minimumSeats
-              }
-              isPlanPending={isPlanPending}
-              loadingLabel={t("updating")}
-              onUpgrade={(nextPlan) => {
-                void handleUpgradePlan(nextPlan);
-              }}
-              plan={plan}
-            />
-          );
-        })}
+            return (
+              <SubscriptionPlanCard
+                key={plan.name}
+                {...planPresentationProps}
+                isAnyPlanPending={pendingPlan !== null}
+                onUpgrade={(nextPlan) => {
+                  void handleUpgradePlan(nextPlan);
+                }}
+                plan={plan}
+              />
+            );
+          })}
+        </div>
+
+        {freePlan ? (
+          <SubscriptionFreePlanRow
+            {...getPlanPresentationProps(freePlan)}
+            isAnyPlanPending={pendingPlan !== null}
+            onUpgrade={(nextPlan) => {
+              void handleUpgradePlan(nextPlan);
+            }}
+            plan={freePlan}
+          />
+        ) : null}
       </div>
     </div>
   );
