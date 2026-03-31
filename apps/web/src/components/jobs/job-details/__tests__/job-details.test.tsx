@@ -1,4 +1,4 @@
-import { JobWithSokosumiStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus, SokosumiJobStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -74,7 +74,7 @@ function createJob(
     taskId: null,
     name: "Initial Job",
     jobType: "FREE",
-    status: "processing",
+    status: SokosumiJobStatus.PROCESSING,
     credits: 0,
     cents: BigInt(0),
     onChainStatus: null,
@@ -127,7 +127,7 @@ function createJob(
       overrideLegalOther: null,
     },
     ...overrides,
-  } as JobWithSokosumiStatus;
+  } as unknown as JobWithSokosumiStatus;
 }
 
 describe("JobDetails", () => {

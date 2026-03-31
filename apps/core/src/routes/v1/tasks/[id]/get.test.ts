@@ -71,6 +71,7 @@ function createTask(
     status: TaskStatus.READY,
     events: [],
     jobs: [],
+    share: null,
     linksFrom: overrides?.linksFrom ?? [],
     linksTo: overrides?.linksTo ?? [],
   };
@@ -102,6 +103,7 @@ describe("GET /tasks/{id}", () => {
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({
+        share: true,
         linksFrom: {
           where: {
             toTask: {
@@ -172,6 +174,7 @@ describe("GET /tasks/{id}", () => {
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({
+        share: true,
         linksFrom: {
           where: {
             toTask: {

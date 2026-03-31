@@ -126,7 +126,7 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
   it("continues scheduling later blobs when one running import is stalled", async () => {
     const sourceImportSyncService = await getSourceImportSyncService();
 
-    let resolveHungFetch: ((response: Response) => void) | null = null;
+    let resolveHungFetch: ((response: Response) => void) | undefined;
     const hungFetchPromise = new Promise<Response>((resolve) => {
       resolveHungFetch = resolve;
     });
@@ -157,7 +157,12 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
         expect(calledUrls).toContain("https://example.com/blob-6.txt");
       });
     } finally {
-      resolveHungFetch?.(
+      const resolve = resolveHungFetch;
+      if (!resolve) {
+        throw new Error("Expected hung fetch resolver to be assigned");
+      }
+
+      resolve(
         new Response("late hello", {
           status: 200,
           headers: {

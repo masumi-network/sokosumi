@@ -495,16 +495,76 @@ export type JobEvent = {
 
 export type JobShare = {
     id: string;
-    jobId: string;
     token: string;
     allowSearchIndexing: boolean;
     createdAt: Date;
     updatedAt: Date;
+    jobId: string;
 };
 
-export type PublicSharedJobResponse = {
+export type PublicSharedResourceResponse = ({
+    kind: 'job';
+} & PublicSharedJobResource) | ({
+    kind: 'task';
+} & PublicSharedTaskResource);
+
+export type PublicSharedJobResource = {
+    kind: 'job';
     job: Job;
     share: JobShare;
+};
+
+export type PublicSharedTaskResource = {
+    kind: 'task';
+    task: PublicSharedTask;
+    share: TaskShare;
+};
+
+export type PublicSharedTask = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    name: string;
+    description?: string | null;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    coworker?: PublicSharedTaskCoworker;
+    jobs: Array<PublicSharedTaskJob>;
+    events: Array<PublicSharedTaskMilestone>;
+};
+
+export type PublicSharedTaskCoworker = {
+    id: string;
+    name: string;
+    slug: string;
+    image?: string | null;
+} | null;
+
+export type PublicSharedTaskJob = {
+    id: string;
+    createdAt: Date;
+    completedAt?: Date | null;
+    name?: string | null;
+    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    agentName: string;
+    shareToken?: string | null;
+};
+
+export type PublicSharedTaskMilestone = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    credits?: number | null;
+};
+
+export type TaskShare = {
+    id: string;
+    token: string;
+    allowSearchIndexing: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    taskId: string;
 };
 
 export type Coworker = {
@@ -615,6 +675,9 @@ export type Task = {
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
+    share: TaskShare & ({
+        [key: string]: unknown;
+    } | null);
     links: Array<TaskLink>;
 };
 
@@ -6138,16 +6201,16 @@ export type PutJobsByIdShareResponses = {
 
 export type PutJobsByIdShareResponse = PutJobsByIdShareResponses[keyof PutJobsByIdShareResponses];
 
-export type GetShareJobsByTokenData = {
+export type GetShareByTokenData = {
     body?: never;
     path: {
         token: string;
     };
     query?: never;
-    url: '/share/jobs/{token}';
+    url: '/share/{token}';
 };
 
-export type GetShareJobsByTokenErrors = {
+export type GetShareByTokenErrors = {
     /**
      * Not Found
      */
@@ -6163,14 +6226,14 @@ export type GetShareJobsByTokenErrors = {
     };
 };
 
-export type GetShareJobsByTokenError = GetShareJobsByTokenErrors[keyof GetShareJobsByTokenErrors];
+export type GetShareByTokenError = GetShareByTokenErrors[keyof GetShareByTokenErrors];
 
-export type GetShareJobsByTokenResponses = {
+export type GetShareByTokenResponses = {
     /**
-     * Retrieve a publicly shared job
+     * Resolve a publicly shared resource
      */
     200: {
-        data: PublicSharedJobResponse;
+        data: PublicSharedResourceResponse;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6179,7 +6242,7 @@ export type GetShareJobsByTokenResponses = {
     };
 };
 
-export type GetShareJobsByTokenResponse = GetShareJobsByTokenResponses[keyof GetShareJobsByTokenResponses];
+export type GetShareByTokenResponse = GetShareByTokenResponses[keyof GetShareByTokenResponses];
 
 export type GetCoworkersData = {
     body?: never;
@@ -7572,7 +7635,7 @@ export type DeleteTasksByIdLinksByLinkIdResponse = DeleteTasksByIdLinksByLinkIdR
 
 export type PatchTasksByIdLinksByLinkIdData = {
     body?: {
-        relation?: TaskLinkRelation;
+        relation?: TaskLinkRelation & unknown;
         note?: string | null;
     };
     path: {
@@ -7871,6 +7934,148 @@ export type PatchTasksByIdResponses = {
 };
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
+
+export type DeleteTasksByIdShareData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/share';
+};
+
+export type DeleteTasksByIdShareErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksByIdShareError = DeleteTasksByIdShareErrors[keyof DeleteTasksByIdShareErrors];
+
+export type DeleteTasksByIdShareResponses = {
+    /**
+     * Delete a task share
+     */
+    200: {
+        data: {
+            [key: string]: unknown;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteTasksByIdShareResponse = DeleteTasksByIdShareResponses[keyof DeleteTasksByIdShareResponses];
+
+export type PutTasksByIdShareData = {
+    body?: {
+        allowSearchIndexing: boolean;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/share';
+};
+
+export type PutTasksByIdShareErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutTasksByIdShareError = PutTasksByIdShareErrors[keyof PutTasksByIdShareErrors];
+
+export type PutTasksByIdShareResponses = {
+    /**
+     * Create or update a task share
+     */
+    200: {
+        data: TaskShare;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutTasksByIdShareResponse = PutTasksByIdShareResponses[keyof PutTasksByIdShareResponses];
 
 export type PutTasksByIdWorkspaceData = {
     body?: {

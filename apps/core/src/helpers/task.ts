@@ -214,6 +214,7 @@ export function mapTask(task: TaskWithIncludes) {
 
   return {
     ...mapTaskBase(task),
+    share: task.share,
     links,
   };
 }

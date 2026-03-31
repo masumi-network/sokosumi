@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { jobShareRepository } from "@sokosumi/database/repositories";
+import { publicShareRepository } from "@sokosumi/database/repositories";
 
 import { forbidden, notFound } from "@/helpers/error.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -63,7 +63,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden("You can only manage sharing for your own jobs");
       }
 
-      await jobShareRepository.deleteShareByJobId(id, tx);
+      await publicShareRepository.deleteByJobId(id, tx);
     });
 
     return ok(c, deleteJobShareResponseSchema.parse({}));

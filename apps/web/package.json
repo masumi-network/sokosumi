@@ -23,9 +23,7 @@
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
     "prisma:migrate:reset": "pnpm --filter @sokosumi/database prisma:migrate:reset",
     "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio",
-    "generate:core": "openapi-ts -f openapi-ts.core.config.ts",
-    "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
-    "generate:api": "pnpm run generate:payment && pnpm run generate:core"
+    "generate:core": "openapi-ts -f openapi-ts.core.config.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "3.0.143",
@@ -164,7 +162,7 @@
     "puppeteer": "24.35.0",
     "tailwindcss": "4.2.2",
     "tsx": "4.21.0",
-    "typescript": "5.9.3",
+    "typescript": "6.0.2",
     "vite": "8.0.3",
     "vitest": "4.1.2"
   }

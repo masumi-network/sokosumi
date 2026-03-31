@@ -54,7 +54,7 @@ export default function JobShareModal({
   // Compute link on client only - derived from jobShare state
   const link =
     isClient && jobShare?.token
-      ? new URL(`/share/jobs/${jobShare.token}`, window.location.origin)
+      ? new URL(`/share/${jobShare.token}`, window.location.origin)
       : null;
 
   function syncJobShare(nextJobShare: JobShare | null) {

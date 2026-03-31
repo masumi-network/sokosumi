@@ -15,6 +15,7 @@ interface AgentBookmarkButtonProps {
   isFavorite: boolean;
   className?: string;
   disabled?: boolean;
+  variant?: React.ComponentProps<typeof Button>["variant"];
 }
 
 export function AgentBookmarkButton({
@@ -22,6 +23,7 @@ export function AgentBookmarkButton({
   isFavorite,
   className,
   disabled,
+  variant = "secondary",
 }: AgentBookmarkButtonProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   // Use prop directly as initial state; updates come from user interaction
@@ -51,7 +53,7 @@ export function AgentBookmarkButton({
 
   return (
     <Button
-      variant="secondary"
+      variant={variant}
       size="icon"
       className={cn(className)}
       onClick={handleBookmarkToggle}

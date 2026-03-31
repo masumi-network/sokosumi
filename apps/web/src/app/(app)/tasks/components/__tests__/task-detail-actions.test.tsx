@@ -1,5 +1,5 @@
 import { type MemberWithOrganization, TaskStatus } from "@sokosumi/database";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -54,6 +54,7 @@ const labels = {
   markAsReady: "Mark as Ready",
   revertToDraft: "Revert to Draft",
   cancelRequest: "Cancel Request",
+  share: "Share",
 };
 
 const actionsMenuLabel = "Actions";
@@ -74,6 +75,7 @@ describe("TaskDetailActions", () => {
     render(
       <TaskDetailActions
         taskId="task-1"
+        share={null}
         status={TaskStatus.CANCELED}
         jobsCount={0}
         actionsMenuLabel={actionsMenuLabel}
@@ -82,10 +84,11 @@ describe("TaskDetailActions", () => {
       />,
     );
 
-    const revertButton = screen.getByRole("button", {
+    const statusActions = screen.getByTestId("task-status-actions");
+    const revertButton = within(statusActions).getByRole("button", {
       name: "Revert to Draft",
     });
-    const markReadyButton = screen.getByRole("button", {
+    const markReadyButton = within(statusActions).getByRole("button", {
       name: "Mark as Ready",
     });
 
@@ -115,6 +118,7 @@ describe("TaskDetailActions", () => {
     render(
       <TaskDetailActions
         taskId="task-1"
+        share={null}
         status={TaskStatus.CANCELED}
         jobsCount={0}
         actionsMenuLabel={actionsMenuLabel}
@@ -135,10 +139,67 @@ describe("TaskDetailActions", () => {
     });
   });
 
+  it("shows the primary status action inline on mobile and moves share into the overflow menu", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskDetailActions
+        taskId="task-1"
+        share={null}
+        status={TaskStatus.DRAFT}
+        jobsCount={0}
+        actionsMenuLabel={actionsMenuLabel}
+        labels={labels}
+        personalWorkspaceLabel={personalWorkspaceLabel}
+      />,
+    );
+
+    const mobileActions = screen.getByTestId("task-mobile-actions");
+
+    expect(
+      within(mobileActions).getByRole("button", { name: "Mark as Ready" }),
+    ).toBeInTheDocument();
+    expect(
+      within(mobileActions).queryByRole("button", { name: "Share" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      within(mobileActions).getByRole("button", { name: "Actions" }),
+    );
+
+    expect(screen.getByRole("menuitem", { name: "Share" })).toBeInTheDocument();
+  });
+
+  it("opens the share modal from the mobile overflow menu", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskDetailActions
+        taskId="task-1"
+        share={null}
+        status={TaskStatus.DRAFT}
+        jobsCount={0}
+        actionsMenuLabel={actionsMenuLabel}
+        labels={labels}
+        personalWorkspaceLabel={personalWorkspaceLabel}
+      />,
+    );
+
+    const mobileActions = screen.getByTestId("task-mobile-actions");
+
+    await user.click(
+      within(mobileActions).getByRole("button", { name: "Actions" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Share" }));
+
+    expect(await screen.findByText("title")).toBeInTheDocument();
+  });
+
   it("shows move to workspace when the task can be moved", () => {
     render(
       <TaskDetailActions
         taskId="task-1"
+        share={null}
         status={TaskStatus.READY}
         jobsCount={0}
         actionsMenuLabel={actionsMenuLabel}
@@ -153,10 +214,45 @@ describe("TaskDetailActions", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("separates status actions from secondary icon actions on desktop", () => {
+    render(
+      <TaskDetailActions
+        taskId="task-1"
+        share={null}
+        status={TaskStatus.DRAFT}
+        jobsCount={0}
+        actionsMenuLabel={actionsMenuLabel}
+        labels={labels}
+        organizations={sampleOrganizations}
+        personalWorkspaceLabel={personalWorkspaceLabel}
+      />,
+    );
+
+    const secondaryActions = screen.getByTestId("task-secondary-actions");
+    const statusActions = screen.getByTestId("task-status-actions");
+
+    expect(
+      within(secondaryActions).getByRole("button", { name: "Share" }),
+    ).toBeInTheDocument();
+    expect(
+      within(secondaryActions).getByRole("link", { name: "Edit" }),
+    ).toBeInTheDocument();
+    expect(
+      within(secondaryActions).getByRole("button", { name: "moveToWorkspace" }),
+    ).toBeInTheDocument();
+    expect(
+      within(secondaryActions).getByRole("button", { name: "Delete" }),
+    ).toBeInTheDocument();
+    expect(
+      within(statusActions).getByRole("button", { name: "Mark as Ready" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows move for an organization task even when memberships are empty (personal is still a target)", () => {
     render(
       <TaskDetailActions
         taskId="task-1"
+        share={null}
         status={TaskStatus.READY}
         jobsCount={0}
         actionsMenuLabel={actionsMenuLabel}
@@ -176,6 +272,7 @@ describe("TaskDetailActions", () => {
     render(
       <TaskDetailActions
         taskId="task-1"
+        share={null}
         status={TaskStatus.READY}
         jobsCount={0}
         actionsMenuLabel={actionsMenuLabel}
@@ -195,6 +292,7 @@ describe("TaskDetailActions", () => {
     render(
       <TaskDetailActions
         taskId="task-1"
+        share={null}
         status={TaskStatus.READY}
         jobsCount={1}
         actionsMenuLabel={actionsMenuLabel}
@@ -206,6 +304,29 @@ describe("TaskDetailActions", () => {
 
     expect(
       screen.queryByRole("button", { name: "moveToWorkspace" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps share available for completed tasks", () => {
+    render(
+      <TaskDetailActions
+        taskId="task-1"
+        share={null}
+        status={TaskStatus.COMPLETED}
+        jobsCount={0}
+        actionsMenuLabel={actionsMenuLabel}
+        labels={labels}
+        personalWorkspaceLabel={personalWorkspaceLabel}
+      />,
+    );
+
+    expect(
+      within(screen.getByTestId("task-secondary-actions")).getByRole("button", {
+        name: "Share",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete" }),
     ).not.toBeInTheDocument();
   });
 });

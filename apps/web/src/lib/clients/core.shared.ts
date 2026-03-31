@@ -3,19 +3,22 @@ import type { Notice, NoticeKind } from "@sokosumi/database";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import {
   mapCoreJobShare,
-  mapCorePublicSharedJobResponse,
+  mapCorePublicSharedResourceResponse,
 } from "@/lib/clients/core.job-share";
 import type {
   DeleteJobsByIdShareError,
+  DeleteTasksByIdShareError,
   GetCoworkersData,
-  GetShareJobsByTokenError,
+  GetShareByTokenError,
   GetTasksData,
   PaginationMetadata,
   PutJobsByIdShareError,
+  PutTasksByIdShareError,
 } from "@/lib/clients/generated/core";
 import {
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
   deleteTasksById as coreDeleteTasksById,
+  deleteTasksByIdShare as coreDeleteTasksByIdShare,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
   getConversations as coreGetConversations,
@@ -24,7 +27,7 @@ import {
   getCoworkers as coreGetCoworkers,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
-  getShareJobsByToken as coreGetShareJobsByToken,
+  getShareByToken as coreGetShareByToken,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getUsersMeCredits as coreGetUsersMeCredits,
@@ -40,6 +43,7 @@ import {
   postUsersMeFiles as corePostUsersMeFiles,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
   putJobsByIdShare as corePutJobsByIdShare,
+  putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
@@ -79,6 +83,43 @@ type CoreOperationResult<TData, TError> = {
 };
 
 type GetClient = () => Client | Promise<Client>;
+
+function toDate(value: Date | string): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
+function transformTaskResponseEnvelope(data: any) {
+  const task = data.data;
+
+  task.createdAt = toDate(task.createdAt);
+  task.updatedAt = toDate(task.updatedAt);
+  task.events = task.events.map((event: any) => ({
+    ...event,
+    createdAt: toDate(event.createdAt),
+    updatedAt: toDate(event.updatedAt),
+  }));
+  task.jobs = task.jobs.map((job: any) => ({
+    ...job,
+    createdAt: toDate(job.createdAt),
+    updatedAt: toDate(job.updatedAt),
+    completedAt: job.completedAt ? toDate(job.completedAt) : null,
+  }));
+  task.share = task.share
+    ? {
+        ...task.share,
+        createdAt: toDate(task.share.createdAt),
+        updatedAt: toDate(task.share.updatedAt),
+      }
+    : null;
+  task.links = task.links.map((link: any) => ({
+    ...link,
+    createdAt: toDate(link.createdAt),
+    updatedAt: toDate(link.updatedAt),
+  }));
+  data.meta.timestamp = toDate(data.meta.timestamp);
+
+  return data;
+}
 
 function extractErrorMessage(error: unknown, status?: number): string {
   if (typeof error === "string" && error.length > 0) {
@@ -315,6 +356,8 @@ export function createCoreClient(getClient: GetClient) {
           path: { id },
           query: { scope },
           cache: "no-store",
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
         }),
       "Failed to fetch task",
     );
@@ -399,6 +442,8 @@ export function createCoreClient(getClient: GetClient) {
         corePostTasks({
           client,
           body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
         }),
       "Failed to create task",
     );
@@ -450,6 +495,8 @@ export function createCoreClient(getClient: GetClient) {
           client,
           path: { id },
           body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
         }),
       "Failed to update task",
     );
@@ -462,6 +509,8 @@ export function createCoreClient(getClient: GetClient) {
         coreDeleteTasksById({
           client,
           path: { id },
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
         }),
       "Failed to delete task",
     );
@@ -558,6 +607,8 @@ export function createCoreClient(getClient: GetClient) {
           client,
           path: { id },
           body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
         }),
       "Failed to move task to workspace",
     );
@@ -650,11 +701,66 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getSharedJobByToken(token: string) {
+  async function putTaskShare(
+    id: string,
+    body: { allowSearchIndexing: boolean },
+  ) {
     return executeOperation(
       getClient,
       async (client) => {
-        const result = await coreGetShareJobsByToken({
+        const result = await corePutTasksByIdShare({
+          client,
+          path: { id },
+          body,
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error as PutTasksByIdShareError,
+            response: result.response,
+          };
+        }
+        return {
+          data: result.data.data,
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to update task share",
+    );
+  }
+
+  async function deleteTaskShare(id: string) {
+    await executeOperation(
+      getClient,
+      async (client) => {
+        const result = await coreDeleteTasksByIdShare({
+          client,
+          path: { id },
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error as DeleteTasksByIdShareError,
+            response: result.response,
+          };
+        }
+
+        return {
+          data: true,
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to delete task share",
+    );
+  }
+
+  async function getSharedResourceByToken(token: string) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await coreGetShareByToken({
           client,
           path: { token },
           cache: "no-store",
@@ -662,17 +768,17 @@ export function createCoreClient(getClient: GetClient) {
         if (result.error) {
           return {
             data: undefined,
-            error: result.error as GetShareJobsByTokenError,
+            error: result.error as GetShareByTokenError,
             response: result.response,
           };
         }
         return {
-          data: mapCorePublicSharedJobResponse(result.data.data),
+          data: mapCorePublicSharedResourceResponse(result.data.data),
           error: undefined,
           response: result.response,
         };
       },
-      "Failed to fetch shared job",
+      "Failed to fetch shared resource",
     );
   }
 
@@ -684,6 +790,7 @@ export function createCoreClient(getClient: GetClient) {
     createTask,
     createTaskEvent,
     deleteJobShare,
+    deleteTaskShare,
     deleteTask,
     getConversation,
     getConversationItems,
@@ -697,12 +804,13 @@ export function createCoreClient(getClient: GetClient) {
     getMyCredits,
     getMyOrganizations,
     getPendingNotices,
-    getSharedJobByToken,
+    getSharedResourceByToken,
     moveTaskToWorkspace,
     getTaskById,
     getTasks,
     patchTask,
     putJobShare,
+    putTaskShare,
     updateConversation,
     uploadMyFile,
   };

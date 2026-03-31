@@ -1,3 +1,5 @@
+import type { PublicShare } from "./generated/prisma/browser.js";
+
 /**
  * @sokosumi/database
  *
@@ -46,7 +48,10 @@ export * from "./types/agentRating.js";
 export * from "./types/invitation.js";
 export * from "./types/job.js";
 export * from "./types/job-schedule.js";
-export * from "./types/job-share.js";
 export * from "./types/member.js";
 export * from "./types/organization.js";
+export * from "./types/public-share.js";
 export * from "./types/utm.js";
+
+export type JobShare = PublicShare;
+export type TaskShare = PublicShare;

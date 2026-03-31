@@ -1872,9 +1872,352 @@ export const JobShareSchema = {
             type: 'string',
             example: 'share_123'
         },
+        token: {
+            type: 'string',
+            example: 'public-share-token'
+        },
+        allowSearchIndexing: {
+            type: 'boolean',
+            example: true
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         jobId: {
             type: 'string',
             example: 'job_123'
+        }
+    },
+    required: [
+        'id',
+        'token',
+        'allowSearchIndexing',
+        'createdAt',
+        'updatedAt',
+        'jobId'
+    ]
+} as const;
+
+export const PublicSharedResourceResponseSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/PublicSharedJobResource'
+        },
+        {
+            $ref: '#/components/schemas/PublicSharedTaskResource'
+        }
+    ],
+    discriminator: {
+        propertyName: 'kind',
+        mapping: {
+            job: '#/components/schemas/PublicSharedJobResource',
+            task: '#/components/schemas/PublicSharedTaskResource'
+        }
+    }
+} as const;
+
+export const PublicSharedJobResourceSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'job'
+            ]
+        },
+        job: {
+            $ref: '#/components/schemas/Job'
+        },
+        share: {
+            $ref: '#/components/schemas/JobShare'
+        }
+    },
+    required: [
+        'kind',
+        'job',
+        'share'
+    ]
+} as const;
+
+export const PublicSharedTaskResourceSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'task'
+            ]
+        },
+        task: {
+            $ref: '#/components/schemas/PublicSharedTask'
+        },
+        share: {
+            $ref: '#/components/schemas/TaskShare'
+        }
+    },
+    required: [
+        'kind',
+        'task',
+        'share'
+    ]
+} as const;
+
+export const PublicSharedTaskSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'tsk_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        name: {
+            type: 'string',
+            example: 'Review onboarding'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Notes go here'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED'
+            ],
+            example: 'READY'
+        },
+        coworker: {
+            $ref: '#/components/schemas/PublicSharedTaskCoworker'
+        },
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/PublicSharedTaskJob'
+            },
+            example: []
+        },
+        events: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/PublicSharedTaskMilestone'
+            },
+            example: []
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'name',
+        'status',
+        'jobs',
+        'events'
+    ]
+} as const;
+
+export const PublicSharedTaskCoworkerSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ops Agent'
+        },
+        slug: {
+            type: 'string',
+            example: 'ops-agent'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/coworker.png'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
+    ]
+} as const;
+
+export const PublicSharedTaskJobSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'job_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        completedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Draft answer'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'started',
+                'completed',
+                'processing',
+                'input_required',
+                'result_pending',
+                'failed',
+                'payment_pending',
+                'payment_failed',
+                'refund_pending',
+                'refund_resolved',
+                'dispute_pending',
+                'dispute_resolved'
+            ],
+            example: 'processing'
+        },
+        agentName: {
+            type: 'string',
+            example: 'Research Agent'
+        },
+        shareToken: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'public-share-token'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'status',
+        'agentName'
+    ]
+} as const;
+
+export const PublicSharedTaskMilestoneSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'evt_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        origin: {
+            type: 'string',
+            enum: [
+                'SLACK',
+                'TEAMS',
+                'EMAIL',
+                'LINEAR',
+                'GITHUB',
+                'WHATSAPP',
+                'TELEGRAM',
+                'SIGNAL',
+                'DISCORD',
+                'CHAT',
+                'SOKOSUMI',
+                'UNKNOWN'
+            ],
+            example: 'SOKOSUMI'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED'
+            ],
+            example: 'RUNNING'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            example: 1.5
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'origin',
+        'status'
+    ]
+} as const;
+
+export const TaskShareSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'share_123'
         },
         token: {
             type: 'string',
@@ -1893,31 +2236,19 @@ export const JobShareSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        taskId: {
+            type: 'string',
+            example: 'tsk_123'
         }
     },
     required: [
         'id',
-        'jobId',
         'token',
         'allowSearchIndexing',
         'createdAt',
-        'updatedAt'
-    ]
-} as const;
-
-export const PublicSharedJobResponseSchema = {
-    type: 'object',
-    properties: {
-        job: {
-            $ref: '#/components/schemas/Job'
-        },
-        share: {
-            $ref: '#/components/schemas/JobShare'
-        }
-    },
-    required: [
-        'job',
-        'share'
+        'updatedAt',
+        'taskId'
     ]
 } as const;
 
@@ -2519,6 +2850,20 @@ export const TaskSchema = {
             },
             example: []
         },
+        share: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/TaskShare'
+                },
+                {
+                    type: [
+                        'object',
+                        'null'
+                    ],
+                    example: null
+                }
+            ]
+        },
         links: {
             type: 'array',
             items: {
@@ -2540,6 +2885,7 @@ export const TaskSchema = {
         'credits',
         'events',
         'jobs',
+        'share',
         'links'
     ]
 } as const;
@@ -2572,7 +2918,7 @@ export const TaskLinkSchema = {
                 'string',
                 'null'
             ],
-            example: null
+            example: 'Blocked until onboarding copy is approved'
         }
     },
     required: [
@@ -2582,7 +2928,19 @@ export const TaskLinkSchema = {
         'relation',
         'peerTask',
         'note'
-    ]
+    ],
+    example: {
+        id: 'tl_123',
+        createdAt: '2026-03-25T10:00:00.000Z',
+        updatedAt: '2026-03-25T10:05:00.000Z',
+        relation: 'blocked_by',
+        peerTask: {
+            id: 'tsk_b',
+            name: 'Review onboarding copy',
+            status: 'READY'
+        },
+        note: 'Blocked until onboarding copy is approved'
+    }
 } as const;
 
 export const TaskLinkRelationSchema = {
@@ -2595,7 +2953,7 @@ export const TaskLinkRelationSchema = {
         'child',
         'duplicate'
     ],
-    example: 'related'
+    example: 'blocked_by'
 } as const;
 
 export const TaskLinkPeerTaskSchema = {
@@ -2607,7 +2965,7 @@ export const TaskLinkPeerTaskSchema = {
         },
         name: {
             type: 'string',
-            example: 'Review onboarding'
+            example: 'Review onboarding copy'
         },
         status: {
             type: 'string',
@@ -2635,7 +2993,7 @@ export const TaskLinkPeerTaskSchema = {
     ],
     example: {
         id: 'tsk_b',
-        name: 'Review onboarding',
+        name: 'Review onboarding copy',
         status: 'READY'
     }
 } as const;

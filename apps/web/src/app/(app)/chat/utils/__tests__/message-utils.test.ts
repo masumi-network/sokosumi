@@ -4,7 +4,7 @@ import { deduplicateMessagesById } from "../message-utils";
 
 describe("deduplicateMessagesById", () => {
   it("keeps every message when ids are missing (no empty-key collapse)", () => {
-    const messages = [
+    const messages: Array<{ id?: string; role: string }> = [
       { role: "user" },
       { role: "assistant" },
       { role: "user" },
@@ -20,7 +20,11 @@ describe("deduplicateMessagesById", () => {
   });
 
   it("treats whitespace-only id as absent for deduplication", () => {
-    const messages = [{ id: "   " }, { id: "\t" }, { role: "x" }];
+    const messages: Array<{ id?: string; role?: string }> = [
+      { id: "   " },
+      { id: "\t" },
+      { role: "x" },
+    ];
     expect(deduplicateMessagesById(messages)).toEqual(messages);
   });
 

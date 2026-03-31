@@ -12,16 +12,15 @@ const notFoundMock = vi.fn(() => {
 });
 
 vi.mock("@/lib/auth/utils", () => ({
-  getSession: (...args: unknown[]) => getSessionMock(...args),
+  getSession: getSessionMock,
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
   agentRepository: {
-    getAgentWithRelationsById: (...args: unknown[]) =>
-      getAgentByIdMock(...args),
+    getAgentWithRelationsById: getAgentByIdMock,
   },
   jobRepository: {
-    getJobById: (...args: unknown[]) => getJobByIdMock(...args),
+    getJobById: getJobByIdMock,
   },
 }));
 
@@ -30,8 +29,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  notFound: (...args: unknown[]) => notFoundMock(...args),
-  redirect: (...args: unknown[]) => redirectMock(...args),
+  notFound: notFoundMock,
+  redirect: redirectMock,
 }));
 
 vi.mock("@tanstack/react-query", () => ({
@@ -41,7 +40,7 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("@/queries", () => ({
   getJobQueryKey: (jobId: string) => ["jobs", jobId],
   getQueryClient: () => ({
-    setQueryData: (...args: unknown[]) => setQueryDataMock(...args),
+    setQueryData: setQueryDataMock,
   }),
 }));
 

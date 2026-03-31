@@ -10,30 +10,50 @@ import { cn } from "@/lib/utils";
 
 import JobShareModal from "./job-share-modal";
 
+interface JobShareModalHostProps {
+  open: boolean;
+  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
+  job: JobWithSokosumiStatus;
+}
+
+function JobShareModalHost({
+  open,
+  onOpenChange,
+  job,
+}: JobShareModalHostProps) {
+  return <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />;
+}
+
 interface JobShareButtonProps {
   job: JobWithSokosumiStatus;
+  label?: string;
   className?: string;
+  variant?: React.ComponentProps<typeof Button>["variant"];
+  size?: React.ComponentProps<typeof Button>["size"];
 }
 
 export default function JobShareButton({
   job,
+  label,
   className,
+  variant = "ghost",
+  size = "icon",
 }: JobShareButtonProps) {
   const t = useTranslations("Components.Jobs.JobDetails.JobShare");
-  const { showModal, Component } = useModal(({ open, onOpenChange }) => (
-    <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />
-  ));
+  const resolvedLabel = label ?? t("share");
+  const { showModal, Component } = useModal(JobShareModalHost, { job });
 
   return (
     <>
       <Button
-        variant="ghost"
-        size="icon"
+        variant={variant}
+        size={size}
         onClick={showModal}
-        className={cn("text-muted-foreground", className)}
-        title={t("share")}
+        className={cn(className)}
+        title={resolvedLabel}
+        aria-label={resolvedLabel}
       >
-        <Share className="h-4 w-4" />
+        <Share className="size-4" />
       </Button>
       {Component}
     </>

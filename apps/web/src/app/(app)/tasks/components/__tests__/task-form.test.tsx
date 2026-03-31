@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
+import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
 
 const markdownEditorPropsSpy = vi.fn();
 
@@ -197,6 +198,31 @@ describe("TaskForm", () => {
         currentStatus: TaskStatus.DRAFT,
         desiredStatus: TaskStatus.READY,
       }),
+    );
+  });
+
+  it("limits the edit name field to the Core API max length", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          coworkerId: "coworker-1",
+          status: TaskStatus.DRAFT,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Task name")).toHaveAttribute(
+      "maxlength",
+      String(DEFAULT_TASK_NAME_MAX_LENGTH),
     );
   });
 

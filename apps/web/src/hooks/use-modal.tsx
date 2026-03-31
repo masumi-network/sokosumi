@@ -7,11 +7,31 @@ interface ModalProps {
   onOpenChange: Dispatch<SetStateAction<boolean>>;
 }
 
-type ModalComponent = (
-  props: React.ComponentProps<React.FC<ModalProps>>,
-) => React.JSX.Element;
+type EmptyModalProps = Record<string, never>;
 
-export default function useModal(Modal: ModalComponent) {
+type ModalComponent<AdditionalProps extends object = EmptyModalProps> =
+  React.ComponentType<ModalProps & AdditionalProps>;
+
+export default function useModal(Modal: ModalComponent<EmptyModalProps>): {
+  Component: React.JSX.Element;
+  showModal: () => void;
+  hideModal: () => void;
+  toggleModal: () => void;
+};
+export default function useModal<AdditionalProps extends object>(
+  Modal: ModalComponent<AdditionalProps>,
+  modalProps: AdditionalProps,
+): {
+  Component: React.JSX.Element;
+  showModal: () => void;
+  hideModal: () => void;
+  toggleModal: () => void;
+};
+
+export default function useModal<AdditionalProps extends object>(
+  Modal: ModalComponent<AdditionalProps>,
+  modalProps?: AdditionalProps,
+) {
   const [open, setOpen] = useState(false);
 
   const showModal = () => setOpen(true);
@@ -21,7 +41,13 @@ export default function useModal(Modal: ModalComponent) {
   const toggleModal = () => setOpen((prev) => !prev);
 
   return {
-    Component: <Modal open={open} onOpenChange={setOpen} />,
+    Component: (
+      <Modal
+        open={open}
+        onOpenChange={setOpen}
+        {...(modalProps ?? ({} as AdditionalProps))}
+      />
+    ),
     showModal,
     hideModal,
     toggleModal,

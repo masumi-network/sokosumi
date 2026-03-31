@@ -6,13 +6,16 @@ vi.mock("server-only", () => ({}));
 
 const getConversationsMock = vi.fn();
 const getAgentsByIdInputSchemaMock = vi.fn();
-const getShareJobsByTokenMock = vi.fn();
+const getShareByTokenMock = vi.fn();
+const getTasksByIdMock = vi.fn();
 const getUsersMeNoticesPendingMock = vi.fn();
 const postUsersMeNoticesByIdAcknowledgeMock = vi.fn();
 const putJobsByIdShareMock = vi.fn();
+const putTasksByIdShareMock = vi.fn();
 const getUsersMeCreditsMock = vi.fn();
 const getUsersMeOrganizationsMock = vi.fn();
 const deleteJobsByIdShareMock = vi.fn();
+const deleteTasksByIdShareMock = vi.fn();
 const createClientMock = vi.fn();
 const headersMock = vi.fn();
 const mockClient = {
@@ -34,14 +37,17 @@ vi.mock("@/lib/clients/generated/core/client", () => ({
 
 vi.mock("@/lib/clients/generated/core", () => ({
   deleteJobsByIdShare: deleteJobsByIdShareMock,
+  deleteTasksByIdShare: deleteTasksByIdShareMock,
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
   getConversations: getConversationsMock,
-  getShareJobsByToken: getShareJobsByTokenMock,
+  getShareByToken: getShareByTokenMock,
+  getTasksById: getTasksByIdMock,
   getUsersMeNoticesPending: getUsersMeNoticesPendingMock,
   postUsersMeNoticesByIdAcknowledge: postUsersMeNoticesByIdAcknowledgeMock,
   getUsersMeCredits: getUsersMeCreditsMock,
   getUsersMeOrganizations: getUsersMeOrganizationsMock,
   putJobsByIdShare: putJobsByIdShareMock,
+  putTasksByIdShare: putTasksByIdShareMock,
 }));
 
 describe("core.client", () => {
@@ -305,23 +311,24 @@ describe("core.client", () => {
     expect(response.token).toBe("public-share-token");
   });
 
-  it("fetches shared jobs through the public server transport", async () => {
-    getShareJobsByTokenMock.mockResolvedValue({
+  it("fetches shared jobs through the canonical public server transport", async () => {
+    getShareByTokenMock.mockResolvedValue({
       data: {
         data: {
+          kind: "job",
           share: {
             id: "share_1",
             jobId: "job_1",
             token: "public-share-token",
             allowSearchIndexing: false,
-            createdAt: new Date("2026-03-26T10:00:00.000Z"),
-            updatedAt: new Date("2026-03-26T10:00:00.000Z"),
+            createdAt: "2026-03-26T10:00:00.000Z",
+            updatedAt: "2026-03-26T10:00:00.000Z",
           },
           job: {
             id: "job_1",
-            createdAt: new Date("2026-03-26T10:00:00.000Z"),
-            updatedAt: new Date("2026-03-26T10:05:00.000Z"),
-            completedAt: new Date("2026-03-26T10:10:00.000Z"),
+            createdAt: "2026-03-26T10:00:00.000Z",
+            updatedAt: "2026-03-26T10:05:00.000Z",
+            completedAt: "2026-03-26T10:10:00.000Z",
             agentId: "agent_1",
             userId: "user_1",
             organizationId: "org_1",
@@ -368,8 +375,8 @@ describe("core.client", () => {
             events: [
               {
                 id: "event_completed",
-                createdAt: new Date("2026-03-26T10:10:00.000Z"),
-                updatedAt: new Date("2026-03-26T10:10:00.000Z"),
+                createdAt: "2026-03-26T10:10:00.000Z",
+                updatedAt: "2026-03-26T10:10:00.000Z",
                 status: "COMPLETED",
                 inputSchema: null,
                 input: null,
@@ -379,8 +386,8 @@ describe("core.client", () => {
               },
               {
                 id: "event_initiated",
-                createdAt: new Date("2026-03-26T10:00:00.000Z"),
-                updatedAt: new Date("2026-03-26T10:00:00.000Z"),
+                createdAt: "2026-03-26T10:00:00.000Z",
+                updatedAt: "2026-03-26T10:00:00.000Z",
                 status: "INITIATED",
                 inputSchema: '{"input_data":[]}',
                 input: {
@@ -401,18 +408,32 @@ describe("core.client", () => {
     });
 
     const { coreClient } = await import("../core.client");
-    const response = await coreClient.getSharedJobByToken("public-share-token");
+    const response =
+      await coreClient.getSharedResourceByToken("public-share-token");
 
-    expect(getShareJobsByTokenMock).toHaveBeenCalledWith({
+    expect(getShareByTokenMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
       path: {
         token: "public-share-token",
       },
     });
+    expect(response.kind).toBe("job");
+    if (response.kind !== "job") {
+      throw new Error("Expected a shared job response");
+    }
+    expect(response.share.createdAt).toEqual(
+      new Date("2026-03-26T10:00:00.000Z"),
+    );
     expect(response.share.allowSearchIndexing).toBe(false);
     expect(response.job.createdAt).toEqual(
       new Date("2026-03-26T10:00:00.000Z"),
+    );
+    expect(response.job.updatedAt).toEqual(
+      new Date("2026-03-26T10:05:00.000Z"),
+    );
+    expect(response.job.completedAt).toEqual(
+      new Date("2026-03-26T10:10:00.000Z"),
     );
     expect(response.job.credits).toBe(5);
     expect(response.job.onChainTransactionHash).toBe("0x123abc");
@@ -425,6 +446,178 @@ describe("core.client", () => {
     expect(response.job.transaction).toBeNull();
     expect(response.job.purchase).toBeNull();
     expect(response.job.share?.token).toBe("public-share-token");
+    expect(response.job.events[0]?.createdAt).toEqual(
+      new Date("2026-03-26T10:10:00.000Z"),
+    );
+  });
+
+  it("fetches shared tasks through the canonical public server transport", async () => {
+    getShareByTokenMock.mockResolvedValue({
+      data: {
+        data: {
+          kind: "task",
+          share: {
+            id: "share_1",
+            taskId: "task_1",
+            token: "public-share-token",
+            allowSearchIndexing: false,
+            createdAt: "2026-03-26T10:00:00.000Z",
+            updatedAt: "2026-03-26T10:00:00.000Z",
+          },
+          task: {
+            id: "task_1",
+            createdAt: "2026-03-26T10:00:00.000Z",
+            updatedAt: "2026-03-26T10:05:00.000Z",
+            name: "Shared Task",
+            description: null,
+            status: "READY",
+            coworker: null,
+            jobs: [
+              {
+                id: "job_1",
+                createdAt: "2026-03-26T10:10:00.000Z",
+                completedAt: null,
+                name: "Shared Job",
+                status: "completed",
+                agentName: "Research Agent",
+                shareToken: null,
+              },
+            ],
+            events: [
+              {
+                id: "event_1",
+                createdAt: "2026-03-26T10:20:00.000Z",
+                updatedAt: "2026-03-26T10:20:00.000Z",
+                origin: "SOKOSUMI",
+                status: "READY",
+                credits: null,
+              },
+            ],
+          },
+        },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response =
+      await coreClient.getSharedResourceByToken("public-share-token");
+
+    expect(getShareByTokenMock).toHaveBeenCalledWith({
+      cache: "no-store",
+      client: mockClient,
+      path: {
+        token: "public-share-token",
+      },
+    });
+    expect(response.kind).toBe("task");
+    if (response.kind !== "task") {
+      throw new Error("Expected a shared task response");
+    }
+    expect(response.share.taskId).toBe("task_1");
+    expect(response.task.name).toBe("Shared Task");
+    expect(response.share.createdAt).toEqual(
+      new Date("2026-03-26T10:00:00.000Z"),
+    );
+    expect(response.task.createdAt).toEqual(
+      new Date("2026-03-26T10:00:00.000Z"),
+    );
+    expect(response.task.jobs[0]?.createdAt).toEqual(
+      new Date("2026-03-26T10:10:00.000Z"),
+    );
+    expect(response.task.jobs[0]?.agentName).toBe("Research Agent");
+    expect(response.task.events[0]?.createdAt).toEqual(
+      new Date("2026-03-26T10:20:00.000Z"),
+    );
+  });
+
+  it("normalizes nullable task shares through the server transport", async () => {
+    getTasksByIdMock.mockImplementation(
+      async (options: {
+        responseTransformer?: (data: unknown) => Promise<unknown>;
+      }) => {
+        const rawResponse = {
+          data: {
+            id: "task_1",
+            createdAt: "2026-03-26T10:00:00.000Z",
+            updatedAt: "2026-03-26T10:05:00.000Z",
+            userId: "user_1",
+            organizationId: null,
+            coworkerId: null,
+            name: "Task",
+            description: null,
+            status: "DRAFT",
+            credits: 0,
+            events: [],
+            jobs: [],
+            share: null,
+            links: [],
+          },
+          meta: {
+            requestId: "req_123",
+            timestamp: "2026-03-26T10:00:00.000Z",
+          },
+        };
+
+        return {
+          data: options.responseTransformer
+            ? await options.responseTransformer(rawResponse)
+            : rawResponse,
+          response: new Response("{}", { status: 200 }),
+        };
+      },
+    );
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.getTaskById("task_1", ["owned"]);
+
+    expect(getTasksByIdMock).toHaveBeenCalledWith({
+      cache: "no-store",
+      client: mockClient,
+      path: { id: "task_1" },
+      query: { scope: ["owned"] },
+      responseTransformer: expect.any(Function),
+    });
+    expect(response.data.share).toBeNull();
+    expect(response.data.createdAt).toEqual(
+      new Date("2026-03-26T10:00:00.000Z"),
+    );
+    expect(response.meta?.timestamp).toEqual(
+      new Date("2026-03-26T10:00:00.000Z"),
+    );
+  });
+
+  it("updates public task shares through the server transport", async () => {
+    putTasksByIdShareMock.mockResolvedValue({
+      data: {
+        data: {
+          id: "share_1",
+          taskId: "task_1",
+          token: "public-share-token",
+          allowSearchIndexing: true,
+          createdAt: new Date("2026-03-26T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-26T10:00:00.000Z"),
+        },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.putTaskShare("task_1", {
+      allowSearchIndexing: true,
+    });
+
+    expect(putTasksByIdShareMock).toHaveBeenCalledWith({
+      body: {
+        allowSearchIndexing: true,
+      },
+      client: mockClient,
+      path: {
+        id: "task_1",
+      },
+    });
+    expect(response.taskId).toBe("task_1");
+    expect(response.token).toBe("public-share-token");
   });
 
   it("deletes public job shares through the server transport", async () => {
@@ -442,6 +635,25 @@ describe("core.client", () => {
       client: mockClient,
       path: {
         id: "job_1",
+      },
+    });
+  });
+
+  it("deletes public task shares through the server transport", async () => {
+    deleteTasksByIdShareMock.mockResolvedValue({
+      data: {
+        data: {},
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    await coreClient.deleteTaskShare("task_1");
+
+    expect(deleteTasksByIdShareMock).toHaveBeenCalledWith({
+      client: mockClient,
+      path: {
+        id: "task_1",
       },
     });
   });

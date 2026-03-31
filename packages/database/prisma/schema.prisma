@@ -673,7 +673,7 @@ model Job {
   name String?
 
   // Public Share
-  share JobShare?
+  share PublicShare?
 
   events JobEvent[]
 
@@ -893,16 +893,19 @@ enum BlobStatus {
   FAILED
 }
 
-model JobShare {
+model PublicShare {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  jobId String @unique
-  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId String? @unique
+  job   Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  taskId String? @unique
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   // Security & Access
-  token String? @unique
+  token String @unique
 
   // SEO Control
   allowSearchIndexing Boolean @default(true)
@@ -1150,6 +1153,8 @@ model Task {
 
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
+
+  share PublicShare?
 
   events TaskEvent[]
   jobs   Job[]

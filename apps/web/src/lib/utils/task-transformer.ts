@@ -2,6 +2,7 @@ import type { AgentWithCreditsPrice } from "@sokosumi/database";
 
 import type { Coworker } from "@/lib/clients/generated/core";
 import type {
+  Task,
   TaskEvent,
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
@@ -9,6 +10,15 @@ import type { TaskWithCoworker } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 import { getColumnId } from "@/lib/utils/task-column";
+
+export const DEFAULT_TASK_NAME_MAX_LENGTH = 120;
+
+export function clampTaskNameForCoreApi(
+  name: string,
+  maxLength = DEFAULT_TASK_NAME_MAX_LENGTH,
+): string {
+  return name.trim().slice(0, maxLength);
+}
 
 function getCommentsCount(events: TaskEvent[]): number {
   return events.filter((event) => Boolean(event.comment)).length;
@@ -71,7 +81,7 @@ function replaceMentionsWithAgentNames(
 }
 
 export function mapTaskToTaskWithCoworker(
-  task: TaskListItem,
+  task: TaskListItem | Task,
   coworkersById: Map<string, Coworker>,
   agentsById: Map<string, AgentWithCreditsPrice>,
 ): TaskWithCoworker {
@@ -97,6 +107,7 @@ export function mapTaskToTaskWithCoworker(
     updatedAt,
     jobsCount: task.jobs.length,
     coworker,
+    share: "share" in task ? (task.share ?? null) : null,
     agents,
     commentsCount: getCommentsCount(task.events),
     columnId: getColumnId(task.status),

@@ -13,7 +13,7 @@ const EXCLUDED_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/accept-invitation",
-  "/share/jobs",
+  "/share/",
   "/health",
   "/robots.txt",
   "/sitemap.xml",

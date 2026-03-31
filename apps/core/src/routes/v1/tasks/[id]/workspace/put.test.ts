@@ -101,6 +101,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     credits: 0,
     events: [],
     jobs: [],
+    share: null,
     links: [],
     ...overrides,
   };

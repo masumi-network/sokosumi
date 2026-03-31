@@ -13,18 +13,34 @@ interface OrganizationRemoveButtonProps {
   className?: string | undefined;
 }
 
-export default function OrganizationRemoveButton({
+interface OrganizationRemoveModalHostProps {
+  open: boolean;
+  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
+  organization: Organization;
+}
+
+function OrganizationRemoveModalHost({
+  open,
+  onOpenChange,
   organization,
-  className,
-}: OrganizationRemoveButtonProps) {
-  const t = useTranslations("App.Organizations.OrganizationDetail");
-  const { Component, showModal } = useModal(({ open, onOpenChange }) => (
+}: OrganizationRemoveModalHostProps) {
+  return (
     <OrganizationRemoveModal
       open={open}
       onOpenChange={onOpenChange}
       organization={organization}
     />
-  ));
+  );
+}
+
+export default function OrganizationRemoveButton({
+  organization,
+  className,
+}: OrganizationRemoveButtonProps) {
+  const t = useTranslations("App.Organizations.OrganizationDetail");
+  const { Component, showModal } = useModal(OrganizationRemoveModalHost, {
+    organization,
+  });
 
   return (
     <>

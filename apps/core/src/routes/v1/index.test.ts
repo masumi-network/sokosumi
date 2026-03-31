@@ -54,6 +54,6 @@ describe("v1 router", () => {
       servers: Array<{ url: string }>;
     };
     expect(body.servers).toEqual([{ url: "/v1" }]);
-    expect(body.paths?.["/share/jobs/{token}"]?.get?.security).toEqual([]);
+    expect(body.paths?.["/share/{token}"]?.get?.security).toEqual([]);
   });
 });

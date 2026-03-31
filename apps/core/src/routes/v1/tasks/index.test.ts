@@ -141,6 +141,19 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(deleteResponses).toHaveProperty("404");
   });
 
+  it("documents dedicated share mutation routes", () => {
+    const doc = tasksRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Tasks API",
+        version: "1.0.0",
+      },
+    });
+
+    expect(doc.paths?.["/{id}/share"]?.put?.responses).toHaveProperty("200");
+    expect(doc.paths?.["/{id}/share"]?.delete?.responses).toHaveProperty("200");
+  });
+
   it("keeps task patch metadata-only and exposes a dedicated workspace update route", () => {
     const doc = tasksRouter.getOpenAPI31Document({
       openapi: "3.1.0",

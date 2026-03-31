@@ -9,6 +9,7 @@ import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { ArrowLeft, Bookmark, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { AgentBookmarkButton } from "@/components/agents";
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
@@ -63,6 +64,7 @@ export interface HeaderProps {
     comment: string | null;
   } | null;
   disabled?: boolean;
+  detailActions?: ReactNode;
 }
 
 export default function Header({
@@ -72,6 +74,7 @@ export default function Header({
   canRate,
   existingRating,
   disabled,
+  detailActions,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
   const isFavorite = favoriteAgents.some(
@@ -86,6 +89,7 @@ export default function Header({
           showBackButton={true}
           showShareButton={false}
           showCloseButton={false}
+          trailingActions={detailActions}
         />
       </div>
       <div className="hidden w-full md:block">
@@ -118,8 +122,10 @@ export default function Header({
               agentId={agent.id}
               isFavorite={isFavorite}
               disabled={disabled}
+              variant="ghost"
               className="size-7"
             />
+            {detailActions}
             <CreateJobModalTrigger
               agentId={agent.id}
               disabled={disabled}
