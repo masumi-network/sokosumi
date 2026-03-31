@@ -534,6 +534,7 @@
         "confirmLabelPrefix": "Digite",
         "confirmLabelSuffix": "para confirmar a exclusão:",
         "Errors": {
+          "additionalMembers": "Remove all other members before deleting this organization.",
           "unauthorizedAction": "Entrar"
         },
         "Schema": {

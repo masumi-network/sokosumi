@@ -24,6 +24,7 @@ const callUserCreatedWebHookMock = vi.fn();
 const callUserUpdatedWebHookMock = vi.fn();
 const postmarkSendEmailMock = vi.fn();
 const prismaAdapterMock = vi.fn();
+const getMembersByOrganizationIdMock = vi.fn();
 const renderMagicLinkEmailMock = vi.fn();
 const stripeCreateUserCustomerMock = vi.fn();
 const stripePluginMock = vi.fn();
@@ -91,7 +92,17 @@ vi.mock("@better-auth/stripe", () => ({
 }));
 
 vi.mock("better-auth/api", () => {
-  class MockApiError extends Error {}
+  class MockApiError extends Error {
+    code?: string;
+    status: string;
+
+    constructor(status: string, options?: { code?: string; message?: string }) {
+      super(options?.message ?? status);
+      this.name = "APIError";
+      this.code = options?.code;
+      this.status = status;
+    }
+  }
 
   return {
     APIError: MockApiError,
@@ -131,6 +142,8 @@ vi.mock("@sokosumi/database", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
+    getMembersByOrganizationId: (...args: unknown[]) =>
+      getMembersByOrganizationIdMock(...args),
     getMemberByUserIdAndOrganizationId: vi.fn(),
   },
 }));
@@ -255,6 +268,7 @@ describe("web auth config", () => {
     stripeCreateUserCustomerMock.mockResolvedValue(undefined);
     postmarkSendEmailMock.mockResolvedValue({ MessageID: "message_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
+    getMembersByOrganizationIdMock.mockReset();
     renderMagicLinkEmailMock.mockResolvedValue({
       html: "<html>magic link</html>",
       subject: "Sokosumi - Sign in to your account",
@@ -685,6 +699,69 @@ describe("web auth config", () => {
       locale: "de",
       organizationName: "Sokosumi Org",
     });
+  });
+
+  it("blocks organization deletion when additional members remain", async () => {
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { userId: "user-1" },
+      { userId: "user-2" },
+    ]);
+
+    await import("../auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            beforeDeleteOrganization: (input: {
+              organization: { id: string };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.organizationHooks.beforeDeleteOrganization({
+        organization: { id: "org-1" },
+        user: { id: "user-1" },
+      }),
+    ).rejects.toMatchObject({
+      code: "ORGANIZATION_HAS_ADDITIONAL_MEMBERS",
+      message: "Remove all other members before deleting this organization.",
+      status: "BAD_REQUEST",
+    });
+
+    expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith("org-1", {
+      __prisma: true,
+    });
+  });
+
+  it("allows organization deletion when the current user is the only member", async () => {
+    getMembersByOrganizationIdMock.mockResolvedValue([{ userId: "user-1" }]);
+
+    await import("../auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            beforeDeleteOrganization: (input: {
+              organization: { id: string };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.organizationHooks.beforeDeleteOrganization({
+        organization: { id: "org-1" },
+        user: { id: "user-1" },
+      }),
+    ).resolves.toBeUndefined();
   });
 
   it("uses the legacy locale cookie alias for magic-link emails", async () => {
