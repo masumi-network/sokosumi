@@ -10,8 +10,12 @@ import { CommonErrorCode } from "@/lib/actions";
 import { upgradePersonalSubscription } from "@/lib/actions/subscription";
 import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
+import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
-import type { SubscriptionPlanView } from "./subscription-plan-utils";
+import {
+  type SubscriptionPlanView,
+  splitSubscriptionPlans,
+} from "./subscription-plan-utils";
 
 interface PersonalSubscriptionSectionProps {
   plans: SubscriptionPlanView[];
@@ -26,6 +30,10 @@ export function PersonalSubscriptionSection({
 }: PersonalSubscriptionSectionProps) {
   const t = useTranslations("App.Subscriptions");
   const router = useRouter();
+  const { freePlan, paidPlans } = useMemo(
+    () => splitSubscriptionPlans(plans),
+    [plans],
+  );
   const [pendingPlan, setPendingPlan] = useState<SubscriptionPlanName | null>(
     null,
   );
@@ -85,18 +93,31 @@ export function PersonalSubscriptionSection({
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {plans.map((plan) => (
-          <SubscriptionPlanCard
-            key={plan.name}
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-3">
+          {paidPlans.map((plan) => (
+            <SubscriptionPlanCard
+              key={plan.name}
+              isAnyPlanPending={pendingPlan !== null}
+              isPlanPending={pendingPlan === plan.name}
+              onUpgrade={(nextPlan) => {
+                void handleUpgradePlan(nextPlan);
+              }}
+              plan={plan}
+            />
+          ))}
+        </div>
+
+        {freePlan ? (
+          <SubscriptionFreePlanRow
             isAnyPlanPending={pendingPlan !== null}
-            isPlanPending={pendingPlan === plan.name}
+            isPlanPending={pendingPlan === freePlan.name}
             onUpgrade={(nextPlan) => {
               void handleUpgradePlan(nextPlan);
             }}
-            plan={plan}
+            plan={freePlan}
           />
-        ))}
+        ) : null}
       </div>
     </div>
   );
