@@ -10,6 +10,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
+import { requireAdminAuthContext } from "./admin-guard";
 import { normalizeCoworkerMetadata } from "./metadata";
 import { createCoworkerRequestSchema } from "./schema";
 
@@ -32,6 +33,7 @@ const route = createRoute({
       data: {
         id: "cow_123",
         archivedAt: null,
+        priority: 10,
         slug: "ops-agent",
         name: "Ops Agent",
         isWhitelisted: false,
@@ -65,8 +67,13 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
     const body = c.req.valid("json");
+    let authContext = requireUserAuthContext(c.var.authContext);
+
+    if (body.priority !== undefined) {
+      authContext = await requireAdminAuthContext(c.var.authContext);
+    }
+
     const metadata = normalizeCoworkerMetadata(body.metadata);
     const slug = slugify(body.name, {
       lower: true,
@@ -110,6 +117,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             description: body.description ?? null,
             capabilities: body.capabilities,
             image: body.image ?? null,
+            priority: body.priority ?? 0,
             metadata: metadata ?? null,
             isWhitelisted: false,
           },

@@ -11,6 +11,7 @@ describe("mapDbCoworkerToChatCoworker", () => {
         description: "Ops helper",
         archivedAt: null,
         isWhitelisted: false,
+        priority: 0,
         image: null,
         caption: null,
         company: null,

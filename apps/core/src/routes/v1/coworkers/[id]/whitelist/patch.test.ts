@@ -68,6 +68,7 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
     updatedAt: new Date("2026-02-20T10:00:00.000Z"),
     archivedAt: null,
     isWhitelisted: true,
+    priority: 0,
     slug: "ops-agent",
     name: "Ops Agent",
     caption: null,
@@ -114,8 +115,10 @@ describe("PATCH /coworkers/{id}/whitelist", () => {
         isWhitelisted: true,
       }),
     });
+    const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(body.data.priority).toBe(0);
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
@@ -150,8 +153,10 @@ describe("PATCH /coworkers/{id}/whitelist", () => {
         isWhitelisted: false,
       }),
     });
+    const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(body.data.priority).toBe(0);
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "cow_123",

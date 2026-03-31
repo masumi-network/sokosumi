@@ -1,0 +1,159 @@
+import { Organization } from "@sokosumi/database";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import OrganizationRemoveForm from "@/components/organizations/organization-remove/form";
+
+const deleteOrganizationMock = vi.fn();
+const mockRouterPush = vi.fn();
+const mockRouterRefresh = vi.fn();
+
+const translations: Record<string, string> = {
+  "Components.Organizations.RemoveModal.cancel": "Cancel",
+  "Components.Organizations.RemoveModal.confirm": "Confirm",
+  "Components.Organizations.RemoveModal.confirmLabelPrefix": "Type",
+  "Components.Organizations.RemoveModal.confirmLabelSuffix":
+    "to confirm deletion:",
+  "Components.Organizations.RemoveModal.error": "Failed to remove organization",
+  "Components.Organizations.RemoveModal.success":
+    "Organization removed successfully",
+  "Components.Organizations.RemoveModal.Errors.additionalMembers":
+    "Remove all other members before deleting this organization.",
+  "Components.Organizations.RemoveModal.Errors.unauthorizedAction": "Login",
+  "Components.Organizations.RemoveModal.Schema.ConfirmOrganization.invalid":
+    "Invalid organization name",
+  "Components.Organizations.RemoveModal.Schema.ConfirmOrganization.required":
+    "Organization name is required",
+  "Components.Organizations.RemoveModal.Schema.ConfirmOrganization.mismatch":
+    "Organization name doesn't match",
+};
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockRouterPush,
+    refresh: mockRouterRefresh,
+  }),
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations: (namespace?: string) => (key: string) =>
+    translations[namespace ? `${namespace}.${key}` : key] ??
+    (namespace ? `${namespace}.${key}` : key),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}));
+
+vi.mock("@/components/ui/alert-dialog", () => ({
+  AlertDialogCancel: ({
+    children,
+    ...props
+  }: React.ComponentProps<"button">) => (
+    <button type="button" {...props}>
+      {children}
+    </button>
+  ),
+  AlertDialogFooter: ({ children }: React.ComponentProps<"div">) => (
+    <div>{children}</div>
+  ),
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: {
+    organization: {
+      delete: (...args: unknown[]) => deleteOrganizationMock(...args),
+    },
+  },
+}));
+
+function createOrganization(overrides: Partial<Organization>): Organization {
+  return {
+    id: "org-1",
+    name: "Acme",
+    logo: null,
+    metadata: null,
+    ...overrides,
+  } as unknown as Organization;
+}
+
+describe("OrganizationRemoveForm", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shows a clear action message when deletion is blocked by additional members", async () => {
+    const user = userEvent.setup();
+    const setIsLoading = vi.fn();
+    const onOpenChange = vi.fn();
+    const { toast } = await import("sonner");
+
+    deleteOrganizationMock.mockResolvedValue({
+      data: null,
+      error: {
+        code: "ORGANIZATION_HAS_ADDITIONAL_MEMBERS",
+        message: "Backend fallback message",
+        status: 400,
+        statusText: "Bad Request",
+      },
+    });
+
+    const { container } = render(
+      <OrganizationRemoveForm
+        organization={createOrganization({})}
+        setIsLoading={setIsLoading}
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    await user.type(screen.getByRole("textbox"), "Acme");
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => {
+      expect(deleteOrganizationMock).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+    });
+
+    expect(toast.error).toHaveBeenCalledWith(
+      "Remove all other members before deleting this organization.",
+    );
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(setIsLoading).toHaveBeenNthCalledWith(1, true);
+    expect(setIsLoading).toHaveBeenLastCalledWith(false);
+  });
+
+  it("falls back to the generic delete error for unknown failures", async () => {
+    const user = userEvent.setup();
+    const { toast } = await import("sonner");
+
+    deleteOrganizationMock.mockResolvedValue({
+      data: null,
+      error: {
+        code: "UNKNOWN",
+        message: undefined,
+        status: 400,
+        statusText: "Bad Request",
+      },
+    });
+
+    const { container } = render(
+      <OrganizationRemoveForm
+        organization={createOrganization({})}
+        setIsLoading={vi.fn()}
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByRole("textbox"), "Acme");
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Failed to remove organization");
+    });
+  });
+});

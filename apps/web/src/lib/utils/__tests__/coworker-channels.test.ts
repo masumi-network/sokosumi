@@ -12,6 +12,7 @@ function baseCoworker(overrides: Partial<Coworker> = {}): Coworker {
     updatedAt: new Date(),
     archivedAt: null,
     isWhitelisted: true,
+    priority: 0,
     slug: "ops-agent",
     name: "Ops Agent",
     baseURL: null,

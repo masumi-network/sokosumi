@@ -534,6 +534,7 @@
         "confirmLabelPrefix": "次を入力",
         "confirmLabelSuffix": "して削除を確認:",
         "Errors": {
+          "additionalMembers": "この組織を削除する前に、他のメンバーをすべて削除してください。",
           "unauthorizedAction": "ログイン"
         },
         "Schema": {

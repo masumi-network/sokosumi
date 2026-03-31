@@ -2281,6 +2281,11 @@ export const CoworkerSchema = {
             type: 'boolean',
             example: true
         },
+        priority: {
+            type: 'integer',
+            example: 10,
+            description: 'Sort priority for coworker lists. Higher numbers appear first.'
+        },
         slug: {
             type: 'string',
             example: 'ops-agent'
@@ -2364,6 +2369,7 @@ export const CoworkerSchema = {
         'updatedAt',
         'archivedAt',
         'isWhitelisted',
+        'priority',
         'slug',
         'name',
         'baseURL',

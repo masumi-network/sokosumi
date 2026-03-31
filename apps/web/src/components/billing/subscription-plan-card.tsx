@@ -1,9 +1,7 @@
 "use client";
 
-import { Check, Loader2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -14,7 +12,12 @@ import {
 } from "@/components/ui/card";
 import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import { cn } from "@/lib/utils";
-
+import {
+  formatPlanPrice,
+  resolvePlanFeatureItems,
+  SubscriptionPlanActionButton,
+  SubscriptionPlanFeatureList,
+} from "./subscription-plan-presentation";
 import {
   getPlanTranslationKey,
   type SubscriptionPlanView,
@@ -45,28 +48,11 @@ export function SubscriptionPlanCard({
   const formatter = useFormatter();
   const translationKey = getPlanTranslationKey(plan.name);
   const rawItems = t.raw(`Plans.${translationKey}.features.items`);
-  const featureItems =
-    rawItems !== null &&
-    typeof rawItems === "object" &&
-    !Array.isArray(rawItems)
-      ? Object.values(rawItems).filter(
-          (item): item is string => typeof item === "string",
-        )
-      : [];
+  const featureItems = resolvePlanFeatureItems(rawItems);
   const resolvedDisabled = isDisabled ?? (isAnyPlanPending || plan.isCurrent);
   const resolvedActionLabel =
     actionLabel ?? (plan.isCurrent ? t("currentPlanCta") : t("upgradePlanCta"));
   const resolvedLoadingLabel = loadingLabel ?? t("upgrading");
-
-  function formatPrice(monthlyAmount: number, currency: string): string {
-    if (monthlyAmount === 0) {
-      return t("freePrice");
-    }
-    return formatter.number(monthlyAmount / 100, {
-      style: "currency",
-      currency: currency.toUpperCase(),
-    });
-  }
 
   return (
     <Card
@@ -90,42 +76,35 @@ export function SubscriptionPlanCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-2xl font-medium md:text-3xl">
-          {formatPrice(plan.monthlyAmount, plan.currency)}
+          {formatPlanPrice({
+            formatCurrency: (amount) =>
+              formatter.number(amount, {
+                style: "currency",
+                currency: plan.currency.toUpperCase(),
+              }),
+            freePriceLabel: t("freePrice"),
+            monthlyAmount: plan.monthlyAmount,
+          })}
         </p>
         <p className="text-muted-foreground text-sm">{t("pricePerMonth")}</p>
         <p className="text-sm">
           {creditsText ?? t("includedCredits", { credits: plan.credits })}
         </p>
-        <div className="space-y-2 pt-2">
-          <p className="text-muted-foreground text-xs font-semibold">
-            {t(`Plans.${translationKey}.features.title`)}
-          </p>
-          <ul className="space-y-2 text-sm">
-            {featureItems.map((item) => (
-              <li key={item} className="flex gap-2">
-                <Check className="text-primary mt-0.5 size-4" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <SubscriptionPlanFeatureList
+          items={featureItems}
+          title={t(`Plans.${translationKey}.features.title`)}
+        />
       </CardContent>
       <CardFooter className="mt-auto">
-        <Button
-          className="w-full"
-          variant={plan.isCurrent ? "outline" : "default"}
+        <SubscriptionPlanActionButton
+          actionLabel={resolvedActionLabel}
           disabled={resolvedDisabled}
-          onClick={() => onUpgrade(plan.name)}
-        >
-          {isPlanPending ? (
-            <>
-              <Loader2 className="mr-2 size-4 animate-spin" />
-              {resolvedLoadingLabel}
-            </>
-          ) : (
-            resolvedActionLabel
-          )}
-        </Button>
+          isCurrent={plan.isCurrent}
+          isPlanPending={isPlanPending}
+          loadingLabel={resolvedLoadingLabel}
+          onUpgrade={onUpgrade}
+          planName={plan.name}
+        />
       </CardFooter>
     </Card>
   );
