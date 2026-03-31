@@ -10,6 +10,7 @@ describe("coworkerSchema", () => {
       updatedAt: new Date("2025-01-01T00:00:00.000Z"),
       archivedAt: null,
       isWhitelisted: true,
+      priority: 10,
       slug: "ops-agent",
       name: "Ops Agent",
       url: "https://example.com",
@@ -29,6 +30,7 @@ describe("coworkerSchema", () => {
     expect(result.capabilities).toEqual(["chat", "tasks"]);
     expect(result.archivedAt).toBeNull();
     expect(result.isWhitelisted).toBe(true);
+    expect(result.priority).toBe(10);
     expect(typeof result.createdAt).toBe("string");
     expect(typeof result.updatedAt).toBe("string");
     expect(result.metadata).toBeNull();
@@ -41,6 +43,7 @@ describe("coworkerSchema", () => {
       updatedAt: new Date("2025-01-01T00:00:00.000Z"),
       archivedAt: null,
       isWhitelisted: true,
+      priority: 0,
       slug: "ops-agent",
       name: "Ops Agent",
       baseURL: null,
@@ -64,6 +67,7 @@ describe("coworkerSchema", () => {
       updatedAt: new Date("2025-01-01T00:00:00.000Z"),
       archivedAt: null,
       isWhitelisted: true,
+      priority: 0,
       slug: "ops-agent",
       name: "Ops Agent",
       baseURL: null,
@@ -94,8 +98,25 @@ describe("coworkerSchema", () => {
         updatedAt: new Date("2025-01-01T00:00:00.000Z"),
         archivedAt: null,
         isWhitelisted: true,
+        priority: 0,
         slug: "ops-agent",
         name: "Ops Agent",
+      });
+    }).toThrow();
+  });
+
+  it("fails when priority is missing", () => {
+    expect(() => {
+      coworkerSchema.parse({
+        id: "cow_123",
+        createdAt: new Date("2025-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+        archivedAt: null,
+        isWhitelisted: true,
+        slug: "ops-agent",
+        name: "Ops Agent",
+        baseURL: null,
+        capabilities: [],
       });
     }).toThrow();
   });
@@ -108,6 +129,7 @@ describe("coworkerSchema", () => {
         updatedAt: new Date("2025-01-01T00:00:00.000Z"),
         archivedAt: null,
         isWhitelisted: true,
+        priority: 0,
         slug: "ops-agent",
         name: "Ops Agent",
         baseURL: null,

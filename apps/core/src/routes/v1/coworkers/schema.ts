@@ -41,6 +41,10 @@ const coworkerEditableFieldsSchema = z.object({
     .httpUrl()
     .nullish()
     .openapi({ example: "https://example.com/logo.png" }),
+  priority: z.number().int().optional().openapi({
+    example: 10,
+    description: "Admin only. Higher numbers sort first in coworker lists.",
+  }),
   metadata: coworkerMetadataSchema.nullish(),
 });
 
@@ -64,6 +68,7 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       data.description !== undefined ||
       data.capabilities !== undefined ||
       data.image !== undefined ||
+      data.priority !== undefined ||
       data.metadata !== undefined,
     {
       message: "At least one coworker field is required",
@@ -77,6 +82,7 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
         "description",
         "capabilities",
         "image",
+        "priority",
         "metadata",
       ],
     },

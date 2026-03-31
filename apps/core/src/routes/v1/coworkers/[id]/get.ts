@@ -23,6 +23,7 @@ const route = createRoute({
       data: {
         id: "cow_123",
         archivedAt: null,
+        priority: 10,
         slug: "ops-agent",
         name: "Ops Agent",
         isWhitelisted: true,

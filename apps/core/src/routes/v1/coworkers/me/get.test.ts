@@ -48,6 +48,7 @@ describe("GET /coworkers/me", () => {
       updatedAt: new Date("2026-02-25T10:00:00.000Z"),
       archivedAt: null,
       isWhitelisted: true,
+      priority: 10,
       capabilities: ["tasks"],
       slug: "ops-agent",
       name: "Ops Agent",
@@ -59,6 +60,7 @@ describe("GET /coworkers/me", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(body.data.priority).toBe(10);
     expect(body.data.capabilities).toEqual(["tasks"]);
     expect(body.data.baseURL).toBeNull();
   });

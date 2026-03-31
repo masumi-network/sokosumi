@@ -573,6 +573,10 @@ export type Coworker = {
     updatedAt: Date;
     archivedAt: Date | null;
     isWhitelisted: boolean;
+    /**
+     * Sort priority for coworker lists. Higher numbers appear first.
+     */
+    priority: number;
     slug: string;
     name: string;
     caption?: string | null;
@@ -6333,6 +6337,10 @@ export type PostCoworkersData = {
         baseURL?: string | null;
         description?: string | null;
         image?: string | null;
+        /**
+         * Admin only. Higher numbers sort first in coworker lists.
+         */
+        priority?: number;
         metadata?: CoworkerMetadata;
         /**
          * Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.
@@ -7092,6 +7100,10 @@ export type PatchCoworkersByIdData = {
         baseURL?: string | null;
         description?: string | null;
         image?: string | null;
+        /**
+         * Admin only. Higher numbers sort first in coworker lists.
+         */
+        priority?: number;
         metadata?: CoworkerMetadata;
         /**
          * Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.

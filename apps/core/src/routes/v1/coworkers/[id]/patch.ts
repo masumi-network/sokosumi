@@ -7,7 +7,10 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
-import { requireCoworkerManagementAccess } from "../admin-guard";
+import {
+  requireAdminAuthContext,
+  requireCoworkerManagementAccess,
+} from "../admin-guard";
 import { normalizeCoworkerMetadata } from "../metadata";
 import { patchCoworkerRequestSchema } from "../schema";
 import { paramsSchema } from "./schema";
@@ -40,6 +43,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     await requireCoworkerManagementAccess(c.var.authContext, id);
     const body = c.req.valid("json");
+
+    if (body.priority !== undefined) {
+      await requireAdminAuthContext(c.var.authContext);
+    }
+
     const metadata = normalizeCoworkerMetadata(body.metadata);
 
     const coworker = await prisma.$transaction(async (tx) => {
@@ -58,6 +66,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description: body.description,
           capabilities: body.capabilities,
           image: body.image,
+          priority: body.priority,
           metadata,
         },
       });

@@ -11,6 +11,8 @@ const { coworkerFindManyMock } = vi.hoisted(() => ({
   coworkerFindManyMock: vi.fn(),
 }));
 
+const expectedOrderBy = [{ priority: "desc" }, { slug: "asc" }] as const;
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworker: {
@@ -60,9 +62,7 @@ describe("GET /coworkers", () => {
         archivedAt: null,
         isWhitelisted: true,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: expectedOrderBy,
     });
   });
 
@@ -74,6 +74,7 @@ describe("GET /coworkers", () => {
         updatedAt: new Date("2026-02-25T10:00:00.000Z"),
         archivedAt: null,
         isWhitelisted: true,
+        priority: 10,
         capabilities: ["chat", "tasks"],
         slug: "ops-agent",
         name: "Ops Agent",
@@ -87,6 +88,7 @@ describe("GET /coworkers", () => {
 
     expect(response.status).toBe(200);
     expect(body.data[0].isWhitelisted).toBe(true);
+    expect(body.data[0].priority).toBe(10);
     expect(body.data[0].capabilities).toEqual(["chat", "tasks"]);
     expect(body.data[0].baseURL).toBeNull();
     expect(body.data[0].metadata).toBeNull();
@@ -103,9 +105,7 @@ describe("GET /coworkers", () => {
       where: {
         archivedAt: null,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: expectedOrderBy,
     });
   });
 
@@ -121,9 +121,7 @@ describe("GET /coworkers", () => {
         archivedAt: null,
         isWhitelisted: true,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: expectedOrderBy,
     });
   });
 
@@ -140,9 +138,7 @@ describe("GET /coworkers", () => {
           not: null,
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: expectedOrderBy,
     });
   });
 
@@ -161,9 +157,7 @@ describe("GET /coworkers", () => {
           hasEvery: ["tasks"],
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: expectedOrderBy,
     });
   });
 
@@ -184,9 +178,7 @@ describe("GET /coworkers", () => {
           hasEvery: ["tasks", "chat"],
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: expectedOrderBy,
     });
   });
 

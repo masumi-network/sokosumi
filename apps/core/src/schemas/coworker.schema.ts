@@ -37,6 +37,11 @@ export const coworkerSchema = z
     updatedAt: dateTimeSchema,
     archivedAt: dateTimeSchema.nullable(),
     isWhitelisted: z.boolean().openapi({ example: true }),
+    priority: z.number().int().openapi({
+      example: 10,
+      description:
+        "Sort priority for coworker lists. Higher numbers appear first.",
+    }),
     slug: z.string().openapi({ example: "ops-agent" }),
     name: z.string().openapi({ example: "Ops Agent" }),
     caption: z
