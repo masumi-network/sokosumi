@@ -36,6 +36,19 @@ function mapTaskLinkRelation(
   }
 }
 
+function mapTaskLinkPeerTask(peerTask: TaskLinkRow["toTask"]) {
+  if (!peerTask) {
+    return null;
+  }
+
+  return {
+    id: peerTask.id,
+    name: peerTask.name,
+    status: peerTask.status,
+    archivedAt: peerTask.archivedAt ?? null,
+  };
+}
+
 export function assertTaskLinkAllowed(
   fromTaskId: string,
   toTaskId: string,
@@ -121,14 +134,13 @@ export function mapTaskLink(
   peerTask: TaskLinkPeerTaskRow,
 ): TaskLinkResponse {
   const outgoing = link.fromTaskId === taskId;
-
   return taskLinkSchema.parse({
     id: link.id,
     createdAt: link.createdAt,
     updatedAt: link.updatedAt,
     relation: mapTaskLinkRelation(link.type, outgoing),
     note: link.note,
-    peerTask,
+    peerTask: mapTaskLinkPeerTask(peerTask),
   });
 }
 

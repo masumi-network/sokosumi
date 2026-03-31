@@ -5,12 +5,15 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
+import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import {
   type ActiveSubscription,
   resolveCurrentPlanName,
@@ -84,6 +87,7 @@ export default async function TaskDetailPage({
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const agentNameById = buildAgentNameById(agents);
+  const coworkerOptions = getCoworkerOptions(coworkers);
   const task = mapTaskToTaskWithCoworker(taskResult, coworkersById, agentsById);
   const targetOrganizationId = taskResult.organizationId;
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
@@ -113,6 +117,7 @@ export default async function TaskDetailPage({
       },
     ]),
   );
+  const linkedTasks = mapVisibleTaskLinks(taskResult.links);
 
   return (
     <div className="min-h-full w-full">
@@ -132,6 +137,10 @@ export default async function TaskDetailPage({
         ) : null}
         <TaskDetailHeader
           task={task}
+          taskLinks={taskResult.links}
+          coworkerOptions={coworkerOptions}
+          agentNameById={agentNameById}
+          defaultCoworkerId={taskResult.coworkerId}
           currentOrganizationId={targetOrganizationId}
           organizations={members}
           personalWorkspaceLabel={personalWorkspaceMoveLabel}
@@ -169,6 +178,20 @@ export default async function TaskDetailPage({
               coworker: t("coworker"),
               created: t("created"),
               updated: t("updated"),
+            }}
+          />
+
+          <TaskRelatedTasks
+            title={t("linkedTasksTitle")}
+            emptyLabel={t("linkedTasksEmpty")}
+            tasks={linkedTasks}
+            relationLabels={{
+              related: t("actions.relations.related"),
+              blocks: t("actions.relations.blocks"),
+              blocked_by: t("actions.relations.blockedBy"),
+              parent: t("actions.relations.subtask"),
+              child: t("actions.relations.parent"),
+              duplicate: t("actions.relations.duplicate"),
             }}
           />
 

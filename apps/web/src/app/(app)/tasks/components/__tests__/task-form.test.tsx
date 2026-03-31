@@ -125,6 +125,7 @@ const coworkerOptions = [
 
 describe("TaskForm", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     markdownEditorPropsSpy.mockClear();
   });
 
@@ -267,5 +268,33 @@ describe("TaskForm", () => {
         },
       }),
     );
+  });
+
+  it("uses a custom create handler when provided", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    const onCreateTask = vi.fn().mockResolvedValue({ taskId: "linked-task-1" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onCreateTask={onCreateTask}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(onCreateTask).toHaveBeenCalledWith({
+      description: "Write docs",
+      coworkerId: "coworker-2",
+      status: TaskStatus.READY,
+    });
+    expect(createTaskMock).not.toHaveBeenCalled();
   });
 });
