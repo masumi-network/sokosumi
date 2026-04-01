@@ -1,5 +1,47 @@
 -- Ensure UUIDv7 generator is available.
-CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
+--
+-- CI uses a plain `postgres` container image which doesn't ship with `pg_uuidv7`.
+-- To keep migrations portable, we create a small UUIDv7 generator backed by
+-- `pgcrypto` (which is bundled with Postgres).
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE p.proname = 'uuid_generate_v7'
+      AND n.nspname = 'public'
+  ) THEN
+    EXECUTE $fn$
+      CREATE FUNCTION public.uuid_generate_v7()
+      RETURNS uuid
+      LANGUAGE plpgsql
+      AS $uuidv7$
+      DECLARE
+        v_time_ms bigint;
+        v_rand bytea;
+        v_bytes bytea;
+      BEGIN
+        v_time_ms := floor(extract(epoch from clock_timestamp()) * 1000);
+
+        -- 48 bits timestamp (ms) + 80 bits random
+        v_rand := gen_random_bytes(10);
+        v_bytes := substring(int8send(v_time_ms) FROM 3 FOR 6) || v_rand;
+
+        -- Set version (7) in high nibble of byte 6 (0-indexed).
+        v_bytes := set_byte(v_bytes, 6, (get_byte(v_bytes, 6) & 15) | 112);
+
+        -- Set variant (RFC 4122) in byte 8 (0-indexed).
+        v_bytes := set_byte(v_bytes, 8, (get_byte(v_bytes, 8) & 63) | 128);
+
+        RETURN encode(v_bytes, 'hex')::uuid;
+      END;
+      $uuidv7$;
+    $fn$;
+  END IF;
+END $$;
 
 -- Set UUIDv7 defaults for all primary key id columns (TEXT).
 ALTER TABLE "user" ALTER COLUMN "id" SET DEFAULT (uuid_generate_v7()::text);
