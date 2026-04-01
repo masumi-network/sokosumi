@@ -272,6 +272,7 @@
         "activity": "Activity",
         "actionUpdatedStatus": "changed status to",
         "emptyActivity": "No activities yet.",
+        "eyebrow": "Public Job",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1347,7 +1348,8 @@
         "jobsEmpty": "No jobs yet.",
         "jobsUntitled": "Untitled job",
         "jobsUnknownAgent": "Agent unavailable",
-        "activity": "Activity",
+        "activity": "Activities",
+        "emptyActivity": "No activities yet.",
         "sourcesFiles": "Files",
         "sourcesLinks": "Links",
         "commentPlaceholder": "Write a comment...",
@@ -2369,13 +2371,10 @@
         "eyebrow": "Public task",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {
