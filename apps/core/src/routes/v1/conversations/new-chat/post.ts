@@ -198,6 +198,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (internalConversationId && messages.length > 0) {
+        const conversationIdForPersistedTurn = internalConversationId;
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.role === "user" || lastMessage.role === "system") {
           const extractedText = lastUserMessageText ?? "";
@@ -206,7 +207,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           const convWithCount = await prisma.conversation.findFirst({
             where: {
-              id: internalConversationId,
+              id: conversationIdForPersistedTurn,
               userId: authContext.userId,
               archivedAt: null,
             },
@@ -220,7 +221,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           await prisma.conversationItem.create({
             data: {
-              conversationId: internalConversationId,
+              conversationId: conversationIdForPersistedTurn,
               role: lastMessage.role,
               contentType: formattedContent[0]?.type || null,
               contentText: extractedText,
@@ -232,7 +233,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               .then((generatedTitle) => {
                 if (generatedTitle) {
                   return prisma.conversation.update({
-                    where: { id: internalConversationId },
+                    where: { id: conversationIdForPersistedTurn },
                     data: { title: generatedTitle },
                   });
                 }
@@ -252,6 +253,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const responsesApiResponseIdRef: { current: string | null } = {
         current: null,
       };
+
+      let onInvalidPreviousResponseId: (() => Promise<void>) | undefined;
+      if (useCoworker && internalConversationId) {
+        const conversationIdForInvalidChain = internalConversationId;
+        onInvalidPreviousResponseId = async () => {
+          try {
+            const conv = await prisma.conversation.findFirst({
+              where: {
+                id: conversationIdForInvalidChain,
+                userId: authContext.userId,
+              },
+              select: { metadata: true },
+            });
+            const currentMeta =
+              (conv?.metadata as Record<string, unknown>) ?? {};
+            const { previous_response_id: _removed, ...metaWithoutPrevious } =
+              currentMeta as Record<string, unknown>;
+            await prisma.conversation.update({
+              where: { id: conversationIdForInvalidChain },
+              data: { metadata: metaWithoutPrevious },
+            });
+          } catch (error) {
+            console.error(
+              "Failed to clear previous_response_id from conversation after invalid chain (new-chat):",
+              error,
+            );
+          }
+        };
+      }
 
       const sokosumiProviderOptions = {
         mode: useCoworker ? ("coworker" as const) : ("openrouter" as const),
@@ -292,35 +322,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             );
           }
         },
-        onInvalidPreviousResponseId:
-          useCoworker && internalConversationId
-            ? async () => {
-                try {
-                  const conv = await prisma.conversation.findFirst({
-                    where: {
-                      id: internalConversationId,
-                      userId: authContext.userId,
-                    },
-                    select: { metadata: true },
-                  });
-                  const currentMeta =
-                    (conv?.metadata as Record<string, unknown>) ?? {};
-                  const {
-                    previous_response_id: _removed,
-                    ...metaWithoutPrevious
-                  } = currentMeta as Record<string, unknown>;
-                  await prisma.conversation.update({
-                    where: { id: internalConversationId },
-                    data: { metadata: metaWithoutPrevious },
-                  });
-                } catch (error) {
-                  console.error(
-                    "Failed to clear previous_response_id from conversation after invalid chain (new-chat):",
-                    error,
-                  );
-                }
-              }
-            : undefined,
+        onInvalidPreviousResponseId,
       };
 
       const result = streamText({
@@ -329,7 +331,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         maxRetries: 0,
         providerOptions: {
           sokosumi: sokosumiProviderOptions,
-        },
+        } as unknown as NonNullable<
+          Parameters<typeof streamText>[0]["providerOptions"]
+        >,
         onFinish: async ({ text }) => {
           if (!internalConversationId) {
             return;

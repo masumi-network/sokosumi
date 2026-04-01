@@ -3,8 +3,7 @@ import type { UIMessage } from "ai";
 import { getReasoningStepDisplayText } from "./reasoning-generic-labels";
 
 function appendVisibleTextFromPart(part: Record<string, unknown>): string {
-  const type = part.type;
-  if (type !== undefined && type !== "text" && typeof type === "string") {
+  if (part.type !== "text") {
     return "";
   }
   if ("text" in part && part.text !== null && part.text !== undefined) {
@@ -20,7 +19,7 @@ function appendVisibleTextFromPart(part: Record<string, unknown>): string {
   return "";
 }
 
-/** Visible assistant text only (excludes reasoning and tool parts). */
+/** Visible assistant text only (text parts only; excludes reasoning, tools, etc.). */
 export function extractMessageContent(message: unknown): string {
   const messageAny = message as Record<string, unknown>;
   let content = "";

@@ -28,6 +28,42 @@ describe("extractMessageContent", () => {
     };
     expect(extractMessageContent(message)).toBe("");
   });
+
+  it('does not surface text when part type is missing or not the string "text"', () => {
+    expect(
+      extractMessageContent({
+        id: "a3",
+        role: "assistant" as const,
+        parts: [{ text: "leak" }],
+      }),
+    ).toBe("");
+
+    expect(
+      extractMessageContent({
+        id: "a4",
+        role: "assistant" as const,
+        parts: [{ type: 1, text: "leak" }],
+      } as unknown),
+    ).toBe("");
+  });
+
+  it('whitelists only type "text" in content array object parts', () => {
+    expect(
+      extractMessageContent({
+        id: "a5",
+        role: "assistant" as const,
+        content: [{ type: "reasoning" as const, text: "hidden" }],
+      }),
+    ).toBe("");
+
+    expect(
+      extractMessageContent({
+        id: "a6",
+        role: "assistant" as const,
+        content: [{ type: "text" as const, text: "visible" }],
+      }),
+    ).toBe("visible");
+  });
 });
 
 describe("extractReasoningStepMessages", () => {
