@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
+import {
+  CHAT_APP_ROUTE_PREFIX,
+  type ChatAppRoutePrefix,
+  getPendingConversationStorageKey,
+} from "@/app/chat/utils/chat-route-base";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import type { Conversation } from "@/lib/actions/conversation";
@@ -33,6 +38,8 @@ interface UseChatCreationProps {
     conversation: Conversation,
     slug: string,
   ) => void | Promise<void>;
+  /** Shell base path for `router.push` (default `/chat`). */
+  basePath?: ChatAppRoutePrefix;
 }
 
 /**
@@ -55,9 +62,9 @@ export function useChatCreation({
   chats,
   conversations,
   navigateToConversation,
+  basePath = CHAT_APP_ROUTE_PREFIX,
 }: UseChatCreationProps) {
   const router = useRouter();
-  const basePath = "/chat";
   const { setShowSecondarySidebar } = useChatSecondarySidebar();
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
   const [showMessagesAfterTransition, setShowMessagesAfterTransition] =
@@ -109,7 +116,10 @@ export function useChatCreation({
       pendingUrlConversationIdRef.current = conversation.id;
       isUpdatingUrlRef.current = true;
       try {
-        sessionStorage.setItem("chat-pending-conversation-id", conversation.id);
+        sessionStorage.setItem(
+          getPendingConversationStorageKey(basePath),
+          conversation.id,
+        );
       } catch {
         // ignore
       }
@@ -198,7 +208,10 @@ export function useChatCreation({
       pendingUrlConversationIdRef.current = conversation.id;
       isUpdatingUrlRef.current = true;
       try {
-        sessionStorage.setItem("chat-pending-conversation-id", conversation.id);
+        sessionStorage.setItem(
+          getPendingConversationStorageKey(basePath),
+          conversation.id,
+        );
       } catch {
         // ignore
       }

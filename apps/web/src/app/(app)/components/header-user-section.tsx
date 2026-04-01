@@ -14,7 +14,9 @@ export default function HeaderUserSection({
   const pathname = usePathname();
   const { open, openMobile } = useAppChatRail();
   const isChatOpen = open || openMobile;
-  const isOnChatPage = pathname?.startsWith("/chat") ?? false;
+  const isOnChatPage =
+    (pathname?.startsWith("/chat") ?? false) ||
+    (pathname?.startsWith("/new-chat") ?? false);
 
   if (isChatOpen || isOnChatPage) return null;
   return <>{children}</>;

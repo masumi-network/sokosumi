@@ -99,7 +99,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       reasoningMessages = [],
       reasoningStartedAt,
       reasoningEndedAt,
-      isCoworker = false,
+      isCoworker: _isCoworker = false,
       onResendLastMessage,
     },
     ref,
@@ -161,12 +161,10 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         lastAssistantHasNoContent);
     const showReasoningLoaders =
       showLoadingArea &&
-      isCoworker &&
       reasoningMessages.length > 0 &&
       !isRecoveringPolling &&
       !isRecovering;
     const hasStreamingWithReasoning =
-      isCoworker &&
       reasoningMessages.length > 0 &&
       lastMessage?.role === "assistant" &&
       lastMessageContent.trim().length > 0;

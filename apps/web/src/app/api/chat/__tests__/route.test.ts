@@ -21,6 +21,8 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getCoreApiBaseUrl: () => "https://core.example.com/v1",
 }));
 
+import { POST as POST_NEW_CHAT } from "../../new-chat/route";
+import { POST as POST_ALIAS } from "../ai-sdk/route";
 import { POST } from "../route";
 
 function createReadonlyHeaders(init?: HeadersInit): Headers {
@@ -100,5 +102,82 @@ describe("chat route", () => {
     expect(forwardedHeaders.get("x-organization-slug")).toBe("my-org");
     expect(forwardedHeaders.get("content-type")).toBe("application/json");
     expect(forwardedHeaders.has("content-length")).toBe(false);
+  });
+
+  it("POST /api/new-chat forwards to Core new-chat stream", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: null },
+      user: { id: "user-1", email: "member@nmkr.io" },
+    });
+    headersMock.mockResolvedValue(
+      createReadonlyHeaders({
+        cookie: "session=abc",
+      }),
+    );
+    fetchMock.mockResolvedValue(
+      new Response(null, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }),
+    );
+
+    const body = { messages: [] };
+    const response = await POST_NEW_CHAT(
+      new Request("https://app.sokosumi.com/api/new-chat", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }) as never,
+    );
+
+    expect(response.status).toBe(200);
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://core.example.com/v1/conversations/new-chat");
+  });
+
+  it("POST /api/new-chat returns 403 when email is not @nmkr.io", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: null },
+      user: { id: "user-1", email: "someone@example.com" },
+    });
+
+    const response = await POST_NEW_CHAT(
+      new Request("https://app.sokosumi.com/api/new-chat", {
+        method: "POST",
+        body: JSON.stringify({ messages: [] }),
+      }) as never,
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("POST /api/chat/ai-sdk aliases Core new-chat stream", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: null },
+      user: { id: "user-1", email: "member@nmkr.io" },
+    });
+    headersMock.mockResolvedValue(
+      createReadonlyHeaders({
+        cookie: "session=abc",
+      }),
+    );
+    fetchMock.mockResolvedValue(
+      new Response(null, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }),
+    );
+
+    const body = { messages: [] };
+    const response = await POST_ALIAS(
+      new Request("https://app.sokosumi.com/api/chat/ai-sdk", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }) as never,
+    );
+
+    expect(response.status).toBe(200);
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://core.example.com/v1/conversations/new-chat");
   });
 });

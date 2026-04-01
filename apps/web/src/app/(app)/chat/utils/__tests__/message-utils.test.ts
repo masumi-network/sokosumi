@@ -1,6 +1,67 @@
 import { describe, expect, it } from "vitest";
 
-import { deduplicateMessagesById } from "../message-utils";
+import {
+  deduplicateMessagesById,
+  extractMessageContent,
+  extractReasoningStepMessages,
+} from "../message-utils";
+
+describe("extractMessageContent", () => {
+  it("keeps only text parts, not reasoning", () => {
+    const message = {
+      id: "a1",
+      role: "assistant" as const,
+      parts: [
+        { type: "reasoning" as const, text: "Processing..." },
+        { type: "reasoning" as const, text: "Thinking..." },
+        { type: "text" as const, text: "Hello world" },
+      ],
+    };
+    expect(extractMessageContent(message)).toBe("Hello world");
+  });
+
+  it("returns empty when the assistant message has only reasoning parts", () => {
+    const message = {
+      id: "a2",
+      role: "assistant" as const,
+      parts: [{ type: "reasoning" as const, text: "Processing..." }],
+    };
+    expect(extractMessageContent(message)).toBe("");
+  });
+});
+
+describe("extractReasoningStepMessages", () => {
+  it("lists reasoning parts in order with stable ids", () => {
+    const message = {
+      id: "mid",
+      role: "assistant" as const,
+      parts: [
+        { type: "reasoning" as const, text: "Processing..." },
+        { type: "text" as const, text: "Hi" },
+        { type: "reasoning" as const, text: "More thought" },
+      ],
+    };
+    expect(extractReasoningStepMessages(message)).toEqual([
+      { id: "mid-reasoning-0", message: "More thought" },
+    ]);
+  });
+
+  it("strips Thinking... prefix concatenated with real summary", () => {
+    const message = {
+      id: "m2",
+      role: "assistant" as const,
+      parts: [
+        {
+          type: "reasoning" as const,
+          text: "Thinking...I will check the facts first.",
+        },
+      ],
+    };
+    expect(extractReasoningStepMessages(message)).toEqual([
+      { id: "m2-reasoning-0", message: "I will check the facts first." },
+    ]);
+  });
+});
 
 describe("deduplicateMessagesById", () => {
   it("keeps every message when ids are missing (no empty-key collapse)", () => {

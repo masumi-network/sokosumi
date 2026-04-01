@@ -3695,6 +3695,274 @@ export type PostConversationsByIdRecoverResponseResponses = {
 
 export type PostConversationsByIdRecoverResponseResponse = PostConversationsByIdRecoverResponseResponses[keyof PostConversationsByIdRecoverResponseResponses];
 
+export type PostConversationsChatData = {
+    body?: {
+        messages: Array<{
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: string;
+                text?: string;
+            }>;
+            content?: string | Array<{
+                type: string;
+                text?: string;
+            }>;
+            id?: string;
+        }>;
+        conversationId?: string;
+        previousResponseId?: string;
+        model?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/conversations/chat';
+};
+
+export type PostConversationsChatErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostConversationsChatError = PostConversationsChatErrors[keyof PostConversationsChatErrors];
+
+export type PostConversationsChatResponses = {
+    /**
+     * Streaming chat response
+     */
+    200: string;
+};
+
+export type PostConversationsChatResponse = PostConversationsChatResponses[keyof PostConversationsChatResponses];
+
+export type PostConversationsNewChatData = {
+    body?: {
+        messages: Array<{
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: string;
+                text?: string;
+            }>;
+            content?: string | Array<{
+                type: string;
+                text?: string;
+            }>;
+            id?: string;
+        }>;
+        conversationId?: string;
+        previousResponseId?: string;
+        model?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/conversations/new-chat';
+};
+
+export type PostConversationsNewChatErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostConversationsNewChatError = PostConversationsNewChatErrors[keyof PostConversationsNewChatErrors];
+
+export type PostConversationsNewChatResponses = {
+    /**
+     * Streaming UI message response (AI SDK)
+     */
+    200: string;
+};
+
+export type PostConversationsNewChatResponse = PostConversationsNewChatResponses[keyof PostConversationsNewChatResponses];
+
 export type GetCreditCostsData = {
     body?: never;
     path?: never;

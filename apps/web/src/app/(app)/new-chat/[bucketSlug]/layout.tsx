@@ -9,9 +9,9 @@ import {
   resolveBucketKeyFromDisplaySlug,
 } from "@/app/chat/utils/bucket-slug";
 import {
-  CHAT_APP_ROUTE_PREFIX,
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
+  NEW_CHAT_APP_ROUTE_PREFIX,
 } from "@/app/chat/utils/chat-route-base";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
@@ -28,7 +28,7 @@ function getGroupKey(metadata: ConversationMetadata | null): string {
   return getBucketKeyFromMetadata(metadata as Record<string, unknown> | null);
 }
 
-export default function ChatBucketLayout({
+export default function NewChatBucketLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -63,7 +63,7 @@ export default function ChatBucketLayout({
   }, [bucket, conversations]);
 
   const pathname = usePathname();
-  const routePrefix = CHAT_APP_ROUTE_PREFIX;
+  const routePrefix = NEW_CHAT_APP_ROUTE_PREFIX;
   const pendingKey = getPendingConversationStorageKey(routePrefix);
   const isJustCreatedConversation =
     typeof window !== "undefined" &&

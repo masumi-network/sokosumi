@@ -9,32 +9,20 @@ import {
   getBucketKeyFromMetadata,
   resolveBucketKeyFromDisplaySlug,
 } from "@/app/chat/utils/bucket-slug";
+import {
+  CHAT_APP_ROUTE_PREFIX,
+  type ChatAppRoutePrefix,
+  getBucketSlugFromChatPathname,
+  getConversationIdFromChatPathname,
+  getPendingConversationStorageKey,
+} from "@/app/chat/utils/chat-route-base";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 
-const PENDING_CONVERSATION_KEY = "chat-pending-conversation-id";
-
-const CHAT_ROUTE_BASE = "chat";
-
-function getBucketSlugFromPathname(pathname: string): string | null {
-  const segments = pathname.split("/").filter(Boolean);
-  if (segments[0] !== CHAT_ROUTE_BASE || segments.length < 2) return null;
-  return segments[1] ?? null;
-}
-
-function getConversationIdFromPathname(pathname: string): string | null {
-  const segments = pathname.split("/").filter(Boolean);
-  if (
-    segments[0] !== CHAT_ROUTE_BASE ||
-    segments[2] !== "conversation" ||
-    !segments[3]
-  )
-    return null;
-  return segments[3] ?? null;
-}
-
 interface ChatLayoutClientProps {
+  /** URL prefix for this full-page shell (`/chat` or `/new-chat`). */
+  chatShellPrefix?: ChatAppRoutePrefix;
   mobileKeyboardOptimized?: boolean;
   organizationSlug: string | null;
   userImageUrl: string;
@@ -42,6 +30,7 @@ interface ChatLayoutClientProps {
 }
 
 export function ChatLayoutClient({
+  chatShellPrefix = CHAT_APP_ROUTE_PREFIX,
   mobileKeyboardOptimized = false,
   organizationSlug,
   userImageUrl,
@@ -55,13 +44,15 @@ export function ChatLayoutClient({
 
   const openedFromList = searchParams?.get("open") === "1";
 
+  const routePrefix = chatShellPrefix;
+  const pendingConversationKey = getPendingConversationStorageKey(routePrefix);
   const bucketSlug = useMemo(
-    () => getBucketSlugFromPathname(pathname ?? ""),
-    [pathname],
+    () => getBucketSlugFromChatPathname(pathname ?? "", routePrefix),
+    [pathname, routePrefix],
   );
   const conversationIdFromPath = useMemo(
-    () => getConversationIdFromPathname(pathname ?? ""),
-    [pathname],
+    () => getConversationIdFromChatPathname(pathname ?? "", routePrefix),
+    [pathname, routePrefix],
   );
 
   const isJustCreatedConversation =
@@ -70,7 +61,7 @@ export function ChatLayoutClient({
       if (!conversationIdFromPath) return false;
       try {
         return (
-          sessionStorage.getItem(PENDING_CONVERSATION_KEY) ===
+          sessionStorage.getItem(pendingConversationKey) ===
           conversationIdFromPath
         );
       } catch {
@@ -137,6 +128,7 @@ export function ChatLayoutClient({
           {mobileListOnly ? (
             <div className="bg-background fixed inset-0 z-20 flex h-dvh w-full flex-col overflow-hidden lg:hidden">
               <ChatConversationsSidebar
+                chatRoutePrefix={routePrefix}
                 bucketSlug={bucketSlug}
                 bucket={bucket ?? ""}
                 displayName={bucketData?.displayName ?? bucketSlug ?? "Chat"}
@@ -146,6 +138,7 @@ export function ChatLayoutClient({
           ) : null}
           <div className="lg:border-border hidden lg:flex lg:max-h-full lg:min-h-0 lg:w-72 lg:shrink-0 lg:flex-col lg:overflow-hidden lg:rounded-none lg:border-t-0 lg:border-r lg:border-b-0 lg:border-l-0">
             <ChatConversationsSidebar
+              chatRoutePrefix={routePrefix}
               bucketSlug={bucketSlug}
               bucket={bucket ?? ""}
               displayName={bucketData?.displayName ?? bucketSlug ?? "Chat"}
@@ -175,6 +168,7 @@ export function ChatLayoutClient({
           }
         >
           <ChatInterface
+            chatRoutePrefix={routePrefix}
             mobileKeyboardOptimized={mobileKeyboardOptimized}
             organizationSlug={organizationSlug}
             userImageUrl={userImageUrl}
