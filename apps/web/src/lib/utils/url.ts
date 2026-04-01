@@ -9,6 +9,14 @@ export function getHostname(rawUrl: string): string | null {
   }
 }
 
+export function getFileNameFromUrl(url: string): string | null {
+  try {
+    return new URL(url).pathname.split("/").pop() ?? null;
+  } catch {
+    return url.split("/").pop() ?? null;
+  }
+}
+
 export function buildFaviconCandidates(rawUrl: string): string[] {
   try {
     const u = new URL(rawUrl);

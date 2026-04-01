@@ -70,11 +70,11 @@ export const publicSharedTaskMilestoneSchema = z
       .openapi({ example: TaskStatus.RUNNING }),
     comment: z
       .string()
-      .nullish()
+      .nullable()
       .openapi({ example: "Please review the draft" }),
-    credits: z.number().nullish().openapi({ example: 1.5 }),
-    actorName: z.string().nullish().openapi({ example: "Ada Lovelace" }),
-    actorImage: z.string().nullish().openapi({
+    credits: z.number().nullable().openapi({ example: 1.5 }),
+    actorName: z.string().nullable().openapi({ example: "Ada Lovelace" }),
+    actorImage: z.string().nullable().openapi({
       example: "https://example.com/avatar.png",
     }),
   })

@@ -30,6 +30,7 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 import { getInitials } from "@/lib/utils/text";
+import { getFileNameFromUrl } from "@/lib/utils/url";
 
 interface SharedTaskViewProps {
   task: PublicSharedTask;
@@ -40,13 +41,6 @@ function formatDate(date: Date, locale: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
-}
-function getFileNameFromUrl(url: string): string | null {
-  try {
-    return new URL(url).pathname.split("/").pop() ?? null;
-  } catch {
-    return url.split("/").pop() ?? null;
-  }
 }
 
 function getLinkedJobStatus(status: string): SokosumiJobStatus {
