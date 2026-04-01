@@ -66,7 +66,7 @@ export const publicSharedTaskMilestoneSchema = z
       .openapi({ example: TaskEventOrigin.SOKOSUMI }),
     status: z
       .enum(TaskStatus)
-      .nullish()
+      .nullable()
       .openapi({ example: TaskStatus.RUNNING }),
     comment: z
       .string()

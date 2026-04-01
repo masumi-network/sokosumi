@@ -2232,7 +2232,8 @@ export const PublicSharedTaskMilestoneSchema = {
         'id',
         'createdAt',
         'updatedAt',
-        'origin'
+        'origin',
+        'status'
     ]
 } as const;
 
