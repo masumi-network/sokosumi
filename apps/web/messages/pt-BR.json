@@ -272,6 +272,7 @@
         "activity": "Atividade",
         "actionUpdatedStatus": "mudou o status para",
         "emptyActivity": "Ainda não há atividades.",
+        "eyebrow": "Job público",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1341,11 +1342,14 @@
         "created": "Criado",
         "updated": "Atualizado",
         "description": "Descrição",
+        "linkedTasksTitle": "Tarefas vinculadas",
+        "linkedTasksEmpty": "Ainda não há tarefas vinculadas.",
         "jobs": "Jobs",
         "jobsEmpty": "Ainda não há jobs.",
         "jobsUntitled": "Job sem título",
         "jobsUnknownAgent": "Agente indisponível",
-        "activity": "Atividade",
+        "activity": "Atividades",
+        "emptyActivity": "Ainda não há atividades.",
         "sourcesFiles": "Arquivos",
         "sourcesLinks": "Links",
         "commentPlaceholder": "Escreva um comentário...",
@@ -1408,6 +1412,35 @@
           "moveToWorkspaceCancel": "Cancelar",
           "moveToWorkspaceSuccess": "Tarefa movida com sucesso",
           "moveToWorkspaceError": "Não foi possível mover a tarefa",
+          "markAs": "Marcar como",
+          "createRelated": "Criar tarefa relacionada",
+          "removeRelated": "Remover tarefa relacionada",
+          "removeRelatedSuccess": "Tarefa relacionada removida",
+          "removeRelatedError": "Não foi possível remover a tarefa relacionada",
+          "removeParent": "Remover tarefa principal",
+          "removeParentSuccess": "Tarefa principal removida",
+          "removeParentError": "Não foi possível remover a tarefa principal",
+          "linkTaskSuccess": "Tarefa vinculada",
+          "linkTaskError": "Não foi possível vincular a tarefa",
+          "createRelatedSuccess": "Tarefa relacionada criada",
+          "taskPickerTitle": "Marcar como {relation}",
+          "taskPickerDescription": "Escolha uma tarefa para vincular à tarefa atual.",
+          "taskPickerSearchPlaceholder": "Buscar tarefas...",
+          "taskPickerLoading": "Carregando tarefas...",
+          "taskPickerEmpty": "Nenhuma tarefa encontrada.",
+          "taskPickerError": "Não foi possível carregar as tarefas.",
+          "taskPickerLoadMore": "Carregar mais tarefas",
+          "taskPickerLoadMoreError": "Não foi possível carregar mais tarefas.",
+          "createRelatedDialogTitle": "Criar tarefa {relation}",
+          "relations": {
+            "related": "relacionada",
+            "blocks": "bloqueia",
+            "blockedBy": "bloqueada por",
+            "parent": "tarefa principal",
+            "subtask": "subtarefa",
+            "duplicate": "duplicada",
+            "addSubtask": "subtarefa"
+          },
           "personalWorkspace": "Pessoal"
         },
         "ShareModal": {
@@ -2335,16 +2368,13 @@
         "description": "Contrate um agente para concluir as tasks que mais consomem tempo"
       },
       "Page": {
-        "eyebrow": "Public task",
+        "eyebrow": "Tarefa pública",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {

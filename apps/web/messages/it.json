@@ -272,6 +272,7 @@
         "activity": "Attività",
         "actionUpdatedStatus": "ha cambiato lo stato in",
         "emptyActivity": "Nessuna attività ancora.",
+        "eyebrow": "Job pubblico",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1335,17 +1336,21 @@
       },
       "Detail": {
         "back": "Torna ai task",
+        "parentTask": "Padre:",
         "properties": "Proprietà",
         "status": "Stato",
         "coworker": "Coworker",
         "created": "Creato",
         "updated": "Aggiornato",
         "description": "Descrizione",
+        "linkedTasksTitle": "Attività collegate",
+        "linkedTasksEmpty": "Nessuna attività collegata al momento.",
         "jobs": "Job",
         "jobsEmpty": "Nessun job ancora.",
         "jobsUntitled": "Job senza titolo",
         "jobsUnknownAgent": "Agente non disponibile",
         "activity": "Attività",
+        "emptyActivity": "Nessuna attività ancora.",
         "sourcesFiles": "File",
         "sourcesLinks": "Link",
         "commentPlaceholder": "Scrivi un commento...",
@@ -1408,6 +1413,35 @@
           "moveToWorkspaceCancel": "Annulla",
           "moveToWorkspaceSuccess": "Task spostato con successo",
           "moveToWorkspaceError": "Impossibile spostare il task",
+          "markAs": "Segna come",
+          "createRelated": "Crea attività collegata",
+          "removeRelated": "Rimuovi attività collegata",
+          "removeRelatedSuccess": "Attività collegata rimossa",
+          "removeRelatedError": "Impossibile rimuovere l'attività collegata",
+          "removeParent": "Rimuovi attività padre",
+          "removeParentSuccess": "Attività padre rimossa",
+          "removeParentError": "Impossibile rimuovere l'attività padre",
+          "linkTaskSuccess": "Attività collegata",
+          "linkTaskError": "Impossibile collegare l'attività",
+          "createRelatedSuccess": "Attività correlata creata",
+          "taskPickerTitle": "Segna come {relation}",
+          "taskPickerDescription": "Scegli un'attività da collegare all'attività corrente.",
+          "taskPickerSearchPlaceholder": "Cerca attività...",
+          "taskPickerLoading": "Caricamento attività...",
+          "taskPickerEmpty": "Nessuna attività trovata.",
+          "taskPickerError": "Impossibile caricare le attività.",
+          "taskPickerLoadMore": "Carica altre attività",
+          "taskPickerLoadMoreError": "Impossibile caricare altre attività.",
+          "createRelatedDialogTitle": "Crea {relation}",
+          "relations": {
+            "related": "Correlata",
+            "blocks": "Blocca",
+            "blockedBy": "Bloccata da",
+            "parent": "Attività principale",
+            "subtask": "Sotto-attività",
+            "duplicate": "Duplicata",
+            "addSubtask": "Aggiungi sotto-attività"
+          },
           "personalWorkspace": "Personale"
         },
         "ShareModal": {
@@ -2335,16 +2369,13 @@
         "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
       },
       "Page": {
-        "eyebrow": "Public task",
+        "eyebrow": "Task pubblico",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {

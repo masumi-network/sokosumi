@@ -77,6 +77,11 @@ interface TaskFormProps {
   variant?: "page" | "modal";
   onCancel?: () => void;
   onSuccess?: (taskId: string) => void;
+  onCreateTask?: (input: {
+    description: string;
+    coworkerId: string | null;
+    status: Extract<TaskStatus, "DRAFT" | "READY">;
+  }) => Promise<{ taskId: string }>;
   showCancel?: boolean;
   onSubmittingChange?: (isSubmitting: boolean) => void;
 }
@@ -91,6 +96,7 @@ export function TaskForm({
   variant = "page",
   onCancel,
   onSuccess,
+  onCreateTask,
   showCancel = true,
   onSubmittingChange,
 }: TaskFormProps) {
@@ -161,7 +167,8 @@ export function TaskForm({
         const trimmedDescription = description.trim();
         const desiredStatus = overrideStatus ?? status;
         if (mode === "create" && ["DRAFT", "READY"].includes(desiredStatus)) {
-          const result = await createTask({
+          const createTaskHandler = onCreateTask ?? createTask;
+          const result = await createTaskHandler({
             description: trimmedDescription,
             coworkerId,
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
@@ -211,6 +218,7 @@ export function TaskForm({
       status,
       taskId,
       onSuccess,
+      onCreateTask,
     ],
   );
 

@@ -10,6 +10,7 @@ export const taskLinkPeerTaskSelect = {
   id: true,
   name: true,
   status: true,
+  archivedAt: true,
 } as const;
 
 const taskLinkPeerTaskInclude = {

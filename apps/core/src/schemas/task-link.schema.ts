@@ -7,6 +7,7 @@ const taskLinkPeerTaskExample = {
   id: "tsk_b",
   name: "Review onboarding copy",
   status: TaskStatus.READY,
+  archivedAt: null,
 } as const;
 
 const taskLinkResponseExample = {
@@ -34,6 +35,7 @@ export const taskLinkPeerTaskSchema = z
     id: z.string().openapi({ example: "tsk_b" }),
     name: z.string().openapi({ example: "Review onboarding copy" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+    archivedAt: dateTimeSchema.nullable().openapi({ example: null }),
   })
   .openapi("TaskLinkPeerTask");
 

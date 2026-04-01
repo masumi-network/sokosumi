@@ -272,6 +272,7 @@
         "activity": "アクティビティ",
         "actionUpdatedStatus": "ステータスを次に変更しました",
         "emptyActivity": "アクティビティはまだありません。",
+        "eyebrow": "公開ジョブ",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1335,17 +1336,21 @@
       },
       "Detail": {
         "back": "タスクに戻る",
+        "parentTask": "親:",
         "properties": "プロパティ",
         "status": "ステータス",
         "coworker": "同僚",
         "created": "作成日",
         "updated": "更新日",
         "description": "説明",
+        "linkedTasksTitle": "リンク済みタスク",
+        "linkedTasksEmpty": "リンクされたタスクはまだありません。",
         "jobs": "ジョブ",
         "jobsEmpty": "ジョブはまだありません。",
         "jobsUntitled": "無題のジョブ",
         "jobsUnknownAgent": "エージェントは利用できません",
         "activity": "アクティビティ",
+        "emptyActivity": "アクティビティはまだありません。",
         "sourcesFiles": "ファイル",
         "sourcesLinks": "リンク",
         "commentPlaceholder": "コメントを書く...",
@@ -1408,6 +1413,35 @@
           "moveToWorkspaceCancel": "キャンセル",
           "moveToWorkspaceSuccess": "タスクを移動しました",
           "moveToWorkspaceError": "タスクを移動できませんでした",
+          "markAs": "次としてマーク",
+          "createRelated": "関連タスクを作成",
+          "removeRelated": "関連タスクを解除",
+          "removeRelatedSuccess": "関連タスクを解除しました",
+          "removeRelatedError": "関連タスクを解除できませんでした",
+          "removeParent": "親タスクを削除",
+          "removeParentSuccess": "親タスクを削除しました",
+          "removeParentError": "親タスクを削除できませんでした",
+          "linkTaskSuccess": "タスクをリンクしました",
+          "linkTaskError": "タスクをリンクできませんでした",
+          "createRelatedSuccess": "関連タスクを作成しました",
+          "taskPickerTitle": "{relation}としてマーク",
+          "taskPickerDescription": "現在のタスクにリンクするタスクを選択してください。",
+          "taskPickerSearchPlaceholder": "タスクを検索...",
+          "taskPickerLoading": "タスクを読み込み中...",
+          "taskPickerEmpty": "タスクが見つかりません。",
+          "taskPickerError": "タスクを読み込めませんでした。",
+          "taskPickerLoadMore": "さらにタスクを読み込む",
+          "taskPickerLoadMoreError": "追加のタスクを読み込めませんでした。",
+          "createRelatedDialogTitle": "{relation}を作成",
+          "relations": {
+            "related": "関連",
+            "blocks": "ブロック",
+            "blockedBy": "ブロックされています",
+            "parent": "親タスク",
+            "subtask": "サブタスク",
+            "duplicate": "重複",
+            "addSubtask": "サブタスクを追加"
+          },
           "personalWorkspace": "個人"
         },
         "ShareModal": {
@@ -2335,16 +2369,13 @@
         "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
       },
       "Page": {
-        "eyebrow": "Public task",
+        "eyebrow": "公開タスク",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {

@@ -272,6 +272,7 @@
         "activity": "Activité",
         "actionUpdatedStatus": "a changé le statut en",
         "emptyActivity": "Aucune activité pour le moment.",
+        "eyebrow": "Job public",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1341,11 +1342,14 @@
         "created": "Créé",
         "updated": "Mis à jour",
         "description": "Description",
+        "linkedTasksTitle": "Tâches liées",
+        "linkedTasksEmpty": "Aucune tâche liée pour le moment.",
         "jobs": "Jobs",
         "jobsEmpty": "Aucun job pour le moment.",
         "jobsUntitled": "Job sans titre",
         "jobsUnknownAgent": "Agent indisponible",
-        "activity": "Activité",
+        "activity": "Activités",
+        "emptyActivity": "Aucune activité pour le moment.",
         "sourcesFiles": "Fichiers",
         "sourcesLinks": "Liens",
         "commentPlaceholder": "Écrire un commentaire...",
@@ -1408,6 +1412,35 @@
           "moveToWorkspaceCancel": "Annuler",
           "moveToWorkspaceSuccess": "Tâche déplacée avec succès",
           "moveToWorkspaceError": "Échec du déplacement de la tâche",
+          "markAs": "Marquer comme",
+          "createRelated": "Créer une tâche liée",
+          "removeRelated": "Retirer la tâche liée",
+          "removeRelatedSuccess": "Tâche liée retirée",
+          "removeRelatedError": "Impossible de retirer la tâche liée",
+          "removeParent": "Retirer la tâche parente",
+          "removeParentSuccess": "Tâche parente retirée",
+          "removeParentError": "Impossible de retirer la tâche parente",
+          "linkTaskSuccess": "Tâche liée",
+          "linkTaskError": "Impossible de lier la tâche",
+          "createRelatedSuccess": "Tâche liée créée",
+          "taskPickerTitle": "Marquer comme {relation}",
+          "taskPickerDescription": "Choisissez une tâche à lier à la tâche actuelle.",
+          "taskPickerSearchPlaceholder": "Rechercher des tâches...",
+          "taskPickerLoading": "Chargement des tâches...",
+          "taskPickerEmpty": "Aucune tâche trouvée.",
+          "taskPickerError": "Impossible de charger les tâches.",
+          "taskPickerLoadMore": "Charger plus de tâches",
+          "taskPickerLoadMoreError": "Impossible de charger plus de tâches.",
+          "createRelatedDialogTitle": "Créer une tâche {relation}",
+          "relations": {
+            "related": "liée",
+            "blocks": "bloquante",
+            "blockedBy": "bloquée par",
+            "parent": "tâche parente",
+            "subtask": "sous-tâche",
+            "duplicate": "dupliquée",
+            "addSubtask": "sous-tâche"
+          },
           "personalWorkspace": "Personnel"
         },
         "ShareModal": {
@@ -2335,16 +2368,13 @@
         "description": "Engagez un agent pour terminer vos tâches les plus chronophages"
       },
       "Page": {
-        "eyebrow": "Public task",
+        "eyebrow": "Tâche publique",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {

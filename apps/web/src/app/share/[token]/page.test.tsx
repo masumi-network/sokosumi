@@ -11,6 +11,13 @@ vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
 }));
 
+vi.mock("next-intl", () => ({
+  useFormatter: () => ({
+    dateTime: (value: Date | number) =>
+      value instanceof Date ? value.toISOString() : String(value),
+  }),
+}));
+
 vi.mock("next-intl/server", () => ({
   getLocale: vi.fn(async () => "en"),
   getTranslations: vi.fn(async (namespace: string) => {
@@ -28,7 +35,17 @@ vi.mock("next-intl/server", () => ({
       }
 
       if (namespace === "App.Tasks.Detail") {
+        if (key === "originFromApp") {
+          return `from ${values?.appName ?? ""}`;
+        }
+
+        if (key === "actionChargedCredits") {
+          return `charged ${values?.credits ?? 0} credits`;
+        }
+
         const detailLabels: Record<string, string> = {
+          activity: "Activities",
+          emptyActivity: "No activities yet.",
           expand: "Expand",
           collapse: "Show less",
           jobs: "Jobs",
@@ -38,6 +55,12 @@ vi.mock("next-intl/server", () => ({
           coworker: "Coworker",
           created: "Created",
           updated: "Updated",
+          actorSystem: "System",
+          actionCommented: "commented",
+          actionUpdatedStatus: "changed status to",
+          sourcesFiles: "Files",
+          sourcesLinks: "Links",
+          "originApp.email": "Email",
           "originApp.sokosumi": "Sokosumi",
         };
 
@@ -49,13 +72,10 @@ vi.mock("next-intl/server", () => ({
           eyebrow: "Public task",
           descriptionEmpty: "No description provided.",
           jobsEmpty: "No linked jobs.",
-          milestonesTitle: "Milestones",
-          milestonesEmpty: "No milestones yet.",
           jobCreatedAt: `Created ${values?.date ?? ""}`,
           jobCompletedAt: `Completed ${values?.date ?? ""}`,
           publicJobLink: "Open public job",
           privateJobLink: "Private job",
-          chargedCredits: `${values?.credits ?? 0} credits charged`,
         };
 
         return pageLabels[key] ?? key;
@@ -85,8 +105,25 @@ vi.mock("@/components/expandable-markdown", () => ({
   ),
 }));
 
+vi.mock("@/components/sources/sources-grid", () => ({
+  SourcesGrid: ({
+    title,
+    blobs,
+    links,
+  }: {
+    title: string;
+    blobs?: Array<{ id: string }>;
+    links?: Array<{ id: string }>;
+  }) => <div>{`${title}:${blobs?.length ?? links?.length ?? 0}`}</div>,
+}));
+
 vi.mock("@/components/jobs/job-status-badge", () => ({
   JobStatusBadge: ({ status }: { status: string }) => <div>{status}</div>,
+}));
+
+vi.mock("@/lib/utils/datetime", () => ({
+  formatTimeAgo: (value: string | Date) =>
+    `ago:${value instanceof Date ? value.toISOString() : value}`,
 }));
 
 describe("canonical share page", () => {
@@ -122,9 +159,6 @@ describe("canonical share page", () => {
       }),
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Research Agent" }),
-    ).toBeVisible();
     expect(screen.getByText("job:job_123")).toBeVisible();
     expect(jobDetailsViewMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: "job_123" }),
@@ -172,33 +206,79 @@ describe("canonical share page", () => {
         ],
         events: [
           {
-            id: "evt_1",
+            id: "evt_status",
+            createdAt: new Date("2026-03-30T10:05:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:05:00.000Z"),
+            origin: "SOKOSUMI",
+            status: "READY",
+            comment: null,
+            credits: null,
+            actorName: "Ada Lovelace",
+            actorImage: null,
+          },
+          {
+            id: "evt_comment",
             createdAt: new Date("2026-03-30T10:15:00.000Z"),
             updatedAt: new Date("2026-03-30T10:15:00.000Z"),
+            origin: "EMAIL",
+            status: "COMPLETED",
+            comment: "Detailed update from coworker",
+            credits: 372,
+            actorName: "Ops Agent",
+            actorImage: null,
+          },
+          {
+            id: "evt_auth",
+            createdAt: new Date("2026-03-30T10:25:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:25:00.000Z"),
             origin: "SOKOSUMI",
-            status: "RUNNING",
-            credits: 3,
+            status: "AUTHENTICATION_REQUIRED",
+            comment: null,
+            credits: null,
+            actorName: null,
+            actorImage: null,
           },
         ],
       },
     });
 
     const { default: SharePage } = await import("./page");
-    render(
+    const { container } = render(
       await SharePage({
         params: Promise.resolve({ token: "public-share-token" }),
       }),
     );
 
     expect(screen.getByRole("heading", { name: "Shared Task" })).toBeVisible();
-    expect(screen.getByText("Ops Agent")).toBeVisible();
+    expect(screen.getAllByText("Ops Agent")).toHaveLength(3);
     expect(screen.getByText("Research Agent")).toBeVisible();
     expect(screen.getByText("Private Agent")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Activities" })).toBeVisible();
     expect(
       screen.getByRole("link", { name: "Open public job" }),
     ).toHaveAttribute("href", "/share/job-share-token");
     expect(screen.getByText("Private job")).toBeVisible();
-    expect(screen.getByText("3 credits charged")).toBeVisible();
+    expect(screen.getByText("Ada Lovelace")).toBeVisible();
+    expect(screen.getByText("commented")).toBeVisible();
+    expect(screen.getByText("changed status to")).toBeVisible();
+    expect(screen.getByText("from Email")).toBeVisible();
+    expect(screen.getByText("from Sokosumi")).toBeVisible();
+    expect(screen.getByText("Detailed update from coworker")).toBeVisible();
+    expect(screen.getByText("charged 372 credits")).toBeVisible();
+    expect(screen.getByText("ago:2026-03-30T10:15:00.000Z")).toBeVisible();
+    expect(screen.getByText("ago:2026-03-30T10:05:00.000Z")).toBeVisible();
+    expect(screen.getByTestId("status-dot-evt_status")).toBeInTheDocument();
+    expect(screen.queryByTestId("status-dot-evt_auth")).not.toBeInTheDocument();
+    expect(screen.getByTestId("activity-row-evt_comment")).toHaveClass(
+      "border-emerald-500/40",
+    );
+    const renderedRows = Array.from(
+      container.querySelectorAll("[data-testid^='activity-row-']"),
+    ).map((element) => element.getAttribute("data-testid"));
+    expect(renderedRows).toEqual([
+      "activity-row-evt_comment",
+      "activity-row-evt_status",
+    ]);
   });
 
   it("delegates missing shared resources to notFound", async () => {

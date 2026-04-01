@@ -272,6 +272,7 @@
         "activity": "Activity",
         "actionUpdatedStatus": "changed status to",
         "emptyActivity": "No activities yet.",
+        "eyebrow": "Public Job",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1341,11 +1342,14 @@
         "created": "Created",
         "updated": "Updated",
         "description": "Description",
+        "linkedTasksTitle": "Linked tasks",
+        "linkedTasksEmpty": "No linked tasks yet.",
         "jobs": "Jobs",
         "jobsEmpty": "No jobs yet.",
         "jobsUntitled": "Untitled job",
         "jobsUnknownAgent": "Agent unavailable",
-        "activity": "Activity",
+        "activity": "Activities",
+        "emptyActivity": "No activities yet.",
         "sourcesFiles": "Files",
         "sourcesLinks": "Links",
         "commentPlaceholder": "Write a comment...",
@@ -1408,6 +1412,35 @@
           "moveToWorkspaceCancel": "Cancel",
           "moveToWorkspaceSuccess": "Task moved successfully",
           "moveToWorkspaceError": "Failed to move task",
+          "markAs": "Mark as",
+          "createRelated": "Create related",
+          "removeRelated": "Remove related",
+          "removeRelatedSuccess": "Related task removed",
+          "removeRelatedError": "Failed to remove related task",
+          "removeParent": "Remove parent",
+          "removeParentSuccess": "Parent removed",
+          "removeParentError": "Failed to remove parent",
+          "linkTaskSuccess": "Task linked",
+          "linkTaskError": "Failed to link task",
+          "createRelatedSuccess": "Related task created",
+          "taskPickerTitle": "{relation}...",
+          "taskPickerDescription": "Choose a task to link with the current task.",
+          "taskPickerSearchPlaceholder": "Search tasks...",
+          "taskPickerLoading": "Loading tasks...",
+          "taskPickerEmpty": "No tasks found.",
+          "taskPickerError": "Failed to load tasks.",
+          "taskPickerLoadMore": "Load more tasks",
+          "taskPickerLoadMoreError": "Failed to load more tasks.",
+          "createRelatedDialogTitle": "{relation} task...",
+          "relations": {
+            "related": "Related",
+            "blocks": "Blocks",
+            "blockedBy": "Blocked by",
+            "parent": "Parent task",
+            "subtask": "Sub-task",
+            "duplicate": "Duplicate",
+            "addSubtask": "Add sub-task"
+          },
           "personalWorkspace": "Personal"
         },
         "ShareModal": {
@@ -2338,13 +2371,10 @@
         "eyebrow": "Public task",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {

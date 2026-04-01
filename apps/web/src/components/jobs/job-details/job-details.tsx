@@ -17,6 +17,7 @@ export default function JobDetails({
   readOnly = false,
   className,
   showAgentHeader = true,
+  publicJobLayout = false,
 }: JobDetailsViewProps) {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -43,6 +44,7 @@ export default function JobDetails({
       readOnly={readOnly}
       className={className}
       showAgentHeader={showAgentHeader}
+      publicJobLayout={publicJobLayout}
     />
   );
 

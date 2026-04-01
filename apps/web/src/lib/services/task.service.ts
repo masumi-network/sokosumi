@@ -3,11 +3,19 @@ import "server-only";
 import type { TaskStatus } from "@sokosumi/database";
 
 import { coreClient } from "@/lib/clients/core.client";
-import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
+import type {
+  Task,
+  TaskEvent,
+  TaskLink,
+  TaskLinkDeleted,
+  TaskLinkRelation,
+} from "@/lib/clients/generated/core/types.gen";
 
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
   coworkerId?: string;
+  q?: string;
+  scope?: Array<"context" | "owned">;
   cursor?: string | null;
   limit?: number;
 }
@@ -30,6 +38,12 @@ interface CreateTaskEventInput {
   comment?: string;
 }
 
+interface CreateTaskLinkInput {
+  toTaskId: string;
+  relation: TaskLinkRelation;
+  note?: string | null;
+}
+
 export const taskService = (() => {
   async function listTasks(params: ListTasksParams = {}) {
     const result = await coreClient.getTasks({
@@ -39,6 +53,8 @@ export const taskService = (() => {
           ? [params.status]
           : undefined,
       coworkerId: params.coworkerId,
+      q: params.q,
+      scope: params.scope,
       cursor: params.cursor ?? undefined,
       limit: params.limit,
     });
@@ -112,6 +128,37 @@ export const taskService = (() => {
     return result.data;
   }
 
+  async function listTaskLinks(taskId: string): Promise<TaskLink[]> {
+    const result = await coreClient.getTaskLinks(taskId);
+    return result.data;
+  }
+
+  async function createTaskLink(
+    taskId: string,
+    input: CreateTaskLinkInput,
+  ): Promise<TaskLink> {
+    const result = await coreClient.createTaskLink(taskId, input);
+
+    if (!result.data) {
+      throw new Error("Failed to create task link");
+    }
+
+    return result.data;
+  }
+
+  async function deleteTaskLink(
+    taskId: string,
+    linkId: string,
+  ): Promise<TaskLinkDeleted> {
+    const result = await coreClient.deleteTaskLink(taskId, linkId);
+
+    if (!result.data) {
+      throw new Error("Failed to delete task link");
+    }
+
+    return result.data;
+  }
+
   async function deleteTask(taskId: string): Promise<Task> {
     const result = await coreClient.deleteTask(taskId);
 
@@ -126,9 +173,12 @@ export const taskService = (() => {
     listTasks,
     getTaskById,
     createTask,
+    createTaskLink,
     createTaskEvent,
+    deleteTaskLink,
     moveTaskToWorkspace,
     patchTask,
+    listTaskLinks,
     deleteTask,
   };
 })();

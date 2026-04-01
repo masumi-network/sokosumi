@@ -1,22 +1,30 @@
 "use client";
 
-import { type MemberWithOrganization, TaskStatus } from "@sokosumi/database";
+import { type MemberWithOrganization } from "@sokosumi/database";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
   Ban,
   CheckCircle2,
+  ChevronDown,
   Ellipsis,
+  FlagTriangleRight,
+  ListX,
   Loader2,
+  LucideSquareMousePointer,
+  OctagonMinus,
   Pencil,
   RotateCcw,
-  Share,
+  SquareArrowRightExit,
+  SquareMinus,
+  SquareMousePointer,
+  SquarePlus,
   Trash,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -35,14 +43,40 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { deleteTask, setTaskStatusFromDrag } from "@/lib/actions/task/action";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  createTaskAndLink,
+  createTaskLink,
+  deleteTask,
+  deleteTaskLink,
+  setTaskStatusFromDrag,
+} from "@/lib/actions/task/action";
 import type { TaskShare } from "@/lib/clients/generated/core";
-
+import {
+  type TaskLink,
+  TaskLinkRelation,
+} from "@/lib/clients/generated/core/types.gen";
+import type { CoworkerOption } from "@/lib/types/coworker";
+import { cn } from "@/lib/utils";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
+import {
+  getTaskLinkActionInput,
+  TASK_STATUS,
+  type TaskStatus,
+} from "./task-detail-api-types";
+import { TaskForm, type TaskFormLabels } from "./task-form";
+import { TaskFormModal } from "./task-form-modal";
+import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
+import {
+  type TaskLinkActionOption,
+  TaskLinkTaskPickerDialog,
+} from "./task-link-task-picker-dialog";
 import { TaskShareButton } from "./task-share-button";
-import { TaskShareModal } from "./task-share-modal";
 import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 
 interface TaskDetailActionsLabels {
@@ -62,6 +96,10 @@ interface TaskDetailActionsProps {
   share: TaskShare | null;
   status: TaskStatus;
   jobsCount: number;
+  taskLinks: TaskLink[];
+  coworkerOptions: CoworkerOption[];
+  agentNameById: Map<string, string>;
+  defaultCoworkerId?: string | null;
   actionsMenuLabel: string;
   labels: TaskDetailActionsLabels;
   currentOrganizationId?: string | null;
@@ -74,6 +112,10 @@ export function TaskDetailActions({
   share,
   status,
   jobsCount,
+  taskLinks,
+  coworkerOptions,
+  agentNameById,
+  defaultCoworkerId,
   actionsMenuLabel,
   labels,
   currentOrganizationId,
@@ -82,38 +124,106 @@ export function TaskDetailActions({
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
+  const tNewTask = useTranslations("App.Tasks.NewTask");
   const tTasks = useTranslations("App.Tasks");
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
+  const [isLinkPending, startLinkTransition] = useTransition();
+  const [isParentRemovalPending, startParentRemovalTransition] =
+    useTransition();
+  const [isRemoveRelatedPending, startRemoveRelatedTransition] =
+    useTransition();
   const [isOpen, setIsOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
+  const [isMarkAsSectionOpen, setIsMarkAsSectionOpen] = useState(false);
+  const [isCreateRelatedSectionOpen, setIsCreateRelatedSectionOpen] =
+    useState(false);
+  const [isRemoveRelatedSectionOpen, setIsRemoveRelatedSectionOpen] =
+    useState(false);
+  const [selectedTaskPickerOption, setSelectedTaskPickerOption] =
+    useState<TaskLinkActionOption | null>(null);
+  const [selectedCreateRelatedOption, setSelectedCreateRelatedOption] =
+    useState<TaskLinkActionOption | null>(null);
+  const [isCreateRelatedOpen, setIsCreateRelatedOpen] = useState(false);
+  const [isCreateRelatedDismissDisabled, setIsCreateRelatedDismissDisabled] =
+    useState(false);
   const [pendingStatusTarget, setPendingStatusTarget] =
     useState<TaskStatus | null>(null);
+  const [pendingLinkTaskId, setPendingLinkTaskId] = useState<string | null>(
+    null,
+  );
+  const [pendingRemoveLinkId, setPendingRemoveLinkId] = useState<string | null>(
+    null,
+  );
 
   const statusActions = getTaskStatusActions(status, labels);
-  const mobilePrimaryStatusAction =
-    statusActions.find((action) => action.target === TaskStatus.READY) ??
-    statusActions[0] ??
-    null;
-  const mobileOverflowStatusActions = statusActions.filter(
-    (action) => action.target !== mobilePrimaryStatusAction?.target,
-  );
-  const MobilePrimaryStatusIcon = mobilePrimaryStatusAction
-    ? getStatusActionMenuIcon(mobilePrimaryStatusAction.target)
-    : CheckCircle2;
+
   const canEditOrDelete =
-    status === TaskStatus.DRAFT || status === TaskStatus.READY;
+    status === TASK_STATUS.DRAFT || status === TASK_STATUS.READY;
   const isFinalized =
-    status === TaskStatus.COMPLETED ||
-    status === TaskStatus.FAILED ||
-    status === TaskStatus.CANCELED ||
-    status === TaskStatus.CANCEL_REQUESTED;
+    status === TASK_STATUS.COMPLETED ||
+    status === TASK_STATUS.FAILED ||
+    status === TASK_STATUS.CANCELED ||
+    status === TASK_STATUS.CANCEL_REQUESTED;
+  const canManageRelations = !isFinalized;
   const canMove =
     !isFinalized &&
     jobsCount === 0 &&
     getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
+  const parentLinks = useMemo(
+    () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
+    [taskLinks],
+  );
+  const removableTaskLinks = useMemo(
+    () =>
+      taskLinks.filter(
+        (link) =>
+          link.peerTask.archivedAt === null &&
+          link.relation !== TaskLinkRelation.CHILD,
+      ),
+    [taskLinks],
+  );
+  const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
+  const canRemoveParent = canManageRelations && parentLinks.length > 0;
+  const hasOverflowMenuActions =
+    statusActions.length > 0 ||
+    canEditOrDelete ||
+    canManageRelations ||
+    canMove;
+  const taskPickerOptions = useMemo(
+    () => buildTaskPickerOptions(tDetailActions),
+    [tDetailActions],
+  );
+  const createRelatedOptions = useMemo(
+    () => buildCreateRelatedOptions(tDetailActions),
+    [tDetailActions],
+  );
+  const createTaskLabels: TaskFormLabels = {
+    details: tNewTask("details"),
+    detailsDescription: tNewTask("detailsDescription"),
+    name: tNewTask("name"),
+    namePlaceholder: tNewTask("namePlaceholder"),
+    descriptionPlaceholder: tNewTask("descriptionPlaceholder"),
+    coworker: tNewTask("coworker"),
+    coworkerDescription: tNewTask("coworkerDescription"),
+    status: tNewTask("status"),
+    statusDescription: tNewTask("statusDescription"),
+    statusDraft: tNewTask("statusDraft"),
+    statusReady: tNewTask("statusReady"),
+    back: tNewTask("back"),
+    uploadFile: tNewTask("uploadFile"),
+    uploadFileError: tNewTask("uploadFileError"),
+    removeAttachment: tNewTask("removeAttachment"),
+    submit: tNewTask("saveDraft"),
+    saveAsDraft: tNewTask("saveAsDraft"),
+    createTask: tNewTask("createTask"),
+    cancel: tNewTask("cancel"),
+    ctrl: tNewTask("ctrl"),
+  };
 
   const handleStatusToggle = (desiredStatus: TaskStatus) => {
     setPendingStatusTarget(desiredStatus);
@@ -148,128 +258,118 @@ export function TaskDetailActions({
     });
   };
 
-  const actionsDisabled = isStatusPending || isDeletePending;
-  const isMobileActionsMenuDisabled = isDeletePending;
+  const resetMobileSections = () => {
+    setIsMarkAsSectionOpen(false);
+    setIsCreateRelatedSectionOpen(false);
+    setIsRemoveRelatedSectionOpen(false);
+  };
+
+  const handleDropdownOpenChange = (open: boolean) => {
+    setIsDropdownOpen(open);
+
+    if (!open) {
+      resetMobileSections();
+    }
+  };
+
+  const handleOpenTaskPicker = (option: TaskLinkActionOption) => {
+    setSelectedTaskPickerOption(option);
+    setIsTaskPickerOpen(true);
+  };
+
+  const handleOpenCreateRelated = (option: TaskLinkActionOption) => {
+    setSelectedCreateRelatedOption(option);
+    setIsCreateRelatedOpen(true);
+  };
+
+  const handleSelectLinkableTask = (
+    option: TaskLinkActionOption,
+    relatedTaskId: string,
+  ) => {
+    setPendingLinkTaskId(relatedTaskId);
+
+    startLinkTransition(async () => {
+      try {
+        const linkInput = getTaskLinkActionInput(option.relation);
+        await createTaskLink({
+          taskId,
+          relatedTaskId,
+          ...linkInput,
+        });
+        setIsTaskPickerOpen(false);
+        setSelectedTaskPickerOption(null);
+        router.refresh();
+        toast.success(tDetailActions("linkTaskSuccess"));
+      } catch (error) {
+        console.error("Failed to create task link", error);
+        toast.error(tDetailActions("linkTaskError"));
+      } finally {
+        setPendingLinkTaskId(null);
+      }
+    });
+  };
+
+  const handleRemoveParent = () => {
+    if (parentLinks.length === 0) return;
+
+    startParentRemovalTransition(async () => {
+      try {
+        for (const link of parentLinks) {
+          await deleteTaskLink({
+            taskId,
+            linkId: link.id,
+          });
+        }
+        router.refresh();
+        toast.success(tDetailActions("removeParentSuccess"));
+      } catch (error) {
+        console.error("Failed to remove parent task link", error);
+        toast.error(tDetailActions("removeParentError"));
+      }
+    });
+  };
+
+  const handleRemoveRelated = (link: TaskLink) => {
+    setPendingRemoveLinkId(link.id);
+
+    startRemoveRelatedTransition(async () => {
+      try {
+        await deleteTaskLink({
+          taskId,
+          linkId: link.id,
+        });
+        router.refresh();
+        toast.success(tDetailActions("removeRelatedSuccess"));
+      } catch (error) {
+        console.error("Failed to remove related task link", error);
+        toast.error(tDetailActions("removeRelatedError"));
+      } finally {
+        setPendingRemoveLinkId(null);
+      }
+    });
+  };
+
+  const actionsDisabled =
+    isStatusPending ||
+    isDeletePending ||
+    isLinkPending ||
+    isParentRemovalPending ||
+    isRemoveRelatedPending;
 
   return (
-    <>
-      <div className="hidden items-center gap-3 md:flex">
-        <div
-          className="flex items-center gap-1.5"
-          data-testid="task-secondary-actions"
+    <div className="flex items-center gap-2">
+      <TaskShareButton
+        task={{ id: taskId, share }}
+        label={labels.share}
+        variant="ghost"
+        size="icon"
+        className="size-7"
+      />
+      {hasOverflowMenuActions ? (
+        <DropdownMenu
+          open={isDropdownOpen}
+          onOpenChange={handleDropdownOpenChange}
         >
-          <TaskShareButton
-            task={{ id: taskId, share }}
-            label={labels.share}
-            variant="ghost"
-            size="icon"
-            className="size-7"
-          />
-          {canEditOrDelete ? (
-            <Link
-              href={`/tasks/${taskId}/edit`}
-              aria-disabled={isStatusPending}
-              tabIndex={isStatusPending ? -1 : 0}
-              aria-label={labels.edit}
-              title={labels.edit}
-              className={`inline-flex items-center ${isStatusPending ? "pointer-events-none opacity-70" : ""}`}
-            >
-              <Button
-                asChild
-                variant="ghost"
-                size="icon"
-                className="size-7"
-                disabled={isStatusPending}
-                tabIndex={-1}
-              >
-                <span>
-                  <Pencil className="size-4" aria-hidden />
-                </span>
-              </Button>
-            </Link>
-          ) : null}
-          {canMove ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              aria-label={tDetailActions("moveToWorkspace")}
-              title={tDetailActions("moveToWorkspace")}
-              disabled={actionsDisabled}
-              onClick={() => setIsMoveOpen(true)}
-            >
-              <ArrowLeftRight className="size-4" aria-hidden />
-            </Button>
-          ) : null}
-          {canEditOrDelete ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              aria-label={labels.delete}
-              title={labels.delete}
-              disabled={isDeletePending || isStatusPending}
-              onClick={() => setIsOpen(true)}
-            >
-              <Trash className="size-4" aria-hidden />
-            </Button>
-          ) : null}
-        </div>
-        {statusActions.length > 0 ? (
-          <div
-            className="flex items-center gap-1.5 border-l pl-3"
-            data-testid="task-status-actions"
-          >
-            {statusActions.map((action) => {
-              const StatusIcon = getStatusActionMenuIcon(action.target);
-
-              return (
-                <Button
-                  key={action.target}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleStatusToggle(action.target)}
-                  disabled={isStatusPending}
-                  className="h-7 gap-1.5 px-2.5 text-xs"
-                >
-                  {isStatusPending && pendingStatusTarget === action.target ? (
-                    <Loader2 className="size-3 animate-spin" aria-hidden />
-                  ) : (
-                    <StatusIcon className="size-3" aria-hidden />
-                  )}
-                  <span>{action.label}</span>
-                </Button>
-              );
-            })}
-          </div>
-        ) : null}
-      </div>
-
-      <div
-        className="flex items-center gap-1 md:hidden"
-        data-testid="task-mobile-actions"
-      >
-        {mobilePrimaryStatusAction ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => handleStatusToggle(mobilePrimaryStatusAction.target)}
-            disabled={isStatusPending}
-            className="h-8 gap-1.5 px-2.5 text-xs"
-          >
-            {isStatusPending &&
-            pendingStatusTarget === mobilePrimaryStatusAction.target ? (
-              <Loader2 className="size-3 animate-spin" aria-hidden />
-            ) : (
-              <MobilePrimaryStatusIcon className="size-3" aria-hidden />
-            )}
-            <span>{mobilePrimaryStatusAction.label}</span>
-          </Button>
-        ) : null}
-        <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               type="button"
@@ -277,19 +377,20 @@ export function TaskDetailActions({
               size="icon"
               className="size-8 shrink-0"
               aria-label={actionsMenuLabel}
-              disabled={isMobileActionsMenuDisabled}
+              disabled={actionsDisabled}
             >
               <Ellipsis className="size-4" aria-hidden />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            {mobileOverflowStatusActions.map((action) => {
+            {statusActions.map((action) => {
               const StatusIcon = getStatusActionMenuIcon(action.target);
 
               return (
                 <DropdownMenuItem
+                  className="cursor-pointer"
                   key={action.target}
-                  disabled={isStatusPending}
+                  disabled={actionsDisabled}
                   onSelect={() => handleStatusToggle(action.target)}
                 >
                   {isStatusPending && pendingStatusTarget === action.target ? (
@@ -301,19 +402,18 @@ export function TaskDetailActions({
                 </DropdownMenuItem>
               );
             })}
-            {mobileOverflowStatusActions.length > 0 ? (
+
+            {statusActions.length > 0 &&
+            (canEditOrDelete || canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
-            <DropdownMenuItem onSelect={() => setIsShareOpen(true)}>
-              <Share className="size-4" aria-hidden />
-              {labels.share}
-            </DropdownMenuItem>
+
             {canEditOrDelete ? (
-              <DropdownMenuItem asChild disabled={isStatusPending}>
+              <DropdownMenuItem asChild disabled={actionsDisabled}>
                 <Link
                   href={`/tasks/${taskId}/edit`}
                   className={
-                    isStatusPending ? "pointer-events-none opacity-70" : ""
+                    actionsDisabled ? "pointer-events-none opacity-70" : ""
                   }
                 >
                   <Pencil className="size-4" aria-hidden />
@@ -321,6 +421,271 @@ export function TaskDetailActions({
                 </Link>
               </DropdownMenuItem>
             ) : null}
+
+            {canManageRelations ? (
+              <>
+                {isMobile ? (
+                  <>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      disabled={actionsDisabled}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setIsMarkAsSectionOpen((previous) => !previous);
+                      }}
+                    >
+                      <FlagTriangleRight
+                        className="size-4 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <span>{tDetailActions("markAs")}</span>
+                      <ChevronDown
+                        className={cn(
+                          "ml-auto size-4 text-muted-foreground transition-transform",
+                          isMarkAsSectionOpen ? "rotate-180" : "",
+                        )}
+                        aria-hidden
+                      />
+                    </DropdownMenuItem>
+                    {isMarkAsSectionOpen
+                      ? taskPickerOptions.map((option) => (
+                          <DropdownMenuItem
+                            key={option.id}
+                            className="cursor-pointer pl-8"
+                            disabled={actionsDisabled}
+                            onSelect={() => handleOpenTaskPicker(option)}
+                          >
+                            <option.icon className="size-4" aria-hidden />
+                            <span>{option.label}</span>
+                          </DropdownMenuItem>
+                        ))
+                      : null}
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      disabled={actionsDisabled}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setIsCreateRelatedSectionOpen((previous) => !previous);
+                      }}
+                    >
+                      <LucideSquareMousePointer
+                        className="size-4 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <span>{tDetailActions("createRelated")}</span>
+                      <ChevronDown
+                        className={cn(
+                          "ml-auto size-4 text-muted-foreground transition-transform",
+                          isCreateRelatedSectionOpen ? "rotate-180" : "",
+                        )}
+                        aria-hidden
+                      />
+                    </DropdownMenuItem>
+                    {isCreateRelatedSectionOpen
+                      ? createRelatedOptions.map((option) => (
+                          <DropdownMenuItem
+                            key={option.id}
+                            className="cursor-pointer pl-8"
+                            disabled={actionsDisabled}
+                            onSelect={() => handleOpenCreateRelated(option)}
+                          >
+                            <option.icon className="size-4" aria-hidden />
+                            <span>{option.label}</span>
+                          </DropdownMenuItem>
+                        ))
+                      : null}
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger
+                        className="gap-2"
+                        disabled={actionsDisabled}
+                      >
+                        <FlagTriangleRight
+                          className="size-4 text-muted-foreground"
+                          aria-hidden
+                        />
+                        {tDetailActions("markAs")}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-56">
+                        {taskPickerOptions.map((option) => (
+                          <DropdownMenuItem
+                            key={option.id}
+                            disabled={actionsDisabled}
+                            onSelect={() => handleOpenTaskPicker(option)}
+                          >
+                            <option.icon className="size-4" aria-hidden />
+                            {option.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger
+                        className="gap-2"
+                        disabled={actionsDisabled}
+                      >
+                        <LucideSquareMousePointer
+                          className="size-4 text-muted-foreground"
+                          aria-hidden
+                        />
+                        {tDetailActions("createRelated")}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-56">
+                        {createRelatedOptions.map((option) => (
+                          <DropdownMenuItem
+                            key={option.id}
+                            disabled={actionsDisabled}
+                            onSelect={() => handleOpenCreateRelated(option)}
+                          >
+                            <option.icon className="size-4" aria-hidden />
+                            {option.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  </>
+                )}
+                {canRemoveRelated ? (
+                  isMobile ? (
+                    <>
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        disabled={actionsDisabled}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          setIsRemoveRelatedSectionOpen(
+                            (previous) => !previous,
+                          );
+                        }}
+                      >
+                        <ListX
+                          className="size-4 text-muted-foreground"
+                          aria-hidden
+                        />
+                        <span>{tDetailActions("removeRelated")}</span>
+                        <ChevronDown
+                          className={cn(
+                            "ml-auto size-4 text-muted-foreground transition-transform",
+                            isRemoveRelatedSectionOpen ? "rotate-180" : "",
+                          )}
+                          aria-hidden
+                        />
+                      </DropdownMenuItem>
+                      {isRemoveRelatedSectionOpen
+                        ? removableTaskLinks.map((link) => {
+                            const RelationIcon = getTaskLinkRelationIcon(
+                              link.relation,
+                            );
+
+                            return (
+                              <DropdownMenuItem
+                                key={link.id}
+                                disabled={actionsDisabled}
+                                onSelect={() => handleRemoveRelated(link)}
+                                className="cursor-pointer pl-8"
+                              >
+                                {isRemoveRelatedPending &&
+                                pendingRemoveLinkId === link.id ? (
+                                  <Loader2
+                                    className="size-4 animate-spin"
+                                    aria-hidden
+                                  />
+                                ) : (
+                                  <RelationIcon
+                                    className={
+                                      link.relation ===
+                                        TaskLinkRelation.BLOCKS ||
+                                      link.relation ===
+                                        TaskLinkRelation.BLOCKED_BY
+                                        ? "text-destructive size-4"
+                                        : "size-4"
+                                    }
+                                    aria-hidden
+                                  />
+                                )}
+                                <span className="truncate">
+                                  {link.peerTask.name}
+                                </span>
+                              </DropdownMenuItem>
+                            );
+                          })
+                        : null}
+                    </>
+                  ) : (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger
+                        className="gap-2"
+                        disabled={actionsDisabled}
+                      >
+                        <ListX
+                          className="size-4 text-muted-foreground"
+                          aria-hidden
+                        />
+                        {tDetailActions("removeRelated")}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-56">
+                        {removableTaskLinks.map((link) => {
+                          const RelationIcon = getTaskLinkRelationIcon(
+                            link.relation,
+                          );
+
+                          return (
+                            <DropdownMenuItem
+                              key={link.id}
+                              disabled={actionsDisabled}
+                              onSelect={() => handleRemoveRelated(link)}
+                              className="cursor-pointer"
+                            >
+                              {isRemoveRelatedPending &&
+                              pendingRemoveLinkId === link.id ? (
+                                <Loader2
+                                  className="size-4 animate-spin"
+                                  aria-hidden
+                                />
+                              ) : (
+                                <RelationIcon
+                                  className={
+                                    link.relation === TaskLinkRelation.BLOCKS ||
+                                    link.relation ===
+                                      TaskLinkRelation.BLOCKED_BY
+                                      ? "text-destructive size-4"
+                                      : "size-4"
+                                  }
+                                  aria-hidden
+                                />
+                              )}
+                              <span className="truncate">
+                                {link.peerTask.name}
+                              </span>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )
+                ) : null}
+                {canRemoveParent ? (
+                  <DropdownMenuItem
+                    disabled={actionsDisabled}
+                    onSelect={handleRemoveParent}
+                  >
+                    {isParentRemovalPending ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <SquareArrowRightExit className="size-4" aria-hidden />
+                    )}
+                    {tDetailActions("removeParent")}
+                  </DropdownMenuItem>
+                ) : null}
+              </>
+            ) : null}
+
+            {(canEditOrDelete || canManageRelations) && canMove ? (
+              <DropdownMenuSeparator />
+            ) : null}
+
             {canMove ? (
               <DropdownMenuItem
                 disabled={actionsDisabled}
@@ -330,10 +695,16 @@ export function TaskDetailActions({
                 {tDetailActions("moveToWorkspace")}
               </DropdownMenuItem>
             ) : null}
+
+            {canEditOrDelete &&
+            (statusActions.length > 0 || canManageRelations || canMove) ? (
+              <DropdownMenuSeparator />
+            ) : null}
+
             {canEditOrDelete ? (
               <DropdownMenuItem
                 variant="destructive"
-                disabled={isDeletePending || isStatusPending}
+                disabled={actionsDisabled}
                 onSelect={() => setIsOpen(true)}
               >
                 <Trash className="size-4" aria-hidden />
@@ -342,7 +713,7 @@ export function TaskDetailActions({
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      ) : null}
 
       {canEditOrDelete ? (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
@@ -369,13 +740,6 @@ export function TaskDetailActions({
         </AlertDialog>
       ) : null}
 
-      <TaskShareModal
-        open={isShareOpen}
-        onOpenChange={setIsShareOpen}
-        taskId={taskId}
-        share={share}
-      />
-
       {canMove ? (
         <MoveTaskToWorkspaceDialog
           open={isMoveOpen}
@@ -386,18 +750,88 @@ export function TaskDetailActions({
           personalWorkspaceLabel={personalWorkspaceLabel}
         />
       ) : null}
-    </>
+
+      <TaskLinkTaskPickerDialog
+        taskId={taskId}
+        open={isTaskPickerOpen}
+        onOpenChange={(open) => {
+          setIsTaskPickerOpen(open);
+          if (!open) {
+            setPendingLinkTaskId(null);
+            setSelectedTaskPickerOption(null);
+          }
+        }}
+        selectedOption={selectedTaskPickerOption}
+        isLinkPending={isLinkPending}
+        pendingLinkTaskId={pendingLinkTaskId}
+        onSelectTask={handleSelectLinkableTask}
+      />
+
+      {selectedCreateRelatedOption ? (
+        <TaskFormModal
+          open={isCreateRelatedOpen}
+          onOpenChange={(open) => {
+            setIsCreateRelatedOpen(open);
+            if (!open) {
+              setSelectedCreateRelatedOption(null);
+            }
+          }}
+          title={tDetailActions("createRelatedDialogTitle", {
+            relation: selectedCreateRelatedOption.label,
+          })}
+          cancelLabel={createTaskLabels.cancel}
+          isDismissDisabled={isCreateRelatedDismissDisabled}
+        >
+          <TaskForm
+            variant="modal"
+            mode="create"
+            showCancel={false}
+            labels={createTaskLabels}
+            coworkerOptions={coworkerOptions}
+            agentNameById={agentNameById}
+            initialValues={
+              defaultCoworkerId ? { coworkerId: defaultCoworkerId } : undefined
+            }
+            onCreateTask={async ({ description, coworkerId, status }) => {
+              const linkInput = getTaskLinkActionInput(
+                selectedCreateRelatedOption.relation,
+              );
+              const result = await createTaskAndLink({
+                taskId,
+                description,
+                coworkerId,
+                status,
+                ...linkInput,
+              });
+
+              return { taskId: result.createdTaskId };
+            }}
+            onSubmittingChange={setIsCreateRelatedDismissDisabled}
+            onCancel={() => {
+              setIsCreateRelatedOpen(false);
+              setSelectedCreateRelatedOption(null);
+            }}
+            onSuccess={() => {
+              setIsCreateRelatedOpen(false);
+              setSelectedCreateRelatedOption(null);
+              router.refresh();
+              toast.success(tDetailActions("createRelatedSuccess"));
+            }}
+          />
+        </TaskFormModal>
+      ) : null}
+    </div>
   );
 }
 
 /** Icons for status transitions in the mobile overflow menu (aligned with action meaning). */
 function getStatusActionMenuIcon(target: TaskStatus): LucideIcon {
   switch (target) {
-    case TaskStatus.DRAFT:
+    case TASK_STATUS.DRAFT:
       return RotateCcw;
-    case TaskStatus.READY:
+    case TASK_STATUS.READY:
       return CheckCircle2;
-    case TaskStatus.CANCEL_REQUESTED:
+    case TASK_STATUS.CANCEL_REQUESTED:
       return Ban;
     default:
       return CheckCircle2;
@@ -408,35 +842,103 @@ function getTaskStatusActions(
   status: TaskStatus,
   labels: TaskDetailActionsLabels,
 ) {
-  if (status === TaskStatus.CANCELED) {
+  if (status === TASK_STATUS.CANCELED) {
     return [
-      { label: labels.revertToDraft, target: TaskStatus.DRAFT },
-      { label: labels.markAsReady, target: TaskStatus.READY },
+      { label: labels.revertToDraft, target: TASK_STATUS.DRAFT },
+      { label: labels.markAsReady, target: TASK_STATUS.READY },
     ];
   }
 
-  if (status === TaskStatus.DRAFT) {
-    return [{ label: labels.markAsReady, target: TaskStatus.READY }];
+  if (status === TASK_STATUS.DRAFT) {
+    return [{ label: labels.markAsReady, target: TASK_STATUS.READY }];
   }
 
-  if (status === TaskStatus.READY) {
-    return [{ label: labels.revertToDraft, target: TaskStatus.DRAFT }];
+  if (status === TASK_STATUS.READY) {
+    return [{ label: labels.revertToDraft, target: TASK_STATUS.DRAFT }];
   }
 
   if (
-    status === TaskStatus.INPUT_REQUIRED ||
-    status === TaskStatus.AUTHENTICATION_REQUIRED ||
-    status === TaskStatus.OUT_OF_CREDITS ||
-    status === TaskStatus.CREDITS_TOPPED_UP ||
-    status === TaskStatus.RUNNING
+    status === TASK_STATUS.INPUT_REQUIRED ||
+    status === TASK_STATUS.AUTHENTICATION_REQUIRED ||
+    status === TASK_STATUS.OUT_OF_CREDITS ||
+    status === TASK_STATUS.CREDITS_TOPPED_UP ||
+    status === TASK_STATUS.RUNNING
   ) {
     return [
       {
         label: labels.cancelRequest,
-        target: TaskStatus.CANCEL_REQUESTED,
+        target: TASK_STATUS.CANCEL_REQUESTED,
       },
     ];
   }
 
   return [];
+}
+
+function buildTaskPickerOptions(
+  tDetailActions: ReturnType<typeof useTranslations>,
+): TaskLinkActionOption[] {
+  return [
+    {
+      id: "related",
+      label: tDetailActions("relations.related"),
+      relation: TaskLinkRelation.RELATED,
+      icon: getTaskLinkRelationIcon(TaskLinkRelation.RELATED),
+    },
+    {
+      id: "subtask",
+      label: tDetailActions("relations.subtask"),
+      relation: TaskLinkRelation.CHILD,
+      icon: getTaskLinkRelationIcon(TaskLinkRelation.PARENT),
+    },
+    {
+      id: "blocks",
+      label: tDetailActions("relations.blocks"),
+      relation: TaskLinkRelation.BLOCKS,
+      icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKS),
+    },
+    {
+      id: "blocked-by",
+      label: tDetailActions("relations.blockedBy"),
+      relation: TaskLinkRelation.BLOCKED_BY,
+      icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKED_BY),
+    },
+    {
+      id: "duplicate",
+      label: tDetailActions("relations.duplicate"),
+      relation: TaskLinkRelation.DUPLICATE,
+      icon: getTaskLinkRelationIcon(TaskLinkRelation.DUPLICATE),
+    },
+  ];
+}
+
+function buildCreateRelatedOptions(
+  tDetailActions: ReturnType<typeof useTranslations>,
+): TaskLinkActionOption[] {
+  return [
+    {
+      id: "related",
+      label: tDetailActions("relations.related"),
+      relation: TaskLinkRelation.RELATED,
+      icon: SquareMousePointer,
+    },
+    {
+      id: "add-subtask",
+      label: tDetailActions("relations.addSubtask"),
+      relation: TaskLinkRelation.PARENT,
+      icon: SquarePlus,
+    },
+    {
+      id: "blocks",
+      label: tDetailActions("relations.blocks"),
+      relation: TaskLinkRelation.BLOCKS,
+      icon: OctagonMinus,
+    },
+    {
+      id: "blocked-by",
+      label: tDetailActions("relations.blockedBy"),
+      relation: TaskLinkRelation.BLOCKED_BY,
+      icon: SquareMinus,
+    },
+  ];
 }
