@@ -21,14 +21,15 @@ BEGIN
       AS $uuidv7$
       DECLARE
         v_time_ms bigint;
-        v_rand bytea;
+        v_uuid uuid;
         v_bytes bytea;
       BEGIN
         v_time_ms := floor(extract(epoch from clock_timestamp()) * 1000);
 
-        -- 48 bits timestamp (ms) + 80 bits random
-        v_rand := gen_random_bytes(10);
-        v_bytes := substring(int8send(v_time_ms) FROM 3 FOR 6) || v_rand;
+        -- Use gen_random_uuid() as the random source (v4),
+        -- then overlay UUIDv7 timestamp/version/variant bits.
+        v_uuid := gen_random_uuid();
+        v_bytes := substring(int8send(v_time_ms) FROM 3 FOR 6) || substring(uuid_send(v_uuid) FROM 7 FOR 10);
 
         -- Set version (7) in high nibble of byte 6 (0-indexed).
         v_bytes := set_byte(v_bytes, 6, (get_byte(v_bytes, 6) & 15) | 112);
