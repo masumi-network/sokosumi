@@ -15,7 +15,7 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
+  id            String    @id @default(dbgenerated("uuid_generate_v7()::text"))
   name          String
   email         String
   emailVerified Boolean
@@ -82,7 +82,7 @@ model User {
 }
 
 model Session {
-  id             String   @id
+  id             String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   expiresAt      DateTime
   token          String
   createdAt      DateTime
@@ -103,7 +103,7 @@ model Session {
 }
 
 model Account {
-  id                    String    @id
+  id                    String    @id @default(dbgenerated("uuid_generate_v7()::text"))
   accountId             String
   providerId            String
   userId                String
@@ -122,7 +122,7 @@ model Account {
 }
 
 model Verification {
-  id         String    @id
+  id         String    @id @default(dbgenerated("uuid_generate_v7()::text"))
   identifier String
   value      String
   expiresAt  DateTime
@@ -133,7 +133,7 @@ model Verification {
 }
 
 model Passkey {
-  id           String   @id
+  id           String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   name         String?
   publicKey    String
   userId       String
@@ -153,7 +153,7 @@ model Passkey {
 }
 
 model Subscription {
-  id                   String    @id
+  id                   String    @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   plan                 String
@@ -180,7 +180,7 @@ model Subscription {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   name      String
   slug      String
   logo      String?
@@ -206,7 +206,7 @@ model Organization {
 }
 
 model Member {
-  id             String       @id @default(cuid())
+  id             String       @id @default(dbgenerated("uuid_generate_v7()::text"))
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId String
@@ -219,7 +219,7 @@ model Member {
 }
 
 model Invitation {
-  id             String       @id @default(cuid())
+  id             String       @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt      DateTime     @default(now())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -234,7 +234,7 @@ model Invitation {
 }
 
 model UTMAttribution {
-  id String @id @default(cuid())
+  id String @id @default(dbgenerated("uuid_generate_v7()::text"))
 
   // User
   userId String @unique
@@ -264,7 +264,7 @@ model UTMAttribution {
 }
 
 model Notice {
-  id           String     @id @default(cuid())
+  id           String     @id @default(dbgenerated("uuid_generate_v7()::text"))
   kind         NoticeKind @default(ANNOUNCEMENT)
   bodyMarkdown String
   effectiveAt  DateTime   @default(now())
@@ -279,7 +279,7 @@ model Notice {
 }
 
 model NoticeAcknowledgment {
-  id             String   @id @default(cuid())
+  id             String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   userId         String
   noticeId       String
   acknowledgedAt DateTime @default(now())
@@ -299,7 +299,7 @@ enum NoticeKind {
 }
 
 model RateLimit {
-  id          String  @id
+  id          String  @id @default(dbgenerated("uuid_generate_v7()::text"))
   key         String?
   count       Int?
   lastRequest BigInt?
@@ -308,7 +308,7 @@ model RateLimit {
 }
 
 model UnitValue {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   unit      String
@@ -321,7 +321,7 @@ model UnitValue {
 }
 
 model AgentPricing {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -338,7 +338,7 @@ enum PricingType {
 }
 
 model AgentFixedPricing {
-  id           String        @id @default(cuid())
+  id           String        @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   agentPricing AgentPricing?
@@ -346,7 +346,7 @@ model AgentFixedPricing {
 }
 
 model ExampleOutput {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   name      String
@@ -360,7 +360,7 @@ model ExampleOutput {
 }
 
 model UserAgentRating {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   rating    Int
@@ -378,7 +378,7 @@ model UserAgentRating {
 }
 
 model Agent {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -466,7 +466,7 @@ model Agent {
 }
 
 model Category {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -498,7 +498,7 @@ enum RiskClassification {
 }
 
 model Lock {
-  id        String    @id @default(cuid())
+  id        String    @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   key       String    @unique
@@ -508,7 +508,7 @@ model Lock {
 }
 
 model Tag {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   name      String   @unique
@@ -518,7 +518,7 @@ model Tag {
 }
 
 model SyncMetadata {
-  id           String   @id @default(cuid())
+  id           String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   key          String   @unique
   lastSyncedAt DateTime
   cursorId     String?
@@ -536,7 +536,7 @@ enum AgentStatus {
 }
 
 model AgentList {
-  id     String        @id @default(cuid())
+  id     String        @id @default(dbgenerated("uuid_generate_v7()::text"))
   user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
   type   AgentListType
@@ -550,7 +550,7 @@ enum AgentListType {
 }
 
 model Transaction {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -574,7 +574,7 @@ model Transaction {
 }
 
 model CreditBucket {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -613,7 +613,7 @@ enum CreditBucketReferenceType {
 }
 
 model CreditConsumption {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
 
   // Amount consumed from this bucket (in cents, always positive)
@@ -640,7 +640,7 @@ enum JobType {
 }
 
 model Job {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -696,7 +696,7 @@ model Job {
 }
 
 model JobPurchase {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -724,7 +724,7 @@ model JobPurchase {
 }
 
 model JobEvent {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -748,7 +748,7 @@ model JobEvent {
 }
 
 model JobInput {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -813,7 +813,7 @@ enum AgentJobStatus {
 }
 
 model CreditCost {
-  id           String   @id @default(cuid())
+  id           String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   unit         String   @unique
@@ -821,7 +821,7 @@ model CreditCost {
 }
 
 model Apikey {
-  id                  String    @id
+  id                  String    @id @default(dbgenerated("uuid_generate_v7()::text"))
   configId            String    @default("default")
   name                String?
   start               String?
@@ -851,7 +851,7 @@ model Apikey {
 }
 
 model Blob {
-  id        String   @id @default(uuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -872,7 +872,7 @@ model Blob {
 }
 
 model Link {
-  id        String   @id @default(uuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -894,7 +894,7 @@ enum BlobStatus {
 }
 
 model PublicShare {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -914,7 +914,7 @@ model PublicShare {
 }
 
 model JobSchedule {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -963,7 +963,7 @@ enum ShareAccessType {
 }
 
 model OauthClient {
-  id        String    @id @default(cuid())
+  id        String    @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
 
@@ -1005,7 +1005,7 @@ model OauthClient {
 }
 
 model OauthAccessToken {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1030,7 +1030,7 @@ model OauthAccessToken {
 }
 
 model OauthRefreshToken {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1055,7 +1055,7 @@ model OauthRefreshToken {
 }
 
 model OauthConsent {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1070,7 +1070,7 @@ model OauthConsent {
 }
 
 model Jwks {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1082,7 +1082,7 @@ model Jwks {
 }
 
 model Coworker {
-  id         String    @id @default(cuid())
+  id         String    @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
@@ -1116,7 +1116,7 @@ model Coworker {
 }
 
 model CoworkerApiKey {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1136,7 +1136,7 @@ model CoworkerApiKey {
 }
 
 model Task {
-  id         String    @id @default(cuid())
+  id         String    @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
@@ -1180,7 +1180,7 @@ enum TaskLinkType {
 /// At most one row per unordered task pair (any direction or `TaskLinkType`).
 /// Enforced by DB index `task_link_task_pair_key` (see migration); Prisma cannot express LEAST/GREATEST unique constraints.
 model TaskLink {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1229,7 +1229,7 @@ enum TaskEventOrigin {
 }
 
 model TaskEvent {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1257,7 +1257,7 @@ model TaskEvent {
 }
 
 model CoworkerUsage {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("uuid_generate_v7()::text"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1284,7 +1284,7 @@ model CoworkerUsage {
 }
 
 model Conversation {
-  id         String             @id @default(uuid())
+  id         String             @id @default(dbgenerated("uuid_generate_v7()::text"))
   openaiId   String             @unique
   userId     String
   user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1302,7 +1302,7 @@ model Conversation {
 }
 
 model ConversationItem {
-  id                     String       @id @default(uuid())
+  id                     String       @id @default(dbgenerated("uuid_generate_v7()::text"))
   conversationId         String
   conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role                   String // "user" | "assistant" | "system"
