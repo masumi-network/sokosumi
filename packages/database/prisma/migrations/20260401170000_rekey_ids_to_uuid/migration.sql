@@ -1,11 +1,18 @@
--- Convert id and FK columns from TEXT to UUID.
+-- Rekey all TEXT primary keys / foreign keys to UUID.
 --
--- This migration is intentionally fail-fast: it assumes existing ids are already valid UUID strings.
--- If any value cannot be cast, Postgres will error and the migration will abort.
+-- Existing ids are mostly CUIDs, so we cannot cast them to UUID. Instead we:
+-- 1) generate a new UUID per row (temp `_new_id` column)
+-- 2) rewrite FK columns to point at the new UUIDs (as text)
+-- 3) rewrite PK `id` columns to the new UUIDs (as text)
+-- 4) convert columns to native UUID type
 --
--- Note: UUIDv7 generation is handled by Prisma (`@default(uuid(7))`), not by DB defaults.
+-- UUIDv7 defaults are handled by Prisma (`@default(uuid(7))`), not DB defaults.
+--
+-- This preserves existing relationships while changing the identifier values.
 
--- Drop FKs first so we can change column types.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Drop FKs first so we can rewrite values and change types.
 ALTER TABLE "session" DROP CONSTRAINT IF EXISTS "session_userId_fkey";
 ALTER TABLE "account" DROP CONSTRAINT IF EXISTS "account_userId_fkey";
 ALTER TABLE "passkey" DROP CONSTRAINT IF EXISTS "passkey_userId_fkey";
@@ -81,7 +88,238 @@ ALTER TABLE "_AgentTagOverride" DROP CONSTRAINT IF EXISTS "_AgentTagOverride_B_f
 ALTER TABLE "_AgentCategory" DROP CONSTRAINT IF EXISTS "_AgentCategory_A_fkey";
 ALTER TABLE "_AgentCategory" DROP CONSTRAINT IF EXISTS "_AgentCategory_B_fkey";
 
--- Alter PKs and FK columns.
+-- Add new UUID ids for every table.
+ALTER TABLE "user" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "session" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "account" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "verification" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "passkey" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "subscription" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "organization" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "member" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "invitation" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "utmAttribution" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "notice" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "noticeAcknowledgment" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "rateLimit" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "UnitValue" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "AgentPricing" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "AgentFixedPricing" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "ExampleOutput" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "UserAgentRating" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "Agent" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "Category" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "Lock" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "Tag" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "sync_metadata" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "AgentList" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "Transaction" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "credit_bucket" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "credit_consumption" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "Job" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "jobPurchase" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "jobEvent" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "jobInput" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "CreditCost" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "apikey" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "blob" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "link" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "jobShare" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "jobSchedule" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "oauthClient" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "oauthAccessToken" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "oauthRefreshToken" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "oauthConsent" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "jwks" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "coworker" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "coworker_api_key" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "task" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "task_link" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "taskEvent" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "coworker_usage" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "conversation" ADD COLUMN "_new_id" UUID;
+ALTER TABLE "conversationItem" ADD COLUMN "_new_id" UUID;
+
+UPDATE "user" SET "_new_id" = gen_random_uuid();
+UPDATE "session" SET "_new_id" = gen_random_uuid();
+UPDATE "account" SET "_new_id" = gen_random_uuid();
+UPDATE "verification" SET "_new_id" = gen_random_uuid();
+UPDATE "passkey" SET "_new_id" = gen_random_uuid();
+UPDATE "subscription" SET "_new_id" = gen_random_uuid();
+UPDATE "organization" SET "_new_id" = gen_random_uuid();
+UPDATE "member" SET "_new_id" = gen_random_uuid();
+UPDATE "invitation" SET "_new_id" = gen_random_uuid();
+UPDATE "utmAttribution" SET "_new_id" = gen_random_uuid();
+UPDATE "notice" SET "_new_id" = gen_random_uuid();
+UPDATE "noticeAcknowledgment" SET "_new_id" = gen_random_uuid();
+UPDATE "rateLimit" SET "_new_id" = gen_random_uuid();
+UPDATE "UnitValue" SET "_new_id" = gen_random_uuid();
+UPDATE "AgentPricing" SET "_new_id" = gen_random_uuid();
+UPDATE "AgentFixedPricing" SET "_new_id" = gen_random_uuid();
+UPDATE "ExampleOutput" SET "_new_id" = gen_random_uuid();
+UPDATE "UserAgentRating" SET "_new_id" = gen_random_uuid();
+UPDATE "Agent" SET "_new_id" = gen_random_uuid();
+UPDATE "Category" SET "_new_id" = gen_random_uuid();
+UPDATE "Lock" SET "_new_id" = gen_random_uuid();
+UPDATE "Tag" SET "_new_id" = gen_random_uuid();
+UPDATE "sync_metadata" SET "_new_id" = gen_random_uuid();
+UPDATE "AgentList" SET "_new_id" = gen_random_uuid();
+UPDATE "Transaction" SET "_new_id" = gen_random_uuid();
+UPDATE "credit_bucket" SET "_new_id" = gen_random_uuid();
+UPDATE "credit_consumption" SET "_new_id" = gen_random_uuid();
+UPDATE "Job" SET "_new_id" = gen_random_uuid();
+UPDATE "jobPurchase" SET "_new_id" = gen_random_uuid();
+UPDATE "jobEvent" SET "_new_id" = gen_random_uuid();
+UPDATE "jobInput" SET "_new_id" = gen_random_uuid();
+UPDATE "CreditCost" SET "_new_id" = gen_random_uuid();
+UPDATE "apikey" SET "_new_id" = gen_random_uuid();
+UPDATE "blob" SET "_new_id" = gen_random_uuid();
+UPDATE "link" SET "_new_id" = gen_random_uuid();
+UPDATE "jobShare" SET "_new_id" = gen_random_uuid();
+UPDATE "jobSchedule" SET "_new_id" = gen_random_uuid();
+UPDATE "oauthClient" SET "_new_id" = gen_random_uuid();
+UPDATE "oauthAccessToken" SET "_new_id" = gen_random_uuid();
+UPDATE "oauthRefreshToken" SET "_new_id" = gen_random_uuid();
+UPDATE "oauthConsent" SET "_new_id" = gen_random_uuid();
+UPDATE "jwks" SET "_new_id" = gen_random_uuid();
+UPDATE "coworker" SET "_new_id" = gen_random_uuid();
+UPDATE "coworker_api_key" SET "_new_id" = gen_random_uuid();
+UPDATE "task" SET "_new_id" = gen_random_uuid();
+UPDATE "task_link" SET "_new_id" = gen_random_uuid();
+UPDATE "taskEvent" SET "_new_id" = gen_random_uuid();
+UPDATE "coworker_usage" SET "_new_id" = gen_random_uuid();
+UPDATE "conversation" SET "_new_id" = gen_random_uuid();
+UPDATE "conversationItem" SET "_new_id" = gen_random_uuid();
+
+-- Rewrite FK values to the new ids (as TEXT for now).
+UPDATE "session" s SET "userId" = u."_new_id"::text FROM "user" u WHERE s."userId" = u."id";
+UPDATE "account" a SET "userId" = u."_new_id"::text FROM "user" u WHERE a."userId" = u."id";
+UPDATE "passkey" p SET "userId" = u."_new_id"::text FROM "user" u WHERE p."userId" = u."id";
+UPDATE "member" m SET "userId" = u."_new_id"::text FROM "user" u WHERE m."userId" = u."id";
+UPDATE "member" m SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE m."organizationId" = o."id";
+UPDATE "invitation" i SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE i."organizationId" = o."id";
+UPDATE "invitation" i SET "inviterId" = u."_new_id"::text FROM "user" u WHERE i."inviterId" = u."id";
+UPDATE "utmAttribution" utm SET "userId" = u."_new_id"::text FROM "user" u WHERE utm."userId" = u."id";
+UPDATE "noticeAcknowledgment" na SET "userId" = u."_new_id"::text FROM "user" u WHERE na."userId" = u."id";
+UPDATE "noticeAcknowledgment" na SET "noticeId" = n."_new_id"::text FROM "notice" n WHERE na."noticeId" = n."id";
+UPDATE "UnitValue" uv SET "agentFixedPricingId" = afp."_new_id"::text FROM "AgentFixedPricing" afp WHERE uv."agentFixedPricingId" = afp."id";
+UPDATE "AgentPricing" ap SET "agentFixedPricingId" = afp."_new_id"::text FROM "AgentFixedPricing" afp WHERE ap."agentFixedPricingId" = afp."id";
+UPDATE "ExampleOutput" eo SET "agentId" = a."_new_id"::text FROM "Agent" a WHERE eo."agentId" = a."id";
+UPDATE "ExampleOutput" eo SET "agentIdOverride" = a."_new_id"::text FROM "Agent" a WHERE eo."agentIdOverride" = a."id";
+UPDATE "UserAgentRating" uar SET "userId" = u."_new_id"::text FROM "user" u WHERE uar."userId" = u."id";
+UPDATE "UserAgentRating" uar SET "agentId" = a."_new_id"::text FROM "Agent" a WHERE uar."agentId" = a."id";
+UPDATE "Agent" a SET "pricingId" = ap."_new_id"::text FROM "AgentPricing" ap WHERE a."pricingId" = ap."id";
+UPDATE "AgentList" al SET "userId" = u."_new_id"::text FROM "user" u WHERE al."userId" = u."id";
+UPDATE "Transaction" t SET "userId" = u."_new_id"::text FROM "user" u WHERE t."userId" = u."id";
+UPDATE "Transaction" t SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE t."organizationId" = o."id";
+UPDATE "credit_bucket" cb SET "sourceTransactionId" = t."_new_id"::text FROM "Transaction" t WHERE cb."sourceTransactionId" = t."id";
+UPDATE "credit_bucket" cb SET "userId" = u."_new_id"::text FROM "user" u WHERE cb."userId" = u."id";
+UPDATE "credit_bucket" cb SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE cb."organizationId" = o."id";
+UPDATE "credit_consumption" cc SET "bucketId" = cb."_new_id"::text FROM "credit_bucket" cb WHERE cc."bucketId" = cb."id";
+UPDATE "credit_consumption" cc SET "transactionId" = t."_new_id"::text FROM "Transaction" t WHERE cc."transactionId" = t."id";
+UPDATE "Job" j SET "userId" = u."_new_id"::text FROM "user" u WHERE j."userId" = u."id";
+UPDATE "Job" j SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE j."organizationId" = o."id";
+UPDATE "Job" j SET "agentId" = a."_new_id"::text FROM "Agent" a WHERE j."agentId" = a."id";
+UPDATE "Job" j SET "transactionId" = t."_new_id"::text FROM "Transaction" t WHERE j."transactionId" = t."id";
+UPDATE "Job" j SET "refundedTransactionId" = t."_new_id"::text FROM "Transaction" t WHERE j."refundedTransactionId" = t."id";
+UPDATE "Job" j SET "jobScheduleId" = js."_new_id"::text FROM "jobSchedule" js WHERE j."jobScheduleId" = js."id";
+UPDATE "Job" j SET "taskId" = tk."_new_id"::text FROM "task" tk WHERE j."taskId" = tk."id";
+UPDATE "jobPurchase" jp SET "jobId" = j."_new_id"::text FROM "Job" j WHERE jp."jobId" = j."id";
+UPDATE "jobEvent" je SET "jobId" = j."_new_id"::text FROM "Job" j WHERE je."jobId" = j."id";
+UPDATE "jobInput" ji SET "eventId" = je."_new_id"::text FROM "jobEvent" je WHERE ji."eventId" = je."id";
+UPDATE "blob" b SET "eventId" = je."_new_id"::text FROM "jobEvent" je WHERE b."eventId" = je."id";
+UPDATE "link" l SET "eventId" = je."_new_id"::text FROM "jobEvent" je WHERE l."eventId" = je."id";
+UPDATE "jobShare" js SET "jobId" = j."_new_id"::text FROM "Job" j WHERE js."jobId" = j."id";
+UPDATE "jobShare" js SET "taskId" = tk."_new_id"::text FROM "task" tk WHERE js."taskId" = tk."id";
+UPDATE "jobSchedule" js SET "userId" = u."_new_id"::text FROM "user" u WHERE js."userId" = u."id";
+UPDATE "jobSchedule" js SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE js."organizationId" = o."id";
+UPDATE "jobSchedule" js SET "agentId" = a."_new_id"::text FROM "Agent" a WHERE js."agentId" = a."id";
+UPDATE "oauthClient" oc SET "userId" = u."_new_id"::text FROM "user" u WHERE oc."userId" = u."id";
+UPDATE "oauthAccessToken" oat SET "sessionId" = s."_new_id"::text FROM "session" s WHERE oat."sessionId" = s."id";
+UPDATE "oauthAccessToken" oat SET "refreshId" = ort."_new_id"::text FROM "oauthRefreshToken" ort WHERE oat."refreshId" = ort."id";
+UPDATE "oauthAccessToken" oat SET "userId" = u."_new_id"::text FROM "user" u WHERE oat."userId" = u."id";
+UPDATE "oauthRefreshToken" ort SET "sessionId" = s."_new_id"::text FROM "session" s WHERE ort."sessionId" = s."id";
+UPDATE "oauthRefreshToken" ort SET "userId" = u."_new_id"::text FROM "user" u WHERE ort."userId" = u."id";
+UPDATE "oauthConsent" oc SET "userId" = u."_new_id"::text FROM "user" u WHERE oc."userId" = u."id";
+UPDATE "coworker" c SET "userId" = u."_new_id"::text FROM "user" u WHERE c."userId" = u."id";
+UPDATE "coworker_api_key" cak SET "coworkerId" = c."_new_id"::text FROM "coworker" c WHERE cak."coworkerId" = c."id";
+UPDATE "task" t SET "userId" = u."_new_id"::text FROM "user" u WHERE t."userId" = u."id";
+UPDATE "task" t SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE t."organizationId" = o."id";
+UPDATE "task" t SET "coworkerId" = c."_new_id"::text FROM "coworker" c WHERE t."coworkerId" = c."id";
+UPDATE "task_link" tl SET "fromTaskId" = t."_new_id"::text FROM "task" t WHERE tl."fromTaskId" = t."id";
+UPDATE "task_link" tl SET "toTaskId" = t."_new_id"::text FROM "task" t WHERE tl."toTaskId" = t."id";
+UPDATE "taskEvent" te SET "taskId" = t."_new_id"::text FROM "task" t WHERE te."taskId" = t."id";
+UPDATE "taskEvent" te SET "userId" = u."_new_id"::text FROM "user" u WHERE te."userId" = u."id";
+UPDATE "taskEvent" te SET "coworkerId" = c."_new_id"::text FROM "coworker" c WHERE te."coworkerId" = c."id";
+UPDATE "taskEvent" te SET "transactionId" = tr."_new_id"::text FROM "Transaction" tr WHERE te."transactionId" = tr."id";
+UPDATE "coworker_usage" cu SET "coworkerId" = c."_new_id"::text FROM "coworker" c WHERE cu."coworkerId" = c."id";
+UPDATE "coworker_usage" cu SET "userId" = u."_new_id"::text FROM "user" u WHERE cu."userId" = u."id";
+UPDATE "coworker_usage" cu SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE cu."organizationId" = o."id";
+UPDATE "coworker_usage" cu SET "transactionId" = tr."_new_id"::text FROM "Transaction" tr WHERE cu."transactionId" = tr."id";
+UPDATE "conversation" c SET "userId" = u."_new_id"::text FROM "user" u WHERE c."userId" = u."id";
+UPDATE "conversationItem" ci SET "conversationId" = c."_new_id"::text FROM "conversation" c WHERE ci."conversationId" = c."id";
+UPDATE "_AgentToAgentList" j SET "A" = a."_new_id"::text FROM "Agent" a WHERE j."A" = a."id";
+UPDATE "_AgentToAgentList" j SET "B" = al."_new_id"::text FROM "AgentList" al WHERE j."B" = al."id";
+UPDATE "_AgentTag" j SET "A" = a."_new_id"::text FROM "Agent" a WHERE j."A" = a."id";
+UPDATE "_AgentTag" j SET "B" = t."_new_id"::text FROM "Tag" t WHERE j."B" = t."id";
+UPDATE "_AgentTagOverride" j SET "A" = a."_new_id"::text FROM "Agent" a WHERE j."A" = a."id";
+UPDATE "_AgentTagOverride" j SET "B" = t."_new_id"::text FROM "Tag" t WHERE j."B" = t."id";
+UPDATE "_AgentCategory" j SET "A" = a."_new_id"::text FROM "Agent" a WHERE j."A" = a."id";
+UPDATE "_AgentCategory" j SET "B" = c."_new_id"::text FROM "Category" c WHERE j."B" = c."id";
+
+-- Rewrite PK ids (as TEXT for now).
+UPDATE "user" SET "id" = "_new_id"::text;
+UPDATE "session" SET "id" = "_new_id"::text;
+UPDATE "account" SET "id" = "_new_id"::text;
+UPDATE "verification" SET "id" = "_new_id"::text;
+UPDATE "passkey" SET "id" = "_new_id"::text;
+UPDATE "subscription" SET "id" = "_new_id"::text;
+UPDATE "organization" SET "id" = "_new_id"::text;
+UPDATE "member" SET "id" = "_new_id"::text;
+UPDATE "invitation" SET "id" = "_new_id"::text;
+UPDATE "utmAttribution" SET "id" = "_new_id"::text;
+UPDATE "notice" SET "id" = "_new_id"::text;
+UPDATE "noticeAcknowledgment" SET "id" = "_new_id"::text;
+UPDATE "rateLimit" SET "id" = "_new_id"::text;
+UPDATE "UnitValue" SET "id" = "_new_id"::text;
+UPDATE "AgentPricing" SET "id" = "_new_id"::text;
+UPDATE "AgentFixedPricing" SET "id" = "_new_id"::text;
+UPDATE "ExampleOutput" SET "id" = "_new_id"::text;
+UPDATE "UserAgentRating" SET "id" = "_new_id"::text;
+UPDATE "Agent" SET "id" = "_new_id"::text;
+UPDATE "Category" SET "id" = "_new_id"::text;
+UPDATE "Lock" SET "id" = "_new_id"::text;
+UPDATE "Tag" SET "id" = "_new_id"::text;
+UPDATE "sync_metadata" SET "id" = "_new_id"::text;
+UPDATE "AgentList" SET "id" = "_new_id"::text;
+UPDATE "Transaction" SET "id" = "_new_id"::text;
+UPDATE "credit_bucket" SET "id" = "_new_id"::text;
+UPDATE "credit_consumption" SET "id" = "_new_id"::text;
+UPDATE "Job" SET "id" = "_new_id"::text;
+UPDATE "jobPurchase" SET "id" = "_new_id"::text;
+UPDATE "jobEvent" SET "id" = "_new_id"::text;
+UPDATE "jobInput" SET "id" = "_new_id"::text;
+UPDATE "CreditCost" SET "id" = "_new_id"::text;
+UPDATE "apikey" SET "id" = "_new_id"::text;
+UPDATE "blob" SET "id" = "_new_id"::text;
+UPDATE "link" SET "id" = "_new_id"::text;
+UPDATE "jobShare" SET "id" = "_new_id"::text;
+UPDATE "jobSchedule" SET "id" = "_new_id"::text;
+UPDATE "oauthClient" SET "id" = "_new_id"::text;
+UPDATE "oauthAccessToken" SET "id" = "_new_id"::text;
+UPDATE "oauthRefreshToken" SET "id" = "_new_id"::text;
+UPDATE "oauthConsent" SET "id" = "_new_id"::text;
+UPDATE "jwks" SET "id" = "_new_id"::text;
+UPDATE "coworker" SET "id" = "_new_id"::text;
+UPDATE "coworker_api_key" SET "id" = "_new_id"::text;
+UPDATE "task" SET "id" = "_new_id"::text;
+UPDATE "task_link" SET "id" = "_new_id"::text;
+UPDATE "taskEvent" SET "id" = "_new_id"::text;
+UPDATE "coworker_usage" SET "id" = "_new_id"::text;
+UPDATE "conversation" SET "id" = "_new_id"::text;
+UPDATE "conversationItem" SET "id" = "_new_id"::text;
+
+-- Convert columns from TEXT to UUID (now safe since values are UUID strings).
 ALTER TABLE "user" ALTER COLUMN "id" TYPE UUID USING "id"::uuid;
 ALTER TABLE "session" ALTER COLUMN "id" TYPE UUID USING "id"::uuid;
 ALTER TABLE "session" ALTER COLUMN "userId" TYPE UUID USING "userId"::uuid;
@@ -207,6 +445,58 @@ ALTER TABLE "_AgentTagOverride" ALTER COLUMN "B" TYPE UUID USING "B"::uuid;
 ALTER TABLE "_AgentCategory" ALTER COLUMN "A" TYPE UUID USING "A"::uuid;
 ALTER TABLE "_AgentCategory" ALTER COLUMN "B" TYPE UUID USING "B"::uuid;
 
+-- Remove temporary columns.
+ALTER TABLE "user" DROP COLUMN "_new_id";
+ALTER TABLE "session" DROP COLUMN "_new_id";
+ALTER TABLE "account" DROP COLUMN "_new_id";
+ALTER TABLE "verification" DROP COLUMN "_new_id";
+ALTER TABLE "passkey" DROP COLUMN "_new_id";
+ALTER TABLE "subscription" DROP COLUMN "_new_id";
+ALTER TABLE "organization" DROP COLUMN "_new_id";
+ALTER TABLE "member" DROP COLUMN "_new_id";
+ALTER TABLE "invitation" DROP COLUMN "_new_id";
+ALTER TABLE "utmAttribution" DROP COLUMN "_new_id";
+ALTER TABLE "notice" DROP COLUMN "_new_id";
+ALTER TABLE "noticeAcknowledgment" DROP COLUMN "_new_id";
+ALTER TABLE "rateLimit" DROP COLUMN "_new_id";
+ALTER TABLE "UnitValue" DROP COLUMN "_new_id";
+ALTER TABLE "AgentPricing" DROP COLUMN "_new_id";
+ALTER TABLE "AgentFixedPricing" DROP COLUMN "_new_id";
+ALTER TABLE "ExampleOutput" DROP COLUMN "_new_id";
+ALTER TABLE "UserAgentRating" DROP COLUMN "_new_id";
+ALTER TABLE "Agent" DROP COLUMN "_new_id";
+ALTER TABLE "Category" DROP COLUMN "_new_id";
+ALTER TABLE "Lock" DROP COLUMN "_new_id";
+ALTER TABLE "Tag" DROP COLUMN "_new_id";
+ALTER TABLE "sync_metadata" DROP COLUMN "_new_id";
+ALTER TABLE "AgentList" DROP COLUMN "_new_id";
+ALTER TABLE "Transaction" DROP COLUMN "_new_id";
+ALTER TABLE "credit_bucket" DROP COLUMN "_new_id";
+ALTER TABLE "credit_consumption" DROP COLUMN "_new_id";
+ALTER TABLE "Job" DROP COLUMN "_new_id";
+ALTER TABLE "jobPurchase" DROP COLUMN "_new_id";
+ALTER TABLE "jobEvent" DROP COLUMN "_new_id";
+ALTER TABLE "jobInput" DROP COLUMN "_new_id";
+ALTER TABLE "CreditCost" DROP COLUMN "_new_id";
+ALTER TABLE "apikey" DROP COLUMN "_new_id";
+ALTER TABLE "blob" DROP COLUMN "_new_id";
+ALTER TABLE "link" DROP COLUMN "_new_id";
+ALTER TABLE "jobShare" DROP COLUMN "_new_id";
+ALTER TABLE "jobSchedule" DROP COLUMN "_new_id";
+ALTER TABLE "oauthClient" DROP COLUMN "_new_id";
+ALTER TABLE "oauthAccessToken" DROP COLUMN "_new_id";
+ALTER TABLE "oauthRefreshToken" DROP COLUMN "_new_id";
+ALTER TABLE "oauthConsent" DROP COLUMN "_new_id";
+ALTER TABLE "jwks" DROP COLUMN "_new_id";
+ALTER TABLE "coworker" DROP COLUMN "_new_id";
+ALTER TABLE "coworker_api_key" DROP COLUMN "_new_id";
+ALTER TABLE "task" DROP COLUMN "_new_id";
+ALTER TABLE "task_link" DROP COLUMN "_new_id";
+ALTER TABLE "taskEvent" DROP COLUMN "_new_id";
+ALTER TABLE "coworker_usage" DROP COLUMN "_new_id";
+ALTER TABLE "conversation" DROP COLUMN "_new_id";
+ALTER TABLE "conversationItem" DROP COLUMN "_new_id";
+
 -- Recreate FKs.
 ALTER TABLE "session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "account" ADD CONSTRAINT "account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -274,4 +564,11 @@ ALTER TABLE "coworker_usage" ADD CONSTRAINT "coworker_usage_organizationId_fkey"
 ALTER TABLE "coworker_usage" ADD CONSTRAINT "coworker_usage_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "Transaction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "conversation" ADD CONSTRAINT "conversation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "conversationItem" ADD CONSTRAINT "conversationItem_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
+ALTER TABLE "_AgentToAgentList" ADD CONSTRAINT "_AgentToAgentList_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_AgentToAgentList" ADD CONSTRAINT "_AgentToAgentList_B_fkey" FOREIGN KEY ("B") REFERENCES "AgentList"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_AgentTag" ADD CONSTRAINT "_AgentTag_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_AgentTag" ADD CONSTRAINT "_AgentTag_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_AgentTagOverride" ADD CONSTRAINT "_AgentTagOverride_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_AgentTagOverride" ADD CONSTRAINT "_AgentTagOverride_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_AgentCategory" ADD CONSTRAINT "_AgentCategory_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_AgentCategory" ADD CONSTRAINT "_AgentCategory_B_fkey" FOREIGN KEY ("B") REFERENCES "Category"("id") ON DELETE CASCADE ON UPDATE CASCADE;
