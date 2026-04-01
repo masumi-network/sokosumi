@@ -250,7 +250,7 @@ Capture **behavior the chat feature already guarantees today**, as **user storie
 | Web proxy + disconnect drain | `apps/web/src/app/api/chat/proxy-conversation-chat-post.ts` (`POST /api/chat` → Core ai-sdk; **`/api/chat/ai-sdk`** re-exports) |
 | Core chat + OpenRouter / coworker branch | `apps/core/src/routes/v1/conversations/chat/post.ts` |
 | Core AI SDK chat (`streamText` + Sokosumi provider) | `apps/core/src/routes/v1/conversations/chat/ai-sdk/post.ts` |
-| Web chat shell + BFF path | `apps/web/src/app/(app)/chat/` + `apps/web/src/app/(app)/chat/utils/chat-route-base.ts` (redirect `/chat-ai-sdk` → `/chat`) |
+| Web chat shells + BFF | `apps/web/src/app/(app)/chat/`, `apps/web/src/app/(app)/new-chat/`, `chat-route-base.ts` |
 | OpenAPI → web client regen | `pnpm generate:core` (Core must serve `/v1/openapi.json`; see `apps/core/AGENTS.md`) |
 | Conversation items / create | `apps/web/src/lib/actions/conversation/core-api-actions.ts` |
 | `useChat` + transport + reasoning + recovery | `apps/web/src/app/(app)/chat/components/chat-interface.tsx` |
