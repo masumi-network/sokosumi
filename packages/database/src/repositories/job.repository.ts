@@ -22,6 +22,7 @@ interface CreateDemoJobData {
   agentId: string;
   userId: string;
   organizationId?: string | null;
+  workspaceId: string;
   inputSchema: InputSchemaSchemaType;
   input: string;
   name: string | null;
@@ -33,6 +34,7 @@ interface CreateJobBase {
   agentId: string;
   userId: string;
   organizationId: string | null | undefined;
+  workspaceId: string;
   inputSchema: InputSchemaSchemaType;
   input: string;
   inputHash: string | null;
@@ -209,6 +211,11 @@ export const jobRepository = {
             },
           },
         }),
+        workspace: {
+          connect: {
+            id: data.workspaceId,
+          },
+        },
         events: {
           create: {
             status: AgentJobStatus.INITIATED,
@@ -273,6 +280,11 @@ export const jobRepository = {
           },
         },
       }),
+      workspace: {
+        connect: {
+          id: data.workspaceId,
+        },
+      },
       events: {
         create: {
           status: AgentJobStatus.INITIATED,
@@ -404,31 +416,6 @@ export const jobRepository = {
       include: jobInclude,
     });
     return mapJobWithStatus(job);
-  },
-
-  /**
-   * Retrieves a job by ID with authorization checks
-   * Ensures the job belongs to the specified user and organization context
-   * @param jobId - The unique identifier of the job
-   * @param userId - The unique identifier of the user (must match job owner)
-   * @param organizationId - The organization context (null for personal jobs)
-   * @returns Promise containing the job if authorized, null if not found or not authorized
-   */
-  async getJobByIdWithAuthCheck(
-    jobId: string,
-    userId: string,
-    organizationId: string | null,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus | null> {
-    const job = await tx.job.findUnique({
-      where: {
-        id: jobId,
-        userId,
-        organizationId,
-      },
-      include: jobInclude,
-    });
-    return job ? mapJobWithStatus(job) : null;
   },
 
   async getJobs(

@@ -7,6 +7,7 @@ import type {
   Prisma,
   Transaction,
 } from "../generated/prisma/client.js";
+import { workspaceRelationInclude } from "./workspace.js";
 
 export const jobWithEvents = {
   events: {
@@ -87,6 +88,7 @@ export const jobInclude = {
   ...jobWithAgent,
   ...jobWithUser,
   ...jobWithOrganization,
+  ...workspaceRelationInclude,
   ...jobWithTransaction,
   ...jobWithRefundedTransaction,
   ...jobWithShare,

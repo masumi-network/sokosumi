@@ -30,9 +30,11 @@ function createPaidJob(overrides: Record<string, unknown> = {}) {
     name: null,
     jobScheduleId: null,
     taskId: null,
+    workspaceId: null,
     purchase: null,
     events: [],
     transaction: null,
+    workspace: null,
     ...overrides,
   };
 }
