@@ -2,7 +2,6 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import * as envConfig from "@/config/env";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { openApiValidationDefaultHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
@@ -15,6 +14,7 @@ const {
   convertToModelMessagesMock,
   coworkerFindFirstMock,
   generateChatTitleMock,
+  getOpenRouterChatApiKeyForProviderMock,
   getSokosumiProviderMock,
   requireCoworkerChatCapabilityMock,
   streamTextMock,
@@ -24,6 +24,7 @@ const {
   convertToModelMessagesMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   generateChatTitleMock: vi.fn(),
+  getOpenRouterChatApiKeyForProviderMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
   streamTextMock: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("@/lib/sokosumi-ai-provider", () => ({
+  getOpenRouterChatApiKeyForProvider: getOpenRouterChatApiKeyForProviderMock,
   getSokosumiProvider: getSokosumiProviderMock,
 }));
 
@@ -91,6 +93,9 @@ function createApp({
 describe("POST /conversations/new-chat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getOpenRouterChatApiKeyForProviderMock.mockReturnValue(
+      "sk-or-v1-test-0000000000000000000000000000000000000000",
+    );
     getSokosumiProviderMock.mockReturnValue(() => ({}));
     convertToModelMessagesMock.mockResolvedValue([]);
     conversationItemCreateMock.mockResolvedValue(undefined);
@@ -132,11 +137,7 @@ describe("POST /conversations/new-chat", () => {
       id: "550e8400-e29b-41d4-a716-446655440000",
       metadata: { model_id: "claude-opus-4-6" },
     });
-    const baseline = envConfig.getEnv();
-    const spy = vi.spyOn(envConfig, "getEnv").mockReturnValue({
-      ...baseline,
-      OPENROUTER_CHAT_API_KEY: undefined,
-    });
+    getOpenRouterChatApiKeyForProviderMock.mockReturnValueOnce("");
 
     const app = createApp();
     const response = await app.request("http://localhost/new-chat", {
@@ -148,7 +149,6 @@ describe("POST /conversations/new-chat", () => {
       }),
     });
 
-    spy.mockRestore();
     expect(response.status).toBe(503);
     expect(streamTextMock).not.toHaveBeenCalled();
   });

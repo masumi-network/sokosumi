@@ -1,17 +1,32 @@
 import { createSokosumi } from "@sokosumi/ai-provider";
 
-import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
+import { getBetterAuthPublicBaseUrl } from "@/config/env";
 
-let instance: ReturnType<typeof createSokosumi> | null = null;
+type SokosumiProvider = ReturnType<typeof createSokosumi>;
 
-export function getSokosumiProvider(): ReturnType<typeof createSokosumi> {
-  if (!instance) {
-    const env = getEnv();
+let instance: SokosumiProvider | null = null;
+let cachedOpenRouterApiKey: string | null = null;
+let cachedOpenRouterHttpReferer: string | null = null;
+
+export function getOpenRouterChatApiKeyForProvider(): string {
+  return process.env.OPENROUTER_CHAT_API_KEY ?? "";
+}
+
+export function getSokosumiProvider(): SokosumiProvider {
+  const openRouterApiKey = getOpenRouterChatApiKeyForProvider();
+  const openRouterHttpReferer = getBetterAuthPublicBaseUrl();
+  if (
+    !instance ||
+    cachedOpenRouterApiKey !== openRouterApiKey ||
+    cachedOpenRouterHttpReferer !== openRouterHttpReferer
+  ) {
     instance = createSokosumi({
-      openRouterApiKey: env.OPENROUTER_CHAT_API_KEY ?? "",
-      openRouterHttpReferer: getBetterAuthPublicBaseUrl(),
+      openRouterApiKey,
+      openRouterHttpReferer,
       openRouterAppTitle: "Sokosumi",
     });
+    cachedOpenRouterApiKey = openRouterApiKey;
+    cachedOpenRouterHttpReferer = openRouterHttpReferer;
   }
   return instance;
 }

@@ -2,7 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { convertToModelMessages, streamText } from "ai";
 
 import { openrouterClient } from "@/clients/openrouter.client";
-import { getEnv } from "@/config/env";
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
 import {
   badRequest,
@@ -25,7 +24,10 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
+import {
+  getOpenRouterChatApiKeyForProvider,
+  getSokosumiProvider,
+} from "@/lib/sokosumi-ai-provider";
 import { requireUserAuthContext } from "@/middleware/auth";
 
 import { chatRequestSchema } from "@/schemas/chat-request.schema.js";
@@ -189,8 +191,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (!useCoworker) {
-        const chatKey = getEnv().OPENROUTER_CHAT_API_KEY;
-        if (!chatKey?.trim()) {
+        const chatKey = getOpenRouterChatApiKeyForProvider();
+        if (!chatKey.trim()) {
           throw serviceUnavailable("OpenRouter chat API key not configured");
         }
       }
