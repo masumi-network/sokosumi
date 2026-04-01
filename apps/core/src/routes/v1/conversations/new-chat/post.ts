@@ -1,12 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { convertToModelMessages, streamText } from "ai";
 
-import { streamResponsesApi } from "@/clients/coworker-api.client";
 import { openrouterClient } from "@/clients/openrouter.client";
+import { getEnv } from "@/config/env";
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
-import {
-  type ResponsesApiResponseIdRef,
-  streamWithAssistantPersistence,
-} from "@/helpers/chat-stream-persist";
 import {
   badRequest,
   internalServerError,
@@ -18,6 +15,7 @@ import {
   formatMessageContentForConversation,
 } from "@/helpers/message-content";
 import { jsonErrorResponse } from "@/helpers/openapi";
+import { persistAssistantFromAiSdk } from "@/helpers/persist-assistant-from-ai-sdk";
 import {
   clearPendingAndSetPrevious,
   persistPendingResponseId,
@@ -27,14 +25,17 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { requireUserAuthContext } from "@/middleware/auth";
 
 import { chatRequestSchema } from "@/schemas/chat-request.schema.js";
+import { mapChatRequestToUiMessages } from "../chat/map-chat-request-to-ui-messages.js";
 
 const route = createRoute({
   method: "post",
-  path: "/chat",
-  description: "Stream chat responses from AI models",
+  path: "/new-chat",
+  description:
+    "Experimental: stream chat via Vercel AI SDK (`@sokosumi/ai-provider`). Use POST /conversations/chat for production.",
   tags: ["Conversations"],
   request: {
     body: {
@@ -47,7 +48,7 @@ const route = createRoute({
   },
   responses: {
     200: {
-      description: "Streaming chat response",
+      description: "Streaming UI message response (AI SDK)",
       content: {
         "text/event-stream": {
           schema: z.string(),
@@ -106,40 +107,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      const modelMessages = messages.map((msg) => {
-        let contentText = "";
-
-        if ("parts" in msg && Array.isArray(msg.parts)) {
-          contentText = msg.parts
-            .map((part: { type?: string; text?: string }) => {
-              if (part.type === "text" && part.text) {
-                return part.text;
-              }
-              return "";
-            })
-            .filter(Boolean)
-            .join("");
-        } else if (typeof msg.content === "string") {
-          contentText = msg.content;
-        } else if (Array.isArray(msg.content)) {
-          contentText = (msg.content as Array<{ text?: string }>)
-            .map((part) => part?.text || "")
-            .filter(Boolean)
-            .join("");
-        }
-
-        return {
-          role: msg.role,
-          content: contentText,
-        };
-      });
-
       const lastUserMessageText =
         messages.length > 0
           ? (() => {
               const lastMessage = messages[messages.length - 1];
-              if (lastMessage.role !== "user" && lastMessage.role !== "system")
+              if (
+                lastMessage.role !== "user" &&
+                lastMessage.role !== "system"
+              ) {
                 return null;
+              }
               if ("parts" in lastMessage && Array.isArray(lastMessage.parts)) {
                 return lastMessage.parts
                   .map((part: { type?: string; text?: string }) =>
@@ -196,10 +173,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         coworker = await requireCoworkerChatCapability(coworkerIdentity.id);
       }
 
-      const useResponsesApi =
-        Boolean(internalConversationId) && Boolean(coworker);
+      const useCoworker = Boolean(internalConversationId) && Boolean(coworker);
 
-      if (useResponsesApi) {
+      if (useCoworker) {
         if (lastUserMessageText === null || lastUserMessageText.trim() === "") {
           throw badRequest(
             "Coworker chat requires a user or system message to respond to; send at least one message with text.",
@@ -209,6 +185,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw serviceUnavailable(
             "Coworker chat is not available: no Responses API URL configured for this coworker.",
           );
+        }
+      }
+
+      if (!useCoworker) {
+        const chatKey = getEnv().OPENROUTER_CHAT_API_KEY;
+        if (!chatKey?.trim()) {
+          throw serviceUnavailable("OpenRouter chat API key not configured");
         }
       }
 
@@ -259,128 +242,121 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      if (useResponsesApi) {
-        const responsesApiResponseIdRef: ResponsesApiResponseIdRef = {
-          current: null,
-        };
-        const responsesApiOptions = {
-          responsesApiBaseUrl: coworker!.baseURL!.trim(),
-          sokosumiUserId: authContext.userId,
-          sokosumiOrganizationId: authContext.organizationId ?? null,
-          coworkerSlug: coworker!.slug,
-          previousResponseId,
-          onResponseStarted: async (responseId: string) => {
-            responsesApiResponseIdRef.current = responseId;
-            if (!internalConversationId) return;
-            void persistPendingResponseId({
+      const uiMessages = mapChatRequestToUiMessages(messages);
+      const modelMessages = await convertToModelMessages(
+        uiMessages.map(({ id: _id, ...rest }) => rest),
+      );
+
+      const responsesApiResponseIdRef: { current: string | null } = {
+        current: null,
+      };
+
+      const sokosumiProviderOptions = {
+        mode: useCoworker ? ("coworker" as const) : ("openrouter" as const),
+        coworkerBaseUrl: coworker?.baseURL ?? null,
+        coworkerSlug: coworker?.slug ?? null,
+        sokosumiUserId: authContext.userId,
+        sokosumiOrganizationId: authContext.organizationId ?? null,
+        previousResponseId: useCoworker ? previousResponseId : null,
+        onResponseStarted: (responseId: string) => {
+          responsesApiResponseIdRef.current = responseId;
+          if (!internalConversationId || !coworker) {
+            return;
+          }
+          void persistPendingResponseId({
+            conversationId: internalConversationId,
+            userId: authContext.userId,
+            responseId,
+            coworkerSlug: coworker.slug,
+            coworkerId: coworker.id,
+          }).catch((error) => {
+            console.error("Failed to persist pending response id:", error);
+          });
+        },
+        onResponseCompleted: async (responseId: string) => {
+          if (!internalConversationId) {
+            return;
+          }
+          try {
+            await clearPendingAndSetPrevious({
               conversationId: internalConversationId,
               userId: authContext.userId,
               responseId,
-              coworkerSlug: coworker!.slug,
-              coworkerId: coworker!.id,
-            }).catch((error) => {
-              console.error("Failed to persist pending response id:", error);
             });
-          },
-          onResponseCompleted: async (responseId: string) => {
-            if (!internalConversationId) return;
-            try {
-              await clearPendingAndSetPrevious({
-                conversationId: internalConversationId,
-                userId: authContext.userId,
-                responseId,
-              });
-            } catch (error) {
-              console.error(
-                "Failed to clear pending and set previous response id:",
-                error,
-              );
-            }
-          },
-        };
-
-        let result: Response;
-        try {
-          result = await streamResponsesApi(
-            lastUserMessageText as string,
-            responsesApiOptions,
-          );
-        } catch (firstError) {
-          const message =
-            firstError instanceof Error
-              ? firstError.message
-              : String(firstError);
-          const isInvalidPreviousResponseId =
-            message.includes("invalid_previous_response_id") ||
-            message.includes("previous_response_id not found");
-          if (!isInvalidPreviousResponseId) throw firstError;
-
-          if (internalConversationId) {
-            try {
-              const conv = await prisma.conversation.findFirst({
-                where: {
-                  id: internalConversationId,
-                  userId: authContext.userId,
-                },
-                select: { metadata: true },
-              });
-              const currentMeta =
-                (conv?.metadata as Record<string, unknown>) ?? {};
-              const { previous_response_id: _removed, ...metaWithoutPrevious } =
-                currentMeta as Record<string, unknown>;
-              await prisma.conversation.update({
-                where: { id: internalConversationId },
-                data: { metadata: metaWithoutPrevious },
-              });
-            } catch (error) {
-              console.error(
-                "Failed to clear previous_response_id from conversation after fallback:",
-                error,
-              );
-            }
+          } catch (error) {
+            console.error(
+              "Failed to clear pending and set previous response id:",
+              error,
+            );
           }
+        },
+        onInvalidPreviousResponseId:
+          useCoworker && internalConversationId
+            ? async () => {
+                try {
+                  const conv = await prisma.conversation.findFirst({
+                    where: {
+                      id: internalConversationId,
+                      userId: authContext.userId,
+                    },
+                    select: { metadata: true },
+                  });
+                  const currentMeta =
+                    (conv?.metadata as Record<string, unknown>) ?? {};
+                  const {
+                    previous_response_id: _removed,
+                    ...metaWithoutPrevious
+                  } = currentMeta as Record<string, unknown>;
+                  await prisma.conversation.update({
+                    where: { id: internalConversationId },
+                    data: { metadata: metaWithoutPrevious },
+                  });
+                } catch (error) {
+                  console.error(
+                    "Failed to clear previous_response_id from conversation after invalid chain (new-chat):",
+                    error,
+                  );
+                }
+              }
+            : undefined,
+      };
 
-          const responsesApiInput = modelMessages.filter(
-            (m) => m.content && String(m.content).trim().length > 0,
-          ) as Array<{ role: string; content: string }>;
-          result = await streamResponsesApi(responsesApiInput, {
-            ...responsesApiOptions,
-            previousResponseId: null,
-          });
-        }
+      const result = streamText({
+        model: getSokosumiProvider()(selectedModel ?? ""),
+        messages: modelMessages,
+        maxRetries: 0,
+        providerOptions: {
+          sokosumi: sokosumiProviderOptions,
+        },
+        onFinish: async ({ text }) => {
+          if (!internalConversationId) {
+            return;
+          }
+          try {
+            await persistAssistantFromAiSdk({
+              conversationId: internalConversationId,
+              userId: authContext.userId,
+              text,
+              responsesApiResponseId: responsesApiResponseIdRef.current,
+            });
+          } catch (error) {
+            console.error(
+              "Failed to persist assistant message (new-chat):",
+              error,
+            );
+          }
+        },
+      });
 
-        if (internalConversationId && result.body) {
-          const wrapped = streamWithAssistantPersistence(
-            result.body,
-            internalConversationId,
-            authContext.userId,
-            { responsesApiResponseIdRef },
-          );
-          return new Response(wrapped, {
-            headers: result.headers,
-            status: result.status,
-          });
-        }
-        return result;
-      }
-
-      const result = await openrouterClient.streamChatResponse(
-        modelMessages,
-        selectedModel,
-      );
-
-      if (internalConversationId && result.body) {
-        const wrapped = streamWithAssistantPersistence(
-          result.body,
-          internalConversationId,
-          authContext.userId,
-        );
-        return new Response(wrapped, {
-          headers: result.headers,
-          status: result.status,
-        });
-      }
-      return result;
+      return result.toUIMessageStreamResponse({
+        headers: {
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          ...(internalConversationId
+            ? { "x-sokosumi-conversation-id": internalConversationId }
+            : {}),
+        },
+      });
     } catch (error) {
       if (
         error &&
@@ -391,7 +367,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw error;
       }
       throw internalServerError(
-        `Failed to stream chat response: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to stream chat response (new-chat): ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   });

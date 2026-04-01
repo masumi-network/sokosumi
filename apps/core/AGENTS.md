@@ -598,6 +598,15 @@ const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 
 Environment variables required by Vitest (or by code under test) must be set in **`src/test/setup.ts`**. Add new keys to the `envDefaults` object there so tests run with predictable values and without relying on `.env`. Do not add test-only env vars to `.env.example`; keep them in the test setup.
 
+### Conversations chat streaming (OpenAPI)
+
+- **`POST /conversations/chat`** — Production streaming path (coworker Responses client + OpenRouter). Used by the **web app’s `/chat` UI** via **`/api/chat`** and by direct API clients.
+- **`POST /conversations/new-chat`** — Experimental path: Vercel AI SDK `streamText` with `@sokosumi/ai-provider`. Used by **`/new-chat`** via **`/api/new-chat`** (alias **`/api/chat/ai-sdk`**).
+
+Both routes are registered on the v1 OpenAPI document via `app.openapi(withGlobalHeaderParameters(route), …)` in `src/routes/v1/conversations/chat/post.ts` and `…/new-chat/post.ts`. Invalid JSON bodies are rejected with **422** through the shared `openApiValidationDefaultHook` in `src/lib/hono.ts`.
+
+**Regenerating the web Core client** (`apps/web/src/lib/clients/generated/core/`): run Core locally on port **8787** (default), then from the repo root run **`pnpm generate:core`** (alias for `pnpm --filter web generate:core`), which fetches `http://localhost:8787/v1/openapi.json` per `apps/web/openapi-ts.core.config.ts`.
+
 ## Core API Gotchas
 
 ### Authentication

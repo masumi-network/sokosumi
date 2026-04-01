@@ -8,6 +8,7 @@ import mountPatchConversation from "./[id]/patch.js";
 import mountPostRecoverResponse from "./[id]/recover-response/post.js";
 import mountChat from "./chat/post.js";
 import mountGetConversations from "./get.js";
+import mountNewChat from "./new-chat/post.js";
 import mountPostConversation from "./post.js";
 
 const app = new OpenAPIHonoWithAuth();
@@ -21,5 +22,6 @@ mountGetConversationItems(app);
 mountPostConversationItem(app);
 mountPostRecoverResponse(app);
 mountChat(app);
+mountNewChat(app);
 
 export default app;
