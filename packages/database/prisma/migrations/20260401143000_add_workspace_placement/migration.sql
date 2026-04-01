@@ -1,6 +1,6 @@
 -- Create workspace table for decoupled placement.
 CREATE TABLE "workspace" (
-  "id" TEXT NOT NULL,
+  "id" UUID NOT NULL,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   "userId" TEXT,
@@ -17,9 +17,9 @@ CREATE TABLE "workspace" (
 CREATE UNIQUE INDEX "workspace_userId_key" ON "workspace"("userId");
 CREATE UNIQUE INDEX "workspace_organizationId_key" ON "workspace"("organizationId");
 
-ALTER TABLE "Job" ADD COLUMN "workspaceId" TEXT;
-ALTER TABLE "jobSchedule" ADD COLUMN "workspaceId" TEXT;
-ALTER TABLE "task" ADD COLUMN "workspaceId" TEXT;
+ALTER TABLE "Job" ADD COLUMN "workspaceId" UUID;
+ALTER TABLE "jobSchedule" ADD COLUMN "workspaceId" UUID;
+ALTER TABLE "task" ADD COLUMN "workspaceId" UUID;
 
 INSERT INTO "workspace" (
   "id",
@@ -29,7 +29,7 @@ INSERT INTO "workspace" (
   "organizationId"
 )
 SELECT
-  gen_random_uuid()::text,
+  gen_random_uuid(),
   CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP,
   "id",
@@ -44,7 +44,7 @@ INSERT INTO "workspace" (
   "organizationId"
 )
 SELECT
-  gen_random_uuid()::text,
+  gen_random_uuid(),
   CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP,
   NULL,

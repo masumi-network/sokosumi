@@ -208,7 +208,7 @@ model Organization {
 }
 
 model Workspace {
-  id        String        @id @default(uuid())
+  id        String        @id @default(uuid(7)) @db.Uuid
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
@@ -699,7 +699,7 @@ model Job {
 
   purchase JobPurchase?
 
-  workspaceId String?
+  workspaceId String?    @db.Uuid
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 
   // Optional link to the schedule that initiated this job
@@ -947,7 +947,7 @@ model JobSchedule {
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  workspaceId    String?
+  workspaceId    String?       @db.Uuid
   workspace      Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   agentId        String
   agent          Agent         @relation(fields: [agentId], references: [id])
@@ -1182,7 +1182,7 @@ model Task {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
-  workspaceId String?
+  workspaceId String?    @db.Uuid
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 
   share PublicShare?
