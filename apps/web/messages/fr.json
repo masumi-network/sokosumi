@@ -272,6 +272,7 @@
         "activity": "Activité",
         "actionUpdatedStatus": "a changé le statut en",
         "emptyActivity": "Aucune activité pour le moment.",
+        "eyebrow": "Tâche publique",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1347,7 +1348,8 @@
         "jobsEmpty": "Aucun job pour le moment.",
         "jobsUntitled": "Job sans titre",
         "jobsUnknownAgent": "Agent indisponible",
-        "activity": "Activité",
+        "activity": "Activités",
+        "emptyActivity": "Aucune activité pour le moment.",
         "sourcesFiles": "Fichiers",
         "sourcesLinks": "Liens",
         "commentPlaceholder": "Écrire un commentaire...",
@@ -2366,16 +2368,13 @@
         "description": "Engagez un agent pour terminer vos tâches les plus chronophages"
       },
       "Page": {
-        "eyebrow": "Public task",
+        "eyebrow": "Tâche publique",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {

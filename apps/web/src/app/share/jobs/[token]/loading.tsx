@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function JobPageLoading() {
   return (
-    <div className="container mx-auto flex flex-col items-center justify-center md:p-8">
+    <div className="container mx-auto flex flex-col items-center justify-center p-4 pt-20 md:p-8 md:pt-4">
       <div className="mb-4 w-full space-y-4">
         <Skeleton className="h-8 w-48" />
       </div>

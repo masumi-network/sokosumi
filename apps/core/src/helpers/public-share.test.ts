@@ -159,9 +159,51 @@ describe("getPublicSharedResourceByToken", () => {
             updatedAt: new Date("2026-03-30T10:05:00.000Z"),
             origin: "SOKOSUMI",
             status: "RUNNING",
+            comment: null,
+            user: null,
+            coworker: {
+              name: "Ops Agent",
+              image: "https://example.com/coworker.png",
+            },
             transaction: {
               amount: -15000000000n,
             },
+          },
+          {
+            id: "evt_comment",
+            createdAt: new Date("2026-03-30T10:06:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:06:00.000Z"),
+            origin: "EMAIL",
+            status: null,
+            comment: "Customer added context",
+            user: {
+              name: "Ada Lovelace",
+              image: "https://example.com/user.png",
+            },
+            coworker: null,
+            transaction: null,
+          },
+          {
+            id: "evt_auth",
+            createdAt: new Date("2026-03-30T10:07:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:07:00.000Z"),
+            origin: "SOKOSUMI",
+            status: "AUTHENTICATION_REQUIRED",
+            comment: null,
+            user: null,
+            coworker: null,
+            transaction: null,
+          },
+          {
+            id: "evt_empty",
+            createdAt: new Date("2026-03-30T10:08:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:08:00.000Z"),
+            origin: "SOKOSUMI",
+            status: null,
+            comment: "   ",
+            user: null,
+            coworker: null,
+            transaction: null,
           },
         ],
       },
@@ -202,6 +244,25 @@ describe("getPublicSharedResourceByToken", () => {
             id: "evt_123",
             status: "RUNNING",
             credits: 1.5,
+            comment: null,
+            actorName: "Ops Agent",
+            actorImage: "https://example.com/coworker.png",
+          },
+          {
+            id: "evt_comment",
+            status: null,
+            comment: "Customer added context",
+            credits: null,
+            actorName: "Ada Lovelace",
+            actorImage: "https://example.com/user.png",
+          },
+          {
+            id: "evt_auth",
+            status: "AUTHENTICATION_REQUIRED",
+            comment: null,
+            credits: null,
+            actorName: null,
+            actorImage: null,
           },
         ],
       },
@@ -220,6 +281,7 @@ describe("getPublicSharedResourceByToken", () => {
     expect(resource.task.jobs[1]?.completedAt).toEqual(
       new Date("2026-03-30T10:08:00.000Z"),
     );
+    expect(resource.task.events).toHaveLength(3);
   });
 
   it("returns null for archived shared tasks", async () => {
