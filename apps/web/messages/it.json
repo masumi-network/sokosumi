@@ -2369,7 +2369,7 @@
         "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
       },
       "Page": {
-        "eyebrow": "Job pubblico",
+        "eyebrow": "Task pubblico",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
         "jobCreatedAt": "Created {date}",

@@ -45,6 +45,8 @@ export interface JobDetailsViewProps {
   readOnly?: boolean;
   className?: string;
   showAgentHeader?: boolean;
+  /** Share route only: eyebrow, status badge, agent title, mobile top offset. */
+  publicJobLayout?: boolean;
 }
 
 export default function JobDetailsView({
@@ -52,6 +54,7 @@ export default function JobDetailsView({
   readOnly = false,
   className,
   showAgentHeader = true,
+  publicJobLayout = false,
 }: JobDetailsViewProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
   const [showAllEvents, setShowAllEvents] = useState(false);
@@ -73,16 +76,25 @@ export default function JobDetailsView({
     >
       <div className="flex w-full flex-col gap-4 md:h-full md:flex-row">
         <div className="flex w-full min-w-0 justify-center">
-          <div className="min-w-0 flex-1 space-y-4 pt-20 md:pt-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-muted-foreground text-xs font-medium tracking-[0.24em] uppercase">
-                {t("eyebrow")}
-              </span>
-              <JobStatusBadge status={job.status} />
-            </div>
-            <h1 className="max-w-3xl text-3xl font-light tracking-tight md:text-4xl">
-              {agentName}
-            </h1>
+          <div
+            className={cn(
+              "min-w-0 flex-1 space-y-4 max-w-4xl",
+              publicJobLayout && "pt-20 md:pt-4 max-w-auto",
+            )}
+          >
+            {publicJobLayout ? (
+              <>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-muted-foreground text-xs font-medium tracking-[0.24em] uppercase">
+                    {t("eyebrow")}
+                  </span>
+                  <JobStatusBadge status={job.status} />
+                </div>
+                <h1 className="max-w-3xl text-3xl font-light tracking-tight md:text-4xl">
+                  {agentName}
+                </h1>
+              </>
+            ) : null}
             {showAgentHeader && jobsHeader ? (
               <Header
                 {...jobsHeader}

@@ -107,7 +107,12 @@ export default async function SharePage({
   if (resource.kind === "job") {
     return (
       <div className="container mx-auto flex justify-center p-4 md:p-0 md:px-8">
-        <JobDetailsView job={resource.job} className="w-full" readOnly />
+        <JobDetailsView
+          job={resource.job}
+          className="w-full"
+          readOnly
+          publicJobLayout
+        />
       </div>
     );
   }

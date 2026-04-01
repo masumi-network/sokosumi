@@ -2369,7 +2369,7 @@
         "description": "Contrata un Agent para tus tareas más complejas"
       },
       "Page": {
-        "eyebrow": "Trabajo público",
+        "eyebrow": "Tarea pública",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
         "jobCreatedAt": "Created {date}",

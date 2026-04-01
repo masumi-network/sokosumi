@@ -2369,7 +2369,7 @@
         "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
       },
       "Page": {
-        "eyebrow": "公開ジョブ",
+        "eyebrow": "公開タスク",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
         "jobCreatedAt": "Created {date}",
