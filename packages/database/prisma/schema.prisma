@@ -15,7 +15,7 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid(7))
+  id            String    @id @default(uuid(7)) @db.Uuid
   name          String
   email         String
   emailVerified Boolean
@@ -82,7 +82,7 @@ model User {
 }
 
 model Session {
-  id             String   @id @default(uuid(7))
+  id             String   @id @default(uuid(7)) @db.Uuid
   expiresAt      DateTime
   token          String
   createdAt      DateTime
@@ -90,7 +90,7 @@ model Session {
   ipAddress      String?
   userAgent      String?
   impersonatedBy String?
-  userId         String
+  userId         String   @db.Uuid
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   oauthAccessTokens  OauthAccessToken[]
@@ -103,10 +103,10 @@ model Session {
 }
 
 model Account {
-  id                    String    @id @default(uuid(7))
+  id                    String    @id @default(uuid(7)) @db.Uuid
   accountId             String
   providerId            String
-  userId                String
+  userId                String    @db.Uuid
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
@@ -122,7 +122,7 @@ model Account {
 }
 
 model Verification {
-  id         String    @id @default(uuid(7))
+  id         String    @id @default(uuid(7)) @db.Uuid
   identifier String
   value      String
   expiresAt  DateTime
@@ -133,10 +133,10 @@ model Verification {
 }
 
 model Passkey {
-  id           String   @id @default(uuid(7))
+  id           String   @id @default(uuid(7)) @db.Uuid
   name         String?
   publicKey    String
-  userId       String
+  userId       String   @db.Uuid
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   credentialID String
   counter      Int
@@ -153,7 +153,7 @@ model Passkey {
 }
 
 model Subscription {
-  id                   String    @id @default(uuid(7))
+  id                   String    @id @default(uuid(7)) @db.Uuid
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   plan                 String
@@ -180,7 +180,7 @@ model Subscription {
 }
 
 model Organization {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   name      String
   slug      String
   logo      String?
@@ -206,10 +206,10 @@ model Organization {
 }
 
 model Member {
-  id             String       @id @default(uuid(7))
-  userId         String
+  id             String       @id @default(uuid(7)) @db.Uuid
+  userId         String       @db.Uuid
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId String
+  organizationId String       @db.Uuid
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   role           String       @default("member")
   createdAt      DateTime     @default(now())
@@ -219,25 +219,25 @@ model Member {
 }
 
 model Invitation {
-  id             String       @id @default(uuid(7))
+  id             String       @id @default(uuid(7)) @db.Uuid
   createdAt      DateTime     @default(now())
-  organizationId String
+  organizationId String       @db.Uuid
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   email          String
   role           String?
   status         String
   expiresAt      DateTime
-  inviterId      String
+  inviterId      String       @db.Uuid
   inviter        User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
 
   @@map("invitation")
 }
 
 model UTMAttribution {
-  id String @id @default(uuid(7))
+  id String @id @default(uuid(7)) @db.Uuid
 
   // User
-  userId String @unique
+  userId String @unique @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // UTM parameters
@@ -264,7 +264,7 @@ model UTMAttribution {
 }
 
 model Notice {
-  id           String     @id @default(uuid(7))
+  id           String     @id @default(uuid(7)) @db.Uuid
   kind         NoticeKind @default(ANNOUNCEMENT)
   bodyMarkdown String
   effectiveAt  DateTime   @default(now())
@@ -279,9 +279,9 @@ model Notice {
 }
 
 model NoticeAcknowledgment {
-  id             String   @id @default(uuid(7))
-  userId         String
-  noticeId       String
+  id             String   @id @default(uuid(7)) @db.Uuid
+  userId         String   @db.Uuid
+  noticeId       String   @db.Uuid
   acknowledgedAt DateTime @default(now())
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -299,7 +299,7 @@ enum NoticeKind {
 }
 
 model RateLimit {
-  id          String  @id @default(uuid(7))
+  id          String  @id @default(uuid(7)) @db.Uuid
   key         String?
   count       Int?
   lastRequest BigInt?
@@ -308,26 +308,26 @@ model RateLimit {
 }
 
 model UnitValue {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   unit      String
   amount    BigInt
 
   agentFixedPricing   AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
-  agentFixedPricingId String?
+  agentFixedPricingId String?            @db.Uuid
   paymentRequestId    String?
   purchaseRequestId   String?
 }
 
 model AgentPricing {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   pricingType         PricingType
   fixedPricing        AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
-  agentFixedPricingId String?            @unique
+  agentFixedPricingId String?            @unique @db.Uuid
   agent               Agent?
 }
 
@@ -338,7 +338,7 @@ enum PricingType {
 }
 
 model AgentFixedPricing {
-  id           String        @id @default(uuid(7))
+  id           String        @id @default(uuid(7)) @db.Uuid
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   agentPricing AgentPricing?
@@ -346,7 +346,7 @@ model AgentFixedPricing {
 }
 
 model ExampleOutput {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   name      String
@@ -354,21 +354,21 @@ model ExampleOutput {
   url       String
 
   agent           Agent?  @relation("ExampleOutputAgent", fields: [agentId], references: [id])
-  agentId         String?
+  agentId         String? @db.Uuid
   agentOverride   Agent?  @relation("ExampleOutputAgentOverride", fields: [agentIdOverride], references: [id])
-  agentIdOverride String?
+  agentIdOverride String? @db.Uuid
 }
 
 model UserAgentRating {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   rating    Int
   comment   String?
   isHidden  Boolean  @default(false)
-  userId    String
+  userId    String   @db.Uuid
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agentId   String
+  agentId   String   @db.Uuid
   agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, agentId])
@@ -378,7 +378,7 @@ model UserAgentRating {
 }
 
 model Agent {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -438,7 +438,7 @@ model Agent {
 
   paymentType PaymentType  @default(WEB3_CARDANO_V1)
   pricing     AgentPricing @relation(fields: [pricingId], references: [id])
-  pricingId   String       @unique
+  pricingId   String       @unique @db.Uuid
 
   status AgentStatus @default(ONLINE)
 
@@ -466,7 +466,7 @@ model Agent {
 }
 
 model Category {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -498,7 +498,7 @@ enum RiskClassification {
 }
 
 model Lock {
-  id        String    @id @default(uuid(7))
+  id        String    @id @default(uuid(7)) @db.Uuid
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   key       String    @unique
@@ -508,7 +508,7 @@ model Lock {
 }
 
 model Tag {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   name      String   @unique
@@ -518,7 +518,7 @@ model Tag {
 }
 
 model SyncMetadata {
-  id           String   @id @default(uuid(7))
+  id           String   @id @default(uuid(7)) @db.Uuid
   key          String   @unique
   lastSyncedAt DateTime
   cursorId     String?
@@ -536,9 +536,9 @@ enum AgentStatus {
 }
 
 model AgentList {
-  id     String        @id @default(uuid(7))
+  id     String        @id @default(uuid(7)) @db.Uuid
   user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
+  userId String        @db.Uuid
   type   AgentListType
   agents Agent[]
 
@@ -550,16 +550,16 @@ enum AgentListType {
 }
 
 model Transaction {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   amount BigInt // positive is always a credit topup and negative is always a credit spend; 1_000_000_000_000 = 1 credit (10^10)
 
-  userId String
+  userId String @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  organizationId String?
+  organizationId String? @db.Uuid
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   job           Job?           @relation("TransactionJob")
@@ -574,7 +574,7 @@ model Transaction {
 }
 
 model CreditBucket {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -586,14 +586,14 @@ model CreditBucket {
   referenceType CreditBucketReferenceType?
 
   // Link to the transaction that created this bucket (topup)
-  sourceTransactionId String      @unique
+  sourceTransactionId String      @unique @db.Uuid
   sourceTransaction   Transaction @relation("CreditBucketSource", fields: [sourceTransactionId], references: [id], onDelete: Cascade)
 
   // User/Organization ownership
-  userId String?
+  userId String? @db.Uuid
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  organizationId String?
+  organizationId String? @db.Uuid
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   // Track which transactions consumed from this bucket
@@ -613,18 +613,18 @@ enum CreditBucketReferenceType {
 }
 
 model CreditConsumption {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
 
   // Amount consumed from this bucket (in cents, always positive)
   amount BigInt
 
   // Which bucket this consumption came from
-  bucketId String
+  bucketId String @db.Uuid
   bucket   CreditBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
 
   // Link to the transaction that represents this spending
-  transactionId String
+  transactionId String @db.Uuid
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@unique([bucketId, transactionId])
@@ -640,17 +640,17 @@ enum JobType {
 }
 
 model Job {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId String
+  userId String @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  organizationId String?
+  organizationId String? @db.Uuid
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  agentId String
+  agentId String @db.Uuid
   agent   Agent  @relation(fields: [agentId], references: [id])
 
   agentJobId String
@@ -666,9 +666,9 @@ model Job {
   sellerVkey                String?
 
   transaction           Transaction? @relation("TransactionJob", fields: [transactionId], references: [id])
-  transactionId         String?      @unique
+  transactionId         String?      @unique @db.Uuid
   refundedTransaction   Transaction? @relation("RefundedTransactionJob", fields: [refundedTransactionId], references: [id])
-  refundedTransactionId String?      @unique
+  refundedTransactionId String?      @unique @db.Uuid
 
   name String?
 
@@ -680,11 +680,11 @@ model Job {
   purchase JobPurchase?
 
   // Optional link to the schedule that initiated this job
-  jobScheduleId String?
+  jobScheduleId String? @db.Uuid
   jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
 
   // Optional link to the task this job belongs to
-  taskId String?
+  taskId String? @db.Uuid
   task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([userId])
@@ -696,13 +696,13 @@ model Job {
 }
 
 model JobPurchase {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   externalId String @unique
 
-  jobId String @unique
+  jobId String @unique @db.Uuid
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   onChainStatus OnChainJobStatus?
@@ -724,11 +724,11 @@ model JobPurchase {
 }
 
 model JobEvent {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  jobId String
+  jobId String @db.Uuid
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   input JobInput?
@@ -748,11 +748,11 @@ model JobEvent {
 }
 
 model JobInput {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  eventId String   @unique
+  eventId String   @unique @db.Uuid
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   input     String
@@ -813,7 +813,7 @@ enum AgentJobStatus {
 }
 
 model CreditCost {
-  id           String   @id @default(uuid(7))
+  id           String   @id @default(uuid(7)) @db.Uuid
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   unit         String   @unique
@@ -821,7 +821,7 @@ model CreditCost {
 }
 
 model Apikey {
-  id                  String    @id @default(uuid(7))
+  id                  String    @id @default(uuid(7)) @db.Uuid
   configId            String    @default("default")
   name                String?
   start               String?
@@ -851,7 +851,7 @@ model Apikey {
 }
 
 model Blob {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -862,7 +862,7 @@ model Blob {
   sourceUrl String
   status    BlobStatus
 
-  eventId String
+  eventId String @db.Uuid
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, sourceUrl]) // For deduplication checks
@@ -872,14 +872,14 @@ model Blob {
 }
 
 model Link {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   url   String
   title String?
 
-  eventId String
+  eventId String @db.Uuid
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, url]) // For deduplication checks
@@ -894,14 +894,14 @@ enum BlobStatus {
 }
 
 model PublicShare {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  jobId String? @unique
+  jobId String? @unique @db.Uuid
   job   Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-  taskId String? @unique
+  taskId String? @unique @db.Uuid
   task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   // Security & Access
@@ -914,16 +914,16 @@ model PublicShare {
 }
 
 model JobSchedule {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Ownership
-  userId         String
+  userId         String          @db.Uuid
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId String?
+  organizationId String?         @db.Uuid
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  agentId        String
+  agentId        String          @db.Uuid
   agent          Agent         @relation(fields: [agentId], references: [id])
 
   // Execution configuration
@@ -963,7 +963,7 @@ enum ShareAccessType {
 }
 
 model OauthClient {
-  id        String    @id @default(uuid(7))
+  id        String    @id @default(uuid(7)) @db.Uuid
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
 
@@ -973,7 +973,7 @@ model OauthClient {
   skipConsent      Boolean?
   enableEndSession Boolean?
   scopes           String[]
-  userId           String?
+  userId           String?  @db.Uuid
   user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   name                    String?
@@ -1005,7 +1005,7 @@ model OauthClient {
 }
 
 model OauthAccessToken {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1017,29 +1017,29 @@ model OauthAccessToken {
   clientId String
   client   OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
 
-  sessionId String?
+  sessionId String? @db.Uuid
   session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
-  refreshId    String?
+  refreshId    String? @db.Uuid
   refreshToken OauthRefreshToken? @relation(fields: [refreshId], references: [id], onDelete: SetNull)
 
-  userId String?
+  userId String? @db.Uuid
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("oauthAccessToken")
 }
 
 model OauthRefreshToken {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   token     String      @unique
   clientId  String
   client    OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
-  sessionId String?
+  sessionId String?    @db.Uuid
   session   Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  userId    String
+  userId    String      @db.Uuid
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   referenceId String?
@@ -1055,11 +1055,11 @@ model OauthRefreshToken {
 }
 
 model OauthConsent {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId      String?
+  userId      String?     @db.Uuid
   user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   clientId    String
   client      OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
@@ -1070,7 +1070,7 @@ model OauthConsent {
 }
 
 model Jwks {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1082,7 +1082,7 @@ model Jwks {
 }
 
 model Coworker {
-  id         String    @id @default(uuid(7))
+  id         String    @id @default(uuid(7)) @db.Uuid
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
@@ -1102,7 +1102,7 @@ model Coworker {
   image       String?
   metadata    Json?
 
-  userId String
+  userId String @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   coworkerApiKeys CoworkerApiKey[]
@@ -1116,7 +1116,7 @@ model Coworker {
 }
 
 model CoworkerApiKey {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1127,7 +1127,7 @@ model CoworkerApiKey {
   expiresAt DateTime?
   revokedAt DateTime?
 
-  coworkerId String
+  coworkerId String @db.Uuid
   coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
 
   @@index([coworkerId])
@@ -1136,15 +1136,15 @@ model CoworkerApiKey {
 }
 
 model Task {
-  id         String    @id @default(uuid(7))
+  id         String    @id @default(uuid(7)) @db.Uuid
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
 
-  userId String
+  userId String @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  organizationId String?
+  organizationId String? @db.Uuid
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   name        String
@@ -1152,7 +1152,7 @@ model Task {
 
   status TaskStatus @default(DRAFT)
 
-  coworkerId String?
+  coworkerId String? @db.Uuid
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
   share PublicShare?
@@ -1180,14 +1180,14 @@ enum TaskLinkType {
 /// At most one row per unordered task pair (any direction or `TaskLinkType`).
 /// Enforced by DB index `task_link_task_pair_key` (see migration); Prisma cannot express LEAST/GREATEST unique constraints.
 model TaskLink {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  fromTaskId String
+  fromTaskId String @db.Uuid
   fromTask   Task   @relation("TaskLinkFrom", fields: [fromTaskId], references: [id], onDelete: Cascade)
 
-  toTaskId String
+  toTaskId String @db.Uuid
   toTask   Task   @relation("TaskLinkTo", fields: [toTaskId], references: [id], onDelete: Cascade)
 
   type TaskLinkType
@@ -1229,11 +1229,11 @@ enum TaskEventOrigin {
 }
 
 model TaskEvent {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  taskId String
+  taskId String @db.Uuid
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   status TaskStatus?
@@ -1243,13 +1243,13 @@ model TaskEvent {
   authenticationUrl String?
   origin            TaskEventOrigin @default(SOKOSUMI)
 
-  userId String?
+  userId String? @db.Uuid
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  coworkerId String?
+  coworkerId String? @db.Uuid
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
-  transactionId String?
+  transactionId String? @db.Uuid
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@index([transactionId])
@@ -1257,25 +1257,25 @@ model TaskEvent {
 }
 
 model CoworkerUsage {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   idempotencyKey String
   referenceId    String?
 
-  coworkerId String
+  coworkerId String @db.Uuid
   coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
 
-  userId String
+  userId String @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  organizationId String?
+  organizationId String? @db.Uuid
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   cents BigInt
 
-  transactionId String      @unique
+  transactionId String      @unique @db.Uuid
   transaction   Transaction @relation("TransactionCoworkerUsage", fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@unique([coworkerId, idempotencyKey])
@@ -1284,9 +1284,9 @@ model CoworkerUsage {
 }
 
 model Conversation {
-  id         String             @id @default(uuid(7))
+  id         String             @id @default(uuid(7)) @db.Uuid
   openaiId   String             @unique
-  userId     String
+  userId     String             @db.Uuid
   user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   title      String?
   metadata   Json?
@@ -1302,8 +1302,8 @@ model Conversation {
 }
 
 model ConversationItem {
-  id                     String       @id @default(uuid(7))
-  conversationId         String
+  id                     String       @id @default(uuid(7)) @db.Uuid
+  conversationId         String       @db.Uuid
   conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role                   String // "user" | "assistant" | "system"
   contentType            String? // "input_text", "output_text", etc. (optional)
