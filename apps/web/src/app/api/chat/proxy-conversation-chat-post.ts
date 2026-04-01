@@ -118,7 +118,7 @@ export async function proxyConversationChatPost(
     return new Response(
       JSON.stringify({
         error: "Internal Server Error",
-        message: error instanceof Error ? error.message : String(error),
+        message: "An unexpected error occurred.",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
