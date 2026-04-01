@@ -12,6 +12,11 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- `task_link_task_pair_key` uses LEAST/GREATEST on (fromTaskId, toTaskId).
+-- During this migration we temporarily have mixed column types (TEXT -> UUID),
+-- which breaks the index expression. Drop it up front and recreate it at the end.
+DROP INDEX IF EXISTS "task_link_task_pair_key";
+
 -- Drop FKs first so we can rewrite values and change types.
 ALTER TABLE "session" DROP CONSTRAINT IF EXISTS "session_userId_fkey";
 ALTER TABLE "account" DROP CONSTRAINT IF EXISTS "account_userId_fkey";
@@ -572,3 +577,9 @@ ALTER TABLE "_AgentTagOverride" ADD CONSTRAINT "_AgentTagOverride_A_fkey" FOREIG
 ALTER TABLE "_AgentTagOverride" ADD CONSTRAINT "_AgentTagOverride_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "_AgentCategory" ADD CONSTRAINT "_AgentCategory_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "_AgentCategory" ADD CONSTRAINT "_AgentCategory_B_fkey" FOREIGN KEY ("B") REFERENCES "Category"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Recreate the task-link unordered-pair unique index (see 20260323120002_add_task_link).
+CREATE UNIQUE INDEX "task_link_task_pair_key" ON "task_link" (
+  LEAST("fromTaskId", "toTaskId"),
+  GREATEST("fromTaskId", "toTaskId")
+);
