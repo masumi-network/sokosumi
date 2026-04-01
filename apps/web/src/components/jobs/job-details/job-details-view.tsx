@@ -79,7 +79,7 @@ export default function JobDetailsView({
           <div
             className={cn(
               "min-w-0 flex-1 space-y-4 max-w-4xl",
-              publicJobLayout && "pt-20 md:pt-4 max-w-auto",
+              publicJobLayout && "pt-20 md:pt-4 max-w-none",
             )}
           >
             {publicJobLayout ? (
