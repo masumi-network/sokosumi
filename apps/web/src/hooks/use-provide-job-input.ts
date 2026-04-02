@@ -49,7 +49,13 @@ export function useProvideJobInput({
 
       try {
         const transformedInputData = prepareInputValues(allValues);
-        await uploadInputDataFiles(transformedInputData);
+        try {
+          await uploadInputDataFiles(transformedInputData);
+        } catch (_error) {
+          setIsSubmitting(false);
+          toast.error(getUserFileUploadErrorMessage(_error, t("submitError")));
+          return;
+        }
         const inputData = mergeReadonlyInputValues(
           transformedInputData,
           readonlyInputValues,
@@ -88,7 +94,7 @@ export function useProvideJobInput({
         }
       } catch (_error) {
         setIsSubmitting(false);
-        toast.error(getUserFileUploadErrorMessage(_error, t("submitError")));
+        toast.error(t("submitError"));
       }
     },
     [

@@ -136,22 +136,6 @@ function toUserFileUploadError(error: unknown): UserFileUploadError {
   return new UserFileUploadError("unknown", error.message);
 }
 
-export function isUserFileUploadCanceledError(error: unknown): boolean {
-  if (error instanceof UserFileUploadError) {
-    return error.code === "aborted";
-  }
-
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    error.name === "AbortError" ||
-    error.name === "BlobRequestAbortedError" ||
-    isBlobAbortMessage(error.message)
-  );
-}
-
 export function getUserFileUploadErrorMessage(
   error: unknown,
   fallbackMessage: string = "Failed to upload file.",

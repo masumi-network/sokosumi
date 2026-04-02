@@ -60,7 +60,11 @@ vi.mock("@/lib/actions/job-schedule", () => ({
 
 vi.mock("@/lib/utils/user-file-upload.client", () => ({
   getUserFileUploadErrorMessage: (error: unknown, fallback: string) =>
-    error instanceof Error ? error.message : fallback,
+    error instanceof TypeError
+      ? "Network error while uploading file. Please try again."
+      : error instanceof Error
+        ? error.message
+        : fallback,
   uploadInputDataFiles: (...args: unknown[]) =>
     uploadInputDataFilesMock(...args),
 }));
@@ -195,5 +199,38 @@ describe("useJobSubmission", () => {
       createScheduleMock.mock.invocationCallOrder[0],
     );
     expect(pushMock).toHaveBeenCalledWith("/schedules");
+  });
+
+  it("shows the generic error when the action throws after upload succeeds", async () => {
+    startJobMock.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const { result } = renderHook(() =>
+      useJobSubmission({
+        agent: {
+          id: "agent_1",
+          creditsPrice: { cents: 500 },
+        } as never,
+        inputSchema: [] as never,
+        demoValues: null,
+        scheduleSelection: {
+          mode: JobScheduleType.NOW,
+          timezone: "Europe/Dublin",
+        },
+        setLoading: setLoadingMock,
+        onSuccess: onSuccessMock,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleSubmit({
+        attachment: new File(["hello"], "report.pdf", {
+          type: "application/pdf",
+        }),
+      });
+    });
+
+    expect(uploadInputDataFilesMock).toHaveBeenCalled();
+    expect(startJobMock).toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith("Error.default");
   });
 });

@@ -13,10 +13,16 @@ describe("users/me uploads routes OpenAPI contract", () => {
     });
 
     const requestBody = doc.paths?.["/uploads"]?.post?.requestBody;
+    const description = doc.paths?.["/uploads"]?.post?.description;
     const requestBodyJson = JSON.stringify(requestBody);
     const requestSchema = doc.components?.schemas?.CreateUserFileUploadRequest;
     const requestSchemaJson = JSON.stringify(requestSchema);
 
+    expect(description).toContain("/mpu");
+    expect(description).toContain("put(pathname, file");
+    expect(description).toContain(
+      "https://vercel.com/docs/storage/vercel-blob/using-blob-sdk",
+    );
     expect(requestBodyJson).toContain("application/json");
     expect(requestBodyJson).toContain("CreateUserFileUploadRequest");
     expect(requestSchemaJson).toContain('"filename"');

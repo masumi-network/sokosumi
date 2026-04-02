@@ -134,7 +134,17 @@ const requestSchema = createUserFileUploadRequestSchema
 const route = createRoute({
   method: "post",
   path: "/uploads",
-  description: "Create a direct upload session for a user file",
+  description: [
+    "Create a direct upload session for a user file.",
+    "",
+    "Next steps:",
+    "1. Call this endpoint with the original `filename`, `contentType`, and `size`.",
+    "2. Use the returned `pathname`, `access`, `clientToken`, and `addRandomSuffix` when uploading the file to Vercel Blob.",
+    "3. If your client talks to Vercel Blob directly, send the original file bytes and metadata to the Vercel Blob multipart upload `/mpu` flow using the returned `pathname` as the destination path and `clientToken` as the scoped upload token.",
+    "4. If you use the Vercel Blob SDK, this is the equivalent call: `put(pathname, file, { access, token: clientToken, contentType, multipart: true })`. The SDK handles the `/mpu` requests for you.",
+    "",
+    "Reference: https://vercel.com/docs/storage/vercel-blob/using-blob-sdk",
+  ].join("\n"),
   tags: ["Users"],
   request: {
     body: {

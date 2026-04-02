@@ -65,6 +65,20 @@ export function useJobSubmission({
         let result:
           | { ok: true; data: { jobId: string; scheduleId?: string } }
           | { ok: false; error: { code: string } };
+        const uploadFiles = async (
+          inputData: ReturnType<typeof prepareInputValues>,
+        ) => {
+          try {
+            await uploadInputDataFiles(inputData);
+            return true;
+          } catch (_error) {
+            setLoading(false);
+            toast.error(
+              getUserFileUploadErrorMessage(_error, t("Error.default")),
+            );
+            return false;
+          }
+        };
 
         if (demoValues) {
           result = await startDemoJob({
@@ -80,7 +94,8 @@ export function useJobSubmission({
           scheduleSelection.mode !== JobScheduleType.NOW
         ) {
           const transformedInputData = prepareInputValues(allValues);
-          await uploadInputDataFiles(transformedInputData);
+          const didUploadFiles = await uploadFiles(transformedInputData);
+          if (!didUploadFiles) return;
 
           result = await createSchedule({
             input: {
@@ -93,7 +108,8 @@ export function useJobSubmission({
           });
         } else {
           const transformedInputData = prepareInputValues(allValues);
-          await uploadInputDataFiles(transformedInputData);
+          const didUploadFiles = await uploadFiles(transformedInputData);
+          if (!didUploadFiles) return;
 
           result = await startJob({
             input: {
@@ -150,7 +166,7 @@ export function useJobSubmission({
         }
       } catch (_error) {
         setLoading(false);
-        toast.error(getUserFileUploadErrorMessage(_error, t("Error.default")));
+        toast.error(t("Error.default"));
       }
     },
     [

@@ -38,7 +38,11 @@ vi.mock("@/lib/actions/job/action", () => ({
 
 vi.mock("@/lib/utils/user-file-upload.client", () => ({
   getUserFileUploadErrorMessage: (error: unknown, fallback: string) =>
-    error instanceof Error ? error.message : fallback,
+    error instanceof TypeError
+      ? "Network error while uploading file. Please try again."
+      : error instanceof Error
+        ? error.message
+        : fallback,
   uploadInputDataFiles: (...args: unknown[]) =>
     uploadInputDataFilesMock(...args),
 }));
@@ -105,5 +109,29 @@ describe("useProvideJobInput", () => {
     expect(toastSuccessMock).toHaveBeenCalledWith("submitSuccess");
     expect(onSuccessMock).toHaveBeenCalled();
     expect(refreshMock).toHaveBeenCalled();
+  });
+
+  it("shows the generic submit error when the action throws after upload succeeds", async () => {
+    provideJobInputMock.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const { result } = renderHook(() =>
+      useProvideJobInput({
+        jobId: "job_123",
+        eventId: "event_123",
+        onSuccess: onSuccessMock,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleSubmit({
+        attachment: new File(["hello"], "report.pdf", {
+          type: "application/pdf",
+        }),
+      });
+    });
+
+    expect(uploadInputDataFilesMock).toHaveBeenCalled();
+    expect(provideJobInputMock).toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith("submitError");
   });
 });
