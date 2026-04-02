@@ -37,6 +37,7 @@ import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   ORGANIZATION_LOGO_ACCEPT,
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
@@ -144,7 +145,10 @@ export default function OrganizationInformationForm({
       onLogoUploadBusyChange?.(true);
       try {
         const uploadedFile = await raceWithTimeout(
-          uploadUserFileDirect(logoFile),
+          uploadUserFileDirect(logoFile, {
+            allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
+            maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+          }),
           ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
         );
         form.setValue("logo", uploadedFile.publicUrl, { shouldDirty: true });

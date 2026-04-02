@@ -22,6 +22,8 @@ describe("users/me uploads routes OpenAPI contract", () => {
     expect(requestSchemaJson).toContain('"filename"');
     expect(requestSchemaJson).toContain('"contentType"');
     expect(requestSchemaJson).toContain('"size"');
+    expect(requestSchemaJson).toContain('"maxSizeBytes"');
+    expect(requestSchemaJson).toContain('"allowedContentTypes"');
     expect(requestBodyJson).toContain("1073741824");
   });
 

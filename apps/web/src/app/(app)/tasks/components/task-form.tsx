@@ -307,12 +307,7 @@ export function TaskForm({
         setUploadingAttachmentsCount((count) => count - 1);
       }
     },
-    [
-      abortActiveUploads,
-      labels.uploadFileError,
-      labels.uploadingFile,
-      labels.uploadingFiles,
-    ],
+    [labels.uploadFileError, labels.uploadingFile, labels.uploadingFiles],
   );
 
   const handleRemoveAttachment = useCallback((url: string) => {

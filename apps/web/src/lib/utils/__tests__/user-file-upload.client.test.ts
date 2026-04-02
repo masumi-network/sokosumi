@@ -83,6 +83,39 @@ describe("user-file-upload.client", () => {
     );
   });
 
+  it("includes custom upload constraints in the session request", async () => {
+    const file = new File(["x"], "logo.png", { type: "image/png" });
+
+    createMyFileUploadSessionMock.mockResolvedValue({
+      data: {
+        clientToken: "upload-token",
+        access: "public",
+        pathname: "users/user_123/logo.png",
+        addRandomSuffix: true,
+        maxSizeBytes: 2_097_152,
+      },
+    });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/users/user_123/logo.png",
+      pathname: "users/user_123/logo.png",
+      downloadUrl: "https://blob.example/download/logo.png",
+      etag: '"etag-456"',
+    });
+
+    await uploadUserFileDirect(file, {
+      allowedContentTypes: ["image/png", "image/jpeg"],
+      maxSizeBytes: 2_097_152,
+    });
+
+    expect(createMyFileUploadSessionMock).toHaveBeenCalledWith({
+      filename: "logo.png",
+      contentType: "image/png",
+      size: 1,
+      allowedContentTypes: ["image/png", "image/jpeg"],
+      maxSizeBytes: 2_097_152,
+    });
+  });
+
   it("forwards upload progress updates to the caller", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",

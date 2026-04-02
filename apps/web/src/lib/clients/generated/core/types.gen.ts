@@ -399,6 +399,14 @@ export type CreateUserFileUploadRequest = {
      * File size in bytes
      */
     size: number;
+    /**
+     * Optional per-upload size ceiling in bytes. Must not exceed the server maximum.
+     */
+    maxSizeBytes?: number;
+    /**
+     * Optional allowlist for the upload session. Every value must be supported by the server, and the selected contentType must be included.
+     */
+    allowedContentTypes?: Array<string>;
 };
 
 export type Job = {

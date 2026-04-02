@@ -60,6 +60,31 @@ describe("createUserFileUploadSession", () => {
       maxSizeBytes: 262_144_000,
     });
   });
+
+  it("uses explicit allowedContentTypes when provided", async () => {
+    generateClientTokenFromReadWriteTokenMock.mockResolvedValue(
+      "client-token-456",
+    );
+
+    await createUserFileUploadSession(
+      "user_123",
+      {
+        filename: "logo.png",
+        contentType: "image/png",
+        size: 500,
+        maxSizeBytes: 2_097_152,
+        allowedContentTypes: ["image/png", "image/jpeg"],
+      },
+      "token_123",
+    );
+
+    expect(generateClientTokenFromReadWriteTokenMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowedContentTypes: ["image/png", "image/jpeg"],
+        maximumSizeInBytes: 500,
+      }),
+    );
+  });
 });
 
 describe("listUserUploads", () => {

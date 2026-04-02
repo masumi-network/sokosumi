@@ -640,6 +640,8 @@ export function createCoreClient(getClient: GetClient) {
     filename: string;
     contentType: string;
     size: number;
+    allowedContentTypes?: string[];
+    maxSizeBytes?: number;
   }) {
     return executeOperation(
       getClient,

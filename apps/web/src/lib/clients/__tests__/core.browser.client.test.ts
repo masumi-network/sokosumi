@@ -108,4 +108,41 @@ describe("core.browser.client", () => {
     });
     expect(response.data.pathname).toBe("users/user_123/report.pdf");
   });
+
+  it("forwards optional upload constraints to the browser transport", async () => {
+    postMock.mockResolvedValue({
+      data: {
+        data: {
+          clientToken: "upload-token",
+          access: "public",
+          pathname: "users/user_123/logo.png",
+          addRandomSuffix: true,
+          maxSizeBytes: 2097152,
+        },
+      },
+      response: new Response("{}", { status: 201 }),
+    });
+
+    const { coreClient } = await import("../core.browser.client");
+    await coreClient.createMyFileUploadSession({
+      filename: "logo.png",
+      contentType: "image/png",
+      size: 1024,
+      maxSizeBytes: 2097152,
+      allowedContentTypes: ["image/png", "image/jpeg"],
+    });
+
+    expect(postMock).toHaveBeenCalledWith({
+      url: "/users/me/uploads",
+      security: [{ scheme: "bearer", type: "http" }],
+      cache: "no-store",
+      body: {
+        filename: "logo.png",
+        contentType: "image/png",
+        size: 1024,
+        maxSizeBytes: 2097152,
+        allowedContentTypes: ["image/png", "image/jpeg"],
+      },
+    });
+  });
 });

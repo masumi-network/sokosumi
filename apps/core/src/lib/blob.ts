@@ -45,14 +45,19 @@ export async function createUserFileUploadSession(
     contentType: string;
     size: number;
     maxSizeBytes: number;
+    allowedContentTypes?: readonly string[];
   },
   token: string,
 ): Promise<UserFileUploadSession> {
   const pathname = buildUserUploadPathname(userId, file.filename);
+  const allowedContentTypes =
+    file.allowedContentTypes && file.allowedContentTypes.length > 0
+      ? [...file.allowedContentTypes]
+      : [file.contentType];
   const clientToken = await generateClientTokenFromReadWriteToken({
     token,
     pathname,
-    allowedContentTypes: [file.contentType],
+    allowedContentTypes,
     maximumSizeInBytes: file.size,
     validUntil: Date.now() + USER_UPLOAD_SESSION_TTL_MS,
     addRandomSuffix: USER_UPLOAD_ADD_RANDOM_SUFFIX,

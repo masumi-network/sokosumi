@@ -1267,6 +1267,23 @@ export const CreateUserFileUploadRequestSchema = {
             exclusiveMinimum: 0,
             example: 2048000,
             description: 'File size in bytes'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 2097152,
+            description: 'Optional per-upload size ceiling in bytes. Must not exceed the server maximum.'
+        },
+        allowedContentTypes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 255,
+                example: 'image/png'
+            },
+            maxItems: 32,
+            description: 'Optional allowlist for the upload session. Every value must be supported by the server, and the selected contentType must be included.'
         }
     },
     required: [

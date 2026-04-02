@@ -161,4 +161,103 @@ describe("POST /uploads route", () => {
     expect(response.status).toBe(422);
     expect(createUserFileUploadSessionMock).not.toHaveBeenCalled();
   });
+
+  it("creates a session with custom size and content-type constraints", async () => {
+    const app = createApp();
+    createUserFileUploadSessionMock.mockResolvedValue({
+      clientToken: "client-token-123",
+      access: "public",
+      pathname: "users/user_123/logo.png",
+      addRandomSuffix: true,
+      maxSizeBytes: 2_097_152,
+    });
+
+    const response = await app.request("http://localhost/uploads", {
+      method: "POST",
+      body: JSON.stringify({
+        filename: "logo.png",
+        contentType: "image/png",
+        size: 1000,
+        maxSizeBytes: 2_097_152,
+        allowedContentTypes: ["image/png", "image/jpeg"],
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    expect(response.status).toBe(201);
+    expect(createUserFileUploadSessionMock).toHaveBeenCalledWith(
+      "user_123",
+      {
+        filename: "logo.png",
+        contentType: "image/png",
+        size: 1000,
+        maxSizeBytes: 2_097_152,
+        allowedContentTypes: ["image/png", "image/jpeg"],
+      },
+      "blob-token",
+    );
+  });
+
+  it("returns 422 when size exceeds a custom maxSizeBytes", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/uploads", {
+      method: "POST",
+      body: JSON.stringify({
+        filename: "logo.png",
+        contentType: "image/png",
+        size: 2_097_153,
+        maxSizeBytes: 2_097_152,
+        allowedContentTypes: ["image/png", "image/jpeg"],
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    expect(response.status).toBe(422);
+    expect(createUserFileUploadSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 when contentType is not included in allowedContentTypes", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/uploads", {
+      method: "POST",
+      body: JSON.stringify({
+        filename: "logo.pdf",
+        contentType: "application/pdf",
+        size: 1000,
+        allowedContentTypes: ["image/png", "image/jpeg"],
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    expect(response.status).toBe(422);
+    expect(createUserFileUploadSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 when allowedContentTypes contains unsupported values", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/uploads", {
+      method: "POST",
+      body: JSON.stringify({
+        filename: "logo.bin",
+        contentType: "application/octet-stream",
+        size: 1000,
+        allowedContentTypes: ["application/octet-stream"],
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    expect(response.status).toBe(422);
+    expect(createUserFileUploadSessionMock).not.toHaveBeenCalled();
+  });
 });

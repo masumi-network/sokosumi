@@ -37,6 +37,8 @@ export interface UserFileUploadProgress {
 export interface UploadUserFileDirectOptions {
   abortSignal?: AbortSignal;
   onUploadProgress?: (progress: UserFileUploadProgress) => void;
+  allowedContentTypes?: readonly string[];
+  maxSizeBytes?: number;
 }
 
 function extractMaxSizeFromMessage(message: string): number | null {
@@ -59,6 +61,8 @@ function toUserFileUploadError(error: unknown): UserFileUploadError {
   }
 
   if (error instanceof CoreApiRequestError) {
+    const normalizedMessage = error.message.toLowerCase();
+
     if (error.status === 401 || error.status === 403) {
       return new UserFileUploadError(
         "unauthorized",
@@ -67,6 +71,17 @@ function toUserFileUploadError(error: unknown): UserFileUploadError {
     }
 
     if (error.status === 400 || error.status === 413 || error.status === 422) {
+      if (
+        normalizedMessage.includes("content type") ||
+        normalizedMessage.includes("allowedcontenttypes") ||
+        normalizedMessage.includes("unsupported content types")
+      ) {
+        return new UserFileUploadError(
+          "unsupported_type",
+          "File type is not accepted.",
+        );
+      }
+
       const maxSize = extractMaxSizeFromMessage(error.message);
       if (maxSize !== null) {
         return new UserFileUploadError(
@@ -157,11 +172,26 @@ export async function uploadUserFileDirect(
   const contentType = file.type || "application/octet-stream";
 
   try {
-    const uploadSession = await coreClient.createMyFileUploadSession({
+    const sessionBody: {
+      filename: string;
+      contentType: string;
+      size: number;
+      allowedContentTypes?: string[];
+      maxSizeBytes?: number;
+    } = {
       filename: file.name,
       contentType,
       size: file.size,
-    });
+    };
+    if (options.allowedContentTypes) {
+      sessionBody.allowedContentTypes = [...options.allowedContentTypes];
+    }
+    if (options.maxSizeBytes !== undefined) {
+      sessionBody.maxSizeBytes = options.maxSizeBytes;
+    }
+
+    const uploadSession =
+      await coreClient.createMyFileUploadSession(sessionBody);
     const blob = await put(uploadSession.data.pathname, file, {
       access: uploadSession.data.access,
       token: uploadSession.data.clientToken,
