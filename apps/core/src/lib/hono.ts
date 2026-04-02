@@ -8,7 +8,7 @@ import { organizationHeaderMiddleware } from "@/middleware/organization";
  * Global hook for OpenAPI validation errors
  * Converts ZodErrors to HTTPExceptions that our error handler can process
  */
-export function openApiValidationDefaultHook(result: {
+export function defaultValidationHook(result: {
   success: boolean;
   error?: z.ZodError;
 }) {
@@ -45,7 +45,7 @@ export class OpenAPIHonoWithAuth extends OpenAPIHono<AuthEnv> {
     options: OpenAPIHonoWithAuthOptions = { includeOrganizationHeader: true },
   ) {
     super({
-      defaultHook: openApiValidationDefaultHook,
+      defaultHook: defaultValidationHook,
     });
     this.use(authMiddleware);
     if (options.includeOrganizationHeader) {

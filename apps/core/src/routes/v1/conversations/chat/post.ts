@@ -9,6 +9,7 @@ import {
 } from "@/helpers/chat-stream-persist";
 import {
   badRequest,
+  formatZodErrorMessage,
   internalServerError,
   notFound,
   serviceUnavailable,
@@ -59,302 +60,338 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Conversation not found"),
     503: jsonErrorResponse("Service Unavailable"),
-    422: jsonErrorResponse("Unprocessable Entity"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(withGlobalHeaderParameters(route), async (c) => {
-    try {
-      const authContext = requireUserAuthContext(c.var.authContext);
+  app.openapi(
+    withGlobalHeaderParameters(route),
+    async (c) => {
+      try {
+        const authContext = requireUserAuthContext(c.var.authContext);
 
-      const {
-        messages,
-        conversationId,
-        model,
-        previousResponseId: bodyPreviousResponseId,
-      } = c.req.valid("json");
+        const {
+          messages,
+          conversationId,
+          model,
+          previousResponseId: bodyPreviousResponseId,
+        } = c.req.valid("json");
 
-      let internalConversationId: string | null = null;
-      let selectedModel: string | null = model ?? null;
-      let conversation: Awaited<
-        ReturnType<typeof prisma.conversation.findFirst>
-      > = null;
+        let internalConversationId: string | null = null;
+        let selectedModel: string | null = model ?? null;
+        let conversation: Awaited<
+          ReturnType<typeof prisma.conversation.findFirst>
+        > = null;
 
-      if (conversationId) {
-        conversation = await prisma.conversation.findFirst({
-          where: {
-            id: conversationId,
-            userId: authContext.userId,
-            archivedAt: null,
-          },
-        });
-
-        if (!conversation) {
-          throw notFound("Conversation not found");
-        }
-
-        internalConversationId = conversation.id;
-
-        if (!selectedModel) {
-          const meta = conversation.metadata as Record<string, unknown> | null;
-          const modelId = meta?.model_id as string | undefined;
-          if (modelId) {
-            selectedModel = modelId;
-          }
-        }
-      }
-
-      const modelMessages = messages.map((msg) => {
-        let contentText = "";
-
-        if ("parts" in msg && Array.isArray(msg.parts)) {
-          contentText = msg.parts
-            .map((part: { type?: string; text?: string }) => {
-              if (part.type === "text" && part.text) {
-                return part.text;
-              }
-              return "";
-            })
-            .filter(Boolean)
-            .join("");
-        } else if (typeof msg.content === "string") {
-          contentText = msg.content;
-        } else if (Array.isArray(msg.content)) {
-          contentText = (msg.content as Array<{ text?: string }>)
-            .map((part) => part?.text || "")
-            .filter(Boolean)
-            .join("");
-        }
-
-        return {
-          role: msg.role,
-          content: contentText,
-        };
-      });
-
-      const lastUserMessageText =
-        messages.length > 0
-          ? (() => {
-              const lastMessage = messages[messages.length - 1];
-              if (lastMessage.role !== "user" && lastMessage.role !== "system")
-                return null;
-              if ("parts" in lastMessage && Array.isArray(lastMessage.parts)) {
-                return lastMessage.parts
-                  .map((part: { type?: string; text?: string }) =>
-                    part.type === "text" && part.text ? part.text : "",
-                  )
-                  .filter(Boolean)
-                  .join("");
-              }
-              return extractMessageText(lastMessage as Record<string, unknown>);
-            })()
-          : null;
-
-      const metadata = (conversation?.metadata ?? null) as Record<
-        string,
-        unknown
-      > | null;
-      const coworkerSlug = metadata?.coworker_slug as string | undefined;
-      const coworkerId = metadata?.coworker_id as string | undefined;
-      const previousResponseIdFromMeta = metadata?.previous_response_id as
-        | string
-        | undefined;
-
-      const trimmedBodyPrevious = bodyPreviousResponseId?.trim();
-      const previousResponseId =
-        trimmedBodyPrevious && trimmedBodyPrevious.length > 0
-          ? trimmedBodyPrevious
-          : typeof previousResponseIdFromMeta === "string" &&
-              previousResponseIdFromMeta.trim().length > 0
-            ? previousResponseIdFromMeta.trim()
-            : null;
-
-      let coworker: {
-        id: string;
-        slug: string;
-        baseURL: string | null;
-      } | null = null;
-
-      if (coworkerSlug || coworkerId) {
-        const coworkerIdentity = await prisma.coworker.findFirst({
-          where: {
-            archivedAt: null,
-            OR: [
-              ...(coworkerSlug ? [{ slug: coworkerSlug }] : []),
-              ...(coworkerId ? [{ id: coworkerId }] : []),
-            ],
-          },
-          select: { id: true },
-        });
-
-        if (!coworkerIdentity) {
-          throw notFound("Coworker not found");
-        }
-
-        coworker = await requireCoworkerChatCapability(coworkerIdentity.id);
-      }
-
-      const useResponsesApi =
-        Boolean(internalConversationId) && Boolean(coworker);
-
-      if (useResponsesApi) {
-        if (lastUserMessageText === null || lastUserMessageText.trim() === "") {
-          throw badRequest(
-            "Coworker chat requires a user or system message to respond to; send at least one message with text.",
-          );
-        }
-        if (!coworker?.baseURL?.trim()) {
-          throw serviceUnavailable(
-            "Coworker chat is not available: no Responses API URL configured for this coworker.",
-          );
-        }
-      }
-
-      if (internalConversationId && messages.length > 0) {
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage.role === "user" || lastMessage.role === "system") {
-          const extractedText = lastUserMessageText ?? "";
-          const formattedContent =
-            formatMessageContentForConversation(extractedText);
-
-          const convWithCount = await prisma.conversation.findFirst({
+        if (conversationId) {
+          conversation = await prisma.conversation.findFirst({
             where: {
-              id: internalConversationId,
+              id: conversationId,
               userId: authContext.userId,
               archivedAt: null,
             },
-            select: { _count: { select: { items: true } } },
           });
-          const itemCountBefore = convWithCount?._count.items ?? 0;
-          const isFirstUserMessage =
-            itemCountBefore === 0 &&
-            lastMessage.role === "user" &&
-            extractedText.trim().length > 0;
 
-          await prisma.conversationItem.create({
-            data: {
-              conversationId: internalConversationId,
-              role: lastMessage.role,
-              contentType: formattedContent[0]?.type || null,
-              contentText: extractedText,
-            },
-          });
-          if (isFirstUserMessage) {
-            void openrouterClient
-              .generateChatTitle(extractedText)
-              .then((generatedTitle) => {
-                if (generatedTitle) {
-                  return prisma.conversation.update({
-                    where: { id: internalConversationId },
-                    data: { title: generatedTitle },
-                  });
-                }
-              })
-              .catch((error) => {
-                console.error("Failed to generate/update title:", error);
-              });
+          if (!conversation) {
+            throw notFound("Conversation not found");
+          }
+
+          internalConversationId = conversation.id;
+
+          if (!selectedModel) {
+            const meta = conversation.metadata as Record<
+              string,
+              unknown
+            > | null;
+            const modelId = meta?.model_id as string | undefined;
+            if (modelId) {
+              selectedModel = modelId;
+            }
           }
         }
-      }
 
-      if (useResponsesApi) {
-        const responsesApiResponseIdRef: ResponsesApiResponseIdRef = {
-          current: null,
-        };
-        const responsesApiOptions = {
-          responsesApiBaseUrl: coworker!.baseURL!.trim(),
-          sokosumiUserId: authContext.userId,
-          sokosumiOrganizationId: authContext.organizationId ?? null,
-          coworkerSlug: coworker!.slug,
-          previousResponseId,
-          onResponseStarted: async (responseId: string) => {
-            responsesApiResponseIdRef.current = responseId;
-            if (!internalConversationId) return;
-            void persistPendingResponseId({
-              conversationId: internalConversationId,
-              userId: authContext.userId,
-              responseId,
-              coworkerSlug: coworker!.slug,
-              coworkerId: coworker!.id,
-            }).catch((error) => {
-              console.error("Failed to persist pending response id:", error);
+        const modelMessages = messages.map((msg) => {
+          let contentText = "";
+
+          if ("parts" in msg && Array.isArray(msg.parts)) {
+            contentText = msg.parts
+              .map((part: { type?: string; text?: string }) => {
+                if (part.type === "text" && part.text) {
+                  return part.text;
+                }
+                return "";
+              })
+              .filter(Boolean)
+              .join("");
+          } else if (typeof msg.content === "string") {
+            contentText = msg.content;
+          } else if (Array.isArray(msg.content)) {
+            contentText = (msg.content as Array<{ text?: string }>)
+              .map((part) => part?.text || "")
+              .filter(Boolean)
+              .join("");
+          }
+
+          return {
+            role: msg.role,
+            content: contentText,
+          };
+        });
+
+        const lastUserMessageText =
+          messages.length > 0
+            ? (() => {
+                const lastMessage = messages[messages.length - 1];
+                if (
+                  lastMessage.role !== "user" &&
+                  lastMessage.role !== "system"
+                )
+                  return null;
+                if (
+                  "parts" in lastMessage &&
+                  Array.isArray(lastMessage.parts)
+                ) {
+                  return lastMessage.parts
+                    .map((part: { type?: string; text?: string }) =>
+                      part.type === "text" && part.text ? part.text : "",
+                    )
+                    .filter(Boolean)
+                    .join("");
+                }
+                return extractMessageText(
+                  lastMessage as Record<string, unknown>,
+                );
+              })()
+            : null;
+
+        const metadata = (conversation?.metadata ?? null) as Record<
+          string,
+          unknown
+        > | null;
+        const coworkerSlug = metadata?.coworker_slug as string | undefined;
+        const coworkerId = metadata?.coworker_id as string | undefined;
+        const previousResponseIdFromMeta = metadata?.previous_response_id as
+          | string
+          | undefined;
+
+        const trimmedBodyPrevious = bodyPreviousResponseId?.trim();
+        const previousResponseId =
+          trimmedBodyPrevious && trimmedBodyPrevious.length > 0
+            ? trimmedBodyPrevious
+            : typeof previousResponseIdFromMeta === "string" &&
+                previousResponseIdFromMeta.trim().length > 0
+              ? previousResponseIdFromMeta.trim()
+              : null;
+
+        let coworker: {
+          id: string;
+          slug: string;
+          baseURL: string | null;
+        } | null = null;
+
+        if (coworkerSlug || coworkerId) {
+          const coworkerIdentity = await prisma.coworker.findFirst({
+            where: {
+              archivedAt: null,
+              OR: [
+                ...(coworkerSlug ? [{ slug: coworkerSlug }] : []),
+                ...(coworkerId ? [{ id: coworkerId }] : []),
+              ],
+            },
+            select: { id: true },
+          });
+
+          if (!coworkerIdentity) {
+            throw notFound("Coworker not found");
+          }
+
+          coworker = await requireCoworkerChatCapability(coworkerIdentity.id);
+        }
+
+        const useResponsesApi =
+          Boolean(internalConversationId) && Boolean(coworker);
+
+        if (useResponsesApi) {
+          if (
+            lastUserMessageText === null ||
+            lastUserMessageText.trim() === ""
+          ) {
+            throw badRequest(
+              "Coworker chat requires a user or system message to respond to; send at least one message with text.",
+            );
+          }
+          if (!coworker?.baseURL?.trim()) {
+            throw serviceUnavailable(
+              "Coworker chat is not available: no Responses API URL configured for this coworker.",
+            );
+          }
+        }
+
+        if (internalConversationId && messages.length > 0) {
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage.role === "user" || lastMessage.role === "system") {
+            const extractedText = lastUserMessageText ?? "";
+            const formattedContent =
+              formatMessageContentForConversation(extractedText);
+
+            const convWithCount = await prisma.conversation.findFirst({
+              where: {
+                id: internalConversationId,
+                userId: authContext.userId,
+                archivedAt: null,
+              },
+              select: { _count: { select: { items: true } } },
             });
-          },
-          onResponseCompleted: async (responseId: string) => {
-            if (!internalConversationId) return;
-            try {
-              await clearPendingAndSetPrevious({
+            const itemCountBefore = convWithCount?._count.items ?? 0;
+            const isFirstUserMessage =
+              itemCountBefore === 0 &&
+              lastMessage.role === "user" &&
+              extractedText.trim().length > 0;
+
+            await prisma.conversationItem.create({
+              data: {
+                conversationId: internalConversationId,
+                role: lastMessage.role,
+                contentType: formattedContent[0]?.type || null,
+                contentText: extractedText,
+              },
+            });
+            if (isFirstUserMessage) {
+              void openrouterClient
+                .generateChatTitle(extractedText)
+                .then((generatedTitle) => {
+                  if (generatedTitle) {
+                    return prisma.conversation.update({
+                      where: { id: internalConversationId },
+                      data: { title: generatedTitle },
+                    });
+                  }
+                })
+                .catch((error) => {
+                  console.error("Failed to generate/update title:", error);
+                });
+            }
+          }
+        }
+
+        if (useResponsesApi) {
+          const responsesApiResponseIdRef: ResponsesApiResponseIdRef = {
+            current: null,
+          };
+          const responsesApiOptions = {
+            responsesApiBaseUrl: coworker!.baseURL!.trim(),
+            sokosumiUserId: authContext.userId,
+            sokosumiOrganizationId: authContext.organizationId ?? null,
+            coworkerSlug: coworker!.slug,
+            previousResponseId,
+            onResponseStarted: async (responseId: string) => {
+              responsesApiResponseIdRef.current = responseId;
+              if (!internalConversationId) return;
+              void persistPendingResponseId({
                 conversationId: internalConversationId,
                 userId: authContext.userId,
                 responseId,
+                coworkerSlug: coworker!.slug,
+                coworkerId: coworker!.id,
+              }).catch((error) => {
+                console.error("Failed to persist pending response id:", error);
               });
-            } catch (error) {
-              console.error(
-                "Failed to clear pending and set previous response id:",
-                error,
-              );
-            }
-          },
-        };
-
-        let result: Response;
-        try {
-          result = await streamResponsesApi(
-            lastUserMessageText as string,
-            responsesApiOptions,
-          );
-        } catch (firstError) {
-          const message =
-            firstError instanceof Error
-              ? firstError.message
-              : String(firstError);
-          const isInvalidPreviousResponseId =
-            message.includes("invalid_previous_response_id") ||
-            message.includes("previous_response_id not found");
-          if (!isInvalidPreviousResponseId) throw firstError;
-
-          if (internalConversationId) {
-            try {
-              const conv = await prisma.conversation.findFirst({
-                where: {
-                  id: internalConversationId,
+            },
+            onResponseCompleted: async (responseId: string) => {
+              if (!internalConversationId) return;
+              try {
+                await clearPendingAndSetPrevious({
+                  conversationId: internalConversationId,
                   userId: authContext.userId,
-                },
-                select: { metadata: true },
-              });
-              const currentMeta =
-                (conv?.metadata as Record<string, unknown>) ?? {};
-              const { previous_response_id: _removed, ...metaWithoutPrevious } =
-                currentMeta as Record<string, unknown>;
-              await prisma.conversation.update({
-                where: { id: internalConversationId },
-                data: { metadata: metaWithoutPrevious },
-              });
-            } catch (error) {
-              console.error(
-                "Failed to clear previous_response_id from conversation after fallback:",
-                error,
-              );
+                  responseId,
+                });
+              } catch (error) {
+                console.error(
+                  "Failed to clear pending and set previous response id:",
+                  error,
+                );
+              }
+            },
+          };
+
+          let result: Response;
+          try {
+            result = await streamResponsesApi(
+              lastUserMessageText as string,
+              responsesApiOptions,
+            );
+          } catch (firstError) {
+            const message =
+              firstError instanceof Error
+                ? firstError.message
+                : String(firstError);
+            const isInvalidPreviousResponseId =
+              message.includes("invalid_previous_response_id") ||
+              message.includes("previous_response_id not found");
+            if (!isInvalidPreviousResponseId) throw firstError;
+
+            if (internalConversationId) {
+              try {
+                const conv = await prisma.conversation.findFirst({
+                  where: {
+                    id: internalConversationId,
+                    userId: authContext.userId,
+                  },
+                  select: { metadata: true },
+                });
+                const currentMeta =
+                  (conv?.metadata as Record<string, unknown>) ?? {};
+                const {
+                  previous_response_id: _removed,
+                  ...metaWithoutPrevious
+                } = currentMeta as Record<string, unknown>;
+                await prisma.conversation.update({
+                  where: { id: internalConversationId },
+                  data: { metadata: metaWithoutPrevious },
+                });
+              } catch (error) {
+                console.error(
+                  "Failed to clear previous_response_id from conversation after fallback:",
+                  error,
+                );
+              }
             }
+
+            const responsesApiInput = modelMessages.filter(
+              (m) => m.content && String(m.content).trim().length > 0,
+            ) as Array<{ role: string; content: string }>;
+            result = await streamResponsesApi(responsesApiInput, {
+              ...responsesApiOptions,
+              previousResponseId: null,
+            });
           }
 
-          const responsesApiInput = modelMessages.filter(
-            (m) => m.content && String(m.content).trim().length > 0,
-          ) as Array<{ role: string; content: string }>;
-          result = await streamResponsesApi(responsesApiInput, {
-            ...responsesApiOptions,
-            previousResponseId: null,
-          });
+          if (internalConversationId && result.body) {
+            const wrapped = streamWithAssistantPersistence(
+              result.body,
+              internalConversationId,
+              authContext.userId,
+              { responsesApiResponseIdRef },
+            );
+            return new Response(wrapped, {
+              headers: result.headers,
+              status: result.status,
+            });
+          }
+          return result;
         }
+
+        const result = await openrouterClient.streamChatResponse(
+          modelMessages,
+          selectedModel,
+        );
 
         if (internalConversationId && result.body) {
           const wrapped = streamWithAssistantPersistence(
             result.body,
             internalConversationId,
             authContext.userId,
-            { responsesApiResponseIdRef },
           );
           return new Response(wrapped, {
             headers: result.headers,
@@ -362,37 +399,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
         return result;
-      }
-
-      const result = await openrouterClient.streamChatResponse(
-        modelMessages,
-        selectedModel,
-      );
-
-      if (internalConversationId && result.body) {
-        const wrapped = streamWithAssistantPersistence(
-          result.body,
-          internalConversationId,
-          authContext.userId,
+      } catch (error) {
+        if (
+          error &&
+          typeof error === "object" &&
+          "status" in error &&
+          "message" in error
+        ) {
+          throw error;
+        }
+        throw internalServerError(
+          `Failed to stream chat response: ${error instanceof Error ? error.message : String(error)}`,
         );
-        return new Response(wrapped, {
-          headers: result.headers,
-          status: result.status,
-        });
       }
-      return result;
-    } catch (error) {
-      if (
-        error &&
-        typeof error === "object" &&
-        "status" in error &&
-        "message" in error
-      ) {
-        throw error;
+    },
+    (result, _c) => {
+      if (!result.success) {
+        throw badRequest(formatZodErrorMessage(result.error));
       }
-      throw internalServerError(
-        `Failed to stream chat response: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  });
+      return undefined;
+    },
+  );
 }

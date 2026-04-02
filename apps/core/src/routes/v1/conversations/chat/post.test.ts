@@ -2,7 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { openApiValidationDefaultHook } from "@/lib/hono";
+import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountPostConversationChat from "./post";
@@ -71,7 +71,7 @@ function createApp({
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>({
-    defaultHook: openApiValidationDefaultHook,
+    defaultHook: defaultValidationHook,
   });
 
   app.use("*", async (c, next) => {
@@ -113,6 +113,21 @@ describe("POST /conversations/chat", () => {
       slug: "ops-agent",
       baseURL: "https://responses.example.com/v1",
     });
+  });
+
+  it("returns 400 for an invalid request body", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: "not-an-array",
+      }),
+    });
+
+    expect(response.status).toBe(400);
   });
 
   it("returns 404 when the conversation coworker cannot be resolved", async () => {

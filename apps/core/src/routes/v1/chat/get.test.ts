@@ -2,7 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { openApiValidationDefaultHook } from "@/lib/hono";
+import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountGetChat from "./get";
@@ -36,7 +36,7 @@ function createApp() {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>({
-    defaultHook: openApiValidationDefaultHook,
+    defaultHook: defaultValidationHook,
   });
 
   app.use("*", async (c, next) => {
