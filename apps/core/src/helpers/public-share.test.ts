@@ -19,6 +19,141 @@ describe("getPublicSharedResourceByToken", () => {
     vi.clearAllMocks();
   });
 
+  it("backfills jobId for shared job event blobs and links", async () => {
+    publicShareFindUniqueMock.mockResolvedValue({
+      id: "share_job_123",
+      taskId: null,
+      jobId: "job_123",
+      token: "public-job-token",
+      allowSearchIndexing: false,
+      createdAt: new Date("2026-03-30T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+      task: null,
+      job: {
+        id: "job_123",
+        createdAt: new Date("2026-03-30T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T10:05:00.000Z"),
+        completedAt: null,
+        agentId: "agent_123",
+        userId: "user_123",
+        organizationId: null,
+        taskId: null,
+        name: "Shared job",
+        jobType: "FREE",
+        transaction: null,
+        transactionId: null,
+        purchase: null,
+        purchaseId: null,
+        refundedTransaction: null,
+        refundedTransactionId: null,
+        blockchainIdentifier: null,
+        payByTime: null,
+        submitResultTime: null,
+        unlockTime: null,
+        externalDisputeUnlockTime: null,
+        sellerVkey: null,
+        identifierFromPurchaser: null,
+        agentJobId: null,
+        inputSchema: null,
+        input: null,
+        inputHash: null,
+        resultHash: null,
+        share: {
+          id: "share_job_123",
+          jobId: "job_123",
+          taskId: null,
+          token: "public-job-token",
+          allowSearchIndexing: false,
+          createdAt: new Date("2026-03-30T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+        },
+        events: [
+          {
+            id: "job_event_123",
+            createdAt: new Date("2026-03-30T10:01:00.000Z"),
+            updatedAt: new Date("2026-03-30T10:02:00.000Z"),
+            status: "COMPLETED",
+            inputSchema: null,
+            input: null,
+            result: "# Result",
+            blobs: [
+              {
+                id: "blob_123",
+                createdAt: new Date("2026-03-30T10:01:30.000Z"),
+                updatedAt: new Date("2026-03-30T10:01:30.000Z"),
+                eventId: "job_event_123",
+                sourceUrl: "https://example.com/result.pdf",
+                name: "result.pdf",
+                status: "READY",
+                size: 1024n,
+                mimeType: "application/pdf",
+                fileUrl: "https://blob.example.com/result.pdf",
+              },
+            ],
+            links: [
+              {
+                id: "link_123",
+                createdAt: new Date("2026-03-30T10:01:45.000Z"),
+                updatedAt: new Date("2026-03-30T10:01:45.000Z"),
+                eventId: "job_event_123",
+                url: "https://example.com/source",
+                title: "Source",
+              },
+            ],
+          },
+        ],
+        agent: {
+          id: "agent_123",
+          name: "Research Agent",
+          overrideName: null,
+          icon: null,
+          image: null,
+          overrideImage: null,
+          legalPrivacyPolicy: null,
+          overrideLegalPrivacyPolicy: null,
+          legalTerms: null,
+          overrideLegalTerms: null,
+          legalDpa: null,
+          overrideLegalDpa: null,
+          legalOther: null,
+          overrideLegalOther: null,
+        },
+        user: {
+          id: "user_123",
+          name: "Ada Lovelace",
+          image: null,
+        },
+        organization: null,
+      },
+    });
+
+    const resource = await getPublicSharedResourceByToken("public-job-token");
+
+    expect(resource).toMatchObject({
+      kind: "job",
+      job: {
+        id: "job_123",
+        events: [
+          {
+            id: "job_event_123",
+            blobs: [
+              expect.objectContaining({
+                id: "blob_123",
+                jobId: "job_123",
+              }),
+            ],
+            links: [
+              expect.objectContaining({
+                id: "link_123",
+                jobId: "job_123",
+              }),
+            ],
+          },
+        ],
+      },
+    });
+  });
+
   it("maps shared task jobs to safe public summaries", async () => {
     publicShareFindUniqueMock.mockResolvedValue({
       id: "share_123",

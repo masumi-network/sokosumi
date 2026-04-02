@@ -96,6 +96,112 @@ describe("GET /share/{token}", () => {
     expect(body.data.job.id).toBe("job_123");
   });
 
+  it("preserves jobId on shared job event blobs and links", async () => {
+    getPublicSharedResourceByTokenMock.mockResolvedValue({
+      kind: "job",
+      share: {
+        id: "share_123",
+        jobId: "job_123",
+        token: "public-share-token",
+        allowSearchIndexing: false,
+        createdAt: new Date("2026-03-26T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-26T10:00:00.000Z"),
+      },
+      job: {
+        id: "job_123",
+        createdAt: new Date("2026-03-26T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-26T10:05:00.000Z"),
+        completedAt: new Date("2026-03-26T10:10:00.000Z"),
+        agentId: "agent_123",
+        userId: "user_123",
+        organizationId: "org_123",
+        taskId: null,
+        name: "Shared Job",
+        jobType: "PAID",
+        status: "completed",
+        credits: 0.0005,
+        onChainStatus: null,
+        onChainTransactionHash: "0x123abc",
+        result: "# Result",
+        resultHash: "result_hash_123",
+        input: '{"prompt":"hello"}',
+        inputHash: null,
+        inputSchema: '{"input_data":[]}',
+        agentJobId: "agent_job_123",
+        identifierFromPurchaser: "identifier_123",
+        user: {
+          id: "user_123",
+          name: "Ada Lovelace",
+          image: null,
+        },
+        organization: {
+          id: "org_123",
+          name: "Acme Labs",
+          slug: "acme-labs",
+        },
+        agent: {
+          id: "agent_123",
+          name: "Research Agent",
+          overrideName: null,
+          icon: null,
+          image: null,
+          overrideImage: null,
+          legalPrivacyPolicy: null,
+          overrideLegalPrivacyPolicy: null,
+          legalTerms: null,
+          overrideLegalTerms: null,
+          legalDpa: null,
+          overrideLegalDpa: null,
+          legalOther: null,
+          overrideLegalOther: null,
+        },
+        events: [
+          {
+            id: "job_event_123",
+            createdAt: new Date("2026-03-26T10:01:00.000Z"),
+            updatedAt: new Date("2026-03-26T10:01:30.000Z"),
+            status: "COMPLETED",
+            inputSchema: null,
+            input: null,
+            result: "# Result",
+            blobs: [
+              {
+                id: "blob_123",
+                createdAt: new Date("2026-03-26T10:01:05.000Z"),
+                updatedAt: new Date("2026-03-26T10:01:05.000Z"),
+                jobId: "job_123",
+                sourceUrl: "https://example.com/result.pdf",
+                name: "result.pdf",
+                status: "READY",
+                size: 1024,
+                mimeType: "application/pdf",
+                fileUrl: "https://blob.example.com/result.pdf",
+              },
+            ],
+            links: [
+              {
+                id: "link_123",
+                createdAt: new Date("2026-03-26T10:01:10.000Z"),
+                updatedAt: new Date("2026-03-26T10:01:10.000Z"),
+                jobId: "job_123",
+                url: "https://example.com/source",
+                title: "Source",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/public-share-token");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.job.events[0].blobs[0].jobId).toBe("job_123");
+    expect(body.data.job.events[0].links[0].jobId).toBe("job_123");
+  });
+
   it("returns a shared task for a task token", async () => {
     getPublicSharedResourceByTokenMock.mockResolvedValue({
       kind: "task",
