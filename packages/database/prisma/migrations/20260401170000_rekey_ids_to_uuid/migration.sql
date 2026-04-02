@@ -252,6 +252,7 @@ UPDATE "jobSchedule" js SET "userId" = u."_new_id"::text FROM "user" u WHERE js.
 UPDATE "jobSchedule" js SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE js."organizationId" = o."id";
 UPDATE "jobSchedule" js SET "agentId" = a."_new_id"::text FROM "Agent" a WHERE js."agentId" = a."id";
 UPDATE "oauthClient" oc SET "userId" = u."_new_id"::text FROM "user" u WHERE oc."userId" = u."id";
+UPDATE "apikey" ak SET "referenceId" = u."_new_id"::text FROM "user" u WHERE ak."referenceId" = u."id";
 UPDATE "oauthAccessToken" oat SET "sessionId" = s."_new_id"::text FROM "session" s WHERE oat."sessionId" = s."id";
 UPDATE "oauthAccessToken" oat SET "refreshId" = ort."_new_id"::text FROM "oauthRefreshToken" ort WHERE oat."refreshId" = ort."id";
 UPDATE "oauthAccessToken" oat SET "userId" = u."_new_id"::text FROM "user" u WHERE oat."userId" = u."id";
@@ -283,6 +284,8 @@ UPDATE "_AgentTagOverride" j SET "A" = a."_new_id"::text FROM "Agent" a WHERE j.
 UPDATE "_AgentTagOverride" j SET "B" = t."_new_id"::text FROM "Tag" t WHERE j."B" = t."id";
 UPDATE "_AgentCategory" j SET "A" = a."_new_id"::text FROM "Agent" a WHERE j."A" = a."id";
 UPDATE "_AgentCategory" j SET "B" = c."_new_id"::text FROM "Category" c WHERE j."B" = c."id";
+UPDATE "subscription" s SET "referenceId" = u."_new_id"::text FROM "user" u WHERE s."referenceId" = u."id";
+UPDATE "subscription" s SET "referenceId" = o."_new_id"::text FROM "organization" o WHERE s."referenceId" = o."id";
 
 -- Rewrite PK ids (as TEXT for now).
 UPDATE "user" SET "id" = "_new_id"::text;
