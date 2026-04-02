@@ -232,6 +232,24 @@ FROM "user" old_user
 WHERE cb."referenceId" IS NOT NULL
   AND cb."referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD'
   AND cb."referenceId" LIKE ('member:' || old_user."id" || ':%');
+UPDATE "credit_bucket" cb
+SET "referenceId" = regexp_replace(
+  cb."referenceId",
+  '^user:' || old_user."id" || ':',
+  'user:' || old_user."_new_id"::text || ':'
+)
+FROM "user" old_user
+WHERE cb."referenceId" IS NOT NULL
+  AND cb."referenceId" LIKE ('user:' || old_user."id" || ':%');
+UPDATE "credit_bucket" cb
+SET "referenceId" = regexp_replace(
+  cb."referenceId",
+  '^org:' || old_org."id" || ':',
+  'org:' || old_org."_new_id"::text || ':'
+)
+FROM "organization" old_org
+WHERE cb."referenceId" IS NOT NULL
+  AND cb."referenceId" LIKE ('org:' || old_org."id" || ':%');
 UPDATE "credit_consumption" cc SET "bucketId" = cb."_new_id"::text FROM "credit_bucket" cb WHERE cc."bucketId" = cb."id";
 UPDATE "credit_consumption" cc SET "transactionId" = t."_new_id"::text FROM "Transaction" t WHERE cc."transactionId" = t."id";
 UPDATE "Job" j SET "userId" = u."_new_id"::text FROM "user" u WHERE j."userId" = u."id";
