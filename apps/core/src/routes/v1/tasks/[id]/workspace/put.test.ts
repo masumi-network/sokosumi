@@ -16,6 +16,7 @@ const {
   resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
+  taskLinkFindFirstMock,
   taskFindUniqueOrThrowMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
@@ -26,6 +27,7 @@ const {
   resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
+  taskLinkFindFirstMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
   taskUpdateMock: vi.fn(),
 }));
@@ -71,6 +73,9 @@ interface TransactionMock {
     findFirst: ReturnType<typeof vi.fn>;
     findUniqueOrThrow: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+  };
+  taskLink: {
+    findFirst: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -195,6 +200,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     jobFindFirstMock.mockResolvedValue(null);
     jobUpdateManyMock.mockResolvedValue({ count: 0 });
     taskFindUniqueOrThrowMock.mockResolvedValue(createTaskRecord());
+    taskLinkFindFirstMock.mockResolvedValue(null);
     taskUpdateMock.mockResolvedValue(createTaskRecord());
     mapTaskMock.mockImplementation((task: TaskRecord) =>
       createTaskApi({
@@ -215,6 +221,9 @@ describe("PUT /tasks/{id}/workspace", () => {
         findFirst: taskFindFirstMock,
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
         update: taskUpdateMock,
+      },
+      taskLink: {
+        findFirst: taskLinkFindFirstMock,
       },
     });
   });
@@ -453,6 +462,66 @@ describe("PUT /tasks/{id}/workspace", () => {
         workspaceId: "11111111-1111-4111-8111-111111111111",
       },
     });
+  });
+
+  it("returns 409 when moving a task that still has outgoing links", async () => {
+    taskLinkFindFirstMock.mockResolvedValue({
+      id: "tl_123",
+    });
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_target",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(taskLinkFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        OR: [{ fromTaskId: "tsk_123" }, { toTaskId: "tsk_123" }],
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("allows idempotent no-op requests even when the task has links", async () => {
+    taskFindFirstMock.mockResolvedValue(
+      createTaskRecord({
+        organizationId: "org_billing",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        workspace: {
+          organizationId: "org_current",
+        },
+      }),
+    );
+    taskLinkFindFirstMock.mockResolvedValue({
+      id: "tl_123",
+    });
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_current",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskLinkFindFirstMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("allows idempotent no-op updates without membership or guard checks", async () => {

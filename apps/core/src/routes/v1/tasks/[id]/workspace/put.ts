@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 
-import { notFound } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
@@ -45,6 +45,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -99,6 +100,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           targetOrganizationId,
           tx,
         );
+
+        const existingLink = await tx.taskLink.findFirst({
+          where: {
+            OR: [{ fromTaskId: id }, { toTaskId: id }],
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (existingLink) {
+          throw conflict(
+            "Cannot move a task with related tasks. Remove its links first.",
+          );
+        }
 
         await tx.task.update({
           where: {
