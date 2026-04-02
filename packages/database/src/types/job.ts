@@ -42,6 +42,17 @@ export type JobWithTransaction = Prisma.JobGetPayload<{
   include: typeof jobWithTransaction;
 }>;
 
+export const jobSummaryInclude = {
+  ...workspaceRelationInclude,
+  ...jobWithEvents,
+  ...jobWithTransaction,
+  ...jobWithPurchase,
+} as const;
+
+export type JobWithSummaryRelations = Prisma.JobGetPayload<{
+  include: typeof jobSummaryInclude;
+}>;
+
 export const jobWithRefundedTransaction = {
   refundedTransaction: true,
 } as const;
@@ -83,13 +94,10 @@ export type JobWithShare = Prisma.JobGetPayload<{
 }>;
 
 export const jobInclude = {
-  ...jobWithEvents,
-  ...jobWithPurchase,
+  ...jobSummaryInclude,
   ...jobWithAgent,
   ...jobWithUser,
   ...jobWithOrganization,
-  ...workspaceRelationInclude,
-  ...jobWithTransaction,
   ...jobWithRefundedTransaction,
   ...jobWithShare,
 } as const;

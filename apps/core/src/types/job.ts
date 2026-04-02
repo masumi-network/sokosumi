@@ -1,8 +1,6 @@
 import {
-  type JobWithEvents,
-  type JobWithPurchase,
   type JobWithSokosumiStatus,
-  type JobWithTransaction,
+  type JobWithSummaryRelations,
 } from "@sokosumi/database";
 import {
   computeJobStatus,
@@ -14,21 +12,7 @@ import {
 
 import { mapWorkspaceSummary } from "@/helpers/workspace";
 
-export function flattenJob(
-  job: JobWithEvents &
-    JobWithTransaction &
-    JobWithPurchase & {
-      workspace: {
-        id: string;
-        organizationId: string | null;
-        organization: {
-          id: string;
-          name: string;
-          slug: string;
-        } | null;
-      };
-    },
-) {
+export function flattenJob(job: JobWithSummaryRelations) {
   return {
     id: job.id,
     createdAt: job.createdAt,

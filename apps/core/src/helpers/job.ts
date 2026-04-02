@@ -14,12 +14,8 @@ import {
   jobPurchaseRepository,
 } from "@sokosumi/database/repositories";
 import {
-  type JobWithEvents,
-  type JobWithPurchase,
-  type JobWithTransaction,
-  jobWithEvents,
-  jobWithPurchase,
-  jobWithTransaction,
+  type JobWithSummaryRelations,
+  jobSummaryInclude,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
 import type {
@@ -154,9 +150,7 @@ async function createPaidJob(
       identifierFromPurchaser,
     },
     include: {
-      ...jobWithEvents,
-      ...jobWithTransaction,
-      ...jobWithPurchase,
+      ...jobSummaryInclude,
     },
   });
 }
@@ -220,9 +214,7 @@ async function createFreeJob(
       identifierFromPurchaser: null,
     },
     include: {
-      ...jobWithEvents,
-      ...jobWithTransaction,
-      ...jobWithPurchase,
+      ...jobSummaryInclude,
     },
   });
 }
@@ -253,7 +245,7 @@ export interface CreateAgentJobOwner {
 
 export async function createAgentJobForUser(
   input: CreateAgentJobInput,
-): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+): Promise<JobWithSummaryRelations> {
   const { owner, agentInput, taskContext, scheduleContext } = input;
   const maxCents =
     agentInput.maxAcceptedCents ??
@@ -505,9 +497,7 @@ export async function getUserJobs(
     cursor: cursor ? { id: cursor } : undefined,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: {
-      ...jobWithEvents,
-      ...jobWithTransaction,
-      ...jobWithPurchase,
+      ...jobSummaryInclude,
     },
   });
   const count = await tx.job.count({ where });

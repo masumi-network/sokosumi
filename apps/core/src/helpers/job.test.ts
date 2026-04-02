@@ -1,4 +1,5 @@
 import { AgentJobStatus, type Prisma } from "@sokosumi/database";
+import { jobSummaryInclude } from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UserAuthenticationContext } from "@/middleware/auth";
@@ -79,6 +80,7 @@ describe("getUserJobs", () => {
             },
           ],
         },
+        include: jobSummaryInclude,
       }),
     );
   });
