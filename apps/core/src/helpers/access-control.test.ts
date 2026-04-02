@@ -39,19 +39,18 @@ const userAuthContext: UserAuthenticationContext = {
 };
 
 describe("requireUserTaskAccess", () => {
-  it("uses strict context ownership", async () => {
+  it("uses owner-only task access", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.task.findUnique).mockResolvedValueOnce({
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
     } as never);
 
     await requireUserTaskAccess(userAuthContext, "tsk_123", tx);
 
-    expect(tx.task.findUnique).toHaveBeenCalledWith({
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
         userId: "user_123",
-        organizationId: "org_123",
         archivedAt: null,
       },
     });

@@ -75,10 +75,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               relation,
             );
 
+            const peerTaskContextWhere = await buildCurrentUserTaskContextWhere(
+              authContext,
+              tx,
+            );
+
             const peerTask = await tx.task.findFirst({
               where: {
                 id: peerTaskId,
-                ...buildCurrentUserTaskContextWhere(authContext),
+                ...peerTaskContextWhere,
               },
               select: taskLinkPeerTaskSelect,
             });

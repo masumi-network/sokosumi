@@ -15,6 +15,7 @@ const {
   prismaTransactionMock,
   requireTaskReadAccessMock,
   requireUserTaskAccessMock,
+  resolveWorkspaceForContextMock,
   taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
@@ -25,6 +26,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requireTaskReadAccessMock: vi.fn(),
   requireUserTaskAccessMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
@@ -37,6 +39,16 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskReadAccess: requireTaskReadAccessMock,
   requireUserTaskAccess: requireUserTaskAccessMock,
 }));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -334,6 +346,9 @@ describe("GET /tasks/{id}/links", () => {
 describe("POST /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
     requireUserTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
@@ -393,7 +408,7 @@ describe("POST /tasks/{id}/links", () => {
       where: {
         id: "tsk_b",
         userId: "user_123",
-        organizationId: "org_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {
         id: true,
@@ -776,7 +791,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       where: {
         id: "tsk_b",
         userId: "user_123",
-        organizationId: "org_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {
         id: true,

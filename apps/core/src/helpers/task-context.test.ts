@@ -1,8 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UserAuthenticationContext } from "@/middleware/auth";
 
 import { buildCurrentUserTaskContextWhere } from "./task-context";
+
+const { resolveWorkspaceForContextMock } = vi.hoisted(() => ({
+  resolveWorkspaceForContextMock: vi.fn(),
+}));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+  };
+});
 
 const userAuthContext: UserAuthenticationContext = {
   actor: "user",
@@ -11,22 +25,36 @@ const userAuthContext: UserAuthenticationContext = {
 };
 
 describe("buildCurrentUserTaskContextWhere", () => {
-  it("builds the current user workspace filter", () => {
-    expect(buildCurrentUserTaskContextWhere(userAuthContext)).toEqual({
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("builds the current user workspace filter", async () => {
+    resolveWorkspaceForContextMock.mockResolvedValueOnce({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
+
+    await expect(
+      buildCurrentUserTaskContextWhere(userAuthContext),
+    ).resolves.toEqual({
       userId: "user_123",
-      organizationId: "org_123",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
     });
   });
 
-  it("keeps personal context when organization is null", () => {
-    expect(
+  it("keeps personal context when organization is null", async () => {
+    resolveWorkspaceForContextMock.mockResolvedValueOnce({
+      id: "22222222-2222-7222-8222-222222222222",
+    });
+
+    await expect(
       buildCurrentUserTaskContextWhere({
         ...userAuthContext,
         organizationId: null,
       }),
-    ).toEqual({
+    ).resolves.toEqual({
       userId: "user_123",
-      organizationId: null,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
     });
   });
 });

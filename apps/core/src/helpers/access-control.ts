@@ -124,11 +124,10 @@ export async function requireUserTaskAccess(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  const task = await tx.task.findUnique({
+  const task = await tx.task.findFirst({
     where: {
       id: taskId,
       userId: authContext.userId,
-      organizationId: authContext.organizationId,
       archivedAt: null,
     },
   });
