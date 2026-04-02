@@ -8,6 +8,7 @@ const getSessionMock = vi.fn();
 const getJobsMock = vi.fn();
 const findManyMock = vi.fn();
 const findUniqueMock = vi.fn();
+const resolveWorkspaceForContextMock = vi.fn();
 
 vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
@@ -25,9 +26,17 @@ vi.mock("next/headers", () => ({
   headers: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/helpers", () => ({
-  mapJobWithStatus: (job: unknown) => job,
-}));
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    mapJobWithStatus: (job: unknown) => job,
+    resolveWorkspaceForContext: (...args: unknown[]) =>
+      resolveWorkspaceForContextMock(...args),
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   invitationRepository: {},
@@ -51,6 +60,9 @@ vi.mock("@/lib/db/prisma", () => ({
 describe("user.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
   });
 
   it("returns only owned jobs for the active context", async () => {
@@ -71,7 +83,7 @@ describe("user.service", () => {
       {
         agentId: "agent-1",
         userId: "user-1",
-        organizationId: "org-1",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       expect.any(Object),
     );
@@ -96,7 +108,7 @@ describe("user.service", () => {
           OR: [
             {
               userId: "user-1",
-              organizationId: "org-1",
+              workspaceId: "11111111-1111-7111-8111-111111111111",
             },
           ],
         },

@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
+import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
@@ -16,7 +17,6 @@ import {
   preprocessMultiValueQueryInput,
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
-import { buildTaskScopeFilters, taskScopeQuerySchema } from "@/helpers/scope";
 import { mapTaskListItem } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import {
@@ -67,7 +67,6 @@ const query = z
         description: "Filter tasks by coworker ID",
         example: "cow_123",
       }),
-    scope: taskScopeQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
 
@@ -92,7 +91,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { q, status: statuses, coworkerId, scope } = queryParams;
+    const { q, status: statuses, coworkerId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -120,9 +119,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
+      const workspace = await resolveWorkspaceForContext(
+        authContext.userId,
+        authContext.organizationId,
+        prisma,
+      );
+
       where = {
         archivedAt: null,
-        OR: buildTaskScopeFilters(authContext, scope),
+        userId: authContext.userId,
+        workspaceId: workspace.id,
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
         ...searchFilter,

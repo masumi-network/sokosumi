@@ -7,6 +7,7 @@ import JobDetailsView from "@/components/jobs/job-details/job-details-view";
 const useSessionMock = vi.fn();
 const useQueryMock = vi.fn();
 const useJobsHeaderMock = vi.fn();
+const moveJobDialogMock = vi.fn();
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -66,6 +67,13 @@ vi.mock("@/components/jobs/job-details/job-share-button", () => ({
   ),
 }));
 
+vi.mock("@/components/jobs/job-details/move-job-to-workspace-dialog", () => ({
+  MoveJobToWorkspaceDialog: (props: { open?: boolean }) => {
+    moveJobDialogMock(props);
+    return props.open ? <div data-testid="move-job-dialog" /> : null;
+  },
+}));
+
 vi.mock("@/components/jobs/job-status-badge", () => ({
   JobStatusBadge: ({ status }: { status: string }) => (
     <div data-testid="job-status-badge">{status}</div>
@@ -98,7 +106,9 @@ vi.mock("@/components/jobs/job-details/sources", () => ({
   default: () => <div data-testid="job-details-sources" />,
 }));
 
-function createJob(): JobWithSokosumiStatus {
+function createJob(
+  overrides?: Partial<JobWithSokosumiStatus>,
+): JobWithSokosumiStatus {
   return {
     id: "job-1",
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
@@ -146,6 +156,12 @@ function createJob(): JobWithSokosumiStatus {
       image: null,
     },
     organization: null,
+    workspace: {
+      id: "11111111-1111-7111-8111-111111111111",
+      organizationId: null,
+      userId: "user-1",
+      organization: null,
+    },
     agent: {
       id: "agent-1",
       name: "Research Agent",
@@ -162,6 +178,7 @@ function createJob(): JobWithSokosumiStatus {
       legalOther: null,
       overrideLegalOther: null,
     },
+    ...overrides,
   } as unknown as JobWithSokosumiStatus;
 }
 
@@ -235,5 +252,87 @@ describe("JobDetailsView", () => {
 
     expect(screen.getByLabelText("edit")).toBeInTheDocument();
     expect(screen.getByLabelText("share")).toBeInTheDocument();
+  });
+
+  it("renders a move action for standalone jobs when another workspace is available", () => {
+    useJobsHeaderMock.mockReturnValue({
+      agent: {
+        id: "agent-1",
+        creditsPrice: { cents: BigInt(100) },
+      },
+      favoriteAgents: [],
+      ratingStats: { averageRating: 0, ratingCount: 0 },
+      canRate: false,
+      existingRating: null,
+      disabled: false,
+    });
+
+    render(
+      <JobDetailsView
+        job={createJob()}
+        organizations={[
+          {
+            organizationId: "org-1",
+            organization: {
+              id: "org-1",
+              name: "Org One",
+            },
+          } as never,
+        ]}
+        personalWorkspaceLabel="Ada Lovelace"
+        readOnly={false}
+        showAgentHeader
+      />,
+    );
+
+    expect(screen.getByLabelText("moveToWorkspace")).toBeInTheDocument();
+    expect(moveJobDialogMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        currentOrganizationId: null,
+        jobId: "job-1",
+        organizations: expect.any(Array),
+        personalWorkspaceLabel: "Ada Lovelace",
+      }),
+    );
+  });
+
+  it("shows a tooltip instead of an active move control for task-linked jobs", () => {
+    useJobsHeaderMock.mockReturnValue({
+      agent: {
+        id: "agent-1",
+        creditsPrice: { cents: BigInt(100) },
+      },
+      favoriteAgents: [],
+      ratingStats: { averageRating: 0, ratingCount: 0 },
+      canRate: false,
+      existingRating: null,
+      disabled: false,
+    });
+
+    render(
+      <JobDetailsView
+        job={createJob({ taskId: "task-1" })}
+        organizations={[
+          {
+            organizationId: "org-1",
+            organization: {
+              id: "org-1",
+              name: "Org One",
+            },
+          } as never,
+        ]}
+        personalWorkspaceLabel="Ada Lovelace"
+        readOnly={false}
+        showAgentHeader
+      />,
+    );
+
+    const moveButton = screen.getByLabelText("moveToWorkspace");
+    expect(screen.queryByTestId("move-job-dialog")).not.toBeInTheDocument();
+    expect(moveButton).toBeDisabled();
+    expect(moveButton.parentElement).toHaveAttribute(
+      "data-slot",
+      "tooltip-trigger",
+    );
   });
 });

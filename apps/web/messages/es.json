@@ -147,7 +147,7 @@
       "creditsExpired": "Créditos vencidos"
     },
     "OrganizationSwitcher": {
-      "switchWorkspace": "Cambiar Workspace",
+      "switchWorkspace": "Cambiar espacio de trabajo",
       "personalAccount": "Cuenta personal",
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
@@ -274,6 +274,17 @@
         "emptyActivity": "Aún sin actividad.",
         "eyebrow": "Trabajo público",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "Mover a otro espacio de trabajo",
+            "moveToWorkspaceTitle": "Mover el job a otro espacio de trabajo",
+            "moveToWorkspaceDescription": "Selecciona el espacio de trabajo al que quieres mover este job.",
+            "moveToWorkspaceButton": "Mover job",
+            "moveToWorkspaceCancel": "Cancelar",
+            "moveToWorkspaceSuccess": "Job movido correctamente",
+            "moveToWorkspaceError": "No se pudo mover el job",
+            "moveToWorkspaceDisabledTooltip": "Este job pertenece a una tarea. Mueve la tarea para cambiar su espacio de trabajo.",
+            "personalWorkspace": "Personal"
+          },
           "JobName": {
             "Schema": {
               "Name": {

@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -86,10 +87,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         await requireTaskAssignableCoworker(body.coworkerId, tx);
       }
 
+      const workspace = await resolveWorkspaceForContext(
+        authContext.userId,
+        authContext.organizationId,
+        tx,
+      );
+
       return tx.task.create({
         data: {
           userId: authContext.userId,
           organizationId: authContext.organizationId,
+          workspaceId: workspace.id,
           name: body.name,
           description: body.description ?? null,
           coworkerId: body.coworkerId ?? null,

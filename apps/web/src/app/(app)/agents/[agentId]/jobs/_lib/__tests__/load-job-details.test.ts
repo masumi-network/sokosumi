@@ -98,6 +98,7 @@ describe("loadJobDetails", () => {
       readOnly: false,
       activeOrganizationId: "org-1",
       dehydratedState: "dehydrated-state",
+      personalWorkspaceLabel: null,
     });
   });
 });

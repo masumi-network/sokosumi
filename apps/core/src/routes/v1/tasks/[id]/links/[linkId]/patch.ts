@@ -4,7 +4,7 @@ import { requireUserTaskAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { buildTaskScopeFilters } from "@/helpers/scope";
+import { buildCurrentUserTaskContextWhere } from "@/helpers/task-context";
 import {
   mapTaskLink,
   mapTaskLinkRelationToTypeForExistingDirection,
@@ -72,10 +72,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const peerTaskId =
         link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
+      const peerTaskContextWhere = await buildCurrentUserTaskContextWhere(
+        authContext,
+        tx,
+      );
       const peerTask = await tx.task.findFirst({
         where: {
           id: peerTaskId,
-          OR: buildTaskScopeFilters(authContext),
+          ...peerTaskContextWhere,
         },
         select: taskLinkPeerTaskSelect,
       });

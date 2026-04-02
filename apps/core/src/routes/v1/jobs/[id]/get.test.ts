@@ -55,7 +55,7 @@ vi.mock("@/middleware/auth", () => ({
 }));
 
 vi.mock("@/helpers/access-control.js", () => ({
-  requireScopedJobReadAccess: vi.fn(async () => undefined),
+  requireJobReadAccess: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -124,6 +124,15 @@ function createJob() {
       amount: BigInt(5000000),
     },
     transactionId: "txn_123",
+    workspace: {
+      id: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_123",
+      organization: {
+        id: "org_123",
+        name: "Acme Labs",
+        slug: "acme-labs",
+      },
+    },
     purchase: {
       onChainStatus: null,
       onChainTransactionHash: "0x123abc",
@@ -187,9 +196,7 @@ describe("GET /jobs/{id}", () => {
   it("returns a rich job details payload", async () => {
     const app = createApp();
 
-    const response = await app.request(
-      "http://localhost/job_123?scope=context",
-    );
+    const response = await app.request("http://localhost/job_123");
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -220,9 +227,7 @@ describe("GET /jobs/{id}", () => {
     jobFindUniqueMock.mockResolvedValue(null);
     const app = createApp();
 
-    const response = await app.request(
-      "http://localhost/job_123?scope=context",
-    );
+    const response = await app.request("http://localhost/job_123");
 
     expect(response.status).toBe(404);
   });

@@ -52,6 +52,7 @@ export * from "./types/member.js";
 export * from "./types/organization.js";
 export * from "./types/public-share.js";
 export * from "./types/utm.js";
+export * from "./types/workspace.js";
 
 export type JobShare = PublicShare;
 export type TaskShare = PublicShare;

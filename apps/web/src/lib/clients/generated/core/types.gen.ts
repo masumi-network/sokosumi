@@ -160,6 +160,17 @@ export type JobSummary = {
     onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
+    workspace: WorkspaceSummary;
+};
+
+export type WorkspaceSummary = {
+    id: string;
+    organizationId: string | null;
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null;
 };
 
 export type ConversationList = Array<Conversation>;
@@ -431,6 +442,7 @@ export type Job = {
     inputSchema?: string | null;
     agentJobId: string;
     identifierFromPurchaser?: string | null;
+    workspace: WorkspaceSummary;
     user: {
         id: string;
         name: string;
@@ -713,6 +725,7 @@ export type TaskListItem = {
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
+    workspace: WorkspaceSummary;
 };
 
 export type Task = {
@@ -728,6 +741,7 @@ export type Task = {
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
+    workspace: WorkspaceSummary;
     share: TaskShare & ({
         [key: string]: unknown;
     } | null);
@@ -1899,10 +1913,6 @@ export type GetAgentsByIdJobsData = {
         id: string;
     };
     query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -5429,10 +5439,6 @@ export type GetJobsData = {
          */
         status?: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
         /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -5515,12 +5521,7 @@ export type GetJobsByIdData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/jobs/{id}';
 };
 
@@ -6244,6 +6245,109 @@ export type PutJobsByIdShareResponses = {
 };
 
 export type PutJobsByIdShareResponse = PutJobsByIdShareResponses[keyof PutJobsByIdShareResponses];
+
+export type PutJobsByIdWorkspaceData = {
+    body?: {
+        organizationId: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/jobs/{id}/workspace';
+};
+
+export type PutJobsByIdWorkspaceErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutJobsByIdWorkspaceError = PutJobsByIdWorkspaceErrors[keyof PutJobsByIdWorkspaceErrors];
+
+export type PutJobsByIdWorkspaceResponses = {
+    /**
+     * Change job workspace
+     */
+    200: {
+        data: Job;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutJobsByIdWorkspaceResponse = PutJobsByIdWorkspaceResponses[keyof PutJobsByIdWorkspaceResponses];
 
 export type GetShareByTokenData = {
     body?: never;
@@ -7311,10 +7415,6 @@ export type GetTasksData = {
          */
         coworkerId?: string;
         /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -7460,12 +7560,7 @@ export type GetTasksByIdLinksData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/tasks/{id}/links';
 };
 
@@ -7845,12 +7940,7 @@ export type GetTasksByIdData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/tasks/{id}';
 };
 
@@ -8404,12 +8494,7 @@ export type GetTasksByIdJobsData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/tasks/{id}/jobs';
 };
 

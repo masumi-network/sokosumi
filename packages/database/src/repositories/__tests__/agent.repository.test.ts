@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { agentRepository } from "../agent.repository.js";
 
-describe("agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization", () => {
-  it("scopes hired agents to the active organization context", async () => {
+describe("agentRepository.getHiredAgentsWithLatestJobByUserIdAndWorkspace", () => {
+  it("scopes hired agents to the active workspace", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const tx = {
       agent: {
@@ -12,9 +12,9 @@ describe("agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization", (
       },
     } as unknown as Prisma.TransactionClient;
 
-    await agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization(
+    await agentRepository.getHiredAgentsWithLatestJobByUserIdAndWorkspace(
       "user-1",
-      "org-1",
+      "workspace-1",
       tx,
     );
 
@@ -23,7 +23,7 @@ describe("agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization", (
         jobs: {
           some: {
             userId: "user-1",
-            organizationId: "org-1",
+            workspaceId: "workspace-1",
           },
         },
       },
@@ -31,43 +31,7 @@ describe("agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization", (
         jobs: {
           where: {
             userId: "user-1",
-            organizationId: "org-1",
-          },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
-    });
-  });
-
-  it("scopes hired agents to the personal workspace when no organization is active", async () => {
-    const findMany = vi.fn().mockResolvedValue([]);
-    const tx = {
-      agent: {
-        findMany,
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    await agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization(
-      "user-1",
-      null,
-      tx,
-    );
-
-    expect(findMany).toHaveBeenCalledWith({
-      where: {
-        jobs: {
-          some: {
-            userId: "user-1",
-            organizationId: null,
-          },
-        },
-      },
-      include: {
-        jobs: {
-          where: {
-            userId: "user-1",
-            organizationId: null,
+            workspaceId: "workspace-1",
           },
           orderBy: { createdAt: "desc" },
           take: 1,

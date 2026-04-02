@@ -5,18 +5,17 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
+import {
+  convertCreditsToCents,
+  resolveWorkspaceForContext,
+} from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobPurchaseRepository,
 } from "@sokosumi/database/repositories";
 import {
-  type JobWithEvents,
-  type JobWithPurchase,
-  type JobWithTransaction,
-  jobWithEvents,
-  jobWithPurchase,
-  jobWithTransaction,
+  type JobWithSummaryRelations,
+  jobSummaryInclude,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
 import type {
@@ -42,7 +41,6 @@ import { flattenJob } from "@/types/job";
 import type { AgentCost } from "./agent";
 import { badRequest, notFound, unprocessableEntity } from "./error";
 import { transformPurchaseToJobUpdate } from "./purchase";
-import { buildJobScopeFilters, type JobScope } from "./scope";
 import { getCents } from "./user";
 
 /**
@@ -74,6 +72,7 @@ async function createPaidJob(
     agentId: string;
     userId: string;
     organizationId: string | null;
+    workspaceId: string;
     inputData: InputSchemaType;
     inputSchema: InputSchemaSchemaType;
     name: string | null;
@@ -102,6 +101,7 @@ async function createPaidJob(
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
+      workspace: { connect: { id: input.workspaceId } },
       ...(input.taskId && {
         task: { connect: { id: input.taskId } },
       }),
@@ -150,9 +150,7 @@ async function createPaidJob(
       identifierFromPurchaser,
     },
     include: {
-      ...jobWithEvents,
-      ...jobWithTransaction,
-      ...jobWithPurchase,
+      ...jobSummaryInclude,
     },
   });
 }
@@ -166,6 +164,7 @@ async function createFreeJob(
     agentId: string;
     userId: string;
     organizationId: string | null;
+    workspaceId: string;
     inputData: InputSchemaType;
     inputSchema: InputSchemaSchemaType;
     name: string | null;
@@ -185,6 +184,7 @@ async function createFreeJob(
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
+      workspace: { connect: { id: input.workspaceId } },
       ...(input.taskId && {
         task: { connect: { id: input.taskId } },
       }),
@@ -214,9 +214,7 @@ async function createFreeJob(
       identifierFromPurchaser: null,
     },
     include: {
-      ...jobWithEvents,
-      ...jobWithTransaction,
-      ...jobWithPurchase,
+      ...jobSummaryInclude,
     },
   });
 }
@@ -242,11 +240,12 @@ interface CreateAgentJobInput {
 export interface CreateAgentJobOwner {
   userId: string;
   organizationId: string | null;
+  workspaceId: string;
 }
 
 export async function createAgentJobForUser(
   input: CreateAgentJobInput,
-): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+): Promise<JobWithSummaryRelations> {
   const { owner, agentInput, taskContext, scheduleContext } = input;
   const maxCents =
     agentInput.maxAcceptedCents ??
@@ -299,6 +298,7 @@ export async function createAgentJobForUser(
     agentId: agentInput.agentId,
     userId: owner.userId,
     organizationId: owner.organizationId,
+    workspaceId: owner.workspaceId,
     inputData: agentInput.inputData,
     inputSchema: agentInput.inputSchema,
     taskId: taskContext?.taskId,
@@ -463,7 +463,6 @@ export async function getUserJobs(
     cursor?: string;
     take: number;
     skip?: number;
-    scopes?: JobScope[];
     tx?: Prisma.TransactionClient;
   },
 ): Promise<{
@@ -471,21 +470,19 @@ export async function getUserJobs(
   count: number;
   hasMore: boolean;
 }> {
-  const { agentId, status, cursor, take, skip, scopes, tx = prisma } = options;
+  const { agentId, status, cursor, take, skip, tx = prisma } = options;
 
-  const scopeFilters = buildJobScopeFilters(authContext, scopes);
-  if (scopeFilters.length === 0) {
-    return {
-      jobs: [],
-      count: 0,
-      hasMore: false,
-    };
-  }
+  const workspace = await resolveWorkspaceForContext(
+    authContext.userId,
+    authContext.organizationId,
+    tx,
+  );
 
   const where: Prisma.JobWhereInput = {
     AND: [
       {
-        OR: scopeFilters,
+        userId: authContext.userId,
+        workspaceId: workspace.id,
       },
       ...(agentId ? [{ agentId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
@@ -500,9 +497,7 @@ export async function getUserJobs(
     cursor: cursor ? { id: cursor } : undefined,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: {
-      ...jobWithEvents,
-      ...jobWithTransaction,
-      ...jobWithPurchase,
+      ...jobSummaryInclude,
     },
   });
   const count = await tx.job.count({ where });

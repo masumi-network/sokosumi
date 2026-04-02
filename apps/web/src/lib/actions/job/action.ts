@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import { toCoreApiActionError } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import {
   type JobDetailsNameFormSchemaType,
@@ -213,6 +214,12 @@ interface ProvideJobInputParameters extends AuthenticatedRequest {
   input: ProvideJobInputSchemaType;
 }
 
+interface MoveJobToWorkspaceParameters extends AuthenticatedRequest {
+  agentId: string;
+  jobId: string;
+  organizationId: string | null;
+}
+
 export const provideJobInput = withSession<
   ProvideJobInputParameters,
   Result<{ jobId: string }, ActionError>
@@ -317,6 +324,22 @@ export const provideJobInput = withSession<
       });
     }
   });
+});
+
+export const moveJobToWorkspace = withSession<
+  MoveJobToWorkspaceParameters,
+  { jobId: string }
+>(async ({ agentId, jobId, organizationId }) => {
+  try {
+    await jobService.moveJobToWorkspace(jobId, organizationId);
+    revalidatePath(`/agents/${agentId}/jobs`);
+    revalidatePath(`/agents/${agentId}/jobs/${jobId}`);
+    return { jobId };
+  } catch (error) {
+    console.error("Failed to move job to workspace", error);
+    const { message } = toCoreApiActionError(error);
+    throw new Error(message ?? "Failed to move job to workspace");
+  }
 });
 
 interface UpdateJobNameParameters extends AuthenticatedRequest {

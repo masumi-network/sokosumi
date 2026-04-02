@@ -173,7 +173,6 @@ export function TaskDetailActions({
   const canManageRelations = !isFinalized;
   const canMove =
     !isFinalized &&
-    jobsCount === 0 &&
     getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
   const parentLinks = useMemo(
     () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),

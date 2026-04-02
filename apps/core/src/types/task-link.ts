@@ -1,6 +1,5 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 
-import { buildTaskScopeFilters, type TaskScope } from "@/helpers/scope";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
@@ -39,7 +38,6 @@ export const taskLinksInclude = {
 
 function buildVisiblePeerTaskWhere(
   authContext: AuthenticationContext,
-  scopes?: TaskScope[],
 ): Prisma.TaskWhereInput {
   if (isCoworkerAuthContext(authContext)) {
     return {
@@ -54,15 +52,14 @@ function buildVisiblePeerTaskWhere(
   }
 
   return {
-    OR: buildTaskScopeFilters(authContext, scopes),
+    userId: authContext.userId,
   };
 }
 
 export function buildVisibleTaskLinksInclude(
   authContext: AuthenticationContext,
-  scopes?: TaskScope[],
 ) {
-  const peerTaskWhere = buildVisiblePeerTaskWhere(authContext, scopes);
+  const peerTaskWhere = buildVisiblePeerTaskWhere(authContext);
 
   return {
     linksFrom: {

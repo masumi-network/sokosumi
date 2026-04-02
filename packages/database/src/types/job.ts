@@ -7,6 +7,7 @@ import type {
   Prisma,
   Transaction,
 } from "../generated/prisma/client.js";
+import { workspaceRelationInclude } from "./workspace.js";
 
 export const jobWithEvents = {
   events: {
@@ -39,6 +40,17 @@ export const jobWithTransaction = {
 
 export type JobWithTransaction = Prisma.JobGetPayload<{
   include: typeof jobWithTransaction;
+}>;
+
+export const jobSummaryInclude = {
+  ...workspaceRelationInclude,
+  ...jobWithEvents,
+  ...jobWithTransaction,
+  ...jobWithPurchase,
+} as const;
+
+export type JobWithSummaryRelations = Prisma.JobGetPayload<{
+  include: typeof jobSummaryInclude;
 }>;
 
 export const jobWithRefundedTransaction = {
@@ -82,12 +94,10 @@ export type JobWithShare = Prisma.JobGetPayload<{
 }>;
 
 export const jobInclude = {
-  ...jobWithEvents,
-  ...jobWithPurchase,
+  ...jobSummaryInclude,
   ...jobWithAgent,
   ...jobWithUser,
   ...jobWithOrganization,
-  ...jobWithTransaction,
   ...jobWithRefundedTransaction,
   ...jobWithShare,
 } as const;

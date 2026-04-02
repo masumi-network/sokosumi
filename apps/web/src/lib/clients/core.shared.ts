@@ -9,6 +9,7 @@ import type {
   DeleteJobsByIdShareError,
   DeleteTasksByIdShareError,
   GetCoworkersData,
+  GetJobsData,
   GetShareByTokenError,
   GetTasksData,
   PaginationMetadata,
@@ -48,6 +49,7 @@ import {
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
   postUsersMeUploads as corePostUsersMeUploads,
   putJobsByIdShare as corePutJobsByIdShare,
+  putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
 } from "@/lib/clients/generated/core";
@@ -349,17 +351,13 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getTaskById(
-    id: string,
-    scope: Array<"context" | "owned"> = ["context"],
-  ) {
+  async function getTaskById(id: string) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetTasksById({
           client,
           path: { id },
-          query: { scope },
           cache: "no-store",
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),
@@ -368,19 +366,7 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getJobs(query?: {
-    scope?: Array<"context" | "owned">;
-    cursor?: string;
-    limit?: number;
-    agentId?: string;
-    status?:
-      | "RUNNING"
-      | "COMPLETED"
-      | "FAILED"
-      | "INITIATED"
-      | "AWAITING_PAYMENT"
-      | "AWAITING_INPUT";
-  }) {
+  async function getJobs(query?: GetJobsData["query"]) {
     return executeOperation(
       getClient,
       (client) =>
@@ -393,17 +379,13 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getJobById(
-    id: string,
-    scope: Array<"context" | "owned"> = ["context"],
-  ) {
+  async function getJobById(id: string) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetJobsById({
           client,
           path: { id },
-          query: { scope },
           cache: "no-store",
         }),
       "Failed to fetch job",
@@ -663,6 +645,22 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function moveJobToWorkspace(
+    id: string,
+    body: { organizationId: string | null },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutJobsByIdWorkspace({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to move job to workspace",
+    );
+  }
+
   async function postConversationsByIdRecoverResponse(id: string) {
     return executeOperation(
       getClient,
@@ -857,6 +855,7 @@ export function createCoreClient(getClient: GetClient) {
     getMyOrganizations,
     getPendingNotices,
     getSharedResourceByToken,
+    moveJobToWorkspace,
     moveTaskToWorkspace,
     getTaskById,
     getTaskLinks,

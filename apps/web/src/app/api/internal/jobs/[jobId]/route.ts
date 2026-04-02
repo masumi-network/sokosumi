@@ -31,15 +31,9 @@ export async function GET(
       throw new Error("INVALID_INPUT");
     }
 
-    // Get the job with authorization check
-    const job = await jobRepository.getJobByIdWithAuthCheck(
-      jobId,
-      session.user.id,
-      session.session.activeOrganizationId ?? null,
-      prisma,
-    );
+    const job = await jobRepository.getJobById(jobId, prisma);
 
-    if (!job) {
+    if (!job || job.userId !== session.user.id) {
       throw new Error("JOB_NOT_FOUND");
     }
 

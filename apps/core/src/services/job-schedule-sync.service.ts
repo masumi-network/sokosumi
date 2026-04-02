@@ -169,6 +169,7 @@ async function processSchedule(
       owner: {
         userId: schedule.userId,
         organizationId: schedule.organizationId,
+        workspaceId: schedule.workspaceId,
       },
       agentInput: {
         agentId: schedule.agentId,
