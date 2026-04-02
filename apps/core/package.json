@@ -21,6 +21,7 @@
     "lint:write": "biome lint --write .",
     "check": "biome check .",
     "check:write": "biome check --write .",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest"
