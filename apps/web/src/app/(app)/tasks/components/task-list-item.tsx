@@ -1,8 +1,6 @@
-import Link from "next/link";
-
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
-
+import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
 import { TaskStatusBadge } from "./task-status-badge";
@@ -33,7 +31,7 @@ export function TaskListItem({
       )}
       {...handleProps}
     >
-      <Link
+      <TaskDetailLink
         href={`/tasks/${task.id}`}
         className={cn(
           "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
@@ -63,7 +61,7 @@ export function TaskListItem({
             variant="list"
           />
         </div>
-      </Link>
+      </TaskDetailLink>
     </div>
   );
 }

@@ -1,9 +1,15 @@
 import { TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    prefetch: vi.fn(),
+  }),
+}));
 
 const relationLabels = {
   related: "Related",

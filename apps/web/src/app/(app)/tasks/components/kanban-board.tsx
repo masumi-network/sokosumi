@@ -31,7 +31,6 @@ export function KanbanBoard({
   isDragEnabled = true,
 }: KanbanBoardProps) {
   return (
-    // Accounts for the page header height to avoid board collapse.
     <div className="-mx-2 flex h-full min-h-[calc(100svh-8.5rem)] flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4">
       {columns.map((column, index) => {
         const columnTasks = tasks

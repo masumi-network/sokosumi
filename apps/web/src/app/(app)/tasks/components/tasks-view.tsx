@@ -555,7 +555,6 @@ export function TasksView({
       const cursor = columnCursorByIdRef.current[columnId] ?? null;
       if (cursor === null || loadingColumnIdsRef.current.has(columnId)) return;
 
-      // Update ref synchronously to block rapid clicks before re-render
       const nextLoading = new Set(loadingColumnIdsRef.current);
       nextLoading.add(columnId);
       loadingColumnIdsRef.current = nextLoading;
@@ -744,7 +743,6 @@ export function TasksView({
       onValueChange={(value: string) => setActiveTab(value as TasksTabValue)}
       className="flex h-full min-h-0 flex-1 flex-col gap-5"
     >
-      {/* Header */}
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="w-full">
           <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
@@ -800,7 +798,6 @@ export function TasksView({
         </div>
       </div>
 
-      {/* Content */}
       <TabsContent
         value="tasks"
         className={cn(
@@ -808,7 +805,6 @@ export function TasksView({
           viewMode === "board" ? "max-h-[calc(100vh-150px)]" : "max-h-full",
         )}
       >
-        {/* {activeTab === "tasks" ? ( */}
         <div className="flex min-h-0 flex-1 flex-col gap-4">
           <div
             className={cn(
@@ -891,7 +887,6 @@ export function TasksView({
           </div>
         </div>
       </TabsContent>
-      {/* ) : ( */}
       <TabsContent value="jobs" className="flex flex-col gap-4">
         <JobsListView
           jobs={jobsItems}
@@ -912,7 +907,6 @@ export function TasksView({
           </div>
         ) : null}
       </TabsContent>
-      {/* ) : ( */}
     </Tabs>
   );
 
