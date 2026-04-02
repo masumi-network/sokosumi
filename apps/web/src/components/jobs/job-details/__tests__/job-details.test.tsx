@@ -162,6 +162,7 @@ describe("JobDetails", () => {
       readOnly: true,
       className: "w-full",
       showAgentHeader: false,
+      publicJobLayout: false,
     });
     expect(screen.getByTestId("channel-provider")).toBeInTheDocument();
   });

@@ -2178,7 +2178,10 @@ export const PublicSharedTaskMilestoneSchema = {
             example: 'SOKOSUMI'
         },
         status: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
             enum: [
                 'DRAFT',
                 'READY',
@@ -2191,9 +2194,17 @@ export const PublicSharedTaskMilestoneSchema = {
                 'COMPLETED',
                 'FAILED',
                 'CANCEL_REQUESTED',
-                'CANCELED'
+                'CANCELED',
+                null
             ],
             example: 'RUNNING'
+        },
+        comment: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Please review the draft'
         },
         credits: {
             type: [
@@ -2201,6 +2212,20 @@ export const PublicSharedTaskMilestoneSchema = {
                 'null'
             ],
             example: 1.5
+        },
+        actorName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Ada Lovelace'
+        },
+        actorImage: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/avatar.png'
         }
     },
     required: [
@@ -2208,7 +2233,11 @@ export const PublicSharedTaskMilestoneSchema = {
         'createdAt',
         'updatedAt',
         'origin',
-        'status'
+        'status',
+        'comment',
+        'credits',
+        'actorName',
+        'actorImage'
     ]
 } as const;
 

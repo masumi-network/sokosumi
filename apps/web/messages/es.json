@@ -272,6 +272,7 @@
         "activity": "Actividad",
         "actionUpdatedStatus": "Estado cambiado a",
         "emptyActivity": "Aún sin actividad.",
+        "eyebrow": "Trabajo público",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1317,7 +1318,8 @@
         "jobsEmpty": "Aún sin jobs.",
         "jobsUntitled": "Job sin título",
         "jobsUnknownAgent": "Agent no disponible",
-        "activity": "Actividad",
+        "activity": "Actividades",
+        "emptyActivity": "Aún no hay actividades.",
         "sourcesFiles": "Archivos",
         "sourcesLinks": "Enlaces",
         "commentPlaceholder": "Escribe un comentario...",
@@ -2367,16 +2369,13 @@
         "description": "Contrata un Agent para tus tareas más complejas"
       },
       "Page": {
-        "eyebrow": "Public task",
+        "eyebrow": "Tarea pública",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {

@@ -23,18 +23,11 @@ import {
   resolveTitle,
 } from "@/lib/utils/feed-helpers";
 import { getInitials } from "@/lib/utils/text";
+import { getFileNameFromUrl } from "@/lib/utils/url";
 
 interface FeedDetailProps {
   feedId: string;
   item?: FeedItem | null;
-}
-
-function getFileNameFromUrl(url: string): string | null {
-  try {
-    return new URL(url).pathname.split("/").pop() ?? null;
-  } catch {
-    return url.split("/").pop() ?? null;
-  }
 }
 
 export function FeedDetail({ feedId, item: initialItem }: FeedDetailProps) {
