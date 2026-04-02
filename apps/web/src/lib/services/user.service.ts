@@ -9,7 +9,10 @@ import type {
   Prisma,
   User,
 } from "@sokosumi/database";
-import { mapJobWithStatus } from "@sokosumi/database/helpers";
+import {
+  mapJobWithStatus,
+  resolveWorkspaceForContext,
+} from "@sokosumi/database/helpers";
 import {
   invitationRepository,
   jobRepository,
@@ -100,13 +103,18 @@ export const userService = (() => {
     }
     const userId = session.user.id;
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
+    const workspace = await resolveWorkspaceForContext(
+      userId,
+      activeOrganizationId,
+      prisma,
+    );
 
     // Get owned jobs
     const ownedJobs = await jobRepository.getJobs(
       {
         agentId,
         userId,
-        organizationId: activeOrganizationId,
+        workspaceId: workspace.id,
       },
       prisma,
     );
@@ -125,12 +133,17 @@ export const userService = (() => {
       return { jobs: [], nextCursor: null };
     }
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
+    const workspace = await resolveWorkspaceForContext(
+      session.user.id,
+      activeOrganizationId,
+      prisma,
+    );
 
     const baseWhere: Prisma.JobWhereInput = {
       OR: [
         {
           userId: session.user.id,
-          organizationId: activeOrganizationId,
+          workspaceId: workspace.id,
         },
       ],
     };
