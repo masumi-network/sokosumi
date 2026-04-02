@@ -7,15 +7,12 @@ import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountGetTaskById from "./get";
 
-const {
-  prismaTransactionMock,
-  requireTaskReadAccessMock,
-  taskFindUniqueMock,
-} = vi.hoisted(() => ({
-  prismaTransactionMock: vi.fn(),
-  requireTaskReadAccessMock: vi.fn(),
-  taskFindUniqueMock: vi.fn(),
-}));
+const { prismaTransactionMock, requireTaskReadAccessMock, taskFindUniqueMock } =
+  vi.hoisted(() => ({
+    prismaTransactionMock: vi.fn(),
+    requireTaskReadAccessMock: vi.fn(),
+    taskFindUniqueMock: vi.fn(),
+  }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskReadAccess: requireTaskReadAccessMock,
