@@ -272,6 +272,7 @@
         "activity": "アクティビティ",
         "actionUpdatedStatus": "ステータスを次に変更しました",
         "emptyActivity": "アクティビティはまだありません。",
+        "eyebrow": "公開ジョブ",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1349,6 +1350,7 @@
         "jobsUntitled": "無題のジョブ",
         "jobsUnknownAgent": "エージェントは利用できません",
         "activity": "アクティビティ",
+        "emptyActivity": "アクティビティはまだありません。",
         "sourcesFiles": "ファイル",
         "sourcesLinks": "リンク",
         "commentPlaceholder": "コメントを書く...",
@@ -2367,16 +2369,13 @@
         "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
       },
       "Page": {
-        "eyebrow": "Public task",
+        "eyebrow": "公開タスク",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {

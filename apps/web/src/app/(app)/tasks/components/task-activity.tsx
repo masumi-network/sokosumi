@@ -47,6 +47,7 @@ import {
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { getInitials } from "@/lib/utils/text";
+import { getFileNameFromUrl } from "@/lib/utils/url";
 
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import {
@@ -87,14 +88,6 @@ function getEventTimestamp(event: TaskEvent): number {
 
 function isNewOptimisticEventId(id: string): boolean {
   return id.startsWith("optimistic:");
-}
-
-function getFileNameFromUrl(url: string): string | null {
-  try {
-    return new URL(url).pathname.split("/").pop() ?? null;
-  } catch {
-    return url.split("/").pop() ?? null;
-  }
 }
 
 function AnimatedNewRow({ children }: { children: ReactNode }) {

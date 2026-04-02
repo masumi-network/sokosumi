@@ -22,7 +22,7 @@ import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { getInitials } from "@/lib/utils/text";
-
+import { JobStatusBadge } from "../job-status-badge";
 import JobDetailsInputs from "./inputs";
 import {
   getVisibleTimelineEvents,
@@ -45,6 +45,8 @@ export interface JobDetailsViewProps {
   readOnly?: boolean;
   className?: string;
   showAgentHeader?: boolean;
+  /** Share route only: eyebrow, status badge, agent title, mobile top offset. */
+  publicJobLayout?: boolean;
 }
 
 export default function JobDetailsView({
@@ -52,6 +54,7 @@ export default function JobDetailsView({
   readOnly = false,
   className,
   showAgentHeader = true,
+  publicJobLayout = false,
 }: JobDetailsViewProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
   const [showAllEvents, setShowAllEvents] = useState(false);
@@ -62,6 +65,8 @@ export default function JobDetailsView({
   const { collapsedCount, shouldCollapse, visibleEvents } =
     getVisibleTimelineEvents(timelineEvents, showAllEvents);
 
+  const agentName = getAgentName(job.agent);
+
   return (
     <div
       className={cn(
@@ -71,7 +76,25 @@ export default function JobDetailsView({
     >
       <div className="flex w-full flex-col gap-4 md:h-full md:flex-row">
         <div className="flex w-full min-w-0 justify-center">
-          <div className="max-w-4xl min-w-0 flex-1">
+          <div
+            className={cn(
+              "min-w-0 flex-1 space-y-4 max-w-4xl",
+              publicJobLayout && "pt-20 md:pt-4 max-w-none",
+            )}
+          >
+            {publicJobLayout ? (
+              <>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-muted-foreground text-xs font-medium tracking-[0.24em] uppercase">
+                    {t("eyebrow")}
+                  </span>
+                  <JobStatusBadge status={job.status} />
+                </div>
+                <h1 className="max-w-3xl text-3xl font-light tracking-tight md:text-4xl">
+                  {agentName}
+                </h1>
+              </>
+            ) : null}
             {showAgentHeader && jobsHeader ? (
               <Header
                 {...jobsHeader}
@@ -135,7 +158,7 @@ export default function JobDetailsView({
           </div>
         </div>
 
-        <aside className="border-border hidden w-56 shrink-0 border-l md:block md:h-full">
+        <aside className="border-border hidden w-56 shrink-0 border-l md:block md:min-h-[calc(100svh-64px)]">
           <div className="sticky top-20 pt-1 pr-2 pl-6">
             <JobMetaDetails job={job} />
           </div>

@@ -18,8 +18,11 @@ interface PublicSharedTaskMilestone {
   createdAt: Date;
   updatedAt: Date;
   origin: string;
-  status: string;
+  status: string | null;
+  comment: string | null;
   credits: number | null;
+  actorName: string | null;
+  actorImage: string | null;
 }
 
 const publicTaskInclude = {
@@ -43,6 +46,18 @@ const publicTaskInclude = {
   },
   events: {
     include: {
+      user: {
+        select: {
+          name: true,
+          image: true,
+        },
+      },
+      coworker: {
+        select: {
+          name: true,
+          image: true,
+        },
+      },
       transaction: {
         select: { amount: true },
       },
@@ -60,7 +75,9 @@ type PublicTaskWithRelations = Prisma.TaskGetPayload<{
 function mapPublicTaskMilestone(
   event: PublicTaskWithRelations["events"][number],
 ): PublicSharedTaskMilestone | null {
-  if (!event.status) {
+  const comment = event.comment?.trim() || null;
+
+  if (!event.status && !comment) {
     return null;
   }
 
@@ -70,10 +87,13 @@ function mapPublicTaskMilestone(
     updatedAt: event.updatedAt,
     origin: event.origin,
     status: event.status,
+    comment,
     credits:
       event.transaction?.amount != null && event.transaction.amount < 0n
         ? convertCentsToCredits(event.transaction.amount * -1n)
         : null,
+    actorName: event.coworker?.name ?? event.user?.name ?? null,
+    actorImage: event.coworker?.image ?? event.user?.image ?? null,
   };
 }
 

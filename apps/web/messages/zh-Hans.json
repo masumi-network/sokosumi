@@ -272,6 +272,7 @@
         "activity": "活动",
         "actionUpdatedStatus": "将状态更改为",
         "emptyActivity": "暂无活动。",
+        "eyebrow": "公开作业",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1348,6 +1349,7 @@
         "jobsUntitled": "未命名作业",
         "jobsUnknownAgent": "智能体不可用",
         "activity": "活动",
+        "emptyActivity": "暂无活动。",
         "sourcesFiles": "文件",
         "sourcesLinks": "链接",
         "commentPlaceholder": "写下评论...",
@@ -2366,16 +2368,13 @@
         "description": "雇用智能体来完成最耗时的任务"
       },
       "Page": {
-        "eyebrow": "Public task",
+        "eyebrow": "公开任务",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {

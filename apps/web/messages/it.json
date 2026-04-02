@@ -272,6 +272,7 @@
         "activity": "Attività",
         "actionUpdatedStatus": "ha cambiato lo stato in",
         "emptyActivity": "Nessuna attività ancora.",
+        "eyebrow": "Job pubblico",
         "Header": {
           "JobName": {
             "Schema": {
@@ -1349,6 +1350,7 @@
         "jobsUntitled": "Job senza titolo",
         "jobsUnknownAgent": "Agente non disponibile",
         "activity": "Attività",
+        "emptyActivity": "Nessuna attività ancora.",
         "sourcesFiles": "File",
         "sourcesLinks": "Link",
         "commentPlaceholder": "Scrivi un commento...",
@@ -2367,16 +2369,13 @@
         "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
       },
       "Page": {
-        "eyebrow": "Public task",
+        "eyebrow": "Task pubblico",
         "descriptionEmpty": "No description provided.",
         "jobsEmpty": "No linked jobs.",
-        "milestonesTitle": "Milestones",
-        "milestonesEmpty": "No milestones yet.",
         "jobCreatedAt": "Created {date}",
         "jobCompletedAt": "Completed {date}",
         "publicJobLink": "Open public job",
-        "privateJobLink": "Private job",
-        "chargedCredits": "{credits, plural, =1 {# credit charged} other {# credits charged}}"
+        "privateJobLink": "Private job"
       }
     },
     "CTA": {
