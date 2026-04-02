@@ -16,20 +16,30 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
-import { useChatCreation } from "@/app/chat/hooks/use-chat-creation";
+import ChatInputContainer from "@/app/chat/components/chat-input-container";
+import SelectCoworkerModal from "@/app/chat/components/select-coworker-modal";
+import WelcomeScreen from "@/app/chat/components/welcome-screen";
 import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
-import { useChatSelection } from "@/app/chat/hooks/use-chat-selection";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { usePendingResponsePolling } from "@/app/chat/hooks/use-pending-response-polling";
 import { useRecoverOnTabHide } from "@/app/chat/hooks/use-recover-on-tab-hide";
+import type { Chat, Coworker } from "@/app/chat/utils/types";
+import { useChatCreation } from "@/app/new-chat-ui/hooks/use-chat-creation";
+import { useChatSelection } from "@/app/new-chat-ui/hooks/use-chat-selection";
+import {
+  CHAT_APP_ROUTE_PREFIX,
+  type ChatAppRoutePrefix,
+  getChatApiPathForRoutePrefix,
+  getConversationIdFromChatPathname,
+  getPendingConversationStorageKey,
+} from "@/app/new-chat-ui/utils/chat-route-base";
 import {
   convertItemsToMessages,
   deduplicateMessagesById,
   extractMessageContent,
-} from "@/app/chat/utils/message-utils";
-import type { Chat, Coworker } from "@/app/chat/utils/types";
+  extractReasoningStepMessages,
+} from "@/app/new-chat-ui/utils/message-utils";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import {
@@ -38,10 +48,7 @@ import {
   recoverConversationResponse,
 } from "@/lib/actions/conversation";
 
-import ChatInputContainer from "./chat-input-container";
 import MessageList from "./message-list";
-import SelectCoworkerModal from "./select-coworker-modal";
-import WelcomeScreen from "./welcome-screen";
 
 const NUM_SLOTS = 3;
 const RECOVERY_POLL_INTERVAL_MS = 2500;
@@ -60,6 +67,8 @@ function readPreviousResponseIdFromMetadata(
 }
 
 interface ChatInterfaceProps {
+  /** Full-page chat shell prefix (default `/chat`). BFF path follows `getChatApiPathForRoutePrefix`. */
+  chatRoutePrefix?: ChatAppRoutePrefix;
   mobileKeyboardOptimized?: boolean;
   showGreetingAndSuggestions?: boolean;
   organizationSlug: string | null;
@@ -71,6 +80,7 @@ interface ChatInterfaceProps {
 }
 
 export default function ChatInterface({
+  chatRoutePrefix = CHAT_APP_ROUTE_PREFIX,
   mobileKeyboardOptimized = false,
   showGreetingAndSuggestions = true,
   organizationSlug,
@@ -85,18 +95,20 @@ export default function ChatInterface({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isRouteDriven = navigationMode === "route";
-  const isChatPath = pathname.startsWith("/chat");
+  const isChatPath = useMemo(() => {
+    if (!pathname) return false;
+    return (
+      pathname === chatRoutePrefix || pathname.startsWith(`${chatRoutePrefix}/`)
+    );
+  }, [pathname, chatRoutePrefix]);
   const conversationIdFromPath = useMemo(() => {
-    if (!pathname?.startsWith("/chat")) return null;
-    const segments = pathname.split("/").filter(Boolean);
-    if (
-      segments[0] !== "chat" ||
-      segments[2] !== "conversation" ||
-      !segments[3]
-    )
-      return null;
-    return segments[3] ?? null;
-  }, [pathname]);
+    if (!pathname) return null;
+    return getConversationIdFromChatPathname(pathname, chatRoutePrefix);
+  }, [pathname, chatRoutePrefix]);
+  const chatApiPath = useMemo(
+    () => getChatApiPathForRoutePrefix(chatRoutePrefix),
+    [chatRoutePrefix],
+  );
   const urlConversationId = isRouteDriven
     ? (params?.conversationId ?? conversationIdFromPath ?? null)
     : controlledConversationId;
@@ -236,7 +248,10 @@ export default function ChatInterface({
     ((chatId: string, content: string, isFirstMessage?: boolean) => void) | null
   >(null);
 
-  const PENDING_CONVERSATION_STORAGE_KEY = "chat-pending-conversation-id";
+  const pendingConversationStorageKey = useMemo(
+    () => getPendingConversationStorageKey(chatRoutePrefix),
+    [chatRoutePrefix],
+  );
 
   useEffect(() => {
     if (isRouteDriven) {
@@ -273,7 +288,7 @@ export default function ChatInterface({
     let pendingFromStorage: string | null = null;
     try {
       pendingFromStorage = sessionStorage.getItem(
-        PENDING_CONVERSATION_STORAGE_KEY,
+        pendingConversationStorageKey,
       );
     } catch {}
     const skipSync =
@@ -286,7 +301,7 @@ export default function ChatInterface({
       (urlConversationId === selectedChatId && selectedChatId)
     ) {
       try {
-        sessionStorage.removeItem(PENDING_CONVERSATION_STORAGE_KEY);
+        sessionStorage.removeItem(pendingConversationStorageKey);
       } catch {}
     }
     if ((willSync || willSyncFromUrlOnly) && !skipSync) {
@@ -298,6 +313,7 @@ export default function ChatInterface({
     selectedChatId,
     urlIdInList,
     conversations.length,
+    pendingConversationStorageKey,
   ]);
 
   const [conversationToSlot, setConversationToSlot] = useState<
@@ -340,9 +356,9 @@ export default function ChatInterface({
     });
   }, [slotToConversation]);
 
-  function makeSlotTransport(slotIndex: number) {
+  function makeSlotTransport(slotIndex: number, api: string) {
     return new DefaultChatTransport({
-      api: "/api/chat",
+      api,
       headers: () => {
         const slug = organizationSlugRef.current;
         return slug
@@ -410,9 +426,18 @@ export default function ChatInterface({
     });
   }
 
-  const transport0 = useMemo(() => makeSlotTransport(0), []);
-  const transport1 = useMemo(() => makeSlotTransport(1), []);
-  const transport2 = useMemo(() => makeSlotTransport(2), []);
+  const transport0 = useMemo(
+    () => makeSlotTransport(0, chatApiPath),
+    [chatApiPath],
+  );
+  const transport1 = useMemo(
+    () => makeSlotTransport(1, chatApiPath),
+    [chatApiPath],
+  );
+  const transport2 = useMemo(
+    () => makeSlotTransport(2, chatApiPath),
+    [chatApiPath],
+  );
 
   const onDataForSlot = useCallback((slotIndex: number) => {
     return (dataPart: { type: string; data: unknown }) => {
@@ -761,8 +786,6 @@ export default function ChatInterface({
         setMessagesSlots[slot](
           seed as Parameters<(typeof setMessagesSlots)[0]>[0],
         );
-        // Defer send until after React processes the setMessages state update
-        // to ensure the slot has the correct message history
         const slotToSend = slot;
         queueMicrotask(() => {
           sendMessageSlots[slotToSend]({ text });
@@ -797,8 +820,16 @@ export default function ChatInterface({
   const selectedChatReasoningMessages = useMemo(() => {
     if (!selectedChatId) return [];
     const slot = conversationToSlot.get(selectedChatId);
-    return slot !== undefined ? (reasoningBySlot[slot] ?? []) : [];
-  }, [selectedChatId, conversationToSlot, reasoningBySlot]);
+    if (slot === undefined) return [];
+    const messages = (slotMessages[slot] ?? []) as UIMessage[];
+    const last = messages[messages.length - 1];
+    const fromParts =
+      last?.role === "assistant" ? extractReasoningStepMessages(last) : [];
+    if (fromParts.length > 0) {
+      return fromParts;
+    }
+    return reasoningBySlot[slot] ?? [];
+  }, [selectedChatId, conversationToSlot, reasoningBySlot, slotMessages]);
 
   const selectedChatReasoningStartedAt = useMemo(() => {
     const slot =
@@ -847,6 +878,7 @@ export default function ChatInterface({
   useChatSelection({
     urlConversationId,
     pathname,
+    basePath: chatRoutePrefix,
     conversations,
     selectedConversation,
     selectConversation,
@@ -937,7 +969,6 @@ export default function ChatInterface({
     const cidHasPendingId = convHasPendingId(convForCid);
 
     if (recoveryAttemptedForRef.current === cid) {
-      // Don't re-set recovering when we already processed recovery (stale sidebar metadata).
       if (
         cidHasPendingId &&
         mountedRef.current &&
@@ -1562,6 +1593,7 @@ export default function ChatInterface({
     setIsWelcomeTransitioning,
     showMessagesAfterTransition,
   } = useChatCreation({
+    basePath: chatRoutePrefix,
     createNewConversation,
     setChats,
     setSelectedChatId,
@@ -1652,15 +1684,12 @@ export default function ChatInterface({
           conversationId = await handleCoworkerSelected(selectedCoworker);
         }
 
-        // If conversation creation failed, don't send the message
         if (!conversationId) {
           setIsWelcomeTransitioning(false);
           return;
         }
 
-        // Verify the conversation ID was set in the ref
         if (!currentChatIdRef.current) {
-          // Wait a bit more for ref to be updated, then check again
           await new Promise((resolve) => setTimeout(resolve, 100));
           if (!currentChatIdRef.current) {
             setIsWelcomeTransitioning(false);

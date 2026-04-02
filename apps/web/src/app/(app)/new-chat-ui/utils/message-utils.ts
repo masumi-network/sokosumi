@@ -1,13 +1,29 @@
 import type { UIMessage } from "ai";
 
-/**
- * Extract text content from a message in various formats (AI SDK v6, parts array, etc.)
- */
+import { getReasoningStepDisplayText } from "./reasoning-generic-labels";
+
+function appendVisibleTextFromPart(part: Record<string, unknown>): string {
+  if (part.type !== "text") {
+    return "";
+  }
+  if ("text" in part && part.text !== null && part.text !== undefined) {
+    return String(part.text);
+  }
+  if (
+    "content" in part &&
+    part.content !== null &&
+    part.content !== undefined
+  ) {
+    return String(part.content);
+  }
+  return "";
+}
+
+/** Visible assistant text only (text parts only; excludes reasoning, tools, etc.). */
 export function extractMessageContent(message: unknown): string {
   const messageAny = message as Record<string, unknown>;
   let content = "";
 
-  // Try content property first
   if (
     "content" in messageAny &&
     messageAny.content !== undefined &&
@@ -21,21 +37,7 @@ export function extractMessageContent(message: unknown): string {
         .map((part: unknown) => {
           if (typeof part === "string") return part;
           if (part && typeof part === "object") {
-            const partObj = part as Record<string, unknown>;
-            if (
-              "text" in partObj &&
-              partObj.text !== null &&
-              partObj.text !== undefined
-            ) {
-              return String(partObj.text);
-            }
-            if (
-              "content" in partObj &&
-              partObj.content !== null &&
-              partObj.content !== undefined
-            ) {
-              return String(partObj.content);
-            }
+            return appendVisibleTextFromPart(part as Record<string, unknown>);
           }
           return "";
         })
@@ -46,35 +48,12 @@ export function extractMessageContent(message: unknown): string {
     }
   }
 
-  // Try "parts" property (AI SDK v6 format)
   if (!content && "parts" in messageAny && Array.isArray(messageAny.parts)) {
     content = (messageAny.parts as unknown[])
       .map((part: unknown) => {
         if (typeof part === "string") return part;
         if (part && typeof part === "object") {
-          const partObj = part as Record<string, unknown>;
-          if (
-            "text" in partObj &&
-            partObj.text !== null &&
-            partObj.text !== undefined
-          ) {
-            return String(partObj.text);
-          }
-          if (
-            "content" in partObj &&
-            partObj.content !== null &&
-            partObj.content !== undefined
-          ) {
-            return String(partObj.content);
-          }
-          // Try direct stringification if it's a simple object
-          if (
-            "type" in partObj &&
-            partObj.type === "text" &&
-            "text" in partObj
-          ) {
-            return String(partObj.text);
-          }
+          return appendVisibleTextFromPart(part as Record<string, unknown>);
         }
         return "";
       })
@@ -82,7 +61,6 @@ export function extractMessageContent(message: unknown): string {
       .join("");
   }
 
-  // Fallback: try "text" property directly
   if (
     !content &&
     "text" in messageAny &&
@@ -95,10 +73,44 @@ export function extractMessageContent(message: unknown): string {
   return content.trim();
 }
 
-/**
- * Deduplicate messages by id (first occurrence wins). Prevents duplicate display
- * when recovery or API returns the same item more than once.
- */
+/** Reasoning parts from a UIMessage (for ThoughtSummaryBar / loaders). */
+export function extractReasoningStepMessages(
+  message: unknown,
+): Array<{ id: string; message: string }> {
+  const messageAny = message as Record<string, unknown>;
+  const parts = messageAny.parts;
+  if (!Array.isArray(parts)) {
+    return [];
+  }
+  const msgId = typeof messageAny.id === "string" ? messageAny.id : "msg";
+  const out: Array<{ id: string; message: string }> = [];
+  let reasoningIndex = 0;
+  for (const part of parts) {
+    if (!part || typeof part !== "object") continue;
+    const p = part as Record<string, unknown>;
+    if (p.type !== "reasoning") continue;
+    const text = typeof p.text === "string" ? p.text : "";
+    const display = getReasoningStepDisplayText(text);
+    if (display === null) {
+      if (text.trim() === "Processing...") {
+        out.push({
+          id: `${msgId}-reasoning-${reasoningIndex}`,
+          message: "Processing...",
+        });
+        reasoningIndex += 1;
+      }
+      continue;
+    }
+    out.push({
+      id: `${msgId}-reasoning-${reasoningIndex}`,
+      message: display,
+    });
+    reasoningIndex += 1;
+  }
+  return out;
+}
+
+/** First occurrence wins when the same id appears twice. */
 export function deduplicateMessagesById<T extends { id?: string }>(
   messages: T[],
 ): T[] {
@@ -114,9 +126,6 @@ export function deduplicateMessagesById<T extends { id?: string }>(
   });
 }
 
-/**
- * Convert ConversationItem[] to UIMessage format
- */
 export function convertItemsToMessages(
   items: Array<{
     id: string;

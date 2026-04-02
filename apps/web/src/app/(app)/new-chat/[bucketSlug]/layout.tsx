@@ -3,16 +3,16 @@
 import { useParams, usePathname } from "next/navigation";
 import { useMemo } from "react";
 
-import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
 import {
   getBucketKeyFromMetadata,
   resolveBucketKeyFromDisplaySlug,
 } from "@/app/chat/utils/bucket-slug";
+import { ChatConversationsSidebar } from "@/app/new-chat-ui/components/chat-conversations-sidebar";
 import {
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
   NEW_CHAT_APP_ROUTE_PREFIX,
-} from "@/app/chat/utils/chat-route-base";
+} from "@/app/new-chat-ui/utils/chat-route-base";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";

@@ -2,8 +2,8 @@ import gravatarUrl from "gravatar-url";
 import { redirect } from "next/navigation";
 
 import { ChatErrorFallback } from "@/app/chat/components/chat-error-fallback";
-import { ChatLayoutClient } from "@/app/chat/components/chat-layout-client";
-import { NEW_CHAT_APP_ROUTE_PREFIX } from "@/app/chat/utils/chat-route-base";
+import { ChatLayoutClient } from "@/app/new-chat-ui/components/chat-layout-client";
+import { NEW_CHAT_APP_ROUTE_PREFIX } from "@/app/new-chat-ui/utils/chat-route-base";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { getSession } from "@/lib/auth/utils";
 import { newChatExperimentalEnabled } from "@/lib/flags/new-chat-experimental";

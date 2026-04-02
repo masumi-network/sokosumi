@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
-import { isReasoningGenericLabel } from "@/app/chat/utils/reasoning-generic-labels";
+import { getReasoningStepDisplayText } from "@/app/new-chat-ui/utils/reasoning-generic-labels";
 import { cn } from "@/lib/utils";
 
 interface ThoughtSummaryBarProps {
@@ -29,9 +29,8 @@ export default function ThoughtSummaryBar({
     : 0;
 
   const subordinateSteps = reasoningMessages
-    .filter(({ message }) => !isReasoningGenericLabel(message))
-    .map(({ message }) => message.trim())
-    .filter(Boolean);
+    .map(({ message }) => getReasoningStepDisplayText(message))
+    .filter((s): s is string => Boolean(s));
 
   useEffect(() => {
     if (reasoningStartedAt == null || isFrozen) return;
@@ -51,7 +50,6 @@ export default function ThoughtSummaryBar({
   }, [subordinateSteps, isOpen]);
 
   const displaySeconds = isFrozen ? frozenSeconds : liveSeconds;
-  const isRecordedView = reasoningEndedAt != null;
 
   return (
     <div className="mb-1 flex flex-col">
@@ -91,13 +89,7 @@ export default function ThoughtSummaryBar({
         <div className="min-w-0 px-4 pt-0.5 pb-1.5">
           <div
             ref={viewportRef}
-            className={cn(
-              "reasoning-steps-viewport overflow-x-hidden",
-              isRecordedView
-                ? "overflow-y-visible"
-                : "max-h-[3.75rem] overflow-y-auto",
-            )}
-            style={{ scrollBehavior: "smooth" }}
+            className="reasoning-steps-viewport max-h-none overflow-x-hidden overflow-y-visible"
           >
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               {subordinateSteps.map((step, index) => (

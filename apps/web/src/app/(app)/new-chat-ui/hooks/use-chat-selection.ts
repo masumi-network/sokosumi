@@ -6,6 +6,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { displaySlugFromMetadata } from "@/app/chat/utils/bucket-slug";
+import {
+  CHAT_APP_ROUTE_PREFIX,
+  type ChatAppRoutePrefix,
+} from "@/app/new-chat-ui/utils/chat-route-base";
 import type { Conversation } from "@/lib/actions/conversation";
 
 const FALLBACK_BUCKET_SEGMENT = "_";
@@ -31,6 +35,8 @@ interface UseChatSelectionProps {
   isSelectedChatStreaming?: boolean;
   isConversationLoading?: boolean;
   enabled?: boolean;
+  /** Shell base path for router pushes (default `/chat`). */
+  basePath?: ChatAppRoutePrefix;
 }
 
 /**
@@ -76,9 +82,9 @@ export function useChatSelection({
   isSelectedChatStreaming = false,
   isConversationLoading: isConversationLoadingProp = false,
   enabled = true,
+  basePath = CHAT_APP_ROUTE_PREFIX,
 }: UseChatSelectionProps) {
   const router = useRouter();
-  const basePath = "/chat";
   const params = useParams<{ bucketSlug?: string }>();
   const bucketSlug = params?.bucketSlug;
 

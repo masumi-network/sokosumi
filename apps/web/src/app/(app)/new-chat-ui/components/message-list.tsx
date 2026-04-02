@@ -11,22 +11,21 @@ import {
   useRef,
   useState,
 } from "react";
-
+import { AssistantAvatarContent } from "@/app/chat/components/assistant-avatar-content";
+import ChatMessage from "@/app/chat/components/chat-message";
+import DaySeparator from "@/app/chat/components/day-separator";
+import LoadingIndicator from "@/app/chat/components/loading-indicator";
 import { useScrollToBottom } from "@/app/chat/hooks/use-scroll-to-bottom";
 import {
   formatDaySeparator,
   isDifferentDay,
 } from "@/app/chat/utils/date-utils";
-import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
+import { extractMessageContent } from "@/app/new-chat-ui/utils/message-utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import { AssistantAvatarContent } from "./assistant-avatar-content";
-import ChatMessage from "./chat-message";
-import DaySeparator from "./day-separator";
-import LoadingIndicator from "./loading-indicator";
 import ReasoningLoaders from "./reasoning-loaders";
 import ThoughtSummaryBar from "./thought-summary-bar";
 
@@ -160,8 +159,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         lastMessage.role !== "assistant" ||
         lastAssistantHasNoContent);
     const showReasoningLoaders =
-      showLoadingArea &&
       isCoworker &&
+      showLoadingArea &&
       reasoningMessages.length > 0 &&
       !isRecoveringPolling &&
       !isRecovering;

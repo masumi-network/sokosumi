@@ -37,8 +37,7 @@ export default function ChatListsClient() {
   const { coworkers } = useCoworkersContext();
   const params = useParams<{ bucketSlug?: string }>();
   const bucketSlug = params?.bucketSlug;
-  const isChatRoute =
-    pathname.startsWith("/chat") || pathname.startsWith("/new-chat");
+  const isChatRoute = pathname.startsWith("/chat");
 
   useEffect(() => {
     void refreshConversations();

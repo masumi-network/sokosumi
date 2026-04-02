@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import ChatInterface from "@/app/chat/components/chat-interface";
-import { isChatShellPathname } from "@/app/chat/utils/chat-route-base";
+import { isChatShellPathname } from "@/app/new-chat-ui/utils/chat-route-base";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
