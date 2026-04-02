@@ -1,8 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { convertToModelMessages, streamText } from "ai";
+import { convertToModelMessages, streamText, validateUIMessages } from "ai";
 
 import { openrouterClient } from "@/clients/openrouter.client";
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
+import { conversationItemsToUiMessages } from "@/helpers/conversation-items-to-ui-messages";
 import {
   badRequest,
   internalServerError,
@@ -30,20 +31,20 @@ import {
 } from "@/lib/sokosumi-ai-provider";
 import { requireUserAuthContext } from "@/middleware/auth";
 
-import { chatRequestSchema } from "@/schemas/chat-request.schema.js";
-import { mapChatRequestToUiMessages } from "../chat/map-chat-request-to-ui-messages.js";
+import { aiSdkChatRequestSchema } from "@/schemas/chat-request.schema.js";
+import { mapChatRequestToUiMessages } from "../conversations/chat/map-chat-request-to-ui-messages.js";
 
 const route = createRoute({
   method: "post",
-  path: "/new-chat",
+  path: "/",
   description:
-    "Experimental: stream chat via Vercel AI SDK (`@sokosumi/ai-provider`). Use POST /conversations/chat for production.",
-  tags: ["Conversations"],
+    "Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`). Legacy streaming without the AI SDK remains at POST /conversations/chat.",
+  tags: ["Chat"],
   request: {
     body: {
       content: {
         "application/json": {
-          schema: chatRequestSchema,
+          schema: aiSdkChatRequestSchema,
         },
       },
     },
@@ -74,10 +75,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const {
         messages,
+        message: singleMessage,
         conversationId,
         model,
         previousResponseId: bodyPreviousResponseId,
+        trigger,
       } = c.req.valid("json");
+
+      const useServerMergedHistory =
+        Boolean(conversationId) &&
+        singleMessage !== undefined &&
+        trigger === "submit-message";
 
       let internalConversationId: string | null = null;
       let selectedModel: string | null = model ?? null;
@@ -109,16 +117,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      const incomingLast =
+        useServerMergedHistory && singleMessage
+          ? singleMessage
+          : Array.isArray(messages) && messages.length > 0
+            ? messages[messages.length - 1]!
+            : null;
+
       const lastUserMessageText =
-        messages.length > 0
+        incomingLast &&
+        (incomingLast.role === "user" || incomingLast.role === "system")
           ? (() => {
-              const lastMessage = messages[messages.length - 1];
-              if (
-                lastMessage.role !== "user" &&
-                lastMessage.role !== "system"
-              ) {
-                return null;
-              }
+              const lastMessage = incomingLast;
               if ("parts" in lastMessage && Array.isArray(lastMessage.parts)) {
                 return lastMessage.parts
                   .map((part: { type?: string; text?: string }) =>
@@ -197,9 +207,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      if (internalConversationId && messages.length > 0) {
+      let uiMessages;
+      if (
+        useServerMergedHistory &&
+        internalConversationId &&
+        singleMessage !== undefined
+      ) {
+        const itemsBeforeUserTurn = await prisma.conversationItem.findMany({
+          where: { conversationId: internalConversationId },
+          orderBy: { createdAt: "asc" },
+          take: 200,
+          select: { id: true, role: true, contentText: true },
+        });
+        const historyUi = conversationItemsToUiMessages(itemsBeforeUserTurn);
+        const tailUi = mapChatRequestToUiMessages([singleMessage]);
+        uiMessages = [...historyUi, ...tailUi];
+      } else {
+        uiMessages = mapChatRequestToUiMessages(messages!);
+      }
+
+      try {
+        await validateUIMessages({ messages: uiMessages });
+      } catch (error) {
+        throw badRequest(
+          error instanceof Error
+            ? error.message
+            : "Invalid chat messages for AI SDK.",
+        );
+      }
+
+      if (internalConversationId && incomingLast) {
         const conversationIdForPersistedTurn = internalConversationId;
-        const lastMessage = messages[messages.length - 1];
+        const lastMessage = incomingLast;
         if (lastMessage.role === "user" || lastMessage.role === "system") {
           const extractedText = lastUserMessageText ?? "";
           const formattedContent =
@@ -238,14 +277,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   });
                 }
               })
-              .catch((error) => {
-                console.error("Failed to generate/update title:", error);
+              .catch((err) => {
+                console.error("Failed to generate/update title:", err);
               });
           }
         }
       }
 
-      const uiMessages = mapChatRequestToUiMessages(messages);
       const modelMessages = await convertToModelMessages(
         uiMessages.map(({ id: _id, ...rest }) => rest),
       );
@@ -276,7 +314,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             });
           } catch (error) {
             console.error(
-              "Failed to clear previous_response_id from conversation after invalid chain (new-chat):",
+              "Failed to clear previous_response_id from conversation after invalid chain (POST /chat):",
               error,
             );
           }
@@ -347,7 +385,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             });
           } catch (error) {
             console.error(
-              "Failed to persist assistant message (new-chat):",
+              "Failed to persist assistant message (POST /chat):",
               error,
             );
           }
@@ -355,6 +393,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       return result.toUIMessageStreamResponse({
+        originalMessages: uiMessages,
         headers: {
           "Cache-Control": "no-cache",
           Connection: "keep-alive",
@@ -373,7 +412,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw error;
       }
       throw internalServerError(
-        `Failed to stream chat response (new-chat): ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to stream chat response (POST /chat): ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   });

@@ -74,8 +74,6 @@ export function createResponsesSseToV3Stream(
       const reasoningAccumulator: Record<string, string> = {};
       const reasoningStarted = new Set<string>();
       let needNewlineBeforeNextDelta = false;
-      const PRELUDE_REASONING_ID = "sokosumi-prelude";
-      let preludeOpen = false;
 
       function closeWithFinish() {
         if (streamClosed) {
@@ -84,13 +82,6 @@ export function createResponsesSseToV3Stream(
         streamClosed = true;
         if (textStarted) {
           controller.enqueue({ type: "text-end", id: TEXT_BLOCK_ID });
-        }
-        if (preludeOpen) {
-          controller.enqueue({
-            type: "reasoning-end",
-            id: PRELUDE_REASONING_ID,
-          });
-          preludeOpen = false;
         }
         for (const id of reasoningStarted) {
           controller.enqueue({ type: "reasoning-end", id });
@@ -107,13 +98,6 @@ export function createResponsesSseToV3Stream(
       function ensureTextStart() {
         if (textStarted || streamClosed) {
           return;
-        }
-        if (preludeOpen) {
-          controller.enqueue({
-            type: "reasoning-end",
-            id: PRELUDE_REASONING_ID,
-          });
-          preludeOpen = false;
         }
         controller.enqueue({ type: "text-start", id: TEXT_BLOCK_ID });
         textStarted = true;
@@ -176,56 +160,52 @@ export function createResponsesSseToV3Stream(
             : undefined) ??
           (typeof chunk.id === "string" ? chunk.id : undefined);
 
+        const isResponseCreated =
+          lastEventLine === "response.created" ||
+          chunk.type === "response.created";
+
         if (
           typeof responseId === "string" &&
           !responseStartedCalled &&
-          lastEventLine === "response.created"
+          isResponseCreated
         ) {
           responseStartedCalled = true;
           onResponseStarted?.(responseId);
           controller.enqueue({ type: "response-metadata", id: responseId });
         }
 
-        if (!textStarted && lastEventLine === "response.created") {
-          if (!preludeOpen) {
-            controller.enqueue({
-              type: "reasoning-start",
-              id: PRELUDE_REASONING_ID,
-            });
-            preludeOpen = true;
-          }
-          emitReasoningDelta(PRELUDE_REASONING_ID, "Processing...");
-        }
+        // Do not emit a synthetic "Processing..." reasoning block here. Legacy chat uses
+        // custom `data-reasoning` for that; mapping it to model reasoning-start/end
+        // (e.g. sokosumi-prelude) breaks AI SDK UIMessage validation when streams drop
+        // or reorder chunks. Real reasoning still follows via output_item.added below.
 
-        if (!textStarted) {
-          if (chunk.type === "response.output_item.added") {
-            const itemType = chunk.item?.type;
-            if (itemType === "reasoning") {
-              const id =
-                typeof chunk.item?.id === "string"
-                  ? chunk.item.id
-                  : "reasoning";
-              reasoningAccumulator[id] = "";
-              emitReasoningDelta(id, "Thinking...");
-            }
-          } else if (chunk.type === "response.reasoning_summary_text.delta") {
-            const itemId =
-              typeof chunk.item_id === "string" ? chunk.item_id : undefined;
-            const delta =
-              typeof chunk.delta === "string" ? chunk.delta : undefined;
-            if (itemId && delta) {
-              const next = (reasoningAccumulator[itemId] ?? "") + delta;
-              emitReasoningDelta(itemId, next);
-            }
-          } else if (chunk.type === "response.output_item.done") {
-            const itemId =
-              typeof chunk.item?.id === "string" ? chunk.item.id : undefined;
-            if (itemId && chunk.item?.type === "reasoning") {
-              delete reasoningAccumulator[itemId];
-              if (reasoningStarted.has(itemId)) {
-                controller.enqueue({ type: "reasoning-end", id: itemId });
-                reasoningStarted.delete(itemId);
-              }
+        // Reasoning must be handled even after text has started — Responses SSE can
+        // interleave output_text and reasoning (see AI SDK V3 reasoning streaming).
+        if (chunk.type === "response.output_item.added") {
+          const itemType = chunk.item?.type;
+          if (itemType === "reasoning") {
+            const id =
+              typeof chunk.item?.id === "string" ? chunk.item.id : "reasoning";
+            reasoningAccumulator[id] = "";
+            emitReasoningDelta(id, "Thinking...");
+          }
+        } else if (chunk.type === "response.reasoning_summary_text.delta") {
+          const itemId =
+            typeof chunk.item_id === "string" ? chunk.item_id : undefined;
+          const delta =
+            typeof chunk.delta === "string" ? chunk.delta : undefined;
+          if (itemId && delta) {
+            const next = (reasoningAccumulator[itemId] ?? "") + delta;
+            emitReasoningDelta(itemId, next);
+          }
+        } else if (chunk.type === "response.output_item.done") {
+          const itemId =
+            typeof chunk.item?.id === "string" ? chunk.item.id : undefined;
+          if (itemId && chunk.item?.type === "reasoning") {
+            delete reasoningAccumulator[itemId];
+            if (reasoningStarted.has(itemId)) {
+              controller.enqueue({ type: "reasoning-end", id: itemId });
+              reasoningStarted.delete(itemId);
             }
           }
         }

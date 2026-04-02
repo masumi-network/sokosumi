@@ -193,11 +193,11 @@ export const postConversationsChat = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Experimental: stream chat via Vercel AI SDK (`@sokosumi/ai-provider`). Use POST /conversations/chat for production.
+ * Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`). Legacy streaming without the AI SDK: POST /conversations/chat.
  */
 export const postConversationsNewChat = <ThrowOnError extends boolean = false>(options?: Options<PostConversationsNewChatData, ThrowOnError>) => (options?.client ?? client).sse.post<PostConversationsNewChatResponses, PostConversationsNewChatErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/conversations/new-chat',
+    url: '/chat',
     ...options,
     headers: {
         'Content-Type': 'application/json',

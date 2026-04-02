@@ -34,8 +34,8 @@ import {
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
 } from "@/app/new-chat-ui/utils/chat-route-base";
+import { fetchNewChatUiMessages } from "@/app/new-chat-ui/utils/fetch-new-chat-messages";
 import {
-  convertItemsToMessages,
   deduplicateMessagesById,
   extractMessageContent,
   extractReasoningStepMessages,
@@ -44,7 +44,6 @@ import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import {
   type Conversation,
-  getConversationItems,
   recoverConversationResponse,
 } from "@/lib/actions/conversation";
 
@@ -365,9 +364,12 @@ export default function ChatInterface({
           ? { "x-organization-slug": slug }
           : ({} as Record<string, string>);
       },
-      prepareSendMessagesRequest(request: {
-        messages: unknown[];
-        body?: Record<string, unknown>;
+      prepareSendMessagesRequest(options: {
+        id: string;
+        messages: UIMessage[];
+        body: Record<string, unknown> | undefined;
+        trigger: "submit-message" | "regenerate-message";
+        messageId: string | undefined;
       }) {
         setReasoningBySlot((prev) => {
           const next = { ...prev };
@@ -409,17 +411,41 @@ export default function ChatInterface({
             }
           }
         }
+
+        const baseBody: Record<string, unknown> = {
+          ...(options.body ?? {}),
+          id: options.id,
+          trigger: options.trigger,
+          messageId: options.messageId,
+          ...(typeof cid === "string" && cid.length > 0
+            ? { conversationId: cid }
+            : {}),
+          ...(payload?.model ? { model: payload.model.id } : {}),
+          ...(previousResponseIdForBody
+            ? { previousResponseId: previousResponseIdForBody }
+            : {}),
+        };
+
+        if (
+          options.trigger === "submit-message" &&
+          typeof cid === "string" &&
+          cid.length > 0
+        ) {
+          const last = options.messages[options.messages.length - 1];
+          if (last) {
+            return {
+              body: {
+                ...baseBody,
+                message: last,
+              },
+            };
+          }
+        }
+
         return {
           body: {
-            messages: request.messages,
-            ...(payload?.conversationId
-              ? { conversationId: payload.conversationId }
-              : {}),
-            ...(payload?.model ? { model: payload.model.id } : {}),
-            ...request.body,
-            ...(previousResponseIdForBody
-              ? { previousResponseId: previousResponseIdForBody }
-              : {}),
+            ...baseBody,
+            messages: options.messages,
           },
         };
       },
@@ -992,37 +1018,12 @@ export default function ChatInterface({
       const isCancelled = () =>
         routeRecoveryGeneration !== conversationRecoveryGenerationRef.current;
       async function loadConversationItemsIntoCache(conversationId: string) {
-        const itemsResult = await getConversationItems({
-          conversationId,
-          limit: 100,
-        });
-        if (isCancelled()) return;
-        const itemsPayload =
-          itemsResult &&
-          typeof itemsResult === "object" &&
-          "ok" in itemsResult &&
-          itemsResult.ok
-            ? (itemsResult as { data?: { items?: unknown[] } }).data
-            : itemsResult &&
-                typeof itemsResult === "object" &&
-                "value" in itemsResult
-              ? (itemsResult as { value?: { items?: unknown[] } }).value
-              : undefined;
-        if (
-          itemsPayload &&
-          Array.isArray(itemsPayload.items) &&
-          mountedRef.current
-        ) {
-          const msgs = convertItemsToMessages(
-            itemsPayload.items as Array<{
-              id: string;
-              role: string;
-              content: Array<{ type: string; text?: string }> | string;
-              createdAt: number;
-            }>,
-          );
-          setMessagesForConversation(conversationId, msgs);
-          chatMessagesRef.current.set(conversationId, msgs);
+        const msgs = await fetchNewChatUiMessages(conversationId);
+        if (isCancelled() || msgs === null) return;
+        const deduped = deduplicateMessagesById(msgs);
+        if (mountedRef.current) {
+          setMessagesForConversation(conversationId, deduped);
+          chatMessagesRef.current.set(conversationId, deduped);
         }
       }
       function parseRecoverPayload(result: unknown) {
@@ -1092,40 +1093,10 @@ export default function ChatInterface({
               if (pollPayload?.recovered) {
                 if (recoveredProcessedForRef.current !== cid) {
                   recoveredProcessedForRef.current = cid;
-                  const itemsResult = await getConversationItems({
-                    conversationId: cid,
-                    limit: 100,
-                  });
+                  const loaded = await fetchNewChatUiMessages(cid);
                   if (isCancelled()) return;
-                  const itemsPayload =
-                    itemsResult &&
-                    typeof itemsResult === "object" &&
-                    "ok" in itemsResult &&
-                    itemsResult.ok
-                      ? (itemsResult as { data?: { items?: unknown[] } }).data
-                      : itemsResult &&
-                          typeof itemsResult === "object" &&
-                          "value" in itemsResult
-                        ? (itemsResult as { value?: { items?: unknown[] } })
-                            .value
-                        : undefined;
-                  if (
-                    itemsPayload &&
-                    Array.isArray(itemsPayload.items) &&
-                    mountedRef.current
-                  ) {
-                    const newMessages = deduplicateMessagesById(
-                      convertItemsToMessages(
-                        itemsPayload.items as Array<{
-                          id: string;
-                          role: string;
-                          content:
-                            | Array<{ type: string; text?: string }>
-                            | string;
-                          createdAt: number;
-                        }>,
-                      ),
-                    );
+                  if (loaded !== null && mountedRef.current) {
+                    const newMessages = deduplicateMessagesById(loaded);
                     setMessagesForConversation(cid, newMessages);
                     chatMessagesRef.current.set(cid, newMessages);
                     const slot = conversationToSlot.get(cid);
@@ -1188,37 +1159,10 @@ export default function ChatInterface({
         }
         if (recoveredProcessedForRef.current !== cid) {
           recoveredProcessedForRef.current = cid;
-          const itemsResult = await getConversationItems({
-            conversationId: cid,
-            limit: 100,
-          });
+          const loaded = await fetchNewChatUiMessages(cid);
           if (isCancelled()) return;
-          const itemsPayload =
-            itemsResult &&
-            typeof itemsResult === "object" &&
-            "ok" in itemsResult &&
-            itemsResult.ok
-              ? (itemsResult as { data?: { items?: unknown[] } }).data
-              : itemsResult &&
-                  typeof itemsResult === "object" &&
-                  "value" in itemsResult
-                ? (itemsResult as { value?: { items?: unknown[] } }).value
-                : undefined;
-          if (
-            itemsPayload &&
-            Array.isArray(itemsPayload.items) &&
-            mountedRef.current
-          ) {
-            const newMessages = deduplicateMessagesById(
-              convertItemsToMessages(
-                itemsPayload.items as Array<{
-                  id: string;
-                  role: string;
-                  content: Array<{ type: string; text?: string }> | string;
-                  createdAt: number;
-                }>,
-              ),
-            );
+          if (loaded !== null && mountedRef.current) {
+            const newMessages = deduplicateMessagesById(loaded);
             setMessagesForConversation(cid, newMessages);
             chatMessagesRef.current.set(cid, newMessages);
             const slot = conversationToSlot.get(cid);
@@ -1317,34 +1261,11 @@ export default function ChatInterface({
     }
     (async () => {
       async function loadConversationItemsIntoCache(conversationId: string) {
-        const itemsResult = await getConversationItems({
-          conversationId,
-          limit: 100,
-        });
-        if (isAborted()) return;
-        const itemsPayload =
-          itemsResult &&
-          typeof itemsResult === "object" &&
-          "ok" in itemsResult &&
-          itemsResult.ok
-            ? (itemsResult as { data?: { items?: unknown[] } }).data
-            : itemsResult &&
-                typeof itemsResult === "object" &&
-                "value" in itemsResult
-              ? (itemsResult as { value?: { items?: unknown[] } }).value
-              : undefined;
-        if (itemsPayload && Array.isArray(itemsPayload.items)) {
-          const msgs = convertItemsToMessages(
-            itemsPayload.items as Array<{
-              id: string;
-              role: string;
-              content: Array<{ type: string; text?: string }> | string;
-              createdAt: number;
-            }>,
-          );
-          setMessagesForConversation(conversationId, msgs);
-          chatMessagesRef.current.set(conversationId, msgs);
-        }
+        const msgs = await fetchNewChatUiMessages(conversationId);
+        if (isAborted() || msgs === null) return;
+        const deduped = deduplicateMessagesById(msgs);
+        setMessagesForConversation(conversationId, deduped);
+        chatMessagesRef.current.set(conversationId, deduped);
       }
       function parseRecoverPayload(result: unknown) {
         if (!result || typeof result !== "object") return undefined;
@@ -1410,36 +1331,10 @@ export default function ChatInterface({
               if (pollPayload?.recovered) {
                 if (recoveredProcessedForRef.current !== conv.id) {
                   recoveredProcessedForRef.current = conv.id;
-                  const itemsResult = await getConversationItems({
-                    conversationId: conv.id,
-                    limit: 100,
-                  });
+                  const loaded = await fetchNewChatUiMessages(conv.id);
                   if (isAborted()) return;
-                  const itemsPayload =
-                    itemsResult &&
-                    typeof itemsResult === "object" &&
-                    "ok" in itemsResult &&
-                    itemsResult.ok
-                      ? (itemsResult as { data?: { items?: unknown[] } }).data
-                      : itemsResult &&
-                          typeof itemsResult === "object" &&
-                          "value" in itemsResult
-                        ? (itemsResult as { value?: { items?: unknown[] } })
-                            .value
-                        : undefined;
-                  if (itemsPayload && Array.isArray(itemsPayload.items)) {
-                    const newMessages = deduplicateMessagesById(
-                      convertItemsToMessages(
-                        itemsPayload.items as Array<{
-                          id: string;
-                          role: string;
-                          content:
-                            | Array<{ type: string; text?: string }>
-                            | string;
-                          createdAt: number;
-                        }>,
-                      ),
-                    );
+                  if (loaded !== null) {
+                    const newMessages = deduplicateMessagesById(loaded);
                     setMessagesForConversation(conv.id, newMessages);
                     chatMessagesRef.current.set(conv.id, newMessages);
                     const slot = conversationToSlot.get(conv.id);
@@ -1494,33 +1389,10 @@ export default function ChatInterface({
         }
         if (recoveredProcessedForRef.current !== conv.id) {
           recoveredProcessedForRef.current = conv.id;
-          const itemsResult = await getConversationItems({
-            conversationId: conv.id,
-            limit: 100,
-          });
+          const loaded = await fetchNewChatUiMessages(conv.id);
           if (isAborted()) return;
-          const itemsPayload =
-            itemsResult &&
-            typeof itemsResult === "object" &&
-            "ok" in itemsResult &&
-            itemsResult.ok
-              ? (itemsResult as { data?: { items?: unknown[] } }).data
-              : itemsResult &&
-                  typeof itemsResult === "object" &&
-                  "value" in itemsResult
-                ? (itemsResult as { value?: { items?: unknown[] } }).value
-                : undefined;
-          if (itemsPayload && Array.isArray(itemsPayload.items)) {
-            const newMessages = deduplicateMessagesById(
-              convertItemsToMessages(
-                itemsPayload.items as Array<{
-                  id: string;
-                  role: string;
-                  content: Array<{ type: string; text?: string }> | string;
-                  createdAt: number;
-                }>,
-              ),
-            );
+          if (loaded !== null) {
+            const newMessages = deduplicateMessagesById(loaded);
             setMessagesForConversation(conv.id, newMessages);
             chatMessagesRef.current.set(conv.id, newMessages);
             const slot = conversationToSlot.get(conv.id);

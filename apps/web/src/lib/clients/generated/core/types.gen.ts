@@ -3859,7 +3859,7 @@ export type PostConversationsNewChatData = {
     };
     path?: never;
     query?: never;
-    url: '/conversations/new-chat';
+    url: '/chat';
 };
 
 export type PostConversationsNewChatErrors = {

@@ -26,9 +26,9 @@ Capture **behavior the chat feature already guarantees today**, as **user storie
 
 ## 4. Current architecture (baseline)
 
-- **Web**: Next.js App Router; browser uses `@ai-sdk/react` `useChat` + `DefaultChatTransport` → **`/api/chat`** (Core **`POST /conversations/chat/ai-sdk`**). **`/api/chat/ai-sdk`** re-exports the same handler for backward compatibility. Legacy Core **`POST /conversations/chat`** is not proxied from Next; call Core directly if required.
-- **BFF**: session auth; proxies to Core; streams `text/event-stream`; drains upstream if the client disconnects so completion/persistence can run (`proxy-conversation-chat-post.ts`).
-- **Core `post.ts`**: validates body; resolves conversation and **metadata** (`model_id`, `coworker_slug` / `coworker_id`, `previous_response_id`); normalizes messages to **plain text** per turn; either **coworker Responses API** stream or **OpenRouter** stream; wraps stream with **assistant persistence**.
+- **Web (production `/chat`)**: Next.js App Router; UI under **`/chat/...`**; BFF **`POST /api/chat`** forwards to Core **`POST /v1/conversations/chat`** (legacy streaming path). Client disconnect drain behavior lives in the route handler.
+- **Web (experimental `/new-chat`)**: UI under **`/new-chat/...`**; BFF **`/api/new-chat`** (`route.ts`) forwards to Core **`POST /v1/chat`** / **`GET /v1/chat`** (Vercel AI SDK + `@sokosumi/ai-provider`), with an experimental allowlist gate.
+- **Core `conversations/chat/post.ts`**: validates body; resolves conversation and **metadata** (`model_id`, `coworker_slug` / `coworker_id`, `previous_response_id`); normalizes messages to **plain text** per turn; either **coworker Responses API** stream or **OpenRouter** stream; wraps stream with **assistant persistence**.
 
 ## 5. Domain rules (invariants)
 
@@ -241,18 +241,19 @@ Capture **behavior the chat feature already guarantees today**, as **user storie
 - **Transport contract**: Preserve **`messages`**, **`conversationId`**, **`previousResponseId`**, **`model`** JSON fields and SSE **shape** expected by `useChat` / data parts (`data-reasoning`), or supply a **compatibility adapter** on the web layer.
 - **Two persistence strategies**: (1) OpenRouter — **history in request** + DB items mirror; (2) Coworker — **Responses id chain** + pending/completed metadata; custom provider should not collapse these into one code path without explicit mode flag.
 - **Title generation** today is coupled to **OpenRouter client** on first message; decide whether that stays a **side effect** or moves behind the provider.
-- **Tests**: `apps/web/src/app/api/chat/__tests__/route.test.ts`, `apps/core/src/routes/v1/conversations/chat/post.test.ts`, and chat hooks normalize **regression gates** for the refactor.
+- **Tests**: `apps/web/src/app/api/chat/__tests__/route.test.ts`, `apps/core/src/routes/v1/conversations/chat/post.test.ts`, `apps/core/src/routes/v1/chat/post.test.ts`, and chat hooks normalize **regression gates** for the refactor.
 
 ## 8. Traceability (selected code anchors)
 
 | Area | Location |
 |------|----------|
-| Web proxy + disconnect drain | `apps/web/src/app/api/chat/proxy-conversation-chat-post.ts` (`POST /api/chat` → Core ai-sdk; **`/api/chat/ai-sdk`** re-exports) |
+| Web legacy chat BFF + disconnect drain | `apps/web/src/app/api/chat/route.ts` → Core **`POST /v1/conversations/chat`** |
+| Web new-chat BFF + disconnect drain | `apps/web/src/app/api/new-chat/route.ts` → Core **`POST /v1/chat`**, **`GET /v1/chat`** |
 | Core chat + OpenRouter / coworker branch | `apps/core/src/routes/v1/conversations/chat/post.ts` |
-| Core AI SDK chat (`streamText` + Sokosumi provider) | `apps/core/src/routes/v1/conversations/chat/ai-sdk/post.ts` |
-| Web chat shells + BFF | `apps/web/src/app/(app)/chat/`, `apps/web/src/app/(app)/new-chat/`, `chat-route-base.ts` |
+| Core AI SDK chat (`streamText` + Sokosumi provider) | `apps/core/src/routes/v1/chat/post.ts` |
+| Web chat shells | Production: `apps/web/src/app/(app)/chat/`. Experimental: `apps/web/src/app/(app)/new-chat/`, `apps/web/src/app/(app)/new-chat-ui/` (`chat-route-base.ts` in new-chat-ui) |
 | OpenAPI → web client regen | `pnpm generate:core` (Core must serve `/v1/openapi.json`; see `apps/core/AGENTS.md`) |
 | Conversation items / create | `apps/web/src/lib/actions/conversation/core-api-actions.ts` |
-| `useChat` + transport + reasoning + recovery | `apps/web/src/app/(app)/chat/components/chat-interface.tsx` |
+| `useChat` + transport + reasoning + recovery | Production: `apps/web/src/app/(app)/chat/components/chat-interface.tsx`. Experimental: `apps/web/src/app/(app)/new-chat-ui/components/chat-interface.tsx` |
 | Pending poll | `apps/web/src/app/(app)/chat/hooks/use-pending-response-polling.ts` |
 | Message load / pending skip | `apps/web/src/app/(app)/chat/hooks/use-chat-messages.ts` |

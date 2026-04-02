@@ -29,7 +29,7 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 
-import { chatRequestSchema } from "@/schemas/chat-request.schema.js";
+import { legacyConversationChatRequestSchema } from "@/schemas/chat-request.schema.js";
 
 const route = createRoute({
   method: "post",
@@ -40,7 +40,7 @@ const route = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: chatRequestSchema,
+          schema: legacyConversationChatRequestSchema,
         },
       },
     },

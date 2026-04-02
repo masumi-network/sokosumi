@@ -1,12 +1,12 @@
+import type { z } from "@hono/zod-openapi";
 import type { UIMessage } from "ai";
-import type { z } from "zod";
 
-import { chatRequestSchema } from "@/schemas/chat-request.schema.js";
+import { chatRequestMessageSchema } from "@/schemas/chat-request.schema.js";
 
-type ChatRequestMessage = z.infer<typeof chatRequestSchema>["messages"][number];
+type ChatRequestMessage = z.infer<typeof chatRequestMessageSchema>;
 
 export function mapChatRequestToUiMessages(
-  messages: z.infer<typeof chatRequestSchema>["messages"],
+  messages: ChatRequestMessage[],
 ): UIMessage[] {
   return messages.map((m, index) => ({
     id: m.id?.trim() && m.id.trim().length > 0 ? m.id : `msg-${index}`,
