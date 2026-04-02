@@ -2,12 +2,16 @@ import { TaskStatus } from "@sokosumi/database";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
+import { userService } from "@/lib/services/user.service";
+import { resolveAccountName } from "@/lib/utils/account-name";
 
 export const metadata = {
   title: "Edit Task",
@@ -19,11 +23,7 @@ export default async function EditTaskPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [taskResult, taskCoworkers, agents] = await Promise.all([
-    taskService.getTaskById(taskId),
-    coworkerService.listCoworkers("tasks"),
-    agentService.getAvailableAgentsWithCreditsPrice(),
-  ]);
+  const taskResult = await taskService.getTaskById(taskId);
 
   if (!taskResult) {
     return notFound();
@@ -35,6 +35,38 @@ export default async function EditTaskPage({
   ) {
     redirect(`/tasks/${taskId}`);
   }
+
+  const activeOrganizationId =
+    (await getSession())?.session.activeOrganizationId ?? null;
+  const targetOrganizationId = taskResult.workspace.organizationId ?? null;
+
+  if (activeOrganizationId !== targetOrganizationId) {
+    const [members, tDetail, tOrganizationSwitcher] = await Promise.all([
+      userService.getMyMembersWithOrganizations(),
+      getTranslations("App.Tasks.Detail"),
+      getTranslations("Components.OrganizationSwitcher"),
+    ]);
+    const targetAccountName = resolveAccountName(
+      targetOrganizationId,
+      members,
+      tOrganizationSwitcher("personalAccount"),
+    );
+
+    return (
+      <AutoContextSwitch
+        activeOrganizationId={activeOrganizationId}
+        targetOrganizationId={targetOrganizationId}
+        successMessage={tDetail("switchedWorkspace", {
+          account: targetAccountName,
+        })}
+      />
+    );
+  }
+
+  const [taskCoworkers, agents] = await Promise.all([
+    coworkerService.listCoworkers("tasks"),
+    agentService.getAvailableAgentsWithCreditsPrice(),
+  ]);
 
   const coworkerOptions = getCoworkerOptions(taskCoworkers);
   const agentNameById = buildAgentNameById(agents);
