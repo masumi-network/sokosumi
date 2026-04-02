@@ -66,6 +66,12 @@ vi.mock("@/components/jobs/job-details/job-share-button", () => ({
   ),
 }));
 
+vi.mock("@/components/jobs/job-status-badge", () => ({
+  JobStatusBadge: ({ status }: { status: string }) => (
+    <div data-testid="job-status-badge">{status}</div>
+  ),
+}));
+
 vi.mock("@/components/jobs/job-details/job-meta-details", () => ({
   JobMetaDetails: ({ job }: { job: { id: string } }) => (
     <div data-testid="job-meta-details">{job.id}</div>
@@ -173,6 +179,41 @@ describe("JobDetailsView", () => {
     expect(screen.getByTestId("job-details-footer")).toBeInTheDocument();
     expect(useSessionMock).not.toHaveBeenCalled();
     expect(useQueryMock).not.toHaveBeenCalled();
+  });
+
+  it("does not render public share chrome without publicJobLayout", () => {
+    useJobsHeaderMock.mockReturnValue(null);
+
+    render(
+      <JobDetailsView job={createJob()} readOnly showAgentHeader={false} />,
+    );
+
+    expect(screen.queryByText("eyebrow")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("job-status-badge")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Research Agent" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders public share chrome when publicJobLayout is set", () => {
+    useJobsHeaderMock.mockReturnValue(null);
+
+    render(
+      <JobDetailsView
+        job={createJob()}
+        readOnly
+        showAgentHeader={false}
+        publicJobLayout
+      />,
+    );
+
+    expect(screen.getByText("eyebrow")).toBeInTheDocument();
+    expect(screen.getByTestId("job-status-badge")).toHaveTextContent(
+      SokosumiJobStatus.PROCESSING,
+    );
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Research Agent" }),
+    ).toBeInTheDocument();
   });
 
   it("renders edit and share controls in the top header when agent header is shown", () => {

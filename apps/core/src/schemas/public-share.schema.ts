@@ -64,8 +64,19 @@ export const publicSharedTaskMilestoneSchema = z
     origin: z
       .enum(TaskEventOrigin)
       .openapi({ example: TaskEventOrigin.SOKOSUMI }),
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
-    credits: z.number().nullish().openapi({ example: 1.5 }),
+    status: z
+      .enum(TaskStatus)
+      .nullable()
+      .openapi({ example: TaskStatus.RUNNING }),
+    comment: z
+      .string()
+      .nullable()
+      .openapi({ example: "Please review the draft" }),
+    credits: z.number().nullable().openapi({ example: 1.5 }),
+    actorName: z.string().nullable().openapi({ example: "Ada Lovelace" }),
+    actorImage: z.string().nullable().openapi({
+      example: "https://example.com/avatar.png",
+    }),
   })
   .openapi("PublicSharedTaskMilestone");
 
