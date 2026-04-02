@@ -92,6 +92,13 @@ export function extractReasoningStepMessages(
     const text = typeof p.text === "string" ? p.text : "";
     const display = getReasoningStepDisplayText(text);
     if (display === null) {
+      if (text.trim() === "Processing...") {
+        out.push({
+          id: `${msgId}-reasoning-${reasoningIndex}`,
+          message: "Processing...",
+        });
+        reasoningIndex += 1;
+      }
       continue;
     }
     out.push({

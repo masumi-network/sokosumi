@@ -78,7 +78,19 @@ describe("extractReasoningStepMessages", () => {
       ],
     };
     expect(extractReasoningStepMessages(message)).toEqual([
-      { id: "mid-reasoning-0", message: "More thought" },
+      { id: "mid-reasoning-0", message: "Processing..." },
+      { id: "mid-reasoning-1", message: "More thought" },
+    ]);
+  });
+
+  it("preserves Processing-only placeholder for loader coordination", () => {
+    const message = {
+      id: "solo",
+      role: "assistant" as const,
+      parts: [{ type: "reasoning" as const, text: "Processing..." }],
+    };
+    expect(extractReasoningStepMessages(message)).toEqual([
+      { id: "solo-reasoning-0", message: "Processing..." },
     ]);
   });
 

@@ -23,9 +23,11 @@ export default function ReasoningLoaders({
   const t = useTranslations("App.Chat.Chat");
   if (reasoningMessages.length === 0) return null;
 
+  const firstReasoning = reasoningMessages[0]?.message ?? "";
   const onlyProcessing =
     reasoningMessages.length === 1 &&
-    reasoningMessages[0].message === "Processing...";
+    getReasoningStepDisplayText(firstReasoning) === null &&
+    firstReasoning.trim() === "Processing...";
   const loaderLabel = onlyProcessing
     ? t("reasoning.processing")
     : t("reasoning.thinking");
