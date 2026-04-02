@@ -44,7 +44,6 @@ import {
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
-  postUsersMeFiles as corePostUsersMeFiles,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
   putJobsByIdShare as corePutJobsByIdShare,
   putTasksByIdShare as corePutTasksByIdShare,
@@ -63,6 +62,14 @@ export interface CoreApiMeta {
 export interface CoreApiResponse<T> {
   data: T;
   meta?: CoreApiMeta;
+}
+
+export interface UserFileUploadSessionData {
+  clientToken: string;
+  access: "public";
+  pathname: string;
+  addRandomSuffix: boolean;
+  maxSizeBytes: number;
 }
 
 export class CoreApiRequestError extends Error {
@@ -629,15 +636,38 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function uploadMyFile(file: Blob | File) {
+  async function createMyFileUploadSession(body: {
+    filename: string;
+    contentType: string;
+    size: number;
+  }) {
     return executeOperation(
       getClient,
-      (client) =>
-        corePostUsersMeFiles({
-          client,
-          body: { file },
-        }),
-      "Failed to upload file",
+      async (client) => {
+        const result = await client.post({
+          url: "/users/me/uploads",
+          security: [{ scheme: "bearer", type: "http" }],
+          cache: "no-store",
+          body,
+        });
+
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error,
+            response: result.response,
+          };
+        }
+
+        return {
+          data: result.data as
+            | CoreApiResponse<UserFileUploadSessionData>
+            | undefined,
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to create upload session",
     );
   }
 
@@ -832,6 +862,7 @@ export function createCoreClient(getClient: GetClient) {
     addConversationItem,
     archiveConversation,
     createConversation,
+    createMyFileUploadSession,
     createTask,
     createTaskLink,
     createTaskEvent,
@@ -860,7 +891,6 @@ export function createCoreClient(getClient: GetClient) {
     putJobShare,
     putTaskShare,
     updateConversation,
-    uploadMyFile,
   };
 }
 

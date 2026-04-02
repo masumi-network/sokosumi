@@ -3,6 +3,10 @@ import "server-only";
 import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/nextjs";
+import {
+  buildUserUploadPathname,
+  sanitizeUserUploadFilename,
+} from "@sokosumi/utils";
 import { type PutBlobResult, put } from "@vercel/blob";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -12,7 +16,7 @@ export async function uploadFileForUser(
   inputFile: File,
 ): Promise<PutBlobResult> {
   const blob = await put(
-    `users/${userId}/${inputFile.name.replace(/ /g, "_")}`,
+    buildUserUploadPathname(userId, inputFile.name),
     inputFile,
     {
       access: "public",
@@ -27,7 +31,7 @@ export async function uploadFileForBlob(
   inputFile: File,
 ): Promise<PutBlobResult> {
   const blob = await put(
-    `blobs/${blobId}/${inputFile.name.replace(/ /g, "_")}`,
+    `blobs/${blobId}/${sanitizeUserUploadFilename(inputFile.name)}`,
     inputFile,
     {
       access: "public",

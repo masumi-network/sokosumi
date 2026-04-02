@@ -42,3 +42,8 @@ export {
   parseOrganizationMetadata,
 } from "./organization-metadata.js";
 export { getFallbackUserName, getStoredUserName } from "./user-name.js";
+export {
+  buildUserUploadPathname,
+  buildUserUploadPrefix,
+  sanitizeUserUploadFilename,
+} from "./user-upload-path.js";

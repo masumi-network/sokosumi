@@ -27,6 +27,10 @@ import {
   type JobScheduleSelectionType,
   JobScheduleType,
 } from "@/lib/types/job";
+import {
+  getUserFileUploadErrorMessage,
+  uploadInputDataFiles,
+} from "@/lib/utils/user-file-upload.client";
 
 export interface UseJobSubmissionOptions {
   agent: AgentWithCreditsPrice;
@@ -76,6 +80,7 @@ export function useJobSubmission({
           scheduleSelection.mode !== JobScheduleType.NOW
         ) {
           const transformedInputData = prepareInputValues(allValues);
+          await uploadInputDataFiles(transformedInputData);
 
           result = await createSchedule({
             input: {
@@ -88,6 +93,7 @@ export function useJobSubmission({
           });
         } else {
           const transformedInputData = prepareInputValues(allValues);
+          await uploadInputDataFiles(transformedInputData);
 
           result = await startJob({
             input: {
@@ -144,7 +150,7 @@ export function useJobSubmission({
         }
       } catch (_error) {
         setLoading(false);
-        toast.error(t("Error.default"));
+        toast.error(getUserFileUploadErrorMessage(_error, t("Error.default")));
       }
     },
     [

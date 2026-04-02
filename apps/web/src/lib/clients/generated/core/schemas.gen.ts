@@ -1203,6 +1203,79 @@ export const BlobFileMetadataSchema = {
     ]
 } as const;
 
+export const UserFileUploadSessionSchema = {
+    type: 'object',
+    properties: {
+        clientToken: {
+            type: 'string',
+            example: 'vercel_blob_client_token',
+            description: 'Scoped Blob client token for direct uploads'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public',
+            description: 'Blob access level for the upload'
+        },
+        pathname: {
+            type: 'string',
+            example: 'users/user_123/report.pdf',
+            description: 'Server-generated upload pathname'
+        },
+        addRandomSuffix: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether Blob should append a random suffix'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 262144000,
+            description: 'Maximum supported file size for direct uploads'
+        }
+    },
+    required: [
+        'clientToken',
+        'access',
+        'pathname',
+        'addRandomSuffix',
+        'maxSizeBytes'
+    ]
+} as const;
+
+export const CreateUserFileUploadRequestSchema = {
+    type: 'object',
+    properties: {
+        filename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            example: 'report.pdf',
+            description: 'Original file name supplied by the client'
+        },
+        contentType: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'application/pdf',
+            description: 'Detected file content type'
+        },
+        size: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 2048000,
+            description: 'File size in bytes'
+        }
+    },
+    required: [
+        'filename',
+        'contentType',
+        'size'
+    ]
+} as const;
+
 export const JobSchema = {
     type: 'object',
     properties: {

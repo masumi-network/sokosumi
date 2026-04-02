@@ -6,7 +6,6 @@ import { jobScheduleRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes";
-import { handleInputDataFileUploads } from "@/lib/actions/job/utils";
 import prisma from "@/lib/db/prisma";
 import type { StartJobInputSchemaType } from "@/lib/schemas/job";
 import type { Result } from "@/lib/ts-res";
@@ -43,11 +42,6 @@ export const createSchedule = withSession<
   >
 >(async ({ input, scheduleSelection, session }) => {
   try {
-    // Upload any Files in the input map to blob storage and replace with URLs
-    if (input.inputData) {
-      await handleInputDataFileUploads(session.user.id, input.inputData);
-    }
-
     // Derive schedule fields from selection and validate
     let scheduleType: JobScheduleType | null = null;
     let cron: string | null = null;

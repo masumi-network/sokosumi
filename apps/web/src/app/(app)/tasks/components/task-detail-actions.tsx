@@ -64,6 +64,7 @@ import {
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
+import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
   getTaskLinkActionInput,
   TASK_STATUS,
@@ -217,6 +218,14 @@ export function TaskDetailActions({
     back: tNewTask("back"),
     uploadFile: tNewTask("uploadFile"),
     uploadFileError: tNewTask("uploadFileError"),
+    uploadingFile: getTaskAttachmentUploadLabelTemplate(
+      tNewTask,
+      "uploadingFile",
+    ),
+    uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+      tNewTask,
+      "uploadingFiles",
+    ),
     removeAttachment: tNewTask("removeAttachment"),
     submit: tNewTask("saveDraft"),
     saveAsDraft: tNewTask("saveAsDraft"),

@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-
+import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
@@ -39,6 +39,14 @@ export default async function NewTaskPage() {
             back: t("back"),
             uploadFile: t("uploadFile"),
             uploadFileError: t("uploadFileError"),
+            uploadingFile: getTaskAttachmentUploadLabelTemplate(
+              t,
+              "uploadingFile",
+            ),
+            uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+              t,
+              "uploadingFiles",
+            ),
             removeAttachment: t("removeAttachment"),
             submit: t("saveDraft"),
             saveAsDraft: t("saveAsDraft"),

@@ -1,148 +1,73 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { listUserFiles, uploadUserFile } from "./blob";
+import { createUserFileUploadSession, listUserUploads } from "./blob";
 
-const { putMock, headMock, listMock, sentryCaptureExceptionMock } = vi.hoisted(
+const { listMock, generateClientTokenFromReadWriteTokenMock } = vi.hoisted(
   () => ({
-    putMock: vi.fn(),
-    headMock: vi.fn(),
     listMock: vi.fn(),
-    sentryCaptureExceptionMock: vi.fn(),
+    generateClientTokenFromReadWriteTokenMock: vi.fn(),
   }),
 );
 
 vi.mock("@vercel/blob", () => ({
-  put: putMock,
-  head: headMock,
+  put: vi.fn(),
   list: listMock,
 }));
 
-vi.mock("@sentry/node", () => ({
-  captureException: sentryCaptureExceptionMock,
+vi.mock("@vercel/blob/client", () => ({
+  generateClientTokenFromReadWriteToken:
+    generateClientTokenFromReadWriteTokenMock,
 }));
 
-describe("uploadUserFile", () => {
+vi.mock("@sentry/node", () => ({
+  captureException: vi.fn(),
+}));
+
+describe("createUserFileUploadSession", () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
 
-  it("uploads into user namespace and returns canonical metadata from head", async () => {
-    putMock.mockResolvedValue({
-      url: "https://blob.example/users/user_123/report_abc.pdf",
-      downloadUrl: "https://blob.example/download/report_abc.pdf",
-      pathname: "users/user_123/report_abc.pdf",
-      etag: "etag-put",
-    });
-    headMock.mockResolvedValue({
-      size: 123,
-      uploadedAt: new Date("2026-02-16T12:00:00.000Z"),
-      pathname: "users/user_123/report_abc.pdf",
-      contentType: "application/pdf",
-      contentDisposition: "inline",
-      url: "https://blob.example/users/user_123/report_abc.pdf",
-      downloadUrl: "https://blob.example/download/report_abc.pdf",
-      cacheControl: "public, max-age=3600",
-      etag: "etag-head",
-    });
+  it("creates a scoped direct upload session for the user upload path", async () => {
+    generateClientTokenFromReadWriteTokenMock.mockResolvedValue(
+      "client-token-123",
+    );
 
-    const file = new File(["hello"], "report.pdf", {
-      type: "application/pdf",
-    });
-
-    const uploaded = await uploadUserFile("user_123", file, "token_123");
-
-    expect(putMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^users\/user_123\//),
-      file,
+    const result = await createUserFileUploadSession(
+      "user_123",
       {
-        access: "public",
-        addRandomSuffix: true,
-        allowOverwrite: false,
+        filename: " ../my file(1).pdf ",
         contentType: "application/pdf",
-        token: "token_123",
+        size: 2_048_000,
+        maxSizeBytes: 262_144_000,
       },
+      "token_123",
     );
-    expect(uploaded).toEqual({
-      publicUrl: "https://blob.example/users/user_123/report_abc.pdf",
-      metadata: {
-        pathname: "users/user_123/report_abc.pdf",
-        downloadUrl: "https://blob.example/download/report_abc.pdf",
-        size: 123,
-        uploadedAt: "2026-02-16T12:00:00.000Z",
-        etag: "etag-head",
-      },
+
+    expect(generateClientTokenFromReadWriteTokenMock).toHaveBeenCalledWith({
+      token: "token_123",
+      pathname: "users/user_123/my_file1.pdf",
+      allowedContentTypes: ["application/pdf"],
+      maximumSizeInBytes: 2_048_000,
+      validUntil: expect.any(Number),
+      addRandomSuffix: true,
     });
-  });
-
-  it("sanitizes file names in the uploaded pathname", async () => {
-    putMock.mockResolvedValue({
-      url: "https://blob.example/users/user_123/my_file1_abc.pdf",
-      downloadUrl: "https://blob.example/download/my_file1_abc.pdf",
-      pathname: "users/user_123/my_file1_abc.pdf",
-      etag: "etag-put",
+    expect(result).toEqual({
+      clientToken: "client-token-123",
+      access: "public",
+      pathname: "users/user_123/my_file1.pdf",
+      addRandomSuffix: true,
+      maxSizeBytes: 262_144_000,
     });
-    headMock.mockResolvedValue({
-      size: 42,
-      uploadedAt: new Date("2026-02-16T12:00:00.000Z"),
-      pathname: "users/user_123/my_file1_abc.pdf",
-      contentType: "application/pdf",
-      contentDisposition: "inline",
-      url: "https://blob.example/users/user_123/my_file1_abc.pdf",
-      downloadUrl: "https://blob.example/download/my_file1_abc.pdf",
-      cacheControl: "public, max-age=3600",
-      etag: "etag-head",
-    });
-
-    const file = new File(["hello"], " ../my file(1).pdf ", {
-      type: "application/pdf",
-    });
-
-    await uploadUserFile("user_123", file, "token_123");
-
-    expect(putMock).toHaveBeenCalledWith(
-      expect.stringContaining("users/user_123/my_file1.pdf"),
-      file,
-      expect.any(Object),
-    );
-  });
-
-  it("falls back to deterministic metadata when head fails", async () => {
-    putMock.mockResolvedValue({
-      url: "https://blob.example/users/user_123/photo_abc.png",
-      downloadUrl: "https://blob.example/download/photo_abc.png",
-      pathname: "users/user_123/photo_abc.png",
-      etag: "etag-put",
-    });
-    headMock.mockRejectedValue(new Error("head failed"));
-
-    const file = new File([new Uint8Array([1, 2, 3])], "photo.png", {
-      type: "image/png",
-    });
-
-    const uploaded = await uploadUserFile("user_123", file, "token_123");
-
-    expect(uploaded.publicUrl).toBe(
-      "https://blob.example/users/user_123/photo_abc.png",
-    );
-    expect(uploaded.metadata.pathname).toBe("users/user_123/photo_abc.png");
-    expect(uploaded.metadata.downloadUrl).toBe(
-      "https://blob.example/download/photo_abc.png",
-    );
-    expect(uploaded.metadata.size).toBe(file.size);
-    expect(uploaded.metadata.etag).toBe("etag-put");
-    expect(new Date(uploaded.metadata.uploadedAt).toISOString()).toBe(
-      uploaded.metadata.uploadedAt,
-    );
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("listUserFiles", () => {
+describe("listUserUploads", () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
 
-  it("lists files by user prefix and sorts newest first", async () => {
+  it("lists uploads by user prefix and sorts newest first", async () => {
     listMock.mockResolvedValue({
       blobs: [
         {
@@ -166,7 +91,7 @@ describe("listUserFiles", () => {
       cursor: undefined,
     });
 
-    const files = await listUserFiles("user_123", "token_123");
+    const files = await listUserUploads("user_123", "token_123");
 
     expect(listMock).toHaveBeenCalledWith({
       prefix: "users/user_123/",
@@ -235,7 +160,7 @@ describe("listUserFiles", () => {
         cursor: undefined,
       });
 
-    const files = await listUserFiles("user_123", "token_123");
+    const files = await listUserUploads("user_123", "token_123");
 
     expect(listMock).toHaveBeenNthCalledWith(1, {
       prefix: "users/user_123/",
@@ -260,7 +185,7 @@ describe("listUserFiles", () => {
       cursor: undefined,
     });
 
-    await expect(listUserFiles("user_123", "token_123")).rejects.toThrow(
+    await expect(listUserUploads("user_123", "token_123")).rejects.toThrow(
       "Blob list pagination is invalid: hasMore=true without cursor",
     );
   });

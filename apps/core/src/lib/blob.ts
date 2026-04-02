@@ -1,13 +1,22 @@
 import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/node";
-import { head, list, put } from "@vercel/blob";
+import {
+  buildUserUploadPathname,
+  buildUserUploadPrefix,
+} from "@sokosumi/utils";
+import { list, put } from "@vercel/blob";
+import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
 import { CRYPTO, STORAGE } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import type { BlobFile } from "@/schemas/blob-file.schema";
+import type { UserFileUploadSession } from "@/schemas/user-file-upload.schema";
 
 type ListBlobItem = Awaited<ReturnType<typeof list>>["blobs"][number];
+const USER_UPLOAD_ACCESS = "public" as const;
+const USER_UPLOAD_ADD_RANDOM_SUFFIX = true as const;
+const USER_UPLOAD_SESSION_TTL_MS = 15 * 60 * 1000;
 
 function toBlobFile(data: {
   url: string;
@@ -29,67 +38,36 @@ function toBlobFile(data: {
   };
 }
 
-function buildUserUploadPrefix(userId: string): string {
-  return `${STORAGE.USER_UPLOADS_DIR}/${userId}/`;
-}
-
-function sanitizeUploadFilename(fileName: string): string {
-  const sanitized = fileName
-    .trim()
-    .replace(/[\\/]+/g, "_")
-    .replace(/\s+/g, "_")
-    .replace(/[^A-Za-z0-9._-]/g, "")
-    .replace(/_+/g, "_")
-    .replace(/^[_.]+|[_.]+$/g, "");
-
-  return sanitized.length > 0 ? sanitized : "file";
-}
-
-export async function uploadUserFile(
+export async function createUserFileUploadSession(
   userId: string,
-  file: File,
+  file: {
+    filename: string;
+    contentType: string;
+    size: number;
+    maxSizeBytes: number;
+  },
   token: string,
-): Promise<BlobFile> {
-  const sanitizedFilename = sanitizeUploadFilename(file.name);
-  const pathname = `${buildUserUploadPrefix(userId)}${sanitizedFilename}`;
-
-  const blob = await put(pathname, file, {
-    access: "public",
+): Promise<UserFileUploadSession> {
+  const pathname = buildUserUploadPathname(userId, file.filename);
+  const clientToken = await generateClientTokenFromReadWriteToken({
     token,
-    addRandomSuffix: true,
-    allowOverwrite: false,
-    contentType: file.type || undefined,
+    pathname,
+    allowedContentTypes: [file.contentType],
+    maximumSizeInBytes: file.size,
+    validUntil: Date.now() + USER_UPLOAD_SESSION_TTL_MS,
+    addRandomSuffix: USER_UPLOAD_ADD_RANDOM_SUFFIX,
   });
 
-  try {
-    const blobHead = await head(blob.url, { token });
-    return toBlobFile({
-      url: blobHead.url,
-      pathname: blobHead.pathname,
-      downloadUrl: blobHead.downloadUrl,
-      size: blobHead.size,
-      uploadedAt: blobHead.uploadedAt,
-      etag: blobHead.etag,
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        function: "uploadUserFile",
-        phase: "head",
-      },
-    });
-    return toBlobFile({
-      url: blob.url,
-      pathname: blob.pathname,
-      downloadUrl: blob.downloadUrl,
-      size: file.size,
-      uploadedAt: new Date(),
-      etag: blob.etag,
-    });
-  }
+  return {
+    clientToken,
+    access: USER_UPLOAD_ACCESS,
+    pathname,
+    addRandomSuffix: USER_UPLOAD_ADD_RANDOM_SUFFIX,
+    maxSizeBytes: file.maxSizeBytes,
+  };
 }
 
-export async function listUserFiles(
+export async function listUserUploads(
   userId: string,
   token: string,
 ): Promise<BlobFile[]> {

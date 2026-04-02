@@ -1,7 +1,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-
+import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
@@ -65,6 +65,14 @@ export default async function EditTaskPage({
         back: tEdit("back"),
         uploadFile: tEdit("uploadFile"),
         uploadFileError: tEdit("uploadFileError"),
+        uploadingFile: getTaskAttachmentUploadLabelTemplate(
+          tEdit,
+          "uploadingFile",
+        ),
+        uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+          tEdit,
+          "uploadingFiles",
+        ),
         removeAttachment: tEdit("removeAttachment"),
         submit: tEdit("save"),
         cancel: tEdit("cancel"),

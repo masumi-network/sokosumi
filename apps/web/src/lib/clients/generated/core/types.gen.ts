@@ -363,6 +363,44 @@ export type BlobFileMetadata = {
     etag: string;
 };
 
+export type UserFileUploadSession = {
+    /**
+     * Scoped Blob client token for direct uploads
+     */
+    clientToken: string;
+    /**
+     * Blob access level for the upload
+     */
+    access: 'public';
+    /**
+     * Server-generated upload pathname
+     */
+    pathname: string;
+    /**
+     * Whether Blob should append a random suffix
+     */
+    addRandomSuffix: boolean;
+    /**
+     * Maximum supported file size for direct uploads
+     */
+    maxSizeBytes: number;
+};
+
+export type CreateUserFileUploadRequest = {
+    /**
+     * Original file name supplied by the client
+     */
+    filename: string;
+    /**
+     * Detected file content type
+     */
+    contentType: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+};
+
 export type Job = {
     id: string;
     createdAt: Date;
@@ -5007,14 +5045,14 @@ export type PostUsersMeNoticesByIdAcknowledgeResponses = {
 
 export type PostUsersMeNoticesByIdAcknowledgeResponse = PostUsersMeNoticesByIdAcknowledgeResponses[keyof PostUsersMeNoticesByIdAcknowledgeResponses];
 
-export type GetUsersMeFilesData = {
+export type GetUsersMeUploadsData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/users/me/files';
+    url: '/users/me/uploads';
 };
 
-export type GetUsersMeFilesErrors = {
+export type GetUsersMeUploadsErrors = {
     /**
      * Unauthorized
      */
@@ -5069,11 +5107,11 @@ export type GetUsersMeFilesErrors = {
     };
 };
 
-export type GetUsersMeFilesError = GetUsersMeFilesErrors[keyof GetUsersMeFilesErrors];
+export type GetUsersMeUploadsError = GetUsersMeUploadsErrors[keyof GetUsersMeUploadsErrors];
 
-export type GetUsersMeFilesResponses = {
+export type GetUsersMeUploadsResponses = {
     /**
-     * Retrieve user files
+     * Retrieve user uploads
      */
     200: {
         data: Array<BlobFile>;
@@ -5085,18 +5123,21 @@ export type GetUsersMeFilesResponses = {
     };
 };
 
-export type GetUsersMeFilesResponse = GetUsersMeFilesResponses[keyof GetUsersMeFilesResponses];
+export type GetUsersMeUploadsResponse = GetUsersMeUploadsResponses[keyof GetUsersMeUploadsResponses];
 
-export type PostUsersMeFilesData = {
-    body: {
-        file: Blob | File;
+export type PostUsersMeUploadsData = {
+    body: CreateUserFileUploadRequest & {
+        /**
+         * File size in bytes
+         */
+        size?: number;
     };
     path?: never;
     query?: never;
-    url: '/users/me/files';
+    url: '/users/me/uploads';
 };
 
-export type PostUsersMeFilesErrors = {
+export type PostUsersMeUploadsErrors = {
     /**
      * Bad Request
      */
@@ -5127,19 +5168,6 @@ export type PostUsersMeFilesErrors = {
      * Forbidden
      */
     403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Payload Too Large
-     */
-    413: {
         error: string;
         message: string;
         meta: {
@@ -5190,14 +5218,14 @@ export type PostUsersMeFilesErrors = {
     };
 };
 
-export type PostUsersMeFilesError = PostUsersMeFilesErrors[keyof PostUsersMeFilesErrors];
+export type PostUsersMeUploadsError = PostUsersMeUploadsErrors[keyof PostUsersMeUploadsErrors];
 
-export type PostUsersMeFilesResponses = {
+export type PostUsersMeUploadsResponses = {
     /**
-     * File uploaded successfully
+     * User file upload session created successfully
      */
     201: {
-        data: BlobFile;
+        data: UserFileUploadSession;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5206,7 +5234,7 @@ export type PostUsersMeFilesResponses = {
     };
 };
 
-export type PostUsersMeFilesResponse = PostUsersMeFilesResponses[keyof PostUsersMeFilesResponses];
+export type PostUsersMeUploadsResponse = PostUsersMeUploadsResponses[keyof PostUsersMeUploadsResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;
