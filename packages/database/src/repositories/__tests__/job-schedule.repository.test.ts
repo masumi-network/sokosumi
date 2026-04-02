@@ -39,6 +39,11 @@ describe("jobScheduleRepository", () => {
             id: "agent-1",
           },
         },
+        workspace: {
+          connect: {
+            id: "11111111-1111-7111-8111-111111111111",
+          },
+        },
         scheduleType: ScheduleType.ONE_TIME,
         timezone: "UTC",
         inputSchema,

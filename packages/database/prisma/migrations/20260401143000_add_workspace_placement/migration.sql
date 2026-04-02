@@ -100,6 +100,15 @@ SET "workspaceId" = COALESCE(
   )
 );
 
+ALTER TABLE "Job"
+ALTER COLUMN "workspaceId" SET NOT NULL;
+
+ALTER TABLE "jobSchedule"
+ALTER COLUMN "workspaceId" SET NOT NULL;
+
+ALTER TABLE "task"
+ALTER COLUMN "workspaceId" SET NOT NULL;
+
 CREATE INDEX "Job_workspaceId_idx" ON "Job"("workspaceId");
 CREATE INDEX "jobSchedule_workspaceId_idx" ON "jobSchedule"("workspaceId");
 CREATE INDEX "task_workspaceId_idx" ON "task"("workspaceId");
@@ -114,12 +123,12 @@ FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE
 
 ALTER TABLE "Job"
 ADD CONSTRAINT "Job_workspaceId_fkey"
-FOREIGN KEY ("workspaceId") REFERENCES "workspace"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+FOREIGN KEY ("workspaceId") REFERENCES "workspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "jobSchedule"
 ADD CONSTRAINT "jobSchedule_workspaceId_fkey"
-FOREIGN KEY ("workspaceId") REFERENCES "workspace"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+FOREIGN KEY ("workspaceId") REFERENCES "workspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "task"
 ADD CONSTRAINT "task_workspaceId_fkey"
-FOREIGN KEY ("workspaceId") REFERENCES "workspace"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+FOREIGN KEY ("workspaceId") REFERENCES "workspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
