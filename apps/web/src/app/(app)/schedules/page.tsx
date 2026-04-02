@@ -33,6 +33,7 @@ export default async function SchedulesPage() {
   );
 
   const schedules = await jobScheduleRepository.getScheduleJobsByContext(
+    session.user.id,
     workspace.id,
     prisma,
   );

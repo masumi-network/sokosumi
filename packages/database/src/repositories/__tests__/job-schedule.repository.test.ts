@@ -88,4 +88,38 @@ describe("jobScheduleRepository", () => {
     const data = (updateCall as { data: Record<string, unknown> }).data;
     assert.equal("inputSchemaHash" in data, false);
   });
+
+  it("filters schedule lists by user within the active workspace", async () => {
+    let findManyCall: unknown;
+    const tx = {
+      jobSchedule: {
+        findMany: async (args: unknown) => {
+          findManyCall = args;
+          return [];
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await jobScheduleRepository.getScheduleJobsByContext(
+      "user-1",
+      "11111111-1111-7111-8111-111111111111",
+      tx,
+    );
+
+    assert.deepEqual(findManyCall, {
+      where: {
+        userId: "user-1",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        agent: true,
+        jobs: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
+      },
+    });
+  });
 });

@@ -45,11 +45,13 @@ export const jobScheduleRepository = {
   },
 
   async getScheduleJobsByContext(
+    userId: string,
     workspaceId: string,
     tx: Prisma.TransactionClient,
   ) {
     return await tx.jobSchedule.findMany({
       where: {
+        userId,
         workspaceId,
       },
       orderBy: { updatedAt: "desc" },
