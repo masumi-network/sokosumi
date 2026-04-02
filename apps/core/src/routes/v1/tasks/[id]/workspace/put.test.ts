@@ -105,6 +105,15 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     credits: 0,
     events: [],
     jobs: [],
+    workspace: {
+      id: "11111111-1111-4111-8111-111111111111",
+      organizationId: "org_current",
+      organization: {
+        id: "org_current",
+        name: "Current Org",
+        slug: "current-org",
+      },
+    },
     share: null,
     links: [],
     ...overrides,

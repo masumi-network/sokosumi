@@ -84,6 +84,15 @@ describe("POST /tasks/{id}/jobs", () => {
       onChainTransactionHash: null,
       result: null,
       resultHash: null,
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: "org_123",
+        organization: {
+          id: "org_123",
+          name: "Acme Labs",
+          slug: "acme-labs",
+        },
+      },
     });
   });
 

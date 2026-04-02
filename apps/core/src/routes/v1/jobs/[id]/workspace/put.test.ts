@@ -104,6 +104,11 @@ function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
     inputSchema: "{}",
     agentJobId: "agent_job_123",
     identifierFromPurchaser: null,
+    workspace: {
+      id: "11111111-1111-4111-8111-111111111111",
+      organizationId: null,
+      organization: null,
+    },
     user: {
       id: "user_123",
       name: "Ada Lovelace",
