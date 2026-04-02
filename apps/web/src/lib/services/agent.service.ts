@@ -11,6 +11,7 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
+import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import {
   agentListRepository,
   agentRatingRepository,
@@ -307,10 +308,15 @@ export const agentService = (() => {
       if (!session) {
         return [];
       }
+      const workspace = await resolveWorkspaceForContext(
+        session.user.id,
+        session.session.activeOrganizationId ?? null,
+        prisma,
+      );
       const hiredAgentsWithJobs =
-        await agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization(
+        await agentRepository.getHiredAgentsWithLatestJobByUserIdAndWorkspace(
           session.user.id,
-          session.session.activeOrganizationId ?? null,
+          workspace.id,
           prisma,
         );
       return hiredAgentsWithJobs.sort((a, b) => {

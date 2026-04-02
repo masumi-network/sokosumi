@@ -760,14 +760,19 @@ export const jobService = (() => {
     }
     const userId = session.user.id;
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
+    const workspace = await resolveWorkspaceForContext(
+      userId,
+      activeOrganizationId,
+      tx,
+    );
 
     return await Promise.all(
       agentIds.map(async (agentId) => {
         const latestJob =
-          await jobRepository.getLatestJobByAgentIdUserIdAndOrganization(
+          await jobRepository.getLatestJobByAgentIdUserIdAndWorkspace(
             agentId,
             userId,
-            activeOrganizationId,
+            workspace.id,
             tx,
           );
         if (!latestJob) {

@@ -378,25 +378,23 @@ export const jobRepository = {
   },
 
   /**
-   * Retrieves the latest not-finished job a specific agent, user, and organization
+   * Retrieves the latest not-finished job for a specific agent, user, and workspace placement.
    * @param agentId - The unique identifier of the agent
    * @param userId - The unique identifier of the user
-   * @param organizationId - The unique identifier of the organization (null for personal jobs)
+   * @param workspaceId - The unique identifier of the workspace
    * @returns Promise latest not-finished job or null
    */
-  async getLatestJobByAgentIdUserIdAndOrganization(
+  async getLatestJobByAgentIdUserIdAndWorkspace(
     agentId: string,
     userId: string,
-    organizationId: string | null | undefined,
+    workspaceId: string,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus | null> {
-    // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
-    const normalizedOrganizationId = organizationId ?? null;
     const job = await tx.job.findFirst({
       where: {
         agentId,
         userId,
-        organizationId: normalizedOrganizationId,
+        workspaceId,
         ...buildJobsNeedingAgentStatusSyncWhere(),
       },
       orderBy: { createdAt: "desc" },

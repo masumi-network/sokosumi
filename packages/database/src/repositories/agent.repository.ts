@@ -106,22 +106,22 @@ export const agentRepository = {
   },
 
   /**
-   * Fetch all agents that have jobs for a specific user and organization context.
-   * Each agent includes only the latest job for that user/org (ordered by startedAt).
+   * Fetch all agents that have jobs for a specific user and workspace placement.
+   * Each agent includes only the latest job for that user/workspace (ordered by createdAt desc).
    *
    * @param userId - User unique identifier
-   * @param organizationId - Organization unique identifier (null for personal jobs)
+   * @param workspaceId - Workspace unique identifier
    * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
-   * @returns Array of agents with their latest job for the user/org
+   * @returns Array of agents with their latest job for the user/workspace
    */
-  async getHiredAgentsWithLatestJobByUserIdAndOrganization(
+  async getHiredAgentsWithLatestJobByUserIdAndWorkspace(
     userId: string,
-    organizationId: string | null | undefined,
+    workspaceId: string,
     tx: Prisma.TransactionClient,
   ): Promise<AgentWithJobs[]> {
     const jobWhereCondition = {
       userId,
-      organizationId: organizationId ?? null,
+      workspaceId,
     };
 
     return await tx.agent.findMany({

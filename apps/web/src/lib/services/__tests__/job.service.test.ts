@@ -20,6 +20,9 @@ const enqueueFromMarkdownMock = vi.fn();
 const trackMock = vi.fn();
 const prismaTransactionMock = vi.fn();
 const moveJobToWorkspaceCoreMock = vi.fn();
+const getLatestJobByAgentIdUserIdAndWorkspaceMock = vi.fn();
+const getSessionMock = vi.fn();
+const getJobStatusDataMock = vi.fn();
 
 vi.mock("@sentry/nextjs", () => ({
   addBreadcrumb: vi.fn(),
@@ -71,6 +74,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
   jobRepository: {
     createDemoJob: (...args: unknown[]) => createDemoJobMock(...args),
     createJob: (...args: unknown[]) => createJobMock(...args),
+    getLatestJobByAgentIdUserIdAndWorkspace: (...args: unknown[]) =>
+      getLatestJobByAgentIdUserIdAndWorkspaceMock(...args),
   },
 }));
 
@@ -124,7 +129,7 @@ vi.mock("@/lib/clients/core.client", () => ({
 }));
 
 vi.mock("@/lib/auth/utils", () => ({
-  getSession: vi.fn(),
+  getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
 vi.mock("@/lib/auth/auth", () => ({
@@ -136,7 +141,7 @@ vi.mock("@/lib/auth/auth", () => ({
 }));
 
 vi.mock("@/lib/helpers/job", () => ({
-  getJobStatusData: vi.fn(),
+  getJobStatusData: (...args: unknown[]) => getJobStatusDataMock(...args),
 }));
 
 vi.mock("@/lib/utils/job-transformers", () => ({
@@ -251,6 +256,14 @@ describe("job.service workspace persistence", () => {
     vi.clearAllMocks();
     resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
+    });
+    getSessionMock.mockResolvedValue({
+      user: {
+        id: "user_123",
+      },
+      session: {
+        activeOrganizationId: "org_123",
+      },
     });
     generateJobNameMock.mockResolvedValue("Generated Job");
     publishJobStatusDataMock.mockResolvedValue(undefined);
@@ -387,5 +400,37 @@ describe("job.service workspace persistence", () => {
     expect(result).toEqual({
       id: "job_123",
     });
+  });
+
+  it("resolves the active workspace before loading recent job statuses", async () => {
+    getLatestJobByAgentIdUserIdAndWorkspaceMock.mockResolvedValue({
+      id: "job_123",
+    });
+    getJobStatusDataMock.mockReturnValue({
+      id: "job_123",
+      status: "processing",
+    });
+
+    const { jobService } = await import("../job.service");
+
+    const result = await jobService.getJobStatusesDataForAgents(["agent_123"]);
+
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_123",
+      expect.any(Object),
+    );
+    expect(getLatestJobByAgentIdUserIdAndWorkspaceMock).toHaveBeenCalledWith(
+      "agent_123",
+      "user_123",
+      "11111111-1111-7111-8111-111111111111",
+      expect.any(Object),
+    );
+    expect(result).toEqual([
+      {
+        id: "job_123",
+        status: "processing",
+      },
+    ]);
   });
 });
