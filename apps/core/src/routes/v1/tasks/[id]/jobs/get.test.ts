@@ -6,15 +6,12 @@ import type { AuthVariables } from "@/middleware/auth";
 
 import mountGetTaskJobs from "./get";
 
-const {
-  jobFindManyMock,
-  prismaTransactionMock,
-  requireTaskReadAccessMock,
-} = vi.hoisted(() => ({
-  jobFindManyMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
-  requireTaskReadAccessMock: vi.fn(),
-}));
+const { jobFindManyMock, prismaTransactionMock, requireTaskReadAccessMock } =
+  vi.hoisted(() => ({
+    jobFindManyMock: vi.fn(),
+    prismaTransactionMock: vi.fn(),
+    requireTaskReadAccessMock: vi.fn(),
+  }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskReadAccess: requireTaskReadAccessMock,
