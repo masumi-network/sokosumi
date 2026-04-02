@@ -103,9 +103,13 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
       result: event.result,
       blobs: event.blobs.map((blob) => ({
         ...blob,
+        jobId: job.id,
         size: blob.size === null ? null : Number(blob.size),
       })),
-      links: event.links,
+      links: event.links.map((link) => ({
+        ...link,
+        jobId: job.id,
+      })),
     })),
   };
 }
