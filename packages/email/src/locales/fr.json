@@ -22,7 +22,7 @@
       "subject": "Sokosumi - Invitation à une organisation",
       "title": "Rejoignez {invitorUsername} sur {organizationName}",
       "greeting": "Bonjour",
-      "message": "Vous avez été invité à rejoindre {organizationName} sur Sokosumi. Cliquez sur le bouton ci-dessous pour accepter l’invitation.",
+      "message": "Vous avez reçu une invitation à rejoindre {organizationName} sur Sokosumi. Cliquez sur le bouton ci-dessous pour l’accepter.",
       "button": "Accepter l’invitation",
       "linkInstructions": "Ou copiez et collez cette URL dans votre navigateur :",
       "footer": "Si vous n’avez pas sollicité cette invitation, vous pouvez ignorer cet e-mail en toute sécurité."
