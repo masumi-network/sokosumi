@@ -9,6 +9,7 @@ const coreClientMock = {
   getCoworkers: vi.fn(),
   getJobById: vi.fn(),
   getJobs: vi.fn(),
+  getTaskById: vi.fn(),
   getTasks: vi.fn(),
 };
 
@@ -31,12 +32,11 @@ describe("feed.service", () => {
     coreClientMock.getAgentById.mockResolvedValue({ data: null });
   });
 
-  it("loads feed jobs with context scope only", async () => {
+  it("loads feed jobs without a scope query", async () => {
     const { feedService } = await import("../feed.service");
     await feedService.getMyFeedInitialPool({ limitPerSource: 5 });
 
     expect(coreClientMock.getJobs).toHaveBeenCalledWith({
-      scope: ["context"],
       status: "COMPLETED",
       cursor: undefined,
       limit: 5,
@@ -66,10 +66,33 @@ describe("feed.service", () => {
     const { feedService } = await import("../feed.service");
     const item = await feedService.getMyFeedItemByFeedId("job-job-1");
 
-    expect(coreClientMock.getJobById).toHaveBeenCalledWith("job-1", [
-      "context",
+    expect(coreClientMock.getJobById).toHaveBeenCalledWith("job-1", ["owned"]);
+    expect(item?.type).toBe("job");
+  });
+
+  it("fetches individual feed tasks without shared scope", async () => {
+    coreClientMock.getTaskById.mockResolvedValue({
+      data: {
+        id: "task-1",
+        userId: "user-1",
+        organizationId: null,
+        coworkerId: null,
+        name: "Task 1",
+        description: "Task body",
+        status: "COMPLETED",
+        createdAt: "2026-02-13T10:00:00.000Z",
+        updatedAt: "2026-02-13T10:00:00.000Z",
+        events: [],
+        jobs: [],
+      },
+    });
+
+    const { feedService } = await import("../feed.service");
+    const item = await feedService.getMyFeedItemByFeedId("task-task-1");
+
+    expect(coreClientMock.getTaskById).toHaveBeenCalledWith("task-1", [
       "owned",
     ]);
-    expect(item?.type).toBe("job");
+    expect(item?.type).toBe("task");
   });
 });

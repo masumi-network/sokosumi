@@ -13,6 +13,7 @@ const {
   mapTaskMock,
   prismaTransactionMock,
   requireUserTaskAccessMock,
+  resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskEventCountMock,
   taskFindUniqueOrThrowMock,
@@ -23,6 +24,7 @@ const {
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireUserTaskAccessMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskEventCountMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
@@ -40,6 +42,10 @@ vi.mock("@/helpers/organization", () => ({
 
 vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
+}));
+
+vi.mock("@sokosumi/database/helpers", () => ({
+  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -176,6 +182,9 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       role: "member",
     });
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+    });
     jobCountMock.mockResolvedValue(0);
     taskEventCountMock.mockResolvedValue(0);
     taskLinkCountMock.mockResolvedValue(0);
@@ -262,6 +271,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       data: {
         organizationId: "org_target",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
       },
     });
   });
@@ -427,6 +437,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       data: {
         organizationId: "org_target",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
       },
     });
   });

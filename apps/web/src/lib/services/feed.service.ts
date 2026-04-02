@@ -176,7 +176,6 @@ export const feedService = (() => {
   }): Promise<FeedPoolPage> {
     const [jobsResult, tasksResult] = await Promise.all([
       coreClient.getJobs({
-        scope: ["context"],
         status: "COMPLETED",
         cursor: params.jobsCursor,
         limit: params.limitPerSource,
@@ -244,7 +243,6 @@ export const feedService = (() => {
     const [jobsResult, tasksResult] = await Promise.all([
       shouldFetchJobs
         ? coreClient.getJobs({
-            scope: ["context"],
             status: "COMPLETED",
             cursor: params.jobsCursor ?? undefined,
             limit: limitPerSource,
@@ -293,10 +291,7 @@ export const feedService = (() => {
     if (feedId.startsWith("job-")) {
       const jobId = feedId.replace("job-", "");
       try {
-        const { data: job } = await coreClient.getJobById(jobId, [
-          "context",
-          "owned",
-        ]);
+        const { data: job } = await coreClient.getJobById(jobId, ["owned"]);
         if (job.status !== "completed" || !job.result) {
           return null;
         }
@@ -311,10 +306,7 @@ export const feedService = (() => {
     if (feedId.startsWith("task-")) {
       const taskId = feedId.replace("task-", "");
       try {
-        const { data: task } = await coreClient.getTaskById(taskId, [
-          "context",
-          "owned",
-        ]);
+        const { data: task } = await coreClient.getTaskById(taskId, ["owned"]);
         if (task.status !== "COMPLETED") {
           return null;
         }

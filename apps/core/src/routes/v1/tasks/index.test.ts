@@ -87,7 +87,7 @@ function getJsonResponseSchema(
 }
 
 describe("tasks routes OpenAPI query contract", () => {
-  it("exposes scope query parameter for task endpoints", () => {
+  it("does not expose scope query parameter on the task list endpoint", () => {
     const doc = tasksRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -96,9 +96,7 @@ describe("tasks routes OpenAPI query contract", () => {
       },
     });
 
-    expect(getQueryDescriptionFromGetOperation(doc, "/", "scope")).toContain(
-      "Allowed values: context, owned",
-    );
+    expect(getQueryDescriptionFromGetOperation(doc, "/", "scope")).toBe("");
     expect(
       getQueryDescriptionFromGetOperation(doc, "/{id}", "scope"),
     ).toContain("Allowed values: context, owned");

@@ -75,7 +75,6 @@ describe("task.service", () => {
       status: TaskStatus.READY,
       coworkerId: "cow-1",
       q: "alpha",
-      scope: ["owned"],
       cursor: "task-1",
       limit: 20,
     });
@@ -84,7 +83,6 @@ describe("task.service", () => {
       status: [TaskStatus.READY],
       coworkerId: "cow-1",
       q: "alpha",
-      scope: ["owned"],
       cursor: "task-1",
       limit: 20,
     });
@@ -122,7 +120,6 @@ describe("task.service", () => {
       status: [TaskStatus.READY, TaskStatus.COMPLETED],
       coworkerId: undefined,
       q: undefined,
-      scope: undefined,
       cursor: undefined,
       limit: 20,
     });
@@ -134,6 +131,9 @@ describe("task.service", () => {
     const { taskService } = await import("../task.service");
     const result = await taskService.getTaskById("task-missing");
 
+    expect(coreClientMock.getTaskById).toHaveBeenCalledWith("task-missing", [
+      "owned",
+    ]);
     expect(result).toBeNull();
   });
 

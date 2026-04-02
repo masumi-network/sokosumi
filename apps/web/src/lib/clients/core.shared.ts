@@ -9,6 +9,7 @@ import type {
   DeleteJobsByIdShareError,
   DeleteTasksByIdShareError,
   GetCoworkersData,
+  GetJobsData,
   GetShareByTokenError,
   GetTasksData,
   PaginationMetadata,
@@ -350,7 +351,7 @@ export function createCoreClient(getClient: GetClient) {
 
   async function getTaskById(
     id: string,
-    scope: Array<"context" | "owned"> = ["context"],
+    scope: Array<"context" | "owned"> = ["owned"],
   ) {
     return executeOperation(
       getClient,
@@ -367,19 +368,7 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getJobs(query?: {
-    scope?: Array<"context" | "owned">;
-    cursor?: string;
-    limit?: number;
-    agentId?: string;
-    status?:
-      | "RUNNING"
-      | "COMPLETED"
-      | "FAILED"
-      | "INITIATED"
-      | "AWAITING_PAYMENT"
-      | "AWAITING_INPUT";
-  }) {
+  async function getJobs(query?: GetJobsData["query"]) {
     return executeOperation(
       getClient,
       (client) =>
@@ -394,7 +383,7 @@ export function createCoreClient(getClient: GetClient) {
 
   async function getJobById(
     id: string,
-    scope: Array<"context" | "owned"> = ["context"],
+    scope: Array<"context" | "owned"> = ["owned"],
   ) {
     return executeOperation(
       getClient,

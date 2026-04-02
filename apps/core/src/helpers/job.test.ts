@@ -1,9 +1,24 @@
 import { AgentJobStatus, type Prisma } from "@sokosumi/database";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UserAuthenticationContext } from "@/middleware/auth";
 
 import { getUserJobs } from "./job";
+
+const { resolveWorkspaceForContextMock } = vi.hoisted(() => ({
+  resolveWorkspaceForContextMock: vi.fn(),
+}));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceForContext: (...args: unknown[]) =>
+      resolveWorkspaceForContextMock(...args),
+  };
+});
 
 function createTransactionClient() {
   return {
@@ -21,35 +36,37 @@ const orgAuthContext: UserAuthenticationContext = {
 };
 
 describe("getUserJobs", () => {
-  it("uses context scope by default", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("resolves the active workspace before reading jobs", async () => {
     const tx = createTransactionClient();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
 
     await getUserJobs(orgAuthContext, {
       take: 20,
       tx,
-      scopes: ["context"],
     });
 
-    expect(tx.job.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          AND: [
-            {
-              OR: [{ userId: "user_123", organizationId: "org_123" }],
-            },
-          ],
-        },
-      }),
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_123",
+      tx,
     );
   });
 
-  it("uses user-only ownership with owned scope", async () => {
+  it("filters jobs by active workspace and owner", async () => {
     const tx = createTransactionClient();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
 
     await getUserJobs(orgAuthContext, {
       take: 20,
       tx,
-      scopes: ["owned"],
     });
 
     expect(tx.job.findMany).toHaveBeenCalledWith(
@@ -57,32 +74,8 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              OR: [{ userId: "user_123" }],
-            },
-          ],
-        },
-      }),
-    );
-  });
-
-  it("unions composed scopes with OR behavior", async () => {
-    const tx = createTransactionClient();
-
-    await getUserJobs(orgAuthContext, {
-      take: 20,
-      tx,
-      scopes: ["context", "owned"],
-    });
-
-    expect(tx.job.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          AND: [
-            {
-              OR: [
-                { userId: "user_123", organizationId: "org_123" },
-                { userId: "user_123" },
-              ],
+              userId: "user_123",
+              workspaceId: "11111111-1111-7111-8111-111111111111",
             },
           ],
         },
@@ -92,6 +85,9 @@ describe("getUserJobs", () => {
 
   it("uses personal context when organization is missing", async () => {
     const tx = createTransactionClient();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "22222222-2222-7222-8222-222222222222",
+    });
     const personalContext: UserAuthenticationContext = {
       actor: "user",
       userId: "user_123",
@@ -101,7 +97,6 @@ describe("getUserJobs", () => {
     await getUserJobs(personalContext, {
       take: 20,
       tx,
-      scopes: ["context"],
     });
 
     expect(tx.job.findMany).toHaveBeenCalledWith(
@@ -109,7 +104,8 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              OR: [{ userId: "user_123", organizationId: null }],
+              userId: "user_123",
+              workspaceId: "22222222-2222-7222-8222-222222222222",
             },
           ],
         },
@@ -119,11 +115,13 @@ describe("getUserJobs", () => {
 
   it("accepts any agent job status query without throwing", async () => {
     const tx = createTransactionClient();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
 
     await getUserJobs(orgAuthContext, {
       take: 20,
       tx,
-      scopes: ["context", "owned"],
       status: AgentJobStatus.COMPLETED,
     });
 
@@ -132,10 +130,8 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              OR: [
-                { userId: "user_123", organizationId: "org_123" },
-                { userId: "user_123" },
-              ],
+              userId: "user_123",
+              workspaceId: "11111111-1111-7111-8111-111111111111",
             },
             {
               events: {

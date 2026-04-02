@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
+import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 
 import { requireUserTaskAccess } from "@/helpers/access-control";
 import { conflict } from "@/helpers/error";
@@ -108,6 +109,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
 
+        const workspace = await resolveWorkspaceForContext(
+          authContext.userId,
+          organizationId,
+          tx,
+        );
+
         const updateResult = await tx.task.updateMany({
           where: {
             id,
@@ -118,6 +125,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
           data: {
             organizationId,
+            workspaceId: workspace.id,
           },
         });
         if (updateResult.count !== 1) {

@@ -1854,10 +1854,6 @@ export type GetAgentsByIdJobsData = {
     };
     query?: {
         /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -5393,10 +5389,6 @@ export type GetJobsData = {
          */
         status?: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
         /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -7274,10 +7266,6 @@ export type GetTasksData = {
          * Filter tasks by coworker ID
          */
         coworkerId?: string;
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */

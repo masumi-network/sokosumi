@@ -5,7 +5,10 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
+import {
+  convertCreditsToCents,
+  resolveWorkspaceForContext,
+} from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobPurchaseRepository,
@@ -42,7 +45,6 @@ import { flattenJob } from "@/types/job";
 import type { AgentCost } from "./agent";
 import { badRequest, notFound, unprocessableEntity } from "./error";
 import { transformPurchaseToJobUpdate } from "./purchase";
-import { buildJobScopeFilters, type JobScope } from "./scope";
 import { getCents } from "./user";
 
 /**
@@ -469,7 +471,6 @@ export async function getUserJobs(
     cursor?: string;
     take: number;
     skip?: number;
-    scopes?: JobScope[];
     tx?: Prisma.TransactionClient;
   },
 ): Promise<{
@@ -477,21 +478,19 @@ export async function getUserJobs(
   count: number;
   hasMore: boolean;
 }> {
-  const { agentId, status, cursor, take, skip, scopes, tx = prisma } = options;
+  const { agentId, status, cursor, take, skip, tx = prisma } = options;
 
-  const scopeFilters = buildJobScopeFilters(authContext, scopes);
-  if (scopeFilters.length === 0) {
-    return {
-      jobs: [],
-      count: 0,
-      hasMore: false,
-    };
-  }
+  const workspace = await resolveWorkspaceForContext(
+    authContext.userId,
+    authContext.organizationId,
+    tx,
+  );
 
   const where: Prisma.JobWhereInput = {
     AND: [
       {
-        OR: scopeFilters,
+        userId: authContext.userId,
+        workspaceId: workspace.id,
       },
       ...(agentId ? [{ agentId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
