@@ -173,7 +173,7 @@ describe("tasks routes OpenAPI query contract", () => {
 
     expect(patchSchema?.properties).not.toHaveProperty("organizationId");
     expect(workspaceSchema?.properties).toHaveProperty("organizationId");
-    expect(workspaceResponses).not.toHaveProperty("409");
+    expect(workspaceResponses).toHaveProperty("409");
   });
 
   it("exposes a dedicated task-link metadata patch route", () => {
