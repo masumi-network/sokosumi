@@ -274,6 +274,17 @@
         "emptyActivity": "Aucune activité pour le moment.",
         "eyebrow": "Job public",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "Déplacer vers un autre espace de travail",
+            "moveToWorkspaceTitle": "Déplacer le job vers un autre espace de travail",
+            "moveToWorkspaceDescription": "Sélectionnez l'espace de travail vers lequel vous souhaitez déplacer ce job.",
+            "moveToWorkspaceButton": "Déplacer le job",
+            "moveToWorkspaceCancel": "Annuler",
+            "moveToWorkspaceSuccess": "Job déplacé avec succès",
+            "moveToWorkspaceError": "Échec du déplacement du job",
+            "moveToWorkspaceDisabledTooltip": "Ce job appartient à une tâche. Déplacez la tâche pour changer son espace de travail.",
+            "personalWorkspace": "Personnel"
+          },
           "JobName": {
             "Schema": {
               "Name": {
@@ -1356,6 +1367,8 @@
         "attach": "Joindre",
         "fileLabel": "Fichier",
         "uploadFileErrorRetry": "Échec du téléversement du fichier, veuillez réessayer !",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Supprimer la pièce jointe",
         "submit": "Envoyer",
         "sendWith": "Envoyer avec",
@@ -1483,6 +1496,8 @@
         "back": "Retour",
         "uploadFile": "Téléverser un fichier",
         "uploadFileError": "Échec du téléversement du fichier",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Supprimer la pièce jointe",
         "saveDraft": "Enregistrer",
         "saveAsDraft": "Enregistrer comme brouillon",
@@ -1506,6 +1521,8 @@
         "back": "Retour",
         "uploadFile": "Téléverser un fichier",
         "uploadFileError": "Échec du téléversement du fichier",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Supprimer la pièce jointe",
         "save": "Enregistrer",
         "cancel": "Annuler",

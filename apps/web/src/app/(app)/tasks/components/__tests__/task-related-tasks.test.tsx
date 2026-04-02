@@ -1,6 +1,5 @@
 import { TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
@@ -37,9 +36,7 @@ describe("TaskRelatedTasks", () => {
     expect(screen.getByText("No linked tasks yet.")).toBeInTheDocument();
   });
 
-  it("renders icon-only relation badges with tooltip labels", async () => {
-    const user = userEvent.setup();
-
+  it("renders icon-only relation badges with accessible names and native title hints", () => {
     render(
       <TaskRelatedTasks
         title="Linked tasks"
@@ -96,9 +93,14 @@ describe("TaskRelatedTasks", () => {
     expect(screen.getByLabelText("Parent task")).toBeInTheDocument();
     expect(screen.queryByText("Related")).not.toBeInTheDocument();
 
-    await user.hover(screen.getByLabelText("Related"));
-
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("Related");
+    expect(screen.getByLabelText("Related")).toHaveAttribute(
+      "title",
+      "Related",
+    );
+    expect(screen.getByLabelText("Duplicate")).toHaveAttribute(
+      "title",
+      "Duplicate",
+    );
   });
 
   it("uses destructive relation badges for blocking states", () => {

@@ -47,9 +47,9 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const taskResult = await taskService.getTaskById(taskId, ["owned"]);
+  const task = await taskService.getTaskById(taskId);
 
-  if (!taskResult) {
+  if (!task) {
     return notFound();
   }
 
@@ -59,10 +59,10 @@ export default async function TaskDetailPage({
   const sessionPromise = getSession();
   const localePromise = getLocale();
   const activeSubscriptionsPromise = getActiveSubscriptions(
-    taskResult.organizationId,
+    task.organizationId,
   );
   const translationsPromise = getTranslations("App.Tasks.Detail");
-  const linkedTasks = mapVisibleTaskLinks(taskResult.links);
+  const linkedTasks = mapVisibleTaskLinks(task.links);
 
   const t = await translationsPromise;
 
@@ -72,20 +72,20 @@ export default async function TaskDetailPage({
         <Suspense fallback={null}>
           <TaskDetailEffects
             taskId={taskId}
-            targetOrganizationId={taskResult.organizationId}
+            targetOrganizationId={task.workspace.organizationId ?? null}
             membersPromise={membersPromise}
             sessionPromise={sessionPromise}
           />
         </Suspense>
 
         <TaskDetailHeader
-          taskName={taskResult.name}
+          taskName={task.name}
           backLabel={t("back")}
           actions={
             <Suspense fallback={<TaskDetailActionsFallback />}>
               <TaskDetailActionsSlot
                 taskId={taskId}
-                taskResult={taskResult}
+                task={task}
                 coworkersPromise={coworkersPromise}
                 agentsPromise={agentsPromise}
                 membersPromise={membersPromise}
@@ -105,7 +105,7 @@ export default async function TaskDetailPage({
             }
           >
             <TaskOverviewSection
-              taskResult={taskResult}
+              task={task}
               coworkersPromise={coworkersPromise}
               agentsPromise={agentsPromise}
             />
@@ -125,13 +125,13 @@ export default async function TaskDetailPage({
             }}
           />
 
-          {taskResult?.jobs?.length > 0 && (
+          {task.jobs.length > 0 && (
             <>
               <Suspense
                 fallback={<TaskSectionFallback title={t("jobs")} rows={3} />}
               >
                 <TaskJobsSection
-                  taskResult={taskResult}
+                  task={task}
                   agentsPromise={agentsPromise}
                   sessionPromise={sessionPromise}
                   localePromise={localePromise}
@@ -144,7 +144,7 @@ export default async function TaskDetailPage({
           >
             <TaskActivitySectionContent
               taskId={taskId}
-              taskResult={taskResult}
+              task={task}
               coworkersPromise={coworkersPromise}
               agentsPromise={agentsPromise}
               sessionPromise={sessionPromise}
@@ -198,11 +198,11 @@ async function TaskDetailEffects({
 }
 
 async function TaskOverviewSection({
-  taskResult,
+  task,
   coworkersPromise,
   agentsPromise,
 }: {
-  taskResult: Task;
+  task: Task;
   coworkersPromise: Promise<CoworkersResult>;
   agentsPromise: Promise<AgentsResult>;
 }) {
@@ -211,8 +211,8 @@ async function TaskOverviewSection({
     agentsPromise,
     getTranslations("App.Tasks.Detail"),
   ]);
-  const { task, agentNameById } = buildTaskDetailContext(
-    taskResult,
+  const { task: taskWithCoworker, agentNameById } = buildTaskDetailContext(
+    task,
     coworkers,
     agents,
   );
@@ -221,14 +221,14 @@ async function TaskOverviewSection({
     <>
       <TaskDescription
         title={t("description")}
-        description={task.description}
+        description={taskWithCoworker.description}
         agentNameById={agentNameById}
         expandLabel={t("expand")}
         collapseLabel={t("collapse")}
       />
 
       <TaskMetadata
-        task={task}
+        task={taskWithCoworker}
         labels={{
           propertiesTitle: t("properties"),
           status: t("status"),
@@ -243,14 +243,14 @@ async function TaskOverviewSection({
 
 async function TaskDetailActionsSlot({
   taskId,
-  taskResult,
+  task,
   coworkersPromise,
   agentsPromise,
   membersPromise,
   sessionPromise,
 }: {
   taskId: string;
-  taskResult: Task;
+  task: Task;
   coworkersPromise: Promise<CoworkersResult>;
   agentsPromise: Promise<AgentsResult>;
   membersPromise: Promise<MembersResult>;
@@ -265,11 +265,11 @@ async function TaskDetailActionsSlot({
       getTranslations("App.Tasks.Detail"),
       getTranslations("Components.MembersTable.Header"),
     ]);
-  const { task, agentNameById, coworkerOptions } = buildTaskDetailContext(
-    taskResult,
-    coworkers,
-    agents,
-  );
+  const {
+    task: taskWithCoworker,
+    agentNameById,
+    coworkerOptions,
+  } = buildTaskDetailContext(task, coworkers, agents);
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
     session?.user?.email?.trim() ||
@@ -277,15 +277,15 @@ async function TaskDetailActionsSlot({
 
   return (
     <TaskDetailActions
-      share={task.share ?? null}
+      share={taskWithCoworker.share ?? null}
       taskId={taskId}
-      status={task.status}
-      jobsCount={task.jobsCount}
-      taskLinks={taskResult.links}
+      status={taskWithCoworker.status}
+      jobsCount={taskWithCoworker.jobsCount}
+      taskLinks={task.links}
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
-      defaultCoworkerId={taskResult.coworkerId}
-      currentOrganizationId={taskResult.organizationId}
+      defaultCoworkerId={task.coworkerId}
+      currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
       actionsMenuLabel={tMembersTableHeader("actions")}
@@ -305,12 +305,12 @@ async function TaskDetailActionsSlot({
 }
 
 async function TaskJobsSection({
-  taskResult,
+  task,
   agentsPromise,
   sessionPromise,
   localePromise,
 }: {
-  taskResult: Task;
+  task: Task;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
   localePromise: Promise<string>;
@@ -326,7 +326,7 @@ async function TaskJobsSection({
     <TaskJobs
       title={t("jobs")}
       agents={agents}
-      jobs={taskResult.jobs}
+      jobs={task.jobs}
       userId={session?.user.id ?? null}
       locale={locale}
       emptyLabel={t("jobsEmpty")}
@@ -338,14 +338,14 @@ async function TaskJobsSection({
 
 async function TaskActivitySectionContent({
   taskId,
-  taskResult,
+  task,
   coworkersPromise,
   agentsPromise,
   sessionPromise,
   activeSubscriptionsPromise,
 }: {
   taskId: string;
-  taskResult: Task;
+  task: Task;
   coworkersPromise: Promise<CoworkersResult>;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
@@ -359,11 +359,7 @@ async function TaskActivitySectionContent({
       activeSubscriptionsPromise,
       getTranslations("App.Tasks.Detail"),
     ]);
-  const { agentNameById } = buildTaskDetailContext(
-    taskResult,
-    coworkers,
-    agents,
-  );
+  const { agentNameById } = buildTaskDetailContext(task, coworkers, agents);
   const currentPlan = resolveCurrentPlanName(activeSubscriptions) ?? "free";
   const isFreePlan = currentPlan === "free";
   const currentUser = session?.user
@@ -396,7 +392,7 @@ async function TaskActivitySectionContent({
       actorSystemLabel={t("actorSystem")}
       actionCommentedLabel={t("actionCommented")}
       actionUpdatedStatusLabel={t("actionUpdatedStatus")}
-      events={taskResult.events}
+      events={task.events}
       agentNameById={agentNameById}
       userById={userById}
       coworkerById={coworkerById}
@@ -437,7 +433,7 @@ async function getActiveSubscriptions(organizationId: string | null) {
 }
 
 function buildTaskDetailContext(
-  taskResult: Task,
+  task: Task,
   coworkers: CoworkersResult,
   agents: AgentsResult,
 ) {
@@ -447,7 +443,7 @@ function buildTaskDetailContext(
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
 
   return {
-    task: mapTaskToTaskWithCoworker(taskResult, coworkersById, agentsById),
+    task: mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
     agentNameById: buildAgentNameById(agents),
     coworkerOptions: getCoworkerOptions(coworkers),
   };

@@ -159,6 +159,8 @@ describe("JobDetails", () => {
     });
     expect(jobDetailsViewMock).toHaveBeenCalledWith({
       job: refreshedJob,
+      organizations: undefined,
+      personalWorkspaceLabel: undefined,
       readOnly: true,
       className: "w-full",
       showAgentHeader: false,

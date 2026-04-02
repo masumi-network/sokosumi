@@ -1,5 +1,6 @@
 "use client";
 
+import type { MemberWithOrganization } from "@sokosumi/database";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChannelProvider, useChannel } from "ably/react";
 
@@ -14,11 +15,16 @@ const JOB_STATUS_EVENT_NAME = "job_status_data";
 
 export default function JobDetails({
   job: initialJob,
+  organizations,
+  personalWorkspaceLabel,
   readOnly = false,
   className,
   showAgentHeader = true,
   publicJobLayout = false,
-}: JobDetailsViewProps) {
+}: JobDetailsViewProps & {
+  organizations?: MemberWithOrganization[];
+  personalWorkspaceLabel?: string;
+}) {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
 
@@ -41,6 +47,8 @@ export default function JobDetails({
   const detailsContent = (
     <JobDetailsView
       job={job}
+      organizations={organizations}
+      personalWorkspaceLabel={personalWorkspaceLabel}
       readOnly={readOnly}
       className={className}
       showAgentHeader={showAgentHeader}

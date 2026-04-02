@@ -147,7 +147,7 @@
       "creditsExpired": "Créditos expirados"
     },
     "OrganizationSwitcher": {
-      "switchWorkspace": "Trocar workspace",
+      "switchWorkspace": "Trocar espaço de trabalho",
       "personalAccount": "Conta pessoal",
       "addOrganization": "Adicionar organização",
       "organizationsHeading": "Organizações",
@@ -274,6 +274,17 @@
         "emptyActivity": "Ainda não há atividades.",
         "eyebrow": "Job público",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "Mover para outro espaço de trabalho",
+            "moveToWorkspaceTitle": "Mover o job para outro espaço de trabalho",
+            "moveToWorkspaceDescription": "Selecione o espaço de trabalho para onde você quer mover este job.",
+            "moveToWorkspaceButton": "Mover job",
+            "moveToWorkspaceCancel": "Cancelar",
+            "moveToWorkspaceSuccess": "Job movido com sucesso",
+            "moveToWorkspaceError": "Não foi possível mover o job",
+            "moveToWorkspaceDisabledTooltip": "Este job pertence a uma tarefa. Mova a tarefa para alterar o espaço de trabalho dele.",
+            "personalWorkspace": "Pessoal"
+          },
           "JobName": {
             "Schema": {
               "Name": {
@@ -1356,6 +1367,8 @@
         "attach": "Anexar",
         "fileLabel": "Arquivo",
         "uploadFileErrorRetry": "Falha ao enviar arquivo, tente novamente!",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remover anexo",
         "submit": "Enviar",
         "sendWith": "Enviar com",
@@ -1483,6 +1496,8 @@
         "back": "Voltar",
         "uploadFile": "Enviar arquivo",
         "uploadFileError": "Falha ao enviar arquivo",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remover anexo",
         "saveDraft": "Salvar",
         "saveAsDraft": "Salvar como rascunho",
@@ -1506,6 +1521,8 @@
         "back": "Voltar",
         "uploadFile": "Enviar arquivo",
         "uploadFileError": "Falha ao enviar arquivo",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remover anexo",
         "save": "Salvar",
         "cancel": "Cancelar",

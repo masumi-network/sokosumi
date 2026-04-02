@@ -52,7 +52,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           id,
           userId: authContext.userId,
-          organizationId: authContext.organizationId,
           archivedAt: null,
           status: currentTask.status,
         },

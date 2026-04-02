@@ -33,7 +33,11 @@ export function TaskFormModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-svw max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
+      <DialogContent
+        className="w-svw max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden"
+        onInteractOutside={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+      >
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
         <ScrollArea className="max-h-svh md:max-h-[90svh]">

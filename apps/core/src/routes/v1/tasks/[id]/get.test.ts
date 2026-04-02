@@ -7,18 +7,15 @@ import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountGetTaskById from "./get";
 
-const {
-  prismaTransactionMock,
-  requireScopedTaskReadAccessMock,
-  taskFindUniqueMock,
-} = vi.hoisted(() => ({
-  prismaTransactionMock: vi.fn(),
-  requireScopedTaskReadAccessMock: vi.fn(),
-  taskFindUniqueMock: vi.fn(),
-}));
+const { prismaTransactionMock, requireTaskReadAccessMock, taskFindUniqueMock } =
+  vi.hoisted(() => ({
+    prismaTransactionMock: vi.fn(),
+    requireTaskReadAccessMock: vi.fn(),
+    taskFindUniqueMock: vi.fn(),
+  }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireScopedTaskReadAccess: requireScopedTaskReadAccessMock,
+  requireTaskReadAccess: requireTaskReadAccessMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -71,6 +68,15 @@ function createTask(
     status: TaskStatus.READY,
     events: [],
     jobs: [],
+    workspace: {
+      id: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_123",
+      organization: {
+        id: "org_123",
+        name: "Acme Labs",
+        slug: "acme-labs",
+      },
+    },
     share: null,
     linksFrom: overrides?.linksFrom ?? [],
     linksTo: overrides?.linksTo ?? [],
@@ -80,7 +86,7 @@ function createTask(
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireScopedTaskReadAccessMock.mockResolvedValue(undefined);
+    requireTaskReadAccessMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb({
@@ -93,11 +99,11 @@ describe("GET /tasks/{id}", () => {
     taskFindUniqueMock.mockResolvedValue(createTask());
   });
 
-  it("keeps archived peer links visible for user-scoped task reads", async () => {
+  it("keeps archived peer links visible for user-owned task reads", async () => {
     const app = createApp();
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request("http://localhost/tsk_a?scope=context");
+    const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
@@ -108,7 +114,7 @@ describe("GET /tasks/{id}", () => {
           where: {
             toTask: {
               is: {
-                OR: [{ userId: "user_123", organizationId: "org_123" }],
+                userId: "user_123",
               },
             },
           },
@@ -136,7 +142,7 @@ describe("GET /tasks/{id}", () => {
           where: {
             fromTask: {
               is: {
-                OR: [{ userId: "user_123", organizationId: "org_123" }],
+                userId: "user_123",
               },
             },
           },
@@ -168,7 +174,7 @@ describe("GET /tasks/{id}", () => {
     const app = createApp("coworker");
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request("http://localhost/tsk_a?scope=context");
+    const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
@@ -265,7 +271,7 @@ describe("GET /tasks/{id}", () => {
     const app = createApp();
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request("http://localhost/tsk_a?scope=context");
+    const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {

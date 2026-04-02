@@ -25,7 +25,7 @@ function getScopeDescriptionFromGetOperation(
 }
 
 describe("jobs routes OpenAPI scope contract", () => {
-  it("exposes scope query parameter for job endpoints", () => {
+  it("does not expose scope query parameter on job read endpoints", () => {
     const doc = jobsRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -34,18 +34,8 @@ describe("jobs routes OpenAPI scope contract", () => {
       },
     });
 
-    expect(getScopeDescriptionFromGetOperation(doc, "/")).toContain(
-      "Allowed values: context, owned",
-    );
-    expect(getScopeDescriptionFromGetOperation(doc, "/")).not.toContain(
-      "shared",
-    );
-    expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toContain(
-      "Allowed values: context, owned",
-    );
-    expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).not.toContain(
-      "shared",
-    );
+    expect(getScopeDescriptionFromGetOperation(doc, "/")).toBe("");
+    expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toBe("");
   });
 
   it("documents dedicated share mutation routes", () => {
@@ -59,6 +49,9 @@ describe("jobs routes OpenAPI scope contract", () => {
 
     expect(doc.paths?.["/{id}/share"]?.put?.responses).toHaveProperty("200");
     expect(doc.paths?.["/{id}/share"]?.delete?.responses).toHaveProperty("200");
+    expect(doc.paths?.["/{id}/workspace"]?.put?.responses).toHaveProperty(
+      "409",
+    );
   });
 
   it("uses summary schema for lists and details schema for single-job reads", () => {

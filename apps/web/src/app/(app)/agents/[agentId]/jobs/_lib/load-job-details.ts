@@ -22,6 +22,7 @@ interface LoadJobDetailsResult {
   activeOrganizationId: string | null;
   dehydratedState: ReturnType<typeof dehydrate>;
   job: JobWithSokosumiStatus;
+  personalWorkspaceLabel: string | null;
   readOnly: boolean;
 }
 
@@ -73,6 +74,8 @@ export async function loadJobDetails({
     activeOrganizationId: session.session.activeOrganizationId ?? null,
     dehydratedState: dehydrate(queryClient),
     job,
+    personalWorkspaceLabel:
+      session.user.name?.trim() || session.user.email?.trim() || null,
     readOnly: job.userId !== session.user.id,
   };
 }

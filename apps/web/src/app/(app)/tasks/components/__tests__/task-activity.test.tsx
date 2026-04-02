@@ -1,9 +1,22 @@
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import type { TaskEvent } from "@/lib/types/task";
+
+const {
+  uploadTaskAttachmentMock,
+  toastCustomMock,
+  toastDismissMock,
+  toastErrorMock,
+} = vi.hoisted(() => ({
+  uploadTaskAttachmentMock: vi.fn(),
+  toastCustomMock: vi.fn(),
+  toastDismissMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -13,7 +26,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next-intl", () => ({
   useLocale: () => "en",
-  useTranslations: () => (key: string, values?: Record<string, string>) => {
+  useTranslations: () => {
     const labels: Record<string, string> = {
       authenticate: "Authenticate",
       "billingCta.upgradePlan": "Get more credits",
@@ -22,6 +35,8 @@ vi.mock("next-intl", () => ({
         "This task needs credits to continue. Open billing to proceed.",
       sendWith: "Send with",
       ctrl: "Ctrl",
+      uploadFileErrorRetry: "Failed to upload file, please try again!",
+      fileLabel: "File",
       "originApp.sokosumi": "Sokosumi",
       "originApp.slack": "Slack",
       "originApp.teams": "Teams",
@@ -35,10 +50,31 @@ vi.mock("next-intl", () => ({
       "originApp.chat": "Chat",
       "originApp.unknown": "Unknown",
     };
-    if (key === "originFromApp") {
-      return `from ${values?.appName ?? ""}`.trim();
-    }
-    return labels[key] ?? key;
+
+    const translator = (
+      key: string,
+      values?: Record<string, string | number>,
+    ) => {
+      if (key === "originFromApp") {
+        return `from ${values?.appName ?? ""}`.trim();
+      }
+
+      return labels[key] ?? key;
+    };
+
+    translator.raw = (key: string) => {
+      if (key === "uploadingFile") {
+        return "Uploading {fileName}";
+      }
+
+      if (key === "uploadingFiles") {
+        return "Uploading {count} files";
+      }
+
+      return labels[key];
+    };
+
+    return translator;
   },
 }));
 
@@ -53,9 +89,29 @@ vi.mock("@/lib/actions/task/action", () => ({
   createTaskComment: vi.fn(),
 }));
 
+vi.mock("@/lib/utils/task-attachments.client", () => ({
+  uploadTaskAttachment: (...args: unknown[]) =>
+    uploadTaskAttachmentMock(...args),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    custom: (...args: unknown[]) => toastCustomMock(...args),
+    dismiss: (...args: unknown[]) => toastDismissMock(...args),
+    error: (...args: unknown[]) => toastErrorMock(...args),
+    success: vi.fn(),
+  },
+}));
+
 vi.mock("@/components/expandable-markdown", () => ({
   ExpandableMarkdown: ({ content }: { content: string }) => (
     <div>{content}</div>
+  ),
+}));
+
+vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
+  FileChipMiniPreviewWithMetadata: ({ url }: { url: string }) => (
+    <div>{url}</div>
   ),
 }));
 
@@ -110,6 +166,30 @@ const baseProps = {
 };
 
 describe("TaskActivitySection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function getHiddenFileInput(container: HTMLElement): HTMLInputElement {
+    const input = container.querySelector('input[type="file"]');
+
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error("Expected a hidden file input");
+    }
+
+    return input;
+  }
+
+  function renderLatestUploadToast() {
+    const renderToast = toastCustomMock.mock.calls.at(-1)?.[0];
+
+    if (typeof renderToast !== "function") {
+      throw new Error("Expected toast.custom to receive a render callback");
+    }
+
+    return render(renderToast("task-upload-toast"));
+  }
+
   it("does not show auth button when latest status is not AUTHENTICATION_REQUIRED", () => {
     const events: TaskEvent[] = [
       createEvent("older-auth", {
@@ -321,5 +401,167 @@ describe("TaskActivitySection", () => {
     expect(
       screen.queryByRole("link", { name: "Add credits" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows upload progress toasts for comment attachments", async () => {
+    const user = userEvent.setup();
+    const file = new File(["report"], "report.pdf", {
+      type: "application/pdf",
+    });
+    let resolveUpload: (() => void) | null = null;
+
+    uploadTaskAttachmentMock.mockImplementation(
+      (
+        _file: File,
+        options?: {
+          onUploadProgress?: (progress: {
+            loaded: number;
+            total: number;
+            percentage: number;
+          }) => void;
+        },
+      ) =>
+        new Promise<string>((resolve) => {
+          options?.onUploadProgress?.({
+            loaded: 3,
+            total: 6,
+            percentage: 50,
+          });
+          resolveUpload = () => {
+            options?.onUploadProgress?.({
+              loaded: 6,
+              total: 6,
+              percentage: 100,
+            });
+            resolve("https://blob.example/report.pdf");
+          };
+        }),
+    );
+
+    const { container } = render(
+      <TaskActivitySection {...baseProps} events={[]} />,
+    );
+
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(toastCustomMock).toHaveBeenCalled();
+    });
+
+    renderLatestUploadToast();
+
+    expect(screen.getByText("Uploading report.pdf")).toBeInTheDocument();
+    expect(screen.getAllByText("50%")).toHaveLength(2);
+    expect(screen.getAllByText("3 B / 6 B")).toHaveLength(2);
+    expect(toastDismissMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveUpload?.();
+    });
+
+    await waitFor(() => {
+      expect(toastDismissMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("dismisses the progress toast before showing comment upload errors", async () => {
+    const user = userEvent.setup();
+    const file = new File(["broken"], "broken.pdf", {
+      type: "application/pdf",
+    });
+
+    uploadTaskAttachmentMock.mockImplementation(
+      async (
+        _file: File,
+        options?: {
+          onUploadProgress?: (progress: {
+            loaded: number;
+            total: number;
+            percentage: number;
+          }) => void;
+        },
+      ) => {
+        options?.onUploadProgress?.({
+          loaded: 3,
+          total: 6,
+          percentage: 50,
+        });
+        throw new Error("Upload broke");
+      },
+    );
+
+    const { container } = render(
+      <TaskActivitySection {...baseProps} events={[]} />,
+    );
+
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(toastDismissMock).toHaveBeenCalledTimes(1);
+      expect(toastErrorMock).toHaveBeenCalledWith("Upload broke");
+    });
+
+    expect(toastDismissMock.mock.invocationCallOrder[0]).toBeLessThan(
+      toastErrorMock.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+  });
+
+  it("shows the custom cancel toast when in-progress comment uploads abort on unmount", async () => {
+    const user = userEvent.setup();
+    const file = new File(["report"], "report.pdf", {
+      type: "application/pdf",
+    });
+    let abortSignal: AbortSignal | undefined;
+
+    uploadTaskAttachmentMock.mockImplementation(
+      (
+        _file: File,
+        options?: {
+          abortSignal?: AbortSignal;
+          onUploadProgress?: (progress: {
+            loaded: number;
+            total: number;
+            percentage: number;
+          }) => void;
+        },
+      ) =>
+        new Promise<string>((_resolve, reject) => {
+          abortSignal = options?.abortSignal;
+          options?.onUploadProgress?.({
+            loaded: 3,
+            total: 6,
+            percentage: 50,
+          });
+
+          options?.abortSignal?.addEventListener(
+            "abort",
+            () => {
+              reject(new DOMException("Upload canceled.", "AbortError"));
+            },
+            { once: true },
+          );
+        }),
+    );
+
+    const { container, unmount } = render(
+      <TaskActivitySection {...baseProps} events={[]} />,
+    );
+
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(uploadTaskAttachmentMock).toHaveBeenCalledTimes(1);
+      expect(abortSignal).toBeDefined();
+    });
+
+    await act(async () => {
+      unmount();
+    });
+
+    await waitFor(() => {
+      expect(abortSignal?.aborted).toBe(true);
+      expect(toastDismissMock).toHaveBeenCalledTimes(1);
+      expect(toastErrorMock).toHaveBeenCalledWith("Upload canceled.");
+    });
   });
 });

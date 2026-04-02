@@ -56,6 +56,15 @@ describe("GET /share/{token}", () => {
         inputSchema: '{"input_data":[]}',
         agentJobId: "agent_job_123",
         identifierFromPurchaser: "identifier_123",
+        workspace: {
+          id: "11111111-1111-7111-8111-111111111111",
+          organizationId: "org_123",
+          organization: {
+            id: "org_123",
+            name: "Acme Labs",
+            slug: "acme-labs",
+          },
+        },
         user: {
           id: "user_123",
           name: "Ada Lovelace",
@@ -129,6 +138,15 @@ describe("GET /share/{token}", () => {
         inputSchema: '{"input_data":[]}',
         agentJobId: "agent_job_123",
         identifierFromPurchaser: "identifier_123",
+        workspace: {
+          id: "11111111-1111-7111-8111-111111111111",
+          organizationId: "org_123",
+          organization: {
+            id: "org_123",
+            name: "Acme Labs",
+            slug: "acme-labs",
+          },
+        },
         user: {
           id: "user_123",
           name: "Ada Lovelace",

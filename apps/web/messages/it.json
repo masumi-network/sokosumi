@@ -147,7 +147,7 @@
       "creditsExpired": "Crediti scaduti"
     },
     "OrganizationSwitcher": {
-      "switchWorkspace": "Cambia workspace",
+      "switchWorkspace": "Cambia spazio di lavoro",
       "personalAccount": "Account personale",
       "addOrganization": "Aggiungi organizzazione",
       "organizationsHeading": "Organizzazioni",
@@ -274,6 +274,17 @@
         "emptyActivity": "Nessuna attività ancora.",
         "eyebrow": "Job pubblico",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "Sposta in un altro spazio di lavoro",
+            "moveToWorkspaceTitle": "Sposta il job in un altro spazio di lavoro",
+            "moveToWorkspaceDescription": "Seleziona lo spazio di lavoro in cui vuoi spostare questo job.",
+            "moveToWorkspaceButton": "Sposta job",
+            "moveToWorkspaceCancel": "Annulla",
+            "moveToWorkspaceSuccess": "Job spostato con successo",
+            "moveToWorkspaceError": "Impossibile spostare il job",
+            "moveToWorkspaceDisabledTooltip": "Questo job appartiene a un task. Sposta il task per cambiare il suo spazio di lavoro.",
+            "personalWorkspace": "Personale"
+          },
           "JobName": {
             "Schema": {
               "Name": {
@@ -1357,6 +1368,8 @@
         "attach": "Allega",
         "fileLabel": "File",
         "uploadFileErrorRetry": "Caricamento del file non riuscito, riprova!",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Rimuovi allegato",
         "submit": "Invia",
         "sendWith": "Invia con",
@@ -1484,6 +1497,8 @@
         "back": "Indietro",
         "uploadFile": "Carica file",
         "uploadFileError": "Caricamento del file non riuscito",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Rimuovi allegato",
         "saveDraft": "Salva",
         "saveAsDraft": "Salva come bozza",
@@ -1507,6 +1522,8 @@
         "back": "Indietro",
         "uploadFile": "Carica file",
         "uploadFileError": "Caricamento del file non riuscito",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Rimuovi allegato",
         "save": "Salva",
         "cancel": "Annulla",

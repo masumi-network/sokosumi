@@ -9,10 +9,12 @@ import type {
   DeleteJobsByIdShareError,
   DeleteTasksByIdShareError,
   GetCoworkersData,
+  GetJobsData,
   GetShareByTokenError,
   GetTasksData,
   PaginationMetadata,
   PostTasksByIdLinksData,
+  PostUsersMeUploadsData,
   PutJobsByIdShareError,
   PutTasksByIdShareError,
 } from "@/lib/clients/generated/core";
@@ -44,9 +46,10 @@ import {
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
-  postUsersMeFiles as corePostUsersMeFiles,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
+  postUsersMeUploads as corePostUsersMeUploads,
   putJobsByIdShare as corePutJobsByIdShare,
+  putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
 } from "@/lib/clients/generated/core";
@@ -348,17 +351,13 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getTaskById(
-    id: string,
-    scope: Array<"context" | "owned"> = ["context"],
-  ) {
+  async function getTaskById(id: string) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetTasksById({
           client,
           path: { id },
-          query: { scope },
           cache: "no-store",
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),
@@ -367,19 +366,7 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getJobs(query?: {
-    scope?: Array<"context" | "owned">;
-    cursor?: string;
-    limit?: number;
-    agentId?: string;
-    status?:
-      | "RUNNING"
-      | "COMPLETED"
-      | "FAILED"
-      | "INITIATED"
-      | "AWAITING_PAYMENT"
-      | "AWAITING_INPUT";
-  }) {
+  async function getJobs(query?: GetJobsData["query"]) {
     return executeOperation(
       getClient,
       (client) =>
@@ -392,17 +379,13 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getJobById(
-    id: string,
-    scope: Array<"context" | "owned"> = ["context"],
-  ) {
+  async function getJobById(id: string) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetJobsById({
           client,
           path: { id },
-          query: { scope },
           cache: "no-store",
         }),
       "Failed to fetch job",
@@ -629,15 +612,18 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function uploadMyFile(file: Blob | File) {
+  async function createMyFileUploadSession(
+    body: NonNullable<PostUsersMeUploadsData["body"]>,
+  ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostUsersMeFiles({
+        corePostUsersMeUploads({
           client,
-          body: { file },
+          body,
+          cache: "no-store",
         }),
-      "Failed to upload file",
+      "Failed to create upload session",
     );
   }
 
@@ -656,6 +642,22 @@ export function createCoreClient(getClient: GetClient) {
             transformTaskResponseEnvelope(data),
         }),
       "Failed to move task to workspace",
+    );
+  }
+
+  async function moveJobToWorkspace(
+    id: string,
+    body: { organizationId: string | null },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutJobsByIdWorkspace({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to move job to workspace",
     );
   }
 
@@ -832,6 +834,7 @@ export function createCoreClient(getClient: GetClient) {
     addConversationItem,
     archiveConversation,
     createConversation,
+    createMyFileUploadSession,
     createTask,
     createTaskLink,
     createTaskEvent,
@@ -852,6 +855,7 @@ export function createCoreClient(getClient: GetClient) {
     getMyOrganizations,
     getPendingNotices,
     getSharedResourceByToken,
+    moveJobToWorkspace,
     moveTaskToWorkspace,
     getTaskById,
     getTaskLinks,
@@ -860,7 +864,6 @@ export function createCoreClient(getClient: GetClient) {
     putJobShare,
     putTaskShare,
     updateConversation,
-    uploadMyFile,
   };
 }
 

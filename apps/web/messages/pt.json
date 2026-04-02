@@ -147,7 +147,7 @@
       "creditsExpired": "Créditos expirados"
     },
     "OrganizationSwitcher": {
-      "switchWorkspace": "Mudar workspace",
+      "switchWorkspace": "Mudar espaço de trabalho",
       "personalAccount": "Conta pessoal",
       "addOrganization": "Adicionar organização",
       "organizationsHeading": "Organizações",
@@ -274,6 +274,17 @@
         "emptyActivity": "Ainda não há atividades.",
         "eyebrow": "Job público",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "Mover para outro espaço de trabalho",
+            "moveToWorkspaceTitle": "Mover o job para outro espaço de trabalho",
+            "moveToWorkspaceDescription": "Selecione o espaço de trabalho para onde pretende mover este job.",
+            "moveToWorkspaceButton": "Mover job",
+            "moveToWorkspaceCancel": "Cancelar",
+            "moveToWorkspaceSuccess": "Job movido com sucesso",
+            "moveToWorkspaceError": "Não foi possível mover o job",
+            "moveToWorkspaceDisabledTooltip": "Este job pertence a uma tarefa. Mova a tarefa para alterar o seu espaço de trabalho.",
+            "personalWorkspace": "Pessoal"
+          },
           "JobName": {
             "Schema": {
               "Name": {
@@ -1357,6 +1368,8 @@
         "attach": "Anexar",
         "fileLabel": "Ficheiro",
         "uploadFileErrorRetry": "Falha ao carregar ficheiro, tente novamente!",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remover anexo",
         "submit": "Submeter",
         "sendWith": "Enviar com",
@@ -1484,6 +1497,8 @@
         "back": "Voltar",
         "uploadFile": "Carregar ficheiro",
         "uploadFileError": "Falha ao carregar ficheiro",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remover anexo",
         "saveDraft": "Guardar",
         "saveAsDraft": "Guardar como rascunho",
@@ -1507,6 +1522,8 @@
         "back": "Voltar",
         "uploadFile": "Carregar ficheiro",
         "uploadFileError": "Falha ao carregar ficheiro",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remover anexo",
         "save": "Guardar",
         "cancel": "Cancelar",

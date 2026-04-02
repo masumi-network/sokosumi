@@ -30,8 +30,9 @@ import {
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
-
+import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
+import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
@@ -52,6 +53,8 @@ export interface TaskFormLabels {
   back: string;
   uploadFile: string;
   uploadFileError?: string;
+  uploadingFile: string;
+  uploadingFiles: string;
   removeAttachment?: string;
   submit: string;
   saveAsDraft?: string;
@@ -127,6 +130,7 @@ export function TaskForm({
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
+  const activeUploadControllersRef = useRef(new Set<AbortController>());
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(description),
     [description],
@@ -139,6 +143,15 @@ export function TaskForm({
   useEffect(() => {
     onSubmittingChange?.(isSubmittingAny);
   }, [isSubmittingAny, onSubmittingChange]);
+
+  const abortActiveUploads = useCallback(() => {
+    for (const controller of activeUploadControllersRef.current) {
+      controller.abort();
+    }
+    activeUploadControllersRef.current.clear();
+  }, []);
+
+  useEffect(() => abortActiveUploads, [abortActiveUploads]);
 
   const { os, isMobile } = useOSDetection();
 
@@ -244,10 +257,26 @@ export function TaskForm({
     async (files: File[]) => {
       if (files.length === 0) return;
 
+      const uploadToast = createTaskAttachmentUploadToast({
+        files,
+        labels: {
+          uploadingFile: labels.uploadingFile,
+          uploadingFiles: labels.uploadingFiles,
+        },
+      });
+
+      const controller = new AbortController();
+      activeUploadControllersRef.current.add(controller);
       setUploadingAttachmentsCount((count) => count + 1);
       try {
-        for (const file of files) {
-          const uploadedUrl = await uploadTaskAttachment(file);
+        for (const [index, file] of files.entries()) {
+          const uploadedUrl = await uploadTaskAttachment(file, {
+            abortSignal: controller.signal,
+            onUploadProgress: (progress) => {
+              uploadToast.updateFileProgress(index, progress);
+            },
+          });
+          uploadToast.markFileComplete(index);
           const safeName = sanitizeTaskAttachmentLabel(file.name, "file");
           if (markdownEditorRef.current) {
             markdownEditorRef.current.insertLink(safeName, uploadedUrl);
@@ -263,14 +292,22 @@ export function TaskForm({
               `${prev}${prev.endsWith("\n") ? "" : "\n"}${markdownLink}`,
           );
         }
-      } catch (_error) {
-        toast.error(labels.uploadFileError ?? "Failed to upload file");
+        uploadToast.dismiss();
+      } catch (error) {
+        uploadToast.dismiss();
+        toast.error(
+          getUserFileUploadErrorMessage(
+            error,
+            labels.uploadFileError ?? "Failed to upload file",
+          ),
+        );
       } finally {
+        activeUploadControllersRef.current.delete(controller);
         setPendingUploadFiles([]);
         setUploadingAttachmentsCount((count) => count - 1);
       }
     },
-    [labels.uploadFileError],
+    [labels.uploadFileError, labels.uploadingFile, labels.uploadingFiles],
   );
 
   const handleRemoveAttachment = useCallback((url: string) => {
@@ -278,6 +315,7 @@ export function TaskForm({
   }, []);
 
   const handleCancel = () => {
+    abortActiveUploads();
     if (onCancel) {
       onCancel();
       return;

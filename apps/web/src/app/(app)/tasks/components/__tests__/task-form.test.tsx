@@ -1,5 +1,5 @@
 import { TaskStatus } from "@sokosumi/database";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,7 +8,19 @@ import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
 
-const markdownEditorPropsSpy = vi.fn();
+const {
+  markdownEditorPropsSpy,
+  uploadTaskAttachmentMock,
+  toastCustomMock,
+  toastDismissMock,
+  toastErrorMock,
+} = vi.hoisted(() => ({
+  markdownEditorPropsSpy: vi.fn(),
+  uploadTaskAttachmentMock: vi.fn(),
+  toastCustomMock: vi.fn(),
+  toastDismissMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -26,6 +38,26 @@ vi.mock("@/hooks/use-os-detection", () => ({
 vi.mock("@/lib/actions/task/action", () => ({
   createTask: vi.fn(),
   updateTask: vi.fn(),
+}));
+
+vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
+  FileChipMiniPreviewWithMetadata: ({ url }: { url: string }) => (
+    <div>{url}</div>
+  ),
+}));
+
+vi.mock("@/lib/utils/task-attachments.client", () => ({
+  uploadTaskAttachment: (...args: unknown[]) =>
+    uploadTaskAttachmentMock(...args),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    custom: (...args: unknown[]) => toastCustomMock(...args),
+    dismiss: (...args: unknown[]) => toastDismissMock(...args),
+    error: (...args: unknown[]) => toastErrorMock(...args),
+    success: vi.fn(),
+  },
 }));
 
 vi.mock("next-intl", () => ({
@@ -106,6 +138,8 @@ const baseLabels = {
   createTask: "Create Task",
   cancel: "Cancel",
   ctrl: "Ctrl",
+  uploadingFile: "Uploading {fileName}",
+  uploadingFiles: "Uploading {count} files",
 };
 
 const coworkerOptions = [
@@ -128,6 +162,26 @@ describe("TaskForm", () => {
     vi.clearAllMocks();
     markdownEditorPropsSpy.mockClear();
   });
+
+  function getHiddenFileInput(container: HTMLElement): HTMLInputElement {
+    const input = container.querySelector('input[type="file"]');
+
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error("Expected a hidden file input");
+    }
+
+    return input;
+  }
+
+  function renderLatestUploadToast() {
+    const renderToast = toastCustomMock.mock.calls.at(-1)?.[0];
+
+    if (typeof renderToast !== "function") {
+      throw new Error("Expected toast.custom to receive a render callback");
+    }
+
+    return render(renderToast("task-upload-toast"));
+  }
 
   it("submits draft and ready from create modal actions", async () => {
     const user = userEvent.setup();
@@ -268,6 +322,296 @@ describe("TaskForm", () => {
         },
       }),
     );
+  });
+
+  it("shows a persistent upload toast with progress for a single attachment", async () => {
+    const user = userEvent.setup();
+    const file = new File(["report"], "report.pdf", {
+      type: "application/pdf",
+    });
+    let resolveUpload: (() => void) | null = null;
+
+    uploadTaskAttachmentMock.mockImplementation(
+      (
+        _file: File,
+        options?: {
+          onUploadProgress?: (progress: {
+            loaded: number;
+            total: number;
+            percentage: number;
+          }) => void;
+        },
+      ) =>
+        new Promise<string>((resolve) => {
+          options?.onUploadProgress?.({
+            loaded: 3,
+            total: 6,
+            percentage: 50,
+          });
+          resolveUpload = () => {
+            options?.onUploadProgress?.({
+              loaded: 6,
+              total: 6,
+              percentage: 100,
+            });
+            resolve("https://blob.example/report.pdf");
+          };
+        }),
+    );
+
+    const { container } = render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(toastCustomMock).toHaveBeenCalled();
+    });
+
+    expect(toastCustomMock.mock.calls[0]?.[1]).toMatchObject({
+      duration: Infinity,
+      dismissible: false,
+    });
+
+    renderLatestUploadToast();
+
+    expect(screen.getByText("Uploading report.pdf")).toBeInTheDocument();
+    expect(screen.getAllByText("50%")).toHaveLength(2);
+    expect(screen.getAllByText("3 B / 6 B")).toHaveLength(2);
+    expect(toastDismissMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveUpload?.();
+    });
+
+    await waitFor(() => {
+      expect(toastDismissMock).toHaveBeenCalledTimes(1);
+    });
+    expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("shows a batch upload toast for multiple attachments", async () => {
+    const user = userEvent.setup();
+    const firstFile = new File(["one"], "first.pdf", {
+      type: "application/pdf",
+    });
+    const secondFile = new File(["two"], "second.pdf", {
+      type: "application/pdf",
+    });
+    Object.defineProperty(firstFile, "size", {
+      value: 4,
+      configurable: true,
+    });
+    Object.defineProperty(secondFile, "size", {
+      value: 4,
+      configurable: true,
+    });
+    let resolveSecondUpload: (() => void) | null = null;
+
+    uploadTaskAttachmentMock
+      .mockImplementationOnce(
+        async (
+          _file: File,
+          options?: {
+            onUploadProgress?: (progress: {
+              loaded: number;
+              total: number;
+              percentage: number;
+            }) => void;
+          },
+        ) => {
+          options?.onUploadProgress?.({
+            loaded: 4,
+            total: 4,
+            percentage: 100,
+          });
+
+          return "https://blob.example/first.pdf";
+        },
+      )
+      .mockImplementationOnce(
+        (
+          _file: File,
+          options?: {
+            onUploadProgress?: (progress: {
+              loaded: number;
+              total: number;
+              percentage: number;
+            }) => void;
+          },
+        ) =>
+          new Promise<string>((resolve) => {
+            options?.onUploadProgress?.({
+              loaded: 2,
+              total: 4,
+              percentage: 50,
+            });
+            resolveSecondUpload = () => {
+              options?.onUploadProgress?.({
+                loaded: 4,
+                total: 4,
+                percentage: 100,
+              });
+              resolve("https://blob.example/second.pdf");
+            };
+          }),
+      );
+
+    const { container } = render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.upload(getHiddenFileInput(container), [firstFile, secondFile]);
+
+    await waitFor(() => {
+      expect(uploadTaskAttachmentMock).toHaveBeenCalledTimes(2);
+    });
+
+    renderLatestUploadToast();
+
+    expect(screen.getByText("Uploading 2 files")).toBeInTheDocument();
+    expect(screen.getByText("6 B / 8 B")).toBeInTheDocument();
+    expect(screen.getByText("75%")).toBeInTheDocument();
+    expect(screen.getAllByText("50%")).toHaveLength(1);
+    expect(screen.getAllByText("100%")).toHaveLength(1);
+
+    await act(async () => {
+      resolveSecondUpload?.();
+    });
+
+    await waitFor(() => {
+      expect(toastDismissMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("dismisses the progress toast before showing upload errors", async () => {
+    const user = userEvent.setup();
+    const file = new File(["broken"], "broken.pdf", {
+      type: "application/pdf",
+    });
+
+    uploadTaskAttachmentMock.mockImplementation(
+      async (
+        _file: File,
+        options?: {
+          onUploadProgress?: (progress: {
+            loaded: number;
+            total: number;
+            percentage: number;
+          }) => void;
+        },
+      ) => {
+        options?.onUploadProgress?.({
+          loaded: 3,
+          total: 6,
+          percentage: 50,
+        });
+        throw new Error("Upload broke");
+      },
+    );
+
+    const { container } = render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(toastDismissMock).toHaveBeenCalledTimes(1);
+      expect(toastErrorMock).toHaveBeenCalledWith("Upload broke");
+    });
+
+    expect(toastDismissMock.mock.invocationCallOrder[0]).toBeLessThan(
+      toastErrorMock.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+  });
+
+  it("shows the custom cancel toast when in-progress uploads abort on unmount", async () => {
+    const user = userEvent.setup();
+    const file = new File(["report"], "report.pdf", {
+      type: "application/pdf",
+    });
+    let abortSignal: AbortSignal | undefined;
+
+    uploadTaskAttachmentMock.mockImplementation(
+      (
+        _file: File,
+        options?: {
+          abortSignal?: AbortSignal;
+          onUploadProgress?: (progress: {
+            loaded: number;
+            total: number;
+            percentage: number;
+          }) => void;
+        },
+      ) =>
+        new Promise<string>((_resolve, reject) => {
+          abortSignal = options?.abortSignal;
+          options?.onUploadProgress?.({
+            loaded: 3,
+            total: 6,
+            percentage: 50,
+          });
+
+          options?.abortSignal?.addEventListener(
+            "abort",
+            () => {
+              reject(new DOMException("Upload canceled.", "AbortError"));
+            },
+            { once: true },
+          );
+        }),
+    );
+
+    const { container, unmount } = render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.upload(getHiddenFileInput(container), file);
+
+    await waitFor(() => {
+      expect(uploadTaskAttachmentMock).toHaveBeenCalledTimes(1);
+      expect(abortSignal).toBeDefined();
+    });
+
+    await act(async () => {
+      unmount();
+    });
+
+    await waitFor(() => {
+      expect(abortSignal?.aborted).toBe(true);
+      expect(toastDismissMock).toHaveBeenCalledTimes(1);
+      expect(toastErrorMock).toHaveBeenCalledWith("Upload canceled.");
+    });
   });
 
   it("uses a custom create handler when provided", async () => {

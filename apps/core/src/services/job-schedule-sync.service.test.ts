@@ -83,6 +83,7 @@ function createSchedule(overrides: Record<string, unknown> = {}) {
     organizationId: "org_1",
     agentId: "agent_1",
     scheduleType: ScheduleType.ONE_TIME,
+    workspaceId: "11111111-1111-7111-8111-111111111111",
     cron: null,
     oneTimeAtUtc: new Date("2026-02-25T10:00:00.000Z"),
     timezone: "UTC",
@@ -145,6 +146,7 @@ describe("jobScheduleSyncService.executeDueSchedules", () => {
       owner: {
         userId: "user_1",
         organizationId: "org_1",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       agentInput: {
         agentId: "agent_1",

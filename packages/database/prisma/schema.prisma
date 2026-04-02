@@ -63,7 +63,8 @@ model User {
   onboardingCompleted Boolean @default(false)
 
   // Coworkers
-  coworkers Coworker[]
+  coworkers  Coworker[]
+  workspaces Workspace[]
 
   tasks          Task[]
   taskEvents     TaskEvent[]
@@ -189,6 +190,7 @@ model Organization {
 
   members        Member[]
   invitations    Invitation[]
+  workspaces     Workspace[]
   jobs           Job[]
   tasks          Task[]
   jobSchedules   JobSchedule[]
@@ -203,6 +205,24 @@ model Organization {
   @@unique([slug])
   @@unique([stripeCustomerId])
   @@map("organization")
+}
+
+model Workspace {
+  id        String        @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId String?        @unique
+  organization   Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  jobs         Job[]
+  jobSchedules JobSchedule[]
+  tasks        Task[]
+
+  @@map("workspace")
 }
 
 model Member {
@@ -679,6 +699,9 @@ model Job {
 
   purchase JobPurchase?
 
+  workspaceId String     @db.Uuid
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id])
+
   // Optional link to the schedule that initiated this job
   jobScheduleId String? @db.Uuid
   jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
@@ -691,6 +714,7 @@ model Job {
   @@index([jobType])
   @@index([jobScheduleId])
   @@index([taskId])
+  @@index([workspaceId])
   @@index([agentId])
   @@index([agentId, createdAt])
 }
@@ -923,6 +947,8 @@ model JobSchedule {
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId String?         @db.Uuid
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  workspaceId    String          @db.Uuid
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id])
   agentId        String          @db.Uuid
   agent          Agent         @relation(fields: [agentId], references: [id])
 
@@ -949,6 +975,7 @@ model JobSchedule {
 
   @@index([isActive, nextRunAt])
   @@index([agentId])
+  @@index([workspaceId])
   @@map("jobSchedule")
 }
 
@@ -1155,6 +1182,9 @@ model Task {
   coworkerId String? @db.Uuid
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
+  workspaceId String     @db.Uuid
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id])
+
   share PublicShare?
 
   events TaskEvent[]
@@ -1164,6 +1194,7 @@ model Task {
   linksTo   TaskLink[] @relation("TaskLinkTo")
 
   @@index([organizationId])
+  @@index([workspaceId])
   @@index([archivedAt])
   @@index([userId])
   @@index([userId, organizationId])
@@ -1311,8 +1342,8 @@ model ConversationItem {
   responsesApiResponseId String? // Set when item is created from Responses API recovery; prevents duplicate storage per response ID
   createdAt              DateTime     @default(now())
 
+  @@unique([conversationId, responsesApiResponseId])
   @@index([conversationId])
   @@index([conversationId, createdAt])
-  @@unique([conversationId, responsesApiResponseId])
   @@map("conversationItem")
 }
