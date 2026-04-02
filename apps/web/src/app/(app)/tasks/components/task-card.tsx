@@ -1,8 +1,6 @@
-import Link from "next/link";
-
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
-
+import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
 import { TaskStatusBadge } from "./task-status-badge";
@@ -28,7 +26,7 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
       )}
       {...handleProps}
     >
-      <Link href={`/tasks/${task.id}`} className="block">
+      <TaskDetailLink href={`/tasks/${task.id}`} className="block">
         <article
           className={cn(
             "bg-background rounded-lg p-3 transition-all duration-200",
@@ -61,7 +59,7 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
             />
           </div>
         </article>
-      </Link>
+      </TaskDetailLink>
     </div>
   );
 }

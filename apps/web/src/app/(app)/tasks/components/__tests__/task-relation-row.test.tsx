@@ -1,8 +1,14 @@
 import { TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { TaskRelationRow } from "@/app/tasks/components/task-relation-row";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    prefetch: vi.fn(),
+  }),
+}));
 
 describe("TaskRelationRow", () => {
   it("renders the relation icon even when the translated label is missing", () => {
