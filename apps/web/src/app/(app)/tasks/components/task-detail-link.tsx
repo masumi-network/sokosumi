@@ -31,7 +31,7 @@ export function TaskDetailLink({
     <Link
       {...props}
       href={href}
-      prefetch
+      prefetch={false}
       onClick={(event) => {
         props.onClick?.(event);
         if (event.defaultPrevented || typeof window === "undefined") {

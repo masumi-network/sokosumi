@@ -53,7 +53,6 @@ export default async function TaskDetailPage({
     return notFound();
   }
 
-  const t = await getTranslations("App.Tasks.Detail");
   const coworkersPromise = coworkerService.listCoworkers();
   const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
   const membersPromise = userService.getMyMembersWithOrganizations();
@@ -62,7 +61,10 @@ export default async function TaskDetailPage({
   const activeSubscriptionsPromise = getActiveSubscriptions(
     taskResult.organizationId,
   );
+  const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(taskResult.links);
+
+  const t = await translationsPromise;
 
   return (
     <div className="min-h-full w-full">
@@ -123,17 +125,20 @@ export default async function TaskDetailPage({
             }}
           />
 
-          <Suspense
-            fallback={<TaskSectionFallback title={t("jobs")} rows={3} />}
-          >
-            <TaskJobsSection
-              taskResult={taskResult}
-              agentsPromise={agentsPromise}
-              sessionPromise={sessionPromise}
-              localePromise={localePromise}
-            />
-          </Suspense>
-
+          {taskResult?.jobs?.length > 0 && (
+            <>
+              <Suspense
+                fallback={<TaskSectionFallback title={t("jobs")} rows={3} />}
+              >
+                <TaskJobsSection
+                  taskResult={taskResult}
+                  agentsPromise={agentsPromise}
+                  sessionPromise={sessionPromise}
+                  localePromise={localePromise}
+                />
+              </Suspense>
+            </>
+          )}
           <Suspense
             fallback={<TaskSectionFallback title={t("activity")} rows={4} />}
           >
