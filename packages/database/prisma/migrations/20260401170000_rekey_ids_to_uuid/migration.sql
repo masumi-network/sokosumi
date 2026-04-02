@@ -18,6 +18,8 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 DROP INDEX IF EXISTS "task_link_task_pair_key";
 
 -- Drop FKs first so we can rewrite values and change types.
+ALTER TABLE "workspace" DROP CONSTRAINT IF EXISTS "workspace_userId_fkey";
+ALTER TABLE "workspace" DROP CONSTRAINT IF EXISTS "workspace_organizationId_fkey";
 ALTER TABLE "session" DROP CONSTRAINT IF EXISTS "session_userId_fkey";
 ALTER TABLE "account" DROP CONSTRAINT IF EXISTS "account_userId_fkey";
 ALTER TABLE "passkey" DROP CONSTRAINT IF EXISTS "passkey_userId_fkey";
@@ -46,6 +48,7 @@ ALTER TABLE "credit_consumption" DROP CONSTRAINT IF EXISTS "credit_consumption_t
 ALTER TABLE "Job" DROP CONSTRAINT IF EXISTS "Job_userId_fkey";
 ALTER TABLE "Job" DROP CONSTRAINT IF EXISTS "Job_organizationId_fkey";
 ALTER TABLE "Job" DROP CONSTRAINT IF EXISTS "Job_agentId_fkey";
+ALTER TABLE "Job" DROP CONSTRAINT IF EXISTS "Job_workspaceId_fkey";
 ALTER TABLE "Job" DROP CONSTRAINT IF EXISTS "Job_transactionId_fkey";
 ALTER TABLE "Job" DROP CONSTRAINT IF EXISTS "Job_refundedTransactionId_fkey";
 ALTER TABLE "Job" DROP CONSTRAINT IF EXISTS "Job_jobScheduleId_fkey";
@@ -60,6 +63,7 @@ ALTER TABLE "jobShare" DROP CONSTRAINT IF EXISTS "jobShare_taskId_fkey";
 ALTER TABLE "jobSchedule" DROP CONSTRAINT IF EXISTS "jobSchedule_userId_fkey";
 ALTER TABLE "jobSchedule" DROP CONSTRAINT IF EXISTS "jobSchedule_organizationId_fkey";
 ALTER TABLE "jobSchedule" DROP CONSTRAINT IF EXISTS "jobSchedule_agentId_fkey";
+ALTER TABLE "jobSchedule" DROP CONSTRAINT IF EXISTS "jobSchedule_workspaceId_fkey";
 ALTER TABLE "oauthClient" DROP CONSTRAINT IF EXISTS "oauthClient_userId_fkey";
 ALTER TABLE "oauthAccessToken" DROP CONSTRAINT IF EXISTS "oauthAccessToken_sessionId_fkey";
 ALTER TABLE "oauthAccessToken" DROP CONSTRAINT IF EXISTS "oauthAccessToken_refreshId_fkey";
@@ -72,6 +76,7 @@ ALTER TABLE "coworker_api_key" DROP CONSTRAINT IF EXISTS "coworker_api_key_cowor
 ALTER TABLE "task" DROP CONSTRAINT IF EXISTS "task_userId_fkey";
 ALTER TABLE "task" DROP CONSTRAINT IF EXISTS "task_organizationId_fkey";
 ALTER TABLE "task" DROP CONSTRAINT IF EXISTS "task_coworkerId_fkey";
+ALTER TABLE "task" DROP CONSTRAINT IF EXISTS "task_workspaceId_fkey";
 ALTER TABLE "task_link" DROP CONSTRAINT IF EXISTS "task_link_fromTaskId_fkey";
 ALTER TABLE "task_link" DROP CONSTRAINT IF EXISTS "task_link_toTaskId_fkey";
 ALTER TABLE "taskEvent" DROP CONSTRAINT IF EXISTS "taskEvent_taskId_fkey";
@@ -207,6 +212,8 @@ UPDATE "invitation" i SET "inviterId" = u."_new_id"::text FROM "user" u WHERE i.
 UPDATE "utmAttribution" utm SET "userId" = u."_new_id"::text FROM "user" u WHERE utm."userId" = u."id";
 UPDATE "user" u SET "preferredOrganizationId" = o."_new_id"::text FROM "organization" o WHERE u."preferredOrganizationId" = o."id";
 UPDATE "session" s SET "activeOrganizationId" = o."_new_id"::text FROM "organization" o WHERE s."activeOrganizationId" = o."id";
+UPDATE "workspace" w SET "userId" = u."_new_id"::text FROM "user" u WHERE w."userId" = u."id";
+UPDATE "workspace" w SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE w."organizationId" = o."id";
 UPDATE "noticeAcknowledgment" na SET "userId" = u."_new_id"::text FROM "user" u WHERE na."userId" = u."id";
 UPDATE "noticeAcknowledgment" na SET "noticeId" = n."_new_id"::text FROM "notice" n WHERE na."noticeId" = n."id";
 UPDATE "UnitValue" uv SET "agentFixedPricingId" = afp."_new_id"::text FROM "AgentFixedPricing" afp WHERE uv."agentFixedPricingId" = afp."id";
@@ -376,6 +383,8 @@ ALTER TABLE "invitation" ALTER COLUMN "organizationId" TYPE UUID USING "organiza
 ALTER TABLE "invitation" ALTER COLUMN "inviterId" TYPE UUID USING "inviterId"::uuid;
 ALTER TABLE "utmAttribution" ALTER COLUMN "id" TYPE UUID USING "id"::uuid;
 ALTER TABLE "utmAttribution" ALTER COLUMN "userId" TYPE UUID USING "userId"::uuid;
+ALTER TABLE "workspace" ALTER COLUMN "userId" TYPE UUID USING "userId"::uuid;
+ALTER TABLE "workspace" ALTER COLUMN "organizationId" TYPE UUID USING "organizationId"::uuid;
 ALTER TABLE "notice" ALTER COLUMN "id" TYPE UUID USING "id"::uuid;
 ALTER TABLE "noticeAcknowledgment" ALTER COLUMN "id" TYPE UUID USING "id"::uuid;
 ALTER TABLE "noticeAcknowledgment" ALTER COLUMN "userId" TYPE UUID USING "userId"::uuid;
@@ -536,6 +545,8 @@ ALTER TABLE "conversation" DROP COLUMN "_new_id";
 ALTER TABLE "conversationItem" DROP COLUMN "_new_id";
 
 -- Recreate FKs.
+ALTER TABLE "workspace" ADD CONSTRAINT "workspace_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "workspace" ADD CONSTRAINT "workspace_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "account" ADD CONSTRAINT "account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "passkey" ADD CONSTRAINT "passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -564,6 +575,7 @@ ALTER TABLE "credit_consumption" ADD CONSTRAINT "credit_consumption_transactionI
 ALTER TABLE "Job" ADD CONSTRAINT "Job_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Job" ADD CONSTRAINT "Job_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "Job" ADD CONSTRAINT "Job_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Job" ADD CONSTRAINT "Job_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "Job" ADD CONSTRAINT "Job_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "Transaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "Job" ADD CONSTRAINT "Job_refundedTransactionId_fkey" FOREIGN KEY ("refundedTransactionId") REFERENCES "Transaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "Job" ADD CONSTRAINT "Job_jobScheduleId_fkey" FOREIGN KEY ("jobScheduleId") REFERENCES "jobSchedule"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -578,6 +590,7 @@ ALTER TABLE "jobShare" ADD CONSTRAINT "jobShare_taskId_fkey" FOREIGN KEY ("taskI
 ALTER TABLE "jobSchedule" ADD CONSTRAINT "jobSchedule_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "jobSchedule" ADD CONSTRAINT "jobSchedule_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "jobSchedule" ADD CONSTRAINT "jobSchedule_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "jobSchedule" ADD CONSTRAINT "jobSchedule_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "oauthClient" ADD CONSTRAINT "oauthClient_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "oauthAccessToken" ADD CONSTRAINT "oauthAccessToken_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "session"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "oauthAccessToken" ADD CONSTRAINT "oauthAccessToken_refreshId_fkey" FOREIGN KEY ("refreshId") REFERENCES "oauthRefreshToken"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -590,6 +603,7 @@ ALTER TABLE "coworker_api_key" ADD CONSTRAINT "coworker_api_key_coworkerId_fkey"
 ALTER TABLE "task" ADD CONSTRAINT "task_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "task" ADD CONSTRAINT "task_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "task" ADD CONSTRAINT "task_coworkerId_fkey" FOREIGN KEY ("coworkerId") REFERENCES "coworker"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "task" ADD CONSTRAINT "task_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "task_link" ADD CONSTRAINT "task_link_fromTaskId_fkey" FOREIGN KEY ("fromTaskId") REFERENCES "task"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "task_link" ADD CONSTRAINT "task_link_toTaskId_fkey" FOREIGN KEY ("toTaskId") REFERENCES "task"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "taskEvent" ADD CONSTRAINT "taskEvent_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "task"("id") ON DELETE CASCADE ON UPDATE CASCADE;
