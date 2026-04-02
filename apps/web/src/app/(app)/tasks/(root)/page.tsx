@@ -1,6 +1,12 @@
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
+import { TasksView } from "@/app/tasks/components/tasks-view";
+import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
+import {
+  findCoworkerIdBySlug,
+  getCoworkerOptions,
+} from "@/app/tasks/utils/coworker-options";
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
@@ -14,13 +20,6 @@ import {
   parseTasksViewMode,
   TASKS_VIEW_MODE_COOKIE_NAME,
 } from "@/lib/ui-preferences/tasks-view-mode";
-
-import { TasksView } from "./components/tasks-view";
-import { buildAgentNameById } from "./utils/agent-names";
-import {
-  findCoworkerIdBySlug,
-  getCoworkerOptions,
-} from "./utils/coworker-options";
 
 interface TasksPageProps {
   searchParams: Promise<{ create?: string; coworker?: string }>;
