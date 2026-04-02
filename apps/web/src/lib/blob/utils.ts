@@ -3,43 +3,9 @@ import "server-only";
 import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/nextjs";
-import {
-  buildUserUploadPathname,
-  sanitizeUserUploadFilename,
-} from "@sokosumi/utils";
-import { type PutBlobResult, put } from "@vercel/blob";
+import { put } from "@vercel/blob";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-
-export async function uploadFileForUser(
-  userId: string,
-  inputFile: File,
-): Promise<PutBlobResult> {
-  const blob = await put(
-    buildUserUploadPathname(userId, inputFile.name),
-    inputFile,
-    {
-      access: "public",
-      addRandomSuffix: true,
-    },
-  );
-  return blob;
-}
-
-export async function uploadFileForBlob(
-  blobId: string,
-  inputFile: File,
-): Promise<PutBlobResult> {
-  const blob = await put(
-    `blobs/${blobId}/${sanitizeUserUploadFilename(inputFile.name)}`,
-    inputFile,
-    {
-      access: "public",
-      addRandomSuffix: true,
-    },
-  );
-  return blob;
-}
 
 /**
  * Uploads an image to Vercel Blob storage

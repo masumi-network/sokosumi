@@ -43,6 +43,9 @@ const USER_UPLOAD_ALLOWED_CONTENT_TYPES = [
   "video/quicktime",
   "video/webm",
 ] as const;
+const USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET = new Set(
+  USER_UPLOAD_ALLOWED_CONTENT_TYPES,
+);
 
 function normalizeContentType(contentType: string): string {
   return contentType.trim().toLowerCase();
@@ -60,6 +63,8 @@ const requestSchema = createUserFileUploadRequestSchema
     ),
   })
   .superRefine((data, ctx) => {
+    const normalizedContentType = normalizeContentType(data.contentType);
+
     if (
       data.maxSizeBytes !== undefined &&
       data.maxSizeBytes > LIMITS.USER_UPLOAD_MAX_SIZE_BYTES
@@ -77,6 +82,19 @@ const requestSchema = createUserFileUploadRequestSchema
         message: `File exceeds maximum size of ${data.maxSizeBytes} bytes`,
         path: ["size"],
       });
+    }
+
+    if (
+      !USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET.has(
+        normalizedContentType as (typeof USER_UPLOAD_ALLOWED_CONTENT_TYPES)[number],
+      )
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Unsupported content type: "${data.contentType}"`,
+        path: ["contentType"],
+      });
+      return;
     }
 
     if (!data.allowedContentTypes || data.allowedContentTypes.length === 0) {
@@ -100,7 +118,6 @@ const requestSchema = createUserFileUploadRequestSchema
       return;
     }
 
-    const normalizedContentType = normalizeContentType(data.contentType);
     const normalizedAllowedContentTypes = new Set(
       data.allowedContentTypes.map(normalizeContentType),
     );

@@ -162,6 +162,25 @@ describe("POST /uploads route", () => {
     expect(createUserFileUploadSessionMock).not.toHaveBeenCalled();
   });
 
+  it("returns 422 when contentType is unsupported without a custom allowlist", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/uploads", {
+      method: "POST",
+      body: JSON.stringify({
+        filename: "logo.bin",
+        contentType: "application/octet-stream",
+        size: 1000,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    expect(response.status).toBe(422);
+    expect(createUserFileUploadSessionMock).not.toHaveBeenCalled();
+  });
+
   it("creates a session with custom size and content-type constraints", async () => {
     const app = createApp();
     createUserFileUploadSessionMock.mockResolvedValue({
