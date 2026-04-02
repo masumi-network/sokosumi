@@ -1,5 +1,4 @@
 import { TaskStatus } from "@sokosumi/database";
-import Link from "next/link";
 
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import {
@@ -9,6 +8,8 @@ import {
 } from "@/components/ui/tooltip";
 import type { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
+
+import { TaskDetailLink } from "./task-detail-link";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
 
 interface TaskRelationRowProps {
@@ -63,7 +64,7 @@ export function TaskRelationRow({
   );
 
   return (
-    <Link
+    <TaskDetailLink
       href={`/tasks/${taskId}`}
       className="bg-muted/40 border-border/50 hover:bg-muted/60 flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors"
     >
@@ -81,6 +82,6 @@ export function TaskRelationRow({
         <p className="truncate text-sm">{taskName}</p>
       </div>
       <TaskStatusBadge status={taskStatus} className="shrink-0" />
-    </Link>
+    </TaskDetailLink>
   );
 }

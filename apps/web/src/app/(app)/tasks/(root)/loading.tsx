@@ -1,15 +1,14 @@
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
+import { TasksLoadingView } from "@/app/tasks/components/tasks-loading-view";
 import type { KanbanColumnId } from "@/lib/types/task";
 import {
   parseTasksViewMode,
   TASKS_VIEW_MODE_COOKIE_NAME,
 } from "@/lib/ui-preferences/tasks-view-mode";
 
-import { TasksLoadingView } from "./components/tasks-loading-view";
-
-export default async function TasksLoading() {
+export default async function TasksRootLoading() {
   const [t, tColumns, cookieStore] = await Promise.all([
     getTranslations("App.Tasks"),
     getTranslations("App.Tasks.Columns"),
