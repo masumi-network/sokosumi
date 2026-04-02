@@ -392,7 +392,7 @@ export type CreateUserFileUploadRequest = {
      */
     filename: string;
     /**
-     * Detected file content type
+     * Declared file MIME type from the client. When empty or generic (e.g. application/octet-stream), the server may infer an allowed type from the filename extension.
      */
     contentType: string;
     /**

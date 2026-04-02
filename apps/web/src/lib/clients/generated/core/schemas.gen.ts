@@ -1260,7 +1260,7 @@ export const CreateUserFileUploadRequestSchema = {
             minLength: 1,
             maxLength: 255,
             example: 'application/pdf',
-            description: 'Detected file content type'
+            description: 'Declared file MIME type from the client. When empty or generic (e.g. application/octet-stream), the server may infer an allowed type from the filename extension.'
         },
         size: {
             type: 'integer',

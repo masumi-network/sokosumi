@@ -3,11 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
 const getAgentsByIdInputSchemaMock = vi.fn();
+const postUsersMeUploadsMock = vi.fn();
 const createClientMock = vi.fn();
-const postMock = vi.fn();
 const mockClient = {
   id: "browser-core-client",
-  post: (...args: unknown[]) => postMock(...args),
 } as never;
 
 vi.mock("@/lib/clients/utils/core-api-base-url.browser", () => ({
@@ -20,6 +19,7 @@ vi.mock("@/lib/clients/generated/core/client", () => ({
 
 vi.mock("@/lib/clients/generated/core", () => ({
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
+  postUsersMeUploads: (...args: unknown[]) => postUsersMeUploadsMock(...args),
 }));
 
 describe("core.browser.client", () => {
@@ -76,7 +76,7 @@ describe("core.browser.client", () => {
   });
 
   it("creates direct upload sessions through the browser transport", async () => {
-    postMock.mockResolvedValue({
+    postUsersMeUploadsMock.mockResolvedValue({
       data: {
         data: {
           clientToken: "upload-token",
@@ -84,6 +84,10 @@ describe("core.browser.client", () => {
           pathname: "users/user_123/report.pdf",
           addRandomSuffix: true,
           maxSizeBytes: 1073741824,
+        },
+        meta: {
+          timestamp: new Date("2026-04-02T12:00:00.000Z"),
+          requestId: "req_upload",
         },
       },
       response: new Response("{}", { status: 201 }),
@@ -96,21 +100,20 @@ describe("core.browser.client", () => {
       size: 1234,
     });
 
-    expect(postMock).toHaveBeenCalledWith({
-      url: "/users/me/uploads",
-      security: [{ scheme: "bearer", type: "http" }],
-      cache: "no-store",
+    expect(postUsersMeUploadsMock).toHaveBeenCalledWith({
+      client: mockClient,
       body: {
         filename: "report.pdf",
         contentType: "application/pdf",
         size: 1234,
       },
+      cache: "no-store",
     });
     expect(response.data.pathname).toBe("users/user_123/report.pdf");
   });
 
   it("forwards optional upload constraints to the browser transport", async () => {
-    postMock.mockResolvedValue({
+    postUsersMeUploadsMock.mockResolvedValue({
       data: {
         data: {
           clientToken: "upload-token",
@@ -118,6 +121,10 @@ describe("core.browser.client", () => {
           pathname: "users/user_123/logo.png",
           addRandomSuffix: true,
           maxSizeBytes: 2097152,
+        },
+        meta: {
+          timestamp: new Date("2026-04-02T12:00:00.000Z"),
+          requestId: "req_upload",
         },
       },
       response: new Response("{}", { status: 201 }),
@@ -132,10 +139,8 @@ describe("core.browser.client", () => {
       allowedContentTypes: ["image/png", "image/jpeg"],
     });
 
-    expect(postMock).toHaveBeenCalledWith({
-      url: "/users/me/uploads",
-      security: [{ scheme: "bearer", type: "http" }],
-      cache: "no-store",
+    expect(postUsersMeUploadsMock).toHaveBeenCalledWith({
+      client: mockClient,
       body: {
         filename: "logo.png",
         contentType: "image/png",
@@ -143,6 +148,7 @@ describe("core.browser.client", () => {
         maxSizeBytes: 2097152,
         allowedContentTypes: ["image/png", "image/jpeg"],
       },
+      cache: "no-store",
     });
   });
 });

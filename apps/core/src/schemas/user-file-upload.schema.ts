@@ -8,7 +8,8 @@ export const createUserFileUploadRequestSchema = z
     }),
     contentType: z.string().trim().min(1).max(255).openapi({
       example: "application/pdf",
-      description: "Detected file content type",
+      description:
+        "Declared file MIME type from the client. When empty or generic (e.g. application/octet-stream), the server may infer an allowed type from the filename extension.",
     }),
     size: z.number().int().positive().openapi({
       example: 2_048_000,

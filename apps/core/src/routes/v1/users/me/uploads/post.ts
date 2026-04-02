@@ -1,4 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import {
+  resolveUserUploadContentType,
+  USER_UPLOAD_ALLOWED_CONTENT_TYPES,
+} from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
@@ -13,42 +17,8 @@ import {
   userFileUploadSessionSchema,
 } from "@/schemas/user-file-upload.schema";
 
-const USER_UPLOAD_ALLOWED_CONTENT_TYPES = [
-  "application/gzip",
-  "application/json",
-  "application/msword",
-  "application/pdf",
-  "application/vnd.ms-excel",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/x-tar",
-  "application/zip",
-  "audio/m4a",
-  "audio/mp4",
-  "audio/mpeg",
-  "audio/wav",
-  "audio/webm",
-  "image/gif",
-  "image/heic",
-  "image/jpeg",
-  "image/png",
-  "image/svg+xml",
-  "image/webp",
-  "text/csv",
-  "text/markdown",
-  "text/plain",
-  "video/mp4",
-  "video/quicktime",
-  "video/webm",
-] as const;
-const USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET = new Set(
-  USER_UPLOAD_ALLOWED_CONTENT_TYPES,
-);
-
 function normalizeContentType(contentType: string): string {
-  return contentType.trim().toLowerCase();
+  return contentType.trim().split(";")[0]!.trim().toLowerCase();
 }
 
 function formatUnsupportedContentTypes(contentTypes: string[]): string {
@@ -63,8 +33,6 @@ const requestSchema = createUserFileUploadRequestSchema
     ),
   })
   .superRefine((data, ctx) => {
-    const normalizedContentType = normalizeContentType(data.contentType);
-
     if (
       data.maxSizeBytes !== undefined &&
       data.maxSizeBytes > LIMITS.USER_UPLOAD_MAX_SIZE_BYTES
@@ -84,11 +52,11 @@ const requestSchema = createUserFileUploadRequestSchema
       });
     }
 
-    if (
-      !USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET.has(
-        normalizedContentType as (typeof USER_UPLOAD_ALLOWED_CONTENT_TYPES)[number],
-      )
-    ) {
+    const resolvedContentType = resolveUserUploadContentType(
+      data.filename,
+      data.contentType,
+    );
+    if (!resolvedContentType) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `Unsupported content type: "${data.contentType}"`,
@@ -121,7 +89,7 @@ const requestSchema = createUserFileUploadRequestSchema
     const normalizedAllowedContentTypes = new Set(
       data.allowedContentTypes.map(normalizeContentType),
     );
-    if (!normalizedAllowedContentTypes.has(normalizedContentType)) {
+    if (!normalizedAllowedContentTypes.has(resolvedContentType)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
@@ -198,9 +166,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const allowedContentTypes =
       uploadRequest.allowedContentTypes?.map(normalizeContentType);
 
+    const resolvedContentType = resolveUserUploadContentType(
+      uploadRequest.filename,
+      uploadRequest.contentType,
+    )!;
+
     const sessionInput: Parameters<typeof createUserFileUploadSession>[1] = {
       filename: uploadRequest.filename,
-      contentType: normalizeContentType(uploadRequest.contentType),
+      contentType: resolvedContentType,
       size: uploadRequest.size,
       maxSizeBytes,
     };

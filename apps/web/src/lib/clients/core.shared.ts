@@ -13,6 +13,7 @@ import type {
   GetTasksData,
   PaginationMetadata,
   PostTasksByIdLinksData,
+  PostUsersMeUploadsData,
   PutJobsByIdShareError,
   PutTasksByIdShareError,
 } from "@/lib/clients/generated/core";
@@ -45,6 +46,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
+  postUsersMeUploads as corePostUsersMeUploads,
   putJobsByIdShare as corePutJobsByIdShare,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -62,14 +64,6 @@ export interface CoreApiMeta {
 export interface CoreApiResponse<T> {
   data: T;
   meta?: CoreApiMeta;
-}
-
-export interface UserFileUploadSessionData {
-  clientToken: string;
-  access: "public";
-  pathname: string;
-  addRandomSuffix: boolean;
-  maxSizeBytes: number;
 }
 
 export class CoreApiRequestError extends Error {
@@ -636,39 +630,17 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function createMyFileUploadSession(body: {
-    filename: string;
-    contentType: string;
-    size: number;
-    allowedContentTypes?: string[];
-    maxSizeBytes?: number;
-  }) {
+  async function createMyFileUploadSession(
+    body: NonNullable<PostUsersMeUploadsData["body"]>,
+  ) {
     return executeOperation(
       getClient,
-      async (client) => {
-        const result = await client.post({
-          url: "/users/me/uploads",
-          security: [{ scheme: "bearer", type: "http" }],
-          cache: "no-store",
+      (client) =>
+        corePostUsersMeUploads({
+          client,
           body,
-        });
-
-        if (result.error) {
-          return {
-            data: undefined,
-            error: result.error,
-            response: result.response,
-          };
-        }
-
-        return {
-          data: result.data as
-            | CoreApiResponse<UserFileUploadSessionData>
-            | undefined,
-          error: undefined,
-          response: result.response,
-        };
-      },
+          cache: "no-store",
+        }),
       "Failed to create upload session",
     );
   }

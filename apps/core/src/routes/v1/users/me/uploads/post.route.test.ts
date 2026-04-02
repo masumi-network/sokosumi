@@ -124,6 +124,34 @@ describe("POST /uploads route", () => {
     );
   });
 
+  it("resolves application/octet-stream from the filename when the browser omits a specific MIME type", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/uploads", {
+      method: "POST",
+      body: JSON.stringify({
+        filename: "report.pdf",
+        contentType: "application/octet-stream",
+        size: 2_048_000,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    expect(response.status).toBe(201);
+    expect(createUserFileUploadSessionMock).toHaveBeenCalledWith(
+      "user_123",
+      {
+        filename: "report.pdf",
+        contentType: "application/pdf",
+        size: 2_048_000,
+        maxSizeBytes: LIMITS.USER_UPLOAD_MAX_SIZE_BYTES,
+      },
+      "blob-token",
+    );
+  });
+
   it("returns 422 for oversized uploads", async () => {
     const app = createApp();
 

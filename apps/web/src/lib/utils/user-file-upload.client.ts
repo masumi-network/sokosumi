@@ -1,4 +1,5 @@
 import type { InputSchemaType } from "@sokosumi/masumi/schemas";
+import { resolveUserUploadContentType } from "@sokosumi/utils";
 import { put } from "@vercel/blob/client";
 import {
   CoreApiRequestError,
@@ -153,7 +154,13 @@ export async function uploadUserFileDirect(
     throw new UserFileUploadError("invalid", "File is required.");
   }
 
-  const contentType = file.type || "application/octet-stream";
+  const contentType = resolveUserUploadContentType(file.name, file.type);
+  if (!contentType) {
+    throw new UserFileUploadError(
+      "unsupported_type",
+      "File type could not be determined. Use a supported format or a file name with a known extension.",
+    );
+  }
 
   try {
     const sessionBody: {
