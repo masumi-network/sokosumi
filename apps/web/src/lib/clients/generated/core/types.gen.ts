@@ -6196,6 +6196,109 @@ export type PutJobsByIdShareResponses = {
 
 export type PutJobsByIdShareResponse = PutJobsByIdShareResponses[keyof PutJobsByIdShareResponses];
 
+export type PutJobsByIdWorkspaceData = {
+    body?: {
+        organizationId: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/jobs/{id}/workspace';
+};
+
+export type PutJobsByIdWorkspaceErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutJobsByIdWorkspaceError = PutJobsByIdWorkspaceErrors[keyof PutJobsByIdWorkspaceErrors];
+
+export type PutJobsByIdWorkspaceResponses = {
+    /**
+     * Change job workspace
+     */
+    200: {
+        data: Job;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutJobsByIdWorkspaceResponse = PutJobsByIdWorkspaceResponses[keyof PutJobsByIdWorkspaceResponses];
+
 export type GetShareByTokenData = {
     body?: never;
     path: {
@@ -8121,19 +8224,6 @@ export type PutTasksByIdWorkspaceErrors = {
      * Not Found
      */
     404: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
         error: string;
         message: string;
         meta: {

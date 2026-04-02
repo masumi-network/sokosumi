@@ -2,8 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 
-import { requireUserTaskAccess } from "@/helpers/access-control";
-import { conflict } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
@@ -46,7 +45,6 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -54,12 +52,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
-    const { organizationId } = c.req.valid("json");
+    const { organizationId: targetOrganizationId } = c.req.valid("json");
 
     const task = await prisma.$transaction(
       async (tx) => {
-        const task = await requireUserTaskAccess(authContext, id, tx);
-        const workspaceChanged = organizationId !== task.organizationId;
+        const task = await tx.task.findFirst({
+          where: {
+            id,
+            userId: authContext.userId,
+            archivedAt: null,
+          },
+          select: {
+            workspace: {
+              select: {
+                organizationId: true,
+              },
+            },
+          },
+        });
+
+        if (!task) {
+          throw notFound("Task not found");
+        }
+
+        const workspaceChanged =
+          targetOrganizationId !== task.workspace.organizationId;
 
         if (!workspaceChanged) {
           return await tx.task.findUniqueOrThrow({
@@ -68,42 +85,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
 
-        const existingJobsCount = await tx.job.count({
-          where: { taskId: id },
-        });
-        if (existingJobsCount > 0) {
-          throw conflict(
-            "You can only change workspace before the task has any jobs",
-          );
-        }
-
-        const taskEventsWithTransactionCount = await tx.taskEvent.count({
-          where: {
-            taskId: id,
-            transactionId: { not: null },
-          },
-        });
-        const hasLinkedTransactionEvent = taskEventsWithTransactionCount > 0;
-        if (hasLinkedTransactionEvent) {
-          throw conflict(
-            "You can only change workspace before the task has events linked to a transaction",
-          );
-        }
-
-        const taskLinksCount = await tx.taskLink.count({
-          where: {
-            OR: [{ fromTaskId: id }, { toTaskId: id }],
-          },
-        });
-        if (taskLinksCount > 0) {
-          throw conflict(
-            "You can only change workspace before the task has any links",
-          );
-        }
-
-        if (organizationId !== null) {
+        // `null` targets the authenticated user's personal workspace.
+        if (targetOrganizationId !== null) {
           await resolveMemberOrganizationById({
-            id: organizationId,
+            id: targetOrganizationId,
             userId: authContext.userId,
             tx,
           });
@@ -111,26 +96,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         const workspace = await resolveWorkspaceForContext(
           authContext.userId,
-          organizationId,
+          targetOrganizationId,
           tx,
         );
 
-        const updateResult = await tx.task.updateMany({
+        await tx.task.update({
           where: {
             id,
-            userId: authContext.userId,
-            organizationId: authContext.organizationId,
-            archivedAt: null,
-            status: task.status,
           },
           data: {
-            organizationId,
             workspaceId: workspace.id,
           },
         });
-        if (updateResult.count !== 1) {
-          throw conflict("Task status was changed by another request");
-        }
+
+        await tx.job.updateMany({
+          where: { taskId: id },
+          data: {
+            workspaceId: workspace.id,
+          },
+        });
 
         return await tx.task.findUniqueOrThrow({
           where: { id },

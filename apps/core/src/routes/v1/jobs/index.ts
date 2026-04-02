@@ -7,6 +7,7 @@ import mountPostInputsByJobId from "./[id]/inputs/post.js";
 import mountGetLinksByJobId from "./[id]/links/get.js";
 import mountDeleteJobShareById from "./[id]/share/delete.js";
 import mountPutJobShareById from "./[id]/share/put.js";
+import mountPutJobWorkspaceById from "./[id]/workspace/put.js";
 import mountGetJobs from "./get.js";
 
 const app = new OpenAPIHonoWithAuth();
@@ -20,5 +21,6 @@ mountPostInputsByJobId(app);
 mountGetEventsByJobId(app);
 mountPutJobShareById(app);
 mountDeleteJobShareById(app);
+mountPutJobWorkspaceById(app);
 
 export default app;

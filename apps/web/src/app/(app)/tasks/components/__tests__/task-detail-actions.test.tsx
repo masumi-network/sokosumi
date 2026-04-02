@@ -674,7 +674,7 @@ describe("TaskDetailActions", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides move to workspace when the task already has jobs", async () => {
+  it("keeps move to workspace available when the task already has jobs", async () => {
     const user = userEvent.setup();
 
     renderActions({
@@ -684,8 +684,8 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
     expect(
-      screen.queryByRole("menuitem", { name: "Move to workspace" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("menuitem", { name: "Move to workspace" }),
+    ).toBeInTheDocument();
   });
 
   it("loads task options from the browser core client when the picker opens", async () => {

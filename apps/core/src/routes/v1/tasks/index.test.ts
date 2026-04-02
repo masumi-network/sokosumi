@@ -98,12 +98,12 @@ describe("tasks routes OpenAPI query contract", () => {
 
     expect(getQueryDescriptionFromGetOperation(doc, "/", "scope")).toBe("");
     expect(getQueryDescriptionFromGetOperation(doc, "/{id}", "scope")).toBe("");
-    expect(getQueryDescriptionFromGetOperation(doc, "/{id}/jobs", "scope")).toBe(
-      "",
-    );
-    expect(getQueryDescriptionFromGetOperation(doc, "/{id}/links", "scope")).toBe(
-      "",
-    );
+    expect(
+      getQueryDescriptionFromGetOperation(doc, "/{id}/jobs", "scope"),
+    ).toBe("");
+    expect(
+      getQueryDescriptionFromGetOperation(doc, "/{id}/links", "scope"),
+    ).toBe("");
   });
 
   it("exposes multi-status query parameter for the task list endpoint", () => {
@@ -173,7 +173,7 @@ describe("tasks routes OpenAPI query contract", () => {
 
     expect(patchSchema?.properties).not.toHaveProperty("organizationId");
     expect(workspaceSchema?.properties).toHaveProperty("organizationId");
-    expect(workspaceResponses).toHaveProperty("409");
+    expect(workspaceResponses).not.toHaveProperty("409");
   });
 
   it("exposes a dedicated task-link metadata patch route", () => {

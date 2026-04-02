@@ -49,6 +49,9 @@ describe("jobs routes OpenAPI scope contract", () => {
 
     expect(doc.paths?.["/{id}/share"]?.put?.responses).toHaveProperty("200");
     expect(doc.paths?.["/{id}/share"]?.delete?.responses).toHaveProperty("200");
+    expect(doc.paths?.["/{id}/workspace"]?.put?.responses).toHaveProperty(
+      "409",
+    );
   });
 
   it("uses summary schema for lists and details schema for single-job reads", () => {
