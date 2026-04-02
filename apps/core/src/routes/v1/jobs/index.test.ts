@@ -25,7 +25,7 @@ function getScopeDescriptionFromGetOperation(
 }
 
 describe("jobs routes OpenAPI scope contract", () => {
-  it("does not expose scope query parameter on the job list endpoint", () => {
+  it("does not expose scope query parameter on job read endpoints", () => {
     const doc = jobsRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -35,12 +35,7 @@ describe("jobs routes OpenAPI scope contract", () => {
     });
 
     expect(getScopeDescriptionFromGetOperation(doc, "/")).toBe("");
-    expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toContain(
-      "Allowed values: context, owned",
-    );
-    expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).not.toContain(
-      "shared",
-    );
+    expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toBe("");
   });
 
   it("documents dedicated share mutation routes", () => {

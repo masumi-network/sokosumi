@@ -63,12 +63,9 @@ export const taskService = (() => {
     };
   }
 
-  async function getTaskById(
-    taskId: string,
-    scope: Array<"context" | "owned"> = ["owned"],
-  ): Promise<Task | null> {
+  async function getTaskById(taskId: string): Promise<Task | null> {
     try {
-      const result = await coreClient.getTaskById(taskId, scope);
+      const result = await coreClient.getTaskById(taskId);
       return result.data;
     } catch {
       return null;

@@ -55,7 +55,7 @@ vi.mock("@/middleware/auth", () => ({
 }));
 
 vi.mock("@/helpers/access-control.js", () => ({
-  requireScopedJobReadAccess: vi.fn(async () => undefined),
+  requireJobReadAccess: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -187,9 +187,7 @@ describe("GET /jobs/{id}", () => {
   it("returns a rich job details payload", async () => {
     const app = createApp();
 
-    const response = await app.request(
-      "http://localhost/job_123?scope=context",
-    );
+    const response = await app.request("http://localhost/job_123");
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -220,9 +218,7 @@ describe("GET /jobs/{id}", () => {
     jobFindUniqueMock.mockResolvedValue(null);
     const app = createApp();
 
-    const response = await app.request(
-      "http://localhost/job_123?scope=context",
-    );
+    const response = await app.request("http://localhost/job_123");
 
     expect(response.status).toBe(404);
   });

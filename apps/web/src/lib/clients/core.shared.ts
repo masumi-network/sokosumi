@@ -349,17 +349,13 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getTaskById(
-    id: string,
-    scope: Array<"context" | "owned"> = ["owned"],
-  ) {
+  async function getTaskById(id: string) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetTasksById({
           client,
           path: { id },
-          query: { scope },
           cache: "no-store",
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),
@@ -381,17 +377,13 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getJobById(
-    id: string,
-    scope: Array<"context" | "owned"> = ["owned"],
-  ) {
+  async function getJobById(id: string) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetJobsById({
           client,
           path: { id },
-          query: { scope },
           cache: "no-store",
         }),
       "Failed to fetch job",

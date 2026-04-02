@@ -569,13 +569,12 @@ describe("core.client", () => {
     );
 
     const { coreClient } = await import("../core.client");
-    const response = await coreClient.getTaskById("task_1", ["owned"]);
+    const response = await coreClient.getTaskById("task_1");
 
     expect(getTasksByIdMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
       path: { id: "task_1" },
-      query: { scope: ["owned"] },
       responseTransformer: expect.any(Function),
     });
     expect(response.data.share).toBeNull();

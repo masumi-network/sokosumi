@@ -47,7 +47,7 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const taskResult = await taskService.getTaskById(taskId, ["owned"]);
+  const taskResult = await taskService.getTaskById(taskId);
 
   if (!taskResult) {
     return notFound();

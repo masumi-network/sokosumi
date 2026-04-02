@@ -66,7 +66,7 @@ describe("feed.service", () => {
     const { feedService } = await import("../feed.service");
     const item = await feedService.getMyFeedItemByFeedId("job-job-1");
 
-    expect(coreClientMock.getJobById).toHaveBeenCalledWith("job-1", ["owned"]);
+    expect(coreClientMock.getJobById).toHaveBeenCalledWith("job-1");
     expect(item?.type).toBe("job");
   });
 
@@ -90,9 +90,7 @@ describe("feed.service", () => {
     const { feedService } = await import("../feed.service");
     const item = await feedService.getMyFeedItemByFeedId("task-task-1");
 
-    expect(coreClientMock.getTaskById).toHaveBeenCalledWith("task-1", [
-      "owned",
-    ]);
+    expect(coreClientMock.getTaskById).toHaveBeenCalledWith("task-1");
     expect(item?.type).toBe("task");
   });
 });

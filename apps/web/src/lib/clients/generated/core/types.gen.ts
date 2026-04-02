@@ -5471,12 +5471,7 @@ export type GetJobsByIdData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/jobs/{id}';
 };
 
@@ -7412,12 +7407,7 @@ export type GetTasksByIdLinksData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/tasks/{id}/links';
 };
 
@@ -7797,12 +7787,7 @@ export type GetTasksByIdData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/tasks/{id}';
 };
 
@@ -8356,12 +8341,7 @@ export type GetTasksByIdJobsData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/tasks/{id}/jobs';
 };
 

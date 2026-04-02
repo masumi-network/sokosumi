@@ -131,9 +131,7 @@ describe("task.service", () => {
     const { taskService } = await import("../task.service");
     const result = await taskService.getTaskById("task-missing");
 
-    expect(coreClientMock.getTaskById).toHaveBeenCalledWith("task-missing", [
-      "owned",
-    ]);
+    expect(coreClientMock.getTaskById).toHaveBeenCalledWith("task-missing");
     expect(result).toBeNull();
   });
 

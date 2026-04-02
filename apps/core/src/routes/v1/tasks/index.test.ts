@@ -87,7 +87,7 @@ function getJsonResponseSchema(
 }
 
 describe("tasks routes OpenAPI query contract", () => {
-  it("does not expose scope query parameter on the task list endpoint", () => {
+  it("does not expose scope query parameter on task read endpoints", () => {
     const doc = tasksRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -97,15 +97,13 @@ describe("tasks routes OpenAPI query contract", () => {
     });
 
     expect(getQueryDescriptionFromGetOperation(doc, "/", "scope")).toBe("");
-    expect(
-      getQueryDescriptionFromGetOperation(doc, "/{id}", "scope"),
-    ).toContain("Allowed values: context, owned");
-    expect(
-      getQueryDescriptionFromGetOperation(doc, "/{id}/jobs", "scope"),
-    ).toContain("Allowed values: context, owned");
-    expect(
-      getQueryDescriptionFromGetOperation(doc, "/{id}/links", "scope"),
-    ).toContain("Allowed values: context, owned");
+    expect(getQueryDescriptionFromGetOperation(doc, "/{id}", "scope")).toBe("");
+    expect(getQueryDescriptionFromGetOperation(doc, "/{id}/jobs", "scope")).toBe(
+      "",
+    );
+    expect(getQueryDescriptionFromGetOperation(doc, "/{id}/links", "scope")).toBe(
+      "",
+    );
   });
 
   it("exposes multi-status query parameter for the task list endpoint", () => {

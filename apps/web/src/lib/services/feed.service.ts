@@ -291,7 +291,7 @@ export const feedService = (() => {
     if (feedId.startsWith("job-")) {
       const jobId = feedId.replace("job-", "");
       try {
-        const { data: job } = await coreClient.getJobById(jobId, ["owned"]);
+        const { data: job } = await coreClient.getJobById(jobId);
         if (job.status !== "completed" || !job.result) {
           return null;
         }
@@ -306,7 +306,7 @@ export const feedService = (() => {
     if (feedId.startsWith("task-")) {
       const taskId = feedId.replace("task-", "");
       try {
-        const { data: task } = await coreClient.getTaskById(taskId, ["owned"]);
+        const { data: task } = await coreClient.getTaskById(taskId);
         if (task.status !== "COMPLETED") {
           return null;
         }
