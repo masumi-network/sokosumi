@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useState } from "react";
 
 import type { CoworkerOption } from "@/lib/types/coworker";
 
+import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import { TaskForm } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 
@@ -139,6 +140,14 @@ export function CreateTaskModal({
           back: t("back"),
           uploadFile: t("uploadFile"),
           uploadFileError: t("uploadFileError"),
+          uploadingFile: getTaskAttachmentUploadLabelTemplate(
+            t,
+            "uploadingFile",
+          ),
+          uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+            t,
+            "uploadingFiles",
+          ),
           removeAttachment: t("removeAttachment"),
           submit: t("saveDraft"),
           saveAsDraft: t("saveAsDraft"),

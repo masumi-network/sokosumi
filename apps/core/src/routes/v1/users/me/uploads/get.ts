@@ -4,18 +4,18 @@ import { getEnv } from "@/config/env";
 import { serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { listUserFiles } from "@/lib/blob";
+import { listUserUploads } from "@/lib/blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { blobFilesSchema } from "@/schemas/blob-file.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/files",
-  description: "Get uploaded files for the current user",
+  path: "/uploads",
+  description: "Get uploads for the current user",
   tags: ["Users"],
   responses: {
-    200: jsonSuccessResponse(blobFilesSchema, "Retrieve user files", {
+    200: jsonSuccessResponse(blobFilesSchema, "Retrieve user uploads", {
       data: [
         {
           publicUrl:
@@ -51,8 +51,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw serviceUnavailable("Blob storage is not configured");
     }
 
-    const files = await listUserFiles(authContext.userId, token);
+    const uploads = await listUserUploads(authContext.userId, token);
 
-    return ok(c, blobFilesSchema.parse(files));
+    return ok(c, blobFilesSchema.parse(uploads));
   });
 }

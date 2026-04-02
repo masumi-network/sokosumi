@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
 const getAgentsByIdInputSchemaMock = vi.fn();
-const postUsersMeFilesMock = vi.fn();
+const postUsersMeUploadsMock = vi.fn();
 const createClientMock = vi.fn();
-const mockClient = { id: "browser-core-client" } as never;
+const mockClient = {
+  id: "browser-core-client",
+} as never;
 
 vi.mock("@/lib/clients/utils/core-api-base-url.browser", () => ({
   getBrowserCoreApiBaseUrl: () => "https://api.sokosumi.com/v1",
@@ -17,7 +19,7 @@ vi.mock("@/lib/clients/generated/core/client", () => ({
 
 vi.mock("@/lib/clients/generated/core", () => ({
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
-  postUsersMeFiles: postUsersMeFilesMock,
+  postUsersMeUploads: (...args: unknown[]) => postUsersMeUploadsMock(...args),
 }));
 
 describe("core.browser.client", () => {
@@ -73,36 +75,80 @@ describe("core.browser.client", () => {
     });
   });
 
-  it("uploads files through the browser transport", async () => {
-    const file = new File(["hello"], "report.pdf", {
-      type: "application/pdf",
-    });
-
-    postUsersMeFilesMock.mockResolvedValue({
+  it("creates direct upload sessions through the browser transport", async () => {
+    postUsersMeUploadsMock.mockResolvedValue({
       data: {
         data: {
-          publicUrl: "https://blob.example/users/user_123/report.pdf",
-          metadata: {
-            pathname: "users/user_123/report.pdf",
-            downloadUrl: "https://blob.example/download/report.pdf",
-            size: 5,
-            uploadedAt: "2026-03-24T12:00:00.000Z",
-            etag: '"etag-123"',
-          },
+          clientToken: "upload-token",
+          access: "public",
+          pathname: "users/user_123/report.pdf",
+          addRandomSuffix: true,
+          maxSizeBytes: 1073741824,
+        },
+        meta: {
+          timestamp: new Date("2026-04-02T12:00:00.000Z"),
+          requestId: "req_upload",
         },
       },
       response: new Response("{}", { status: 201 }),
     });
 
     const { coreClient } = await import("../core.browser.client");
-    const response = await coreClient.uploadMyFile(file);
-
-    expect(postUsersMeFilesMock).toHaveBeenCalledWith({
-      client: mockClient,
-      body: { file },
+    const response = await coreClient.createMyFileUploadSession({
+      filename: "report.pdf",
+      contentType: "application/pdf",
+      size: 1234,
     });
-    expect(response.data.publicUrl).toBe(
-      "https://blob.example/users/user_123/report.pdf",
-    );
+
+    expect(postUsersMeUploadsMock).toHaveBeenCalledWith({
+      client: mockClient,
+      body: {
+        filename: "report.pdf",
+        contentType: "application/pdf",
+        size: 1234,
+      },
+      cache: "no-store",
+    });
+    expect(response.data.pathname).toBe("users/user_123/report.pdf");
+  });
+
+  it("forwards optional upload constraints to the browser transport", async () => {
+    postUsersMeUploadsMock.mockResolvedValue({
+      data: {
+        data: {
+          clientToken: "upload-token",
+          access: "public",
+          pathname: "users/user_123/logo.png",
+          addRandomSuffix: true,
+          maxSizeBytes: 2097152,
+        },
+        meta: {
+          timestamp: new Date("2026-04-02T12:00:00.000Z"),
+          requestId: "req_upload",
+        },
+      },
+      response: new Response("{}", { status: 201 }),
+    });
+
+    const { coreClient } = await import("../core.browser.client");
+    await coreClient.createMyFileUploadSession({
+      filename: "logo.png",
+      contentType: "image/png",
+      size: 1024,
+      maxSizeBytes: 2097152,
+      allowedContentTypes: ["image/png", "image/jpeg"],
+    });
+
+    expect(postUsersMeUploadsMock).toHaveBeenCalledWith({
+      client: mockClient,
+      body: {
+        filename: "logo.png",
+        contentType: "image/png",
+        size: 1024,
+        maxSizeBytes: 2097152,
+        allowedContentTypes: ["image/png", "image/jpeg"],
+      },
+      cache: "no-store",
+    });
   });
 });

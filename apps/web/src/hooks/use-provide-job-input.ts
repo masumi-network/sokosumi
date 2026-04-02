@@ -12,6 +12,10 @@ import {
   prepareInputValues,
 } from "@/lib/job-input";
 import { mergeReadonlyInputValues } from "@/lib/utils/job-input-transformers";
+import {
+  getUserFileUploadErrorMessage,
+  uploadInputDataFiles,
+} from "@/lib/utils/user-file-upload.client";
 
 export interface UseProvideJobInputOptions {
   jobId: string;
@@ -45,6 +49,13 @@ export function useProvideJobInput({
 
       try {
         const transformedInputData = prepareInputValues(allValues);
+        try {
+          await uploadInputDataFiles(transformedInputData);
+        } catch (_error) {
+          setIsSubmitting(false);
+          toast.error(getUserFileUploadErrorMessage(_error, t("submitError")));
+          return;
+        }
         const inputData = mergeReadonlyInputValues(
           transformedInputData,
           readonlyInputValues,

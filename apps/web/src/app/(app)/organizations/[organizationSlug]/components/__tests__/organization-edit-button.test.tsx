@@ -10,8 +10,8 @@ import {
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { uploadOrganizationLogo } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
+import { uploadUserFileDirect } from "@/lib/utils/user-file-upload.client";
 import OrganizationEditButton from "../organization-edit-button";
 
 vi.mock("next/navigation", () => ({
@@ -29,7 +29,6 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/lib/actions/organization", () => ({
-  uploadOrganizationLogo: vi.fn(),
   updatePreferredOrganization: vi.fn(),
 }));
 
@@ -46,7 +45,11 @@ vi.mock("@/lib/actions", () => ({
   generateOrganizationSlug: vi.fn(),
 }));
 
-const mockedUploadLogo = vi.mocked(uploadOrganizationLogo);
+vi.mock("@/lib/utils/user-file-upload.client", () => ({
+  uploadUserFileDirect: vi.fn(),
+}));
+
+const mockedUploadLogo = vi.mocked(uploadUserFileDirect);
 const mockedOrganizationUpdate = vi.mocked(authClient.organization.update);
 
 function createOrganization(
@@ -98,8 +101,14 @@ describe("OrganizationEditButton", () => {
       "https://otherstore.public.blob.vercel-storage.com/org/logo.png";
 
     mockedUploadLogo.mockResolvedValue({
-      ok: true,
-      data: uploadedUrl,
+      publicUrl: uploadedUrl,
+      metadata: {
+        pathname: "users/user_123/logo.png",
+        downloadUrl: "https://blob.example/download/logo.png",
+        size: 1,
+        uploadedAt: new Date("2026-03-24T12:00:00.000Z"),
+        etag: '"etag-123"',
+      },
     });
 
     const user = userEvent.setup();
