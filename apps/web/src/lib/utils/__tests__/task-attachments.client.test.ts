@@ -2,12 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 
-const uploadMyFileMock = vi.fn();
+const uploadUserFileDirectMock = vi.fn();
 
-vi.mock("@/lib/clients/core.browser.client", () => ({
-  coreClient: {
-    uploadMyFile: (...args: unknown[]) => uploadMyFileMock(...args),
-  },
+vi.mock("@/lib/utils/user-file-upload.client", () => ({
+  uploadUserFileDirect: (...args: unknown[]) =>
+    uploadUserFileDirectMock(...args),
 }));
 
 describe("task-attachments.client", () => {
@@ -15,32 +14,40 @@ describe("task-attachments.client", () => {
     vi.clearAllMocks();
   });
 
-  it("uploads task attachments through the Core browser client", async () => {
+  it("uploads task attachments through the direct upload helper", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
+    const abortController = new AbortController();
+    const onUploadProgress = vi.fn();
 
-    uploadMyFileMock.mockResolvedValue({
-      data: {
-        publicUrl: "https://blob.example/users/user_123/report.pdf",
-      },
+    uploadUserFileDirectMock.mockResolvedValue({
+      publicUrl: "https://blob.example/users/user_123/report.pdf",
     });
 
-    await expect(uploadTaskAttachment(file)).resolves.toBe(
-      "https://blob.example/users/user_123/report.pdf",
-    );
-    expect(uploadMyFileMock).toHaveBeenCalledWith(file);
+    await expect(
+      uploadTaskAttachment(file, {
+        abortSignal: abortController.signal,
+        onUploadProgress,
+      }),
+    ).resolves.toBe("https://blob.example/users/user_123/report.pdf");
+    expect(uploadUserFileDirectMock).toHaveBeenCalledWith(file, {
+      abortSignal: abortController.signal,
+      onUploadProgress,
+    });
   });
 
-  it("throws a generic error when the Core upload fails", async () => {
+  it("preserves direct upload errors", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
 
-    uploadMyFileMock.mockRejectedValue(new Error("Unauthorized"));
+    uploadUserFileDirectMock.mockRejectedValue(
+      new Error("Network error while uploading file. Please try again."),
+    );
 
     await expect(uploadTaskAttachment(file)).rejects.toThrow(
-      "Failed to upload file",
+      "Network error while uploading file. Please try again.",
     );
   });
 });

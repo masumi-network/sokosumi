@@ -33,13 +33,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { generateOrganizationSlug } from "@/lib/actions";
-import {
-  updatePreferredOrganization,
-  uploadOrganizationLogo,
-} from "@/lib/actions/organization";
+import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   ORGANIZATION_LOGO_ACCEPT,
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
@@ -47,6 +45,10 @@ import {
   type OrganizationInformationFormSchemaType,
   organizationInformationFormSchema,
 } from "@/lib/schemas";
+import {
+  getUserFileUploadErrorMessage,
+  uploadUserFileDirect,
+} from "@/lib/utils/user-file-upload.client";
 
 import { organizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
@@ -142,20 +144,23 @@ export default function OrganizationInformationForm({
       setIsUploadingLogo(true);
       onLogoUploadBusyChange?.(true);
       try {
-        const uploadResult = await raceWithTimeout(
-          uploadOrganizationLogo({ file: logoFile }),
+        const uploadedFile = await raceWithTimeout(
+          uploadUserFileDirect(logoFile, {
+            allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
+            maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+          }),
           ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
         );
-        if (!uploadResult.ok) {
-          toast.error(
-            uploadResult.error.message ?? t("Fields.Logo.uploadError"),
-          );
-          return;
-        }
-
-        form.setValue("logo", uploadResult.data, { shouldDirty: true });
-      } catch (_error) {
-        toast.error(t("Fields.Logo.uploadError"));
+        form.setValue("logo", uploadedFile.publicUrl, { shouldDirty: true });
+      } catch (error) {
+        toast.error(
+          error instanceof LogoUploadClientTimeoutError
+            ? t("Fields.Logo.uploadError")
+            : getUserFileUploadErrorMessage(
+                error,
+                t("Fields.Logo.uploadError"),
+              ),
+        );
       } finally {
         setPendingLogoFiles([]);
         setIsUploadingLogo(false);

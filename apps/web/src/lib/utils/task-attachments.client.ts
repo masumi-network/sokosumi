@@ -1,16 +1,17 @@
-import { coreClient } from "@/lib/clients/core.browser.client";
+import {
+  type UploadUserFileDirectOptions,
+  uploadUserFileDirect,
+} from "@/lib/utils/user-file-upload.client";
 
-export async function uploadTaskAttachment(file: File): Promise<string> {
-  try {
-    const response = await coreClient.uploadMyFile(file);
-    const url = response.data.publicUrl;
+export type UploadTaskAttachmentOptions = Pick<
+  UploadUserFileDirectOptions,
+  "abortSignal" | "onUploadProgress"
+>;
 
-    if (!url) {
-      throw new Error("Failed to upload file");
-    }
-
-    return url;
-  } catch {
-    throw new Error("Failed to upload file");
-  }
+export async function uploadTaskAttachment(
+  file: File,
+  options: UploadTaskAttachmentOptions = {},
+): Promise<string> {
+  const response = await uploadUserFileDirect(file, options);
+  return response.publicUrl;
 }

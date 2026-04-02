@@ -1203,6 +1203,96 @@ export const BlobFileMetadataSchema = {
     ]
 } as const;
 
+export const UserFileUploadSessionSchema = {
+    type: 'object',
+    properties: {
+        clientToken: {
+            type: 'string',
+            example: 'vercel_blob_client_token',
+            description: 'Scoped Blob client token for direct uploads'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public',
+            description: 'Blob access level for the upload'
+        },
+        pathname: {
+            type: 'string',
+            example: 'users/user_123/report.pdf',
+            description: 'Server-generated upload pathname'
+        },
+        addRandomSuffix: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether Blob should append a random suffix'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 262144000,
+            description: 'Maximum supported file size for direct uploads'
+        }
+    },
+    required: [
+        'clientToken',
+        'access',
+        'pathname',
+        'addRandomSuffix',
+        'maxSizeBytes'
+    ]
+} as const;
+
+export const CreateUserFileUploadRequestSchema = {
+    type: 'object',
+    properties: {
+        filename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            example: 'report.pdf',
+            description: 'Original file name supplied by the client'
+        },
+        contentType: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'application/pdf',
+            description: 'Declared file MIME type from the client. When empty or generic (e.g. application/octet-stream), the server may infer an allowed type from the filename extension.'
+        },
+        size: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 2048000,
+            description: 'File size in bytes'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 2097152,
+            description: 'Optional per-upload size ceiling in bytes. Must not exceed the server maximum.'
+        },
+        allowedContentTypes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 255,
+                example: 'image/png'
+            },
+            maxItems: 32,
+            description: 'Optional allowlist for the upload session. Every value must be supported by the server, and the selected contentType must be included.'
+        }
+    },
+    required: [
+        'filename',
+        'contentType',
+        'size'
+    ]
+} as const;
+
 export const JobSchema = {
     type: 'object',
     properties: {

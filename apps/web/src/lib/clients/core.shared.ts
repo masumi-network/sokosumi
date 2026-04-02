@@ -13,6 +13,7 @@ import type {
   GetTasksData,
   PaginationMetadata,
   PostTasksByIdLinksData,
+  PostUsersMeUploadsData,
   PutJobsByIdShareError,
   PutTasksByIdShareError,
 } from "@/lib/clients/generated/core";
@@ -44,8 +45,8 @@ import {
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
-  postUsersMeFiles as corePostUsersMeFiles,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
+  postUsersMeUploads as corePostUsersMeUploads,
   putJobsByIdShare as corePutJobsByIdShare,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -629,15 +630,18 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function uploadMyFile(file: Blob | File) {
+  async function createMyFileUploadSession(
+    body: NonNullable<PostUsersMeUploadsData["body"]>,
+  ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostUsersMeFiles({
+        corePostUsersMeUploads({
           client,
-          body: { file },
+          body,
+          cache: "no-store",
         }),
-      "Failed to upload file",
+      "Failed to create upload session",
     );
   }
 
@@ -832,6 +836,7 @@ export function createCoreClient(getClient: GetClient) {
     addConversationItem,
     archiveConversation,
     createConversation,
+    createMyFileUploadSession,
     createTask,
     createTaskLink,
     createTaskEvent,
@@ -860,7 +865,6 @@ export function createCoreClient(getClient: GetClient) {
     putJobShare,
     putTaskShare,
     updateConversation,
-    uploadMyFile,
   };
 }
 

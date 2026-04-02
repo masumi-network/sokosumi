@@ -24,8 +24,6 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-import { handleInputDataFileUploads } from "./utils";
-
 interface StartDemoJobParameters extends AuthenticatedRequest {
   input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">;
   jobStatusResponse: JobStatusResponseSchemaType;
@@ -89,11 +87,6 @@ export const startJob = withSession<
       Sentry.setUser({
         id: userId,
       });
-
-      // Upload files if any and replace them with URLs in-place
-      if (inputDataForService.inputData) {
-        await handleInputDataFileUploads(userId, inputDataForService.inputData);
-      }
 
       // Set job context
       scope.setTag("action", "startJobWithInputData");
@@ -252,9 +245,6 @@ export const provideJobInput = withSession<
       Sentry.setUser({
         id: userId,
       });
-
-      // Upload files if any and replace them with URLs in-place
-      await handleInputDataFileUploads(userId, inputData);
 
       // Set job context
       scope.setTag("action", "submitJobInput");
