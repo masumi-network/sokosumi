@@ -28,13 +28,21 @@ export type SokosumiLanguageModel = LanguageModelV3 & {
   readonly provider: "sokosumi";
 };
 
+function resolveModelIdForLanguageModel(modelId: string | null): string {
+  if (typeof modelId === "string" && modelId.trim().length > 0) {
+    return modelId;
+  }
+  return getModelIdentifier(null);
+}
+
 /**
  * Creates a Sokosumi AI SDK v3 language model (OpenRouter or coworker Responses).
  */
 export function createSokosumiLanguageModel(
-  modelId: string,
+  modelId: string | null,
   config: CreateSokosumiOptions,
 ): SokosumiLanguageModel {
+  const modelIdForLanguageModel = resolveModelIdForLanguageModel(modelId);
   async function doGenerate(
     options: LanguageModelV3CallOptions,
   ): Promise<LanguageModelV3GenerateResult> {
@@ -145,7 +153,7 @@ export function createSokosumiLanguageModel(
   return {
     specificationVersion: "v3",
     provider: "sokosumi",
-    modelId,
+    modelId: modelIdForLanguageModel,
     supportedUrls: {},
     doGenerate,
     doStream,
@@ -153,7 +161,7 @@ export function createSokosumiLanguageModel(
 }
 
 async function streamOpenRouter(
-  modelId: string,
+  modelId: string | null,
   config: CreateSokosumiOptions,
   responsesInput: ReturnType<typeof promptToResponsesInput>,
   promptWarnings: ReturnType<typeof buildResponsesApiWarnings>,

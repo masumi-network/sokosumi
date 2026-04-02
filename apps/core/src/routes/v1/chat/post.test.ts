@@ -163,6 +163,24 @@ describe("POST /chat", () => {
     expect(streamTextMock).not.toHaveBeenCalled();
   });
 
+  it("passes null to the Sokosumi provider when no model is resolved (matches legacy null)", async () => {
+    const providerFactory = vi.fn(() => ({}));
+    getSokosumiProviderMock.mockReturnValue(providerFactory);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(providerFactory).toHaveBeenCalledOnce();
+    expect(providerFactory.mock.calls[0]![0]).toBeNull();
+  });
+
   it("calls streamText for OpenRouter-backed conversation", async () => {
     conversationFindFirstMock
       .mockResolvedValueOnce({

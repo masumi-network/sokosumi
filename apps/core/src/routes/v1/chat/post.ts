@@ -364,7 +364,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
 
       const result = streamText({
-        model: getSokosumiProvider()(selectedModel ?? ""),
+        model: getSokosumiProvider()(selectedModel),
         messages: modelMessages,
         maxRetries: 0,
         providerOptions: {

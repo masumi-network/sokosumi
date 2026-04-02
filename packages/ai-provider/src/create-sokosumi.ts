@@ -7,14 +7,14 @@ import {
 import type { CreateSokosumiOptions } from "./types.js";
 
 export interface SokosumiProvider {
-  (modelId: string): SokosumiLanguageModel;
-  languageModel: (modelId: string) => SokosumiLanguageModel;
+  (modelId: string | null): SokosumiLanguageModel;
+  languageModel: (modelId: string | null) => SokosumiLanguageModel;
 }
 
 export function createSokosumi(
   options: CreateSokosumiOptions,
 ): SokosumiProvider {
-  function factory(modelId: string): SokosumiLanguageModel {
+  function factory(modelId: string | null): SokosumiLanguageModel {
     return createSokosumiLanguageModel(modelId, options);
   }
   factory.languageModel = factory;
