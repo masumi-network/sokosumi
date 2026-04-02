@@ -26,6 +26,11 @@ function buildTask(
     credits: 0,
     events: [],
     jobs: [],
+    workspace: {
+      id: "11111111-1111-7111-8111-111111111111",
+      organizationId: null,
+      organization: null,
+    },
     ...overrides,
   };
 }

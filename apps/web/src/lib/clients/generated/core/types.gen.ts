@@ -160,6 +160,17 @@ export type JobSummary = {
     onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
+    workspace: WorkspaceSummary;
+};
+
+export type WorkspaceSummary = {
+    id: string;
+    organizationId: string | null;
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null;
 };
 
 export type ConversationList = Array<Conversation>;
@@ -385,6 +396,7 @@ export type Job = {
     inputSchema?: string | null;
     agentJobId: string;
     identifierFromPurchaser?: string | null;
+    workspace: WorkspaceSummary;
     user: {
         id: string;
         name: string;
@@ -667,6 +679,7 @@ export type TaskListItem = {
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
+    workspace: WorkspaceSummary;
 };
 
 export type Task = {
@@ -682,6 +695,7 @@ export type Task = {
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
+    workspace: WorkspaceSummary;
     share: TaskShare & ({
         [key: string]: unknown;
     } | null);

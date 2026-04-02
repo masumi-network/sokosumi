@@ -86,6 +86,15 @@ function createTask() {
     status: TaskStatus.READY,
     events: [],
     jobs: [],
+    workspace: {
+      id: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_123",
+      organization: {
+        id: "org_123",
+        name: "Workspace Org",
+        slug: "workspace-org",
+      },
+    },
   };
 }
 

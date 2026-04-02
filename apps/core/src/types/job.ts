@@ -12,8 +12,22 @@ import {
   getResultHash,
 } from "@sokosumi/database/helpers";
 
+import { mapWorkspaceSummary } from "@/helpers/workspace";
+
 export function flattenJob(
-  job: JobWithEvents & JobWithTransaction & JobWithPurchase,
+  job: JobWithEvents &
+    JobWithTransaction &
+    JobWithPurchase & {
+      workspace: {
+        id: string;
+        organizationId: string | null;
+        organization: {
+          id: string;
+          name: string;
+          slug: string;
+        } | null;
+      };
+    },
 ) {
   return {
     id: job.id,
@@ -32,6 +46,7 @@ export function flattenJob(
     resultHash: getResultHash(job),
     credits: getCredits(job),
     status: computeJobStatus(job),
+    workspace: mapWorkspaceSummary(job.workspace),
   };
 }
 
@@ -58,6 +73,7 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
     inputSchema: job.inputSchema,
     agentJobId: job.agentJobId,
     identifierFromPurchaser: job.identifierFromPurchaser,
+    workspace: mapWorkspaceSummary(job.workspace),
     user: {
       id: job.user.id,
       name: job.user.name,

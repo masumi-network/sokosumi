@@ -678,11 +678,79 @@ describe("mapTask", () => {
       linksFrom: [],
       linksTo: [],
       events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
     } as unknown as TaskWithIncludes;
 
     const result = mapTask(task);
 
     expect(result.share).toEqual(share);
+  });
+
+  it("serializes nested job workspaces", () => {
+    const task = {
+      id: "tsk_123",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      userId: "user_123",
+      organizationId: null,
+      coworkerId: "cow_123",
+      name: "Task with job",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+      jobs: [
+        {
+          id: "job_123",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          agentId: "agent_123",
+          userId: "user_123",
+          organizationId: null,
+          taskId: "tsk_123",
+          name: "Job",
+          jobType: "FREE",
+          completedAt: null,
+          result: null,
+          resultHash: null,
+          workspace: {
+            id: "22222222-2222-7222-8222-222222222222",
+            organizationId: "org_123",
+            organization: {
+              id: "org_123",
+              name: "Workspace Org",
+              slug: "workspace-org",
+            },
+          },
+          purchase: null,
+          transaction: null,
+          events: [],
+        },
+      ],
+    } as unknown as TaskWithIncludes;
+
+    const result = mapTask(task);
+
+    expect(result.jobs[0]?.workspace).toEqual({
+      id: "22222222-2222-7222-8222-222222222222",
+      organizationId: "org_123",
+      organization: {
+        id: "org_123",
+        name: "Workspace Org",
+        slug: "workspace-org",
+      },
+    });
   });
 
   it("aggregates credits from multiple charged events", () => {
@@ -699,6 +767,11 @@ describe("mapTask", () => {
       jobs: [],
       linksFrom: [],
       linksTo: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
       events: [
         {
           id: "evt_cancel",
@@ -775,6 +848,11 @@ describe("mapTask", () => {
       jobs: [],
       linksFrom: [],
       linksTo: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
       events: [
         {
           id: "evt_complete",
@@ -831,6 +909,11 @@ describe("mapTask", () => {
       jobs: [],
       linksFrom: [],
       linksTo: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
       events: [
         {
           id: "evt_partial",

@@ -1,4 +1,4 @@
-import { type Prisma } from "@sokosumi/database";
+import { type Prisma, workspaceRelationInclude } from "@sokosumi/database";
 import {
   jobWithEvents,
   jobWithPurchase,
@@ -12,6 +12,7 @@ import {
 } from "@/types/task-link";
 
 const taskBaseInclude = {
+  ...workspaceRelationInclude,
   events: {
     include: {
       transaction: {
@@ -24,6 +25,7 @@ const taskBaseInclude = {
   },
   jobs: {
     include: {
+      ...workspaceRelationInclude,
       ...jobWithEvents,
       ...jobWithTransaction,
       ...jobWithPurchase,
@@ -42,9 +44,7 @@ export const taskInclude = {
   ...taskLinksInclude,
 } as const;
 
-export function buildTaskIncludeForViewer(
-  authContext: AuthenticationContext,
-) {
+export function buildTaskIncludeForViewer(authContext: AuthenticationContext) {
   return {
     ...taskBaseInclude,
     share: true,

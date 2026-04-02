@@ -628,6 +628,9 @@ export const JobSummarySchema = {
                 'null'
             ],
             example: 'result_hash'
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
         }
     },
     required: [
@@ -638,7 +641,56 @@ export const JobSummarySchema = {
         'userId',
         'jobType',
         'status',
-        'credits'
+        'credits',
+        'workspace'
+    ]
+} as const;
+
+export const WorkspaceSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '11111111-1111-7111-8111-111111111111'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        },
+        organization: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'org_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Labs'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-labs'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'organization'
     ]
 } as const;
 
@@ -1359,6 +1411,9 @@ export const JobSchema = {
             ],
             example: 'identifier_123'
         },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
+        },
         user: {
             type: 'object',
             properties: {
@@ -1624,6 +1679,7 @@ export const JobSchema = {
         'status',
         'credits',
         'agentJobId',
+        'workspace',
         'user',
         'agent',
         'events'
@@ -2785,6 +2841,9 @@ export const TaskListItemSchema = {
                 $ref: '#/components/schemas/JobSummary'
             },
             example: []
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
         }
     },
     required: [
@@ -2799,7 +2858,8 @@ export const TaskListItemSchema = {
         'status',
         'credits',
         'events',
-        'jobs'
+        'jobs',
+        'workspace'
     ]
 } as const;
 
@@ -2885,6 +2945,9 @@ export const TaskSchema = {
             },
             example: []
         },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
+        },
         share: {
             allOf: [
                 {
@@ -2920,6 +2983,7 @@ export const TaskSchema = {
         'credits',
         'events',
         'jobs',
+        'workspace',
         'share',
         'links'
     ]

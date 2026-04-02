@@ -8,6 +8,7 @@ import type { TaskListItemWithIncludes, TaskWithIncludes } from "@/types/task";
 
 import { unprocessableEntity } from "./error";
 import { mapTaskLinksForTask } from "./task-link";
+import { mapWorkspaceSummary } from "./workspace";
 
 type TaskEventWithOptionalTransaction = Omit<
   TaskWithIncludes["events"][number],
@@ -178,8 +179,6 @@ export function isTaskArchivableStatus(status: TaskStatus): boolean {
 }
 
 function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
-  const jobs = task.jobs.map((job) => flattenJob(job));
-  const events = task.events.map((event) => mapTaskEvent(event));
   const credits = task.events.reduce((total, event) => {
     const amount = event.transaction?.amount;
     if (amount === undefined || amount === null) {
@@ -203,9 +202,10 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
-    events,
-    jobs,
+    events: task.events.map(mapTaskEvent),
+    jobs: task.jobs.map(flattenJob),
     credits,
+    workspace: mapWorkspaceSummary(task.workspace),
   };
 }
 
