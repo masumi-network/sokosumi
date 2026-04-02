@@ -22,7 +22,7 @@
       "subject": "Sokosumi - Convite para organização",
       "title": "Junte-se a {invitorUsername} em {organizationName}",
       "greeting": "Olá",
-      "message": "Você foi convidado para entrar em {organizationName} no Sokosumi. Clique no botão abaixo para aceitar o convite.",
+      "message": "Você recebeu um convite para entrar em {organizationName} no Sokosumi. Clique no botão abaixo para aceitá-lo.",
       "button": "Aceitar convite",
       "linkInstructions": "Ou copie e cole esta URL no seu navegador:",
       "footer": "Se você não solicitou este convite, pode ignorar este e-mail com segurança."
