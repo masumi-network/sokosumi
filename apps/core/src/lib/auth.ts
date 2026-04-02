@@ -43,8 +43,10 @@ export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   advanced: {
     cookiePrefix: betterAuthCookiePrefix,
-    // Our auth tables now use native UUID columns (@db.Uuid), so Better Auth must generate UUID ids.
-    generateId: "uuid",
+    database: {
+      // Our auth tables now use native UUID columns (@db.Uuid), so Better Auth must generate UUID ids.
+      generateId: "uuid",
+    },
     ...(env.BETTER_AUTH_COOKIE_DOMAIN
       ? {
           crossSubDomainCookies: {
