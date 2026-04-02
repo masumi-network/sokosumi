@@ -274,6 +274,17 @@
         "emptyActivity": "No activities yet.",
         "eyebrow": "Public Job",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "Move to workspace",
+            "moveToWorkspaceTitle": "Move job to another workspace",
+            "moveToWorkspaceDescription": "Select the workspace you want to move this job to.",
+            "moveToWorkspaceButton": "Move job",
+            "moveToWorkspaceCancel": "Cancel",
+            "moveToWorkspaceSuccess": "Job moved successfully",
+            "moveToWorkspaceError": "Failed to move job",
+            "moveToWorkspaceDisabledTooltip": "This job belongs to a task. Move the task to change its workspace.",
+            "personalWorkspace": "Personal"
+          },
           "JobName": {
             "Schema": {
               "Name": {

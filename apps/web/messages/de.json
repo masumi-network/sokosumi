@@ -147,7 +147,7 @@
       "creditsExpired": "Credits verfallen"
     },
     "OrganizationSwitcher": {
-      "switchWorkspace": "Workspace wechseln",
+      "switchWorkspace": "Arbeitsbereich wechseln",
       "personalAccount": "Persönlicher Account",
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
@@ -274,6 +274,17 @@
         "emptyActivity": "Noch keine Aktivitäten.",
         "eyebrow": "Öffentlicher Job",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "In anderen Arbeitsbereich verschieben",
+            "moveToWorkspaceTitle": "Job in einen anderen Arbeitsbereich verschieben",
+            "moveToWorkspaceDescription": "Wählen Sie den Arbeitsbereich, in den Sie diesen Job verschieben möchten.",
+            "moveToWorkspaceButton": "Job verschieben",
+            "moveToWorkspaceCancel": "Abbrechen",
+            "moveToWorkspaceSuccess": "Job wurde verschoben",
+            "moveToWorkspaceError": "Job konnte nicht verschoben werden",
+            "moveToWorkspaceDisabledTooltip": "Dieser Job gehört zu einem Task. Verschiebe den Task, um den Arbeitsbereich zu ändern.",
+            "personalWorkspace": "Persönlich"
+          },
           "JobName": {
             "Schema": {
               "Name": {

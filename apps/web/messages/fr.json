@@ -274,6 +274,17 @@
         "emptyActivity": "Aucune activité pour le moment.",
         "eyebrow": "Job public",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "Déplacer vers un autre espace de travail",
+            "moveToWorkspaceTitle": "Déplacer le job vers un autre espace de travail",
+            "moveToWorkspaceDescription": "Sélectionnez l'espace de travail vers lequel vous souhaitez déplacer ce job.",
+            "moveToWorkspaceButton": "Déplacer le job",
+            "moveToWorkspaceCancel": "Annuler",
+            "moveToWorkspaceSuccess": "Job déplacé avec succès",
+            "moveToWorkspaceError": "Échec du déplacement du job",
+            "moveToWorkspaceDisabledTooltip": "Ce job appartient à une tâche. Déplacez la tâche pour changer son espace de travail.",
+            "personalWorkspace": "Personnel"
+          },
           "JobName": {
             "Schema": {
               "Name": {

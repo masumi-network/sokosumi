@@ -32,6 +32,7 @@ import type { JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
+import { coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import { getJobStatusData } from "@/lib/helpers/job";
 import type {
@@ -721,6 +722,21 @@ export const jobService = (() => {
     return job;
   };
 
+  const moveJobToWorkspace = async (
+    jobId: string,
+    organizationId: string | null,
+  ) => {
+    const result = await coreClient.moveJobToWorkspace(jobId, {
+      organizationId,
+    });
+
+    if (!result.data) {
+      throw new Error("Failed to move job to workspace");
+    }
+
+    return result.data;
+  };
+
   /**
    * Retrieves the latest job status data for a list of agent IDs for the current user and organization.
    *
@@ -910,6 +926,7 @@ export const jobService = (() => {
   return {
     startJob,
     startDemoJob,
+    moveJobToWorkspace,
     requestRefund,
     getJobStatusesDataForAgents,
     provideJobInput,
