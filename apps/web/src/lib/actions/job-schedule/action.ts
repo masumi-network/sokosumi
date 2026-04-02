@@ -2,6 +2,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import type { Prisma, ScheduleType } from "@sokosumi/database";
+import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import { jobScheduleRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
@@ -128,6 +129,12 @@ export const createSchedule = withSession<
       };
     }
 
+    const workspace = await resolveWorkspaceForContext(
+      session.user.id,
+      session.session.activeOrganizationId ?? null,
+      prisma,
+    );
+
     // Build Prisma input directly
     const prismaInput: Prisma.JobScheduleCreateInput = {
       user: {
@@ -145,6 +152,11 @@ export const createSchedule = withSession<
       agent: {
         connect: {
           id: input.agentId,
+        },
+      },
+      workspace: {
+        connect: {
+          id: workspace.id,
         },
       },
       inputSchema: JSON.stringify(input.inputSchema),

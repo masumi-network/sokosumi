@@ -1,9 +1,60 @@
-import { TaskStatus } from "@sokosumi/database";
-import { describe, expect, it } from "vitest";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createTaskRequestSchema } from "./post";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthVariables } from "@/middleware/auth";
+
+import mountPostTask, { createTaskRequestSchema } from "./post";
+
+const {
+  mapTaskMock,
+  prismaTransactionMock,
+  requireTaskAssignableCoworkerMock,
+  resolveWorkspaceForContextMock,
+  taskCreateMock,
+} = vi.hoisted(() => ({
+  mapTaskMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+  requireTaskAssignableCoworkerMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
+  taskCreateMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/access-control", () => ({
+  requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+}));
+
+vi.mock("@/helpers/task", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/helpers/task")>();
+
+  return {
+    ...actual,
+    mapTask: mapTaskMock,
+  };
+});
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+  };
+});
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: prismaTransactionMock,
+  },
+}));
 
 describe("createTaskRequestSchema", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("defaults status to DRAFT when omitted", () => {
     const result = createTaskRequestSchema.parse({
       name: "New Task",
@@ -60,5 +111,94 @@ describe("createTaskRequestSchema", () => {
         }).toThrow();
       }
     });
+  });
+});
+
+describe("POST /tasks", () => {
+  function createApp() {
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountPostTask(app as unknown as OpenAPIHonoWithAuth);
+
+    return app;
+  }
+
+  beforeEach(() => {
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
+    taskCreateMock.mockResolvedValue({ id: "tsk_123" });
+    mapTaskMock.mockReturnValue({
+      id: "tsk_123",
+      createdAt: "2026-04-02T08:00:00.000Z",
+      updatedAt: "2026-04-02T08:00:00.000Z",
+      userId: "user_123",
+      organizationId: "org_123",
+      coworkerId: null,
+      name: "New Task",
+      description: null,
+      status: TaskStatus.DRAFT,
+      credits: 0,
+      events: [],
+      jobs: [],
+      share: null,
+      links: [],
+    });
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => {
+        return await callback({
+          task: {
+            create: taskCreateMock,
+          },
+        });
+      },
+    );
+  });
+
+  it("resolves the active workspace and persists workspaceId on create", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "New Task",
+        description: null,
+        coworkerId: null,
+        status: TaskStatus.DRAFT,
+        origin: TaskEventOrigin.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_123",
+      expect.any(Object),
+    );
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "user_123",
+          organizationId: "org_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        }),
+      }),
+    );
   });
 });

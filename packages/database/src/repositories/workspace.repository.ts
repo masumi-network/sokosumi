@@ -52,8 +52,8 @@ export const workspaceRepository = {
   ): Promise<WorkspaceWithRelations> {
     if (organizationId) {
       return await this.upsertOrganizationWorkspace(organizationId, tx);
+    } else {
+      return await this.upsertPersonalWorkspace(userId, tx);
     }
-
-    return await this.upsertPersonalWorkspace(userId, tx);
   },
 };

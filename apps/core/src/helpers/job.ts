@@ -74,6 +74,7 @@ async function createPaidJob(
     agentId: string;
     userId: string;
     organizationId: string | null;
+    workspaceId: string;
     inputData: InputSchemaType;
     inputSchema: InputSchemaSchemaType;
     name: string | null;
@@ -102,6 +103,7 @@ async function createPaidJob(
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
+      workspace: { connect: { id: input.workspaceId } },
       ...(input.taskId && {
         task: { connect: { id: input.taskId } },
       }),
@@ -166,6 +168,7 @@ async function createFreeJob(
     agentId: string;
     userId: string;
     organizationId: string | null;
+    workspaceId: string;
     inputData: InputSchemaType;
     inputSchema: InputSchemaSchemaType;
     name: string | null;
@@ -185,6 +188,7 @@ async function createFreeJob(
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
       }),
+      workspace: { connect: { id: input.workspaceId } },
       ...(input.taskId && {
         task: { connect: { id: input.taskId } },
       }),
@@ -242,6 +246,7 @@ interface CreateAgentJobInput {
 export interface CreateAgentJobOwner {
   userId: string;
   organizationId: string | null;
+  workspaceId: string;
 }
 
 export async function createAgentJobForUser(
@@ -299,6 +304,7 @@ export async function createAgentJobForUser(
     agentId: agentInput.agentId,
     userId: owner.userId,
     organizationId: owner.organizationId,
+    workspaceId: owner.workspaceId,
     inputData: agentInput.inputData,
     inputSchema: agentInput.inputSchema,
     taskId: taskContext?.taskId,

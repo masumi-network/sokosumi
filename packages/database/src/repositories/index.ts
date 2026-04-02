@@ -46,4 +46,3 @@ export * from "./tag.repository.js";
 export * from "./transaction.repository.js";
 export * from "./user.repository.js";
 export * from "./utmAttribution.repository.js";
-export * from "./workspace.repository.js";

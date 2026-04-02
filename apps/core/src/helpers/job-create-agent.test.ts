@@ -95,6 +95,7 @@ function createInput(overrides: Record<string, unknown> = {}) {
     owner: {
       userId: "user_1",
       organizationId: "org_1",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
     },
     agentInput: {
       agentId: "agent_1",
@@ -165,6 +166,11 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
           jobSchedule: {
             connect: {
               id: "schedule_1",
+            },
+          },
+          workspace: {
+            connect: {
+              id: "11111111-1111-7111-8111-111111111111",
             },
           },
           events: {

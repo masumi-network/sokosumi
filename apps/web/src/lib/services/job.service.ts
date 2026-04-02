@@ -12,7 +12,10 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import { isPaidJob } from "@sokosumi/database/helpers";
+import {
+  isPaidJob,
+  resolveWorkspaceForContext,
+} from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobEventRepository,
@@ -152,6 +155,12 @@ export const jobService = (() => {
       throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
     }
 
+    const workspace = await resolveWorkspaceForContext(
+      userId,
+      activeOrganizationId,
+      prisma,
+    );
+
     const job = await jobRepository.createDemoJob(
       {
         jobType: JobType.DEMO,
@@ -159,6 +168,7 @@ export const jobService = (() => {
         agentId,
         userId,
         organizationId: activeOrganizationId,
+        workspaceId: workspace.id,
         input: JSON.stringify(inputData),
         inputSchema: inputSchema,
         name: "Demo Job",
@@ -365,6 +375,12 @@ export const jobService = (() => {
     // Create job, transaction, and consume credits in a single transaction
     const job = await prisma.$transaction(
       async (tx) => {
+        const workspace = await resolveWorkspaceForContext(
+          userId,
+          organizationId,
+          tx,
+        );
+
         return await jobRepository.createJob(
           {
             jobType: JobType.PAID,
@@ -372,6 +388,7 @@ export const jobService = (() => {
             agentId,
             userId,
             organizationId,
+            workspaceId: workspace.id,
             input: JSON.stringify(inputData),
             inputHash: startJobResponse.input_hash,
             inputSchema: inputSchema,
@@ -516,6 +533,12 @@ export const jobService = (() => {
     // Generate job name
     const generatedName = await generateJobNameForAgent(agent, inputData);
 
+    const workspace = await resolveWorkspaceForContext(
+      userId,
+      organizationId,
+      prisma,
+    );
+
     // Create free job in database
     Sentry.addBreadcrumb({
       category: "Job Service",
@@ -534,6 +557,7 @@ export const jobService = (() => {
         agentId,
         userId,
         organizationId,
+        workspaceId: workspace.id,
         input: JSON.stringify(inputData),
         inputHash: null,
         inputSchema: inputSchema,
