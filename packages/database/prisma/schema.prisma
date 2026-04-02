@@ -212,11 +212,11 @@ model Workspace {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  userId String? @unique
+  userId String? @unique @db.Uuid
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  organizationId String?        @unique
-  organization   Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String?       @unique @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   jobs         Job[]
   jobSchedules JobSchedule[]
