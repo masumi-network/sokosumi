@@ -205,6 +205,8 @@ UPDATE "member" m SET "organizationId" = o."_new_id"::text FROM "organization" o
 UPDATE "invitation" i SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE i."organizationId" = o."id";
 UPDATE "invitation" i SET "inviterId" = u."_new_id"::text FROM "user" u WHERE i."inviterId" = u."id";
 UPDATE "utmAttribution" utm SET "userId" = u."_new_id"::text FROM "user" u WHERE utm."userId" = u."id";
+UPDATE "user" u SET "preferredOrganizationId" = o."_new_id"::text FROM "organization" o WHERE u."preferredOrganizationId" = o."id";
+UPDATE "session" s SET "activeOrganizationId" = o."_new_id"::text FROM "organization" o WHERE s."activeOrganizationId" = o."id";
 UPDATE "noticeAcknowledgment" na SET "userId" = u."_new_id"::text FROM "user" u WHERE na."userId" = u."id";
 UPDATE "noticeAcknowledgment" na SET "noticeId" = n."_new_id"::text FROM "notice" n WHERE na."noticeId" = n."id";
 UPDATE "UnitValue" uv SET "agentFixedPricingId" = afp."_new_id"::text FROM "AgentFixedPricing" afp WHERE uv."agentFixedPricingId" = afp."id";
@@ -220,6 +222,16 @@ UPDATE "Transaction" t SET "organizationId" = o."_new_id"::text FROM "organizati
 UPDATE "credit_bucket" cb SET "sourceTransactionId" = t."_new_id"::text FROM "Transaction" t WHERE cb."sourceTransactionId" = t."id";
 UPDATE "credit_bucket" cb SET "userId" = u."_new_id"::text FROM "user" u WHERE cb."userId" = u."id";
 UPDATE "credit_bucket" cb SET "organizationId" = o."_new_id"::text FROM "organization" o WHERE cb."organizationId" = o."id";
+UPDATE "credit_bucket" cb
+SET "referenceId" = regexp_replace(
+  cb."referenceId",
+  '^member:' || old_user."id" || ':',
+  'member:' || old_user."_new_id"::text || ':'
+)
+FROM "user" old_user
+WHERE cb."referenceId" IS NOT NULL
+  AND cb."referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD'
+  AND cb."referenceId" LIKE ('member:' || old_user."id" || ':%');
 UPDATE "credit_consumption" cc SET "bucketId" = cb."_new_id"::text FROM "credit_bucket" cb WHERE cc."bucketId" = cb."id";
 UPDATE "credit_consumption" cc SET "transactionId" = t."_new_id"::text FROM "Transaction" t WHERE cc."transactionId" = t."id";
 UPDATE "Job" j SET "userId" = u."_new_id"::text FROM "user" u WHERE j."userId" = u."id";
