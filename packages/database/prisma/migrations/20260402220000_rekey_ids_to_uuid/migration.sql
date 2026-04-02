@@ -366,7 +366,9 @@ UPDATE "conversationItem" SET "id" = "_new_id"::text;
 
 -- Convert columns from TEXT to UUID (now safe since values are UUID strings).
 ALTER TABLE "user" ALTER COLUMN "id" TYPE UUID USING "id"::uuid;
+ALTER TABLE "user" ALTER COLUMN "preferredOrganizationId" TYPE UUID USING "preferredOrganizationId"::uuid;
 ALTER TABLE "session" ALTER COLUMN "id" TYPE UUID USING "id"::uuid;
+ALTER TABLE "session" ALTER COLUMN "activeOrganizationId" TYPE UUID USING "activeOrganizationId"::uuid;
 ALTER TABLE "session" ALTER COLUMN "userId" TYPE UUID USING "userId"::uuid;
 ALTER TABLE "account" ALTER COLUMN "id" TYPE UUID USING "id"::uuid;
 ALTER TABLE "account" ALTER COLUMN "userId" TYPE UUID USING "userId"::uuid;

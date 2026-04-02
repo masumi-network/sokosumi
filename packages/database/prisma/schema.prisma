@@ -37,7 +37,7 @@ model User {
   jobSchedules     JobSchedule[]
 
   stripeCustomerId        String?
-  preferredOrganizationId String?
+  preferredOrganizationId String? @db.Uuid
 
   members     Member[]
   invitations Invitation[]
@@ -97,7 +97,7 @@ model Session {
   oauthAccessTokens  OauthAccessToken[]
   oauthRefreshTokens OauthRefreshToken[]
 
-  activeOrganizationId String?
+  activeOrganizationId String? @db.Uuid
 
   @@unique([token])
   @@map("session")
