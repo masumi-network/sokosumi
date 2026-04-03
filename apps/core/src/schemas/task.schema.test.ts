@@ -15,6 +15,11 @@ describe("taskEventWithTaskIdSchema", () => {
       origin: TaskEventOrigin.SOKOSUMI,
       status: TaskStatus.RUNNING,
       userId: "user_123",
+      user: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: "https://example.com/avatar.png",
+      },
       coworkerId: "cow_123",
       transactionId: "txn_123",
       credits: 2.5,
@@ -36,6 +41,7 @@ describe("taskEventWithTaskIdSchema", () => {
         origin: TaskEventOrigin.SOKOSUMI,
         status: TaskStatus.RUNNING,
         userId: "user_123",
+        user: null,
         coworkerId: "cow_123",
       });
     }).toThrow();
