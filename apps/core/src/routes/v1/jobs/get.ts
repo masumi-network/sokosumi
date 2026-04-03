@@ -1,7 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
+import { memberRepository } from "@sokosumi/database/repositories";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
+import { badRequest } from "@/helpers/error";
 import { getUserJobs } from "@/helpers/job";
 import {
   jsonErrorResponse,
@@ -12,6 +14,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -37,6 +40,27 @@ const query = z
         param: { name: "status", in: "query" },
         description: "Filter jobs by status",
         example: AgentJobStatus.COMPLETED,
+      }),
+    memberId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "memberId", in: "query" },
+        description: "Filter jobs by member user ID",
+        example: "usr_123",
+      }),
+    includeFailed: z
+      .preprocess((value) => {
+        if (value === "true") return true;
+        if (value === "false") return false;
+        return value;
+      }, z.boolean())
+      .optional()
+      .openapi({
+        param: { name: "includeFailed", in: "query" },
+        description:
+          "Whether failed jobs should be included. Optional UI convenience flag; defaults to true.",
+        example: true,
       }),
   })
   .extend(cursorPaginationQuerySchema.shape);
@@ -114,12 +138,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
     const queryParams = c.req.valid("query");
-    const { agentId, status } = queryParams;
+    const { agentId, status, memberId, includeFailed } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
+
+    if (memberId && authContext.organizationId) {
+      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+        memberId,
+        authContext.organizationId,
+        prisma,
+      );
+
+      if (!member) {
+        throw badRequest(
+          "memberId must belong to the active organization workspace.",
+        );
+      }
+    }
 
     const { jobs, count, hasMore } = await getUserJobs(authContext, {
       agentId,
+      memberId,
       status,
+      includeFailed,
       cursor,
       take,
       skip,

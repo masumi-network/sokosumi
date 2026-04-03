@@ -1,10 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireUserTaskAccess } from "@/helpers/access-control";
+import { requireTaskCollaboratorAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { buildCurrentUserTaskContextWhere } from "@/helpers/task-context";
+import { buildCurrentWorkspaceTaskContextWhere } from "@/helpers/task-context";
 import {
   mapTaskLink,
   mapTaskLinkRelationToTypeForExistingDirection,
@@ -68,11 +68,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Task link not found");
       }
 
-      await requireUserTaskAccess(authContext, id, tx);
+      await requireTaskCollaboratorAccess(authContext, id, tx);
 
       const peerTaskId =
         link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
-      const peerTaskContextWhere = await buildCurrentUserTaskContextWhere(
+      const peerTaskContextWhere = await buildCurrentWorkspaceTaskContextWhere(
         authContext,
         tx,
       );

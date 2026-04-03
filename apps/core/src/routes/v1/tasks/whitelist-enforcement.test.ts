@@ -12,13 +12,13 @@ import mountPostTask from "./post";
 const {
   prismaTransactionMock,
   requireTaskAssignableCoworkerMock,
-  requireUserTaskAccessMock,
+  requireTaskCollaboratorAccessMock,
   mapTaskMock,
   validateTaskCoworkerAssignmentMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireUserTaskAccessMock: vi.fn(),
+  requireTaskCollaboratorAccessMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => task),
   validateTaskCoworkerAssignmentMock: vi.fn(),
 }));
@@ -31,7 +31,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireUserTaskAccess: requireUserTaskAccessMock,
+  requireTaskCollaboratorAccess: requireTaskCollaboratorAccessMock,
 }));
 
 vi.mock("@/helpers/task", () => ({
@@ -109,8 +109,9 @@ describe("task coworker whitelist enforcement", () => {
       return await callback(tx);
     });
 
-    requireUserTaskAccessMock.mockResolvedValue({
+    requireTaskCollaboratorAccessMock.mockResolvedValue({
       id: "tsk_123",
+      workspaceId: "workspace_123",
       status: TaskStatus.READY,
       coworkerId: null,
     });

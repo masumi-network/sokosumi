@@ -4,6 +4,7 @@ import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import {
   createJobRequestSchema,
+  jobDetailsUserSchema,
   jobSummariesSchema,
 } from "@/schemas/job.schema";
 import { taskShareSchema } from "@/schemas/public-share.schema";
@@ -30,6 +31,13 @@ export const taskEventSchema = z
       .enum(TaskStatus)
       .nullish()
       .openapi({ example: TaskStatus.RUNNING }),
+    user: jobDetailsUserSchema.nullable().openapi({
+      example: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: "https://example.com/avatar.png",
+      },
+    }),
   })
   .openapi("TaskEvent");
 
@@ -49,6 +57,7 @@ const taskBaseSchema = z.object({
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
   userId: z.string().openapi({ example: "user_123" }),
+  user: jobDetailsUserSchema,
   organizationId: z.string().nullable().openapi({ example: "org_123" }),
   coworkerId: z.string().nullable().openapi({ example: "cow_123" }),
   name: z.string().openapi({ example: "Review onboarding" }),

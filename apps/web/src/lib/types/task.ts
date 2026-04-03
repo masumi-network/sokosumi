@@ -8,6 +8,12 @@ import type {
 
 export type { TaskEvent };
 
+export interface TaskActorUser {
+  id: string;
+  name: string;
+  image?: string | null;
+}
+
 export type KanbanColumnId =
   | "backlog"
   | "todo"
@@ -20,6 +26,7 @@ export interface TaskWithCoworker {
   name: string;
   status: TaskStatus;
   userId: string;
+  user: TaskActorUser;
   createdAt: string;
   updatedAt: string;
   jobsCount: number;

@@ -1,4 +1,4 @@
-import { Loader2, Plus, SlidersHorizontal } from "lucide-react";
+import { ListFilter, Loader2, Plus, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,9 @@ export interface TasksLoadingLabels {
   columns: Record<KanbanColumnId, string>;
   add: string;
   addTask: string;
+  filters: {
+    button: string;
+  };
   display: {
     button: string;
   };
@@ -47,6 +50,10 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <Button variant="outline" size="sm" className="gap-2" disabled>
+            <ListFilter className="size-4" aria-hidden />
+            <span className="hidden sm:inline">{labels.filters.button}</span>
+          </Button>
           <Button variant="outline" size="sm" className="gap-2" disabled>
             <SlidersHorizontal className="size-4" aria-hidden />
             <span className="hidden sm:inline">{labels.display.button}</span>

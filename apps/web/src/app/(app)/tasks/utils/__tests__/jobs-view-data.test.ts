@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { SokosumiJobStatus } from "@sokosumi/database";
+import { JobType, SokosumiJobStatus } from "@sokosumi/database";
 
 import type { TaskWithCoworker } from "@/lib/types/task";
 
@@ -25,17 +25,8 @@ function buildJob(taskId: string) {
     createdAt: new Date("2026-03-01T10:00:00.000Z"),
     completedAt: null,
     status: SokosumiJobStatus.PROCESSING,
-    jobType: "PAID",
-    user: {
-      name: "Fallback User",
-      image: "fallback.png",
-    },
-    agent: {
-      name: "Agent One",
-      title: "Agent One",
-      icon: null,
-      customIconImageUrl: null,
-    },
+    jobType: JobType.PAID,
+    userId: "user-1",
   } as const;
 }
 
@@ -63,10 +54,35 @@ describe("mapJobsToTasksViewData", () => {
     const result = await mapJobsToTasksViewData({
       jobs: jobs as never,
       coworkersById,
+      memberPreviewByUserId: new Map([
+        ["user-1", { name: "Fallback User", image: "fallback.png" }],
+      ]),
+      agentPreviewSeedById: new Map([
+        ["agent-1", { name: "Agent One", icon: null }],
+      ]),
       seedTasksById,
     });
 
     expect(getTaskByIdMock).not.toHaveBeenCalled();
     expect(result.jobs[0]?.coworker?.name).toBe("Seeded Coworker");
+  });
+
+  it("falls back to member previews for jobs without a linked task", async () => {
+    const result = await mapJobsToTasksViewData({
+      jobs: [buildJob("task-missing")] as never,
+      coworkersById: new Map(),
+      memberPreviewByUserId: new Map([
+        ["user-1", { name: "Alice", image: "alice.png" }],
+      ]),
+      agentPreviewSeedById: new Map([
+        ["agent-1", { name: "Agent One", icon: null }],
+      ]),
+    });
+
+    expect(getTaskByIdMock).toHaveBeenCalledWith("task-missing");
+    expect(result.jobs[0]?.coworker).toEqual({
+      name: "Alice",
+      image: "alice.png",
+    });
   });
 });

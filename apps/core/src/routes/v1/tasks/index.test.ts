@@ -118,6 +118,12 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(getQueryDescriptionFromGetOperation(doc, "/", "status")).toContain(
       "Comma-separated status filters",
     );
+    expect(getQueryDescriptionFromGetOperation(doc, "/", "memberId")).toContain(
+      "member user ID",
+    );
+    expect(getQueryDescriptionFromGetOperation(doc, "/", "agentId")).toContain(
+      "associated agent ID",
+    );
   });
 
   it("exposes task archive on delete route", () => {

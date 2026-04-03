@@ -54,6 +54,7 @@ function createTask(
   overrides?: Partial<{
     linksFrom: unknown[];
     linksTo: unknown[];
+    events: unknown[];
   }>,
 ) {
   return {
@@ -61,12 +62,17 @@ function createTask(
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
     updatedAt: new Date("2026-03-25T10:00:00.000Z"),
     userId: "user_123",
+    user: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: "https://example.com/ada.png",
+    },
     organizationId: "org_123",
     coworkerId: "cow_123",
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
-    events: [],
+    events: overrides?.events ?? [],
     jobs: [],
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
@@ -109,12 +115,36 @@ describe("GET /tasks/{id}", () => {
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+        events: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+            transaction: {
+              select: {
+                amount: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
         share: true,
         linksFrom: {
           where: {
             toTask: {
               is: {
-                userId: "user_123",
+                organizationId: "org_123",
               },
             },
           },
@@ -142,7 +172,7 @@ describe("GET /tasks/{id}", () => {
           where: {
             fromTask: {
               is: {
-                userId: "user_123",
+                organizationId: "org_123",
               },
             },
           },
@@ -296,6 +326,68 @@ describe("GET /tasks/{id}", () => {
         status: TaskStatus.RUNNING,
         archivedAt: null,
       },
+    });
+  });
+
+  it("returns creator and event user summaries", async () => {
+    taskFindUniqueMock.mockResolvedValue(
+      createTask({
+        events: [
+          {
+            id: "evt_1",
+            createdAt: new Date("2026-03-25T11:00:00.000Z"),
+            updatedAt: new Date("2026-03-25T11:00:00.000Z"),
+            taskId: "tsk_a",
+            status: null,
+            comment: "Created by teammate",
+            authenticationUrl: null,
+            origin: "SOKOSUMI",
+            userId: "user_456",
+            user: {
+              id: "user_456",
+              name: "Grace Hopper",
+              image: "https://example.com/grace.png",
+            },
+            coworkerId: null,
+            transactionId: null,
+            cents: null,
+            transaction: null,
+          },
+        ],
+      }),
+    );
+    const app = createApp();
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: {
+        user: {
+          id: string;
+          name: string;
+          image: string | null;
+        };
+        events: Array<{
+          user: {
+            id: string;
+            name: string;
+            image: string | null;
+          } | null;
+        }>;
+      };
+    };
+
+    expect(body.data.user).toEqual({
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: "https://example.com/ada.png",
+    });
+    expect(body.data.events[0]?.user).toEqual({
+      id: "user_456",
+      name: "Grace Hopper",
+      image: "https://example.com/grace.png",
     });
   });
 });

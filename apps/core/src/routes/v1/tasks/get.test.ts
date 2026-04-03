@@ -9,12 +9,14 @@ import type { AuthVariables } from "@/middleware/auth";
 import mountGetTasks from "./get";
 
 const {
+  getMemberByUserIdAndOrganizationIdMock,
   prismaTransactionMock,
   requireCoworkerCapabilityMock,
   resolveWorkspaceForContextMock,
   taskCountMock,
   taskFindManyMock,
 } = vi.hoisted(() => ({
+  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
@@ -35,6 +37,20 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
 }));
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+
+  return {
+    ...actual,
+    memberRepository: {
+      ...actual.memberRepository,
+      getMemberByUserIdAndOrganizationId:
+        getMemberByUserIdAndOrganizationIdMock,
+    },
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -79,6 +95,11 @@ function createTask() {
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
     updatedAt: new Date("2026-03-25T10:00:00.000Z"),
     userId: "user_123",
+    user: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: "https://example.com/ada.png",
+    },
     organizationId: "org_123",
     coworkerId: "cow_123",
     name: "Task A",
@@ -107,6 +128,9 @@ describe("GET /tasks", () => {
     });
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      id: "member_123",
+    });
     prismaTransactionMock.mockImplementation(async (operations) => {
       return await Promise.all(operations);
     });
@@ -123,7 +147,6 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          userId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           status: {
             in: [TaskStatus.COMPLETED, TaskStatus.FAILED],
@@ -142,7 +165,6 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          userId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           name: {
             contains: "review",
@@ -186,6 +208,60 @@ describe("GET /tasks", () => {
       "org_123",
       expect.any(Object),
     );
+  });
+
+  it("filters org workspace task lists by memberId", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/?memberId=user_456");
+
+    expect(response.status).toBe(200);
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
+      "user_456",
+      "org_123",
+      expect.any(Object),
+    );
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: "user_456",
+        },
+      }),
+    );
+  });
+
+  it("filters task lists by associated agentId", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/?agentId=agent_456");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          jobs: {
+            some: {
+              agentId: "agent_456",
+            },
+          },
+        },
+      }),
+    );
+  });
+
+  it("rejects memberId values outside the active organization", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+    const app = createApp();
+
+    const response = await app.request("http://localhost/?memberId=user_999");
+
+    expect(response.status).toBe(400);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+    expect(taskCountMock).not.toHaveBeenCalled();
   });
 
   it("returns task list items without links", async () => {

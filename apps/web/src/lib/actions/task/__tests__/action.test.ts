@@ -281,7 +281,7 @@ describe("task link actions", () => {
         direction: "incoming",
       }),
     ).rejects.toThrow(
-      /inconsistent after a failed parent replacement.*rollback delete failed.*while recovering from: cleanup failed/s,
+      /inconsistent after a failed parent replacement[\s\S]*rollback delete failed[\s\S]*while recovering from: cleanup failed/,
     );
   });
 

@@ -1,6 +1,9 @@
 "use server";
 
+import type { AgentJobStatus, TaskStatus } from "@sokosumi/database";
+
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
+import type { MemberPreviewItem } from "@/app/tasks/utils/member-filter-options";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -12,11 +15,19 @@ import { getTasksColumnPage } from "./utils/tasks-column-page";
 interface LoadMoreTasksColumnParams {
   columnId: KanbanColumnId;
   cursor: string | null;
+  memberId?: string | null;
+  coworkerId?: string | null;
+  agentId?: string | null;
+  taskStatus?: TaskStatus | null;
 }
 
 export async function loadMoreTasksColumn({
   columnId,
   cursor,
+  memberId = null,
+  coworkerId = null,
+  agentId = null,
+  taskStatus = null,
 }: LoadMoreTasksColumnParams) {
   const [coworkers, agents] = await Promise.all([
     coworkerService.listCoworkers(),
@@ -31,6 +42,10 @@ export async function loadMoreTasksColumn({
     columnId,
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
+    memberId,
+    coworkerId,
+    agentId,
+    taskStatus,
     coworkersById,
     agentsById,
   });
@@ -41,21 +56,61 @@ export async function loadMoreTasksColumn({
   };
 }
 
-export async function loadMoreJobs(cursor: string | null) {
-  const [coworkers, jobsPage] = await Promise.all([
+interface LoadMoreJobsParams {
+  cursor: string | null;
+  memberId?: string | null;
+  agentId?: string | null;
+  jobStatus?: AgentJobStatus | null;
+  includeFailed?: boolean | null;
+  memberPreviews?: MemberPreviewItem[];
+}
+
+export async function loadMoreJobs({
+  cursor,
+  memberId = null,
+  agentId = null,
+  jobStatus = null,
+  includeFailed = null,
+  memberPreviews = [],
+}: LoadMoreJobsParams) {
+  const [coworkers, agents, jobsPage] = await Promise.all([
     coworkerService.listCoworkers(),
+    agentService.getAvailableAgentsWithCreditsPrice(),
     userService.listMyJobsForActiveContextPaginated({
       cursor,
       limit: 20,
+      memberId,
+      agentId,
+      status: jobStatus,
+      includeFailed,
     }),
   ]);
 
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
+  const agentPreviewSeedById = new Map(
+    agents.map((agent) => [
+      agent.id,
+      {
+        name: agent.name,
+        icon: agent.icon ?? null,
+      },
+    ]),
+  );
   const { jobs, agentPreviewById } = await mapJobsToTasksViewData({
     jobs: jobsPage.jobs,
     coworkersById,
+    memberPreviewByUserId: new Map(
+      memberPreviews.map((member) => [
+        member.id,
+        {
+          name: member.name,
+          image: member.image,
+        },
+      ]),
+    ),
+    agentPreviewSeedById,
   });
 
   return {

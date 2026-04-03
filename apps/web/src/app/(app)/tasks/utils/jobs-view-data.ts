@@ -1,18 +1,30 @@
 import "server-only";
 
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
+import type { SokosumiJobStatus } from "@sokosumi/database";
 
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
-import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
+import type { JobSummary } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
 
 /** Minimal task shape used to resolve job coworker; full Task from getTaskById also accepted. */
 type TaskSeedForJob = { id: string; coworkerId: string | null };
 
+interface MemberPreview {
+  name: string | null;
+  image: string | null;
+}
+
+interface AgentPreview {
+  name: string;
+  icon: string | null;
+}
+
 interface MapJobsToTasksViewDataParams {
-  jobs: JobWithSokosumiStatus[];
+  jobs: JobSummary[];
   coworkersById: Map<string, Parameters<typeof getCoworkerImage>[0]>;
+  memberPreviewByUserId: Map<string, MemberPreview>;
+  agentPreviewSeedById: Map<string, AgentPreview>;
   seedTasksById?: Map<
     string,
     | TaskSeedForJob
@@ -23,10 +35,12 @@ interface MapJobsToTasksViewDataParams {
 export async function mapJobsToTasksViewData({
   jobs,
   coworkersById,
+  memberPreviewByUserId,
+  agentPreviewSeedById,
   seedTasksById,
 }: MapJobsToTasksViewDataParams): Promise<{
   jobs: TasksViewJob[];
-  agentPreviewById: Record<string, { name: string; icon: string | null }>;
+  agentPreviewById: Record<string, AgentPreview>;
 }> {
   const tasksById = new Map(seedTasksById);
   const missingTaskIds = Array.from(
@@ -53,19 +67,20 @@ export async function mapJobsToTasksViewData({
   const mappedJobs: TasksViewJob[] = jobs.map((job) => ({
     id: job.id,
     agentId: job.agentId,
-    name: job.name,
+    name: job.name ?? null,
     createdAt: new Date(job.createdAt).toISOString(),
     completedAt: job.completedAt
       ? new Date(job.completedAt).toISOString()
       : null,
-    status: job.status,
+    status: job.status as SokosumiJobStatus,
     jobType: job.jobType,
     coworker: (() => {
       const task = job.taskId ? tasksById.get(job.taskId) : null;
+      const memberPreview = memberPreviewByUserId.get(job.userId) ?? null;
       if (!task) {
         return {
-          name: job.user.name ?? null,
-          image: job.user.image ?? null,
+          name: memberPreview?.name ?? null,
+          image: memberPreview?.image ?? null,
         };
       }
 
@@ -73,21 +88,21 @@ export async function mapJobsToTasksViewData({
         ? (coworkersById.get(task.coworkerId) ?? null)
         : null;
       return {
-        name: coworker?.name ?? null,
-        image: getCoworkerImage(coworker),
+        name: coworker?.name ?? memberPreview?.name ?? null,
+        image: coworker
+          ? getCoworkerImage(coworker)
+          : (memberPreview?.image ?? null),
       };
     })(),
   }));
 
-  const agentPreviewById: Record<
-    string,
-    { name: string; icon: string | null }
-  > = {};
+  const agentPreviewById: Record<string, AgentPreview> = {};
   for (const job of jobs) {
     if (agentPreviewById[job.agentId]) continue;
+    const seededPreview = agentPreviewSeedById.get(job.agentId);
     agentPreviewById[job.agentId] = {
-      name: getAgentName(job.agent),
-      icon: getAgentResolvedIcon(job.agent),
+      name: seededPreview?.name ?? job.agentId,
+      icon: seededPreview?.icon ?? null,
     };
   }
 

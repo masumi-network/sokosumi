@@ -1334,9 +1334,6 @@
         "placeholder": "タスクはありません"
       },
       "Jobs": {
-        "filterButton": "ステータス",
-        "filterHideFailed": "失敗を非表示",
-        "filterShowAll": "すべて表示",
         "recentTitle": "最近",
         "emptyRecent": "最近完了したジョブはありません。",
         "emptyList": "ジョブはまだありません。",
@@ -1345,10 +1342,44 @@
         "unknownAgent": "不明なエージェント",
         "unknownCoworker": "不明な同僚"
       },
+      "Filters": {
+        "all": "すべて",
+        "title": "フィルター",
+        "member": "メンバー",
+        "memberMe": "自分",
+        "coworker": "同僚",
+        "agent": "エージェント",
+        "taskStatus": "タスクのステータス",
+        "jobStatus": "ジョブのステータス",
+        "searchPlaceholder": "絞り込み...",
+        "emptyResults": "結果が見つかりません。",
+        "taskStatusOptions": {
+          "DRAFT": "下書き",
+          "READY": "準備完了",
+          "INPUT_REQUIRED": "入力が必要",
+          "AUTHENTICATION_REQUIRED": "認証が必要",
+          "OUT_OF_CREDITS": "クレジット不足",
+          "CREDITS_TOPPED_UP": "クレジットを補充済み",
+          "RUNNING": "実行中",
+          "AWAITING_EXTERNAL": "外部対応待ち",
+          "COMPLETED": "完了",
+          "FAILED": "失敗",
+          "CANCEL_REQUESTED": "キャンセル要求済み",
+          "CANCELED": "キャンセル済み"
+        },
+        "jobStatusOptions": {
+          "INITIATED": "開始済み",
+          "AWAITING_PAYMENT": "支払い待ち",
+          "AWAITING_INPUT": "入力待ち",
+          "RUNNING": "実行中",
+          "COMPLETED": "完了",
+          "FAILED": "失敗"
+        }
+      },
       "Detail": {
         "back": "タスクに戻る",
-        "parentTask": "親:",
         "properties": "プロパティ",
+        "creator": "作成者",
         "status": "ステータス",
         "coworker": "同僚",
         "created": "作成日",

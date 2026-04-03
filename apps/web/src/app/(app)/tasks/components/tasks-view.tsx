@@ -9,11 +9,22 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SokosumiJobStatus } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/database";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
+  parseAsString,
+  parseAsStringEnum,
+  parseAsStringLiteral,
+  useQueryState,
+} from "nuqs";
+import {
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -27,6 +38,14 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
+import type {
+  MemberFilterOption,
+  MemberPreviewItem,
+} from "@/app/tasks/utils/member-filter-options";
+import {
+  TASKS_TAB_VALUES,
+  type TasksTabValue,
+} from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
@@ -56,10 +75,6 @@ import {
   CreateTaskModalProvider,
   useCreateTaskModal,
 } from "./create-task-modal";
-import {
-  type JobsFailedFilterMode,
-  JobsFilterDropdown,
-} from "./jobs-filter-dropdown";
 import { JobsListView, type TasksViewJob } from "./jobs-list-view";
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";
@@ -68,6 +83,7 @@ import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
 import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
 import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
+import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch } from "./view-mode-switch";
 
 function HeaderAddButton({ label }: { label: string }) {
@@ -118,8 +134,6 @@ const hydrationStore = (() => {
   return { subscribe, getSnapshot, getServerSnapshot };
 })();
 
-const JOBS_FAILED_FILTER_MODE_STORAGE_KEY =
-  "sokosumi.tasks.jobs.failedFilterMode";
 const TASKS_GUIDE_COMPLETED_STORAGE_KEY = "sokosumi.tasks.guideCompleted";
 interface TasksRealtimeListenerProps {
   userId: string;
@@ -187,10 +201,20 @@ interface TasksViewProps {
   columnNextCursorById: Record<KanbanColumnId, string | null>;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
+  memberOptions: MemberFilterOption[];
+  memberPreviews: MemberPreviewItem[];
   agentNameById: Map<string, string>;
   userId?: string | null;
   activeOrganizationId: string | null;
   defaultViewMode?: TasksViewMode;
+  initialFilters: {
+    tab: TasksTabValue;
+    memberId: string | null;
+    coworkerId: string | null;
+    agentId: string | null;
+    taskStatus: TaskStatus | null;
+    jobStatus: AgentJobStatus | null;
+  };
   initialCreateTaskOpen?: boolean;
   initialCoworkerId?: string | null;
   createTaskModalResetKey?: string;
@@ -203,9 +227,6 @@ interface TasksViewProps {
     add: string;
     addTask: string;
     jobs: {
-      filterButton: string;
-      filterHideFailed: string;
-      filterShowAll: string;
       recentTitle: string;
       emptyRecent: string;
       emptyList: string;
@@ -224,6 +245,20 @@ interface TasksViewProps {
     loading: string;
     dragError: string;
     loadMoreError: string;
+    filters: {
+      all: string;
+      title: string;
+      member: string;
+      memberMe: string;
+      coworker: string;
+      agent: string;
+      taskStatus: string;
+      jobStatus: string;
+      searchPlaceholder: string;
+      emptyResults: string;
+      taskStatusOptions: Record<TaskStatus, string>;
+      jobStatusOptions: Record<AgentJobStatus, string>;
+    };
     emptyState: {
       title: string;
       description: string;
@@ -242,8 +277,6 @@ interface TasksViewProps {
   };
 }
 
-type TasksTabValue = "tasks" | "jobs";
-
 export function TasksView({
   tasks,
   jobs,
@@ -252,10 +285,13 @@ export function TasksView({
   columnNextCursorById: initialColumnNextCursorById,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
+  memberOptions,
+  memberPreviews,
   agentNameById,
   userId,
   activeOrganizationId,
   defaultViewMode,
+  initialFilters,
   initialCreateTaskOpen = false,
   initialCoworkerId = null,
   createTaskModalResetKey = "default",
@@ -265,23 +301,51 @@ export function TasksView({
   const [viewMode, setViewMode] = useState<TasksViewMode>(
     defaultViewMode ?? "board",
   );
-  const [activeTab, setActiveTab] = useState<TasksTabValue>("tasks");
-  const [jobsFailedFilterMode, setJobsFailedFilterMode] =
-    useState<JobsFailedFilterMode>(() => {
-      if (typeof window === "undefined") {
-        return "hideFailed";
-      }
-
-      try {
-        const storedValue = window.localStorage.getItem(
-          JOBS_FAILED_FILTER_MODE_STORAGE_KEY,
-        );
-
-        return storedValue === "showAll" ? "showAll" : "hideFailed";
-      } catch {
-        return "hideFailed";
-      }
-    });
+  const [_isRoutePending, startRouteTransition] = useTransition();
+  const [tabParam, setTabParam] = useQueryState(
+    "tab",
+    parseAsStringLiteral(TASKS_TAB_VALUES).withDefault("tasks").withOptions({
+      shallow: false,
+      startTransition: startRouteTransition,
+    }),
+  );
+  const [memberIdParam, setMemberIdParam] = useQueryState(
+    "memberId",
+    parseAsString.withOptions({
+      shallow: false,
+      startTransition: startRouteTransition,
+    }),
+  );
+  const [coworkerIdParam, setCoworkerIdParam] = useQueryState(
+    "coworkerId",
+    parseAsString.withOptions({
+      shallow: false,
+      startTransition: startRouteTransition,
+    }),
+  );
+  const [agentIdParam, setAgentIdParam] = useQueryState(
+    "agentId",
+    parseAsString.withOptions({
+      shallow: false,
+      startTransition: startRouteTransition,
+    }),
+  );
+  const [taskStatusParam, setTaskStatusParam] = useQueryState(
+    "taskStatus",
+    parseAsStringEnum<TaskStatus>(Object.values(TaskStatus)).withOptions({
+      shallow: false,
+      startTransition: startRouteTransition,
+    }),
+  );
+  const [jobStatusParam, setJobStatusParam] = useQueryState(
+    "jobStatus",
+    parseAsStringEnum<AgentJobStatus>(
+      Object.values(AgentJobStatus),
+    ).withOptions({
+      shallow: false,
+      startTransition: startRouteTransition,
+    }),
+  );
   const [guideCompleted, setGuideCompleted] = useState<boolean>(() => {
     if (typeof window === "undefined") {
       return false;
@@ -335,7 +399,34 @@ export function TasksView({
     TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
   );
   const scopeKey = activeOrganizationId ?? "personal";
-  const previousScopeKeyRef = useRef(scopeKey);
+  const activeTab = isMounted ? tabParam : initialFilters.tab;
+  const activeMemberId = isMounted ? memberIdParam : initialFilters.memberId;
+  const activeCoworkerId = isMounted
+    ? coworkerIdParam
+    : initialFilters.coworkerId;
+  const activeAgentId = isMounted ? agentIdParam : initialFilters.agentId;
+  const activeTaskStatus = isMounted
+    ? taskStatusParam
+    : initialFilters.taskStatus;
+  const activeJobStatus = isMounted ? jobStatusParam : initialFilters.jobStatus;
+  const dataKey = [
+    scopeKey,
+    initialFilters.memberId ?? "",
+    initialFilters.coworkerId ?? "",
+    initialFilters.agentId ?? "",
+    initialFilters.taskStatus ?? "",
+    initialFilters.jobStatus ?? "",
+  ].join(":");
+  const previousDataKeyRef = useRef(dataKey);
+  const agentFilterOptions = useMemo(
+    () =>
+      Object.entries(agentPreviews).map(([id, preview]) => ({
+        id,
+        name: preview.name,
+        image: preview.icon,
+      })),
+    [agentPreviews],
+  );
   const handleEventUpdate = (_data: TaskEventData) => {
     refreshRoute();
   };
@@ -363,20 +454,52 @@ export function TasksView({
   }, [refreshRoute]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        JOBS_FAILED_FILTER_MODE_STORAGE_KEY,
-        jobsFailedFilterMode,
-      );
-    } catch {
-      // Ignore storage errors.
+    if (!isMounted) return;
+
+    if (!activeOrganizationId) {
+      if (memberIdParam !== null) {
+        void setMemberIdParam(null);
+      }
     }
-  }, [jobsFailedFilterMode]);
+
+    if (
+      memberIdParam !== null &&
+      !memberOptions.some((member) => member.id === memberIdParam)
+    ) {
+      void setMemberIdParam(null);
+    }
+
+    if (
+      coworkerIdParam !== null &&
+      !coworkerOptions.some((coworker) => coworker.id === coworkerIdParam)
+    ) {
+      void setCoworkerIdParam(null);
+    }
+
+    if (
+      agentIdParam !== null &&
+      !agentFilterOptions.some((agent) => agent.id === agentIdParam)
+    ) {
+      void setAgentIdParam(null);
+    }
+  }, [
+    activeOrganizationId,
+    agentFilterOptions,
+    agentIdParam,
+    coworkerIdParam,
+    coworkerOptions,
+    isMounted,
+    memberIdParam,
+    memberOptions,
+    setAgentIdParam,
+    setCoworkerIdParam,
+    setMemberIdParam,
+  ]);
 
   useEffect(() => {
-    if (previousScopeKeyRef.current === scopeKey) return;
+    if (previousDataKeyRef.current === dataKey) return;
 
-    previousScopeKeyRef.current = scopeKey;
+    previousDataKeyRef.current = dataKey;
     moveVersionRef.current = 0;
     pendingMoveVersionByTaskIdRef.current.clear();
     isRefetchingJobsRef.current = false;
@@ -399,7 +522,7 @@ export function TasksView({
     initialColumnNextCursorById,
     initialJobsNextCursor,
     jobs,
-    scopeKey,
+    dataKey,
     tasks,
   ]);
 
@@ -502,6 +625,9 @@ export function TasksView({
       | undefined;
     if (!fromColumn || fromColumn === toColumn) return;
 
+    const activeTask = itemsRef.current.find((task) => task.id === activeId);
+    if (!activeTask || activeTask.userId !== userId) return;
+
     const desiredStatus = statusForColumn(toColumn);
     if (!desiredStatus) return;
 
@@ -561,7 +687,14 @@ export function TasksView({
       setLoadingColumnIds(nextLoading);
 
       try {
-        const result = await loadMoreTasksColumn({ columnId, cursor });
+        const result = await loadMoreTasksColumn({
+          columnId,
+          cursor,
+          memberId: activeMemberId,
+          coworkerId: activeCoworkerId,
+          agentId: activeAgentId,
+          taskStatus: activeTaskStatus,
+        });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
         setColumnCursorById((prev) => ({
@@ -589,7 +722,13 @@ export function TasksView({
         setLoadingColumnIds(afterLoading);
       }
     },
-    [labels.loadMoreError],
+    [
+      activeAgentId,
+      activeCoworkerId,
+      activeMemberId,
+      activeTaskStatus,
+      labels.loadMoreError,
+    ],
   );
 
   const handleViewModeChange = (next: TasksViewMode) => {
@@ -601,7 +740,14 @@ export function TasksView({
     if (!jobsCursor) return;
     startJobsTransition(async () => {
       try {
-        const result = await loadMoreJobs(jobsCursor);
+        const result = await loadMoreJobs({
+          cursor: jobsCursor,
+          memberId: activeMemberId,
+          agentId: activeAgentId,
+          jobStatus: activeJobStatus,
+          includeFailed: activeJobStatus === null ? false : null,
+          memberPreviews,
+        });
         setJobsItems((prev) => appendUniqueJobs(prev, result.jobs));
         setJobsCursor(result.nextCursor);
         setAgentPreviews((prev) => ({
@@ -620,7 +766,14 @@ export function TasksView({
 
     startJobsTransition(async () => {
       try {
-        const result = await loadMoreJobs(null);
+        const result = await loadMoreJobs({
+          cursor: null,
+          memberId: activeMemberId,
+          agentId: activeAgentId,
+          jobStatus: activeJobStatus,
+          includeFailed: activeJobStatus === null ? false : null,
+          memberPreviews,
+        });
         setJobsItems((prev) => mergeTopPageJobs(prev, result.jobs));
         setAgentPreviews((prev) => ({
           ...prev,
@@ -691,9 +844,9 @@ export function TasksView({
     [activeDragTaskId, items],
   );
   const columnFooterById = useMemo<
-    Partial<Record<KanbanColumnId, React.ReactNode>>
+    Partial<Record<KanbanColumnId, ReactNode>>
   >(() => {
-    const footerById: Partial<Record<KanbanColumnId, React.ReactNode>> = {};
+    const footerById: Partial<Record<KanbanColumnId, ReactNode>> = {};
 
     for (const column of columns) {
       const cursor = columnCursorById[column.id] ?? null;
@@ -740,61 +893,81 @@ export function TasksView({
   const tabsContent = (
     <Tabs
       value={activeTab}
-      onValueChange={(value: string) => setActiveTab(value as TasksTabValue)}
+      onValueChange={(value: string) => {
+        void setTabParam(value as TasksTabValue);
+      }}
       className="flex h-full min-h-0 flex-1 flex-col gap-5"
     >
-      <div className="flex flex-row items-center justify-between gap-3">
-        <div className="w-full">
-          <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
-            <TabsTrigger
-              value="tasks"
-              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-            >
-              {labels.tabs.tasks}
-            </TabsTrigger>
-            <TabsTrigger
-              value="jobs"
-              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-            >
-              {labels.tabs.jobs}
-            </TabsTrigger>
-          </TabsList>
-        </div>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-row items-center justify-between gap-3">
+          <div className="w-full">
+            <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
+              <TabsTrigger
+                value="tasks"
+                className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+              >
+                {labels.tabs.tasks}
+              </TabsTrigger>
+              <TabsTrigger
+                value="jobs"
+                className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+              >
+                {labels.tabs.jobs}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          {activeTab === "tasks" ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label={labels.showGuideAriaLabel}
-              onClick={() => setForceShowGuide(true)}
-            >
-              <CircleHelp className="size-4" aria-hidden />
-            </Button>
-          ) : null}
-          {activeTab === "tasks" ? (
-            <ViewModeSwitch
-              value={viewMode}
-              onChange={handleViewModeChange}
-              labels={labels.display}
-            />
-          ) : null}
-          {activeTab === "jobs" ? (
-            <JobsFilterDropdown
-              value={jobsFailedFilterMode}
-              onChange={setJobsFailedFilterMode}
-              labels={{
-                button: labels.jobs.filterButton,
-                hideFailed: labels.jobs.filterHideFailed,
-                showAll: labels.jobs.filterShowAll,
+          <div className="flex items-center gap-2 sm:gap-3">
+            {activeTab === "tasks" ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label={labels.showGuideAriaLabel}
+                onClick={() => setForceShowGuide(true)}
+              >
+                <CircleHelp className="size-4" aria-hidden />
+              </Button>
+            ) : null}
+            <TasksViewFilters
+              activeTab={activeTab}
+              memberOptions={memberOptions}
+              coworkerOptions={coworkerOptions}
+              agentOptions={agentFilterOptions}
+              memberId={activeMemberId}
+              coworkerId={activeCoworkerId}
+              agentId={activeAgentId}
+              taskStatus={activeTaskStatus}
+              jobStatus={activeJobStatus}
+              onMemberChange={(value) => {
+                void setMemberIdParam(value);
               }}
+              onCoworkerChange={(value) => {
+                void setCoworkerIdParam(value);
+              }}
+              onAgentChange={(value) => {
+                void setAgentIdParam(value);
+              }}
+              onTaskStatusChange={(value) => {
+                void setTaskStatusParam(value);
+              }}
+              onJobStatusChange={(value) => {
+                void setJobStatusParam(value);
+              }}
+              labels={labels.filters}
             />
-          ) : null}
-          {activeTab === "tasks" ? (
-            <HeaderAddButton label={labels.add} />
-          ) : null}
+            {activeTab === "tasks" ? (
+              <ViewModeSwitch
+                value={viewMode}
+                onChange={handleViewModeChange}
+                labels={labels.display}
+              />
+            ) : null}
+            {activeTab === "tasks" ? (
+              <HeaderAddButton label={labels.add} />
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -822,6 +995,7 @@ export function TasksView({
                   <KanbanBoard
                     tasks={items}
                     columns={columns}
+                    currentUserId={userId}
                     columnFooterById={columnFooterById}
                     labels={{
                       columns: labels.columns,
@@ -833,6 +1007,7 @@ export function TasksView({
                   <TaskListView
                     tasks={items}
                     columns={columns}
+                    currentUserId={userId}
                     sectionFooterById={columnFooterById}
                     labels={{
                       columns: labels.columns,
@@ -863,6 +1038,7 @@ export function TasksView({
               <KanbanBoard
                 tasks={items}
                 columns={columns}
+                currentUserId={userId}
                 columnFooterById={columnFooterById}
                 labels={{
                   columns: labels.columns,
@@ -875,6 +1051,7 @@ export function TasksView({
               <TaskListView
                 tasks={items}
                 columns={columns}
+                currentUserId={userId}
                 sectionFooterById={columnFooterById}
                 labels={{
                   columns: labels.columns,
@@ -892,7 +1069,6 @@ export function TasksView({
           jobs={jobsItems}
           agentPreviewById={agentPreviews}
           columnLabels={labels.columns}
-          failedFilterMode={jobsFailedFilterMode}
           labels={labels.jobs}
         />
         {jobsCursor ? (

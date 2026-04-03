@@ -940,4 +940,67 @@ describe("mapTask", () => {
     expect(result.credits).toBe(2);
     expect(result.events[0]?.credits).toBe(5);
   });
+
+  it("maps creator and event user summaries", () => {
+    const task = {
+      id: "tsk_123",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      userId: "user_123",
+      user: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: "https://example.com/ada.png",
+      },
+      organizationId: null,
+      coworkerId: "cow_123",
+      name: "Task with people",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      linksFrom: [],
+      linksTo: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+      events: [
+        {
+          id: "evt_123",
+          taskId: "tsk_123",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          status: null,
+          comment: "Looks good",
+          authenticationUrl: null,
+          origin: TaskEventOrigin.SOKOSUMI,
+          userId: "user_456",
+          user: {
+            id: "user_456",
+            name: "Grace Hopper",
+            image: null,
+          },
+          coworkerId: null,
+          transactionId: null,
+          cents: null,
+          transaction: null,
+        },
+      ],
+    } as unknown as TaskWithIncludes;
+
+    const result = mapTask(task);
+
+    expect(result.user).toEqual({
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: "https://example.com/ada.png",
+    });
+    expect(result.events[0]?.user).toEqual({
+      id: "user_456",
+      name: "Grace Hopper",
+      image: null,
+    });
+  });
 });

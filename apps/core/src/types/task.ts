@@ -12,9 +12,23 @@ import {
 } from "@/types/task-link";
 
 const taskBaseInclude = {
+  user: {
+    select: {
+      id: true,
+      name: true,
+      image: true,
+    },
+  },
   ...workspaceRelationInclude,
   events: {
     include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+        },
+      },
       transaction: {
         select: { amount: true },
       },

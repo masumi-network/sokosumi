@@ -231,6 +231,7 @@ async function TaskOverviewSection({
         task={taskWithCoworker}
         labels={{
           propertiesTitle: t("properties"),
+          creator: t("creator"),
           status: t("status"),
           coworker: t("coworker"),
           created: t("created"),
@@ -270,6 +271,7 @@ async function TaskDetailActionsSlot({
     agentNameById,
     coworkerOptions,
   } = buildTaskDetailContext(task, coworkers, agents);
+  const viewerUserId = session?.user.id ?? null;
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
     session?.user?.email?.trim() ||
@@ -281,6 +283,7 @@ async function TaskDetailActionsSlot({
       taskId={taskId}
       status={taskWithCoworker.status}
       jobsCount={taskWithCoworker.jobsCount}
+      readOnly={viewerUserId !== task.userId}
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
@@ -369,7 +372,7 @@ async function TaskActivitySectionContent({
         image: session.user.image ?? null,
       }
     : null;
-  const userById = currentUser ? { [currentUser.id]: currentUser } : undefined;
+  const userById = buildTaskUserMap(task, currentUser);
   const coworkerById = Object.fromEntries(
     coworkers.map((coworker) => [
       coworker.id,
@@ -402,6 +405,38 @@ async function TaskActivitySectionContent({
       isFreePlan={isFreePlan}
     />
   );
+}
+
+function buildTaskUserMap(
+  task: Task,
+  currentUser: { id: string; name: string; image: string | null } | null,
+) {
+  const entries = new Map<string, { name: string; image: string | null }>();
+
+  entries.set(task.user.id, {
+    name: task.user.name,
+    image: task.user.image ?? null,
+  });
+
+  for (const event of task.events) {
+    if (!event.userId || !event.user) {
+      continue;
+    }
+
+    entries.set(event.userId, {
+      name: event.user.name,
+      image: event.user.image ?? null,
+    });
+  }
+
+  if (currentUser && !entries.has(currentUser.id)) {
+    entries.set(currentUser.id, {
+      name: currentUser.name,
+      image: currentUser.image,
+    });
+  }
+
+  return Object.fromEntries(entries);
 }
 
 async function getActiveSubscriptions(organizationId: string | null) {

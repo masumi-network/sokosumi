@@ -4,7 +4,10 @@ import { Prisma } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
 import { LIMITS } from "@/config/constants";
-import { requireTaskAccess } from "@/helpers/access-control";
+import {
+  requireCoworkerTaskAccess,
+  requireTaskCollaboratorAccess,
+} from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -81,7 +84,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { event, userId } = await prisma.$transaction(
       async (tx) => {
-        const task = await requireTaskAccess(authContext, taskId, tx);
+        const task = isCoworkerAuthContext(authContext)
+          ? await requireCoworkerTaskAccess(authContext, taskId, tx)
+          : await requireTaskCollaboratorAccess(authContext, taskId, tx);
         const { status, comment, credits, authenticationUrl, origin } = body;
 
         if (status !== undefined) {

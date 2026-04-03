@@ -39,7 +39,13 @@ async function canAccessJob(
   job: JobWithSokosumiStatus,
   session: Session,
 ): Promise<boolean> {
-  return job.userId === session.user.id;
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+
+  return (
+    job.userId === session.user.id ||
+    (activeOrganizationId !== null &&
+      job.organizationId === activeOrganizationId)
+  );
 }
 
 export async function loadJobDetails({

@@ -16,6 +16,15 @@ vi.mock("sonner", () => ({
 
 import { createTaskAttachmentUploadToast } from "../task-attachment-upload-toast";
 
+type UploadToastProps = {
+  items: Array<{
+    id: string;
+    loaded: number;
+    percentage: number;
+    total: number;
+  }>;
+};
+
 function getLatestToastElement(): ReactElement {
   const renderToast = toastCustomMock.mock.lastCall?.[0] as
     | ((id: string | number) => ReactElement)
@@ -47,12 +56,7 @@ describe("task-attachment-upload-toast", () => {
     });
 
     const initialElement = getLatestToastElement();
-    const initialItems = initialElement.props.items as Array<{
-      id: string;
-      loaded: number;
-      percentage: number;
-      total: number;
-    }>;
+    const initialItems = (initialElement.props as UploadToastProps).items;
 
     uploadToast.updateFileProgress(0, {
       loaded: 2,
@@ -61,8 +65,8 @@ describe("task-attachment-upload-toast", () => {
     });
 
     const firstUpdateElement = getLatestToastElement();
-    const firstUpdateItems = firstUpdateElement.props
-      .items as typeof initialItems;
+    const firstUpdateItems = (firstUpdateElement.props as UploadToastProps)
+      .items;
 
     expect(firstUpdateItems).not.toBe(initialItems);
     expect(firstUpdateItems[0]).not.toBe(initialItems[0]);
@@ -87,8 +91,8 @@ describe("task-attachment-upload-toast", () => {
     });
 
     const secondUpdateElement = getLatestToastElement();
-    const secondUpdateItems = secondUpdateElement.props
-      .items as typeof initialItems;
+    const secondUpdateItems = (secondUpdateElement.props as UploadToastProps)
+      .items;
 
     expect(secondUpdateItems).not.toBe(firstUpdateItems);
     expect(secondUpdateItems[0]).toBe(firstUpdateItems[0]);

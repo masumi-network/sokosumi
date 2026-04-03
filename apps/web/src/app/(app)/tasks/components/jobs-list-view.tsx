@@ -8,7 +8,6 @@ import { COLUMN_STATUS_COLORS, type KanbanColumnId } from "@/lib/types/task";
 
 import { ColumnHeader } from "./column-header";
 import { JobListItem } from "./job-list-item";
-import type { JobsFailedFilterMode } from "./jobs-filter-dropdown";
 
 const JOBS_LAST_SEEN_AT_STORAGE_KEY = "sokosumi.tasks.jobs.lastSeenAt";
 const RECENT_SECTION_COLOR_CLASS = "bg-violet-500";
@@ -20,11 +19,7 @@ interface JobsListViewProps {
   jobs: TasksViewJob[];
   agentPreviewById: Record<string, { name: string; icon: string | null }>;
   columnLabels: Record<KanbanColumnId, string>;
-  failedFilterMode: JobsFailedFilterMode;
   labels: {
-    filterButton: string;
-    filterHideFailed: string;
-    filterShowAll: string;
     recentTitle: string;
     emptyRecent: string;
     emptyList: string;
@@ -39,7 +34,6 @@ export function JobsListView({
   jobs,
   agentPreviewById,
   columnLabels,
-  failedFilterMode,
   labels,
 }: JobsListViewProps) {
   const [lastSeenAt] = useState(() => {
@@ -80,17 +74,9 @@ export function JobsListView({
     [jobs],
   );
 
-  const visibleJobs = useMemo(
-    () =>
-      failedFilterMode === "hideFailed"
-        ? sortedJobs.filter((job) => !isFailedLikeStatus(job.status))
-        : sortedJobs,
-    [failedFilterMode, sortedJobs],
-  );
-
   const recentJobs = useMemo(
     () =>
-      visibleJobs.filter((job) => {
+      sortedJobs.filter((job) => {
         if (job.status !== SokosumiJobStatus.COMPLETED) return false;
         if (!job.completedAt) return false;
         const retentionFloor = recentReferenceTs - RECENT_RETENTION_MS;
@@ -100,7 +86,7 @@ export function JobsListView({
             : retentionFloor;
         return new Date(job.completedAt).getTime() > effectiveLastSeenAt;
       }),
-    [lastSeenAt, recentReferenceTs, visibleJobs],
+    [lastSeenAt, recentReferenceTs, sortedJobs],
   );
 
   const recentJobIds = useMemo(
@@ -117,14 +103,14 @@ export function JobsListView({
       done: [],
     };
 
-    for (const job of visibleJobs) {
+    for (const job of sortedJobs) {
       if (recentJobIds.has(job.id)) continue;
       const columnId = jobStatusToColumnId(job.status);
       initial[columnId].push(job);
     }
 
     return initial;
-  }, [recentJobIds, visibleJobs]);
+  }, [recentJobIds, sortedJobs]);
 
   const orderedColumns: KanbanColumnId[] = [
     "done",
@@ -132,7 +118,7 @@ export function JobsListView({
     "in-progress",
     "todo",
   ];
-  const hasAnyJobs = visibleJobs.length > 0;
+  const hasAnyJobs = sortedJobs.length > 0;
 
   const listContent = (
     <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
@@ -227,11 +213,4 @@ function jobStatusToColumnId(status: SokosumiJobStatus): KanbanColumnId {
     default:
       return "in-progress";
   }
-}
-
-function isFailedLikeStatus(status: SokosumiJobStatus): boolean {
-  return (
-    status === SokosumiJobStatus.FAILED ||
-    status === SokosumiJobStatus.PAYMENT_FAILED
-  );
 }

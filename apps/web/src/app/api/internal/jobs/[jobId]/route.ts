@@ -14,7 +14,7 @@ interface RouteParams {
 
 /**
  * Get job by ID internally
- * @description Retrieves a specific job by ID belonging to the authenticated user
+ * @description Retrieves a specific job by ID for the active personal or organization context
  */
 export async function GET(
   request: NextRequest,
@@ -32,8 +32,14 @@ export async function GET(
     }
 
     const job = await jobRepository.getJobById(jobId, prisma);
+    const activeOrganizationId = session.session.activeOrganizationId ?? null;
+    const canReadJob =
+      !!job &&
+      (job.userId === session.user.id ||
+        (activeOrganizationId !== null &&
+          job.organizationId === activeOrganizationId));
 
-    if (!job || job.userId !== session.user.id) {
+    if (!canReadJob) {
       throw new Error("JOB_NOT_FOUND");
     }
 

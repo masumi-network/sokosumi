@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
+import { memberRepository } from "@sokosumi/database/repositories";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
@@ -16,6 +16,10 @@ import {
   deduplicateQueryValues,
   preprocessMultiValueQueryInput,
 } from "@/helpers/query-params";
+import {
+  buildScopedReadWhere,
+  resolveUserReadScope,
+} from "@/helpers/read-scope";
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
@@ -67,6 +71,22 @@ const query = z
         description: "Filter tasks by coworker ID",
         example: "cow_123",
       }),
+    memberId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "memberId", in: "query" },
+        description: "Filter tasks by member user ID",
+        example: "usr_123",
+      }),
+    agentId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "agentId", in: "query" },
+        description: "Filter tasks by associated agent ID",
+        example: "agt_123",
+      }),
   })
   .extend(cursorPaginationQuerySchema.shape);
 
@@ -91,7 +111,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { q, status: statuses, coworkerId } = queryParams;
+    const { q, status: statuses, coworkerId, memberId, agentId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -119,18 +139,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
-      const workspace = await resolveWorkspaceForContext(
-        authContext.userId,
-        authContext.organizationId,
-        prisma,
-      );
+      const scope = await resolveUserReadScope(authContext, prisma);
+
+      if (memberId && authContext.organizationId) {
+        const member =
+          await memberRepository.getMemberByUserIdAndOrganizationId(
+            memberId,
+            authContext.organizationId,
+            prisma,
+          );
+
+        if (!member) {
+          throw badRequest(
+            "memberId must belong to the active organization workspace.",
+          );
+        }
+      }
 
       where = {
         archivedAt: null,
-        userId: authContext.userId,
-        workspaceId: workspace.id,
+        ...buildScopedReadWhere(scope, memberId),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
+        ...(agentId ? { jobs: { some: { agentId } } } : {}),
         ...searchFilter,
       };
     }

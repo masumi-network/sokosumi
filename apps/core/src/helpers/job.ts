@@ -5,10 +5,7 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import {
-  convertCreditsToCents,
-  resolveWorkspaceForContext,
-} from "@sokosumi/database/helpers";
+import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobPurchaseRepository,
@@ -32,6 +29,10 @@ import {
   getAgentCost,
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
+import {
+  buildScopedReadWhere,
+  resolveUserReadScope,
+} from "@/helpers/read-scope";
 import prisma from "@/lib/db/prisma";
 import type { UserAuthenticationContext } from "@/middleware/auth";
 import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
@@ -83,7 +84,7 @@ async function createPaidJob(
   agentJobResponse: StartPaidJobResponseSchemaType,
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient,
-): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+): Promise<JobWithSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
@@ -173,7 +174,7 @@ async function createFreeJob(
   },
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
-): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+): Promise<JobWithSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   return await tx.job.create({
     data: {
@@ -459,7 +460,9 @@ export async function getUserJobs(
   authContext: UserAuthenticationContext,
   options: {
     agentId?: string;
+    memberId?: string;
     status?: AgentJobStatus;
+    includeFailed?: boolean;
     cursor?: string;
     take: number;
     skip?: number;
@@ -470,24 +473,35 @@ export async function getUserJobs(
   count: number;
   hasMore: boolean;
 }> {
-  const { agentId, status, cursor, take, skip, tx = prisma } = options;
-
-  const workspace = await resolveWorkspaceForContext(
-    authContext.userId,
-    authContext.organizationId,
-    tx,
-  );
+  const {
+    agentId,
+    memberId,
+    status,
+    includeFailed = true,
+    cursor,
+    take,
+    skip,
+    tx = prisma,
+  } = options;
+  const scope = await resolveUserReadScope(authContext, tx);
 
   const where: Prisma.JobWhereInput = {
     AND: [
-      {
-        userId: authContext.userId,
-        workspaceId: workspace.id,
-      },
+      buildScopedReadWhere(scope, memberId),
       ...(agentId ? [{ agentId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
     ],
   };
+
+  if (!includeFailed && !status) {
+    return await getUserJobsWithoutFailed({
+      where,
+      cursor,
+      take,
+      skip,
+      tx,
+    });
+  }
 
   const takePlusOne = take + 1;
   const jobs = await tx.job.findMany({
@@ -506,4 +520,78 @@ export async function getUserJobs(
     count,
     hasMore: jobs.length === takePlusOne,
   };
+}
+
+async function getUserJobsWithoutFailed({
+  where,
+  cursor,
+  take,
+  skip,
+  tx,
+}: {
+  where: Prisma.JobWhereInput;
+  cursor?: string;
+  take: number;
+  skip?: number;
+  tx: Prisma.TransactionClient;
+}): Promise<{
+  jobs: ReturnType<typeof flattenJob>[];
+  count: number;
+  hasMore: boolean;
+}> {
+  const takePlusOne = take + 1;
+  const batchSize = Math.max(takePlusOne, 50);
+  const visibleJobs: ReturnType<typeof flattenJob>[] = [];
+  let visibleCount = 0;
+  let currentCursor = cursor;
+  let currentSkip = skip;
+
+  while (true) {
+    const jobs = await tx.job.findMany({
+      where,
+      take: batchSize,
+      skip: currentCursor ? currentSkip : undefined,
+      cursor: currentCursor ? { id: currentCursor } : undefined,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        ...jobSummaryInclude,
+      },
+    });
+
+    if (jobs.length === 0) {
+      break;
+    }
+
+    const flattenedJobs = jobs.map(flattenJob);
+    const filteredJobs = flattenedJobs.filter(
+      (job) => !isFailedLikeJobStatus(job.status),
+    );
+
+    visibleCount += filteredJobs.length;
+
+    if (visibleJobs.length < takePlusOne) {
+      visibleJobs.push(
+        ...filteredJobs.slice(0, Math.max(takePlusOne - visibleJobs.length, 0)),
+      );
+    }
+
+    if (jobs.length < batchSize) {
+      break;
+    }
+
+    currentCursor = jobs.at(-1)?.id;
+    currentSkip = 1;
+  }
+
+  return {
+    jobs: visibleJobs.slice(0, take),
+    count: visibleCount,
+    hasMore: visibleJobs.length === takePlusOne,
+  };
+}
+
+function isFailedLikeJobStatus(
+  status: ReturnType<typeof flattenJob>["status"],
+) {
+  return status === "failed" || status === "payment_failed";
 }

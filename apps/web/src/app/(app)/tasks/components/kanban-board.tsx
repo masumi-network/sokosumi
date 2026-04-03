@@ -14,6 +14,7 @@ import { DraggableTask, DroppableColumn, isDnDColumn } from "./task-dnd";
 interface KanbanBoardProps {
   tasks: TaskWithCoworker[];
   columns: KanbanColumnDefinition[];
+  currentUserId?: string | null;
   labels: {
     columns: Record<KanbanColumnId, string>;
     addTask: string;
@@ -26,6 +27,7 @@ interface KanbanBoardProps {
 export function KanbanBoard({
   tasks,
   columns,
+  currentUserId = null,
   labels,
   columnFooterById,
   isDragEnabled = true,
@@ -61,7 +63,7 @@ export function KanbanBoard({
             emptyLabel={labels.emptyColumn}
             footer={footer}
             renderTask={(task) =>
-              isDraggableColumn ? (
+              isDraggableColumn && currentUserId === task.userId ? (
                 <DraggableTask
                   key={task.id}
                   id={task.id}

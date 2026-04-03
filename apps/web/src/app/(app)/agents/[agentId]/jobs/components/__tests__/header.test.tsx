@@ -1,3 +1,4 @@
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -36,10 +37,12 @@ describe("Header", () => {
   it("renders detail actions in both desktop and mobile header areas", () => {
     render(
       <Header
-        agent={{
-          id: "agent-1",
-          creditsPrice: { cents: BigInt(100) },
-        }}
+        agent={
+          {
+            id: "agent-1",
+            creditsPrice: { cents: BigInt(100) },
+          } as AgentWithCreditsPrice
+        }
         favoriteAgents={[]}
         ratingStats={{ averageRating: 0, ratingCount: 0 } as never}
         canRate={false}

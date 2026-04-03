@@ -1,5 +1,7 @@
+import { InputType } from "@sokosumi/masumi/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Session } from "@/lib/auth/auth";
 import { JobScheduleType } from "@/lib/types/job";
 
 vi.mock("next/cache", () => ({
@@ -65,14 +67,14 @@ describe("createSchedule", () => {
         session: {
           activeOrganizationId: "org_123",
         },
-      },
+      } as Session,
       input: {
         agentId: "agent_123",
         inputSchema: {
           input_data: [
             {
               id: "prompt",
-              type: "string",
+              type: InputType.STRING,
               name: "Prompt",
             },
           ],
@@ -80,7 +82,7 @@ describe("createSchedule", () => {
         inputData: {
           prompt: "hello",
         },
-        maxAcceptedCents: 10n,
+        maxAcceptedCents: BigInt(10),
       },
       scheduleSelection: {
         mode: JobScheduleType.ONE_TIME,
@@ -124,14 +126,14 @@ describe("createSchedule", () => {
         session: {
           activeOrganizationId: null,
         },
-      },
+      } as Session,
       input: {
         agentId: "agent_123",
         inputSchema: {
           input_data: [
             {
               id: "prompt",
-              type: "string",
+              type: InputType.STRING,
               name: "Prompt",
             },
           ],
@@ -139,7 +141,7 @@ describe("createSchedule", () => {
         inputData: {
           prompt: "hello",
         },
-        maxAcceptedCents: 10n,
+        maxAcceptedCents: BigInt(10),
       },
       scheduleSelection: {
         mode: JobScheduleType.ONE_TIME,

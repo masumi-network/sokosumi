@@ -97,6 +97,7 @@ interface TaskDetailActionsProps {
   share: TaskShare | null;
   status: TaskStatus;
   jobsCount: number;
+  readOnly?: boolean;
   taskLinks: TaskLink[];
   coworkerOptions: CoworkerOption[];
   agentNameById: Map<string, string>;
@@ -113,6 +114,7 @@ export function TaskDetailActions({
   share,
   status,
   jobsCount,
+  readOnly = false,
   taskLinks,
   coworkerOptions,
   agentNameById,
@@ -363,6 +365,10 @@ export function TaskDetailActions({
     isLinkPending ||
     isParentRemovalPending ||
     isRemoveRelatedPending;
+
+  if (readOnly) {
+    return null;
+  }
 
   return (
     <div className="flex items-center gap-2">

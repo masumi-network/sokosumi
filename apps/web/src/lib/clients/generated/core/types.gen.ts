@@ -679,6 +679,11 @@ export type TaskEvent = {
     authenticationUrl?: string | null;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
     status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    user: {
+        id: string;
+        name: string;
+        image?: string | null;
+    } | null;
 };
 
 export type CoworkerUsage = {
@@ -717,6 +722,11 @@ export type TaskListItem = {
     createdAt: Date;
     updatedAt: Date;
     userId: string;
+    user: {
+        id: string;
+        name: string;
+        image?: string | null;
+    };
     organizationId: string | null;
     coworkerId: string | null;
     name: string;
@@ -733,6 +743,11 @@ export type Task = {
     createdAt: Date;
     updatedAt: Date;
     userId: string;
+    user: {
+        id: string;
+        name: string;
+        image?: string | null;
+    };
     organizationId: string | null;
     coworkerId: string | null;
     name: string;
@@ -5439,6 +5454,14 @@ export type GetJobsData = {
          */
         status?: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
         /**
+         * Filter jobs by member user ID
+         */
+        memberId?: string;
+        /**
+         * Whether failed jobs should be included. Optional UI convenience flag; defaults to true.
+         */
+        includeFailed?: boolean;
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -7414,6 +7437,14 @@ export type GetTasksData = {
          * Filter tasks by coworker ID
          */
         coworkerId?: string;
+        /**
+         * Filter tasks by member user ID
+         */
+        memberId?: string;
+        /**
+         * Filter tasks by associated agent ID
+         */
+        agentId?: string;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */

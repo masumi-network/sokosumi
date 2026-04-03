@@ -1,10 +1,11 @@
 import type { Prisma } from "@sokosumi/database";
 import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
+
 import prisma from "@/lib/db/prisma";
 
 import type { UserAuthenticationContext } from "@/middleware/auth";
 
-export async function buildCurrentUserTaskContextWhere(
+export async function buildCurrentWorkspaceTaskContextWhere(
   authContext: UserAuthenticationContext,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Prisma.TaskWhereInput> {
@@ -15,7 +16,6 @@ export async function buildCurrentUserTaskContextWhere(
   );
 
   return {
-    userId: authContext.userId,
     workspaceId: workspace.id,
   };
 }

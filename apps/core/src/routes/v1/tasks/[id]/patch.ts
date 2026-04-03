@@ -3,7 +3,7 @@ import { TaskStatus } from "@sokosumi/database";
 
 import {
   requireTaskAssignableCoworker,
-  requireUserTaskAccess,
+  requireTaskCollaboratorAccess,
 } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -74,7 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { name, description, coworkerId } = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
-      const task = await requireUserTaskAccess(authContext, id, tx);
+      const task = await requireTaskCollaboratorAccess(authContext, id, tx);
 
       const canUpdateTask =
         task.status === TaskStatus.DRAFT || task.status === TaskStatus.READY;
@@ -98,7 +98,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return tx.task.update({
         where: {
           id,
-          userId: authContext.userId,
+          workspaceId: task.workspaceId,
           status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
         },
         data: {

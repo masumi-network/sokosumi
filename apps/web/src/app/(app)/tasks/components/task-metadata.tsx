@@ -8,6 +8,7 @@ import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskMetadataLabels {
   propertiesTitle: string;
+  creator: string;
   status: string;
   coworker: string;
   created: string;
@@ -21,6 +22,8 @@ interface TaskMetadataProps {
 
 export function TaskMetadata({ task, labels }: TaskMetadataProps) {
   const coworkerImage = getCoworkerImage(task.coworker);
+  const creatorName = task.user.name;
+  const creatorImage = task.user.image ?? null;
   const formatter = useFormatter();
   const dateTimeOptions = {
     month: "short",
@@ -40,6 +43,27 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-sm">{labels.status}</span>
           <TaskStatusBadge status={task.status} showLabel />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground text-sm">
+            {labels.creator}
+          </span>
+          <div className="flex items-center gap-2">
+            <Avatar className="size-5">
+              {creatorImage ? (
+                <AvatarImage
+                  src={creatorImage}
+                  alt={creatorName}
+                  className="object-cover"
+                />
+              ) : null}
+              <AvatarFallback className="bg-muted text-[10px]">
+                {creatorName.slice(0, 1).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-medium">{creatorName}</span>
+          </div>
         </div>
 
         {/* Coworker */}

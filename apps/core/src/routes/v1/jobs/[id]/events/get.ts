@@ -80,7 +80,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const events = await prisma.$transaction(async (tx) => {
       await requireJobAccess(authContext, id, tx);
-      const job = await prisma.job.findUnique({
+      const job = await tx.job.findUnique({
         where: { id },
         include: {
           ...jobWithEvents,

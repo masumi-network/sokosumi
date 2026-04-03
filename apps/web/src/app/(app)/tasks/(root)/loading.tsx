@@ -38,6 +38,9 @@ export default async function TasksRootLoading() {
           columns: columnLabels,
           add: t("Actions.add"),
           addTask: t("Actions.addTask"),
+          filters: {
+            button: t("Filters.title"),
+          },
           display: {
             button: t("Display.button"),
           },

@@ -59,7 +59,7 @@ describe("getUserJobs", () => {
     );
   });
 
-  it("filters jobs by active workspace and owner", async () => {
+  it("filters org jobs by active workspace", async () => {
     const tx = createTransactionClient();
     resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
@@ -75,7 +75,6 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              userId: "user_123",
               workspaceId: "11111111-1111-7111-8111-111111111111",
             },
           ],
@@ -132,7 +131,6 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              userId: "user_123",
               workspaceId: "11111111-1111-7111-8111-111111111111",
             },
             {

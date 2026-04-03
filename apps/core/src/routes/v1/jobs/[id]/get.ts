@@ -3,7 +3,7 @@ import { JobType, jobInclude, OnChainJobStatus } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
-import { requireJobReadAccess } from "@/helpers/access-control.js";
+import { requireJobAccess } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -103,7 +103,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const job = await prisma.$transaction(async (tx) => {
-      await requireJobReadAccess(authContext, id, tx);
+      await requireJobAccess(authContext, id, tx);
       const job = await tx.job.findUnique({
         where: { id },
         include: jobInclude,

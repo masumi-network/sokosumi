@@ -24,6 +24,29 @@ function getScopeDescriptionFromGetOperation(
   return scopeParameter?.description ?? "";
 }
 
+function getQueryDescriptionFromGetOperation(
+  doc: ReturnType<typeof jobsRouter.getOpenAPI31Document>,
+  path: string,
+  name: string,
+): string {
+  const operation = doc.paths?.[path]?.get;
+  const parameters = operation?.parameters ?? [];
+  const queryParameter = parameters.find((parameter) => {
+    if (!parameter || typeof parameter !== "object") {
+      return false;
+    }
+
+    return (
+      "name" in parameter &&
+      parameter.name === name &&
+      "in" in parameter &&
+      parameter.in === "query"
+    );
+  }) as { description?: string } | undefined;
+
+  return queryParameter?.description ?? "";
+}
+
 describe("jobs routes OpenAPI scope contract", () => {
   it("does not expose scope query parameter on job read endpoints", () => {
     const doc = jobsRouter.getOpenAPI31Document({
@@ -36,6 +59,12 @@ describe("jobs routes OpenAPI scope contract", () => {
 
     expect(getScopeDescriptionFromGetOperation(doc, "/")).toBe("");
     expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toBe("");
+    expect(getQueryDescriptionFromGetOperation(doc, "/", "memberId")).toContain(
+      "member user ID",
+    );
+    expect(
+      getQueryDescriptionFromGetOperation(doc, "/", "includeFailed"),
+    ).toContain("failed jobs should be included");
   });
 
   it("documents dedicated share mutation routes", () => {

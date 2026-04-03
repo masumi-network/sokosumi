@@ -60,6 +60,7 @@ describe("loadJobDetails", () => {
       id: "job-1",
       agent: { id: "agent-1" },
       userId: "other-user",
+      organizationId: null,
     });
 
     const { loadJobDetails } = await import("../load-job-details");
@@ -69,6 +70,32 @@ describe("loadJobDetails", () => {
     ).rejects.toThrow("redirect:/agents/agent-1/jobs");
 
     expect(redirectMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
+  });
+
+  it("allows org-scoped jobs from other members in read-only mode", async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    });
+    getAgentByIdMock.mockResolvedValue({ id: "agent-1" });
+    getJobByIdMock.mockResolvedValue({
+      id: "job-1",
+      agent: { id: "agent-1" },
+      userId: "other-user",
+      organizationId: "org-1",
+    });
+
+    const { loadJobDetails } = await import("../load-job-details");
+    const result = await loadJobDetails({ agentId: "agent-1", jobId: "job-1" });
+
+    expect(result).toMatchObject({
+      job: {
+        id: "job-1",
+      },
+      readOnly: true,
+      activeOrganizationId: "org-1",
+    });
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
   it("returns owned jobs without read-only mode", async () => {
@@ -81,6 +108,7 @@ describe("loadJobDetails", () => {
       id: "job-1",
       agent: { id: "agent-1" },
       userId: "user-1",
+      organizationId: "org-1",
     });
 
     const { loadJobDetails } = await import("../load-job-details");
@@ -90,6 +118,7 @@ describe("loadJobDetails", () => {
       id: "job-1",
       agent: { id: "agent-1" },
       userId: "user-1",
+      organizationId: "org-1",
     });
     expect(result).toMatchObject({
       job: {

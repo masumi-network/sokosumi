@@ -72,6 +72,9 @@ describe("getTasksColumnPage", () => {
     expect(listTasksMock).toHaveBeenCalledTimes(1);
     expect(listTasksMock).toHaveBeenCalledWith({
       status: [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELED],
+      memberId: undefined,
+      coworkerId: undefined,
+      agentId: undefined,
       cursor: null,
       limit: 2,
     });
@@ -101,8 +104,36 @@ describe("getTasksColumnPage", () => {
     expect(page.nextCursor).toBeNull();
     expect(listTasksMock).toHaveBeenCalledWith({
       status: [TaskStatus.DRAFT],
+      memberId: undefined,
+      coworkerId: undefined,
+      agentId: undefined,
       cursor: "cursor-1",
       limit: 1,
+    });
+  });
+
+  it("forwards coworker filters to the task service", async () => {
+    listTasksMock.mockResolvedValue({
+      tasks: [],
+      pagination: { nextCursor: null },
+    });
+
+    await getTasksColumnPage({
+      columnId: "todo",
+      cursor: null,
+      limit: 10,
+      coworkerId: "coworker-1",
+      coworkersById: new Map(),
+      agentsById: new Map(),
+    });
+
+    expect(listTasksMock).toHaveBeenCalledWith({
+      status: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
+      memberId: undefined,
+      coworkerId: "coworker-1",
+      agentId: undefined,
+      cursor: null,
+      limit: 10,
     });
   });
 
@@ -127,5 +158,22 @@ describe("getTasksColumnPage", () => {
     });
 
     expect(page.nextCursor).toBeNull();
+  });
+
+  it("returns an empty page when the selected task status does not belong to the column", async () => {
+    const page = await getTasksColumnPage({
+      columnId: "backlog",
+      cursor: null,
+      limit: 10,
+      taskStatus: TaskStatus.COMPLETED,
+      coworkersById: new Map(),
+      agentsById: new Map(),
+    });
+
+    expect(page).toEqual({
+      tasks: [],
+      nextCursor: null,
+    });
+    expect(listTasksMock).not.toHaveBeenCalled();
   });
 });

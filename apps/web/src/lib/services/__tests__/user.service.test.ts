@@ -6,8 +6,7 @@ vi.mock("server-only", () => ({}));
 
 const getSessionMock = vi.fn();
 const getJobsMock = vi.fn();
-const findManyMock = vi.fn();
-const findUniqueMock = vi.fn();
+const getOwnedJobsMock = vi.fn();
 const resolveWorkspaceForContextMock = vi.fn();
 
 vi.mock("@/lib/auth/utils", () => ({
@@ -20,6 +19,16 @@ vi.mock("@/lib/auth/auth", () => ({
       updateUser: vi.fn(),
     },
   },
+}));
+
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {
+    getJobs: (...args: unknown[]) => getJobsMock(...args),
+  },
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {},
 }));
 
 vi.mock("next/headers", () => ({
@@ -41,20 +50,11 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 vi.mock("@sokosumi/database/repositories", () => ({
   invitationRepository: {},
   jobRepository: {
-    getJobs: (...args: unknown[]) => getJobsMock(...args),
+    getJobs: (...args: unknown[]) => getOwnedJobsMock(...args),
   },
   memberRepository: {},
   organizationRepository: {},
   userRepository: {},
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    job: {
-      findMany: (...args: unknown[]) => findManyMock(...args),
-      findUnique: (...args: unknown[]) => findUniqueMock(...args),
-    },
-  },
 }));
 
 describe("user.service", () => {
@@ -70,7 +70,7 @@ describe("user.service", () => {
       user: { id: "user-1" },
       session: { activeOrganizationId: "org-1" },
     });
-    getJobsMock.mockResolvedValue([
+    getOwnedJobsMock.mockResolvedValue([
       { id: "job-2", createdAt: new Date("2026-02-13T10:00:00.000Z") },
       { id: "job-1", createdAt: new Date("2026-02-12T10:00:00.000Z") },
     ]);
@@ -78,8 +78,8 @@ describe("user.service", () => {
     const { userService } = await import("../user.service");
     const result = await userService.getMyJobs("agent-1");
 
-    expect(getJobsMock).toHaveBeenCalledTimes(1);
-    expect(getJobsMock).toHaveBeenCalledWith(
+    expect(getOwnedJobsMock).toHaveBeenCalledTimes(1);
+    expect(getOwnedJobsMock).toHaveBeenCalledWith(
       {
         agentId: "agent-1",
         userId: "user-1",
@@ -95,26 +95,50 @@ describe("user.service", () => {
       user: { id: "user-1" },
       session: { activeOrganizationId: "org-1" },
     });
-    findManyMock.mockResolvedValue([
-      { id: "job-1", createdAt: new Date("2026-02-13T10:00:00.000Z") },
-    ]);
+    getJobsMock.mockResolvedValue({
+      data: [
+        {
+          id: "job-1",
+          agentId: "agent-1",
+          userId: "user-1",
+          name: "Job 1",
+          jobType: "FREE",
+          status: "COMPLETED",
+          createdAt: "2026-02-13T10:00:00.000Z",
+          updatedAt: "2026-02-13T10:00:00.000Z",
+          completedAt: "2026-02-13T10:01:00.000Z",
+        },
+      ],
+      meta: {
+        pagination: {
+          nextCursor: "cursor-2",
+        },
+      },
+    });
 
     const { userService } = await import("../user.service");
-    await userService.listMyJobsForActiveContextPaginated({ limit: 20 });
+    const result = await userService.listMyJobsForActiveContextPaginated({
+      limit: 20,
+      memberId: "user-2",
+      agentId: "agent-1",
+      status: "COMPLETED",
+      includeFailed: false,
+    });
 
-    expect(findManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          OR: [
-            {
-              userId: "user-1",
-              workspaceId: "11111111-1111-7111-8111-111111111111",
-            },
-          ],
-        },
-        take: 21,
-      }),
-    );
-    expect(findUniqueMock).not.toHaveBeenCalled();
+    expect(getJobsMock).toHaveBeenCalledWith({
+      limit: 20,
+      memberId: "user-2",
+      agentId: "agent-1",
+      status: "COMPLETED",
+      includeFailed: false,
+    });
+    expect(result).toEqual({
+      jobs: [
+        expect.objectContaining({
+          id: "job-1",
+        }),
+      ],
+      nextCursor: "cursor-2",
+    });
   });
 });

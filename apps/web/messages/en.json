@@ -1334,9 +1334,6 @@
         "placeholder": "No tasks"
       },
       "Jobs": {
-        "filterButton": "Status",
-        "filterHideFailed": "Hide failed",
-        "filterShowAll": "Show all",
         "recentTitle": "Recent",
         "emptyRecent": "No recently finished jobs.",
         "emptyList": "No jobs yet.",
@@ -1345,9 +1342,44 @@
         "unknownAgent": "Unknown agent",
         "unknownCoworker": "Unknown coworker"
       },
+      "Filters": {
+        "all": "All",
+        "title": "Filters",
+        "member": "Member",
+        "memberMe": "Me",
+        "coworker": "Coworker",
+        "agent": "Agent",
+        "taskStatus": "Task status",
+        "jobStatus": "Job status",
+        "searchPlaceholder": "Filter...",
+        "emptyResults": "No results found.",
+        "taskStatusOptions": {
+          "DRAFT": "Draft",
+          "READY": "Ready",
+          "INPUT_REQUIRED": "Input required",
+          "AUTHENTICATION_REQUIRED": "Authentication required",
+          "OUT_OF_CREDITS": "Out of credits",
+          "CREDITS_TOPPED_UP": "Credits topped up",
+          "RUNNING": "Running",
+          "AWAITING_EXTERNAL": "Awaiting external",
+          "COMPLETED": "Completed",
+          "FAILED": "Failed",
+          "CANCEL_REQUESTED": "Cancel requested",
+          "CANCELED": "Canceled"
+        },
+        "jobStatusOptions": {
+          "INITIATED": "Initiated",
+          "AWAITING_PAYMENT": "Awaiting payment",
+          "AWAITING_INPUT": "Awaiting input",
+          "RUNNING": "Running",
+          "COMPLETED": "Completed",
+          "FAILED": "Failed"
+        }
+      },
       "Detail": {
         "back": "Back to tasks",
         "properties": "Properties",
+        "creator": "Creator",
         "status": "Status",
         "coworker": "Coworker",
         "created": "Created",

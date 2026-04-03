@@ -12,6 +12,7 @@ import { TaskListSection } from "./task-list-section";
 interface TaskListViewProps {
   tasks: TaskWithCoworker[];
   columns: KanbanColumnDefinition[];
+  currentUserId?: string | null;
   labels: {
     columns: Record<KanbanColumnId, string>;
     emptyList: string;
@@ -24,6 +25,7 @@ interface TaskListViewProps {
 export function TaskListView({
   tasks,
   columns,
+  currentUserId = null,
   labels,
   sectionFooterById,
   isDragEnabled = true,
@@ -50,7 +52,7 @@ export function TaskListView({
                 emptyLabel={labels.emptySection}
                 footer={sectionFooterById?.[column.id]}
                 renderTask={(task) =>
-                  isDraggableColumn ? (
+                  isDraggableColumn && currentUserId === task.userId ? (
                     <DraggableTask
                       key={task.id}
                       id={task.id}

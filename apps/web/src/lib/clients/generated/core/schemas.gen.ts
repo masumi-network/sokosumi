@@ -2677,6 +2677,38 @@ export const TaskEventSchema = {
                 null
             ],
             example: 'RUNNING'
+        },
+        user: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/avatar.png'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            example: {
+                id: 'user_123',
+                name: 'Ada Lovelace',
+                image: 'https://example.com/avatar.png'
+            }
         }
     },
     required: [
@@ -2684,7 +2716,8 @@ export const TaskEventSchema = {
         'taskId',
         'createdAt',
         'updatedAt',
-        'origin'
+        'origin',
+        'user'
     ]
 } as const;
 
@@ -2871,6 +2904,30 @@ export const TaskListItemSchema = {
             type: 'string',
             example: 'user_123'
         },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/avatar.png'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
+        },
         organizationId: {
             type: [
                 'string',
@@ -2941,6 +2998,7 @@ export const TaskListItemSchema = {
         'createdAt',
         'updatedAt',
         'userId',
+        'user',
         'organizationId',
         'coworkerId',
         'name',
@@ -2973,6 +3031,30 @@ export const TaskSchema = {
         userId: {
             type: 'string',
             example: 'user_123'
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/avatar.png'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
         },
         organizationId: {
             type: [
@@ -3065,6 +3147,7 @@ export const TaskSchema = {
         'createdAt',
         'updatedAt',
         'userId',
+        'user',
         'organizationId',
         'coworkerId',
         'name',

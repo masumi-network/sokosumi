@@ -1334,9 +1334,6 @@
         "placeholder": "Nessun task"
       },
       "Jobs": {
-        "filterButton": "Stato",
-        "filterHideFailed": "Nascondi falliti",
-        "filterShowAll": "Mostra tutti",
         "recentTitle": "Recenti",
         "emptyRecent": "Nessun job completato di recente.",
         "emptyList": "Nessun job ancora.",
@@ -1345,10 +1342,44 @@
         "unknownAgent": "Agente sconosciuto",
         "unknownCoworker": "Coworker sconosciuto"
       },
+      "Filters": {
+        "all": "Tutti",
+        "title": "Filtri",
+        "member": "Membro",
+        "memberMe": "Io",
+        "coworker": "Coworker",
+        "agent": "Agente",
+        "taskStatus": "Stato del task",
+        "jobStatus": "Stato del job",
+        "searchPlaceholder": "Filtra...",
+        "emptyResults": "Nessun risultato trovato.",
+        "taskStatusOptions": {
+          "DRAFT": "Bozza",
+          "READY": "Pronto",
+          "INPUT_REQUIRED": "Input richiesto",
+          "AUTHENTICATION_REQUIRED": "Autenticazione richiesta",
+          "OUT_OF_CREDITS": "Crediti esauriti",
+          "CREDITS_TOPPED_UP": "Crediti ricaricati",
+          "RUNNING": "In esecuzione",
+          "AWAITING_EXTERNAL": "In attesa di un'azione esterna",
+          "COMPLETED": "Completato",
+          "FAILED": "Fallito",
+          "CANCEL_REQUESTED": "Annullamento richiesto",
+          "CANCELED": "Annullato"
+        },
+        "jobStatusOptions": {
+          "INITIATED": "Avviato",
+          "AWAITING_PAYMENT": "In attesa del pagamento",
+          "AWAITING_INPUT": "In attesa di input",
+          "RUNNING": "In esecuzione",
+          "COMPLETED": "Completato",
+          "FAILED": "Fallito"
+        }
+      },
       "Detail": {
         "back": "Torna ai task",
-        "parentTask": "Padre:",
         "properties": "Proprietà",
+        "creator": "Creatore",
         "status": "Stato",
         "coworker": "Coworker",
         "created": "Creato",

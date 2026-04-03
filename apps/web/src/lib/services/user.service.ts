@@ -6,13 +6,9 @@ import type {
   Member,
   MemberWithOrganization,
   OrganizationWithRelations,
-  Prisma,
   User,
 } from "@sokosumi/database";
-import {
-  mapJobWithStatus,
-  resolveWorkspaceForContext,
-} from "@sokosumi/database/helpers";
+import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import {
   invitationRepository,
   jobRepository,
@@ -20,22 +16,27 @@ import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import { jobInclude } from "@sokosumi/database/types/job";
 import { headers } from "next/headers";
 import { cache } from "react";
 
 import { auth, type Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
+import { coreClient } from "@/lib/clients/core.client";
+import type { GetJobsData, JobSummary } from "@/lib/clients/generated/core";
 import prisma from "@/lib/db/prisma";
 
 interface ListMyJobsForActiveContextParams {
   cursor?: string | null;
   limit?: number;
+  memberId?: string | null;
+  agentId?: string | null;
+  status?: NonNullable<GetJobsData["query"]>["status"] | null;
+  includeFailed?: NonNullable<GetJobsData["query"]>["includeFailed"] | null;
   session?: Session | null;
 }
 
 interface PaginatedJobsResult {
-  jobs: JobWithSokosumiStatus[];
+  jobs: JobSummary[];
   nextCursor: string | null;
 }
 
@@ -127,71 +128,31 @@ export const userService = (() => {
   async function listMyJobsForActiveContextPaginated(
     params: ListMyJobsForActiveContextParams = {},
   ): Promise<PaginatedJobsResult> {
-    const { cursor = null, limit = 20 } = params;
+    const {
+      cursor = null,
+      limit = 20,
+      memberId = null,
+      agentId = null,
+      status = null,
+      includeFailed = null,
+    } = params;
     const session = params.session ?? (await getSession());
     if (!session) {
       return { jobs: [], nextCursor: null };
     }
-    const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await resolveWorkspaceForContext(
-      session.user.id,
-      activeOrganizationId,
-      prisma,
-    );
 
-    const baseWhere: Prisma.JobWhereInput = {
-      OR: [
-        {
-          userId: session.user.id,
-          workspaceId: workspace.id,
-        },
-      ],
-    };
-
-    let where: Prisma.JobWhereInput = baseWhere;
-    if (cursor) {
-      const cursorJob = await prisma.job.findUnique({
-        where: { id: cursor },
-        select: { id: true, createdAt: true },
-      });
-
-      if (!cursorJob) {
-        return { jobs: [], nextCursor: null };
-      }
-
-      where = {
-        AND: [
-          baseWhere,
-          {
-            OR: [
-              { createdAt: { lt: cursorJob.createdAt } },
-              {
-                createdAt: cursorJob.createdAt,
-                id: { lt: cursorJob.id },
-              },
-            ],
-          },
-        ],
-      };
-    }
-
-    const rawJobs = await prisma.job.findMany({
-      where,
-      include: jobInclude,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: limit + 1,
+    const result = await coreClient.getJobs({
+      cursor: cursor ?? undefined,
+      limit,
+      ...(memberId ? { memberId } : {}),
+      ...(agentId ? { agentId } : {}),
+      ...(status ? { status } : {}),
+      ...(includeFailed !== null ? { includeFailed } : {}),
     });
 
-    const hasMore = rawJobs.length > limit;
-    const pageJobs = hasMore ? rawJobs.slice(0, limit) : rawJobs;
-    const paginatedJobs = pageJobs.map(mapJobWithStatus);
-    const nextCursor = hasMore
-      ? (pageJobs[pageJobs.length - 1]?.id ?? null)
-      : null;
-
     return {
-      jobs: paginatedJobs,
-      nextCursor,
+      jobs: result.data,
+      nextCursor: result.meta?.pagination?.nextCursor ?? null,
     };
   }
 

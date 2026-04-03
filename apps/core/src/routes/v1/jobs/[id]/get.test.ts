@@ -55,7 +55,7 @@ vi.mock("@/middleware/auth", () => ({
 }));
 
 vi.mock("@/helpers/access-control.js", () => ({
-  requireJobReadAccess: vi.fn(async () => undefined),
+  requireJobAccess: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({

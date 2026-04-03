@@ -40,9 +40,6 @@ function createJob(overrides: Partial<TasksViewJob>): TasksViewJob {
 }
 
 const labels = {
-  filterButton: "Status",
-  filterHideFailed: "Hide failed",
-  filterShowAll: "Show all",
   recentTitle: "Recent",
   emptyRecent: "No recently finished jobs.",
   emptyList: "No jobs yet.",
@@ -127,7 +124,6 @@ describe("JobsListView", () => {
           "agent-1": { name: "Agent name", icon: null },
         }}
         columnLabels={columnLabels}
-        failedFilterMode="hideFailed"
         labels={labels}
       />,
     );
@@ -156,7 +152,7 @@ describe("JobsListView", () => {
     );
   });
 
-  it("hides FAILED and PAYMENT_FAILED when failedFilterMode is hideFailed", () => {
+  it("shows failed jobs when they are included in the API response", () => {
     const jobs: TasksViewJob[] = [
       createJob({
         id: "job-failed",
@@ -188,48 +184,13 @@ describe("JobsListView", () => {
           "agent-1": { name: "Agent name", icon: null },
         }}
         columnLabels={columnLabels}
-        failedFilterMode="hideFailed"
-        labels={labels}
-      />,
-    );
-
-    expect(screen.queryByText("Failed one")).not.toBeInTheDocument();
-    expect(screen.queryByText("Payment failed one")).not.toBeInTheDocument();
-    expect(screen.getByText("Completed one")).toBeInTheDocument();
-  });
-
-  it("shows FAILED and PAYMENT_FAILED when failedFilterMode is showAll", () => {
-    const jobs: TasksViewJob[] = [
-      createJob({
-        id: "job-failed",
-        name: "Failed one",
-        status: SokosumiJobStatus.FAILED,
-        createdAt: "2026-02-10T11:00:00.000Z",
-        completedAt: "2026-02-10T11:10:00.000Z",
-      }),
-      createJob({
-        id: "job-payment-failed",
-        name: "Payment failed one",
-        status: SokosumiJobStatus.PAYMENT_FAILED,
-        createdAt: "2026-02-10T10:00:00.000Z",
-        completedAt: "2026-02-10T10:10:00.000Z",
-      }),
-    ];
-
-    render(
-      <JobsListView
-        jobs={jobs}
-        agentPreviewById={{
-          "agent-1": { name: "Agent name", icon: null },
-        }}
-        columnLabels={columnLabels}
-        failedFilterMode="showAll"
         labels={labels}
       />,
     );
 
     expect(screen.getByText("Failed one")).toBeInTheDocument();
     expect(screen.getByText("Payment failed one")).toBeInTheDocument();
+    expect(screen.getByText("Completed one")).toBeInTheDocument();
   });
 
   it("includes only COMPLETED jobs in Recent", () => {
@@ -262,7 +223,6 @@ describe("JobsListView", () => {
           "agent-1": { name: "Agent name", icon: null },
         }}
         columnLabels={columnLabels}
-        failedFilterMode="showAll"
         labels={labels}
       />,
     );

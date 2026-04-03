@@ -18,6 +18,11 @@ function buildTask(
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     userId: "user-1",
+    user: {
+      id: "user-1",
+      name: "Ada Lovelace",
+      image: "https://example.com/ada.png",
+    },
     organizationId: null,
     coworkerId: null,
     name: "Test task",
@@ -100,6 +105,18 @@ describe("mapTaskToTaskWithCoworker", () => {
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 
     expect(mapped.jobsCount).toBe(1);
+  });
+
+  it("preserves creator details from the API task", () => {
+    const task = buildTask(TaskStatus.READY);
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.user).toEqual({
+      id: "user-1",
+      name: "Ada Lovelace",
+      image: "https://example.com/ada.png",
+    });
   });
 
   it("preserves share information from task detail responses", () => {

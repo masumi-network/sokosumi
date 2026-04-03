@@ -12,12 +12,38 @@ import { mapWorkspaceSummary } from "./workspace";
 
 type TaskEventWithOptionalTransaction = Omit<
   TaskWithIncludes["events"][number],
-  "transaction"
+  "transaction" | "user"
 > & {
   transaction?: {
     amount: bigint;
   } | null;
+  user?: {
+    id: string;
+    name: string;
+    image: string | null;
+  } | null;
 };
+
+function mapTaskActorUser(
+  user:
+    | {
+        id: string;
+        name: string;
+        image: string | null;
+      }
+    | null
+    | undefined,
+) {
+  if (!user) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    name: user.name,
+    image: user.image,
+  };
+}
 
 interface ValidateTaskCoworkerAssignmentParams {
   status: TaskStatus;
@@ -153,10 +179,11 @@ export function validateTaskCoworkerAssignment({
 }
 
 export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
-  const { cents, ...rest } = event;
+  const { cents, transaction: _transaction, user, ...rest } = event;
   return {
     ...rest,
     credits: cents != null ? convertCentsToCredits(cents) : null,
+    user: mapTaskActorUser(user),
   };
 }
 
@@ -197,6 +224,7 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     userId: task.userId,
+    user: mapTaskActorUser(task.user),
     organizationId: task.organizationId,
     coworkerId: task.coworkerId,
     name: task.name,

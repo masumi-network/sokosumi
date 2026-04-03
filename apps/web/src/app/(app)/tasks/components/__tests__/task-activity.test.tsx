@@ -123,12 +123,22 @@ function createEvent(
     comment = null,
     authenticationUrl = null,
     origin = TaskEventOrigin.SOKOSUMI,
+    userId = "user-1",
+    user = userId
+      ? {
+          id: userId,
+          name: "User",
+          image: null,
+        }
+      : null,
   }: {
     createdAt: string;
     status: TaskStatus | null;
     comment?: string | null;
     authenticationUrl?: string | null;
     origin?: TaskEventOrigin;
+    userId?: string | null;
+    user?: TaskEvent["user"];
   },
 ): TaskEvent {
   return {
@@ -140,7 +150,8 @@ function createEvent(
     comment,
     authenticationUrl,
     origin,
-    userId: "user-1",
+    userId,
+    user,
     coworkerId: null,
     transactionId: null,
   } as unknown as TaskEvent;
@@ -333,6 +344,105 @@ describe("TaskActivitySection", () => {
     expect(screen.getByText("from Email")).toBeInTheDocument();
     expect(screen.getByLabelText("from Sokosumi")).toBeInTheDocument();
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
+  });
+
+  it("renders the event author from source data instead of the current session", () => {
+    const events: TaskEvent[] = [
+      createEvent("teammate-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Handled by teammate",
+        userId: "user-2",
+        user: {
+          id: "user-2",
+          name: "Grace Hopper",
+          image: null,
+        },
+      }),
+    ];
+
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        currentUser={{
+          id: "user-1",
+          name: "Current Session User",
+          image: null,
+        }}
+        userById={{
+          "user-2": {
+            name: "Grace Hopper",
+            image: null,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Grace Hopper")).toBeInTheDocument();
+    expect(screen.queryByText("Current Session User")).not.toBeInTheDocument();
+  });
+
+  it("falls back to event.user when the user map is unavailable", () => {
+    const events: TaskEvent[] = [
+      createEvent("teammate-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Handled by teammate",
+        userId: "user-2",
+        user: {
+          id: "user-2",
+          name: "Grace Hopper",
+          image: null,
+        },
+      }),
+    ];
+
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        currentUser={{
+          id: "user-1",
+          name: "Current Session User",
+          image: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Grace Hopper")).toBeInTheDocument();
+    expect(screen.queryByText("Current Session User")).not.toBeInTheDocument();
+  });
+
+  it("renders coworker-authored events from the coworker map", () => {
+    const events: TaskEvent[] = [
+      {
+        ...createEvent("coworker-comment", {
+          createdAt: "2026-01-01T12:00:00.000Z",
+          status: null,
+          comment: "Handled by coworker",
+          userId: null,
+          user: null,
+        }),
+        coworkerId: "cow-1",
+      },
+    ];
+
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        coworkerById={{
+          "cow-1": {
+            name: "Support Bot",
+            image: null,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Support Bot")).toBeInTheDocument();
+    expect(screen.queryByText("Coworker")).not.toBeInTheDocument();
   });
 
   it("shows upgrade plan billing CTA for latest out-of-credits event on free plan", () => {

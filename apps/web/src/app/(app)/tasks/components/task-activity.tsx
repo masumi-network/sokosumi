@@ -65,6 +65,24 @@ interface ActorInfo {
   image: string | null;
 }
 
+function getUserActorInfo(
+  event: Pick<TaskEvent, "user" | "userId">,
+  userById?: Record<string, ActorInfo>,
+): ActorInfo | undefined {
+  if (event.user) {
+    return {
+      name: event.user.name,
+      image: event.user.image ?? null,
+    };
+  }
+
+  if (!event.userId) {
+    return undefined;
+  }
+
+  return userById?.[event.userId];
+}
+
 interface TaskActivityProps {
   taskId: string;
   title: string;
@@ -212,6 +230,13 @@ export function TaskActivitySection({
       authenticationUrl: null,
       origin: TaskEventOrigin.SOKOSUMI,
       userId: currentUser?.id ?? null,
+      user: currentUser
+        ? {
+            id: currentUser.id,
+            name: currentUser.name,
+            image: currentUser.image,
+          }
+        : null,
       coworkerId: null,
       transactionId: null,
       credits: null,
@@ -390,9 +415,7 @@ export function TaskActivitySection({
                 : actorSystemLabel;
             const actorInfo = event.coworkerId
               ? coworkerById?.[event.coworkerId]
-              : event.userId
-                ? userById?.[event.userId]
-                : undefined;
+              : getUserActorInfo(event, userById);
             const actorName = actorInfo?.name ?? actorLabel;
             const actorImage = actorInfo?.image ?? null;
             const action = event.comment

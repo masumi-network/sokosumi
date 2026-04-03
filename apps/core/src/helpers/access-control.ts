@@ -16,10 +16,11 @@ import {
 
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
+import { buildScopedReadWhere, resolveUserReadScope } from "./read-scope";
 
 /**
  * Validates job access and returns the job if valid
- * Checks direct ownership only
+ * Checks the caller's readable job scope
  * Throws 404 if job doesn't exist, 403 if user doesn't have access
  *
  * @param authContext - The authenticated user context
@@ -45,9 +46,11 @@ export async function requireJobAccess(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
+  const scope = await resolveUserReadScope(authContext, tx);
   const job = await tx.job.findFirst({
     where: {
-      OR: [{ id: jobId, userId: authContext.userId }],
+      id: jobId,
+      ...buildScopedReadWhere(scope),
     },
   });
 
@@ -129,6 +132,27 @@ export async function requireUserTaskAccess(
       id: taskId,
       userId: authContext.userId,
       archivedAt: null,
+    },
+  });
+
+  if (!task) {
+    throw notFound("Task not found");
+  }
+
+  return task;
+}
+
+export async function requireTaskCollaboratorAccess(
+  authContext: UserAuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const scope = await resolveUserReadScope(authContext, tx);
+  const task = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      archivedAt: null,
+      workspaceId: scope.workspaceId,
     },
   });
 
@@ -259,40 +283,6 @@ export async function requireTaskAssignableCoworker(
   }
 }
 
-/**
- * Validates access to a task based on the authentication context (user or coworker)
- * and fetches the task record. Directs to the appropriate access control depending
- * on whether the request comes from a user or a coworker.
- *
- * Throws 403 if the authenticated user or coworker does not have access to the task.
- *
- * @param authContext - The authentication context of the current user or coworker
- * @param taskId - The ID of the task to fetch and validate
- * @param tx - Optional Prisma transaction client for transaction support (defaults to main Prisma client)
- * @returns The validated task if access is permitted
- * @throws {notFound} If the task does not exist
- * @throws {forbidden} If the user or coworker does not have access to the task
- *
- * @example
- * const task = await requireTaskAccess(authContext, taskId);
- *
- * @example
- * await prisma.$transaction(async (tx) => {
- *   const task = await requireTaskAccess(authContext, taskId, tx);
- *   // ... additional operations
- * });
- */
-export async function requireTaskAccess(
-  authContext: AuthenticationContext,
-  taskId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  if (isCoworkerAuthContext(authContext)) {
-    return await requireCoworkerTaskAccess(authContext, taskId, tx);
-  }
-  return await requireUserTaskAccess(authContext, taskId, tx);
-}
-
 export async function requireTaskReadAccess(
   authContext: AuthenticationContext,
   taskId: string,
@@ -302,11 +292,12 @@ export async function requireTaskReadAccess(
     return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
 
+  const scope = await resolveUserReadScope(authContext, tx);
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
       archivedAt: null,
-      userId: authContext.userId,
+      ...buildScopedReadWhere(scope),
     },
   });
 
@@ -315,23 +306,4 @@ export async function requireTaskReadAccess(
   }
 
   return task;
-}
-
-export async function requireJobReadAccess(
-  authContext: UserAuthenticationContext,
-  jobId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Job> {
-  const job = await tx.job.findFirst({
-    where: {
-      id: jobId,
-      userId: authContext.userId,
-    },
-  });
-
-  if (!job) {
-    throw forbidden("You can only access your own jobs");
-  }
-
-  return job;
 }

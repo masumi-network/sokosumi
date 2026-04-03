@@ -51,6 +51,12 @@ function buildVisiblePeerTaskWhere(
     };
   }
 
+  if (authContext.organizationId) {
+    return {
+      organizationId: authContext.organizationId,
+    };
+  }
+
   return {
     userId: authContext.userId,
   };

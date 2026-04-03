@@ -102,6 +102,11 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     createdAt: "2026-03-25T10:00:00.000Z",
     updatedAt: "2026-03-25T10:00:00.000Z",
     userId: "user_123",
+    user: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: "https://example.com/ada.png",
+    },
     organizationId: "org_current",
     coworkerId: "cow_123",
     name: "Current task",

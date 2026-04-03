@@ -14,6 +14,8 @@ import type {
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
   coworkerId?: string;
+  memberId?: string;
+  agentId?: string;
   q?: string;
   cursor?: string | null;
   limit?: number;
@@ -52,6 +54,8 @@ export const taskService = (() => {
           ? [params.status]
           : undefined,
       coworkerId: params.coworkerId,
+      memberId: params.memberId,
+      agentId: params.agentId,
       q: params.q,
       cursor: params.cursor ?? undefined,
       limit: params.limit,

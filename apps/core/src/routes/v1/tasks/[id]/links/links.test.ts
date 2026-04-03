@@ -14,7 +14,7 @@ import mountPostTaskLink from "./post";
 const {
   prismaTransactionMock,
   requireTaskReadAccessMock,
-  requireUserTaskAccessMock,
+  requireTaskCollaboratorAccessMock,
   resolveWorkspaceForContextMock,
   taskFindFirstMock,
   taskFindUniqueMock,
@@ -25,7 +25,7 @@ const {
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskReadAccessMock: vi.fn(),
-  requireUserTaskAccessMock: vi.fn(),
+  requireTaskCollaboratorAccessMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
@@ -37,7 +37,7 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskReadAccess: requireTaskReadAccessMock,
-  requireUserTaskAccess: requireUserTaskAccessMock,
+  requireTaskCollaboratorAccess: requireTaskCollaboratorAccessMock,
 }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -275,7 +275,7 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             toTask: {
               is: {
-                userId: "user_123",
+                organizationId: "org_123",
               },
             },
           },
@@ -303,7 +303,7 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             fromTask: {
               is: {
-                userId: "user_123",
+                organizationId: "org_123",
               },
             },
           },
@@ -349,10 +349,11 @@ describe("POST /tasks/{id}/links", () => {
     resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskCollaboratorAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
         organizationId: "org_123",
         archivedAt: null,
         status: TaskStatus.READY,
@@ -407,7 +408,6 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        userId: "user_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {
@@ -579,10 +579,11 @@ describe("POST /tasks/{id}/links", () => {
 describe("DELETE /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskCollaboratorAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
         organizationId: "org_123",
         archivedAt: null,
         status: TaskStatus.READY,
@@ -620,8 +621,8 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     });
   });
 
-  it("returns 200 when the peer task is archived but still owned by the user", async () => {
-    requireUserTaskAccessMock.mockImplementation(
+  it("returns 200 when the peer task is archived but still in the workspace", async () => {
+    requireTaskCollaboratorAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -630,6 +631,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
         return {
           id: taskId,
           userId: "user_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
           organizationId: "org_123",
           archivedAt: null,
           status: TaskStatus.READY,
@@ -651,12 +653,12 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
+    expect(requireTaskCollaboratorAccessMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 when the peer task is outside the user's current workspace", async () => {
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskCollaboratorAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -665,6 +667,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
         return {
           id: taskId,
           userId: "user_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
           organizationId: "org_123",
           archivedAt: null,
           status: TaskStatus.READY,
@@ -686,7 +689,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
+    expect(requireTaskCollaboratorAccessMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
@@ -726,10 +729,11 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 describe("PATCH /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskCollaboratorAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
         organizationId: "org_123",
         archivedAt: null,
         status: TaskStatus.READY,
@@ -790,7 +794,6 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        userId: "user_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {
@@ -853,7 +856,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
   });
 
-  it("returns 404 when the peer task is not owned by the user", async () => {
+  it("returns 404 when the peer task is outside the current workspace", async () => {
     taskFindFirstMock.mockResolvedValueOnce(null);
 
     const app = createUserApp();

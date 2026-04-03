@@ -74,6 +74,8 @@ describe("task.service", () => {
     const result = await taskService.listTasks({
       status: TaskStatus.READY,
       coworkerId: "cow-1",
+      memberId: "user-2",
+      agentId: "agent-9",
       q: "alpha",
       cursor: "task-1",
       limit: 20,
@@ -82,6 +84,8 @@ describe("task.service", () => {
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: [TaskStatus.READY],
       coworkerId: "cow-1",
+      memberId: "user-2",
+      agentId: "agent-9",
       q: "alpha",
       cursor: "task-1",
       limit: 20,
@@ -119,6 +123,8 @@ describe("task.service", () => {
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: [TaskStatus.READY, TaskStatus.COMPLETED],
       coworkerId: undefined,
+      memberId: undefined,
+      agentId: undefined,
       q: undefined,
       cursor: undefined,
       limit: 20,
