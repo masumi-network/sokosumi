@@ -77,9 +77,27 @@ model User {
   conversations         Conversation[]
   noticeAcknowledgments NoticeAcknowledgment[]
 
+  // Google Drive
+  googleDriveConnection GoogleDriveConnection?
+
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")
+}
+
+model GoogleDriveConnection {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  scope        String
+  email        String?
+
+  @@map("googleDriveConnection")
 }
 
 model Session {

@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth/utils";
 import { ApiKeysSection } from "./api-keys";
 import { OAuthAuthorizedClients } from "./authorized-clients";
 import { ConnectionsTabs } from "./connections-tabs";
+import { GoogleDriveConnection } from "./google-drive-connection";
 import { McpPageContent } from "./mcp-page-content";
 import { SocialAccounts } from "./social-accounts";
 
@@ -33,6 +34,7 @@ export async function ConnectionsPage() {
       <div className="mx-auto max-w-4xl space-y-8 px-4">
         <div className="space-y-6">
           <SocialAccounts socialAccounts={socialAccounts} />
+          <GoogleDriveConnection />
           <ConnectionsTabs
             connectedAppsContent={<OAuthAuthorizedClients />}
             apiKeysContent={<ApiKeysSection />}
