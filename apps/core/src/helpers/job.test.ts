@@ -143,4 +143,31 @@ describe("getUserJobs", () => {
       }),
     );
   });
+
+  it("uses a full-list scan for totals when excluding failed jobs on cursor pages", async () => {
+    const tx = createTransactionClient();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
+    vi.mocked(tx.job.findMany).mockResolvedValue([]);
+
+    await getUserJobs(orgAuthContext, {
+      take: 10,
+      tx,
+      includeFailed: false,
+      cursor: "job_after_first_page",
+      skip: 1,
+    });
+
+    const calls = vi
+      .mocked(tx.job.findMany)
+      .mock.calls.map(
+        (args) => args[0] as { cursor?: { id: string }; skip?: number },
+      );
+
+    expect(calls.some((c) => c.cursor?.id === "job_after_first_page")).toBe(
+      true,
+    );
+    expect(calls.some((c) => c.cursor === undefined)).toBe(true);
+  });
 });

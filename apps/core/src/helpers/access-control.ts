@@ -152,7 +152,7 @@ export async function requireTaskCollaboratorAccess(
     where: {
       id: taskId,
       archivedAt: null,
-      workspaceId: scope.workspaceId,
+      ...buildScopedReadWhere(scope),
     },
   });
 

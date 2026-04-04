@@ -77,32 +77,6 @@ describe("requireUserTaskAccess", () => {
   });
 });
 
-describe("requireTaskCollaboratorAccess", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
-  });
-
-  it("uses workspace-wide task access for user collaboration", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-    } as never);
-
-    await requireTaskCollaboratorAccess(userAuthContext, "tsk_123", tx);
-
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        archivedAt: null,
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-      },
-    });
-  });
-});
-
 describe("requireTaskReadAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -191,7 +165,7 @@ describe("requireTaskCollaboratorAccess", () => {
     });
   });
 
-  it("uses workspace-wide task access for users", async () => {
+  it("uses workspace-wide task access for organization workspaces", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
@@ -207,6 +181,34 @@ describe("requireTaskCollaboratorAccess", () => {
       },
     });
     expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("keeps personal workspace collaborator access owner-scoped", async () => {
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "22222222-2222-7222-8222-222222222222",
+    });
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+    } as never);
+
+    await requireTaskCollaboratorAccess(
+      {
+        ...userAuthContext,
+        organizationId: null,
+      },
+      "tsk_123",
+      tx,
+    );
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        userId: "user_123",
+        workspaceId: "22222222-2222-7222-8222-222222222222",
+      },
+    });
   });
 });
 

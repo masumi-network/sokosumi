@@ -462,6 +462,7 @@ export async function getUserJobs(
     agentId?: string;
     memberId?: string;
     status?: AgentJobStatus;
+    // When false, exclude jobs whose flattened summary status is failed-like.
     includeFailed?: boolean;
     cursor?: string;
     take: number;
@@ -522,6 +523,49 @@ export async function getUserJobs(
   };
 }
 
+/**
+ * Counts jobs matching `where` whose computed status is not failed-like.
+ * Always scans from the start of the result set (no cursor), matching how
+ * `tx.job.count({ where })` behaves for stable pagination totals.
+ */
+async function countNonFailedJobsMatching(
+  where: Prisma.JobWhereInput,
+  tx: Prisma.TransactionClient,
+  batchSize: number,
+): Promise<number> {
+  let total = 0;
+  let pageCursor: string | undefined;
+
+  while (true) {
+    const jobs = await tx.job.findMany({
+      where,
+      take: batchSize,
+      skip: pageCursor ? 1 : undefined,
+      cursor: pageCursor ? { id: pageCursor } : undefined,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        ...jobSummaryInclude,
+      },
+    });
+
+    if (jobs.length === 0) {
+      break;
+    }
+
+    total += jobs
+      .map(flattenJob)
+      .filter((job) => !isFailedLikeJobStatus(job.status)).length;
+
+    if (jobs.length < batchSize) {
+      break;
+    }
+
+    pageCursor = jobs.at(-1)?.id;
+  }
+
+  return total;
+}
+
 async function getUserJobsWithoutFailed({
   where,
   cursor,
@@ -545,6 +589,10 @@ async function getUserJobsWithoutFailed({
   let visibleCount = 0;
   let currentCursor = cursor;
   let currentSkip = skip;
+
+  const totalCountPromise = cursor
+    ? countNonFailedJobsMatching(where, tx, batchSize)
+    : null;
 
   while (true) {
     const jobs = await tx.job.findMany({
@@ -583,9 +631,11 @@ async function getUserJobsWithoutFailed({
     currentSkip = 1;
   }
 
+  const count = cursor ? await totalCountPromise! : visibleCount;
+
   return {
     jobs: visibleJobs.slice(0, take),
-    count: visibleCount,
+    count,
     hasMore: visibleJobs.length === takePlusOne,
   };
 }
