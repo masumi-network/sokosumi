@@ -589,8 +589,9 @@ async function getUserJobsWithoutFailed({
   let visibleCount = 0;
   let currentCursor = cursor;
   let currentSkip = skip;
+  const needsSeparateTotalCount = cursor !== undefined;
 
-  const totalCountPromise = cursor
+  const totalCountPromise = needsSeparateTotalCount
     ? countNonFailedJobsMatching(where, tx, batchSize)
     : null;
 
@@ -615,12 +616,18 @@ async function getUserJobsWithoutFailed({
       (job) => !isFailedLikeJobStatus(job.status),
     );
 
-    visibleCount += filteredJobs.length;
+    if (!needsSeparateTotalCount) {
+      visibleCount += filteredJobs.length;
+    }
 
     if (visibleJobs.length < takePlusOne) {
       visibleJobs.push(
         ...filteredJobs.slice(0, Math.max(takePlusOne - visibleJobs.length, 0)),
       );
+    }
+
+    if (needsSeparateTotalCount && visibleJobs.length === takePlusOne) {
+      break;
     }
 
     if (jobs.length < batchSize) {
@@ -631,7 +638,9 @@ async function getUserJobsWithoutFailed({
     currentSkip = 1;
   }
 
-  const count = cursor ? await totalCountPromise! : visibleCount;
+  const count = needsSeparateTotalCount
+    ? await totalCountPromise!
+    : visibleCount;
 
   return {
     jobs: visibleJobs.slice(0, take),

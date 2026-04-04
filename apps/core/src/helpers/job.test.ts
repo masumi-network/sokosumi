@@ -1,4 +1,4 @@
-import { AgentJobStatus, type Prisma } from "@sokosumi/database";
+import { AgentJobStatus, JobType, type Prisma } from "@sokosumi/database";
 import { jobSummaryInclude } from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,6 +35,46 @@ const orgAuthContext: UserAuthenticationContext = {
   userId: "user_123",
   organizationId: "org_123",
 };
+
+function createSummaryJob(id: string, status: AgentJobStatus) {
+  const timestamp = new Date("2026-01-01T00:00:00.000Z");
+
+  return {
+    id,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    agentId: "agent_123",
+    userId: "user_123",
+    organizationId: "org_123",
+    taskId: null,
+    name: id,
+    jobType: JobType.FREE,
+    transaction: null,
+    purchase: null,
+    workspace: {
+      id: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_123",
+      organization: {
+        id: "org_123",
+        name: "Test Org",
+        slug: "test-org",
+      },
+    },
+    events: [
+      {
+        id: `evt_${id}`,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        status,
+        result: status === AgentJobStatus.COMPLETED ? `Result for ${id}` : null,
+        input: null,
+        inputSchema: null,
+        blobs: [],
+        links: [],
+      },
+    ],
+  } as never;
+}
 
 describe("getUserJobs", () => {
   beforeEach(() => {
@@ -169,5 +209,61 @@ describe("getUserJobs", () => {
       true,
     );
     expect(calls.some((c) => c.cursor === undefined)).toBe(true);
+  });
+
+  it("stops cursor page scans once enough visible jobs are collected", async () => {
+    const tx = createTransactionClient();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
+
+    const pageBatch = Array.from({ length: 50 }, (_, index) =>
+      createSummaryJob(
+        index === 49 ? "page_job_50" : `page_job_${index + 1}`,
+        index < 3 ? AgentJobStatus.COMPLETED : AgentJobStatus.FAILED,
+      ),
+    );
+    const countBatch = Array.from({ length: 50 }, (_, index) =>
+      createSummaryJob(
+        index === 49 ? "count_job_50" : `count_job_${index + 1}`,
+        AgentJobStatus.COMPLETED,
+      ),
+    );
+
+    vi.mocked(tx.job.findMany).mockImplementation(async (args) => {
+      const cursorId = (args as { cursor?: { id: string } }).cursor?.id;
+
+      if (!cursorId) {
+        return countBatch;
+      }
+
+      if (cursorId === "count_job_50") {
+        return [createSummaryJob("count_job_51", AgentJobStatus.COMPLETED)];
+      }
+
+      if (cursorId === "job_after_first_page") {
+        return pageBatch;
+      }
+
+      if (cursorId === "page_job_50") {
+        throw new Error(
+          "cursor page scan should stop after enough visible jobs",
+        );
+      }
+
+      throw new Error(`Unexpected cursor ${cursorId}`);
+    });
+
+    const result = await getUserJobs(orgAuthContext, {
+      take: 2,
+      tx,
+      includeFailed: false,
+      cursor: "job_after_first_page",
+      skip: 1,
+    });
+
+    expect(result.jobs).toHaveLength(2);
+    expect(result.count).toBe(51);
+    expect(result.hasMore).toBe(true);
   });
 });
