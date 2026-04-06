@@ -27,7 +27,7 @@
     "generate:core": "openapi-ts -f openapi-ts.core.config.ts"
   },
   "dependencies": {
-    "@ai-sdk/react": "3.0.145",
+    "@ai-sdk/react": "3.0.148",
     "@better-auth/api-key": "1.5.6",
     "@better-auth/i18n": "1.5.6",
     "@better-auth/infra": "0.1.13",
