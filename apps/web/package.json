@@ -144,8 +144,8 @@
   "devDependencies": {
     "@hey-api/openapi-ts": "0.94.5",
     "@noble/hashes": "2.0.1",
-    "@swc/core": "1.15.21",
-    "@swc/helpers": "0.5.20",
+    "@swc/core": "1.15.24",
+    "@swc/helpers": "0.5.21",
     "@tailwindcss/postcss": "4.2.2",
     "@tailwindcss/typography": "0.5.19",
     "@testing-library/jest-dom": "6.9.1",
