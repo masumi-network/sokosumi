@@ -57,7 +57,7 @@
     "p-limit": "7.3.0",
     "postmark": "4.0.7",
     "slugify": "1.6.9",
-    "stripe": "22.0.0",
+    "stripe": "20.4.1",
     "uuid": "13.0.0"
   },
   "devDependencies": {
