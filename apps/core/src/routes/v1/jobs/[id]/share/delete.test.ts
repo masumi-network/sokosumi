@@ -7,8 +7,9 @@ import mountDeleteJobShareById from "./delete";
 const {
   authContextState,
   prismaTransactionMock,
-  jobFindUniqueMock,
+  jobFindFirstMock,
   deleteByJobIdMock,
+  resolveWorkspaceForContextMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -22,8 +23,9 @@ const {
     } | null,
   },
   prismaTransactionMock: vi.fn(),
-  jobFindUniqueMock: vi.fn(),
+  jobFindFirstMock: vi.fn(),
   deleteByJobIdMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -58,6 +60,16 @@ vi.mock("@/middleware/auth", () => ({
   requireUserAuthContext: (authContext: unknown) => authContext,
 }));
 
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+  };
+});
+
 vi.mock("@sokosumi/database/repositories", () => ({
   publicShareRepository: {
     deleteByJobId: (...args: unknown[]) => deleteByJobIdMock(...args),
@@ -84,15 +96,18 @@ describe("DELETE /jobs/{id}/share", () => {
       userId: "user_123",
       organizationId: "org_123",
     };
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
         await callback({
           job: {
-            findUnique: jobFindUniqueMock,
+            findFirst: jobFindFirstMock,
           },
         }),
     );
-    jobFindUniqueMock.mockResolvedValue({
+    jobFindFirstMock.mockResolvedValue({
       id: "job_123",
       userId: "user_123",
     });
@@ -128,10 +143,7 @@ describe("DELETE /jobs/{id}/share", () => {
   });
 
   it("returns 403 when the job is owned by another user", async () => {
-    jobFindUniqueMock.mockResolvedValue({
-      id: "job_123",
-      userId: "other_user",
-    });
+    jobFindFirstMock.mockResolvedValue(null);
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123/share", {
@@ -142,15 +154,15 @@ describe("DELETE /jobs/{id}/share", () => {
     expect(deleteByJobIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the job does not exist", async () => {
-    jobFindUniqueMock.mockResolvedValue(null);
+  it("returns 403 when the job does not exist", async () => {
+    jobFindFirstMock.mockResolvedValue(null);
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123/share", {
       method: "DELETE",
     });
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
     expect(deleteByJobIdMock).not.toHaveBeenCalled();
   });
 });

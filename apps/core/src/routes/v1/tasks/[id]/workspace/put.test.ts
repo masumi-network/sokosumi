@@ -40,9 +40,15 @@ vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
 }));
 
-vi.mock("@sokosumi/database/helpers", () => ({
-  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
-}));
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
