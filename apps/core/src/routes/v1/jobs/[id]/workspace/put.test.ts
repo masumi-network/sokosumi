@@ -16,6 +16,7 @@ const {
   resolveMemberOrganizationByIdMock,
   resolveWorkspaceForContextMock,
   serializeJobDetailsMock,
+  workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
   jobFindFirstMock: vi.fn(),
   jobFindUniqueMock: vi.fn(),
@@ -25,6 +26,7 @@ const {
   resolveMemberOrganizationByIdMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   serializeJobDetailsMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/organization", () => ({
@@ -52,16 +54,13 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-interface CurrentJobRecord {
+interface OwnedJobRecord {
   id: string;
   userId: string;
   organizationId: string | null;
   taskId: string | null;
   jobScheduleId: string | null;
   workspaceId: string;
-  workspace: {
-    organizationId: string | null;
-  };
 }
 
 interface TransactionMock {
@@ -70,21 +69,24 @@ interface TransactionMock {
     findUnique: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  workspace: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
 }
 
-function createCurrentJobRecord(
-  overrides: Partial<CurrentJobRecord> = {},
-): CurrentJobRecord {
+/** Matches `resolveWorkspaceForContextMock` default active workspace id */
+const ACTIVE_WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
+
+function createOwnedJobRecord(
+  overrides: Partial<OwnedJobRecord> = {},
+): OwnedJobRecord {
   return {
     id: "job_123",
     userId: "user_123",
     organizationId: "org_billing",
     taskId: null,
     jobScheduleId: null,
-    workspaceId: "11111111-1111-7111-8111-111111111111",
-    workspace: {
-      organizationId: null,
-    },
+    workspaceId: ACTIVE_WORKSPACE_ID,
     ...overrides,
   };
 }
@@ -193,9 +195,10 @@ describe("PUT /jobs/{id}/workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    jobFindFirstMock.mockResolvedValue(createCurrentJobRecord());
+    jobFindFirstMock.mockResolvedValue(createOwnedJobRecord());
     jobFindUniqueMock.mockResolvedValue({ id: "job_123" });
     jobUpdateMock.mockResolvedValue({ id: "job_123" });
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: {
         id: "org_target",
@@ -203,7 +206,7 @@ describe("PUT /jobs/{id}/workspace", () => {
       role: "member",
     });
     resolveWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-4111-8111-111111111111",
+      id: ACTIVE_WORKSPACE_ID,
     });
     mapJobWithStatusMock.mockReturnValue(createJobApi());
     serializeJobDetailsMock.mockImplementation((job) => job);
@@ -213,6 +216,9 @@ describe("PUT /jobs/{id}/workspace", () => {
         findFirst: jobFindFirstMock,
         findUnique: jobFindUniqueMock,
         update: jobUpdateMock,
+      },
+      workspace: {
+        findUnique: workspaceFindUniqueMock,
       },
     });
   });
@@ -247,7 +253,7 @@ describe("PUT /jobs/{id}/workspace", () => {
 
   it("returns 409 for task-attached jobs", async () => {
     jobFindFirstMock.mockResolvedValue(
-      createCurrentJobRecord({
+      createOwnedJobRecord({
         taskId: "tsk_123",
       }),
     );
@@ -269,7 +275,7 @@ describe("PUT /jobs/{id}/workspace", () => {
 
   it("returns 409 for schedule-backed jobs", async () => {
     jobFindFirstMock.mockResolvedValue(
-      createCurrentJobRecord({
+      createOwnedJobRecord({
         jobScheduleId: "js_123",
       }),
     );
@@ -308,9 +314,7 @@ describe("PUT /jobs/{id}/workspace", () => {
   });
 
   it("returns 403 when the owned job is outside the active workspace", async () => {
-    jobFindFirstMock
-      .mockResolvedValueOnce(createCurrentJobRecord())
-      .mockResolvedValueOnce(null);
+    jobFindFirstMock.mockResolvedValueOnce(null);
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/job_123/workspace", {
@@ -350,14 +354,10 @@ describe("PUT /jobs/{id}/workspace", () => {
   });
 
   it("allows idempotent no-op updates without membership or write checks", async () => {
-    jobFindFirstMock.mockResolvedValue(
-      createCurrentJobRecord({
-        workspaceId: "11111111-1111-4111-8111-111111111111",
-        workspace: {
-          organizationId: "org_current",
-        },
-      }),
-    );
+    jobFindFirstMock.mockResolvedValue(createOwnedJobRecord());
+    workspaceFindUniqueMock.mockResolvedValue({
+      organizationId: "org_current",
+    });
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/job_123/workspace", {
