@@ -3076,6 +3076,238 @@ export type GetCategoriesResponses = {
 
 export type GetCategoriesResponse = GetCategoriesResponses[keyof GetCategoriesResponses];
 
+export type GetChatData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query: {
+        conversationId: string;
+    };
+    url: '/chat';
+};
+
+export type GetChatErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatError = GetChatErrors[keyof GetChatErrors];
+
+export type GetChatResponses = {
+    /**
+     * UIMessages for the conversation
+     */
+    200: {
+        messages: Array<unknown>;
+    };
+};
+
+export type GetChatResponse = GetChatResponses[keyof GetChatResponses];
+
+export type PostChatData = {
+    body?: {
+        messages?: Array<{
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: string;
+                text?: string;
+            }>;
+            content?: string | Array<{
+                type: string;
+                text?: string;
+            }>;
+            id?: string;
+        }>;
+        message?: {
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: string;
+                text?: string;
+            }>;
+            content?: string | Array<{
+                type: string;
+                text?: string;
+            }>;
+            id?: string;
+        };
+        id?: string;
+        trigger?: 'submit-message' | 'regenerate-message';
+        messageId?: string;
+        conversationId?: string;
+        previousResponseId?: string;
+        model?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chat';
+};
+
+export type PostChatErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatError = PostChatErrors[keyof PostChatErrors];
+
+export type PostChatResponses = {
+    /**
+     * Streaming UI message response (AI SDK)
+     */
+    200: string;
+};
+
+export type PostChatResponse = PostChatResponses[keyof PostChatResponses];
+
 export type GetConversationsData = {
     body?: never;
     path?: never;
@@ -3754,6 +3986,127 @@ export type PostConversationsByIdRecoverResponseResponses = {
 };
 
 export type PostConversationsByIdRecoverResponseResponse = PostConversationsByIdRecoverResponseResponses[keyof PostConversationsByIdRecoverResponseResponses];
+
+export type PostConversationsChatData = {
+    body?: {
+        messages: Array<{
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: string;
+                text?: string;
+            }>;
+            content?: string | Array<{
+                type: string;
+                text?: string;
+            }>;
+            id?: string;
+        }>;
+        conversationId?: string;
+        previousResponseId?: string;
+        model?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/conversations/chat';
+};
+
+export type PostConversationsChatErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostConversationsChatError = PostConversationsChatErrors[keyof PostConversationsChatErrors];
+
+export type PostConversationsChatResponses = {
+    /**
+     * Streaming chat response
+     */
+    200: string;
+};
+
+export type PostConversationsChatResponse = PostConversationsChatResponses[keyof PostConversationsChatResponses];
 
 export type GetCreditCostsData = {
     body?: never;

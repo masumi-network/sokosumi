@@ -21,6 +21,8 @@ const envDefaults: Record<string, string> = {
   MAINTENANCE_MODE: "false",
   ABLY_PUBLISH_ONLY_KEY: "local-test",
   JOB_FAILURE_NOTIFICATION_EMAILS: "",
+  OPENROUTER_CHAT_API_KEY:
+    "sk-or-v1-test-0000000000000000000000000000000000000000",
 };
 
 for (const [key, value] of Object.entries(envDefaults)) {
