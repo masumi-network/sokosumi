@@ -115,7 +115,7 @@ describe("POST /conversations/chat", () => {
     });
   });
 
-  it("returns 400 for an invalid request body", async () => {
+  it("returns 422 for an invalid request body (OpenAPI validation)", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/chat", {
       method: "POST",
@@ -127,7 +127,7 @@ describe("POST /conversations/chat", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
   });
 
   it("returns 404 when the conversation coworker cannot be resolved", async () => {

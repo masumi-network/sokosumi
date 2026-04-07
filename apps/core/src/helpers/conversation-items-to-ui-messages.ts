@@ -2,7 +2,11 @@ import type { UIMessage } from "ai";
 
 /** Maps persisted conversation items to AI SDK `UIMessage` (text parts only). */
 export function conversationItemsToUiMessages(
-  items: Array<{ id: string; role: string; contentText: string }>,
+  items: Array<{
+    id: string;
+    role: string;
+    contentText: string | null | undefined;
+  }>,
 ): UIMessage[] {
   return items.map((item) => {
     const validRole: "assistant" | "user" | "system" =
@@ -12,10 +16,12 @@ export function conversationItemsToUiMessages(
         ? item.role
         : "user";
 
+    const text = item.contentText ?? "";
+
     return {
       id: item.id,
       role: validRole,
-      parts: [{ type: "text", text: item.contentText }],
+      parts: [{ type: "text", text }],
     };
   });
 }

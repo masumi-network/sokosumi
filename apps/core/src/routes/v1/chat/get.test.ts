@@ -95,4 +95,31 @@ describe("GET /chat", () => {
     expect(body.messages[0]?.id).toBe("m1");
     expect(body.messages[1]?.role).toBe("assistant");
   });
+
+  it("coalesces null contentText to empty string so validation is not tripped", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
+    conversationItemFindManyMock.mockResolvedValueOnce([
+      { id: "m1", role: "user", contentText: null },
+    ]);
+
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/?conversationId=${cid}`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      messages: Array<{
+        parts: Array<{ type: string; text: string }>;
+      }>;
+    };
+    expect(body.messages[0]?.parts[0]?.text).toBe("");
+    expect(validateUIMessagesMock).toHaveBeenCalledWith({
+      messages: expect.arrayContaining([
+        expect.objectContaining({
+          parts: [{ type: "text", text: "" }],
+        }),
+      ]),
+    });
+  });
 });
