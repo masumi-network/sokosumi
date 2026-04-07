@@ -30,6 +30,10 @@ import { v4 as uuidv4 } from "uuid";
 import publishJobStatusData from "@/lib/ably/publish";
 import type { JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import {
+  canMutateOwnedJobInActiveWorkspace,
+  getJobWorkspaceContext,
+} from "@/lib/auth/job-access";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
 import { coreClient } from "@/lib/clients/core.client";
@@ -758,8 +762,7 @@ export const jobService = (() => {
     if (!session) {
       return [];
     }
-    const userId = session.user.id;
-    const activeOrganizationId = session.session.activeOrganizationId ?? null;
+    const { userId, activeOrganizationId } = getJobWorkspaceContext(session);
     const workspace = await resolveWorkspaceForContext(
       userId,
       activeOrganizationId,
@@ -798,12 +801,15 @@ export const jobService = (() => {
    * @throws {JobError} Various job-related errors
    */
   const provideJobInput = async (
-    input: ProvideJobInputSchemaType & { userId: string },
+    input: ProvideJobInputSchemaType & {
+      userId: string;
+      activeOrganizationId: string | null;
+    },
   ): Promise<{
     job: JobWithSokosumiStatus;
     jobEvent: JobEvent;
   }> => {
-    const { jobId, eventId, userId, inputData } = input;
+    const { jobId, eventId, userId, activeOrganizationId, inputData } = input;
 
     Sentry.addBreadcrumb({
       category: "Job Service",
@@ -818,7 +824,18 @@ export const jobService = (() => {
 
     // Get the job and verify ownership
     const job = await jobRepository.getJobById(jobId, prisma);
-    if (!job || job.userId !== userId) {
+    const canMutateJob =
+      !!job &&
+      (await canMutateOwnedJobInActiveWorkspace(
+        job,
+        {
+          userId,
+          activeOrganizationId,
+        },
+        prisma,
+      ));
+
+    if (!canMutateJob) {
       throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
     }
     const jobEvent = await jobEventRepository.getJobEventById(eventId, prisma);

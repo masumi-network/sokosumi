@@ -60,6 +60,27 @@ export async function requireJobAccess(
   return job;
 }
 
+export async function requireOwnedJobAccess(
+  authContext: UserAuthenticationContext,
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Job> {
+  const scope = await resolveUserReadScope(authContext, tx);
+  const job = await tx.job.findFirst({
+    where: {
+      id: jobId,
+      userId: authContext.userId,
+      ...buildScopedReadWhere(scope),
+    },
+  });
+
+  if (!job) {
+    throw forbidden("You can only access your own jobs");
+  }
+
+  return job;
+}
+
 /**
  * Validates user access and fetches the user record
  * Throws 403 if trying to access another user, 404 if user doesn't exist
@@ -129,10 +150,11 @@ export async function requireUserTaskAccess(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   const scope = await resolveUserReadScope(authContext, tx);
+  const scopedReadWhere = buildScopedReadWhere(scope);
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
-      workspaceId: scope.workspaceId,
+      ...scopedReadWhere,
       userId: authContext.userId,
       archivedAt: null,
     },

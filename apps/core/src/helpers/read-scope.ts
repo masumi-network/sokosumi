@@ -1,5 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
+import {
+  buildWorkspaceReadWhere,
+  resolveWorkspaceForContext,
+} from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 
 import prisma from "@/lib/db/prisma";
@@ -63,16 +66,5 @@ export function buildScopedReadWhere(
   workspaceId: string;
   userId?: string;
 } {
-  return {
-    workspaceId: scope.workspaceId,
-    ...(scope.ownerUserId
-      ? {
-          userId: scope.ownerUserId,
-        }
-      : memberId
-        ? {
-            userId: memberId,
-          }
-        : {}),
-  };
+  return buildWorkspaceReadWhere(scope, memberId);
 }

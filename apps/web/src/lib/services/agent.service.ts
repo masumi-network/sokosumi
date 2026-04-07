@@ -11,7 +11,6 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import {
   agentListRepository,
   agentRatingRepository,
@@ -19,7 +18,10 @@ import {
   creditCostRepository,
   jobRepository,
 } from "@sokosumi/database/repositories";
-
+import {
+  getJobWorkspaceContext,
+  resolveJobWorkspaceReadScope,
+} from "@/lib/auth/job-access";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getAgentPricingAmounts } from "@/lib/helpers/agent";
@@ -200,11 +202,9 @@ export const agentService = (() => {
      * @returns Array of available agents with valid pricing.
      */
     getAvailableAgents: async (): Promise<AgentWithRelations[]> => {
-      return await prisma.$transaction(async (tx) => {
-        const { availableAgents } =
-          await getAvailableOnlineAgentsAndCreditCosts(tx);
-        return availableAgents;
-      });
+      const { availableAgents } =
+        await getAvailableOnlineAgentsAndCreditCosts(prisma);
+      return availableAgents;
     },
 
     /**
@@ -242,29 +242,27 @@ export const agentService = (() => {
     getAvailableAgentsWithCreditsPrice: async (): Promise<
       AgentWithCreditsPrice[]
     > => {
-      return await prisma.$transaction(async (tx) => {
-        const { availableAgents, creditCosts } =
-          await getAvailableOnlineAgentsAndCreditCosts(tx);
-        const creditCostByUnit = buildCreditCostByUnitMap(creditCosts);
+      const { availableAgents, creditCosts } =
+        await getAvailableOnlineAgentsAndCreditCosts(prisma);
+      const creditCostByUnit = buildCreditCostByUnitMap(creditCosts);
 
-        const agentsWithCreditsPrice: AgentWithCreditsPrice[] = [];
-        for (const agent of availableAgents) {
-          try {
-            const creditsPriceCents = computeAgentCreditsPriceCents(
-              agent,
-              creditCostByUnit,
-            );
-            agentsWithCreditsPrice.push({
-              ...agent,
-              creditsPrice: {
-                cents: creditsPriceCents,
-              },
-            });
-          } catch {}
-        }
+      const agentsWithCreditsPrice: AgentWithCreditsPrice[] = [];
+      for (const agent of availableAgents) {
+        try {
+          const creditsPriceCents = computeAgentCreditsPriceCents(
+            agent,
+            creditCostByUnit,
+          );
+          agentsWithCreditsPrice.push({
+            ...agent,
+            creditsPrice: {
+              cents: creditsPriceCents,
+            },
+          });
+        } catch {}
+      }
 
-        return agentsWithCreditsPrice;
-      });
+      return agentsWithCreditsPrice;
     },
 
     /**
@@ -294,7 +292,8 @@ export const agentService = (() => {
     },
 
     /**
-     * Retrieves all agents hired by the current user, ordered by the most recent job activity (newest first).
+     * Retrieves all agents hired in the active readable workspace scope,
+     * ordered by the most recent job activity (newest first).
      *
      * - Requires an active user session.
      * - Agents without jobs are placed at the end of the list.
@@ -308,15 +307,13 @@ export const agentService = (() => {
       if (!session) {
         return [];
       }
-      const workspace = await resolveWorkspaceForContext(
-        session.user.id,
-        session.session.activeOrganizationId ?? null,
+      const scope = await resolveJobWorkspaceReadScope(
+        getJobWorkspaceContext(session),
         prisma,
       );
       const hiredAgentsWithJobs =
-        await agentRepository.getHiredAgentsWithLatestJobByUserIdAndWorkspace(
-          session.user.id,
-          workspace.id,
+        await agentRepository.getHiredAgentsWithLatestJobByWorkspaceScope(
+          scope,
           prisma,
         );
       return hiredAgentsWithJobs.sort((a, b) => {

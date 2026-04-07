@@ -5,6 +5,7 @@ import {
   resolveWorkspaceForContext,
 } from "@sokosumi/database/helpers";
 
+import { requireOwnedJobAccess } from "@/helpers/access-control";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -70,8 +71,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: authContext.userId,
           },
           select: {
+            id: true,
+            userId: true,
             taskId: true,
             jobScheduleId: true,
+            workspaceId: true,
             workspace: {
               select: {
                 organizationId: true,
@@ -83,6 +87,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!currentJob) {
           throw forbidden("You can only access your own jobs");
         }
+
+        await requireOwnedJobAccess(authContext, id, tx);
 
         if (currentJob.taskId !== null) {
           throw conflict("Task-attached jobs inherit their task workspace");

@@ -7,6 +7,10 @@ import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import {
+  canMutateOwnedJobInActiveWorkspace,
+  getJobWorkspaceContext,
+} from "@/lib/auth/job-access";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import {
@@ -227,6 +231,7 @@ export const provideJobInput = withSession<
   return await Sentry.withScope(async (scope) => {
     try {
       const userId = session.user.id;
+      const activeOrganizationId = session.session.activeOrganizationId ?? null;
       const { jobId, eventId, inputData } = input;
 
       // Validate input
@@ -278,6 +283,7 @@ export const provideJobInput = withSession<
         jobId,
         eventId,
         userId,
+        activeOrganizationId,
         inputData,
       });
 
@@ -351,8 +357,6 @@ export const updateJobName = withSession<
   UpdateJobNameParameters,
   Result<void, ActionError>
 >(async ({ jobId, data, session }) => {
-  const userId = session.user.id;
-
   const parsedResult = jobDetailsNameFormSchema().safeParse(data);
   if (!parsedResult.success) {
     return Err({
@@ -370,8 +374,13 @@ export const updateJobName = withSession<
     });
   }
 
-  // check job user id is same as authenticated user
-  if (job.userId !== userId) {
+  const canMutateJob = await canMutateOwnedJobInActiveWorkspace(
+    job,
+    getJobWorkspaceContext(session),
+    prisma,
+  );
+
+  if (!canMutateJob) {
     return Err({
       message: "Unauthorized",
       code: CommonErrorCode.UNAUTHORIZED,
@@ -396,7 +405,6 @@ export const requestRefundJobByBlockchainIdentifier = withSession<
   RequestRefundJobByBlockchainIdentifierParameters,
   Result<{ job: PaidJobWithStatus }, ActionError>
 >(async ({ blockchainIdentifier, session }) => {
-  const userId = session.user.id;
   const foundJob = await jobRepository.getJobByBlockchainIdentifier(
     blockchainIdentifier,
     prisma,
@@ -408,8 +416,13 @@ export const requestRefundJobByBlockchainIdentifier = withSession<
     });
   }
 
-  // check user is owner of job
-  if (foundJob.userId !== userId) {
+  const canMutateJob = await canMutateOwnedJobInActiveWorkspace(
+    foundJob,
+    getJobWorkspaceContext(session),
+    prisma,
+  );
+
+  if (!canMutateJob) {
     return Err({
       message: "Unauthorized",
       code: CommonErrorCode.UNAUTHORIZED,

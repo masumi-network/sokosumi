@@ -17,7 +17,7 @@ const getCreditCostsMock = vi.fn();
 const getCreditCostByUnitMock = vi.fn();
 const transactionMock = vi.fn();
 const getSessionMock = vi.fn();
-const getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock = vi.fn();
+const getHiredAgentsWithLatestJobByWorkspaceScopeMock = vi.fn();
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   const actual =
@@ -41,8 +41,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
     upsertRating: vi.fn(),
   },
   agentRepository: {
-    getHiredAgentsWithLatestJobByUserIdAndWorkspace: (...args: unknown[]) =>
-      getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock(...args),
+    getHiredAgentsWithLatestJobByWorkspaceScope: (...args: unknown[]) =>
+      getHiredAgentsWithLatestJobByWorkspaceScopeMock(...args),
     getShownAgentWithRelationById: vi.fn(),
     getShownAgentsWithRelationsByStatus: (...args: unknown[]) =>
       getShownAgentsWithRelationsByStatusMock(...args),
@@ -177,12 +177,19 @@ describe("agent.service", () => {
     const { agentService } = await import("../agent.service");
     const result = await agentService.getAvailableAgentsWithCreditsPrice();
 
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(getShownAgentsWithRelationsByStatusMock).toHaveBeenCalledWith(
       AgentStatus.ONLINE,
-      txMock,
+      expect.objectContaining({
+        $transaction: expect.any(Function),
+      }),
     );
     expect(getCreditCostsMock).toHaveBeenCalledTimes(1);
-    expect(getCreditCostsMock).toHaveBeenCalledWith(txMock);
+    expect(getCreditCostsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        $transaction: expect.any(Function),
+      }),
+    );
     expect(getCreditCostByUnitMock).not.toHaveBeenCalled();
     expect(result).toEqual(
       expect.arrayContaining([
@@ -259,7 +266,7 @@ describe("agent.service", () => {
         activeOrganizationId: "org_123",
       },
     });
-    getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock.mockResolvedValue([]);
+    getHiredAgentsWithLatestJobByWorkspaceScopeMock.mockResolvedValue([]);
 
     const { agentService } = await import("../agent.service");
 
@@ -271,10 +278,43 @@ describe("agent.service", () => {
       expect.any(Object),
     );
     expect(
-      getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock,
+      getHiredAgentsWithLatestJobByWorkspaceScopeMock,
     ).toHaveBeenCalledWith(
+      {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        ownerUserId: null,
+      },
+      expect.any(Object),
+    );
+  });
+
+  it("keeps hired agents owner-scoped in personal workspaces", async () => {
+    getSessionMock.mockResolvedValue({
+      user: {
+        id: "user_123",
+      },
+      session: {
+        activeOrganizationId: null,
+      },
+    });
+    getHiredAgentsWithLatestJobByWorkspaceScopeMock.mockResolvedValue([]);
+
+    const { agentService } = await import("../agent.service");
+
+    await agentService.getHiredAgents();
+
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
-      "11111111-1111-7111-8111-111111111111",
+      null,
+      expect.any(Object),
+    );
+    expect(
+      getHiredAgentsWithLatestJobByWorkspaceScopeMock,
+    ).toHaveBeenCalledWith(
+      {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        ownerUserId: "user_123",
+      },
       expect.any(Object),
     );
   });

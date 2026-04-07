@@ -10,6 +10,7 @@ import {
   requireCoworkerCapability,
   requireCoworkerChatCapability,
   requireJobAccess,
+  requireOwnedJobAccess,
   requireTaskAssignableCoworker,
   requireTaskCollaboratorAccess,
   requireTaskReadAccess,
@@ -369,6 +370,41 @@ describe("requireJobAccess", () => {
 
     await expect(
       requireJobAccess(userAuthContext, "job_123", tx),
+    ).rejects.toThrow("You can only access your own jobs");
+  });
+});
+
+describe("requireOwnedJobAccess", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
+  });
+
+  it("keeps organization workspace job mutations owner-scoped", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+    } as never);
+
+    await requireOwnedJobAccess(userAuthContext, "job_123", tx);
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "job_123",
+        userId: "user_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+    });
+  });
+
+  it("rejects owned jobs outside the active workspace", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireOwnedJobAccess(userAuthContext, "job_123", tx),
     ).rejects.toThrow("You can only access your own jobs");
   });
 });

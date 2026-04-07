@@ -3,6 +3,10 @@ import type { NextRequest, NextResponse } from "next/server";
 import superJson from "superjson";
 
 import { createApiSuccessResponse, handleApiError } from "@/lib/api";
+import {
+  canReadJobInActiveWorkspace,
+  getJobWorkspaceContext,
+} from "@/lib/auth/job-access";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
@@ -32,12 +36,13 @@ export async function GET(
     }
 
     const job = await jobRepository.getJobById(jobId, prisma);
-    const activeOrganizationId = session.session.activeOrganizationId ?? null;
     const canReadJob =
       !!job &&
-      (job.userId === session.user.id ||
-        (activeOrganizationId !== null &&
-          job.organizationId === activeOrganizationId));
+      (await canReadJobInActiveWorkspace(
+        job,
+        getJobWorkspaceContext(session),
+        prisma,
+      ));
 
     if (!canReadJob) {
       throw new Error("JOB_NOT_FOUND");

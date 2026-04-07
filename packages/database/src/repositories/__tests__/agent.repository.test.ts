@@ -40,3 +40,79 @@ describe("agentRepository.getHiredAgentsWithLatestJobByUserIdAndWorkspace", () =
     });
   });
 });
+
+describe("agentRepository.getHiredAgentsWithLatestJobByWorkspaceScope", () => {
+  it("uses workspace-wide reads for organization workspaces", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const tx = {
+      agent: {
+        findMany,
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await agentRepository.getHiredAgentsWithLatestJobByWorkspaceScope(
+      {
+        workspaceId: "workspace-1",
+        ownerUserId: null,
+      },
+      tx,
+    );
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        jobs: {
+          some: {
+            workspaceId: "workspace-1",
+          },
+        },
+      },
+      include: {
+        jobs: {
+          where: {
+            workspaceId: "workspace-1",
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+  });
+
+  it("keeps personal workspaces owner-scoped", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const tx = {
+      agent: {
+        findMany,
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await agentRepository.getHiredAgentsWithLatestJobByWorkspaceScope(
+      {
+        workspaceId: "workspace-1",
+        ownerUserId: "user-1",
+      },
+      tx,
+    );
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        jobs: {
+          some: {
+            workspaceId: "workspace-1",
+            userId: "user-1",
+          },
+        },
+      },
+      include: {
+        jobs: {
+          where: {
+            workspaceId: "workspace-1",
+            userId: "user-1",
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+  });
+});

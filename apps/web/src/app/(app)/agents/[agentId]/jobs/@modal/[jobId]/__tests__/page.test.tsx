@@ -21,17 +21,17 @@ vi.mock("@/app/agents/[agentId]/jobs/_lib/load-job-details", () => ({
   loadJobDetails: (...args: unknown[]) => loadJobDetailsMock(...args),
 }));
 
-vi.mock("@/app/agents/[agentId]/jobs/components/job-details-modal", () => ({
-  JobDetailsModal: (props: unknown) => {
-    jobDetailsModalMock(props);
-    return <div data-testid="job-details-modal" />;
-  },
-}));
-
 vi.mock("@/app/components/auto-context-switch", () => ({
   AutoContextSwitch: (props: unknown) => {
     autoContextSwitchMock(props);
     return <div data-testid="auto-context-switch" />;
+  },
+}));
+
+vi.mock("@/app/agents/[agentId]/jobs/components/job-details-modal", () => ({
+  JobDetailsModal: (props: unknown) => {
+    jobDetailsModalMock(props);
+    return <div data-testid="job-details-modal" />;
   },
 }));
 
@@ -62,7 +62,7 @@ describe("JobDetailsModalPage", () => {
     });
   });
 
-  it("switches the modal flow to the workspace organization", async () => {
+  it("keeps auto context switching on the modal job page", async () => {
     loadJobDetailsMock.mockResolvedValue({
       activeOrganizationId: null,
       dehydratedState: "dehydrated",

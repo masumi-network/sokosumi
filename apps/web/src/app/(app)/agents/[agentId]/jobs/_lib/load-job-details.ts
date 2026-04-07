@@ -1,5 +1,4 @@
 import type { JobWithSokosumiStatus } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import {
   agentRepository,
   jobRepository,
@@ -8,7 +7,12 @@ import { dehydrate } from "@tanstack/react-query";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 
-import type { Session } from "@/lib/auth/auth";
+import {
+  canReadJobInActiveWorkspace,
+  getActiveOrganizationId,
+  getJobWorkspaceContext,
+  isJobOwner,
+} from "@/lib/auth/job-access";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getJobQueryKey, getQueryClient } from "@/queries";
@@ -27,10 +31,6 @@ interface LoadJobDetailsResult {
   readOnly: boolean;
 }
 
-type SessionRecord = Session["session"] & {
-  activeOrganizationId?: string | null;
-};
-
 // Cache repository calls to deduplicate queries across parallel routes
 const getCachedAgent = cache(async (agentId: string) => {
   return agentRepository.getAgentWithRelationsById(agentId, prisma);
@@ -40,40 +40,15 @@ const getCachedJob = cache(async (jobId: string) => {
   return jobRepository.getJobById(jobId, prisma);
 });
 
-const getCachedWorkspace = cache(
-  async (userId: string, organizationId: string) => {
-    return await resolveWorkspaceForContext(userId, organizationId, prisma);
-  },
-);
-
-function getActiveOrganizationId(session: Session): string | null {
-  return (session.session as SessionRecord).activeOrganizationId ?? null;
-}
-
 async function canAccessJob(
   job: JobWithSokosumiStatus,
-  session: Session,
+  session: NonNullable<Awaited<ReturnType<typeof getSession>>>,
 ): Promise<boolean> {
-  const activeOrganizationId = getActiveOrganizationId(session);
-
-  if (job.userId === session.user.id) {
-    return true;
-  }
-
-  if (activeOrganizationId === null) {
-    return false;
-  }
-
-  if (job.organizationId !== activeOrganizationId) {
-    return false;
-  }
-
-  const workspace = await getCachedWorkspace(
-    session.user.id,
-    activeOrganizationId,
+  return canReadJobInActiveWorkspace(
+    job,
+    getJobWorkspaceContext(session),
+    prisma,
   );
-
-  return job.workspaceId === workspace.id;
 }
 
 export async function loadJobDetails({
@@ -110,6 +85,6 @@ export async function loadJobDetails({
     job,
     personalWorkspaceLabel:
       session.user.name?.trim() || session.user.email?.trim() || null,
-    readOnly: job.userId !== session.user.id,
+    readOnly: !isJobOwner(job, session.user.id),
   };
 }

@@ -1,5 +1,9 @@
 import type { Agent, AgentStatus, Prisma } from "../generated/prisma/client.js";
 import {
+  buildWorkspaceReadWhere,
+  type WorkspaceReadScope,
+} from "../helpers/workspace-read-scope.js";
+import {
   type AgentWithJobs,
   type AgentWithPricing,
   type AgentWithRelations,
@@ -123,6 +127,36 @@ export const agentRepository = {
       userId,
       workspaceId,
     };
+
+    return await tx.agent.findMany({
+      where: {
+        jobs: {
+          some: jobWhereCondition,
+        },
+      },
+      include: {
+        jobs: {
+          where: jobWhereCondition,
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+  },
+
+  /**
+   * Fetch all agents that have jobs in the current readable workspace scope.
+   * Each agent includes only the latest readable job (ordered by createdAt desc).
+   *
+   * @param scope - Active workspace read scope
+   * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
+   * @returns Array of agents with their latest job in the readable scope
+   */
+  async getHiredAgentsWithLatestJobByWorkspaceScope(
+    scope: WorkspaceReadScope,
+    tx: Prisma.TransactionClient,
+  ): Promise<AgentWithJobs[]> {
+    const jobWhereCondition = buildWorkspaceReadWhere(scope);
 
     return await tx.agent.findMany({
       where: {

@@ -65,7 +65,7 @@ describe("user.service", () => {
     });
   });
 
-  it("returns only owned jobs for the active context", async () => {
+  it("returns workspace jobs for the active organization context", async () => {
     getSessionMock.mockResolvedValue({
       user: { id: "user-1" },
       session: { activeOrganizationId: "org-1" },
@@ -82,12 +82,35 @@ describe("user.service", () => {
     expect(getOwnedJobsMock).toHaveBeenCalledWith(
       {
         agentId: "agent-1",
-        userId: "user-1",
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       expect.any(Object),
     );
     expect(result.map((job) => job.id)).toEqual(["job-2", "job-1"]);
+  });
+
+  it("keeps personal workspace jobs owner-scoped", async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: null },
+    });
+    getOwnedJobsMock.mockResolvedValue([
+      { id: "job-1", createdAt: new Date("2026-02-12T10:00:00.000Z") },
+    ]);
+
+    const { userService } = await import("../user.service");
+    const result = await userService.getMyJobs("agent-1");
+
+    expect(getOwnedJobsMock).toHaveBeenCalledTimes(1);
+    expect(getOwnedJobsMock).toHaveBeenCalledWith(
+      {
+        agentId: "agent-1",
+        userId: "user-1",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+      expect.any(Object),
+    );
+    expect(result.map((job) => job.id)).toEqual(["job-1"]);
   });
 
   it("queries paginated jobs without organization-share fallback", async () => {

@@ -27,9 +27,15 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-vi.mock("@sokosumi/database/helpers", () => ({
-  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
-}));
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {},
@@ -133,7 +139,7 @@ describe("loadJobDetails", () => {
     expect(redirectMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
   });
 
-  it("redirects when the workspace matches but the job belongs to another organization", async () => {
+  it("allows jobs in the active workspace even when the billing org differs", async () => {
     getSessionMock.mockResolvedValue({
       user: { id: "user-1" },
       session: { activeOrganizationId: "org-1" },
@@ -148,15 +154,19 @@ describe("loadJobDetails", () => {
     });
 
     const { loadJobDetails } = await import("../load-job-details");
+    const result = await loadJobDetails({ agentId: "agent-1", jobId: "job-1" });
 
-    await expect(
-      loadJobDetails({ agentId: "agent-1", jobId: "job-1" }),
-    ).rejects.toThrow("redirect:/agents/agent-1/jobs");
-
-    expect(redirectMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
+    expect(result).toMatchObject({
+      job: {
+        id: "job-1",
+      },
+      readOnly: true,
+      activeOrganizationId: "org-1",
+    });
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
-  it("returns owned jobs without read-only mode", async () => {
+  it("redirects owned jobs outside the active workspace", async () => {
     getSessionMock.mockResolvedValue({
       user: { id: "user-1" },
       session: { activeOrganizationId: "org-1" },
@@ -171,23 +181,12 @@ describe("loadJobDetails", () => {
     });
 
     const { loadJobDetails } = await import("../load-job-details");
-    const result = await loadJobDetails({ agentId: "agent-1", jobId: "job-1" });
 
-    expect(setQueryDataMock).toHaveBeenCalledWith(["jobs", "job-1"], {
-      id: "job-1",
-      agent: { id: "agent-1" },
-      userId: "user-1",
-      organizationId: "org-1",
-      workspaceId: "workspace-2",
-    });
-    expect(result).toMatchObject({
-      job: {
-        id: "job-1",
-      },
-      readOnly: false,
-      activeOrganizationId: "org-1",
-      dehydratedState: "dehydrated-state",
-      personalWorkspaceLabel: null,
-    });
+    await expect(
+      loadJobDetails({ agentId: "agent-1", jobId: "job-1" }),
+    ).rejects.toThrow("redirect:/agents/agent-1/jobs");
+
+    expect(setQueryDataMock).not.toHaveBeenCalled();
+    expect(redirectMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
   });
 });

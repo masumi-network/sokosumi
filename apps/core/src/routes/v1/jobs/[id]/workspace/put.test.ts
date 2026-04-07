@@ -31,10 +31,16 @@ vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
 
-vi.mock("@sokosumi/database/helpers", () => ({
-  mapJobWithStatus: mapJobWithStatusMock,
-  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
-}));
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    mapJobWithStatus: mapJobWithStatusMock,
+    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+  };
+});
 
 vi.mock("@/types/job", () => ({
   serializeJobDetails: serializeJobDetailsMock,
@@ -287,6 +293,26 @@ describe("PUT /jobs/{id}/workspace", () => {
     jobFindFirstMock.mockResolvedValue(null);
 
     const app = createApp(null);
+    const response = await app.request("http://localhost/job_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_target",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(jobUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when the owned job is outside the active workspace", async () => {
+    jobFindFirstMock
+      .mockResolvedValueOnce(createCurrentJobRecord())
+      .mockResolvedValueOnce(null);
+
+    const app = createApp("org_current");
     const response = await app.request("http://localhost/job_123/workspace", {
       method: "PUT",
       headers: {

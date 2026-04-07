@@ -39,14 +39,10 @@ async function BreadcrumbNavigationInner({
   className?: string | undefined;
   segmentLabels?: Record<string, string>;
 }) {
-  const [messages, { agents, organizations }] = await Promise.all([
+  const [messages, agents, organizations] = await Promise.all([
     getMessages(),
-    prisma.$transaction(async (tx) => {
-      const agents = await agentRepository.getAgentsWithRelations(tx);
-      const organizations =
-        await organizationRepository.listOrganizationsWithLimitedInfo(tx);
-      return { agents, organizations };
-    }),
+    agentRepository.getAgentsWithRelations(prisma),
+    organizationRepository.listOrganizationsWithLimitedInfo(prisma),
   ]);
 
   const breadcrumbMessages = (messages?.Components as Record<string, unknown>)

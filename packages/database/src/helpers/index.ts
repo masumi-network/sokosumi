@@ -35,3 +35,4 @@ export * from "./credit.js";
 export * from "./job.js";
 export * from "./job-sync.js";
 export * from "./workspace.js";
+export * from "./workspace-read-scope.js";

@@ -62,7 +62,7 @@ describe("JobDetailsPage", () => {
     });
   });
 
-  it("switches to the workspace organization instead of the billing organization", async () => {
+  it("keeps auto context switching on the right-pane job page", async () => {
     loadJobDetailsMock.mockResolvedValue({
       activeOrganizationId: null,
       dehydratedState: "dehydrated",
@@ -99,38 +99,5 @@ describe("JobDetailsPage", () => {
       }),
     );
     expect(screen.getByTestId("hydration-boundary")).toBeInTheDocument();
-  });
-
-  it("uses the personal account label when the job is in the personal workspace", async () => {
-    loadJobDetailsMock.mockResolvedValue({
-      activeOrganizationId: "org-billing",
-      dehydratedState: "dehydrated",
-      job: {
-        id: "job-1",
-        organizationId: "org-billing",
-        workspace: {
-          organizationId: null,
-        },
-      },
-      personalWorkspaceLabel: null,
-      readOnly: false,
-    });
-
-    const { default: JobDetailsPage } = await import("../page");
-
-    render(
-      await JobDetailsPage({
-        params: Promise.resolve({
-          agentId: "agent-1",
-          jobId: "job-1",
-        }),
-      }),
-    );
-
-    expect(autoContextSwitchMock).toHaveBeenCalledWith({
-      activeOrganizationId: "org-billing",
-      targetOrganizationId: null,
-      successMessage: 'switchedWorkspace:{"account":"Personal Account"}',
-    });
   });
 });

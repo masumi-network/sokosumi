@@ -8,7 +8,10 @@ import type {
   OrganizationWithRelations,
   User,
 } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
+import {
+  buildWorkspaceReadWhere,
+  resolveWorkspaceForContext,
+} from "@sokosumi/database/helpers";
 import {
   invitationRepository,
   jobRepository,
@@ -88,9 +91,9 @@ export const userService = (() => {
   }
 
   /**
-   * Retrieves jobs for the currently authenticated user filtered by agent ID.
-   * If the user has an active organization, returns jobs in that organization context.
-   * Otherwise, returns personal jobs for the user and agent.
+   * Retrieves jobs visible in the current active workspace filtered by agent ID.
+   * Organization workspaces return all jobs in that workspace for the agent.
+   * Personal workspaces remain owner-scoped.
    *
    * @param {string} agentId - The ID of the agent to filter jobs by.
    * @returns {Promise<JobWithSokosumiStatus[]>} An array of jobs with status for the user and agent.
@@ -109,16 +112,20 @@ export const userService = (() => {
       prisma,
     );
 
-    // Get owned jobs
-    const ownedJobs = await jobRepository.getJobs(
+    const scope = {
+      workspaceId: workspace.id,
+      ownerUserId: activeOrganizationId ? null : userId,
+    };
+
+    const jobs = await jobRepository.getJobs(
       {
         agentId,
-        userId,
-        workspaceId: workspace.id,
+        ...buildWorkspaceReadWhere(scope),
       },
       prisma,
     );
-    return ownedJobs.sort(
+
+    return jobs.sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );

@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { publicShareRepository } from "@sokosumi/database/repositories";
 
-import { forbidden, notFound } from "@/helpers/error.js";
+import { requireOwnedJobAccess } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -47,21 +47,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     await prisma.$transaction(async (tx) => {
-      const job = await tx.job.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          userId: true,
-        },
-      });
-
-      if (!job) {
-        throw notFound("Job not found");
-      }
-
-      if (job.userId !== authContext.userId) {
-        throw forbidden("You can only manage sharing for your own jobs");
-      }
+      await requireOwnedJobAccess(authContext, id, tx);
 
       await publicShareRepository.deleteByJobId(id, tx);
     });
