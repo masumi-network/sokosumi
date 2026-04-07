@@ -29,7 +29,7 @@ describe("buildCurrentWorkspaceTaskContextWhere", () => {
     vi.clearAllMocks();
   });
 
-  it("builds the current user workspace filter", async () => {
+  it("uses workspace-wide task context inside organization workspaces", async () => {
     resolveWorkspaceForContextMock.mockResolvedValueOnce({
       id: "11111111-1111-7111-8111-111111111111",
     });
@@ -41,7 +41,7 @@ describe("buildCurrentWorkspaceTaskContextWhere", () => {
     });
   });
 
-  it("keeps personal context when organization is null", async () => {
+  it("keeps personal workspace task context owner-scoped", async () => {
     resolveWorkspaceForContextMock.mockResolvedValueOnce({
       id: "22222222-2222-7222-8222-222222222222",
     });
@@ -53,6 +53,7 @@ describe("buildCurrentWorkspaceTaskContextWhere", () => {
       }),
     ).resolves.toEqual({
       workspaceId: "22222222-2222-7222-8222-222222222222",
+      userId: "user_123",
     });
   });
 });
