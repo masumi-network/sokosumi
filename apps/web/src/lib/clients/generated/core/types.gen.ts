@@ -5458,10 +5458,6 @@ export type GetJobsData = {
          */
         memberId?: string;
         /**
-         * Whether failed jobs should be included. Optional UI convenience flag; defaults to true.
-         */
-        includeFailed?: boolean;
-        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;

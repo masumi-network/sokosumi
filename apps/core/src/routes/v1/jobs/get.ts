@@ -49,19 +49,6 @@ const query = z
         description: "Filter jobs by member user ID",
         example: "usr_123",
       }),
-    includeFailed: z
-      .preprocess((value) => {
-        if (value === "true") return true;
-        if (value === "false") return false;
-        return value;
-      }, z.boolean())
-      .optional()
-      .openapi({
-        param: { name: "includeFailed", in: "query" },
-        description:
-          "Whether failed jobs should be included. Optional UI convenience flag; defaults to true.",
-        example: true,
-      }),
   })
   .extend(cursorPaginationQuerySchema.shape);
 
@@ -138,7 +125,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
     const queryParams = c.req.valid("query");
-    const { agentId, status, memberId, includeFailed } = queryParams;
+    const { agentId, status, memberId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     if (memberId && authContext.organizationId) {
@@ -159,7 +146,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       agentId,
       memberId,
       status,
-      includeFailed,
       cursor,
       take,
       skip,

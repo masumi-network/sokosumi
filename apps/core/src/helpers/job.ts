@@ -462,8 +462,6 @@ export async function getUserJobs(
     agentId?: string;
     memberId?: string;
     status?: AgentJobStatus;
-    // When false, exclude jobs whose flattened summary status is failed-like.
-    includeFailed?: boolean;
     cursor?: string;
     take: number;
     skip?: number;
@@ -478,7 +476,6 @@ export async function getUserJobs(
     agentId,
     memberId,
     status,
-    includeFailed = true,
     cursor,
     take,
     skip,
@@ -493,16 +490,6 @@ export async function getUserJobs(
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
     ],
   };
-
-  if (!includeFailed && !status) {
-    return await getUserJobsWithoutFailed({
-      where,
-      cursor,
-      take,
-      skip,
-      tx,
-    });
-  }
 
   const takePlusOne = take + 1;
   const jobs = await tx.job.findMany({
@@ -521,136 +508,4 @@ export async function getUserJobs(
     count,
     hasMore: jobs.length === takePlusOne,
   };
-}
-
-/**
- * Counts jobs matching `where` whose computed status is not failed-like.
- * Always scans from the start of the result set (no cursor), matching how
- * `tx.job.count({ where })` behaves for stable pagination totals.
- */
-async function countNonFailedJobsMatching(
-  where: Prisma.JobWhereInput,
-  tx: Prisma.TransactionClient,
-  batchSize: number,
-): Promise<number> {
-  let total = 0;
-  let pageCursor: string | undefined;
-
-  while (true) {
-    const jobs = await tx.job.findMany({
-      where,
-      take: batchSize,
-      skip: pageCursor ? 1 : undefined,
-      cursor: pageCursor ? { id: pageCursor } : undefined,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      include: {
-        ...jobSummaryInclude,
-      },
-    });
-
-    if (jobs.length === 0) {
-      break;
-    }
-
-    total += jobs
-      .map(flattenJob)
-      .filter((job) => !isFailedLikeJobStatus(job.status)).length;
-
-    if (jobs.length < batchSize) {
-      break;
-    }
-
-    pageCursor = jobs.at(-1)?.id;
-  }
-
-  return total;
-}
-
-async function getUserJobsWithoutFailed({
-  where,
-  cursor,
-  take,
-  skip,
-  tx,
-}: {
-  where: Prisma.JobWhereInput;
-  cursor?: string;
-  take: number;
-  skip?: number;
-  tx: Prisma.TransactionClient;
-}): Promise<{
-  jobs: ReturnType<typeof flattenJob>[];
-  count: number;
-  hasMore: boolean;
-}> {
-  const takePlusOne = take + 1;
-  const batchSize = Math.max(takePlusOne, 50);
-  const visibleJobs: ReturnType<typeof flattenJob>[] = [];
-  let visibleCount = 0;
-  let currentCursor = cursor;
-  let currentSkip = skip;
-  const needsSeparateTotalCount = cursor !== undefined;
-
-  const totalCountPromise = needsSeparateTotalCount
-    ? countNonFailedJobsMatching(where, tx, batchSize)
-    : null;
-
-  while (true) {
-    const jobs = await tx.job.findMany({
-      where,
-      take: batchSize,
-      skip: currentCursor ? currentSkip : undefined,
-      cursor: currentCursor ? { id: currentCursor } : undefined,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      include: {
-        ...jobSummaryInclude,
-      },
-    });
-
-    if (jobs.length === 0) {
-      break;
-    }
-
-    const flattenedJobs = jobs.map(flattenJob);
-    const filteredJobs = flattenedJobs.filter(
-      (job) => !isFailedLikeJobStatus(job.status),
-    );
-
-    if (!needsSeparateTotalCount) {
-      visibleCount += filteredJobs.length;
-    }
-
-    if (visibleJobs.length < takePlusOne) {
-      visibleJobs.push(
-        ...filteredJobs.slice(0, Math.max(takePlusOne - visibleJobs.length, 0)),
-      );
-    }
-
-    if (needsSeparateTotalCount && visibleJobs.length === takePlusOne) {
-      break;
-    }
-
-    if (jobs.length < batchSize) {
-      break;
-    }
-
-    currentCursor = jobs.at(-1)?.id;
-    currentSkip = 1;
-  }
-
-  const count = needsSeparateTotalCount
-    ? await totalCountPromise!
-    : visibleCount;
-
-  return {
-    jobs: visibleJobs.slice(0, take),
-    count,
-    hasMore: visibleJobs.length === takePlusOne,
-  };
-}
-
-function isFailedLikeJobStatus(
-  status: ReturnType<typeof flattenJob>["status"],
-) {
-  return status === "failed" || status === "payment_failed";
 }

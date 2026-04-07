@@ -114,7 +114,6 @@ describe("loadMoreJobs", () => {
       memberId: "user-2",
       agentId: "agent-1",
       jobStatus: "COMPLETED",
-      includeFailed: false,
       memberPreviews: [
         {
           id: "user-1",
@@ -130,7 +129,6 @@ describe("loadMoreJobs", () => {
       memberId: "user-2",
       agentId: "agent-1",
       status: "COMPLETED",
-      includeFailed: false,
     });
     expect(mapJobsToTasksViewDataMock).toHaveBeenCalledWith(
       expect.objectContaining({

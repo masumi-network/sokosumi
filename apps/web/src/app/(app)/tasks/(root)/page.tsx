@@ -141,7 +141,6 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       memberId: activeFilters.memberId,
       agentId: activeFilters.agentId,
       status: activeFilters.jobStatus,
-      includeFailed: activeFilters.jobStatus === null ? false : null,
     }),
     Promise.all(
       KANBAN_COLUMNS.map(async (column) => {

@@ -69,11 +69,11 @@ describe("GET /jobs", () => {
     });
   });
 
-  it("passes memberId and includeFailed through to org-scoped job reads", async () => {
+  it("passes memberId and status through to org-scoped job reads", async () => {
     const app = createApp();
 
     const response = await app.request(
-      "http://localhost/?memberId=user_456&agentId=agent_456&status=COMPLETED&includeFailed=false",
+      "http://localhost/?memberId=user_456&agentId=agent_456&status=COMPLETED",
     );
 
     expect(response.status).toBe(200);
@@ -92,7 +92,6 @@ describe("GET /jobs", () => {
         memberId: "user_456",
         agentId: "agent_456",
         status: AgentJobStatus.COMPLETED,
-        includeFailed: false,
       }),
     );
   });

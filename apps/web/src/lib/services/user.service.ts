@@ -31,7 +31,6 @@ interface ListMyJobsForActiveContextParams {
   memberId?: string | null;
   agentId?: string | null;
   status?: NonNullable<GetJobsData["query"]>["status"] | null;
-  includeFailed?: NonNullable<GetJobsData["query"]>["includeFailed"] | null;
   session?: Session | null;
 }
 
@@ -134,7 +133,6 @@ export const userService = (() => {
       memberId = null,
       agentId = null,
       status = null,
-      includeFailed = null,
     } = params;
     const session = params.session ?? (await getSession());
     if (!session) {
@@ -147,7 +145,6 @@ export const userService = (() => {
       ...(memberId ? { memberId } : {}),
       ...(agentId ? { agentId } : {}),
       ...(status ? { status } : {}),
-      ...(includeFailed !== null ? { includeFailed } : {}),
     });
 
     return {

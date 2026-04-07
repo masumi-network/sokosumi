@@ -122,7 +122,6 @@ describe("user.service", () => {
       memberId: "user-2",
       agentId: "agent-1",
       status: "COMPLETED",
-      includeFailed: false,
     });
 
     expect(getJobsMock).toHaveBeenCalledWith({
@@ -130,7 +129,6 @@ describe("user.service", () => {
       memberId: "user-2",
       agentId: "agent-1",
       status: "COMPLETED",
-      includeFailed: false,
     });
     expect(result).toEqual({
       jobs: [

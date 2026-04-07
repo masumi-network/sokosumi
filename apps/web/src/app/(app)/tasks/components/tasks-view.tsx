@@ -745,7 +745,6 @@ export function TasksView({
           memberId: activeMemberId,
           agentId: activeAgentId,
           jobStatus: activeJobStatus,
-          includeFailed: activeJobStatus === null ? false : null,
           memberPreviews,
         });
         setJobsItems((prev) => appendUniqueJobs(prev, result.jobs));
@@ -771,7 +770,6 @@ export function TasksView({
           memberId: activeMemberId,
           agentId: activeAgentId,
           jobStatus: activeJobStatus,
-          includeFailed: activeJobStatus === null ? false : null,
           memberPreviews,
         });
         setJobsItems((prev) => mergeTopPageJobs(prev, result.jobs));

@@ -61,7 +61,6 @@ interface LoadMoreJobsParams {
   memberId?: string | null;
   agentId?: string | null;
   jobStatus?: AgentJobStatus | null;
-  includeFailed?: boolean | null;
   memberPreviews?: MemberPreviewItem[];
 }
 
@@ -70,7 +69,6 @@ export async function loadMoreJobs({
   memberId = null,
   agentId = null,
   jobStatus = null,
-  includeFailed = null,
   memberPreviews = [],
 }: LoadMoreJobsParams) {
   const [coworkers, agents, jobsPage] = await Promise.all([
@@ -82,7 +80,6 @@ export async function loadMoreJobs({
       memberId,
       agentId,
       status: jobStatus,
-      includeFailed,
     }),
   ]);
 
