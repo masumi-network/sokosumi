@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
     "overrides": {
-      "lodash": "4.17.23",
+      "lodash": "4.18.1",
       "zod": "4.3.6"
     }
   },
@@ -21,6 +21,14 @@
     "chat:build": "pnpm --filter @sokosumi/chat build",
     "ai-provider:build": "pnpm --filter @sokosumi/ai-provider build",
     "masumi:build": "pnpm --filter @sokosumi/masumi build",
+    "typecheck": "pnpm -r typecheck",
+    "web:typecheck": "pnpm --filter web typecheck",
+    "core:typecheck": "pnpm --filter core typecheck",
+    "database:typecheck": "pnpm --filter @sokosumi/database typecheck",
+    "chat:typecheck": "pnpm --filter @sokosumi/chat typecheck",
+    "masumi:typecheck": "pnpm --filter @sokosumi/masumi typecheck",
+    "email:typecheck": "pnpm --filter @sokosumi/email typecheck",
+    "utils:typecheck": "pnpm --filter @sokosumi/utils typecheck",
     "start": "pnpm -r start",
     "core:start": "pnpm --filter core start",
     "web:start": "pnpm --filter web start",
@@ -75,6 +83,6 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
     "chrome-launcher": "1.2.1",
-    "lighthouse": "13.0.3"
+    "lighthouse": "13.1.0"
   }
 }

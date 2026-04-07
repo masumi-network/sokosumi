@@ -9,29 +9,27 @@ import type { AuthVariables } from "@/middleware/auth";
 import mountPutTaskWorkspace, { putTaskWorkspaceRequestSchema } from "./put";
 
 const {
-  jobCountMock,
+  jobFindFirstMock,
+  jobUpdateManyMock,
   mapTaskMock,
   prismaTransactionMock,
-  requireUserTaskAccessMock,
+  resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
-  taskEventCountMock,
+  taskFindFirstMock,
+  taskLinkFindFirstMock,
   taskFindUniqueOrThrowMock,
-  taskLinkCountMock,
-  taskUpdateManyMock,
+  taskUpdateMock,
 } = vi.hoisted(() => ({
-  jobCountMock: vi.fn(),
+  jobFindFirstMock: vi.fn(),
+  jobUpdateManyMock: vi.fn(),
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  requireUserTaskAccessMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  taskEventCountMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
+  taskLinkFindFirstMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
-  taskLinkCountMock: vi.fn(),
-  taskUpdateManyMock: vi.fn(),
-}));
-
-vi.mock("@/helpers/access-control", () => ({
-  requireUserTaskAccess: requireUserTaskAccessMock,
+  taskUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/organization", () => ({
@@ -40,6 +38,10 @@ vi.mock("@/helpers/organization", () => ({
 
 vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
+}));
+
+vi.mock("@sokosumi/database/helpers", () => ({
+  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -52,6 +54,10 @@ interface TaskRecord {
   id: string;
   userId: string;
   organizationId: string | null;
+  workspaceId: string;
+  workspace: {
+    organizationId: string | null;
+  };
   coworkerId: string | null;
   name: string;
   description: string | null;
@@ -60,17 +66,16 @@ interface TaskRecord {
 
 interface TransactionMock {
   job: {
-    count: ReturnType<typeof vi.fn>;
-  };
-  task: {
-    findUniqueOrThrow: ReturnType<typeof vi.fn>;
+    findFirst?: ReturnType<typeof vi.fn>;
     updateMany: ReturnType<typeof vi.fn>;
   };
-  taskEvent: {
-    count: ReturnType<typeof vi.fn>;
+  task: {
+    findFirst: ReturnType<typeof vi.fn>;
+    findUniqueOrThrow: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
   };
   taskLink: {
-    count: ReturnType<typeof vi.fn>;
+    findFirst: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -79,6 +84,10 @@ function createTaskRecord(overrides: Partial<TaskRecord> = {}): TaskRecord {
     id: "tsk_123",
     userId: "user_123",
     organizationId: "org_current",
+    workspaceId: "11111111-1111-7111-8111-111111111111",
+    workspace: {
+      organizationId: "org_current",
+    },
     coworkerId: "cow_123",
     name: "Current task",
     description: "Current description",
@@ -101,6 +110,15 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     credits: 0,
     events: [],
     jobs: [],
+    workspace: {
+      id: "11111111-1111-4111-8111-111111111111",
+      organizationId: "org_current",
+      organization: {
+        id: "org_current",
+        name: "Current Org",
+        slug: "current-org",
+      },
+    },
     share: null,
     links: [],
     ...overrides,
@@ -169,18 +187,21 @@ describe("PUT /tasks/{id}/workspace", () => {
     vi.clearAllMocks();
 
     const defaultTask = createTaskRecord();
-    requireUserTaskAccessMock.mockResolvedValue(defaultTask);
+    taskFindFirstMock.mockResolvedValue(defaultTask);
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: {
         id: "org_target",
       },
       role: "member",
     });
-    jobCountMock.mockResolvedValue(0);
-    taskEventCountMock.mockResolvedValue(0);
-    taskLinkCountMock.mockResolvedValue(0);
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+    });
+    jobFindFirstMock.mockResolvedValue(null);
+    jobUpdateManyMock.mockResolvedValue({ count: 0 });
     taskFindUniqueOrThrowMock.mockResolvedValue(createTaskRecord());
-    taskUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskLinkFindFirstMock.mockResolvedValue(null);
+    taskUpdateMock.mockResolvedValue(createTaskRecord());
     mapTaskMock.mockImplementation((task: TaskRecord) =>
       createTaskApi({
         organizationId: task.organizationId,
@@ -193,31 +214,38 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     mockTransaction({
       job: {
-        count: jobCountMock,
+        findFirst: jobFindFirstMock,
+        updateMany: jobUpdateManyMock,
       },
       task: {
+        findFirst: taskFindFirstMock,
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
-        updateMany: taskUpdateManyMock,
-      },
-      taskEvent: {
-        count: taskEventCountMock,
+        update: taskUpdateMock,
       },
       taskLink: {
-        count: taskLinkCountMock,
+        findFirst: taskLinkFindFirstMock,
       },
     });
   });
 
-  it("moves a personal task into an organization when the user is a member", async () => {
-    requireUserTaskAccessMock.mockResolvedValue(
+  it("moves an owned task by updating placement only", async () => {
+    taskFindFirstMock.mockResolvedValue(
       createTaskRecord({
-        organizationId: null,
+        organizationId: "org_billing",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        workspace: {
+          organizationId: null,
+        },
         status: TaskStatus.RUNNING,
       }),
     );
     taskFindUniqueOrThrowMock.mockResolvedValue({
       ...createTaskRecord({
-        organizationId: "org_target",
+        organizationId: "org_billing",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        workspace: {
+          organizationId: "org_target",
+        },
         status: TaskStatus.RUNNING,
       }),
       events: [],
@@ -243,39 +271,40 @@ describe("PUT /tasks/{id}/workspace", () => {
       userId: "user_123",
       tx: expect.any(Object),
     });
-    expect(jobCountMock).toHaveBeenCalledWith({
-      where: { taskId: "tsk_123" },
-    });
-    expect(taskEventCountMock).toHaveBeenCalledWith({
-      where: {
-        taskId: "tsk_123",
-        transactionId: { not: null },
-      },
-    });
-    expect(taskUpdateManyMock).toHaveBeenCalledWith({
+    expect(taskUpdateMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
-        userId: "user_123",
-        organizationId: null,
-        archivedAt: null,
-        status: TaskStatus.RUNNING,
       },
       data: {
-        organizationId: "org_target",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+      },
+    });
+    expect(jobUpdateManyMock).toHaveBeenCalledWith({
+      where: { taskId: "tsk_123" },
+      data: {
+        workspaceId: "11111111-1111-4111-8111-111111111111",
       },
     });
   });
 
   it("moves an organization task back to the personal workspace", async () => {
-    requireUserTaskAccessMock.mockResolvedValue(
+    taskFindFirstMock.mockResolvedValue(
       createTaskRecord({
         organizationId: "org_current",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        workspace: {
+          organizationId: "org_current",
+        },
         status: TaskStatus.INPUT_REQUIRED,
       }),
     );
     taskFindUniqueOrThrowMock.mockResolvedValue({
       ...createTaskRecord({
-        organizationId: null,
+        organizationId: "org_current",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        workspace: {
+          organizationId: null,
+        },
         status: TaskStatus.INPUT_REQUIRED,
       }),
       events: [],
@@ -300,15 +329,23 @@ describe("PUT /tasks/{id}/workspace", () => {
   });
 
   it("moves an organization task into another organization when the user is a member", async () => {
-    requireUserTaskAccessMock.mockResolvedValue(
+    taskFindFirstMock.mockResolvedValue(
       createTaskRecord({
         organizationId: "org_current",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        workspace: {
+          organizationId: "org_current",
+        },
         status: TaskStatus.OUT_OF_CREDITS,
       }),
     );
     taskFindUniqueOrThrowMock.mockResolvedValue({
       ...createTaskRecord({
-        organizationId: "org_other",
+        organizationId: "org_current",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        workspace: {
+          organizationId: "org_other",
+        },
         status: TaskStatus.OUT_OF_CREDITS,
       }),
       events: [],
@@ -361,15 +398,11 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task is not accessible from the current context", async () => {
-    requireUserTaskAccessMock.mockRejectedValue(
-      new HTTPException(404, {
-        message: "Task not found",
-      }),
-    );
+    taskFindFirstMock.mockResolvedValue(null);
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/tsk_123/workspace", {
@@ -383,19 +416,27 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("moves a completed task when it has no jobs and no task events with transactions", async () => {
-    requireUserTaskAccessMock.mockResolvedValue(
+  it("moves tasks even when they already have linked jobs", async () => {
+    taskFindFirstMock.mockResolvedValue(
       createTaskRecord({
-        status: TaskStatus.COMPLETED,
+        status: TaskStatus.RUNNING,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        workspace: {
+          organizationId: "org_current",
+        },
       }),
     );
     taskFindUniqueOrThrowMock.mockResolvedValue({
       ...createTaskRecord({
-        organizationId: "org_target",
-        status: TaskStatus.COMPLETED,
+        organizationId: "org_current",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        workspace: {
+          organizationId: "org_target",
+        },
+        status: TaskStatus.RUNNING,
       }),
       events: [],
       jobs: [],
@@ -415,29 +456,18 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(jobCountMock).toHaveBeenCalled();
-    expect(taskEventCountMock).toHaveBeenCalled();
-    expect(taskUpdateManyMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        userId: "user_123",
-        organizationId: "org_current",
-        archivedAt: null,
-        status: TaskStatus.COMPLETED,
-      },
+    expect(jobUpdateManyMock).toHaveBeenCalledWith({
+      where: { taskId: "tsk_123" },
       data: {
-        organizationId: "org_target",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
       },
     });
   });
 
-  it("returns 409 when the task already has jobs", async () => {
-    requireUserTaskAccessMock.mockResolvedValue(
-      createTaskRecord({
-        status: TaskStatus.RUNNING,
-      }),
-    );
-    jobCountMock.mockResolvedValue(1);
+  it("returns 409 when moving a task that still has outgoing links", async () => {
+    taskLinkFindFirstMock.mockResolvedValue({
+      id: "tl_123",
+    });
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/tsk_123/workspace", {
@@ -451,68 +481,31 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(409);
-    expect(taskEventCountMock).not.toHaveBeenCalled();
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
-  });
-
-  it("returns 409 when the task already has task events linked to a transaction", async () => {
-    requireUserTaskAccessMock.mockResolvedValue(
-      createTaskRecord({
-        status: TaskStatus.RUNNING,
-      }),
-    );
-    taskEventCountMock.mockResolvedValue(1);
-
-    const app = createApp("org_current");
-    const response = await app.request("http://localhost/tsk_123/workspace", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        organizationId: "org_target",
-      }),
-    });
-
-    expect(response.status).toBe(409);
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
-  });
-
-  it("returns 409 when the task already has links", async () => {
-    requireUserTaskAccessMock.mockResolvedValue(
-      createTaskRecord({
-        status: TaskStatus.RUNNING,
-      }),
-    );
-    taskLinkCountMock.mockResolvedValue(1);
-
-    const app = createApp("org_current");
-    const response = await app.request("http://localhost/tsk_123/workspace", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        organizationId: "org_target",
-      }),
-    });
-
-    expect(response.status).toBe(409);
-    expect(taskLinkCountMock).toHaveBeenCalledWith({
+    expect(taskLinkFindFirstMock).toHaveBeenCalledWith({
       where: {
         OR: [{ fromTaskId: "tsk_123" }, { toTaskId: "tsk_123" }],
       },
+      select: {
+        id: true,
+      },
     });
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).not.toHaveBeenCalled();
   });
 
-  it("returns 409 when the task row no longer matches the expected status", async () => {
-    requireUserTaskAccessMock.mockResolvedValue(
+  it("allows idempotent no-op requests even when the task has links", async () => {
+    taskFindFirstMock.mockResolvedValue(
       createTaskRecord({
-        status: TaskStatus.RUNNING,
+        organizationId: "org_billing",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        workspace: {
+          organizationId: "org_current",
+        },
       }),
     );
-    taskUpdateManyMock.mockResolvedValue({ count: 0 });
+    taskLinkFindFirstMock.mockResolvedValue({
+      id: "tl_123",
+    });
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/tsk_123/workspace", {
@@ -521,18 +514,24 @@ describe("PUT /tasks/{id}/workspace", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        organizationId: "org_target",
+        organizationId: "org_current",
       }),
     });
 
-    expect(response.status).toBe(409);
-    expect(taskFindUniqueOrThrowMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(taskLinkFindFirstMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("allows idempotent no-op updates without membership or guard checks", async () => {
-    requireUserTaskAccessMock.mockResolvedValue(
+    taskFindFirstMock.mockResolvedValue(
       createTaskRecord({
-        organizationId: "org_current",
+        organizationId: "org_billing",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        workspace: {
+          organizationId: "org_current",
+        },
         status: TaskStatus.COMPLETED,
       }),
     );
@@ -550,9 +549,8 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     expect(response.status).toBe(200);
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(jobCountMock).not.toHaveBeenCalled();
-    expect(taskEventCountMock).not.toHaveBeenCalled();
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 for empty-string organization ids", async () => {
@@ -568,16 +566,20 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(requireUserTaskAccessMock).not.toHaveBeenCalled();
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("reads the current task instead of updating on idempotent no-op requests", async () => {
     const currentTask = createTaskRecord({
-      organizationId: "org_current",
+      organizationId: "org_billing",
+      workspaceId: "11111111-1111-4111-8111-111111111111",
+      workspace: {
+        organizationId: "org_current",
+      },
       status: TaskStatus.COMPLETED,
     });
-    requireUserTaskAccessMock.mockResolvedValue(currentTask);
+    taskFindFirstMock.mockResolvedValue(currentTask);
 
     const currentTaskWithIncludes = {
       ...currentTask,
@@ -589,22 +591,18 @@ describe("PUT /tasks/{id}/workspace", () => {
     taskFindUniqueOrThrowMock.mockResolvedValue(currentTaskWithIncludes);
     mockTransaction({
       job: {
-        count: jobCountMock,
+        findFirst: jobFindFirstMock,
+        updateMany: jobUpdateManyMock,
       },
       task: {
+        findFirst: taskFindFirstMock,
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
-        updateMany: taskUpdateManyMock,
-      },
-      taskEvent: {
-        count: taskEventCountMock,
-      },
-      taskLink: {
-        count: taskLinkCountMock,
+        update: taskUpdateMock,
       },
     });
     mapTaskMock.mockReturnValue(
       createTaskApi({
-        organizationId: "org_current",
+        organizationId: "org_billing",
         status: TaskStatus.COMPLETED,
       }),
     );
@@ -625,6 +623,6 @@ describe("PUT /tasks/{id}/workspace", () => {
       where: { id: "tsk_123" },
       include: expect.any(Object),
     });
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 });

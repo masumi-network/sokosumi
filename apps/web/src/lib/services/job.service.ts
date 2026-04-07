@@ -12,7 +12,10 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import { isPaidJob } from "@sokosumi/database/helpers";
+import {
+  isPaidJob,
+  resolveWorkspaceForContext,
+} from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobEventRepository,
@@ -29,6 +32,7 @@ import type { JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
+import { coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import { getJobStatusData } from "@/lib/helpers/job";
 import type {
@@ -152,6 +156,12 @@ export const jobService = (() => {
       throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
     }
 
+    const workspace = await resolveWorkspaceForContext(
+      userId,
+      activeOrganizationId,
+      prisma,
+    );
+
     const job = await jobRepository.createDemoJob(
       {
         jobType: JobType.DEMO,
@@ -159,6 +169,7 @@ export const jobService = (() => {
         agentId,
         userId,
         organizationId: activeOrganizationId,
+        workspaceId: workspace.id,
         input: JSON.stringify(inputData),
         inputSchema: inputSchema,
         name: "Demo Job",
@@ -365,6 +376,12 @@ export const jobService = (() => {
     // Create job, transaction, and consume credits in a single transaction
     const job = await prisma.$transaction(
       async (tx) => {
+        const workspace = await resolveWorkspaceForContext(
+          userId,
+          organizationId,
+          tx,
+        );
+
         return await jobRepository.createJob(
           {
             jobType: JobType.PAID,
@@ -372,6 +389,7 @@ export const jobService = (() => {
             agentId,
             userId,
             organizationId,
+            workspaceId: workspace.id,
             input: JSON.stringify(inputData),
             inputHash: startJobResponse.input_hash,
             inputSchema: inputSchema,
@@ -516,6 +534,12 @@ export const jobService = (() => {
     // Generate job name
     const generatedName = await generateJobNameForAgent(agent, inputData);
 
+    const workspace = await resolveWorkspaceForContext(
+      userId,
+      organizationId,
+      prisma,
+    );
+
     // Create free job in database
     Sentry.addBreadcrumb({
       category: "Job Service",
@@ -534,6 +558,7 @@ export const jobService = (() => {
         agentId,
         userId,
         organizationId,
+        workspaceId: workspace.id,
         input: JSON.stringify(inputData),
         inputHash: null,
         inputSchema: inputSchema,
@@ -697,6 +722,21 @@ export const jobService = (() => {
     return job;
   };
 
+  const moveJobToWorkspace = async (
+    jobId: string,
+    organizationId: string | null,
+  ) => {
+    const result = await coreClient.moveJobToWorkspace(jobId, {
+      organizationId,
+    });
+
+    if (!result.data) {
+      throw new Error("Failed to move job to workspace");
+    }
+
+    return result.data;
+  };
+
   /**
    * Retrieves the latest job status data for a list of agent IDs for the current user and organization.
    *
@@ -720,14 +760,19 @@ export const jobService = (() => {
     }
     const userId = session.user.id;
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
+    const workspace = await resolveWorkspaceForContext(
+      userId,
+      activeOrganizationId,
+      tx,
+    );
 
     return await Promise.all(
       agentIds.map(async (agentId) => {
         const latestJob =
-          await jobRepository.getLatestJobByAgentIdUserIdAndOrganization(
+          await jobRepository.getLatestJobByAgentIdUserIdAndWorkspace(
             agentId,
             userId,
-            activeOrganizationId,
+            workspace.id,
             tx,
           );
         if (!latestJob) {
@@ -886,6 +931,7 @@ export const jobService = (() => {
   return {
     startJob,
     startDemoJob,
+    moveJobToWorkspace,
     requestRefund,
     getJobStatusesDataForAgents,
     provideJobInput,

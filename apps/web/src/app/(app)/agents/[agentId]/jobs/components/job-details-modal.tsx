@@ -1,6 +1,9 @@
 "use client";
 
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
+import type {
+  JobWithSokosumiStatus,
+  MemberWithOrganization,
+} from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -25,12 +28,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface JobDetailsModalProps {
   agentId: string;
   job: JobWithSokosumiStatus;
+  organizations?: MemberWithOrganization[];
+  personalWorkspaceLabel?: string;
   readOnly: boolean;
 }
 
 export function JobDetailsModal({
   agentId,
   job,
+  organizations,
+  personalWorkspaceLabel,
   readOnly,
 }: JobDetailsModalProps) {
   const t = useTranslations("App.Agents.Jobs.Modal");
@@ -127,7 +134,13 @@ export function JobDetailsModal({
                 <span>{t("back")}</span>
               </Button>
             </div>
-            <JobDetails job={job} readOnly={readOnly} showAgentHeader={false} />
+            <JobDetails
+              job={job}
+              organizations={organizations}
+              personalWorkspaceLabel={personalWorkspaceLabel}
+              readOnly={readOnly}
+              showAgentHeader={false}
+            />
           </div>
         </ScrollArea>
       </DialogContent>

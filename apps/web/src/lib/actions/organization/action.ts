@@ -9,11 +9,6 @@ import { getOrganizationMetadata } from "@sokosumi/utils";
 import * as z from "zod";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
-import { coreClient, toCoreApiActionError } from "@/lib/clients/core.client";
-import {
-  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-} from "@/lib/constants/organization-logo";
 import prisma from "@/lib/db/prisma";
 import {
   type OrganizationInformationFormSchemaType,
@@ -53,54 +48,6 @@ export async function generateOrganizationSlug(
     });
   }
 }
-
-interface UploadOrganizationLogoParameters extends AuthenticatedRequest {
-  file: File;
-}
-
-export const uploadOrganizationLogo = withSession<
-  UploadOrganizationLogoParameters,
-  Result<string, ActionError>
->(async ({ file }) => {
-  if (!(file instanceof File) || file.size <= 0) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: "File is required",
-    });
-  }
-
-  if (file.size > ORGANIZATION_LOGO_MAX_SIZE_BYTES) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: "File is too large (max 2 MB)",
-    });
-  }
-
-  const allowedMimeTypes: readonly string[] =
-    ORGANIZATION_LOGO_ALLOWED_MIME_TYPES;
-  if (!allowedMimeTypes.includes(file.type)) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: "File type not accepted",
-    });
-  }
-
-  try {
-    const response = await coreClient.uploadMyFile(file);
-    const uploadedFileUrl = response.data.publicUrl;
-
-    if (!uploadedFileUrl) {
-      return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Upload did not return a public URL",
-      });
-    }
-
-    return Ok(uploadedFileUrl);
-  } catch (error) {
-    return Err(toCoreApiActionError(error));
-  }
-});
 
 const updateInvoiceEmailSchema = z.object({
   organizationId: z.string(),

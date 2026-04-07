@@ -58,6 +58,11 @@ describe("getPublicSharedResourceByToken", () => {
         input: null,
         inputHash: null,
         resultHash: null,
+        workspace: {
+          id: "11111111-1111-7111-8111-111111111111",
+          organizationId: null,
+          organization: null,
+        },
         share: {
           id: "share_job_123",
           jobId: "job_123",

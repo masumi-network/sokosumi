@@ -26,13 +26,21 @@ export default async function JobDetailsPage({
       getTranslations("App.Agents.Jobs"),
     ],
   );
-  const { activeOrganizationId, dehydratedState, job, readOnly } = jobDetails;
-  const targetOrganizationId = job.organizationId;
+  const {
+    activeOrganizationId,
+    dehydratedState,
+    job,
+    personalWorkspaceLabel,
+    readOnly,
+  } = jobDetails;
+  const targetOrganizationId = job.workspace.organizationId ?? null;
   const targetAccountName = resolveAccountName(
     targetOrganizationId,
     members,
     tOrganizationSwitcher("personalAccount"),
   );
+  const personalWorkspaceMoveLabel =
+    personalWorkspaceLabel ?? tOrganizationSwitcher("personalAccount");
 
   return (
     <HydrationBoundary state={dehydratedState}>
@@ -43,7 +51,13 @@ export default async function JobDetailsPage({
           account: targetAccountName,
         })}
       />
-      <JobDetails className="h-full" job={job} readOnly={readOnly} />
+      <JobDetails
+        className="h-full"
+        job={job}
+        organizations={members}
+        personalWorkspaceLabel={personalWorkspaceMoveLabel}
+        readOnly={readOnly}
+      />
     </HydrationBoundary>
   );
 }

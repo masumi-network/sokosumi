@@ -160,6 +160,17 @@ export type JobSummary = {
     onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
+    workspace: WorkspaceSummary;
+};
+
+export type WorkspaceSummary = {
+    id: string;
+    organizationId: string | null;
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null;
 };
 
 export type ConversationList = Array<Conversation>;
@@ -363,6 +374,52 @@ export type BlobFileMetadata = {
     etag: string;
 };
 
+export type UserFileUploadSession = {
+    /**
+     * Scoped Blob client token for direct uploads
+     */
+    clientToken: string;
+    /**
+     * Blob access level for the upload
+     */
+    access: 'public';
+    /**
+     * Server-generated upload pathname
+     */
+    pathname: string;
+    /**
+     * Whether Blob should append a random suffix
+     */
+    addRandomSuffix: boolean;
+    /**
+     * Maximum supported file size for direct uploads
+     */
+    maxSizeBytes: number;
+};
+
+export type CreateUserFileUploadRequest = {
+    /**
+     * Original file name supplied by the client
+     */
+    filename: string;
+    /**
+     * Declared file MIME type from the client. When empty or generic (e.g. application/octet-stream), the server may infer an allowed type from the filename extension.
+     */
+    contentType: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+    /**
+     * Optional per-upload size ceiling in bytes. Must not exceed the server maximum.
+     */
+    maxSizeBytes?: number;
+    /**
+     * Optional allowlist for the upload session. Every value must be supported by the server, and the selected contentType must be included.
+     */
+    allowedContentTypes?: Array<string>;
+};
+
 export type Job = {
     id: string;
     createdAt: Date;
@@ -385,6 +442,7 @@ export type Job = {
     inputSchema?: string | null;
     agentJobId: string;
     identifierFromPurchaser?: string | null;
+    workspace: WorkspaceSummary;
     user: {
         id: string;
         name: string;
@@ -667,6 +725,7 @@ export type TaskListItem = {
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
+    workspace: WorkspaceSummary;
 };
 
 export type Task = {
@@ -682,6 +741,7 @@ export type Task = {
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
+    workspace: WorkspaceSummary;
     share: TaskShare & ({
         [key: string]: unknown;
     } | null);
@@ -1853,10 +1913,6 @@ export type GetAgentsByIdJobsData = {
         id: string;
     };
     query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -5275,14 +5331,14 @@ export type PostUsersMeNoticesByIdAcknowledgeResponses = {
 
 export type PostUsersMeNoticesByIdAcknowledgeResponse = PostUsersMeNoticesByIdAcknowledgeResponses[keyof PostUsersMeNoticesByIdAcknowledgeResponses];
 
-export type GetUsersMeFilesData = {
+export type GetUsersMeUploadsData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/users/me/files';
+    url: '/users/me/uploads';
 };
 
-export type GetUsersMeFilesErrors = {
+export type GetUsersMeUploadsErrors = {
     /**
      * Unauthorized
      */
@@ -5337,11 +5393,11 @@ export type GetUsersMeFilesErrors = {
     };
 };
 
-export type GetUsersMeFilesError = GetUsersMeFilesErrors[keyof GetUsersMeFilesErrors];
+export type GetUsersMeUploadsError = GetUsersMeUploadsErrors[keyof GetUsersMeUploadsErrors];
 
-export type GetUsersMeFilesResponses = {
+export type GetUsersMeUploadsResponses = {
     /**
-     * Retrieve user files
+     * Retrieve user uploads
      */
     200: {
         data: Array<BlobFile>;
@@ -5353,18 +5409,21 @@ export type GetUsersMeFilesResponses = {
     };
 };
 
-export type GetUsersMeFilesResponse = GetUsersMeFilesResponses[keyof GetUsersMeFilesResponses];
+export type GetUsersMeUploadsResponse = GetUsersMeUploadsResponses[keyof GetUsersMeUploadsResponses];
 
-export type PostUsersMeFilesData = {
-    body: {
-        file: Blob | File;
+export type PostUsersMeUploadsData = {
+    body: CreateUserFileUploadRequest & {
+        /**
+         * File size in bytes
+         */
+        size?: number;
     };
     path?: never;
     query?: never;
-    url: '/users/me/files';
+    url: '/users/me/uploads';
 };
 
-export type PostUsersMeFilesErrors = {
+export type PostUsersMeUploadsErrors = {
     /**
      * Bad Request
      */
@@ -5395,19 +5454,6 @@ export type PostUsersMeFilesErrors = {
      * Forbidden
      */
     403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Payload Too Large
-     */
-    413: {
         error: string;
         message: string;
         meta: {
@@ -5458,14 +5504,14 @@ export type PostUsersMeFilesErrors = {
     };
 };
 
-export type PostUsersMeFilesError = PostUsersMeFilesErrors[keyof PostUsersMeFilesErrors];
+export type PostUsersMeUploadsError = PostUsersMeUploadsErrors[keyof PostUsersMeUploadsErrors];
 
-export type PostUsersMeFilesResponses = {
+export type PostUsersMeUploadsResponses = {
     /**
-     * File uploaded successfully
+     * User file upload session created successfully
      */
     201: {
-        data: BlobFile;
+        data: UserFileUploadSession;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5474,7 +5520,7 @@ export type PostUsersMeFilesResponses = {
     };
 };
 
-export type PostUsersMeFilesResponse = PostUsersMeFilesResponses[keyof PostUsersMeFilesResponses];
+export type PostUsersMeUploadsResponse = PostUsersMeUploadsResponses[keyof PostUsersMeUploadsResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;
@@ -5661,10 +5707,6 @@ export type GetJobsData = {
          */
         status?: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
         /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -5747,12 +5789,7 @@ export type GetJobsByIdData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/jobs/{id}';
 };
 
@@ -6476,6 +6513,109 @@ export type PutJobsByIdShareResponses = {
 };
 
 export type PutJobsByIdShareResponse = PutJobsByIdShareResponses[keyof PutJobsByIdShareResponses];
+
+export type PutJobsByIdWorkspaceData = {
+    body?: {
+        organizationId: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/jobs/{id}/workspace';
+};
+
+export type PutJobsByIdWorkspaceErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutJobsByIdWorkspaceError = PutJobsByIdWorkspaceErrors[keyof PutJobsByIdWorkspaceErrors];
+
+export type PutJobsByIdWorkspaceResponses = {
+    /**
+     * Change job workspace
+     */
+    200: {
+        data: Job;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutJobsByIdWorkspaceResponse = PutJobsByIdWorkspaceResponses[keyof PutJobsByIdWorkspaceResponses];
 
 export type GetShareByTokenData = {
     body?: never;
@@ -7543,10 +7683,6 @@ export type GetTasksData = {
          */
         coworkerId?: string;
         /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -7692,12 +7828,7 @@ export type GetTasksByIdLinksData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/tasks/{id}/links';
 };
 
@@ -8077,12 +8208,7 @@ export type GetTasksByIdData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/tasks/{id}';
 };
 
@@ -8636,12 +8762,7 @@ export type GetTasksByIdJobsData = {
     path: {
         id: string;
     };
-    query?: {
-        /**
-         * Comma-separated scope filters. Allowed values: context, owned. Example: context,owned
-         */
-        scope?: Array<'context' | 'owned'>;
-    };
+    query?: never;
     url: '/tasks/{id}/jobs';
 };
 

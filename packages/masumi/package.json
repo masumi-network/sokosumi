@@ -51,6 +51,7 @@
     "lint:write": "biome lint --write .",
     "check": "biome check .",
     "check:write": "biome check --write .",
+    "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "test": "vitest run",
@@ -66,8 +67,8 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "0.94.5",
-    "@types/node": "24.12.0",
+    "@hey-api/openapi-ts": "0.95.0",
+    "@types/node": "24.12.2",
     "typescript": "6.0.2",
     "vitest": "4.1.2"
   }

@@ -3,13 +3,15 @@
 import type {
   JobEventWithRelations,
   JobWithSokosumiStatus,
+  MemberWithOrganization,
 } from "@sokosumi/database";
-import { List, Pencil, Plus } from "lucide-react";
+import { ArrowLeftRight, List, Pencil, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import Header from "@/app/agents/[agentId]/jobs/components/header";
 import { useJobsHeader } from "@/app/agents/[agentId]/jobs/components/jobs-header-context";
+import { getWorkspaceMoveTargetCount } from "@/app/tasks/components/workspace-move-targets";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import {
   AgentJobStatusBadge,
@@ -18,6 +20,11 @@ import {
 } from "@/components/jobs/agent-job-status-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -36,6 +43,7 @@ import JobDetailsName, {
 } from "./job-details-name";
 import { JobMetaDetails } from "./job-meta-details";
 import JobShareButton from "./job-share-button";
+import { MoveJobToWorkspaceDialog } from "./move-job-to-workspace-dialog";
 import JobDetailsOutputs from "./outputs";
 import JobDetailsProvideInput from "./provide-input";
 import JotOutputSources from "./sources";
@@ -44,6 +52,8 @@ export interface JobDetailsViewProps {
   job: JobWithSokosumiStatus;
   readOnly?: boolean;
   className?: string;
+  organizations?: MemberWithOrganization[];
+  personalWorkspaceLabel?: string;
   showAgentHeader?: boolean;
   /** Share route only: eyebrow, status badge, agent title, mobile top offset. */
   publicJobLayout?: boolean;
@@ -53,6 +63,8 @@ export default function JobDetailsView({
   job,
   readOnly = false,
   className,
+  organizations,
+  personalWorkspaceLabel,
   showAgentHeader = true,
   publicJobLayout = false,
 }: JobDetailsViewProps) {
@@ -104,6 +116,8 @@ export default function JobDetailsView({
                       job={job}
                       editing={nameController.editing}
                       onEdit={nameController.startEditing}
+                      organizations={organizations}
+                      personalWorkspaceLabel={personalWorkspaceLabel}
                     />
                   ) : undefined
                 }
@@ -112,6 +126,8 @@ export default function JobDetailsView({
             <div className="space-y-8 pb-20">
               <JobDetailsHeader
                 job={job}
+                organizations={organizations}
+                personalWorkspaceLabel={personalWorkspaceLabel}
                 readOnly={readOnly}
                 showInlineActions={!showAgentHeader}
                 controller={nameController}
@@ -170,11 +186,15 @@ export default function JobDetailsView({
 
 function JobDetailsHeader({
   job,
+  organizations,
+  personalWorkspaceLabel,
   readOnly,
   showInlineActions,
   controller,
 }: {
   job: JobWithSokosumiStatus;
+  organizations?: MemberWithOrganization[];
+  personalWorkspaceLabel?: string;
   readOnly: boolean;
   showInlineActions: boolean;
   controller: ReturnType<typeof useJobDetailsNameController>;
@@ -187,6 +207,8 @@ function JobDetailsHeader({
             job={job}
             editing={controller.editing}
             onEdit={controller.startEditing}
+            organizations={organizations}
+            personalWorkspaceLabel={personalWorkspaceLabel}
           />
         </div>
       ) : null}
@@ -204,35 +226,97 @@ function JobDetailsHeader({
 function JobDetailsTopBarActions({
   job,
   editing,
+  organizations,
   onEdit,
+  personalWorkspaceLabel,
 }: {
   job: JobWithSokosumiStatus;
   editing: boolean;
+  organizations?: MemberWithOrganization[];
   onEdit: () => void;
+  personalWorkspaceLabel?: string;
 }) {
   const tName = useTranslations("Components.Jobs.JobDetails.Header.JobName");
+  const tActions = useTranslations("Components.Jobs.JobDetails.Header.Actions");
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const currentOrganizationId = job.workspace.organizationId ?? null;
+  const moveTargetCount = getWorkspaceMoveTargetCount(
+    currentOrganizationId,
+    organizations,
+  );
+  const canMoveStandaloneJob =
+    !job.taskId && moveTargetCount > 0 && !!personalWorkspaceLabel;
+  const isTaskControlledJob = !!job.taskId;
 
   return (
-    <div className="flex items-center gap-1.5">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-8 md:size-7"
-        onClick={onEdit}
-        title={tName("edit")}
-        aria-label={tName("edit")}
-        disabled={editing}
-      >
-        <Pencil className="size-4" />
-      </Button>
-      <JobShareButton
-        job={job}
-        variant="ghost"
-        size="icon"
-        className="size-8 text-foreground md:size-7"
-      />
-    </div>
+    <>
+      <div className="flex items-center gap-1.5">
+        {canMoveStandaloneJob ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 md:size-7"
+            onClick={() => setIsMoveOpen(true)}
+            title={tActions("moveToWorkspace")}
+            aria-label={tActions("moveToWorkspace")}
+          >
+            <ArrowLeftRight className="size-4" />
+          </Button>
+        ) : null}
+        {isTaskControlledJob ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 md:size-7"
+                  title={tActions("moveToWorkspace")}
+                  aria-label={tActions("moveToWorkspace")}
+                  disabled
+                >
+                  <ArrowLeftRight className="size-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {tActions("moveToWorkspaceDisabledTooltip")}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8 md:size-7"
+          onClick={onEdit}
+          title={tName("edit")}
+          aria-label={tName("edit")}
+          disabled={editing}
+        >
+          <Pencil className="size-4" />
+        </Button>
+        <JobShareButton
+          job={job}
+          variant="ghost"
+          size="icon"
+          className="size-8 text-foreground md:size-7"
+        />
+      </div>
+      {canMoveStandaloneJob && personalWorkspaceLabel ? (
+        <MoveJobToWorkspaceDialog
+          agentId={job.agentId}
+          currentOrganizationId={currentOrganizationId}
+          jobId={job.id}
+          onOpenChange={setIsMoveOpen}
+          open={isMoveOpen}
+          organizations={organizations ?? []}
+          personalWorkspaceLabel={personalWorkspaceLabel}
+        />
+      ) : null}
+    </>
   );
 }
 

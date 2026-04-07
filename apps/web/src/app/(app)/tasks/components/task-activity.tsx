@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -48,8 +49,11 @@ import {
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
+import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
 
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
+import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
+import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
 import {
   getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
@@ -149,6 +153,7 @@ export function TaskActivitySection({
   const formRef = useRef<HTMLFormElement | null>(null);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
+  const activeUploadControllersRef = useRef(new Set<AbortController>());
   const [comment, setComment] = useState("");
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
@@ -167,6 +172,15 @@ export function TaskActivitySection({
   useEffect(() => {
     setLocalEvents(events);
   }, [events]);
+
+  const abortActiveUploads = useCallback(() => {
+    for (const controller of activeUploadControllersRef.current) {
+      controller.abort();
+    }
+    activeUploadControllersRef.current.clear();
+  }, []);
+
+  useEffect(() => abortActiveUploads, [abortActiveUploads]);
 
   const orderedEvents = useMemo(() => {
     return [...localEvents].sort(
@@ -227,10 +241,29 @@ export function TaskActivitySection({
   const handleAttachFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
+    const uploadToast = createTaskAttachmentUploadToast({
+      files,
+      labels: {
+        uploadingFile: getTaskAttachmentUploadLabelTemplate(t, "uploadingFile"),
+        uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+          t,
+          "uploadingFiles",
+        ),
+      },
+    });
+
+    const controller = new AbortController();
+    activeUploadControllersRef.current.add(controller);
     setUploadingAttachmentsCount((count) => count + 1);
     try {
-      for (const file of files) {
-        const uploadedUrl = await uploadTaskAttachment(file);
+      for (const [index, file] of files.entries()) {
+        const uploadedUrl = await uploadTaskAttachment(file, {
+          abortSignal: controller.signal,
+          onUploadProgress: (progress) => {
+            uploadToast.updateFileProgress(index, progress);
+          },
+        });
+        uploadToast.markFileComplete(index);
         const safeName = sanitizeTaskAttachmentLabel(file.name, t("fileLabel"));
         if (markdownEditorRef.current) {
           markdownEditorRef.current.insertLink(safeName, uploadedUrl);
@@ -245,9 +278,14 @@ export function TaskActivitySection({
           (prev) => `${prev}${prev.endsWith("\n") ? "" : "\n"}${markdownLink}`,
         );
       }
-    } catch (_error) {
-      toast.error(t("uploadFileErrorRetry"));
+      uploadToast.dismiss();
+    } catch (error) {
+      uploadToast.dismiss();
+      toast.error(
+        getUserFileUploadErrorMessage(error, t("uploadFileErrorRetry")),
+      );
     } finally {
+      activeUploadControllersRef.current.delete(controller);
       setPendingUploadFiles([]);
       setUploadingAttachmentsCount((count) => count - 1);
     }

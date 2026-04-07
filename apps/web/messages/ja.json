@@ -274,6 +274,17 @@
         "emptyActivity": "アクティビティはまだありません。",
         "eyebrow": "公開ジョブ",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "ワークスペースへ移動",
+            "moveToWorkspaceTitle": "ジョブを別のワークスペースへ移動",
+            "moveToWorkspaceDescription": "このジョブを移動先のワークスペースを選択してください。",
+            "moveToWorkspaceButton": "ジョブを移動",
+            "moveToWorkspaceCancel": "キャンセル",
+            "moveToWorkspaceSuccess": "ジョブを移動しました",
+            "moveToWorkspaceError": "ジョブを移動できませんでした",
+            "moveToWorkspaceDisabledTooltip": "このジョブはタスクに属しています。ワークスペースを変更するにはタスクを移動してください。",
+            "personalWorkspace": "個人"
+          },
           "JobName": {
             "Schema": {
               "Name": {
@@ -1357,6 +1368,8 @@
         "attach": "添付",
         "fileLabel": "ファイル",
         "uploadFileErrorRetry": "ファイルのアップロードに失敗しました。もう一度お試しください！",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "添付ファイルを削除",
         "submit": "送信",
         "sendWith": "送信方法",
@@ -1484,6 +1497,8 @@
         "back": "戻る",
         "uploadFile": "ファイルをアップロード",
         "uploadFileError": "ファイルのアップロードに失敗しました",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "添付ファイルを削除",
         "saveDraft": "保存",
         "saveAsDraft": "下書きとして保存",
@@ -1507,6 +1522,8 @@
         "back": "戻る",
         "uploadFile": "ファイルをアップロード",
         "uploadFileError": "ファイルのアップロードに失敗しました",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "添付ファイルを削除",
         "save": "保存",
         "cancel": "キャンセル",

@@ -1,17 +1,15 @@
-/** Allowed MIME types for organization logo uploads. */
-export const ORGANIZATION_LOGO_ALLOWED_MIME_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-  "image/svg+xml",
-] as const;
+import {
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+} from "@sokosumi/utils";
 
-/** Max file size in bytes (2 MB). */
-export const ORGANIZATION_LOGO_MAX_SIZE_BYTES = 2 * 1024 * 1024;
+export {
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+};
 
 /**
- * Max time to wait for the logo server action before releasing the UI.
+ * Max time to wait for the logo upload before releasing the UI.
  * Prevents a stalled network or hung endpoint from trapping the dialog open.
  */
 export const ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS = 120_000;

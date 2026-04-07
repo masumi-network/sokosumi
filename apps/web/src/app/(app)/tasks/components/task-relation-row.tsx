@@ -1,11 +1,6 @@
 import { TaskStatus } from "@sokosumi/database";
 
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
@@ -69,16 +64,7 @@ export function TaskRelationRow({
       className="bg-muted/40 border-border/50 hover:bg-muted/60 flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors"
     >
       <div className="flex min-w-0 items-center gap-2">
-        {relationLabel ? (
-          <Tooltip key={`${taskId}-${relation}`}>
-            <TooltipTrigger asChild>{iconBadge}</TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6}>
-              {relationLabel}
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          iconBadge
-        )}
+        {iconBadge}
         <p className="truncate text-sm">{taskName}</p>
       </div>
       <TaskStatusBadge status={taskStatus} className="shrink-0" />

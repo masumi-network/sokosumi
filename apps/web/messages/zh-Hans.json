@@ -274,6 +274,17 @@
         "emptyActivity": "暂无活动。",
         "eyebrow": "公开作业",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "移到其他工作区",
+            "moveToWorkspaceTitle": "将作业移到其他工作区",
+            "moveToWorkspaceDescription": "选择要将此作业移动至的工作区。",
+            "moveToWorkspaceButton": "移动作业",
+            "moveToWorkspaceCancel": "取消",
+            "moveToWorkspaceSuccess": "作业已成功移动",
+            "moveToWorkspaceError": "移动作业失败",
+            "moveToWorkspaceDisabledTooltip": "此作业属于某个任务。请移动该任务来更改其工作区。",
+            "personalWorkspace": "个人"
+          },
           "JobName": {
             "Schema": {
               "Name": {
@@ -1356,6 +1367,8 @@
         "attach": "添加附件",
         "fileLabel": "文件",
         "uploadFileErrorRetry": "上传文件失败，请重试！",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "移除附件",
         "submit": "提交",
         "sendWith": "发送方式",
@@ -1483,6 +1496,8 @@
         "back": "返回",
         "uploadFile": "上传文件",
         "uploadFileError": "上传文件失败",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "移除附件",
         "saveDraft": "保存",
         "saveAsDraft": "保存为草稿",
@@ -1506,6 +1521,8 @@
         "back": "返回",
         "uploadFile": "上传文件",
         "uploadFileError": "上传文件失败",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "移除附件",
         "save": "保存",
         "cancel": "取消",

@@ -99,6 +99,16 @@ src/
 
 ## Core-Specific Conventions
 
+### Concurrency Tradeoffs
+
+For low-frequency, user-triggered mutations that are easy to retry, last-write-wins behavior is acceptable. Prefer the simpler direct update path over extra conditional write guards when all of these are true:
+
+- the operation is initiated manually by a user
+- concurrent collisions are unlikely in practice
+- retrying the action is cheap and safe
+
+Examples include workspace move operations for tasks and jobs. Do not add `updateMany`-style stale-write guards there unless the product requirement explicitly needs conflict detection.
+
 ### Authentication Classes
 
 Use type-safe Hono classes that automatically apply authentication:

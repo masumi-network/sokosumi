@@ -274,6 +274,17 @@
         "emptyActivity": "No activities yet.",
         "eyebrow": "Public Job",
         "Header": {
+          "Actions": {
+            "moveToWorkspace": "Move to workspace",
+            "moveToWorkspaceTitle": "Move job to another workspace",
+            "moveToWorkspaceDescription": "Select the workspace you want to move this job to.",
+            "moveToWorkspaceButton": "Move job",
+            "moveToWorkspaceCancel": "Cancel",
+            "moveToWorkspaceSuccess": "Job moved successfully",
+            "moveToWorkspaceError": "Failed to move job",
+            "moveToWorkspaceDisabledTooltip": "This job belongs to a task. Move the task to change its workspace.",
+            "personalWorkspace": "Personal"
+          },
           "JobName": {
             "Schema": {
               "Name": {
@@ -1356,6 +1367,8 @@
         "attach": "Attach",
         "fileLabel": "File",
         "uploadFileErrorRetry": "Failed to upload file, please try again!",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remove attachment",
         "submit": "Submit",
         "sendWith": "Send with",
@@ -1483,6 +1496,8 @@
         "back": "Back",
         "uploadFile": "Upload File",
         "uploadFileError": "Failed to upload file",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remove attachment",
         "saveDraft": "Save",
         "saveAsDraft": "Save as Draft",
@@ -1506,6 +1521,8 @@
         "back": "Back",
         "uploadFile": "Upload File",
         "uploadFileError": "Failed to upload file",
+        "uploadingFile": "Uploading {fileName}",
+        "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remove attachment",
         "save": "Save",
         "cancel": "Cancel",

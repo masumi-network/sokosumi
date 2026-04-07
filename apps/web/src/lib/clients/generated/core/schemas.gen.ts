@@ -628,6 +628,9 @@ export const JobSummarySchema = {
                 'null'
             ],
             example: 'result_hash'
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
         }
     },
     required: [
@@ -638,7 +641,56 @@ export const JobSummarySchema = {
         'userId',
         'jobType',
         'status',
-        'credits'
+        'credits',
+        'workspace'
+    ]
+} as const;
+
+export const WorkspaceSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '11111111-1111-7111-8111-111111111111'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        },
+        organization: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: '11111111-1111-7111-8111-111111111111'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Labs'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-labs'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'organization'
     ]
 } as const;
 
@@ -1203,6 +1255,96 @@ export const BlobFileMetadataSchema = {
     ]
 } as const;
 
+export const UserFileUploadSessionSchema = {
+    type: 'object',
+    properties: {
+        clientToken: {
+            type: 'string',
+            example: 'vercel_blob_client_token',
+            description: 'Scoped Blob client token for direct uploads'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public',
+            description: 'Blob access level for the upload'
+        },
+        pathname: {
+            type: 'string',
+            example: 'users/user_123/report.pdf',
+            description: 'Server-generated upload pathname'
+        },
+        addRandomSuffix: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether Blob should append a random suffix'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 262144000,
+            description: 'Maximum supported file size for direct uploads'
+        }
+    },
+    required: [
+        'clientToken',
+        'access',
+        'pathname',
+        'addRandomSuffix',
+        'maxSizeBytes'
+    ]
+} as const;
+
+export const CreateUserFileUploadRequestSchema = {
+    type: 'object',
+    properties: {
+        filename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            example: 'report.pdf',
+            description: 'Original file name supplied by the client'
+        },
+        contentType: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'application/pdf',
+            description: 'Declared file MIME type from the client. When empty or generic (e.g. application/octet-stream), the server may infer an allowed type from the filename extension.'
+        },
+        size: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 2048000,
+            description: 'File size in bytes'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 2097152,
+            description: 'Optional per-upload size ceiling in bytes. Must not exceed the server maximum.'
+        },
+        allowedContentTypes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 255,
+                example: 'image/png'
+            },
+            maxItems: 32,
+            description: 'Optional allowlist for the upload session. Every value must be supported by the server, and the selected contentType must be included.'
+        }
+    },
+    required: [
+        'filename',
+        'contentType',
+        'size'
+    ]
+} as const;
+
 export const JobSchema = {
     type: 'object',
     properties: {
@@ -1358,6 +1500,9 @@ export const JobSchema = {
                 'null'
             ],
             example: 'identifier_123'
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
         },
         user: {
             type: 'object',
@@ -1624,6 +1769,7 @@ export const JobSchema = {
         'status',
         'credits',
         'agentJobId',
+        'workspace',
         'user',
         'agent',
         'events'
@@ -2785,6 +2931,9 @@ export const TaskListItemSchema = {
                 $ref: '#/components/schemas/JobSummary'
             },
             example: []
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
         }
     },
     required: [
@@ -2799,7 +2948,8 @@ export const TaskListItemSchema = {
         'status',
         'credits',
         'events',
-        'jobs'
+        'jobs',
+        'workspace'
     ]
 } as const;
 
@@ -2885,6 +3035,9 @@ export const TaskSchema = {
             },
             example: []
         },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
+        },
         share: {
             allOf: [
                 {
@@ -2920,6 +3073,7 @@ export const TaskSchema = {
         'credits',
         'events',
         'jobs',
+        'workspace',
         'share',
         'links'
     ]

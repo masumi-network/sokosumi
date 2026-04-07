@@ -1,8 +1,6 @@
 import {
-  type JobWithEvents,
-  type JobWithPurchase,
   type JobWithSokosumiStatus,
-  type JobWithTransaction,
+  type JobWithSummaryRelations,
 } from "@sokosumi/database";
 import {
   computeJobStatus,
@@ -12,9 +10,9 @@ import {
   getResultHash,
 } from "@sokosumi/database/helpers";
 
-export function flattenJob(
-  job: JobWithEvents & JobWithTransaction & JobWithPurchase,
-) {
+import { mapWorkspaceSummary } from "@/helpers/workspace";
+
+export function flattenJob(job: JobWithSummaryRelations) {
   return {
     id: job.id,
     createdAt: job.createdAt,
@@ -32,6 +30,7 @@ export function flattenJob(
     resultHash: getResultHash(job),
     credits: getCredits(job),
     status: computeJobStatus(job),
+    workspace: mapWorkspaceSummary(job.workspace),
   };
 }
 
@@ -58,6 +57,7 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
     inputSchema: job.inputSchema,
     agentJobId: job.agentJobId,
     identifierFromPurchaser: job.identifierFromPurchaser,
+    workspace: mapWorkspaceSummary(job.workspace),
     user: {
       id: job.user.id,
       name: job.user.name,

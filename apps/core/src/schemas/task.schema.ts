@@ -8,6 +8,7 @@ import {
 } from "@/schemas/job.schema";
 import { taskShareSchema } from "@/schemas/public-share.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
+import { workspaceSummarySchema } from "@/schemas/workspace.schema";
 
 export const taskEventSchema = z
   .object({
@@ -56,6 +57,7 @@ const taskBaseSchema = z.object({
   credits: z.number().openapi({ example: 5 }),
   events: z.array(taskEventSchema).openapi({ example: [] }),
   jobs: jobSummariesSchema.openapi({ example: [] }),
+  workspace: workspaceSummarySchema,
 });
 
 export const taskListItemSchema = taskBaseSchema.openapi("TaskListItem");

@@ -10,11 +10,25 @@ import {
   PricingType,
 } from "@sokosumi/database";
 
+const resolveWorkspaceForContextMock = vi.fn();
+
 const getShownAgentsWithRelationsByStatusMock = vi.fn();
 const getCreditCostsMock = vi.fn();
 const getCreditCostByUnitMock = vi.fn();
 const transactionMock = vi.fn();
 const getSessionMock = vi.fn();
+const getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock = vi.fn();
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceForContext: (...args: unknown[]) =>
+      resolveWorkspaceForContextMock(...args),
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   agentListRepository: {
@@ -27,7 +41,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
     upsertRating: vi.fn(),
   },
   agentRepository: {
-    getHiredAgentsWithLatestJobByUserIdAndOrganization: vi.fn(),
+    getHiredAgentsWithLatestJobByUserIdAndWorkspace: (...args: unknown[]) =>
+      getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock(...args),
     getShownAgentWithRelationById: vi.fn(),
     getShownAgentsWithRelationsByStatus: (...args: unknown[]) =>
       getShownAgentsWithRelationsByStatusMock(...args),
@@ -102,6 +117,9 @@ describe("agent.service", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
     transactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
         await callback(txMock),
@@ -230,5 +248,34 @@ describe("agent.service", () => {
     expect(getCreditCostsMock).toHaveBeenCalledWith(tx);
     expect(getCreditCostByUnitMock).not.toHaveBeenCalled();
     expect(result.creditsPrice.cents).toBe(BigInt(35));
+  });
+
+  it("resolves the active workspace before loading hired agents", async () => {
+    getSessionMock.mockResolvedValue({
+      user: {
+        id: "user_123",
+      },
+      session: {
+        activeOrganizationId: "org_123",
+      },
+    });
+    getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock.mockResolvedValue([]);
+
+    const { agentService } = await import("../agent.service");
+
+    await agentService.getHiredAgents();
+
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_123",
+      expect.any(Object),
+    );
+    expect(
+      getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock,
+    ).toHaveBeenCalledWith(
+      "user_123",
+      "11111111-1111-7111-8111-111111111111",
+      expect.any(Object),
+    );
   });
 });

@@ -88,7 +88,6 @@ export function TaskLinkTaskPickerDialog({
           q: query || undefined,
           cursor: cursor ?? undefined,
           limit: TASK_PICKER_PAGE_SIZE,
-          scope: ["context"],
         });
 
         if (requestId !== taskPickerRequestIdRef.current) {

@@ -11,6 +11,7 @@ import { dateTimeSchema } from "@/helpers/datetime.js";
 
 import { fileSchema } from "./file.schema.js";
 import { linkSchema } from "./link.schema.js";
+import { workspaceSummarySchema } from "./workspace.schema.js";
 
 export const jobInputSchema = z
   .object({
@@ -68,6 +69,7 @@ export const jobSummarySchema = z
       .openapi({ example: "0x123abc" }),
     result: z.string().nullish().openapi({ example: "Markdown text" }),
     resultHash: z.string().nullish().openapi({ example: "result_hash" }),
+    workspace: workspaceSummarySchema,
   })
   .openapi("JobSummary");
 
@@ -198,6 +200,7 @@ export const jobSchema = z
       .string()
       .nullish()
       .openapi({ example: "identifier_123" }),
+    workspace: workspaceSummarySchema,
     user: jobDetailsUserSchema,
     organization: jobDetailsOrganizationSchema.nullish(),
     agent: jobDetailsAgentSchema,

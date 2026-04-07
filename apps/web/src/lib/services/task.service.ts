@@ -15,7 +15,6 @@ interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
   coworkerId?: string;
   q?: string;
-  scope?: Array<"context" | "owned">;
   cursor?: string | null;
   limit?: number;
 }
@@ -54,7 +53,6 @@ export const taskService = (() => {
           : undefined,
       coworkerId: params.coworkerId,
       q: params.q,
-      scope: params.scope,
       cursor: params.cursor ?? undefined,
       limit: params.limit,
     });
@@ -65,12 +63,9 @@ export const taskService = (() => {
     };
   }
 
-  async function getTaskById(
-    taskId: string,
-    scope: Array<"context" | "owned"> = ["context"],
-  ): Promise<Task | null> {
+  async function getTaskById(taskId: string): Promise<Task | null> {
     try {
-      const result = await coreClient.getTaskById(taskId, scope);
+      const result = await coreClient.getTaskById(taskId);
       return result.data;
     } catch {
       return null;

@@ -13,8 +13,9 @@ import mountPostTaskLink from "./post";
 
 const {
   prismaTransactionMock,
-  requireScopedTaskReadAccessMock,
+  requireTaskReadAccessMock,
   requireUserTaskAccessMock,
+  resolveWorkspaceForContextMock,
   taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
@@ -23,8 +24,9 @@ const {
   taskLinkUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireScopedTaskReadAccessMock: vi.fn(),
+  requireTaskReadAccessMock: vi.fn(),
   requireUserTaskAccessMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
@@ -34,9 +36,19 @@ const {
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireScopedTaskReadAccess: requireScopedTaskReadAccessMock,
+  requireTaskReadAccess: requireTaskReadAccessMock,
   requireUserTaskAccess: requireUserTaskAccessMock,
 }));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -97,7 +109,7 @@ function mockTx() {
 describe("GET /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireScopedTaskReadAccessMock.mockResolvedValue(undefined);
+    requireTaskReadAccessMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb(mockTx());
@@ -114,9 +126,7 @@ describe("GET /tasks/{id}/links", () => {
     const app = createUserApp();
     mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request(
-      "http://localhost/tsk_a/links?scope=context",
-    );
+    const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown[] };
@@ -149,9 +159,7 @@ describe("GET /tasks/{id}/links", () => {
     const app = createUserApp();
     mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request(
-      "http://localhost/tsk_a/links?scope=context",
-    );
+    const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
@@ -181,9 +189,7 @@ describe("GET /tasks/{id}/links", () => {
     const app = createCoworkerApp();
     mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request(
-      "http://localhost/tsk_a/links?scope=context",
-    );
+    const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(200);
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
@@ -254,13 +260,11 @@ describe("GET /tasks/{id}/links", () => {
     });
   });
 
-  it("keeps archived peer links visible for user-scoped link reads", async () => {
+  it("keeps archived peer links visible for user-owned link reads", async () => {
     const app = createUserApp();
     mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request(
-      "http://localhost/tsk_a/links?scope=context",
-    );
+    const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(200);
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
@@ -271,7 +275,7 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             toTask: {
               is: {
-                OR: [{ userId: "user_123", organizationId: "org_123" }],
+                userId: "user_123",
               },
             },
           },
@@ -299,7 +303,7 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             fromTask: {
               is: {
-                OR: [{ userId: "user_123", organizationId: "org_123" }],
+                userId: "user_123",
               },
             },
           },
@@ -333,9 +337,7 @@ describe("GET /tasks/{id}/links", () => {
     const app = createUserApp();
     mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request(
-      "http://localhost/tsk_a/links?scope=context",
-    );
+    const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(404);
   });
@@ -344,6 +346,9 @@ describe("GET /tasks/{id}/links", () => {
 describe("POST /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
     requireUserTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
@@ -402,7 +407,8 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        OR: [{ userId: "user_123", organizationId: "org_123" }],
+        userId: "user_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {
         id: true,
@@ -649,7 +655,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("returns 200 when the peer task is outside the user's current access scope", async () => {
+  it("returns 200 when the peer task is outside the user's current workspace", async () => {
     requireUserTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
@@ -784,7 +790,8 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        OR: [{ userId: "user_123", organizationId: "org_123" }],
+        userId: "user_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {
         id: true,
@@ -846,7 +853,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
   });
 
-  it("returns 404 when the peer task is outside the default read scope", async () => {
+  it("returns 404 when the peer task is not owned by the user", async () => {
     taskFindFirstMock.mockResolvedValueOnce(null);
 
     const app = createUserApp();
