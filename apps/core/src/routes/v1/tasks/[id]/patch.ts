@@ -98,6 +98,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return tx.task.update({
         where: {
           id,
+          userId: authContext.userId,
           workspaceId: task.workspaceId,
           status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
         },

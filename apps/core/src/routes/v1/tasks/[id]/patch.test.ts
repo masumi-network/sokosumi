@@ -85,7 +85,7 @@ function createTaskRecord(
 ) {
   return {
     id: "tsk_123",
-    userId: "user_456",
+    userId: "user_123",
     workspaceId: "workspace_123",
     status: TaskStatus.READY,
     coworkerId: null,
@@ -111,7 +111,7 @@ describe("PATCH /tasks/{id}", () => {
     taskUpdateMock.mockResolvedValue({
       id: "tsk_123",
       name: "Updated task title",
-      userId: "user_456",
+      userId: "user_123",
       workspaceId: "workspace_123",
       status: TaskStatus.READY,
     });
@@ -143,6 +143,7 @@ describe("PATCH /tasks/{id}", () => {
     expect(taskUpdateMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
+        userId: "user_123",
         workspaceId: "workspace_123",
         status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
       },
