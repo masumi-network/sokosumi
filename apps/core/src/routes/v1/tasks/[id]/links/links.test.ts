@@ -14,7 +14,7 @@ import mountPostTaskLink from "./post";
 const {
   prismaTransactionMock,
   requireTaskReadAccessMock,
-  requireTaskCollaboratorAccessMock,
+  requireUserTaskAccessMock,
   resolveWorkspaceForContextMock,
   taskFindFirstMock,
   taskFindUniqueMock,
@@ -25,7 +25,7 @@ const {
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskReadAccessMock: vi.fn(),
-  requireTaskCollaboratorAccessMock: vi.fn(),
+  requireUserTaskAccessMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
@@ -37,7 +37,7 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskReadAccess: requireTaskReadAccessMock,
-  requireTaskCollaboratorAccess: requireTaskCollaboratorAccessMock,
+  requireUserTaskAccess: requireUserTaskAccessMock,
 }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -349,7 +349,7 @@ describe("POST /tasks/{id}/links", () => {
     resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
-    requireTaskCollaboratorAccessMock.mockImplementation(
+    requireUserTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
@@ -475,6 +475,27 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskLinkCreateMock).not.toHaveBeenCalled();
   });
 
+  it("returns 404 when the current user does not own the path task", async () => {
+    requireUserTaskAccessMock.mockRejectedValueOnce(
+      new HTTPException(404, { message: "Task not found" }),
+    );
+
+    const app = createUserApp();
+    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toTaskId: "tsk_b",
+        relation: "related",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskLinkCreateMock).not.toHaveBeenCalled();
+  });
+
   it("returns 409 when a duplicate link already exists", async () => {
     taskLinkCreateMock.mockRejectedValue(
       Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
@@ -579,7 +600,7 @@ describe("POST /tasks/{id}/links", () => {
 describe("DELETE /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskCollaboratorAccessMock.mockImplementation(
+    requireUserTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
@@ -622,7 +643,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
   });
 
   it("returns 200 when the peer task is archived but still in the workspace", async () => {
-    requireTaskCollaboratorAccessMock.mockImplementation(
+    requireUserTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -653,12 +674,12 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireTaskCollaboratorAccessMock).toHaveBeenCalledTimes(1);
+    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 when the peer task is outside the user's current workspace", async () => {
-    requireTaskCollaboratorAccessMock.mockImplementation(
+    requireUserTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -689,7 +710,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireTaskCollaboratorAccessMock).toHaveBeenCalledTimes(1);
+    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
@@ -701,6 +722,22 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
       type: TaskLinkType.RELATES,
       note: null,
     });
+
+    const app = createUserApp();
+    mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskLinkDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the current user does not own the path task", async () => {
+    requireUserTaskAccessMock.mockRejectedValueOnce(
+      new HTTPException(404, { message: "Task not found" }),
+    );
 
     const app = createUserApp();
     mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
@@ -729,7 +766,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 describe("PATCH /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskCollaboratorAccessMock.mockImplementation(
+    requireUserTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
@@ -896,6 +933,26 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       type: TaskLinkType.RELATES,
       note: null,
     });
+
+    const app = createUserApp();
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        relation: "duplicate",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the current user does not own the path task", async () => {
+    requireUserTaskAccessMock.mockRejectedValueOnce(
+      new HTTPException(404, { message: "Task not found" }),
+    );
 
     const app = createUserApp();
     mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);

@@ -103,7 +103,8 @@ export async function requireUserAccess(
 }
 
 /**
- * Validates access to a task based on user ownership and fetches the task record.
+ * Validates access to a task based on user ownership in the active workspace
+ * and fetches the task record.
  * Throws 403 if the authenticated user does not have access to the task.
  *
  * @param authContext - The authenticated user context
@@ -127,9 +128,11 @@ export async function requireUserTaskAccess(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
+  const scope = await resolveUserReadScope(authContext, tx);
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
+      workspaceId: scope.workspaceId,
       userId: authContext.userId,
       archivedAt: null,
     },

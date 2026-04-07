@@ -11,14 +11,14 @@ import mountPatchTask from "./patch";
 const {
   prismaTransactionMock,
   requireTaskAssignableCoworkerMock,
-  requireTaskCollaboratorAccessMock,
+  requireUserTaskAccessMock,
   mapTaskMock,
   validateTaskCoworkerAssignmentMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireTaskCollaboratorAccessMock: vi.fn(),
+  requireUserTaskAccessMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => task),
   validateTaskCoworkerAssignmentMock: vi.fn(),
   taskUpdateMock: vi.fn(),
@@ -32,7 +32,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskCollaboratorAccess: requireTaskCollaboratorAccessMock,
+  requireUserTaskAccess: requireUserTaskAccessMock,
 }));
 
 vi.mock("@/helpers/task", () => ({
@@ -101,7 +101,7 @@ describe("PATCH /tasks/{id}", () => {
     });
     requireTaskAssignableCoworkerMock.mockResolvedValue(undefined);
     validateTaskCoworkerAssignmentMock.mockReturnValue(undefined);
-    requireTaskCollaboratorAccessMock.mockResolvedValue(createTaskRecord());
+    requireUserTaskAccessMock.mockResolvedValue(createTaskRecord());
     taskUpdateMock.mockResolvedValue({
       id: "tsk_123",
       name: "Updated task title",
@@ -111,7 +111,7 @@ describe("PATCH /tasks/{id}", () => {
     });
   });
 
-  it("allows org members to update workspace tasks they do not own", async () => {
+  it("requires owner access before updating task metadata", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/tsk_123", {
@@ -125,7 +125,7 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(requireTaskCollaboratorAccessMock).toHaveBeenCalledWith(
+    expect(requireUserTaskAccessMock).toHaveBeenCalledWith(
       {
         actor: "user",
         userId: "user_123",
@@ -149,8 +149,8 @@ describe("PATCH /tasks/{id}", () => {
     });
   });
 
-  it("returns 404 when personal-workspace access is denied", async () => {
-    requireTaskCollaboratorAccessMock.mockRejectedValueOnce(
+  it("returns 404 when an org member tries to update another member's task", async () => {
+    requireUserTaskAccessMock.mockRejectedValueOnce(
       new HTTPException(404, { message: "Task not found" }),
     );
 

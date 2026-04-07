@@ -59,7 +59,7 @@ describe("requireUserTaskAccess", () => {
     });
   });
 
-  it("uses owner-only task access", async () => {
+  it("uses owner-only task access in the active workspace", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
@@ -70,6 +70,7 @@ describe("requireUserTaskAccess", () => {
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
         userId: "user_123",
         archivedAt: null,
       },
