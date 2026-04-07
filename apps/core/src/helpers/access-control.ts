@@ -150,11 +150,10 @@ export async function requireUserTaskAccess(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   const scope = await resolveUserReadScope(authContext, tx);
-  const scopedReadWhere = buildScopedReadWhere(scope);
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
-      ...scopedReadWhere,
+      workspaceId: scope.workspaceId,
       userId: authContext.userId,
       archivedAt: null,
     },

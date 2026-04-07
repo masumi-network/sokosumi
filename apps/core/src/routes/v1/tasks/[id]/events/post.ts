@@ -96,11 +96,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { event, userId } = await prisma.$transaction(
       async (tx) => {
         const { status, comment, credits, authenticationUrl, origin } = body;
+        const isCollaboratorCommentEvent =
+          status === undefined &&
+          comment !== undefined &&
+          authenticationUrl === undefined &&
+          credits == null;
         const task = isCoworkerAuthContext(authContext)
           ? await requireCoworkerTaskAccess(authContext, taskId, tx)
-          : status !== undefined
-            ? await requireUserTaskAccess(authContext, taskId, tx)
-            : await requireTaskCollaboratorAccess(authContext, taskId, tx);
+          : isCollaboratorCommentEvent
+            ? await requireTaskCollaboratorAccess(authContext, taskId, tx)
+            : await requireUserTaskAccess(authContext, taskId, tx);
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
