@@ -36,7 +36,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {},
 }));
 
-function createApp() {
+function createApp(organizationId: string | null = "org_123") {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -46,7 +46,7 @@ function createApp() {
     c.set("authContext", {
       actor: "user",
       userId: "user_123",
-      organizationId: "org_123",
+      organizationId,
     });
 
     return await next();
@@ -103,6 +103,16 @@ describe("GET /jobs", () => {
     const response = await app.request("http://localhost/?memberId=user_999");
 
     expect(response.status).toBe(400);
+    expect(getUserJobsMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects memberId filters in personal workspaces", async () => {
+    const app = createApp(null);
+
+    const response = await app.request("http://localhost/?memberId=user_456");
+
+    expect(response.status).toBe(400);
+    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
     expect(getUserJobsMock).not.toHaveBeenCalled();
   });
 });

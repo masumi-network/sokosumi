@@ -1,13 +1,42 @@
 import type { Prisma } from "@sokosumi/database";
 import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
+import { memberRepository } from "@sokosumi/database/repositories";
 
 import prisma from "@/lib/db/prisma";
 import type { UserAuthenticationContext } from "@/middleware/auth";
+
+import { badRequest } from "./error";
 
 export interface UserReadScope {
   workspaceId: string;
   ownerUserId: string | null;
   organizationId: string | null;
+}
+
+export async function assertValidMemberIdFilter(
+  authContext: UserAuthenticationContext,
+  memberId: string | undefined,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  if (!memberId) {
+    return;
+  }
+
+  if (!authContext.organizationId) {
+    throw badRequest("memberId is only supported in organization workspaces.");
+  }
+
+  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+    memberId,
+    authContext.organizationId,
+    tx,
+  );
+
+  if (!member) {
+    throw badRequest(
+      "memberId must belong to the active organization workspace.",
+    );
+  }
 }
 
 export async function resolveUserReadScope(

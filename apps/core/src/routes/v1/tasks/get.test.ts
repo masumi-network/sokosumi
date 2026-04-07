@@ -62,7 +62,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp(actor: "user" | "coworker" = "user") {
+function createApp(
+  actor: "user" | "coworker" = "user",
+  organizationId: string | null = "org_123",
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -78,7 +81,7 @@ function createApp(actor: "user" | "coworker" = "user") {
       c.set("authContext", {
         actor: "user",
         userId: "user_123",
-        organizationId: "org_123",
+        organizationId,
       });
     }
 
@@ -260,6 +263,17 @@ describe("GET /tasks", () => {
     const response = await app.request("http://localhost/?memberId=user_999");
 
     expect(response.status).toBe(400);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+    expect(taskCountMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects memberId filters in personal workspaces", async () => {
+    const app = createApp("user", null);
+
+    const response = await app.request("http://localhost/?memberId=user_456");
+
+    expect(response.status).toBe(400);
+    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
     expect(taskFindManyMock).not.toHaveBeenCalled();
     expect(taskCountMock).not.toHaveBeenCalled();
   });

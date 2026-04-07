@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
-import { memberRepository } from "@sokosumi/database/repositories";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
@@ -17,6 +16,7 @@ import {
   preprocessMultiValueQueryInput,
 } from "@/helpers/query-params";
 import {
+  assertValidMemberIdFilter,
   buildScopedReadWhere,
   resolveUserReadScope,
 } from "@/helpers/read-scope";
@@ -139,22 +139,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
+      await assertValidMemberIdFilter(authContext, memberId, prisma);
       const scope = await resolveUserReadScope(authContext, prisma);
-
-      if (memberId && authContext.organizationId) {
-        const member =
-          await memberRepository.getMemberByUserIdAndOrganizationId(
-            memberId,
-            authContext.organizationId,
-            prisma,
-          );
-
-        if (!member) {
-          throw badRequest(
-            "memberId must belong to the active organization workspace.",
-          );
-        }
-      }
 
       where = {
         archivedAt: null,

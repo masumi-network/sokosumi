@@ -46,6 +46,15 @@ vi.mock("@/lib/db/prisma", () => ({
 const TASK_ID = "tsk_123";
 const USER_ID = "user_123";
 const COWORKER_ID = "cow_123";
+const TASK_EVENT_USER_INCLUDE = {
+  user: {
+    select: {
+      id: true,
+      name: true,
+      image: true,
+    },
+  },
+};
 
 interface TaskEventRecord {
   id: string;
@@ -60,6 +69,11 @@ interface TaskEventRecord {
   coworkerId: string | null;
   transactionId: string | null;
   cents: bigint | null;
+  user?: {
+    id: string;
+    name: string;
+    image: string | null;
+  } | null;
 }
 
 interface TransactionMock {
@@ -182,6 +196,7 @@ describe("POST /{id}/events", () => {
           coworkerId: COWORKER_ID,
           userId: null,
         }),
+        include: TASK_EVENT_USER_INCLUDE,
       }),
     );
     expect(tx.task.updateMany).toHaveBeenCalledWith(
@@ -192,6 +207,11 @@ describe("POST /{id}/events", () => {
   });
 
   it("allows org members to comment on workspace tasks they do not own", async () => {
+    const taskEventUser = {
+      id: "user_789",
+      name: "Grace Hopper",
+      image: "https://example.com/grace.png",
+    };
     const tx: TransactionMock = {
       taskEvent: {
         create: vi.fn().mockResolvedValue(
@@ -200,6 +220,7 @@ describe("POST /{id}/events", () => {
             comment: "Handled by teammate",
             userId: "user_789",
             coworkerId: null,
+            user: taskEventUser,
           }),
         ),
       },
@@ -234,6 +255,8 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.user).toEqual(taskEventUser);
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -242,9 +265,75 @@ describe("POST /{id}/events", () => {
           userId: "user_789",
           coworkerId: null,
         }),
+        include: TASK_EVENT_USER_INCLUDE,
       }),
     );
     expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("returns the author summary for user status changes", async () => {
+    const taskEventUser = {
+      id: USER_ID,
+      name: "Ada Lovelace",
+      image: "https://example.com/ada.png",
+    };
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.CANCELED,
+            comment: "Stopping this run",
+            userId: USER_ID,
+            coworkerId: null,
+            user: taskEventUser,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    requireTaskCollaboratorAccessMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.READY,
+        userId: USER_ID,
+        coworkerId: null,
+      }),
+    );
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+        comment: "Stopping this run",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.user).toEqual(taskEventUser);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          taskId: TASK_ID,
+          status: TaskStatus.CANCELED,
+          userId: USER_ID,
+          coworkerId: null,
+        }),
+        include: TASK_EVENT_USER_INCLUDE,
+      }),
+    );
   });
 
   it("rejects OUT_OF_CREDITS for users", async () => {

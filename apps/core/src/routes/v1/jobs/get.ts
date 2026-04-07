@@ -1,9 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
-import { memberRepository } from "@sokosumi/database/repositories";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
-import { badRequest } from "@/helpers/error";
 import { getUserJobs } from "@/helpers/job";
 import {
   jsonErrorResponse,
@@ -13,8 +11,8 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import { assertValidMemberIdFilter } from "@/helpers/read-scope";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -128,19 +126,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { agentId, status, memberId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    if (memberId && authContext.organizationId) {
-      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-        memberId,
-        authContext.organizationId,
-        prisma,
-      );
-
-      if (!member) {
-        throw badRequest(
-          "memberId must belong to the active organization workspace.",
-        );
-      }
-    }
+    await assertValidMemberIdFilter(authContext, memberId);
 
     const { jobs, count, hasMore } = await getUserJobs(authContext, {
       agentId,

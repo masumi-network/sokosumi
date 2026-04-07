@@ -36,6 +36,16 @@ const paramsSchema = z.object({
   }),
 });
 
+const taskEventUserInclude = {
+  user: {
+    select: {
+      id: true,
+      name: true,
+      image: true,
+    },
+  },
+} satisfies Prisma.TaskEventInclude;
+
 const route = createRoute({
   method: "post",
   path: "/{id}/events",
@@ -131,6 +141,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               transactionId,
               ...getActorData(authContext),
             },
+            include: taskEventUserInclude,
           });
 
           const updateResult = await tx.task.updateMany({
@@ -160,6 +171,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             origin,
             ...getActorData(authContext),
           },
+          include: taskEventUserInclude,
         });
 
         return { event: mapTaskEvent(event), userId: task.userId };
