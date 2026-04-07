@@ -64,6 +64,10 @@ async function canAccessJob(
     return false;
   }
 
+  if (job.organizationId !== activeOrganizationId) {
+    return false;
+  }
+
   const workspace = await getCachedWorkspace(
     session.user.id,
     activeOrganizationId,

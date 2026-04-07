@@ -41,7 +41,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireTaskReadAccess(authContext, id, tx);
       return tx.task.findUnique({
         where: { id, archivedAt: null },
-        include: buildTaskIncludeForViewer(authContext),
+        include: await buildTaskIncludeForViewer(authContext, tx),
       });
     });
 

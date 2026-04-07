@@ -82,7 +82,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!workspaceChanged) {
           return await tx.task.findUniqueOrThrow({
             where: { id },
-            include: buildTaskIncludeForViewer(authContext),
+            include: await buildTaskIncludeForViewer(authContext, tx),
           });
         }
 
@@ -134,7 +134,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         return await tx.task.findUniqueOrThrow({
           where: { id },
-          include: buildTaskIncludeForViewer(authContext),
+          include: await buildTaskIncludeForViewer(authContext, tx),
         });
       },
       {

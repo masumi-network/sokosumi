@@ -7,6 +7,7 @@ import { LIMITS } from "@/config/constants";
 import {
   requireCoworkerTaskAccess,
   requireTaskCollaboratorAccess,
+  requireUserTaskAccess,
 } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -94,10 +95,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { event, userId } = await prisma.$transaction(
       async (tx) => {
+        const { status, comment, credits, authenticationUrl, origin } = body;
         const task = isCoworkerAuthContext(authContext)
           ? await requireCoworkerTaskAccess(authContext, taskId, tx)
-          : await requireTaskCollaboratorAccess(authContext, taskId, tx);
-        const { status, comment, credits, authenticationUrl, origin } = body;
+          : status !== undefined
+            ? await requireUserTaskAccess(authContext, taskId, tx)
+            : await requireTaskCollaboratorAccess(authContext, taskId, tx);
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);

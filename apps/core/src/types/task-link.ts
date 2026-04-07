@@ -1,5 +1,8 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
-
+import {
+  buildScopedReadWhere,
+  resolveUserReadScope,
+} from "@/helpers/read-scope";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
@@ -36,9 +39,10 @@ export const taskLinksInclude = {
   },
 } as const;
 
-function buildVisiblePeerTaskWhere(
+async function buildVisiblePeerTaskWhere(
   authContext: AuthenticationContext,
-): Prisma.TaskWhereInput {
+  tx?: Prisma.TransactionClient,
+): Promise<Prisma.TaskWhereInput> {
   if (isCoworkerAuthContext(authContext)) {
     return {
       coworkerId: authContext.coworkerId,
@@ -51,21 +55,15 @@ function buildVisiblePeerTaskWhere(
     };
   }
 
-  if (authContext.organizationId) {
-    return {
-      organizationId: authContext.organizationId,
-    };
-  }
-
-  return {
-    userId: authContext.userId,
-  };
+  const scope = await resolveUserReadScope(authContext, tx);
+  return buildScopedReadWhere(scope);
 }
 
-export function buildVisibleTaskLinksInclude(
+export async function buildVisibleTaskLinksInclude(
   authContext: AuthenticationContext,
+  tx?: Prisma.TransactionClient,
 ) {
-  const peerTaskWhere = buildVisiblePeerTaskWhere(authContext);
+  const peerTaskWhere = await buildVisiblePeerTaskWhere(authContext, tx);
 
   return {
     linksFrom: {

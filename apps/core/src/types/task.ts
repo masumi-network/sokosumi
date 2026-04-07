@@ -58,11 +58,14 @@ export const taskInclude = {
   ...taskLinksInclude,
 } as const;
 
-export function buildTaskIncludeForViewer(authContext: AuthenticationContext) {
+export async function buildTaskIncludeForViewer(
+  authContext: AuthenticationContext,
+  tx?: Prisma.TransactionClient,
+) {
   return {
     ...taskBaseInclude,
     share: true,
-    ...buildVisibleTaskLinksInclude(authContext),
+    ...(await buildVisibleTaskLinksInclude(authContext, tx)),
   } satisfies Prisma.TaskInclude;
 }
 

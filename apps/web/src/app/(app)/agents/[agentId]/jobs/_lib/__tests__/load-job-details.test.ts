@@ -133,6 +133,29 @@ describe("loadJobDetails", () => {
     expect(redirectMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
   });
 
+  it("redirects when the workspace matches but the job belongs to another organization", async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    });
+    getAgentByIdMock.mockResolvedValue({ id: "agent-1" });
+    getJobByIdMock.mockResolvedValue({
+      id: "job-1",
+      agent: { id: "agent-1" },
+      userId: "other-user",
+      organizationId: "org-2",
+      workspaceId: "workspace-1",
+    });
+
+    const { loadJobDetails } = await import("../load-job-details");
+
+    await expect(
+      loadJobDetails({ agentId: "agent-1", jobId: "job-1" }),
+    ).rejects.toThrow("redirect:/agents/agent-1/jobs");
+
+    expect(redirectMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
+  });
+
   it("returns owned jobs without read-only mode", async () => {
     getSessionMock.mockResolvedValue({
       user: { id: "user-1" },
