@@ -7,16 +7,31 @@ import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountGetTaskById from "./get";
 
-const { prismaTransactionMock, requireTaskReadAccessMock, taskFindUniqueMock } =
-  vi.hoisted(() => ({
-    prismaTransactionMock: vi.fn(),
-    requireTaskReadAccessMock: vi.fn(),
-    taskFindUniqueMock: vi.fn(),
-  }));
+const {
+  prismaTransactionMock,
+  requireTaskReadAccessMock,
+  resolveWorkspaceForContextMock,
+  taskFindUniqueMock,
+} = vi.hoisted(() => ({
+  prismaTransactionMock: vi.fn(),
+  requireTaskReadAccessMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
+  taskFindUniqueMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskReadAccess: requireTaskReadAccessMock,
 }));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+
+  return {
+    ...actual,
+    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -93,6 +108,9 @@ describe("GET /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireTaskReadAccessMock.mockResolvedValue(undefined);
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb({
@@ -144,7 +162,7 @@ describe("GET /tasks/{id}", () => {
           where: {
             toTask: {
               is: {
-                organizationId: "org_123",
+                workspaceId: "11111111-1111-7111-8111-111111111111",
               },
             },
           },
@@ -172,7 +190,7 @@ describe("GET /tasks/{id}", () => {
           where: {
             fromTask: {
               is: {
-                organizationId: "org_123",
+                workspaceId: "11111111-1111-7111-8111-111111111111",
               },
             },
           },

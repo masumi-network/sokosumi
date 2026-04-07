@@ -29,10 +29,16 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/helpers/access-control", () => ({
-  requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskCollaboratorAccess: requireTaskCollaboratorAccessMock,
-}));
+vi.mock("@/helpers/access-control", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/access-control")>();
+
+  return {
+    ...actual,
+    requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+    requireTaskCollaboratorAccess: requireTaskCollaboratorAccessMock,
+  };
+});
 
 vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
