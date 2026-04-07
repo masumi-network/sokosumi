@@ -46,8 +46,8 @@ importers:
         specifier: 1.2.4
         version: 1.2.4(hono@4.12.12)(zod@4.3.6)
       '@openrouter/ai-sdk-provider':
-        specifier: 2.4.3
-        version: 2.4.3(ai@6.0.149(zod@4.3.6))(zod@4.3.6)
+        specifier: 2.5.0
+        version: 2.5.0(ai@6.0.149(zod@4.3.6))(zod@4.3.6)
       '@scalar/hono-api-reference':
         specifier: 0.10.6
         version: 0.10.6(hono@4.12.12)
@@ -1895,13 +1895,6 @@ packages:
   '@noble/hashes@2.0.1':
     resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
     engines: {node: '>= 20.19.0'}
-
-  '@openrouter/ai-sdk-provider@2.4.3':
-    resolution: {integrity: sha512-5Pet11so2gW36xU+ldTY9HockcfhmEXc6OegcQN3D3I490GkvCzaFcZYWHpS08UvsoRGuV8iSVeiz3Kpi6gU1g==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      ai: ^6.0.0
-      zod: 4.3.6
 
   '@openrouter/ai-sdk-provider@2.5.0':
     resolution: {integrity: sha512-QHGMh0sWHuvDDIF48VN2GQhAi0CQwGEwDlDxd6Q3DU4peiTefNLtMYefRCbI5zCaZxRRXXQxfGgScULeSwj9DA==}
@@ -10748,11 +10741,6 @@ snapshots:
   '@noble/ciphers@2.1.1': {}
 
   '@noble/hashes@2.0.1': {}
-
-  '@openrouter/ai-sdk-provider@2.4.3(ai@6.0.149(zod@4.3.6))(zod@4.3.6)':
-    dependencies:
-      ai: 6.0.149(zod@4.3.6)
-      zod: 4.3.6
 
   '@openrouter/ai-sdk-provider@2.5.0(ai@6.0.149(zod@4.3.6))(zod@4.3.6)':
     dependencies:
