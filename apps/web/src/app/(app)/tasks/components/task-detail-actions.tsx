@@ -97,7 +97,10 @@ interface TaskDetailActionsProps {
   share: TaskShare | null;
   status: TaskStatus;
   jobsCount: number;
-  readOnly?: boolean;
+  canCollaborate?: boolean;
+  canDelete?: boolean;
+  canMove?: boolean;
+  canShare?: boolean;
   taskLinks: TaskLink[];
   coworkerOptions: CoworkerOption[];
   agentNameById: Map<string, string>;
@@ -114,7 +117,10 @@ export function TaskDetailActions({
   share,
   status,
   jobsCount,
-  readOnly = false,
+  canCollaborate = false,
+  canDelete = false,
+  canMove = false,
+  canShare = false,
   taskLinks,
   coworkerOptions,
   agentNameById,
@@ -163,19 +169,23 @@ export function TaskDetailActions({
     null,
   );
 
-  const statusActions = getTaskStatusActions(status, labels);
-
-  const canEditOrDelete =
+  const canEditOrDeleteByStatus =
     status === TASK_STATUS.DRAFT || status === TASK_STATUS.READY;
   const isFinalized =
     status === TASK_STATUS.COMPLETED ||
     status === TASK_STATUS.FAILED ||
     status === TASK_STATUS.CANCELED ||
     status === TASK_STATUS.CANCEL_REQUESTED;
-  const canManageRelations = !isFinalized;
-  const canMove =
+  const canEdit = canCollaborate && canEditOrDeleteByStatus;
+  const canManageRelations = canCollaborate && !isFinalized;
+  const statusActions = canCollaborate
+    ? getTaskStatusActions(status, labels)
+    : [];
+  const canMoveTask =
+    canMove &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
+  const canDeleteTask = canDelete && canEditOrDeleteByStatus;
   const parentLinks = useMemo(
     () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
     [taskLinks],
@@ -193,9 +203,10 @@ export function TaskDetailActions({
   const canRemoveParent = canManageRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
     statusActions.length > 0 ||
-    canEditOrDelete ||
+    canEdit ||
     canManageRelations ||
-    canMove;
+    canMoveTask ||
+    canDeleteTask;
   const taskPickerOptions = useMemo(
     () => buildTaskPickerOptions(tDetailActions),
     [tDetailActions],
@@ -366,19 +377,21 @@ export function TaskDetailActions({
     isParentRemovalPending ||
     isRemoveRelatedPending;
 
-  if (readOnly) {
+  if (!canShare && !hasOverflowMenuActions) {
     return null;
   }
 
   return (
     <div className="flex items-center gap-2">
-      <TaskShareButton
-        task={{ id: taskId, share }}
-        label={labels.share}
-        variant="ghost"
-        size="icon"
-        className="size-7"
-      />
+      {canShare ? (
+        <TaskShareButton
+          task={{ id: taskId, share }}
+          label={labels.share}
+          variant="ghost"
+          size="icon"
+          className="size-7"
+        />
+      ) : null}
       {hasOverflowMenuActions ? (
         <DropdownMenu
           open={isDropdownOpen}
@@ -418,11 +431,11 @@ export function TaskDetailActions({
             })}
 
             {statusActions.length > 0 &&
-            (canEditOrDelete || canManageRelations || canMove) ? (
+            (canEdit || canManageRelations || canMoveTask || canDeleteTask) ? (
               <DropdownMenuSeparator />
             ) : null}
 
-            {canEditOrDelete ? (
+            {canEdit ? (
               <DropdownMenuItem asChild disabled={actionsDisabled}>
                 <Link
                   href={`/tasks/${taskId}/edit`}
@@ -696,11 +709,11 @@ export function TaskDetailActions({
               </>
             ) : null}
 
-            {(canEditOrDelete || canManageRelations) && canMove ? (
+            {(canEdit || canManageRelations) && canMoveTask ? (
               <DropdownMenuSeparator />
             ) : null}
 
-            {canMove ? (
+            {canMoveTask ? (
               <DropdownMenuItem
                 disabled={actionsDisabled}
                 onSelect={() => setIsMoveOpen(true)}
@@ -710,12 +723,15 @@ export function TaskDetailActions({
               </DropdownMenuItem>
             ) : null}
 
-            {canEditOrDelete &&
-            (statusActions.length > 0 || canManageRelations || canMove) ? (
+            {canDeleteTask &&
+            (statusActions.length > 0 ||
+              canEdit ||
+              canManageRelations ||
+              canMoveTask) ? (
               <DropdownMenuSeparator />
             ) : null}
 
-            {canEditOrDelete ? (
+            {canDeleteTask ? (
               <DropdownMenuItem
                 variant="destructive"
                 disabled={actionsDisabled}
@@ -729,7 +745,7 @@ export function TaskDetailActions({
         </DropdownMenu>
       ) : null}
 
-      {canEditOrDelete ? (
+      {canDeleteTask ? (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -754,7 +770,7 @@ export function TaskDetailActions({
         </AlertDialog>
       ) : null}
 
-      {canMove ? (
+      {canMoveTask ? (
         <MoveTaskToWorkspaceDialog
           open={isMoveOpen}
           onOpenChange={setIsMoveOpen}

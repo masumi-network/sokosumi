@@ -541,6 +541,10 @@ function renderActions(
       share={null}
       status={TASK_STATUS.READY}
       jobsCount={0}
+      canCollaborate
+      canDelete
+      canMove
+      canShare
       taskLinks={[]}
       coworkerOptions={coworkerOptions}
       agentNameById={new Map()}
@@ -581,14 +585,52 @@ describe("TaskDetailActions", () => {
     expect(screen.getByRole("button", { name: labels.share })).toBeVisible();
   });
 
-  it("hides all mutating actions in read-only mode", () => {
-    renderActions({ readOnly: true });
+  it("hides all actions when the viewer has no task permissions", () => {
+    renderActions({
+      canCollaborate: false,
+      canDelete: false,
+      canMove: false,
+      canShare: false,
+    });
 
     expect(
       screen.queryByRole("button", { name: actionsMenuLabel }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: labels.share }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps collaborator actions visible while hiding owner-only actions", async () => {
+    const user = userEvent.setup();
+
+    renderActions({
+      canDelete: false,
+      canMove: false,
+      canShare: false,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: labels.share }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: actionsMenuLabel }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Mark as" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Create related" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to workspace" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Delete" }),
     ).not.toBeInTheDocument();
   });
 

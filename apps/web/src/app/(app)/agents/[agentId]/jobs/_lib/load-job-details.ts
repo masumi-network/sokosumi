@@ -1,4 +1,5 @@
 import type { JobWithSokosumiStatus } from "@sokosumi/database";
+import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import {
   agentRepository,
   jobRepository,
@@ -26,6 +27,10 @@ interface LoadJobDetailsResult {
   readOnly: boolean;
 }
 
+type SessionRecord = Session["session"] & {
+  activeOrganizationId?: string | null;
+};
+
 // Cache repository calls to deduplicate queries across parallel routes
 const getCachedAgent = cache(async (agentId: string) => {
   return agentRepository.getAgentWithRelationsById(agentId, prisma);
@@ -35,17 +40,36 @@ const getCachedJob = cache(async (jobId: string) => {
   return jobRepository.getJobById(jobId, prisma);
 });
 
+const getCachedWorkspace = cache(
+  async (userId: string, organizationId: string) => {
+    return await resolveWorkspaceForContext(userId, organizationId, prisma);
+  },
+);
+
+function getActiveOrganizationId(session: Session): string | null {
+  return (session.session as SessionRecord).activeOrganizationId ?? null;
+}
+
 async function canAccessJob(
   job: JobWithSokosumiStatus,
   session: Session,
 ): Promise<boolean> {
-  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+  const activeOrganizationId = getActiveOrganizationId(session);
 
-  return (
-    job.userId === session.user.id ||
-    (activeOrganizationId !== null &&
-      job.organizationId === activeOrganizationId)
+  if (job.userId === session.user.id) {
+    return true;
+  }
+
+  if (activeOrganizationId === null) {
+    return false;
+  }
+
+  const workspace = await getCachedWorkspace(
+    session.user.id,
+    activeOrganizationId,
   );
+
+  return job.workspaceId === workspace.id;
 }
 
 export async function loadJobDetails({
@@ -77,7 +101,7 @@ export async function loadJobDetails({
   queryClient.setQueryData(getJobQueryKey(jobId), job);
 
   return {
-    activeOrganizationId: session.session.activeOrganizationId ?? null,
+    activeOrganizationId: getActiveOrganizationId(session),
     dehydratedState: dehydrate(queryClient),
     job,
     personalWorkspaceLabel:

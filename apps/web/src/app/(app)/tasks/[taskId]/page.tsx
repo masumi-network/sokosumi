@@ -272,6 +272,10 @@ async function TaskDetailActionsSlot({
     coworkerOptions,
   } = buildTaskDetailContext(task, coworkers, agents);
   const viewerUserId = session?.user.id ?? null;
+  const isTaskOwner = viewerUserId === task.userId;
+  const canCollaborateOnTask =
+    viewerUserId !== null &&
+    (isTaskOwner || task.workspace.organizationId !== null);
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
     session?.user?.email?.trim() ||
@@ -283,7 +287,10 @@ async function TaskDetailActionsSlot({
       taskId={taskId}
       status={taskWithCoworker.status}
       jobsCount={taskWithCoworker.jobsCount}
-      readOnly={viewerUserId !== task.userId}
+      canCollaborate={canCollaborateOnTask}
+      canDelete={isTaskOwner}
+      canMove={isTaskOwner}
+      canShare={isTaskOwner}
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}

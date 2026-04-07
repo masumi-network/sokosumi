@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireUserTaskAccess } from "@/helpers/access-control";
+import { requireTaskCollaboratorAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -55,7 +55,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Task link not found");
       }
 
-      await requireUserTaskAccess(authContext, id, tx);
+      await requireTaskCollaboratorAccess(authContext, id, tx);
 
       await tx.taskLink.delete({
         where: { id: linkId },
