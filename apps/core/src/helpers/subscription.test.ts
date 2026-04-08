@@ -6,10 +6,39 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  buildCreditsPayload,
   getCreditSummary,
   getCurrentSubscriptionCredits,
   mapSubscription,
 } from "./subscription";
+
+const getCreditsMock = vi.fn();
+
+vi.mock("@/helpers/user", () => ({
+  getCredits: (...args: unknown[]) => getCreditsMock(...args),
+}));
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  subscriptionRepository: {
+    getLatestActiveSubscriptionByReferenceId: (
+      referenceId: string,
+      tx: {
+        subscription: {
+          findFirst: (args: unknown) => Promise<unknown>;
+        };
+      },
+    ) =>
+      tx.subscription.findFirst({
+        where: {
+          referenceId,
+          status: {
+            in: ["active", "trialing", "past_due", "unpaid"],
+          },
+        },
+        orderBy: [{ periodEnd: "desc" }, { updatedAt: "desc" }],
+      }),
+  },
+}));
 
 function createSubscriptionRecord(
   overrides: Partial<{
@@ -33,11 +62,13 @@ function createSubscriptionRecord(
 }
 
 function createTransactionClient(params?: {
+  latestSubscription?: null | ReturnType<typeof createSubscriptionRecord>;
   totalCents?: bigint | null;
   usedCents?: bigint | null;
 }): {
   aggregateBuckets: ReturnType<typeof vi.fn>;
   aggregateConsumptions: ReturnType<typeof vi.fn>;
+  findSubscription: ReturnType<typeof vi.fn>;
   tx: Prisma.TransactionClient;
 } {
   const aggregateBuckets = vi.fn().mockResolvedValue({
@@ -46,16 +77,23 @@ function createTransactionClient(params?: {
   const aggregateConsumptions = vi.fn().mockResolvedValue({
     _sum: { amount: params?.usedCents ?? null },
   });
+  const findSubscription = vi
+    .fn()
+    .mockResolvedValue(params?.latestSubscription ?? null);
 
   return {
     aggregateBuckets,
     aggregateConsumptions,
+    findSubscription,
     tx: {
       creditBucket: {
         aggregate: aggregateBuckets,
       },
       creditConsumption: {
         aggregate: aggregateConsumptions,
+      },
+      subscription: {
+        findFirst: findSubscription,
       },
     } as unknown as Prisma.TransactionClient,
   };
@@ -426,5 +464,65 @@ describe("getCurrentSubscriptionCredits", () => {
         },
       }),
     });
+  });
+});
+
+describe("buildCreditsPayload", () => {
+  it("uses the latest active subscription query when building credits payload", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2025-01-15T12:00:00.000Z"));
+
+      getCreditsMock.mockResolvedValue(25);
+      const periodStart = new Date("2025-01-01T00:00:00.000Z");
+      const periodEnd = new Date("2025-02-01T00:00:00.000Z");
+      const { aggregateBuckets, aggregateConsumptions, findSubscription, tx } =
+        createTransactionClient({
+          latestSubscription: createSubscriptionRecord({
+            periodEnd,
+            periodStart,
+          }),
+          totalCents: convertCreditsToCents(10),
+          usedCents: convertCreditsToCents(4),
+        });
+
+      await expect(
+        buildCreditsPayload({
+          userId: "user_1",
+          organizationId: null,
+          referenceId: "user_1",
+          tx,
+        }),
+      ).resolves.toEqual({
+        buffer: 19,
+        subscription: {
+          cancelAtPeriodEnd: false,
+          credits: {
+            remaining: 6,
+            total: 10,
+            used: 4,
+          },
+          periodEnd,
+          periodStart,
+          plan: "starter",
+          status: "active",
+        },
+        total: 25,
+      });
+
+      expect(findSubscription).toHaveBeenCalledWith({
+        where: {
+          referenceId: "user_1",
+          status: {
+            in: ["active", "trialing", "past_due", "unpaid"],
+          },
+        },
+        orderBy: [{ periodEnd: "desc" }, { updatedAt: "desc" }],
+      });
+      expect(aggregateBuckets).toHaveBeenCalledTimes(1);
+      expect(aggregateConsumptions).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
