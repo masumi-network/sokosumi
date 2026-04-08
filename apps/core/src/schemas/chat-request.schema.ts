@@ -24,16 +24,8 @@ export const chatRequestMessageSchema = z.object({
   id: z.string().optional(),
 });
 
-/** Body for legacy `POST /v1/conversations/chat` (production `/chat`). */
-export const legacyConversationChatRequestSchema = z.object({
-  messages: z.array(chatRequestMessageSchema),
-  conversationId: z.string().uuid().optional(),
-  previousResponseId: z.string().optional(),
-  model: z.string().nullable().optional(),
-});
-
 /**
- * Body for `POST /v1/chat` (AI SDK / experimental new-chat). Supports:
+ * Body for `POST /v1/chat` (AI SDK). Supports:
  * - Full `messages[]` (e.g. regenerate), or
  * - `message` + `conversationId` + `trigger: "submit-message"` to rebuild history from DB.
  */

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import ChatInterface from "@/app/chat/components/chat-interface";
+import ChatInterface from "@/app/new-chat-ui/components/chat-interface";
 import { isChatShellPathname } from "@/app/new-chat-ui/utils/chat-route-base";
 import { Button } from "@/components/ui/button";
 import {

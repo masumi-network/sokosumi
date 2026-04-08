@@ -1,11 +1,10 @@
 import gravatarUrl from "gravatar-url";
-
+import { ChatLayoutClient } from "@/app/new-chat-ui/components/chat-layout-client";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { getSession } from "@/lib/auth/utils";
 import { userService } from "@/lib/services";
 
 import { ChatErrorFallback } from "./components/chat-error-fallback";
-import { ChatLayoutClient } from "./components/chat-layout-client";
 
 /**
  * When the virtual keyboard opens on mobile, the layout viewport resizes so

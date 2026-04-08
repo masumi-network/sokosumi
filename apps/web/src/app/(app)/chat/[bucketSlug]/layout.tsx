@@ -3,23 +3,19 @@
 import { useParams, usePathname } from "next/navigation";
 import { useMemo } from "react";
 
-import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
 import {
   getBucketKeyFromMetadata,
   resolveBucketKeyFromDisplaySlug,
 } from "@/app/chat/utils/bucket-slug";
+import { ChatConversationsSidebar } from "@/app/new-chat-ui/components/chat-conversations-sidebar";
+import {
+  CHAT_APP_ROUTE_PREFIX,
+  getConversationIdFromChatPathname,
+  getPendingConversationStorageKey,
+} from "@/app/new-chat-ui/utils/chat-route-base";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
-
-const PENDING_CONVERSATION_KEY = "chat-pending-conversation-id";
-
-function getConversationIdFromPathname(pathname: string): string | null {
-  const segments = pathname.split("/").filter(Boolean);
-  if (segments[0] !== "chat" || segments[2] !== "conversation" || !segments[3])
-    return null;
-  return segments[3] ?? null;
-}
 
 type ConversationMetadata = {
   coworker_id?: string;
@@ -67,15 +63,18 @@ export default function ChatBucketLayout({
   }, [bucket, conversations]);
 
   const pathname = usePathname();
+  const routePrefix = CHAT_APP_ROUTE_PREFIX;
+  const pendingKey = getPendingConversationStorageKey(routePrefix);
   const isJustCreatedConversation =
     typeof window !== "undefined" &&
     (() => {
-      const conversationId = getConversationIdFromPathname(pathname ?? "");
+      const conversationId = getConversationIdFromChatPathname(
+        pathname ?? "",
+        routePrefix,
+      );
       if (!conversationId) return false;
       try {
-        return (
-          sessionStorage.getItem(PENDING_CONVERSATION_KEY) === conversationId
-        );
+        return sessionStorage.getItem(pendingKey) === conversationId;
       } catch {
         return false;
       }
@@ -89,6 +88,7 @@ export default function ChatBucketLayout({
         {showSidebar && (
           <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-64px)] lg:w-72 lg:flex-none">
             <ChatConversationsSidebar
+              chatRoutePrefix={routePrefix}
               bucketSlug={bucketSlug ?? ""}
               bucket={bucket ?? ""}
               displayName={bucketData?.displayName ?? bucketSlug ?? "Chat"}

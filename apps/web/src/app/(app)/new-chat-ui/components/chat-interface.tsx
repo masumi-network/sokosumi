@@ -34,7 +34,7 @@ import {
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
 } from "@/app/new-chat-ui/utils/chat-route-base";
-import { fetchNewChatUiMessages } from "@/app/new-chat-ui/utils/fetch-new-chat-messages";
+import { fetchChatUiMessages } from "@/app/new-chat-ui/utils/fetch-new-chat-messages";
 import {
   deduplicateMessagesById,
   extractMessageContent,
@@ -1018,7 +1018,7 @@ export default function ChatInterface({
       const isCancelled = () =>
         routeRecoveryGeneration !== conversationRecoveryGenerationRef.current;
       async function loadConversationItemsIntoCache(conversationId: string) {
-        const msgs = await fetchNewChatUiMessages(conversationId);
+        const msgs = await fetchChatUiMessages(conversationId, chatApiPath);
         if (isCancelled() || msgs === null) return;
         const deduped = deduplicateMessagesById(msgs);
         if (mountedRef.current) {
@@ -1093,7 +1093,7 @@ export default function ChatInterface({
               if (pollPayload?.recovered) {
                 if (recoveredProcessedForRef.current !== cid) {
                   recoveredProcessedForRef.current = cid;
-                  const loaded = await fetchNewChatUiMessages(cid);
+                  const loaded = await fetchChatUiMessages(cid, chatApiPath);
                   if (isCancelled()) return;
                   if (loaded !== null && mountedRef.current) {
                     const newMessages = deduplicateMessagesById(loaded);
@@ -1159,7 +1159,7 @@ export default function ChatInterface({
         }
         if (recoveredProcessedForRef.current !== cid) {
           recoveredProcessedForRef.current = cid;
-          const loaded = await fetchNewChatUiMessages(cid);
+          const loaded = await fetchChatUiMessages(cid, chatApiPath);
           if (isCancelled()) return;
           if (loaded !== null && mountedRef.current) {
             const newMessages = deduplicateMessagesById(loaded);
@@ -1261,7 +1261,7 @@ export default function ChatInterface({
     }
     (async () => {
       async function loadConversationItemsIntoCache(conversationId: string) {
-        const msgs = await fetchNewChatUiMessages(conversationId);
+        const msgs = await fetchChatUiMessages(conversationId, chatApiPath);
         if (isAborted() || msgs === null) return;
         const deduped = deduplicateMessagesById(msgs);
         setMessagesForConversation(conversationId, deduped);
@@ -1331,7 +1331,10 @@ export default function ChatInterface({
               if (pollPayload?.recovered) {
                 if (recoveredProcessedForRef.current !== conv.id) {
                   recoveredProcessedForRef.current = conv.id;
-                  const loaded = await fetchNewChatUiMessages(conv.id);
+                  const loaded = await fetchChatUiMessages(
+                    conv.id,
+                    chatApiPath,
+                  );
                   if (isAborted()) return;
                   if (loaded !== null) {
                     const newMessages = deduplicateMessagesById(loaded);
@@ -1389,7 +1392,7 @@ export default function ChatInterface({
         }
         if (recoveredProcessedForRef.current !== conv.id) {
           recoveredProcessedForRef.current = conv.id;
-          const loaded = await fetchNewChatUiMessages(conv.id);
+          const loaded = await fetchChatUiMessages(conv.id, chatApiPath);
           if (isAborted()) return;
           if (loaded !== null) {
             const newMessages = deduplicateMessagesById(loaded);

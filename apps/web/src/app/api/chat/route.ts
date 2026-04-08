@@ -1,9 +1,62 @@
 import * as Sentry from "@sentry/nextjs";
 import { headers } from "next/headers";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth/utils";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
+
+const CORE_CHAT_PATH = "chat" as const;
+
+export async function GET(req: NextRequest) {
+  const session = await getSession();
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const conversationId = new URL(req.url).searchParams.get("conversationId");
+  if (!conversationId?.trim()) {
+    return NextResponse.json(
+      {
+        error: "Bad Request",
+        message: "Query parameter conversationId is required.",
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const requestHeaders = new Headers(await headers());
+    requestHeaders.delete("Content-Length");
+
+    const coreUrl = `${getCoreApiBaseUrl()}/${CORE_CHAT_PATH}?${new URLSearchParams({ conversationId })}`;
+
+    const response = await fetch(coreUrl, {
+      method: "GET",
+      headers: requestHeaders,
+    });
+
+    const text = await response.text();
+    return new Response(text, {
+      status: response.status,
+      headers: {
+        "Content-Type":
+          response.headers.get("Content-Type") ?? "application/json",
+      },
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "chat_api_get" },
+    });
+    return new Response(
+      JSON.stringify({
+        error: "Internal Server Error",
+        message: "An unexpected error occurred.",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
+}
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -14,19 +67,17 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Forward request to Core API chat endpoint
     const requestHeaders = new Headers(await headers());
     requestHeaders.set("Content-Type", "application/json");
     requestHeaders.delete("Content-Length");
 
-    const response = await fetch(`${getCoreApiBaseUrl()}/conversations/chat`, {
+    const response = await fetch(`${getCoreApiBaseUrl()}/${CORE_CHAT_PATH}`, {
       method: "POST",
       headers: requestHeaders,
       body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      // Handle error responses
       const errorData = await response.json().catch(() => ({
         error: "Internal Server Error",
         message: `Core API returned ${response.status}`,
@@ -38,8 +89,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Stream to client; when client cancels (disconnect or stop), drain Core
-    // so the backend runs to completion and persists the assistant message.
     const coreStream = response.body;
     if (!coreStream) {
       return new Response(null, {
@@ -61,7 +110,6 @@ export async function POST(req: NextRequest) {
               try {
                 controller.enqueue(value);
               } catch {
-                // Client cancelled — drain Core stream to completion so it persists
                 while (true) {
                   const { done: drained } = await reader.read();
                   if (drained) break;

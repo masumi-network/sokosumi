@@ -32,13 +32,14 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 
 import { aiSdkChatRequestSchema } from "@/schemas/chat-request.schema.js";
-import { mapChatRequestToUiMessages } from "../conversations/chat/map-chat-request-to-ui-messages.js";
+
+import { mapChatRequestToUiMessages } from "./map-chat-request-to-ui-messages.js";
 
 const route = createRoute({
   method: "post",
   path: "/",
   description:
-    "Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`). Legacy streaming without the AI SDK remains at POST /conversations/chat.",
+    "Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`) to OpenRouter or a coworker Responses endpoint.",
   tags: ["Chat"],
   request: {
     body: {

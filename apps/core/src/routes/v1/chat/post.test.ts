@@ -125,6 +125,20 @@ describe("POST /chat", () => {
     });
   });
 
+  it("returns 422 when the JSON body fails OpenAPI / Zod validation", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: "not-an-array",
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
   it("returns 404 when the conversation is missing", async () => {
     conversationFindFirstMock.mockResolvedValueOnce(null);
 
