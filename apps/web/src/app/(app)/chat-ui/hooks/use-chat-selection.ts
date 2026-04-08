@@ -6,10 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { displaySlugFromMetadata } from "@/app/chat/utils/bucket-slug";
-import {
-  CHAT_APP_ROUTE_PREFIX,
-  type ChatAppRoutePrefix,
-} from "@/app/new-chat-ui/utils/chat-route-base";
+import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import type { Conversation } from "@/lib/actions/conversation";
 
 const FALLBACK_BUCKET_SEGMENT = "_";
@@ -35,8 +32,6 @@ interface UseChatSelectionProps {
   isSelectedChatStreaming?: boolean;
   isConversationLoading?: boolean;
   enabled?: boolean;
-  /** Shell base path for router pushes (default `/chat`). */
-  basePath?: ChatAppRoutePrefix;
 }
 
 /**
@@ -82,7 +77,6 @@ export function useChatSelection({
   isSelectedChatStreaming = false,
   isConversationLoading: isConversationLoadingProp = false,
   enabled = true,
-  basePath = CHAT_APP_ROUTE_PREFIX,
 }: UseChatSelectionProps) {
   const router = useRouter();
   const params = useParams<{ bucketSlug?: string }>();
@@ -105,9 +99,14 @@ export function useChatSelection({
       setSelectedModel(null);
       selectedModelRef.current = null;
       isUpdatingUrlRef.current = true;
-      router.push(bucketSlug ? `${basePath}/${bucketSlug}` : basePath, {
-        scroll: false,
-      });
+      router.push(
+        bucketSlug
+          ? `${CHAT_APP_ROUTE_PREFIX}/${bucketSlug}`
+          : CHAT_APP_ROUTE_PREFIX,
+        {
+          scroll: false,
+        },
+      );
       return;
     }
 
@@ -122,7 +121,7 @@ export function useChatSelection({
     pendingUrlConversationIdRef.current = chatId;
     isUpdatingUrlRef.current = true;
     const segment = slug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
-    const targetPath = `${basePath}/${segment}/conversation/${chatId}`;
+    const targetPath = `${CHAT_APP_ROUTE_PREFIX}/${segment}/conversation/${chatId}`;
     router.push(withSearch(targetPath), { scroll: false });
 
     // Set model/coworker from list immediately so the input doesn't show the previous chat's agent
@@ -155,9 +154,14 @@ export function useChatSelection({
       setMessages([]);
       setInput("");
       isUpdatingUrlRef.current = true;
-      router.replace(bucketSlug ? `${basePath}/${bucketSlug}` : basePath, {
-        scroll: false,
-      });
+      router.replace(
+        bucketSlug
+          ? `${CHAT_APP_ROUTE_PREFIX}/${bucketSlug}`
+          : CHAT_APP_ROUTE_PREFIX,
+        {
+          scroll: false,
+        },
+      );
       return;
     }
 
@@ -193,7 +197,7 @@ export function useChatSelection({
       pendingUrlConversationIdRef.current = null;
     }
 
-    if (!pathname.startsWith(basePath)) {
+    if (!pathname.startsWith(CHAT_APP_ROUTE_PREFIX)) {
       return;
     }
 
@@ -228,7 +232,7 @@ export function useChatSelection({
     } else if (
       !currentUrlConversationId &&
       selectedChatId &&
-      pathname.startsWith(basePath)
+      pathname.startsWith(CHAT_APP_ROUTE_PREFIX)
     ) {
       if (isSelectedChatStreaming || isConversationLoadingProp) {
         return;
@@ -245,7 +249,6 @@ export function useChatSelection({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    basePath,
     enabled,
     urlConversationId,
     pathname,

@@ -25,21 +25,20 @@ import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { usePendingResponsePolling } from "@/app/chat/hooks/use-pending-response-polling";
 import { useRecoverOnTabHide } from "@/app/chat/hooks/use-recover-on-tab-hide";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
-import { useChatCreation } from "@/app/new-chat-ui/hooks/use-chat-creation";
-import { useChatSelection } from "@/app/new-chat-ui/hooks/use-chat-selection";
+import { useChatCreation } from "@/app/chat-ui/hooks/use-chat-creation";
+import { useChatSelection } from "@/app/chat-ui/hooks/use-chat-selection";
 import {
-  CHAT_APP_ROUTE_PREFIX,
-  type ChatAppRoutePrefix,
-  getChatApiPathForRoutePrefix,
+  CHAT_API_PATH,
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
-} from "@/app/new-chat-ui/utils/chat-route-base";
-import { fetchChatUiMessages } from "@/app/new-chat-ui/utils/fetch-new-chat-messages";
+  isChatShellPathname,
+} from "@/app/chat-ui/utils/chat-route-base";
+import { fetchChatUiMessages } from "@/app/chat-ui/utils/fetch-chat-ui-messages";
 import {
   deduplicateMessagesById,
   extractMessageContent,
   extractReasoningStepMessages,
-} from "@/app/new-chat-ui/utils/message-utils";
+} from "@/app/chat-ui/utils/message-utils";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import {
@@ -66,8 +65,6 @@ function readPreviousResponseIdFromMetadata(
 }
 
 interface ChatInterfaceProps {
-  /** Full-page chat shell prefix (default `/chat`). BFF path follows `getChatApiPathForRoutePrefix`. */
-  chatRoutePrefix?: ChatAppRoutePrefix;
   mobileKeyboardOptimized?: boolean;
   showGreetingAndSuggestions?: boolean;
   organizationSlug: string | null;
@@ -79,7 +76,6 @@ interface ChatInterfaceProps {
 }
 
 export default function ChatInterface({
-  chatRoutePrefix = CHAT_APP_ROUTE_PREFIX,
   mobileKeyboardOptimized = false,
   showGreetingAndSuggestions = true,
   organizationSlug,
@@ -94,20 +90,11 @@ export default function ChatInterface({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isRouteDriven = navigationMode === "route";
-  const isChatPath = useMemo(() => {
-    if (!pathname) return false;
-    return (
-      pathname === chatRoutePrefix || pathname.startsWith(`${chatRoutePrefix}/`)
-    );
-  }, [pathname, chatRoutePrefix]);
+  const isChatPath = useMemo(() => isChatShellPathname(pathname), [pathname]);
   const conversationIdFromPath = useMemo(() => {
     if (!pathname) return null;
-    return getConversationIdFromChatPathname(pathname, chatRoutePrefix);
-  }, [pathname, chatRoutePrefix]);
-  const chatApiPath = useMemo(
-    () => getChatApiPathForRoutePrefix(chatRoutePrefix),
-    [chatRoutePrefix],
-  );
+    return getConversationIdFromChatPathname(pathname);
+  }, [pathname]);
   const urlConversationId = isRouteDriven
     ? (params?.conversationId ?? conversationIdFromPath ?? null)
     : controlledConversationId;
@@ -247,10 +234,7 @@ export default function ChatInterface({
     ((chatId: string, content: string, isFirstMessage?: boolean) => void) | null
   >(null);
 
-  const pendingConversationStorageKey = useMemo(
-    () => getPendingConversationStorageKey(chatRoutePrefix),
-    [chatRoutePrefix],
-  );
+  const pendingConversationStorageKey = getPendingConversationStorageKey();
 
   useEffect(() => {
     if (isRouteDriven) {
@@ -453,16 +437,16 @@ export default function ChatInterface({
   }
 
   const transport0 = useMemo(
-    () => makeSlotTransport(0, chatApiPath),
-    [chatApiPath],
+    () => makeSlotTransport(0, CHAT_API_PATH),
+    [CHAT_API_PATH],
   );
   const transport1 = useMemo(
-    () => makeSlotTransport(1, chatApiPath),
-    [chatApiPath],
+    () => makeSlotTransport(1, CHAT_API_PATH),
+    [CHAT_API_PATH],
   );
   const transport2 = useMemo(
-    () => makeSlotTransport(2, chatApiPath),
-    [chatApiPath],
+    () => makeSlotTransport(2, CHAT_API_PATH),
+    [CHAT_API_PATH],
   );
 
   const onDataForSlot = useCallback((slotIndex: number) => {
@@ -904,7 +888,6 @@ export default function ChatInterface({
   useChatSelection({
     urlConversationId,
     pathname,
-    basePath: chatRoutePrefix,
     conversations,
     selectedConversation,
     selectConversation,
@@ -1018,7 +1001,7 @@ export default function ChatInterface({
       const isCancelled = () =>
         routeRecoveryGeneration !== conversationRecoveryGenerationRef.current;
       async function loadConversationItemsIntoCache(conversationId: string) {
-        const msgs = await fetchChatUiMessages(conversationId, chatApiPath);
+        const msgs = await fetchChatUiMessages(conversationId, CHAT_API_PATH);
         if (isCancelled() || msgs === null) return;
         const deduped = deduplicateMessagesById(msgs);
         if (mountedRef.current) {
@@ -1093,7 +1076,7 @@ export default function ChatInterface({
               if (pollPayload?.recovered) {
                 if (recoveredProcessedForRef.current !== cid) {
                   recoveredProcessedForRef.current = cid;
-                  const loaded = await fetchChatUiMessages(cid, chatApiPath);
+                  const loaded = await fetchChatUiMessages(cid, CHAT_API_PATH);
                   if (isCancelled()) return;
                   if (loaded !== null && mountedRef.current) {
                     const newMessages = deduplicateMessagesById(loaded);
@@ -1159,7 +1142,7 @@ export default function ChatInterface({
         }
         if (recoveredProcessedForRef.current !== cid) {
           recoveredProcessedForRef.current = cid;
-          const loaded = await fetchChatUiMessages(cid, chatApiPath);
+          const loaded = await fetchChatUiMessages(cid, CHAT_API_PATH);
           if (isCancelled()) return;
           if (loaded !== null && mountedRef.current) {
             const newMessages = deduplicateMessagesById(loaded);
@@ -1261,7 +1244,7 @@ export default function ChatInterface({
     }
     (async () => {
       async function loadConversationItemsIntoCache(conversationId: string) {
-        const msgs = await fetchChatUiMessages(conversationId, chatApiPath);
+        const msgs = await fetchChatUiMessages(conversationId, CHAT_API_PATH);
         if (isAborted() || msgs === null) return;
         const deduped = deduplicateMessagesById(msgs);
         setMessagesForConversation(conversationId, deduped);
@@ -1333,7 +1316,7 @@ export default function ChatInterface({
                   recoveredProcessedForRef.current = conv.id;
                   const loaded = await fetchChatUiMessages(
                     conv.id,
-                    chatApiPath,
+                    CHAT_API_PATH,
                   );
                   if (isAborted()) return;
                   if (loaded !== null) {
@@ -1392,7 +1375,7 @@ export default function ChatInterface({
         }
         if (recoveredProcessedForRef.current !== conv.id) {
           recoveredProcessedForRef.current = conv.id;
-          const loaded = await fetchChatUiMessages(conv.id, chatApiPath);
+          const loaded = await fetchChatUiMessages(conv.id, CHAT_API_PATH);
           if (isAborted()) return;
           if (loaded !== null) {
             const newMessages = deduplicateMessagesById(loaded);
@@ -1468,7 +1451,6 @@ export default function ChatInterface({
     setIsWelcomeTransitioning,
     showMessagesAfterTransition,
   } = useChatCreation({
-    basePath: chatRoutePrefix,
     createNewConversation,
     setChats,
     setSelectedChatId,

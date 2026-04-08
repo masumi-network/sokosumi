@@ -21,7 +21,7 @@ import {
   isDifferentDay,
 } from "@/app/chat/utils/date-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
-import { extractMessageContent } from "@/app/new-chat-ui/utils/message-utils";
+import { extractMessageContent } from "@/app/chat-ui/utils/message-utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

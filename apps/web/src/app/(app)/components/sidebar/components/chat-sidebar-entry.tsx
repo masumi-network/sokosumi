@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
-export default function NewChatButton() {
+export default function ChatSidebarEntry() {
   const tChat = useTranslations("App.Chat.Chat");
   const pathname = usePathname();
   const isActive = pathname === "/chat" || pathname.startsWith("/chat/");

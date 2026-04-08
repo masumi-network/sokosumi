@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
-import { getReasoningStepDisplayText } from "@/app/new-chat-ui/utils/reasoning-generic-labels";
+import { getReasoningStepDisplayText } from "@/app/chat-ui/utils/reasoning-generic-labels";
 import { cn } from "@/lib/utils";
 
 interface ThoughtSummaryBarProps {

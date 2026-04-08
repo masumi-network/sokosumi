@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import ReasoningLoaderRow from "@/app/chat/components/reasoning-loader-row";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
-import { getReasoningStepDisplayText } from "@/app/new-chat-ui/utils/reasoning-generic-labels";
+import { getReasoningStepDisplayText } from "@/app/chat-ui/utils/reasoning-generic-labels";
 
 interface ReasoningLoadersProps {
   reasoningMessages: Array<{ id: string; message: string }>;

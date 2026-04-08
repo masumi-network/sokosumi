@@ -75,7 +75,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 
 **Acceptance scenarios**:
 
-1. **Given** an in-flight stream from Core to the web BFF, **when** the browser disconnects or backpressure fails, **then** the BFF continues consuming the Core response body per drain behavior in `apps/web/src/app/api/new-chat/route.ts`.
+1. **Given** an in-flight stream from Core to the web BFF, **when** the browser disconnects or backpressure fails, **then** the BFF continues consuming the Core response body per drain behavior in `apps/web/src/app/api/chat/route.ts`.
 
 ---
 
@@ -195,7 +195,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 
 **Acceptance scenarios**:
 
-1. **Given** a broken stream but ongoing server work, **when** the client calls `recoverConversationResponse`, **then** polling and timeouts follow `RECOVERY_POLL_*` in `apps/web/src/app/(app)/new-chat-ui/components/chat-interface.tsx`.
+1. **Given** a broken stream but ongoing server work, **when** the client calls `recoverConversationResponse`, **then** polling and timeouts follow `RECOVERY_POLL_*` in `apps/web/src/app/(app)/chat-ui/components/chat-interface.tsx`.
 2. **Given** terminal recovery failure, **when** the UI handles it, **then** the user can see recovery-not-found and **resend**.
 
 ---
@@ -269,7 +269,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 
 **Acceptance scenarios**:
 
-1. **Given** `useChatCreation`, **when** creating a chat, **then** model vs coworker paths set metadata and navigate to `/new-chat/.../conversation/:id` as implemented.
+1. **Given** `useChatCreation`, **when** creating a chat, **then** model vs coworker paths set metadata and navigate to `/chat/.../conversation/:id` as implemented.
 2. **Given** welcome flow with `?coworker=`, **when** the coworker exists in the list, **then** deep link behavior applies; default **elena** applies when present in list. If not present, select the next available coworker or LLM.
 
 ---
@@ -307,7 +307,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 
 ### Functional requirements
 
-- **FR-001**: The system MUST require an authenticated user for chat HTTP endpoints; unauthenticated calls MUST result in **401** (BFF `/api/new-chat` and Core **`/v1/chat`** as defined by `requireUserAuthContext`).
+- **FR-001**: The system MUST require an authenticated user for chat HTTP endpoints; unauthenticated calls MUST result in **401** (BFF `/api/chat` and Core **`/v1/chat`** as defined by `requireUserAuthContext`).
 - **FR-002**: The system MUST prevent cross-user access to conversations with not-found/forbidden semantics consistent with **R1** (appendix A).
 - **FR-003**: Successful chat runs that return model output MUST use **SSE** (or equivalent event stream) so the client can read incrementally (**R2**).
 - **FR-004**: For a bound `conversationId`, the system MUST persist the last **user/system** turn as a conversation item **before** the model runs, and MUST persist the **assistant** turn from the stream completion path (**R3**).
@@ -363,7 +363,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 
 ## Assumptions
 
-- **A-001**: Behavior in this spec is that of the **canonical** chat stack (web **`/new-chat`** surface, BFF **`/api/new-chat`**, Core **`/v1/chat`**); drift is detected via tests and OpenAPI.
+- **A-001**: Behavior in this spec is that of the **canonical** chat stack (web **`/chat`** surface, BFF **`/api/chat`**, Core **`/v1/chat`**); drift is detected via tests and OpenAPI.
 - **A-002**: Users have a stable session mechanism compatible with BFF auth forwarding to Core.
 - **A-003**: Coworkers expose Responses-compatible streaming on `baseURL` when chat capability is declared.
 
@@ -392,7 +392,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 
 ## Appendix B — Architecture (canonical stack)
 
-- **Web**: Next.js App Router; chat UI under **`/new-chat/...`** (bucket + `conversation/:id`); BFF **`apps/web/src/app/api/new-chat/route.ts`** exposes **`POST`** and **`GET`** and forwards to Core **`POST /v1/chat`** and **`GET /v1/chat`** (Vercel AI SDK + `@sokosumi/ai-provider`). Client disconnect **drain** behavior lives in the BFF route handler.
+- **Web**: Next.js App Router; chat UI under **`/chat/...`** (bucket + `conversation/:id`); BFF **`apps/web/src/app/api/chat/route.ts`** exposes **`POST`** and **`GET`** and forwards to Core **`POST /v1/chat`** and **`GET /v1/chat`** (Vercel AI SDK + `@sokosumi/ai-provider`). Client disconnect **drain** behavior lives in the BFF route handler.
 - **Core**: **`apps/core/src/routes/v1/chat/post.ts`** (streaming chat) and **`get.ts`** (as implemented) validate input, resolve the conversation and **metadata** (`model_id`, `coworker_slug` / `coworker_id`, `previous_response_id`, pending fields); normalize messages to **plain text** per turn; branch **coworker Responses API** stream vs **OpenRouter**; wrap streams with **assistant persistence** as implemented.
 
 ---
@@ -407,10 +407,10 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 
 ## Appendix D — Regression gates (tests and tooling)
 
-- `apps/web/src/app/api/new-chat/__tests__/route.test.ts`
+- `apps/web/src/app/api/chat/__tests__/route.test.ts`
 - `apps/core/src/routes/v1/chat/post.test.ts`
 - `apps/core/src/routes/v1/chat/get.test.ts`
-- Shared chat hooks under `apps/web/src/app/(app)/chat/hooks/` (exercised via `new-chat-ui` and other consumers) as covered by existing web tests.
+- Shared chat hooks under `apps/web/src/app/(app)/chat/hooks/` (exercised via `chat-ui` and other consumers) as covered by existing web tests.
 
 ---
 
@@ -418,11 +418,11 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 
 | Area | Location |
 |------|----------|
-| Web BFF + disconnect drain | `apps/web/src/app/api/new-chat/route.ts` → Core **`POST /v1/chat`**, **`GET /v1/chat`** |
+| Web BFF + disconnect drain | `apps/web/src/app/api/chat/route.ts` → Core **`POST /v1/chat`**, **`GET /v1/chat`** |
 | Core chat (OpenRouter / coworker, AI SDK) | `apps/core/src/routes/v1/chat/post.ts`, `apps/core/src/routes/v1/chat/get.ts` |
-| Route prefix + API path helpers | `apps/web/src/app/(app)/new-chat-ui/utils/chat-route-base.ts` (`NEW_CHAT_APP_ROUTE_PREFIX`, `getChatApiPathForRoutePrefix`) |
-| Web chat shell (canonical UI) | `apps/web/src/app/(app)/new-chat-ui/` |
+| Route prefix + API path helpers | `apps/web/src/app/(app)/chat-ui/utils/chat-route-base.ts` (`CHAT_APP_ROUTE_PREFIX`, `CHAT_API_PATH`) |
+| Web chat shell (canonical UI) | `apps/web/src/app/(app)/chat-ui/` |
 | OpenAPI → web client regen | `pnpm generate:core` (Core must serve `/v1/openapi.json`; see `apps/core/AGENTS.md`) |
 | Conversation items / create | `apps/web/src/lib/actions/conversation/core-api-actions.ts` |
-| `useChat` + transport + reasoning + recovery | `apps/web/src/app/(app)/new-chat-ui/components/chat-interface.tsx` |
+| `useChat` + transport + reasoning + recovery | `apps/web/src/app/(app)/chat-ui/components/chat-interface.tsx` |
 | Shared hooks (messages, pending) | `apps/web/src/app/(app)/chat/hooks/use-chat-messages.ts`, `use-pending-response-polling.ts` |

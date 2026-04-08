@@ -7,12 +7,11 @@ import {
   getBucketKeyFromMetadata,
   resolveBucketKeyFromDisplaySlug,
 } from "@/app/chat/utils/bucket-slug";
-import { ChatConversationsSidebar } from "@/app/new-chat-ui/components/chat-conversations-sidebar";
+import { ChatConversationsSidebar } from "@/app/chat-ui/components/chat-conversations-sidebar";
 import {
-  CHAT_APP_ROUTE_PREFIX,
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
-} from "@/app/new-chat-ui/utils/chat-route-base";
+} from "@/app/chat-ui/utils/chat-route-base";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
@@ -63,15 +62,11 @@ export default function ChatBucketLayout({
   }, [bucket, conversations]);
 
   const pathname = usePathname();
-  const routePrefix = CHAT_APP_ROUTE_PREFIX;
-  const pendingKey = getPendingConversationStorageKey(routePrefix);
+  const pendingKey = getPendingConversationStorageKey();
   const isJustCreatedConversation =
     typeof window !== "undefined" &&
     (() => {
-      const conversationId = getConversationIdFromChatPathname(
-        pathname ?? "",
-        routePrefix,
-      );
+      const conversationId = getConversationIdFromChatPathname(pathname ?? "");
       if (!conversationId) return false;
       try {
         return sessionStorage.getItem(pendingKey) === conversationId;
@@ -88,7 +83,6 @@ export default function ChatBucketLayout({
         {showSidebar && (
           <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-64px)] lg:w-72 lg:flex-none">
             <ChatConversationsSidebar
-              chatRoutePrefix={routePrefix}
               bucketSlug={bucketSlug ?? ""}
               bucket={bucket ?? ""}
               displayName={bucketData?.displayName ?? bucketSlug ?? "Chat"}

@@ -84,7 +84,7 @@ export const getCategories = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * Load persisted messages as AI SDK UIMessage[] for experimental /new-chat (same source as POST /chat persistence).
+ * Load persisted messages as AI SDK UIMessage[] for the chat UI (same source as POST /chat persistence).
  */
 export const getChat = <ThrowOnError extends boolean = false>(options: Options<GetChatData, ThrowOnError>) => (options.client ?? client).get<GetChatResponses, GetChatErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

@@ -9,9 +9,8 @@ import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import {
   CHAT_APP_ROUTE_PREFIX,
-  type ChatAppRoutePrefix,
   getPendingConversationStorageKey,
-} from "@/app/new-chat-ui/utils/chat-route-base";
+} from "@/app/chat-ui/utils/chat-route-base";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import type { Conversation } from "@/lib/actions/conversation";
 
@@ -38,8 +37,6 @@ interface UseChatCreationProps {
     conversation: Conversation,
     slug: string,
   ) => void | Promise<void>;
-  /** Shell base path for `router.push` (default `/chat`). */
-  basePath?: ChatAppRoutePrefix;
 }
 
 /**
@@ -62,7 +59,6 @@ export function useChatCreation({
   chats,
   conversations,
   navigateToConversation,
-  basePath = CHAT_APP_ROUTE_PREFIX,
 }: UseChatCreationProps) {
   const router = useRouter();
   const { setShowSecondarySidebar } = useChatSecondarySidebar();
@@ -117,7 +113,7 @@ export function useChatCreation({
       isUpdatingUrlRef.current = true;
       try {
         sessionStorage.setItem(
-          getPendingConversationStorageKey(basePath),
+          getPendingConversationStorageKey(),
           conversation.id,
         );
       } catch {
@@ -131,15 +127,17 @@ export function useChatCreation({
         void navigateToConversation(conversation, slug);
       } else {
         setShowSecondarySidebar(false);
-        router.push(`${basePath}/${slug}/conversation/${conversation.id}`, {
-          scroll: false,
-        });
+        router.push(
+          `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
+          {
+            scroll: false,
+          },
+        );
       }
 
       return conversation;
     },
     [
-      basePath,
       createNewConversation,
       setMessages,
       setInput,
@@ -209,7 +207,7 @@ export function useChatCreation({
       isUpdatingUrlRef.current = true;
       try {
         sessionStorage.setItem(
-          getPendingConversationStorageKey(basePath),
+          getPendingConversationStorageKey(),
           conversation.id,
         );
       } catch {
@@ -225,15 +223,17 @@ export function useChatCreation({
         void navigateToConversation(conversation, slug);
       } else {
         setShowSecondarySidebar(false);
-        router.push(`${basePath}/${slug}/conversation/${conversation.id}`, {
-          scroll: false,
-        });
+        router.push(
+          `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
+          {
+            scroll: false,
+          },
+        );
       }
 
       return conversation;
     },
     [
-      basePath,
       createNewConversation,
       setMessages,
       setInput,

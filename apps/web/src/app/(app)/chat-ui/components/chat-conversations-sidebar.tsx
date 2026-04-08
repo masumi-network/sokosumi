@@ -4,10 +4,7 @@ import { Search, Trash2, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
-import {
-  CHAT_APP_ROUTE_PREFIX,
-  type ChatAppRoutePrefix,
-} from "@/app/new-chat-ui/utils/chat-route-base";
+import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -166,8 +163,6 @@ function ConversationRow({
 }
 
 interface ChatConversationsSidebarProps {
-  /** URL prefix for this shell (always `/chat`). */
-  chatRoutePrefix?: ChatAppRoutePrefix;
   bucket: string;
   bucketSlug: string;
   displayName: string;
@@ -175,7 +170,6 @@ interface ChatConversationsSidebarProps {
 }
 
 export function ChatConversationsSidebar({
-  chatRoutePrefix = CHAT_APP_ROUTE_PREFIX,
   bucket: _bucket,
   bucketSlug,
   displayName: _displayName,
@@ -189,7 +183,7 @@ export function ChatConversationsSidebar({
   const conversationId = params?.conversationId ?? null;
   const { deleteConversationById } = useConversationsContext();
 
-  const basePath = chatRoutePrefix;
+  const basePath = CHAT_APP_ROUTE_PREFIX;
   const [searchValue, setSearchValue] = useState("");
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
