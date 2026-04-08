@@ -1280,6 +1280,9 @@
       }
     },
     "Tasks": {
+      "Tasks": {
+        "newTask": "New Task"
+      },
       "Page": {
         "title": "Task Manager",
         "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view."

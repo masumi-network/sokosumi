@@ -2,6 +2,7 @@
 
 import { SquarePlus } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { SheetClose } from "@/components/ui/sheet";
@@ -15,8 +16,9 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function NewTaskButton() {
-  const tMenuItems = useTranslations("App.Sidebar.Content.MenuItems");
-  const isActive = false;
+  const tTasks = useTranslations("App.Tasks.Tasks");
+  const pathname = usePathname();
+  const isActive = pathname === "/tasks/new";
 
   return (
     <SidebarGroup className="w-full pb-0">
@@ -26,7 +28,7 @@ export default function NewTaskButton() {
             <SidebarMenuButton asChild isActive={isActive}>
               <SheetClose asChild>
                 <Link
-                  href="/tasks?create=true"
+                  href="/tasks/new"
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex min-h-auto w-full items-center gap-2 px-3",
@@ -36,7 +38,7 @@ export default function NewTaskButton() {
                   )}
                 >
                   <SquarePlus className="size-4" aria-hidden />
-                  <span className="flex-1 truncate">{tMenuItems("newTask")}</span>
+                  <span className="flex-1 truncate">{tTasks("newTask")}</span>
                 </Link>
               </SheetClose>
             </SidebarMenuButton>

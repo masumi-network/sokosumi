@@ -1249,6 +1249,9 @@
       "loading": "Zeitpläne werden geladen..."
     },
     "Tasks": {
+      "Tasks": {
+        "newTask": "Neue Aufgabe"
+      },
       "Page": {
         "title": "Task Manager",
         "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."

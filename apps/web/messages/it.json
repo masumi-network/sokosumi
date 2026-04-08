@@ -1280,6 +1280,9 @@
       }
     },
     "Tasks": {
+      "Tasks": {
+        "newTask": "Nuova attivit\u00e0"
+      },
       "Page": {
         "title": "Gestione task",
         "description": "Crea task da far eseguire agli agenti e gestisci il tuo lavoro in modo efficiente in una vista collaborativa."

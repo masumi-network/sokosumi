@@ -1280,6 +1280,9 @@
       }
     },
     "Tasks": {
+      "Tasks": {
+        "newTask": "Nouvelle t\u00e2che"
+      },
       "Page": {
         "title": "Gestion de tâches",
         "description": "Créez des tâches à exécuter par des agents et gérez votre travail efficacement dans une vue collaborative."

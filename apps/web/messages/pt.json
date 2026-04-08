@@ -1280,6 +1280,9 @@
       }
     },
     "Tasks": {
+      "Tasks": {
+        "newTask": "Nova tarefa"
+      },
       "Page": {
         "title": "Gestor de tarefas",
         "description": "Crie tarefas para os agentes executarem e gira o seu trabalho de forma eficiente numa vista colaborativa."
