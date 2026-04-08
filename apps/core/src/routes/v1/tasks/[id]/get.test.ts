@@ -3,7 +3,11 @@ import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import type {
+  AuthenticationContext,
+  AuthVariables,
+  WorkspaceContext,
+} from "@/middleware/auth";
 
 import mountGetTaskById from "./get";
 
@@ -48,7 +52,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp(actor: "user" | "coworker" = "user") {
+function createApp(
+  actor: "user" | "coworker" = "user",
+  options?: { workspaceContext: WorkspaceContext | null },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -68,6 +75,9 @@ function createApp(actor: "user" | "coworker" = "user") {
             organizationId: "org_123",
           },
     );
+    if (options && "workspaceContext" in options) {
+      c.set("workspaceContext", options.workspaceContext);
+    }
     return await next();
   });
 
@@ -235,6 +245,26 @@ describe("GET /tasks/{id}", () => {
         },
       }),
     });
+  });
+
+  it("reuses middleware workspace context for link visibility without extra workspace lookup", async () => {
+    const workspaceContext: WorkspaceContext = {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: "user_123",
+      organizationId: "org_123",
+    };
+    const app = createApp("user", { workspaceContext });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    expect(requireWorkspaceTaskAccessMock).toHaveBeenCalledWith(
+      workspaceContext,
+      "tsk_a",
+      expect.any(Object),
+    );
+    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
   });
 
   it("filters included links to peer tasks visible to the coworker", async () => {

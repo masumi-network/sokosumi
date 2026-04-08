@@ -5,7 +5,10 @@ import {
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
 
-import type { AuthenticationContext } from "@/middleware/auth";
+import type {
+  AuthenticationContext,
+  WorkspaceContext,
+} from "@/middleware/auth";
 import {
   buildVisibleTaskLinksInclude,
   taskLinksInclude,
@@ -59,7 +62,7 @@ export const taskInclude = {
 } as const;
 
 export async function buildTaskIncludeForViewer(
-  authContext: AuthenticationContext,
+  authContext: AuthenticationContext | WorkspaceContext,
   tx?: Prisma.TransactionClient,
 ) {
   return {

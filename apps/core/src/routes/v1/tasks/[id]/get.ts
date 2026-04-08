@@ -44,17 +44,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const task = await prisma.$transaction(async (tx) => {
       if (isCoworkerAuthContext(authContext)) {
         await requireCoworkerTaskAccess(authContext, id, tx);
-      } else {
-        await requireWorkspaceTaskAccess(
-          c.var.workspaceContext ?? authContext,
-          id,
-          tx,
-        );
+        return tx.task.findUnique({
+          where: { id, archivedAt: null },
+          include: await buildTaskIncludeForViewer(authContext, tx),
+        });
       }
 
+      const viewerContext = c.var.workspaceContext ?? authContext;
+      await requireWorkspaceTaskAccess(viewerContext, id, tx);
       return tx.task.findUnique({
         where: { id, archivedAt: null },
-        include: await buildTaskIncludeForViewer(authContext, tx),
+        include: await buildTaskIncludeForViewer(viewerContext, tx),
       });
     });
 
