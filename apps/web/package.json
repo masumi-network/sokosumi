@@ -27,7 +27,7 @@
     "generate:core": "openapi-ts -f openapi-ts.core.config.ts"
   },
   "dependencies": {
-    "@ai-sdk/react": "3.0.151",
+    "@ai-sdk/react": "3.0.155",
     "@better-auth/api-key": "1.6.0",
     "@better-auth/i18n": "1.6.0",
     "@better-auth/infra": "0.1.14",
@@ -70,7 +70,7 @@
     "@vercel/related-projects": "1.0.1",
     "@vercel/speed-insights": "2.0.0",
     "ably": "2.21.0",
-    "ai": "6.0.149",
+    "ai": "6.0.153",
     "babel-plugin-react-compiler": "1.0.0",
     "better-auth": "1.6.0",
     "class-variance-authority": "0.7.1",
@@ -160,12 +160,12 @@
     "@types/react-file-icon": "1.0.5",
     "@types/react-window": "2.0.0",
     "@types/sanitize-html": "2.16.1",
-    "postcss": "8.5.8",
+    "postcss": "8.5.9",
     "puppeteer": "24.35.0",
     "tailwindcss": "4.2.2",
     "tsx": "4.21.0",
     "typescript": "6.0.2",
-    "vite": "8.0.5",
-    "vitest": "4.1.2"
+    "vite": "8.0.7",
+    "vitest": "4.1.3"
   }
 }
