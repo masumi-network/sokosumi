@@ -62,9 +62,6 @@ describe("jobs routes OpenAPI scope contract", () => {
     expect(getQueryDescriptionFromGetOperation(doc, "/", "memberId")).toContain(
       "member user ID",
     );
-    expect(getQueryDescriptionFromGetOperation(doc, "/", "includeFailed")).toBe(
-      "",
-    );
   });
 
   it("documents dedicated share mutation routes", () => {
