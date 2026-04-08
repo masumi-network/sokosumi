@@ -8,7 +8,7 @@ import { organizationHeaderMiddleware } from "@/middleware/organization";
  * Global hook for OpenAPI validation errors
  * Converts ZodErrors to HTTPExceptions that our error handler can process
  */
-function defaultValidationHook(result: {
+export function defaultValidationHook(result: {
   success: boolean;
   error?: z.ZodError;
 }) {

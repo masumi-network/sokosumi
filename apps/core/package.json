@@ -39,6 +39,7 @@
     "@scalar/openapi-to-markdown": "0.5.1",
     "@sentry/node": "10.47.0",
     "@sentry/profiling-node": "10.47.0",
+    "@sokosumi/ai-provider": "workspace:*",
     "@sokosumi/chat": "workspace:*",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/email": "workspace:*",
