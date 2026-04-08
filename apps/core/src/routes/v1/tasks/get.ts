@@ -1,7 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
 
-import { requireCoworkerCapability } from "@/helpers/access-control";
+import {
+  assertValidMemberIdFilter,
+  buildWorkspaceWhere,
+  requireCoworkerCapability,
+  resolveWorkspaceContext,
+} from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -15,11 +20,6 @@ import {
   deduplicateQueryValues,
   preprocessMultiValueQueryInput,
 } from "@/helpers/query-params";
-import {
-  assertValidMemberIdFilter,
-  buildScopedReadWhere,
-  resolveUserReadScope,
-} from "@/helpers/read-scope";
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
@@ -139,12 +139,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
-      await assertValidMemberIdFilter(authContext, memberId, prisma);
-      const scope = await resolveUserReadScope(authContext, prisma);
+      const workspaceContext =
+        c.var.workspaceContext ??
+        (await resolveWorkspaceContext(authContext, prisma));
+      await assertValidMemberIdFilter(
+        workspaceContext ?? authContext,
+        memberId,
+        prisma,
+      );
+
+      if (!workspaceContext) {
+        const paginationMeta = createPaginationMeta([], 0, take, false, cursor);
+        return ok(c, taskListSchema.parse([]), paginationMeta);
+      }
 
       where = {
         archivedAt: null,
-        ...buildScopedReadWhere(scope, memberId),
+        ...buildWorkspaceWhere(workspaceContext, memberId),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
         ...(agentId ? { jobs: { some: { agentId } } } : {}),

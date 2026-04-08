@@ -10,7 +10,10 @@ const { memberFindFirstMock } = vi.hoisted(() => ({
 vi.mock("@/middleware/auth", () => ({
   setAuthContext: (
     c: {
-      set: (key: "isAuthenticated" | "authContext", value: unknown) => void;
+      set: (
+        key: "isAuthenticated" | "authContext" | "workspaceContext",
+        value: unknown,
+      ) => void;
     },
     context: {
       isAuthenticated: boolean;
@@ -63,6 +66,7 @@ type Variables = {
         actor: "coworker";
         coworkerId: string;
       };
+  workspaceContext: unknown;
 };
 
 function createUserApp(initialOrganizationId: string | null) {

@@ -9,7 +9,7 @@ const {
   prismaTransactionMock,
   jobFindFirstMock,
   upsertForJobMock,
-  resolveWorkspaceForContextMock,
+  findWorkspaceForContextMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -25,7 +25,7 @@ const {
   prismaTransactionMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
   upsertForJobMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
+  findWorkspaceForContextMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -66,7 +66,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
   return {
     ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    findWorkspaceForContext: findWorkspaceForContextMock,
   };
 });
 
@@ -96,7 +96,7 @@ describe("PUT /jobs/{id}/share", () => {
       userId: "user_123",
       organizationId: "org_123",
     };
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
     prismaTransactionMock.mockImplementation(

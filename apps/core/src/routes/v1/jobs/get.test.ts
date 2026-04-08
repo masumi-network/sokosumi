@@ -48,6 +48,7 @@ function createApp(organizationId: string | null = "org_123") {
       userId: "user_123",
       organizationId,
     });
+    c.set("workspaceContext", null);
 
     return await next();
   });
@@ -84,9 +85,9 @@ describe("GET /jobs", () => {
     );
     expect(getUserJobsMock).toHaveBeenCalledWith(
       {
-        actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        actor: "user",
       },
       expect.objectContaining({
         memberId: "user_456",

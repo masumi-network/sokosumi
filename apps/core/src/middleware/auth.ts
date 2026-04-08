@@ -19,6 +19,12 @@ export interface CoworkerAuthenticationContext {
   coworkerId: string;
 }
 
+export interface WorkspaceContext {
+  workspaceId: string;
+  userId: string;
+  organizationId: string | null;
+}
+
 export type AuthenticationContext =
   | UserAuthenticationContext
   | CoworkerAuthenticationContext;
@@ -26,13 +32,16 @@ export type AuthenticationContext =
 export type AuthVariables = {
   isAuthenticated: boolean;
   authContext: AuthenticationContext;
+  workspaceContext: WorkspaceContext | null;
 };
+
+type AuthContextState = Pick<AuthVariables, "isAuthenticated" | "authContext">;
 
 export type AuthEnv = {
   Variables: AuthVariables;
 };
 
-function syncSentryUser(context: AuthVariables) {
+function syncSentryUser(context: AuthContextState) {
   const scope = Sentry.getCurrentScope();
 
   if (!context.isAuthenticated) {
@@ -54,9 +63,10 @@ function syncSentryUser(context: AuthVariables) {
   });
 }
 
-export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
+export function setAuthContext(c: Context<AuthEnv>, context: AuthContextState) {
   c.set("isAuthenticated", context.isAuthenticated);
   c.set("authContext", context.authContext);
+  c.set("workspaceContext", c.var.workspaceContext ?? null);
   syncSentryUser(context);
 }
 

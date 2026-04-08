@@ -1,6 +1,7 @@
 export interface WorkspaceReadScope {
   workspaceId: string;
-  ownerUserId: string | null;
+  userId: string;
+  organizationId: string | null;
 }
 
 export interface WorkspaceScopedRecord {
@@ -10,35 +11,29 @@ export interface WorkspaceScopedRecord {
 
 export function buildWorkspaceReadWhere(
   scope: WorkspaceReadScope,
-  userId?: string,
+  memberUserId?: string,
 ): {
   workspaceId: string;
   userId?: string;
 } {
+  const userId = scope.organizationId ? memberUserId : scope.userId;
+
   return {
     workspaceId: scope.workspaceId,
-    ...(scope.ownerUserId
-      ? {
-          userId: scope.ownerUserId,
-        }
-      : userId
-        ? {
-            userId,
-          }
-        : {}),
+    ...(userId ? { userId } : {}),
   };
 }
 
 export function canReadWorkspaceScopedRecord(
   record: WorkspaceScopedRecord,
   scope: WorkspaceReadScope,
-  userId?: string,
+  memberUserId?: string,
 ): boolean {
   if (record.workspaceId !== scope.workspaceId) {
     return false;
   }
 
-  const scopedUserId = scope.ownerUserId ?? userId;
+  const scopedUserId = scope.organizationId ? memberUserId : scope.userId;
   if (!scopedUserId) {
     return true;
   }

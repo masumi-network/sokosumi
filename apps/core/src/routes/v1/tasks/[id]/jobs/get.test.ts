@@ -7,15 +7,21 @@ import type { AuthVariables } from "@/middleware/auth";
 
 import mountGetTaskJobs from "./get";
 
-const { jobFindManyMock, prismaTransactionMock, requireTaskReadAccessMock } =
-  vi.hoisted(() => ({
-    jobFindManyMock: vi.fn(),
-    prismaTransactionMock: vi.fn(),
-    requireTaskReadAccessMock: vi.fn(),
-  }));
+const {
+  jobFindManyMock,
+  prismaTransactionMock,
+  requireCoworkerTaskAccessMock,
+  requireWorkspaceTaskAccessMock,
+} = vi.hoisted(() => ({
+  jobFindManyMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+  requireCoworkerTaskAccessMock: vi.fn(),
+  requireWorkspaceTaskAccessMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccess: requireTaskReadAccessMock,
+  requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
+  requireWorkspaceTaskAccess: requireWorkspaceTaskAccessMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -36,6 +42,11 @@ function createApp() {
       userId: "user_123",
       organizationId: "org_123",
     });
+    c.set("workspaceContext", {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: "user_123",
+      organizationId: "org_123",
+    });
 
     return await next();
   });
@@ -48,7 +59,8 @@ function createApp() {
 describe("GET /tasks/{id}/jobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessMock.mockResolvedValue(undefined);
+    requireWorkspaceTaskAccessMock.mockResolvedValue(undefined);
+    requireCoworkerTaskAccessMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         job: {
@@ -65,9 +77,9 @@ describe("GET /tasks/{id}/jobs", () => {
     const response = await app.request("http://localhost/tsk_123/jobs");
 
     expect(response.status).toBe(200);
-    expect(requireTaskReadAccessMock).toHaveBeenCalledWith(
+    expect(requireWorkspaceTaskAccessMock).toHaveBeenCalledWith(
       {
-        actor: "user",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
         userId: "user_123",
         organizationId: "org_123",
       },

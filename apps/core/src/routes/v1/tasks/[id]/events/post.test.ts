@@ -134,6 +134,16 @@ function createApp(authContext: AuthenticationContext) {
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
+    c.set(
+      "workspaceContext",
+      authContext.actor === "user"
+        ? {
+            workspaceId: "11111111-1111-7111-8111-111111111111",
+            userId: authContext.userId,
+            organizationId: authContext.organizationId,
+          }
+        : null,
+    );
     return await next();
   });
 
@@ -274,7 +284,7 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
     expect(requireTaskCollaboratorAccessMock).toHaveBeenCalledWith(
       {
-        actor: "user",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
         userId: "user_789",
         organizationId: "org_123",
       },

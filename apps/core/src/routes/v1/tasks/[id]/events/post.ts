@@ -8,6 +8,7 @@ import {
   requireCoworkerTaskAccess,
   requireTaskCollaboratorAccess,
   requireUserTaskAccess,
+  resolveWorkspaceContext,
 } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -101,10 +102,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           comment !== undefined &&
           authenticationUrl === undefined &&
           credits == null;
+        const workspaceContext = isCoworkerAuthContext(authContext)
+          ? null
+          : (c.var.workspaceContext ??
+            (await resolveWorkspaceContext(authContext, tx)));
         const task = isCoworkerAuthContext(authContext)
           ? await requireCoworkerTaskAccess(authContext, taskId, tx)
           : isCollaboratorCommentEvent
-            ? await requireTaskCollaboratorAccess(authContext, taskId, tx)
+            ? await requireTaskCollaboratorAccess(
+                workspaceContext ?? authContext,
+                taskId,
+                tx,
+              )
             : await requireUserTaskAccess(authContext, taskId, tx);
 
         if (status !== undefined) {

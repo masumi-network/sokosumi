@@ -114,7 +114,8 @@ export const userService = (() => {
 
     const scope = {
       workspaceId: workspace.id,
-      ownerUserId: activeOrganizationId ? null : userId,
+      userId,
+      organizationId: activeOrganizationId,
     };
 
     const jobs = await jobRepository.getJobs(

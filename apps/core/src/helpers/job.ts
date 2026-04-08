@@ -25,16 +25,19 @@ import { v4 as uuidv4 } from "uuid";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import {
+  buildWorkspaceWhere,
+  resolveWorkspaceContext,
+} from "@/helpers/access-control";
+import {
   buildAvailableAgentWhereClause,
   getAgentCost,
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
-import {
-  buildScopedReadWhere,
-  resolveUserReadScope,
-} from "@/helpers/read-scope";
 import prisma from "@/lib/db/prisma";
-import type { UserAuthenticationContext } from "@/middleware/auth";
+import type {
+  UserAuthenticationContext,
+  WorkspaceContext,
+} from "@/middleware/auth";
 import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
 import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
@@ -457,7 +460,7 @@ export async function createAgentJobForUser(
  * });
  */
 export async function getUserJobs(
-  authContext: UserAuthenticationContext,
+  context: UserAuthenticationContext | WorkspaceContext,
   options: {
     agentId?: string;
     memberId?: string;
@@ -481,11 +484,22 @@ export async function getUserJobs(
     skip,
     tx = prisma,
   } = options;
-  const scope = await resolveUserReadScope(authContext, tx);
+  const workspaceContext =
+    "workspaceId" in context
+      ? context
+      : await resolveWorkspaceContext(context, tx);
+
+  if (!workspaceContext) {
+    return {
+      jobs: [],
+      count: 0,
+      hasMore: false,
+    };
+  }
 
   const where: Prisma.JobWhereInput = {
     AND: [
-      buildScopedReadWhere(scope, memberId),
+      buildWorkspaceWhere(workspaceContext, memberId),
       ...(agentId ? [{ agentId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
     ],

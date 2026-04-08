@@ -9,19 +9,28 @@ import mountGetTaskById from "./get";
 
 const {
   prismaTransactionMock,
-  requireTaskReadAccessMock,
-  resolveWorkspaceForContextMock,
+  requireCoworkerTaskAccessMock,
+  requireWorkspaceTaskAccessMock,
+  findWorkspaceForContextMock,
   taskFindUniqueMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireTaskReadAccessMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
+  requireCoworkerTaskAccessMock: vi.fn(),
+  requireWorkspaceTaskAccessMock: vi.fn(),
+  findWorkspaceForContextMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccess: requireTaskReadAccessMock,
-}));
+vi.mock("@/helpers/access-control", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/access-control")>();
+
+  return {
+    ...actual,
+    requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
+    requireWorkspaceTaskAccess: requireWorkspaceTaskAccessMock,
+  };
+});
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   const actual =
@@ -29,7 +38,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
   return {
     ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    findWorkspaceForContext: findWorkspaceForContextMock,
   };
 });
 
@@ -107,8 +116,9 @@ function createTask(
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessMock.mockResolvedValue(undefined);
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    requireWorkspaceTaskAccessMock.mockResolvedValue(undefined);
+    requireCoworkerTaskAccessMock.mockResolvedValue(undefined);
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
     prismaTransactionMock.mockImplementation(
@@ -130,6 +140,15 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
+    expect(requireWorkspaceTaskAccessMock).toHaveBeenCalledWith(
+      {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+      "tsk_a",
+      expect.any(Object),
+    );
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({
@@ -225,6 +244,14 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
+    expect(requireCoworkerTaskAccessMock).toHaveBeenCalledWith(
+      {
+        actor: "coworker",
+        coworkerId: "cow_123",
+      },
+      "tsk_a",
+      expect.any(Object),
+    );
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({

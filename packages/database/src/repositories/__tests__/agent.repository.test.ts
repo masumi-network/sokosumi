@@ -53,7 +53,8 @@ describe("agentRepository.getHiredAgentsWithLatestJobByWorkspaceScope", () => {
     await agentRepository.getHiredAgentsWithLatestJobByWorkspaceScope(
       {
         workspaceId: "workspace-1",
-        ownerUserId: null,
+        userId: "user-1",
+        organizationId: "org-1",
       },
       tx,
     );
@@ -89,7 +90,8 @@ describe("agentRepository.getHiredAgentsWithLatestJobByWorkspaceScope", () => {
     await agentRepository.getHiredAgentsWithLatestJobByWorkspaceScope(
       {
         workspaceId: "workspace-1",
-        ownerUserId: "user-1",
+        userId: "user-1",
+        organizationId: null,
       },
       tx,
     );

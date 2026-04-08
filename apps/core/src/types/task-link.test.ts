@@ -8,8 +8,8 @@ import type {
 
 import { buildVisibleTaskLinksInclude } from "./task-link";
 
-const { resolveWorkspaceForContextMock } = vi.hoisted(() => ({
-  resolveWorkspaceForContextMock: vi.fn(),
+const { findWorkspaceForContextMock } = vi.hoisted(() => ({
+  findWorkspaceForContextMock: vi.fn(),
 }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -18,7 +18,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
   return {
     ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    findWorkspaceForContext: findWorkspaceForContextMock,
   };
 });
 
@@ -34,7 +34,7 @@ describe("buildVisibleTaskLinksInclude", () => {
   });
 
   it("constrains org peer tasks to the active workspace", async () => {
-    resolveWorkspaceForContextMock.mockResolvedValueOnce({
+    findWorkspaceForContextMock.mockResolvedValueOnce({
       id: "11111111-1111-7111-8111-111111111111",
     });
 
@@ -105,7 +105,7 @@ describe("buildVisibleTaskLinksInclude", () => {
   });
 
   it("keeps personal workspace peer tasks owner-scoped", async () => {
-    resolveWorkspaceForContextMock.mockResolvedValueOnce({
+    findWorkspaceForContextMock.mockResolvedValueOnce({
       id: "22222222-2222-7222-8222-222222222222",
     });
 
@@ -127,6 +127,27 @@ describe("buildVisibleTaskLinksInclude", () => {
         is: {
           workspaceId: "22222222-2222-7222-8222-222222222222",
           userId: "user_123",
+        },
+      },
+    });
+  });
+
+  it("returns no visible peer tasks when no workspace exists", async () => {
+    findWorkspaceForContextMock.mockResolvedValueOnce(null);
+
+    const include = await buildVisibleTaskLinksInclude(userAuthContext);
+
+    expect(include.linksFrom.where).toEqual({
+      toTask: {
+        is: {
+          workspaceId: "__missing_workspace__",
+        },
+      },
+    });
+    expect(include.linksTo.where).toEqual({
+      fromTask: {
+        is: {
+          workspaceId: "__missing_workspace__",
         },
       },
     });
@@ -166,6 +187,6 @@ describe("buildVisibleTaskLinksInclude", () => {
         },
       },
     });
-    expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();
+    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
   });
 });

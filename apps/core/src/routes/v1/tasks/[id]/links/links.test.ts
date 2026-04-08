@@ -13,9 +13,10 @@ import mountPostTaskLink from "./post";
 
 const {
   prismaTransactionMock,
-  requireTaskReadAccessMock,
-  requireUserTaskAccessMock,
-  resolveWorkspaceForContextMock,
+  requireCoworkerTaskAccessMock,
+  requireTaskCollaboratorAccessMock,
+  requireWorkspaceTaskAccessMock,
+  resolveWorkspaceContextMock,
   taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
@@ -24,9 +25,10 @@ const {
   taskLinkUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireTaskReadAccessMock: vi.fn(),
-  requireUserTaskAccessMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
+  requireCoworkerTaskAccessMock: vi.fn(),
+  requireTaskCollaboratorAccessMock: vi.fn(),
+  requireWorkspaceTaskAccessMock: vi.fn(),
+  resolveWorkspaceContextMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
@@ -35,18 +37,16 @@ const {
   taskLinkUpdateMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccess: requireTaskReadAccessMock,
-  requireUserTaskAccess: requireUserTaskAccessMock,
-}));
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+vi.mock("@/helpers/access-control", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+    await importOriginal<typeof import("@/helpers/access-control")>();
 
   return {
     ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
+    requireTaskCollaboratorAccess: requireTaskCollaboratorAccessMock,
+    requireWorkspaceTaskAccess: requireWorkspaceTaskAccessMock,
+    resolveWorkspaceContext: resolveWorkspaceContextMock,
   };
 });
 
@@ -56,18 +56,30 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createUserApp() {
+function createUserApp(
+  authContext: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: "org_123",
+  },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: "org_123",
-    });
+    c.set("authContext", authContext);
+    c.set(
+      "workspaceContext",
+      authContext.actor === "user"
+        ? {
+            workspaceId: "11111111-1111-7111-8111-111111111111",
+            userId: authContext.userId,
+            organizationId: authContext.organizationId,
+          }
+        : null,
+    );
     return await next();
   });
 
@@ -85,6 +97,7 @@ function createCoworkerApp() {
       actor: "coworker",
       coworkerId: "cow_123",
     } satisfies AuthenticationContext);
+    c.set("workspaceContext", null);
     return await next();
   });
 
@@ -109,10 +122,12 @@ function mockTx() {
 describe("GET /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
+    resolveWorkspaceContextMock.mockResolvedValue({
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: "user_123",
+      organizationId: "org_123",
     });
-    requireTaskReadAccessMock.mockResolvedValue(undefined);
+    requireWorkspaceTaskAccessMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb(mockTx());
@@ -132,6 +147,15 @@ describe("GET /tasks/{id}/links", () => {
     const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(200);
+    expect(requireWorkspaceTaskAccessMock).toHaveBeenCalledWith(
+      {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+      "tsk_a",
+      expect.any(Object),
+    );
     const body = (await response.json()) as { data: unknown[] };
     expect(body.data).toEqual([]);
   });
@@ -195,6 +219,14 @@ describe("GET /tasks/{id}/links", () => {
     const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(200);
+    expect(requireCoworkerTaskAccessMock).toHaveBeenCalledWith(
+      {
+        actor: "coworker",
+        coworkerId: "cow_123",
+      },
+      "tsk_a",
+      expect.any(Object),
+    );
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       select: {
@@ -349,13 +381,15 @@ describe("GET /tasks/{id}/links", () => {
 describe("POST /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
+    resolveWorkspaceContextMock.mockResolvedValue({
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: "user_123",
+      organizationId: "org_123",
     });
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskCollaboratorAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
-        userId: "user_123",
+        userId: "user_456",
         workspaceId: "11111111-1111-7111-8111-111111111111",
         organizationId: "org_123",
         archivedAt: null,
@@ -478,8 +512,8 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskLinkCreateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the current user does not own the path task", async () => {
-    requireUserTaskAccessMock.mockRejectedValueOnce(
+  it("returns 404 when the path task is not accessible", async () => {
+    requireTaskCollaboratorAccessMock.mockRejectedValueOnce(
       new HTTPException(404, { message: "Task not found" }),
     );
 
@@ -603,10 +637,10 @@ describe("POST /tasks/{id}/links", () => {
 describe("DELETE /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskCollaboratorAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
-        userId: "user_123",
+        userId: "user_456",
         workspaceId: "11111111-1111-7111-8111-111111111111",
         organizationId: "org_123",
         archivedAt: null,
@@ -646,7 +680,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
   });
 
   it("returns 200 when the peer task is archived but still in the workspace", async () => {
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskCollaboratorAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -654,7 +688,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 
         return {
           id: taskId,
-          userId: "user_123",
+          userId: "user_456",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           organizationId: "org_123",
           archivedAt: null,
@@ -677,12 +711,11 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 when the peer task is outside the user's current workspace", async () => {
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskCollaboratorAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -713,7 +746,6 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
@@ -737,10 +769,8 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the current user does not own the path task", async () => {
-    requireUserTaskAccessMock.mockRejectedValueOnce(
-      new HTTPException(404, { message: "Task not found" }),
-    );
+  it("returns 200 when another workspace member deletes the link", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
 
     const app = createUserApp();
     mountDeleteTaskLink(app as unknown as OpenAPIHonoWithAuth);
@@ -749,8 +779,10 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
       method: "DELETE",
     });
 
-    expect(response.status).toBe(404);
-    expect(taskLinkDeleteMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(taskLinkDeleteMock).toHaveBeenCalledWith({
+      where: { id: "tl_1" },
+    });
   });
 
   it("returns 403 for coworker authentication", async () => {
@@ -769,10 +801,10 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 describe("PATCH /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskCollaboratorAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
-        userId: "user_123",
+        userId: "user_456",
         workspaceId: "11111111-1111-7111-8111-111111111111",
         organizationId: "org_123",
         archivedAt: null,
@@ -952,8 +984,8 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the current user does not own the path task", async () => {
-    requireUserTaskAccessMock.mockRejectedValueOnce(
+  it("returns 404 when the path task is not accessible", async () => {
+    requireTaskCollaboratorAccessMock.mockRejectedValueOnce(
       new HTTPException(404, { message: "Task not found" }),
     );
 

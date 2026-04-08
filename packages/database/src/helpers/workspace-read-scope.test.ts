@@ -10,7 +10,8 @@ describe("workspace-read-scope", () => {
     expect(
       buildWorkspaceReadWhere({
         workspaceId: "workspace_123",
-        ownerUserId: "user_123",
+        userId: "user_123",
+        organizationId: null,
       }),
     ).toEqual({
       workspaceId: "workspace_123",
@@ -22,7 +23,8 @@ describe("workspace-read-scope", () => {
     expect(
       buildWorkspaceReadWhere({
         workspaceId: "workspace_123",
-        ownerUserId: null,
+        userId: "user_123",
+        organizationId: "org_123",
       }),
     ).toEqual({
       workspaceId: "workspace_123",
@@ -38,7 +40,8 @@ describe("workspace-read-scope", () => {
         },
         {
           workspaceId: "workspace_123",
-          ownerUserId: null,
+          userId: "user_123",
+          organizationId: "org_123",
         },
       ),
     ).toBe(true);
@@ -51,7 +54,8 @@ describe("workspace-read-scope", () => {
         },
         {
           workspaceId: "workspace_123",
-          ownerUserId: null,
+          userId: "user_123",
+          organizationId: "org_123",
         },
       ),
     ).toBe(false);
@@ -66,7 +70,8 @@ describe("workspace-read-scope", () => {
         },
         {
           workspaceId: "workspace_123",
-          ownerUserId: "user_123",
+          userId: "user_123",
+          organizationId: null,
         },
       ),
     ).toBe(true);
@@ -79,8 +84,55 @@ describe("workspace-read-scope", () => {
         },
         {
           workspaceId: "workspace_123",
-          ownerUserId: "user_123",
+          userId: "user_123",
+          organizationId: null,
         },
+      ),
+    ).toBe(false);
+  });
+
+  it("supports member-scoped organization reads", () => {
+    expect(
+      buildWorkspaceReadWhere(
+        {
+          workspaceId: "workspace_123",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        "user_456",
+      ),
+    ).toEqual({
+      workspaceId: "workspace_123",
+      userId: "user_456",
+    });
+
+    expect(
+      canReadWorkspaceScopedRecord(
+        {
+          workspaceId: "workspace_123",
+          userId: "user_456",
+        },
+        {
+          workspaceId: "workspace_123",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        "user_456",
+      ),
+    ).toBe(true);
+
+    expect(
+      canReadWorkspaceScopedRecord(
+        {
+          workspaceId: "workspace_123",
+          userId: "user_789",
+        },
+        {
+          workspaceId: "workspace_123",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        "user_456",
       ),
     ).toBe(false);
   });

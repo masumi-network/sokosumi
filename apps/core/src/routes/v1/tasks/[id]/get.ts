@@ -1,12 +1,16 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireTaskReadAccess } from "@/helpers/access-control";
+import {
+  requireCoworkerTaskAccess,
+  requireWorkspaceTaskAccess,
+} from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { isCoworkerAuthContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
@@ -38,7 +42,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      await requireTaskReadAccess(authContext, id, tx);
+      if (isCoworkerAuthContext(authContext)) {
+        await requireCoworkerTaskAccess(authContext, id, tx);
+      } else {
+        await requireWorkspaceTaskAccess(
+          c.var.workspaceContext ?? authContext,
+          id,
+          tx,
+        );
+      }
+
       return tx.task.findUnique({
         where: { id, archivedAt: null },
         include: await buildTaskIncludeForViewer(authContext, tx),

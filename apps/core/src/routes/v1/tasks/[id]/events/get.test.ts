@@ -10,16 +10,19 @@ import mountGetTaskEvents from "./get";
 
 const {
   prismaTransactionMock,
-  requireTaskReadAccessMock,
+  requireCoworkerTaskAccessMock,
+  requireWorkspaceTaskAccessMock,
   taskEventFindManyMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireTaskReadAccessMock: vi.fn(),
+  requireCoworkerTaskAccessMock: vi.fn(),
+  requireWorkspaceTaskAccessMock: vi.fn(),
   taskEventFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccess: requireTaskReadAccessMock,
+  requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
+  requireWorkspaceTaskAccess: requireWorkspaceTaskAccessMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -40,6 +43,11 @@ function createApp() {
       userId: "user_123",
       organizationId: "org_123",
     });
+    c.set("workspaceContext", {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: "user_123",
+      organizationId: "org_123",
+    });
 
     return await next();
   });
@@ -52,7 +60,8 @@ function createApp() {
 describe("GET /tasks/{id}/events", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessMock.mockResolvedValue(undefined);
+    requireWorkspaceTaskAccessMock.mockResolvedValue(undefined);
+    requireCoworkerTaskAccessMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         taskEvent: {
@@ -90,9 +99,9 @@ describe("GET /tasks/{id}/events", () => {
     const response = await app.request("http://localhost/tsk_123/events");
 
     expect(response.status).toBe(200);
-    expect(requireTaskReadAccessMock).toHaveBeenCalledWith(
+    expect(requireWorkspaceTaskAccessMock).toHaveBeenCalledWith(
       {
-        actor: "user",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
         userId: "user_123",
         organizationId: "org_123",
       },
@@ -118,7 +127,7 @@ describe("GET /tasks/{id}/events", () => {
   });
 
   it("does not query events when task read access is denied", async () => {
-    requireTaskReadAccessMock.mockRejectedValueOnce(
+    requireWorkspaceTaskAccessMock.mockRejectedValueOnce(
       new HTTPException(404, { message: "Task not found" }),
     );
     const app = createApp();

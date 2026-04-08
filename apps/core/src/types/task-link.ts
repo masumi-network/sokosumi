@@ -1,11 +1,12 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 import {
-  buildScopedReadWhere,
-  resolveUserReadScope,
-} from "@/helpers/read-scope";
+  buildWorkspaceWhere,
+  resolveWorkspaceContext,
+} from "@/helpers/access-control";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
+  type WorkspaceContext,
 } from "@/middleware/auth";
 
 export const taskLinkPeerTaskSelect = {
@@ -40,10 +41,10 @@ export const taskLinksInclude = {
 } as const;
 
 async function buildVisiblePeerTaskWhere(
-  authContext: AuthenticationContext,
+  authContext: AuthenticationContext | WorkspaceContext,
   tx?: Prisma.TransactionClient,
 ): Promise<Prisma.TaskWhereInput> {
-  if (isCoworkerAuthContext(authContext)) {
+  if ("actor" in authContext && isCoworkerAuthContext(authContext)) {
     return {
       coworkerId: authContext.coworkerId,
       archivedAt: null,
@@ -55,12 +56,22 @@ async function buildVisiblePeerTaskWhere(
     };
   }
 
-  const scope = await resolveUserReadScope(authContext, tx);
-  return buildScopedReadWhere(scope);
+  if ("workspaceId" in authContext) {
+    return buildWorkspaceWhere(authContext);
+  }
+
+  const workspaceContext = await resolveWorkspaceContext(authContext, tx);
+  if (!workspaceContext) {
+    return {
+      workspaceId: "__missing_workspace__",
+    };
+  }
+
+  return buildWorkspaceWhere(workspaceContext);
 }
 
 export async function buildVisibleTaskLinksInclude(
-  authContext: AuthenticationContext,
+  authContext: AuthenticationContext | WorkspaceContext,
   tx?: Prisma.TransactionClient,
 ) {
   const peerTaskWhere = await buildVisiblePeerTaskWhere(authContext, tx);

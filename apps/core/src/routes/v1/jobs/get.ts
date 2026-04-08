@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
-
+import { assertValidMemberIdFilter } from "@/helpers/access-control";
 import { getUserJobs } from "@/helpers/job";
 import {
   jsonErrorResponse,
@@ -11,7 +11,6 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
-import { assertValidMemberIdFilter } from "@/helpers/read-scope";
 import { ok } from "@/helpers/response";
 import {
   type OpenAPIHonoWithAuth,
@@ -126,9 +125,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { agentId, status, memberId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    await assertValidMemberIdFilter(authContext, memberId);
+    const workspaceContext = c.var.workspaceContext ?? authContext;
+    await assertValidMemberIdFilter(workspaceContext, memberId);
 
-    const { jobs, count, hasMore } = await getUserJobs(authContext, {
+    const { jobs, count, hasMore } = await getUserJobs(workspaceContext, {
       agentId,
       memberId,
       status,

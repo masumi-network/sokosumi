@@ -47,7 +47,8 @@ export async function resolveJobWorkspaceReadScope(
 
   return {
     workspaceId: workspace.id,
-    ownerUserId: context.activeOrganizationId ? null : context.userId,
+    userId: context.userId,
+    organizationId: context.activeOrganizationId,
   };
 }
 

@@ -1,12 +1,16 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireTaskReadAccess } from "@/helpers/access-control";
+import {
+  requireCoworkerTaskAccess,
+  requireWorkspaceTaskAccess,
+} from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTaskLinksForTask } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { isCoworkerAuthContext } from "@/middleware/auth";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { buildVisibleTaskLinksInclude } from "@/types/task-link";
 
@@ -38,11 +42,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const row = await prisma.$transaction(async (tx) => {
-      await requireTaskReadAccess(authContext, id, tx);
+      if (isCoworkerAuthContext(authContext)) {
+        await requireCoworkerTaskAccess(authContext, id, tx);
+        const visibleTaskLinksInclude = await buildVisibleTaskLinksInclude(
+          authContext,
+          tx,
+        );
+
+        return tx.task.findUnique({
+          where: { id, archivedAt: null },
+          select: {
+            id: true,
+            ...visibleTaskLinksInclude,
+          },
+        });
+      }
+
+      const viewerContext = c.var.workspaceContext ?? authContext;
+      await requireWorkspaceTaskAccess(viewerContext, id, tx);
       const visibleTaskLinksInclude = await buildVisibleTaskLinksInclude(
-        authContext,
+        viewerContext,
         tx,
       );
+
       return tx.task.findUnique({
         where: { id, archivedAt: null },
         select: {

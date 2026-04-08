@@ -13,6 +13,7 @@ const {
   jobUpdateManyMock,
   mapTaskMock,
   prismaTransactionMock,
+  findWorkspaceForContextMock,
   resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
@@ -24,6 +25,7 @@ const {
   jobUpdateManyMock: vi.fn(),
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  findWorkspaceForContextMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
   return {
     ...actual,
+    findWorkspaceForContext: findWorkspaceForContextMock,
     resolveWorkspaceForContext: resolveWorkspaceForContextMock,
   };
 });
@@ -205,6 +208,14 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       role: "member",
     });
+    findWorkspaceForContextMock.mockImplementation(
+      async (_userId: string, organizationId: string | null | undefined) => {
+        if (organizationId === null || organizationId === undefined) {
+          return { id: "11111111-1111-7111-8111-111111111111" };
+        }
+        return { id: "11111111-1111-4111-8111-111111111111" };
+      },
+    );
     resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
     });

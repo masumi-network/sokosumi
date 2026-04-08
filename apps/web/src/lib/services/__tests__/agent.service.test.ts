@@ -282,7 +282,8 @@ describe("agent.service", () => {
     ).toHaveBeenCalledWith(
       {
         workspaceId: "11111111-1111-7111-8111-111111111111",
-        ownerUserId: null,
+        userId: "user_123",
+        organizationId: "org_123",
       },
       expect.any(Object),
     );
@@ -313,7 +314,8 @@ describe("agent.service", () => {
     ).toHaveBeenCalledWith(
       {
         workspaceId: "11111111-1111-7111-8111-111111111111",
-        ownerUserId: "user_123",
+        userId: "user_123",
+        organizationId: null,
       },
       expect.any(Object),
     );

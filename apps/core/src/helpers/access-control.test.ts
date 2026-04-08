@@ -7,6 +7,8 @@ import type {
 } from "@/middleware/auth";
 
 import {
+  assertValidMemberIdFilter,
+  buildWorkspaceWhere,
   requireCoworkerCapability,
   requireCoworkerChatCapability,
   requireJobAccess,
@@ -15,11 +17,15 @@ import {
   requireTaskCollaboratorAccess,
   requireTaskReadAccess,
   requireUserTaskAccess,
+  requireWorkspaceJobAccess,
+  requireWorkspaceTaskAccess,
 } from "./access-control";
 
-const { resolveWorkspaceForContextMock } = vi.hoisted(() => ({
-  resolveWorkspaceForContextMock: vi.fn(),
-}));
+const { getMemberByUserIdAndOrganizationIdMock, findWorkspaceForContextMock } =
+  vi.hoisted(() => ({
+    getMemberByUserIdAndOrganizationIdMock: vi.fn(),
+    findWorkspaceForContextMock: vi.fn(),
+  }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   const actual =
@@ -27,7 +33,21 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
   return {
     ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    findWorkspaceForContext: findWorkspaceForContextMock,
+  };
+});
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+
+  return {
+    ...actual,
+    memberRepository: {
+      ...actual.memberRepository,
+      getMemberByUserIdAndOrganizationId:
+        getMemberByUserIdAndOrganizationIdMock,
+    },
   };
 });
 
@@ -52,10 +72,136 @@ const userAuthContext: UserAuthenticationContext = {
   organizationId: "org_123",
 };
 
+describe("buildWorkspaceWhere", () => {
+  it("builds workspace-only reads for organization workspaces", () => {
+    expect(
+      buildWorkspaceWhere({
+        workspaceId: "workspace_123",
+        userId: "user_123",
+        organizationId: "org_123",
+      }),
+    ).toEqual({
+      workspaceId: "workspace_123",
+    });
+  });
+
+  it("keeps personal workspaces owner-scoped", () => {
+    expect(
+      buildWorkspaceWhere({
+        workspaceId: "workspace_123",
+        userId: "user_123",
+        organizationId: null,
+      }),
+    ).toEqual({
+      workspaceId: "workspace_123",
+      userId: "user_123",
+    });
+  });
+
+  it("uses the requested memberId inside organization workspaces", () => {
+    expect(
+      buildWorkspaceWhere(
+        {
+          workspaceId: "workspace_123",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        "user_456",
+      ),
+    ).toEqual({
+      workspaceId: "workspace_123",
+      userId: "user_456",
+    });
+  });
+});
+
+describe("assertValidMemberIdFilter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      id: "member_123",
+    });
+  });
+
+  it("rejects member filters in personal workspaces", async () => {
+    await expect(
+      assertValidMemberIdFilter(
+        {
+          workspaceId: "workspace_123",
+          userId: "user_123",
+          organizationId: null,
+        },
+        "user_456",
+        {} as never,
+      ),
+    ).rejects.toThrow("memberId is only supported in organization workspaces.");
+  });
+
+  it("rejects memberId values outside the active organization", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce(null);
+
+    await expect(
+      assertValidMemberIdFilter(
+        {
+          workspaceId: "workspace_123",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        "user_456",
+        {} as never,
+      ),
+    ).rejects.toThrow(
+      "memberId must belong to the active organization workspace.",
+    );
+  });
+});
+
+describe("requireWorkspaceTaskAccess", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses a provided workspace context without re-resolving", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+    } as never);
+
+    await requireWorkspaceTaskAccess(
+      {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+      "tsk_123",
+      tx,
+    );
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+    });
+    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
+  });
+
+  it("treats a missing workspace as inaccessible", async () => {
+    const tx = createTransactionClient();
+    findWorkspaceForContextMock.mockResolvedValueOnce(null);
+
+    await expect(
+      requireWorkspaceTaskAccess(userAuthContext, "tsk_123", tx),
+    ).rejects.toThrow("Task not found");
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
+  });
+});
+
 describe("requireUserTaskAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
   });
@@ -82,7 +228,7 @@ describe("requireUserTaskAccess", () => {
 describe("requireTaskReadAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
   });
@@ -162,7 +308,7 @@ describe("requireTaskReadAccess", () => {
 describe("requireTaskCollaboratorAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
   });
@@ -186,7 +332,7 @@ describe("requireTaskCollaboratorAccess", () => {
   });
 
   it("keeps personal workspace collaborator access owner-scoped", async () => {
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "22222222-2222-7222-8222-222222222222",
     });
     const tx = createTransactionClient();
@@ -217,7 +363,7 @@ describe("requireTaskCollaboratorAccess", () => {
 describe("requireTaskAssignableCoworker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
   });
@@ -316,10 +462,41 @@ describe("requireCoworkerChatCapability", () => {
   });
 });
 
+describe("requireWorkspaceJobAccess", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses a provided workspace context without re-resolving", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+    } as never);
+
+    await requireWorkspaceJobAccess(
+      {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+      "job_123",
+      tx,
+    );
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "job_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+    });
+    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("requireJobAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
   });
@@ -377,7 +554,7 @@ describe("requireJobAccess", () => {
 describe("requireOwnedJobAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
   });

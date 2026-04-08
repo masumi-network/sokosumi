@@ -5,6 +5,8 @@ import {
   TaskStatus,
   type User,
 } from "@sokosumi/database";
+import { findWorkspaceForContext } from "@sokosumi/database/helpers";
+import { memberRepository } from "@sokosumi/database/repositories";
 
 import prisma from "@/lib/db/prisma";
 import {
@@ -12,47 +14,116 @@ import {
   type CoworkerAuthenticationContext,
   isCoworkerAuthContext,
   type UserAuthenticationContext,
+  type WorkspaceContext,
 } from "@/middleware/auth";
 
 import type { CoworkerCapability } from "./coworker-capability";
-import { forbidden, notFound } from "./error";
-import { buildScopedReadWhere, resolveUserReadScope } from "./read-scope";
+import { badRequest, forbidden, notFound } from "./error";
+
+type WorkspaceContextInput = WorkspaceContext | UserAuthenticationContext;
+
+function isWorkspaceContext(
+  context: WorkspaceContextInput,
+): context is WorkspaceContext {
+  return "workspaceId" in context;
+}
+
+async function ensureWorkspaceContext(
+  context: WorkspaceContextInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<WorkspaceContext | null> {
+  if (isWorkspaceContext(context)) {
+    return context;
+  }
+
+  return await resolveWorkspaceContext(context, tx);
+}
+
+export async function resolveWorkspaceContext(
+  authContext: UserAuthenticationContext,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<WorkspaceContext | null> {
+  const workspace = await findWorkspaceForContext(
+    authContext.userId,
+    authContext.organizationId,
+    tx,
+  );
+
+  if (!workspace) {
+    return null;
+  }
+
+  return {
+    workspaceId: workspace.id,
+    userId: authContext.userId,
+    organizationId: authContext.organizationId,
+  };
+}
+
+export function buildWorkspaceWhere(
+  workspaceContext: WorkspaceContext,
+  memberUserId?: string,
+): {
+  workspaceId: string;
+  userId?: string;
+} {
+  if (workspaceContext.organizationId) {
+    return {
+      workspaceId: workspaceContext.workspaceId,
+      ...(memberUserId ? { userId: memberUserId } : {}),
+    };
+  }
+
+  return {
+    workspaceId: workspaceContext.workspaceId,
+    userId: workspaceContext.userId,
+  };
+}
+
+export async function assertValidMemberIdFilter(
+  context: Pick<WorkspaceContext, "organizationId">,
+  memberId: string | undefined,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  if (!memberId) {
+    return;
+  }
+
+  if (!context.organizationId) {
+    throw badRequest("memberId is only supported in organization workspaces.");
+  }
+
+  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+    memberId,
+    context.organizationId,
+    tx,
+  );
+
+  if (!member) {
+    throw badRequest(
+      "memberId must belong to the active organization workspace.",
+    );
+  }
+}
 
 /**
- * Validates job access and returns the job if valid
- * Checks the caller's readable job scope
- * Throws 404 if job doesn't exist, 403 if user doesn't have access
- *
- * @param authContext - The authenticated user context
- * @param jobId - The job ID to fetch and validate
- * @param tx - Optional Prisma transaction client for transaction support
- * @returns The validated job with all relations
- * @throws {notFound} If job doesn't exist
- * @throws {forbidden} If user doesn't have access to the job
- *
- * @example
- * // In a route handler
- * const job = await requireJobAccess(user.id, user.organizationId, jobId);
- *
- * @example
- * // With transaction
- * await prisma.$transaction(async (tx) => {
- *   const job = await requireJobAccess(user.id, user.organizationId, jobId, tx);
- *   // ... other operations within transaction
- * });
+ * Validates job access and returns the job if valid.
+ * Checks the caller's readable workspace scope.
  */
-export async function requireJobAccess(
-  authContext: UserAuthenticationContext,
+export async function requireWorkspaceJobAccess(
+  context: WorkspaceContextInput,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
-  const scope = await resolveUserReadScope(authContext, tx);
-  const job = await tx.job.findFirst({
-    where: {
-      id: jobId,
-      ...buildScopedReadWhere(scope),
-    },
-  });
+  const workspaceContext = await ensureWorkspaceContext(context, tx);
+  const job = workspaceContext
+    ? await tx.job.findFirst({
+        where: {
+          id: jobId,
+          ...buildWorkspaceWhere(workspaceContext),
+        },
+      })
+    : null;
 
   if (!job) {
     throw forbidden("You can only access your own jobs");
@@ -61,18 +132,20 @@ export async function requireJobAccess(
 }
 
 export async function requireOwnedJobAccess(
-  authContext: UserAuthenticationContext,
+  context: WorkspaceContextInput,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
-  const scope = await resolveUserReadScope(authContext, tx);
-  const job = await tx.job.findFirst({
-    where: {
-      id: jobId,
-      userId: authContext.userId,
-      ...buildScopedReadWhere(scope),
-    },
-  });
+  const workspaceContext = await ensureWorkspaceContext(context, tx);
+  const job = workspaceContext
+    ? await tx.job.findFirst({
+        where: {
+          id: jobId,
+          userId: workspaceContext.userId,
+          workspaceId: workspaceContext.workspaceId,
+        },
+      })
+    : null;
 
   if (!job) {
     throw forbidden("You can only access your own jobs");
@@ -144,20 +217,21 @@ export async function requireUserAccess(
  *   // ... additional operations
  * });
  */
-export async function requireUserTaskAccess(
-  authContext: UserAuthenticationContext,
+export async function requireWorkspaceTaskAccess(
+  context: WorkspaceContextInput,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  const scope = await resolveUserReadScope(authContext, tx);
-  const task = await tx.task.findFirst({
-    where: {
-      id: taskId,
-      workspaceId: scope.workspaceId,
-      userId: authContext.userId,
-      archivedAt: null,
-    },
-  });
+  const workspaceContext = await ensureWorkspaceContext(context, tx);
+  const task = workspaceContext
+    ? await tx.task.findFirst({
+        where: {
+          id: taskId,
+          archivedAt: null,
+          ...buildWorkspaceWhere(workspaceContext),
+        },
+      })
+    : null;
 
   if (!task) {
     throw notFound("Task not found");
@@ -166,25 +240,52 @@ export async function requireUserTaskAccess(
   return task;
 }
 
-export async function requireTaskCollaboratorAccess(
-  authContext: UserAuthenticationContext,
+export async function requireOwnedTaskAccess(
+  context: WorkspaceContextInput,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  const scope = await resolveUserReadScope(authContext, tx);
-  const task = await tx.task.findFirst({
-    where: {
-      id: taskId,
-      archivedAt: null,
-      ...buildScopedReadWhere(scope),
-    },
-  });
+  const workspaceContext = await ensureWorkspaceContext(context, tx);
+  const task = workspaceContext
+    ? await tx.task.findFirst({
+        where: {
+          id: taskId,
+          archivedAt: null,
+          userId: workspaceContext.userId,
+          workspaceId: workspaceContext.workspaceId,
+        },
+      })
+    : null;
 
   if (!task) {
     throw notFound("Task not found");
   }
 
   return task;
+}
+
+export async function requireJobAccess(
+  authContext: UserAuthenticationContext | WorkspaceContext,
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Job> {
+  return await requireWorkspaceJobAccess(authContext, jobId, tx);
+}
+
+export async function requireUserTaskAccess(
+  authContext: UserAuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  return await requireOwnedTaskAccess(authContext, taskId, tx);
+}
+
+export async function requireTaskCollaboratorAccess(
+  authContext: UserAuthenticationContext | WorkspaceContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  return await requireWorkspaceTaskAccess(authContext, taskId, tx);
 }
 
 /**
@@ -308,26 +409,13 @@ export async function requireTaskAssignableCoworker(
 }
 
 export async function requireTaskReadAccess(
-  authContext: AuthenticationContext,
+  authContext: AuthenticationContext | WorkspaceContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  if (isCoworkerAuthContext(authContext)) {
+  if ("actor" in authContext && isCoworkerAuthContext(authContext)) {
     return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
 
-  const scope = await resolveUserReadScope(authContext, tx);
-  const task = await tx.task.findFirst({
-    where: {
-      id: taskId,
-      archivedAt: null,
-      ...buildScopedReadWhere(scope),
-    },
-  });
-
-  if (!task) {
-    throw notFound("Task not found");
-  }
-
-  return task;
+  return await requireWorkspaceTaskAccess(authContext, taskId, tx);
 }
