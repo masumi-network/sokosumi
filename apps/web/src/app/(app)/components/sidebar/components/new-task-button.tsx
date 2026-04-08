@@ -2,7 +2,6 @@
 
 import { SquarePlus } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { SheetClose } from "@/components/ui/sheet";
@@ -17,8 +16,7 @@ import { cn } from "@/lib/utils";
 
 export default function NewTaskButton() {
   const tMenuItems = useTranslations("App.Sidebar.Content.MenuItems");
-  const pathname = usePathname();
-  const isActive = pathname.startsWith("/tasks");
+  const isActive = false;
 
   return (
     <SidebarGroup className="w-full pb-0">
