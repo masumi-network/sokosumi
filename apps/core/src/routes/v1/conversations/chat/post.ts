@@ -23,15 +23,41 @@ import {
   persistPendingResponseId,
 } from "@/helpers/persist-pending-response-id";
 import prisma from "@/lib/db/prisma";
-import {
-  type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
-} from "@/lib/hono";
+import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 
-import { legacyConversationChatRequestSchema } from "@/schemas/chat-request.schema.js";
+const chatRequestSchema = z.object({
+  messages: z.array(
+    z.object({
+      role: z.enum(["user", "assistant", "system"]),
+      parts: z
+        .array(
+          z.object({
+            type: z.string(),
+            text: z.string().optional(),
+          }),
+        )
+        .optional(),
+      content: z
+        .union([
+          z.string(),
+          z.array(
+            z.object({
+              type: z.string(),
+              text: z.string().optional(),
+            }),
+          ),
+        ])
+        .optional(),
+      id: z.string().optional(),
+    }),
+  ),
+  conversationId: z.string().uuid().optional(),
+  previousResponseId: z.string().optional(),
+  model: z.string().nullable().optional(),
+});
 
-const route = createRoute({
+const _route = createRoute({
   method: "post",
   path: "/chat",
   description: "Stream chat responses from AI models",
@@ -40,7 +66,7 @@ const route = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: legacyConversationChatRequestSchema,
+          schema: chatRequestSchema,
         },
       },
     },
@@ -58,23 +84,31 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Conversation not found"),
-    422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(withGlobalHeaderParameters(route), async (c) => {
+  app.post("/chat", async (c) => {
     try {
       const authContext = requireUserAuthContext(c.var.authContext);
+
+      const body = await c.req.json();
+      const parsedBody = chatRequestSchema.safeParse(body);
+
+      if (!parsedBody.success) {
+        throw badRequest(
+          `Invalid request: ${parsedBody.error.issues.map((e) => e.message).join(", ")}`,
+        );
+      }
 
       const {
         messages,
         conversationId,
         model,
         previousResponseId: bodyPreviousResponseId,
-      } = c.req.valid("json");
+      } = parsedBody.data;
 
       let internalConversationId: string | null = null;
       let selectedModel: string | null = model ?? null;

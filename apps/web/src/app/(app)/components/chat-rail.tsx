@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import ChatInterface from "@/app/chat/components/chat-interface";
-import { isChatShellPathname } from "@/app/new-chat-ui/utils/chat-route-base";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -49,7 +48,7 @@ export default function ChatRail({
   const { conversations } = useConversationsContext();
   const [isDesktopRailReady, setIsDesktopRailReady] = useState(false);
 
-  const isStandaloneChat = isChatShellPathname(pathname);
+  const isStandaloneChat = pathname.startsWith("/chat");
   const isVisible = !isStandaloneChat && open;
   const latestConversationId = conversations[0]?.id ?? null;
 
