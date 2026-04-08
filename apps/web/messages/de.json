@@ -1521,7 +1521,8 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "scheduledAgents": "Zeitpläne",
-          "myFeed": "Mein Feed"
+          "myFeed": "Mein Feed",
+          "newTask": "Neue Aufgabe"
         },
         "ChatLists": {
           "title": "Letzte Chats",

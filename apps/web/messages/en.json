@@ -1551,7 +1551,8 @@
           "myFeed": "My Feed",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
-          "scheduledAgents": "Schedules"
+          "scheduledAgents": "Schedules",
+          "newTask": "New Task"
         },
         "ChatLists": {
           "title": "Recent Chats",

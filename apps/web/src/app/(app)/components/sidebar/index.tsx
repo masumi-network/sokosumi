@@ -17,6 +17,7 @@ import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatButton from "./components/new-chat-button";
+import NewTaskButton from "./components/new-task-button";
 import ProfileSwitch from "./components/profile-switch";
 
 interface SidebarProps {
@@ -43,6 +44,7 @@ export default function Sidebar({
       <SidebarContent className="min-h-0 w-full flex-1">
         <div className="flex flex-col gap-0">
           <NewChatButton />
+          <NewTaskButton />
           <SidebarSeparator className="mx-0 mt-2" />
           <MenuItems />
         </div>
