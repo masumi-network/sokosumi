@@ -1050,7 +1050,8 @@
         "skip": "Skip",
         "back": "Back",
         "next": "Next",
-        "getStarted": "Get Started"
+        "getStarted": "Get Started",
+        "subscribe": "Subscribe"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "Coworker",
@@ -1076,6 +1077,10 @@
         "orchestration": {
           "title": "They Handle the Rest",
           "description": "Your coworker hires specialized agents to research, write, analyze - whatever the task requires."
+        },
+        "plans": {
+          "title": "Pick the plan that helps you grow faster",
+          "description": "Start with a paid plan to unlock more credits, more capable coworkers, and premium features from day one."
         }
       },
       "visuals": {
@@ -1654,6 +1659,7 @@
       "currentPlanBadge": "Current",
       "pricePerMonth": "per month",
       "includedCredits": "{credits, plural, =0 {No credits} =1 {# credit included} other {# credits included}}",
+      "mostPopularBadge": "Most popular",
       "upgrading": "Redirecting...",
       "canceling": "Scheduling cancellation...",
       "currentPlanCta": "Current plan",
