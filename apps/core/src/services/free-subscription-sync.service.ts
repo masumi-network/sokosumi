@@ -225,8 +225,23 @@ async function markStripeSubscriptionToCancelAtPeriodEnd(
   });
 }
 
-async function migrateStripeBackedSubscriptionToLocalFree(
-  subscription: StripeBackedSubscriptionRecord,
+type NextLocalFreePeriodSubscription = Pick<
+  FreeSubscriptionRecord,
+  | "canceledAt"
+  | "createdAt"
+  | "endedAt"
+  | "id"
+  | "periodEnd"
+  | "referenceId"
+  | "stripeCustomerId"
+>;
+
+async function transitionToNextLocalFreeSubscriptionPeriod(
+  subscription: NextLocalFreePeriodSubscription,
+  options: {
+    operationKind: "migrate" | "renew-local-free";
+    setCanceledAtOnCloseOut: boolean;
+  },
 ): Promise<void> {
   if (!subscription.periodEnd) {
     return;
@@ -261,8 +276,12 @@ async function migrateStripeBackedSubscriptionToLocalFree(
       });
 
       if (members.length === 0) {
+        const prefix =
+          options.operationKind === "migrate"
+            ? `Cannot migrate subscription ${subscription.id}`
+            : `Cannot renew local free subscription ${subscription.id}`;
         throw new Error(
-          `Cannot migrate subscription ${subscription.id}: organization ${organization.id} has no members`,
+          `${prefix}: organization ${organization.id} has no members`,
         );
       }
 
@@ -319,7 +338,9 @@ async function migrateStripeBackedSubscriptionToLocalFree(
         id: subscription.id,
       },
       data: {
-        canceledAt: subscription.canceledAt ?? settledAt,
+        ...(options.setCanceledAtOnCloseOut
+          ? { canceledAt: subscription.canceledAt ?? settledAt }
+          : {}),
         endedAt: subscription.endedAt ?? periodStart,
         status: "canceled",
       },
@@ -327,104 +348,21 @@ async function migrateStripeBackedSubscriptionToLocalFree(
   });
 }
 
+async function migrateStripeBackedSubscriptionToLocalFree(
+  subscription: StripeBackedSubscriptionRecord,
+): Promise<void> {
+  await transitionToNextLocalFreeSubscriptionPeriod(subscription, {
+    operationKind: "migrate",
+    setCanceledAtOnCloseOut: true,
+  });
+}
+
 async function renewLocalFreeSubscriptionPeriod(
   subscription: LocalFreeSubscriptionRecord,
 ): Promise<void> {
-  if (!subscription.periodEnd) {
-    return;
-  }
-
-  const periodStart = new Date(subscription.periodEnd.getTime());
-  const periodEnd = getNextMonthlyPeriodEnd(
-    periodStart,
-    subscription.createdAt,
-  );
-  const settledAt = new Date();
-
-  await prisma.$transaction(async (tx) => {
-    const organization = await tx.organization.findUnique({
-      where: {
-        id: subscription.referenceId,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (organization) {
-      const members = await tx.member.findMany({
-        where: {
-          organizationId: organization.id,
-        },
-        select: {
-          role: true,
-          userId: true,
-        },
-      });
-
-      if (members.length === 0) {
-        throw new Error(
-          `Cannot renew local free subscription ${subscription.id}: organization ${organization.id} has no members`,
-        );
-      }
-
-      await ensureLocalFreeSubscriptionPeriod(
-        {
-          memberUserIds: members.map((member) => member.userId),
-          organizationId: organization.id,
-          periodEnd,
-          periodStart,
-          referenceId: organization.id,
-          stripeCustomerId: subscription.stripeCustomerId,
-        },
-        tx,
-      );
-    } else {
-      const user = await tx.user.findUnique({
-        where: {
-          id: subscription.referenceId,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!user) {
-        await tx.subscription.update({
-          where: {
-            id: subscription.id,
-          },
-          data: {
-            canceledAt: subscription.canceledAt ?? settledAt,
-            endedAt: subscription.endedAt ?? periodStart,
-            status: "canceled",
-          },
-        });
-        return;
-      }
-
-      await ensureLocalFreeSubscriptionPeriod(
-        {
-          organizationId: null,
-          userId: user.id,
-          periodEnd,
-          periodStart,
-          referenceId: user.id,
-          stripeCustomerId: subscription.stripeCustomerId,
-        },
-        tx,
-      );
-    }
-
-    await tx.subscription.update({
-      where: {
-        id: subscription.id,
-      },
-      data: {
-        endedAt: subscription.endedAt ?? periodStart,
-        status: "canceled",
-      },
-    });
+  await transitionToNextLocalFreeSubscriptionPeriod(subscription, {
+    operationKind: "renew-local-free",
+    setCanceledAtOnCloseOut: false,
   });
 }
 
