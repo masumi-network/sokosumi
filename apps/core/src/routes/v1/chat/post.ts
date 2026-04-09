@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { convertToModelMessages, streamText, validateUIMessages } from "ai";
-
 import { openrouterClient } from "@/clients/openrouter.client";
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
 import { conversationItemsToUiMessages } from "@/helpers/conversation-items-to-ui-messages";
@@ -30,8 +29,8 @@ import {
   getSokosumiProvider,
 } from "@/lib/sokosumi-ai-provider";
 import { requireUserAuthContext } from "@/middleware/auth";
-
 import { aiSdkChatRequestSchema } from "@/schemas/chat-request.schema.js";
+import { createCoworkerConversation } from "./coworker-conversation";
 
 import { mapChatRequestToUiMessages } from "./map-chat-request-to-ui-messages.js";
 
@@ -165,6 +164,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         id: string;
         slug: string;
         baseURL: string | null;
+        supportsConversationsApi: boolean;
       } | null = null;
 
       if (coworkerSlug || coworkerId) {
@@ -214,7 +214,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         internalConversationId &&
         singleMessage !== undefined
       ) {
-        const itemsBeforeUserTurn = await prisma.conversationItem.findMany({
+        const itemsBeforeUserTurn = await prisma.conversationMessage.findMany({
           where: { conversationId: internalConversationId },
           orderBy: { createdAt: "asc" },
           take: 200,
@@ -251,15 +251,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               userId: authContext.userId,
               archivedAt: null,
             },
-            select: { _count: { select: { items: true } } },
+            select: { _count: { select: { messages: true } } },
           });
-          const itemCountBefore = convWithCount?._count.items ?? 0;
+          const itemCountBefore = convWithCount?._count.messages ?? 0;
           const isFirstUserMessage =
             itemCountBefore === 0 &&
             lastMessage.role === "user" &&
             extractedText.trim().length > 0;
 
-          await prisma.conversationItem.create({
+          await prisma.conversationMessage.create({
             data: {
               conversationId: conversationIdForPersistedTurn,
               role: lastMessage.role,
@@ -285,6 +285,51 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      let providerConversationId = conversation?.providerConversationId ?? null;
+
+      if (
+        useCoworker &&
+        coworker &&
+        coworker.supportsConversationsApi &&
+        internalConversationId &&
+        !providerConversationId
+      ) {
+        const created = await createCoworkerConversation({
+          responsesApiBaseUrl: coworker.baseURL!.trim(),
+          sokosumiUserId: authContext.userId,
+          sokosumiOrganizationId: authContext.organizationId ?? null,
+          coworkerSlug: coworker.slug,
+          sokosumiConversationId: internalConversationId,
+        });
+        const updated = await prisma.conversation.updateMany({
+          where: {
+            id: internalConversationId,
+            userId: authContext.userId,
+            providerConversationId: null,
+          },
+          data: { providerConversationId: created.id },
+        });
+        if (updated.count === 0) {
+          const refetched = await prisma.conversation.findFirst({
+            where: {
+              id: internalConversationId,
+              userId: authContext.userId,
+            },
+            select: { providerConversationId: true },
+          });
+          providerConversationId = refetched?.providerConversationId ?? null;
+        } else {
+          providerConversationId = created.id;
+        }
+      }
+
+      const coworkerConversationsMode = Boolean(
+        useCoworker &&
+          coworker &&
+          coworker.supportsConversationsApi &&
+          providerConversationId,
+      );
+
       const modelMessages = await convertToModelMessages(
         uiMessages.map(({ id: _id, ...rest }) => rest),
       );
@@ -294,7 +339,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
 
       let onInvalidPreviousResponseId: (() => Promise<void>) | undefined;
-      if (useCoworker && internalConversationId) {
+      if (useCoworker && internalConversationId && !coworkerConversationsMode) {
         const conversationIdForInvalidChain = internalConversationId;
         onInvalidPreviousResponseId = async () => {
           try {
@@ -322,13 +367,42 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
       }
 
+      let onInvalidProviderConversationId: (() => Promise<void>) | undefined;
+      if (
+        useCoworker &&
+        internalConversationId &&
+        coworker?.supportsConversationsApi
+      ) {
+        const conversationIdForInvalidProviderConv = internalConversationId;
+        onInvalidProviderConversationId = async () => {
+          try {
+            await prisma.conversation.update({
+              where: {
+                id: conversationIdForInvalidProviderConv,
+                userId: authContext.userId,
+              },
+              data: { providerConversationId: null },
+            });
+          } catch (error) {
+            console.error(
+              "Failed to clear providerConversationId after invalid remote conversation (POST /chat):",
+              error,
+            );
+          }
+        };
+      }
+
       const sokosumiProviderOptions = {
         mode: useCoworker ? ("coworker" as const) : ("openrouter" as const),
         coworkerBaseUrl: coworker?.baseURL ?? null,
         coworkerSlug: coworker?.slug ?? null,
         sokosumiUserId: authContext.userId,
         sokosumiOrganizationId: authContext.organizationId ?? null,
-        previousResponseId: useCoworker ? previousResponseId : null,
+        previousResponseId:
+          useCoworker && !coworkerConversationsMode ? previousResponseId : null,
+        providerConversationId: coworkerConversationsMode
+          ? providerConversationId
+          : null,
         onResponseStarted: (responseId: string) => {
           responsesApiResponseIdRef.current = responseId;
           if (!internalConversationId || !coworker) {
@@ -362,6 +436,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
         },
         onInvalidPreviousResponseId,
+        onInvalidProviderConversationId,
       };
 
       const result = streamText({

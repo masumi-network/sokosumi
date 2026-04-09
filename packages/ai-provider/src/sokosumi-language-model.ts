@@ -12,6 +12,7 @@ import { getModelIdentifier } from "@sokosumi/chat";
 import { parseSokosumiProviderOptions } from "./parse-provider-options.js";
 import {
   buildResponsesApiWarnings,
+  lastTurnToResponsesInput,
   promptToResponsesInput,
 } from "./prompt/to-responses-input.js";
 import {
@@ -23,7 +24,6 @@ import type { CreateSokosumiOptions } from "./types.js";
 
 const OPENROUTER_RESPONSES_URL = "https://openrouter.ai/api/v1/responses";
 
-/** Language model instances returned by {@link createSokosumiLanguageModel}. */
 export type SokosumiLanguageModel = LanguageModelV3 & {
   readonly provider: "sokosumi";
 };
@@ -35,9 +35,6 @@ function resolveModelIdForLanguageModel(modelId: string | null): string {
   return getModelIdentifier(null);
 }
 
-/**
- * Creates a Sokosumi AI SDK v3 language model (OpenRouter or coworker Responses).
- */
 export function createSokosumiLanguageModel(
   modelId: string | null,
   config: CreateSokosumiOptions,
@@ -116,22 +113,18 @@ export function createSokosumiLanguageModel(
       options.providerOptions as Record<string, unknown> | undefined,
     );
     const promptWarnings = buildResponsesApiWarnings(options.prompt);
-    const responsesInput = promptToResponsesInput(options.prompt);
-
-    if (responsesInput.length === 0) {
-      throw new APICallError({
-        message:
-          "Sokosumi provider: prompt produced an empty Responses API input (no text to send).",
-        url:
-          sokosumiOpts.mode === "openrouter"
-            ? OPENROUTER_RESPONSES_URL
-            : `${(sokosumiOpts.coworkerBaseUrl ?? "").replace(/\/$/, "")}/responses`,
-        requestBodyValues: { responsesInput },
-        isRetryable: false,
-      });
-    }
 
     if (sokosumiOpts.mode === "openrouter") {
+      const responsesInput = promptToResponsesInput(options.prompt);
+      if (responsesInput.length === 0) {
+        throw new APICallError({
+          message:
+            "Sokosumi provider: prompt produced an empty Responses API input (no text to send).",
+          url: OPENROUTER_RESPONSES_URL,
+          requestBodyValues: { responsesInput },
+          isRetryable: false,
+        });
+      }
       return streamOpenRouter(
         modelId,
         config,
@@ -142,12 +135,7 @@ export function createSokosumiLanguageModel(
       );
     }
 
-    return streamCoworker(
-      responsesInput,
-      promptWarnings,
-      sokosumiOpts,
-      options,
-    );
+    return streamCoworker(promptWarnings, sokosumiOpts, options);
   }
 
   return {
@@ -234,28 +222,63 @@ async function streamOpenRouter(
 }
 
 async function streamCoworker(
-  responsesInput: ReturnType<typeof promptToResponsesInput>,
   promptWarnings: ReturnType<typeof buildResponsesApiWarnings>,
   sokosumiOpts: ReturnType<typeof parseSokosumiProviderOptions>,
   options: LanguageModelV3CallOptions,
 ): Promise<LanguageModelV3StreamResult> {
+  const conversationsMode = Boolean(
+    sokosumiOpts.providerConversationId?.trim(),
+  );
+  const fullResponsesInput = promptToResponsesInput(options.prompt);
+  const responsesInput = conversationsMode
+    ? lastTurnToResponsesInput(options.prompt)
+    : fullResponsesInput;
+
+  if (responsesInput.length === 0) {
+    throw new APICallError({
+      message:
+        "Sokosumi provider: prompt produced an empty Responses API input (no text to send).",
+      url: `${(sokosumiOpts.coworkerBaseUrl ?? "").replace(/\/$/, "")}/responses`,
+      requestBodyValues: { responsesInput },
+      isRetryable: false,
+    });
+  }
+
   const base = (sokosumiOpts.coworkerBaseUrl ?? "").replace(/\/$/, "");
   const url = `${base}/responses`;
-  const body: {
+
+  type CoworkerResponsesBody = {
     input: typeof responsesInput;
     stream: boolean;
     previous_response_id?: string;
-  } = {
-    input: responsesInput,
-    stream: true,
+    conversation_id?: string;
   };
-  if (sokosumiOpts.previousResponseId) {
-    body.previous_response_id = sokosumiOpts.previousResponseId;
+
+  function buildCoworkerResponsesBody(
+    input: typeof responsesInput,
+    includeConversationId: boolean,
+    includePreviousResponseId: boolean,
+  ): CoworkerResponsesBody {
+    const body: CoworkerResponsesBody = {
+      input,
+      stream: true,
+    };
+    if (includeConversationId && sokosumiOpts.providerConversationId?.trim()) {
+      body.conversation_id = sokosumiOpts.providerConversationId.trim();
+    }
+    if (includePreviousResponseId && sokosumiOpts.previousResponseId) {
+      body.previous_response_id = sokosumiOpts.previousResponseId;
+    }
+    return body;
   }
 
-  let requestBodyForError:
-    | typeof body
-    | { input: typeof responsesInput; stream: true } = body;
+  let body = buildCoworkerResponsesBody(
+    responsesInput,
+    conversationsMode,
+    !conversationsMode,
+  );
+
+  let requestBodyForError: CoworkerResponsesBody | { stream: true } = body;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -286,17 +309,41 @@ async function streamCoworker(
     const isInvalidPreviousResponseId =
       errorText.includes("invalid_previous_response_id") ||
       errorText.includes("previous_response_id not found");
-    if (isInvalidPreviousResponseId && body.previous_response_id) {
+    const isInvalidConversationId =
+      Boolean(conversationsMode && body.conversation_id) &&
+      (errorText.includes("invalid_conversation") ||
+        errorText.includes("conversation not found") ||
+        errorText.includes("invalid_conversation_id") ||
+        errorText.includes("Unknown conversation"));
+
+    if (isInvalidConversationId) {
+      const notify = sokosumiOpts.onInvalidProviderConversationId;
+      if (notify) {
+        try {
+          await Promise.resolve(notify());
+        } catch {}
+      }
+      const retryBody = buildCoworkerResponsesBody(
+        fullResponsesInput,
+        false,
+        Boolean(sokosumiOpts.previousResponseId),
+      );
+      requestBodyForError = retryBody;
+      response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(retryBody),
+        signal: options.abortSignal,
+      });
+    } else if (isInvalidPreviousResponseId && body.previous_response_id) {
       const notify = sokosumiOpts.onInvalidPreviousResponseId;
       if (notify) {
         try {
           await Promise.resolve(notify());
-        } catch {
-          /* best-effort — matches Core legacy chat path */
-        }
+        } catch {}
       }
       const retryBody = {
-        input: responsesInput,
+        input: fullResponsesInput,
         stream: true as const,
       };
       requestBodyForError = retryBody;

@@ -57,7 +57,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Conversation not found");
     }
 
-    const items = await prisma.conversationItem.findMany({
+    const items = await prisma.conversationMessage.findMany({
       where: { conversationId },
       orderBy: { createdAt: "asc" },
       take: 200,

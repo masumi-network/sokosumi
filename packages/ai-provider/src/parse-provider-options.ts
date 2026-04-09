@@ -10,9 +10,6 @@ function pickString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-/**
- * Parses `LanguageModelV3CallOptions.providerOptions.sokosumi` into a typed object.
- */
 export function parseSokosumiProviderOptions(
   providerOptions: Record<string, unknown> | undefined,
 ): SokosumiProviderCallOptions {
@@ -39,6 +36,7 @@ export function parseSokosumiProviderOptions(
   const sokosumiUserId = pickString(raw.sokosumiUserId) ?? null;
   const sokosumiOrganizationId = pickString(raw.sokosumiOrganizationId) ?? null;
   const previousResponseId = pickString(raw.previousResponseId) ?? null;
+  const providerConversationId = pickString(raw.providerConversationId) ?? null;
 
   const onResponseStarted =
     typeof raw.onResponseStarted === "function"
@@ -51,6 +49,10 @@ export function parseSokosumiProviderOptions(
   const onInvalidPreviousResponseId =
     typeof raw.onInvalidPreviousResponseId === "function"
       ? (raw.onInvalidPreviousResponseId as () => void | Promise<void>)
+      : undefined;
+  const onInvalidProviderConversationId =
+    typeof raw.onInvalidProviderConversationId === "function"
+      ? (raw.onInvalidProviderConversationId as () => void | Promise<void>)
       : undefined;
 
   if (mode === "coworker") {
@@ -86,8 +88,12 @@ export function parseSokosumiProviderOptions(
     previousResponseId: previousResponseId?.trim().length
       ? previousResponseId.trim()
       : null,
+    providerConversationId: providerConversationId?.trim().length
+      ? providerConversationId.trim()
+      : null,
     onResponseStarted,
     onResponseCompleted,
     onInvalidPreviousResponseId,
+    onInvalidProviderConversationId,
   };
 }

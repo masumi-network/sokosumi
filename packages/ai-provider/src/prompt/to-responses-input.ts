@@ -64,9 +64,6 @@ function toolMessageText(
   return lines.join("\n");
 }
 
-/**
- * Maps an AI SDK V3 prompt to OpenRouter / OpenAI Responses `input` messages.
- */
 export function promptToResponsesInput(
   prompt: LanguageModelV3Prompt,
 ): OpenRouterResponsesInputMessage[] {
@@ -120,4 +117,21 @@ export function promptToResponsesInput(
     }
   }
   return input;
+}
+
+export function lastTurnToResponsesInput(
+  prompt: LanguageModelV3Prompt,
+): OpenRouterResponsesInputMessage[] {
+  let start = -1;
+  for (let i = prompt.length - 1; i >= 0; i--) {
+    const message = prompt[i];
+    if (message.role === "user" || message.role === "system") {
+      start = i;
+      break;
+    }
+  }
+  if (start < 0) {
+    return promptToResponsesInput(prompt);
+  }
+  return promptToResponsesInput(prompt.slice(start));
 }

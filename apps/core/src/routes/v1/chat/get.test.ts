@@ -9,11 +9,11 @@ import mountGetChat from "./get";
 
 const {
   conversationFindFirstMock,
-  conversationItemFindManyMock,
+  conversationMessageFindManyMock,
   validateUIMessagesMock,
 } = vi.hoisted(() => ({
   conversationFindFirstMock: vi.fn(),
-  conversationItemFindManyMock: vi.fn(),
+  conversationMessageFindManyMock: vi.fn(),
   validateUIMessagesMock: vi.fn(),
 }));
 
@@ -26,8 +26,8 @@ vi.mock("@/lib/db/prisma", () => ({
     conversation: {
       findFirst: conversationFindFirstMock,
     },
-    conversationItem: {
-      findMany: conversationItemFindManyMock,
+    conversationMessage: {
+      findMany: conversationMessageFindManyMock,
     },
   },
 }));
@@ -72,12 +72,12 @@ describe("GET /chat", () => {
     );
 
     expect(response.status).toBe(404);
-    expect(conversationItemFindManyMock).not.toHaveBeenCalled();
+    expect(conversationMessageFindManyMock).not.toHaveBeenCalled();
   });
 
   it("returns UIMessages from persisted items", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
-    conversationItemFindManyMock.mockResolvedValueOnce([
+    conversationMessageFindManyMock.mockResolvedValueOnce([
       { id: "m1", role: "user", contentText: "Hi" },
       { id: "m2", role: "assistant", contentText: "Hello" },
     ]);
@@ -98,7 +98,7 @@ describe("GET /chat", () => {
 
   it("coalesces null contentText to empty string so validation is not tripped", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
-    conversationItemFindManyMock.mockResolvedValueOnce([
+    conversationMessageFindManyMock.mockResolvedValueOnce([
       { id: "m1", role: "user", contentText: null },
     ]);
 

@@ -204,6 +204,7 @@ async function findUsableCoworkerByCapability(
       id: true,
       slug: true,
       baseURL: true,
+      supportsConversationsApi: true,
     },
   });
 }
@@ -227,7 +228,12 @@ export async function requireCoworkerCapability(
 export async function requireCoworkerChatCapability(
   coworkerId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<{ id: string; slug: string; baseURL: string | null }> {
+): Promise<{
+  id: string;
+  slug: string;
+  baseURL: string | null;
+  supportsConversationsApi: boolean;
+}> {
   const coworker = await findUsableCoworkerByCapability(
     coworkerId,
     "chat",

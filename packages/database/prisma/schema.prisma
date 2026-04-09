@@ -1129,6 +1129,10 @@ model Coworker {
   image       String?
   metadata    Json?
 
+  /// When true, Core uses OpenAI-compatible POST /conversations + conversation_id on /responses.
+  /// When false, legacy coworker path (previous_response_id + merged transcript).
+  supportsConversationsApi Boolean @default(false)
+
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1315,16 +1319,20 @@ model CoworkerUsage {
 }
 
 model Conversation {
-  id         String             @id @default(uuid())
-  openaiId   String             @unique
+  id         String    @id @default(uuid())
+  openaiId   String    @unique
   userId     String
-  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   title      String?
   metadata   Json?
   archivedAt DateTime?
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
-  items      ConversationItem[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  /// Coworker Conversations API id (conv_…); null for OpenRouter-only threads until created.
+  providerConversationId String? @unique
+
+  messages ConversationMessage[]
 
   @@index([userId])
   @@index([openaiId])
@@ -1332,18 +1340,20 @@ model Conversation {
   @@map("conversation")
 }
 
-model ConversationItem {
+/// Persisted turns aligned with Conversations/Responses item semantics (mirror for UI and recovery).
+model ConversationMessage {
   id                     String       @id @default(uuid())
   conversationId         String
   conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role                   String // "user" | "assistant" | "system"
   contentType            String? // "input_text", "output_text", etc. (optional)
-  contentText            String // The actual text content
-  responsesApiResponseId String? // Set when item is created from Responses API recovery; prevents duplicate storage per response ID
+  contentText            String
+  responsesApiResponseId String?
+  metadata               Json?
   createdAt              DateTime     @default(now())
 
   @@unique([conversationId, responsesApiResponseId])
   @@index([conversationId])
   @@index([conversationId, createdAt])
-  @@map("conversationItem")
+  @@map("messages")
 }

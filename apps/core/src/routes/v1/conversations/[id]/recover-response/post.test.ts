@@ -8,42 +8,35 @@ import mountPostRecoverResponse from "./post";
 
 const {
   conversationFindFirstMock,
-  conversationItemCreateMock,
+  conversationMessageCreateMock,
   conversationUpdateMock,
   executeRawMock,
   findCoworkerWithChatBySlugMock,
   getResponseByIdMock,
+  listCoworkerConversationItemsMock,
   requireCoworkerChatCapabilityMock,
   transactionMock,
 } = vi.hoisted(() => ({
   conversationFindFirstMock: vi.fn(),
-  conversationItemCreateMock: vi.fn(),
+  conversationMessageCreateMock: vi.fn(),
   conversationUpdateMock: vi.fn(),
   executeRawMock: vi.fn(),
   findCoworkerWithChatBySlugMock: vi.fn(),
   getResponseByIdMock: vi.fn(),
+  listCoworkerConversationItemsMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
 
-vi.mock("@/clients/coworker-api.client", () => ({
-  extractTextFromCompletedOutput: (output: unknown) => {
-    if (Array.isArray(output)) {
-      const msg = output[0] as {
-        type?: string;
-        content?: Array<{ type?: string; text?: string }>;
-      };
-      if (msg?.type === "message" && Array.isArray(msg.content)) {
-        return msg.content
-          .filter((c) => (c as { type?: string }).type === "output_text")
-          .map((c) => (c as { text?: string }).text ?? "")
-          .join("");
-      }
-    }
-    return "";
-  },
-  getResponseById: (...args: unknown[]) => getResponseByIdMock(...args),
-}));
+vi.mock("./coworker-recovery", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("./coworker-recovery")>();
+  return {
+    ...mod,
+    getResponseById: (...args: unknown[]) => getResponseByIdMock(...args),
+    listCoworkerConversationItems: (...args: unknown[]) =>
+      listCoworkerConversationItemsMock(...args),
+  };
+});
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerChatCapability: requireCoworkerChatCapabilityMock,
@@ -92,13 +85,15 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
+      supportsConversationsApi: true,
     });
     findCoworkerWithChatBySlugMock.mockResolvedValue({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
+      supportsConversationsApi: true,
     });
-    conversationItemCreateMock.mockResolvedValue(undefined);
+    conversationMessageCreateMock.mockResolvedValue(undefined);
     conversationUpdateMock.mockResolvedValue(undefined);
     executeRawMock.mockResolvedValue(1);
     transactionMock.mockImplementation(
@@ -106,8 +101,8 @@ describe("POST /conversations/:id/recover-response", () => {
         fn({
           $executeRaw: vi.fn().mockResolvedValue(1),
           $queryRaw: vi.fn().mockResolvedValue([]),
-          conversationItem: {
-            create: conversationItemCreateMock,
+          conversationMessage: {
+            create: conversationMessageCreateMock,
             findFirst: vi.fn().mockResolvedValue(null),
           },
           conversation: { update: conversationUpdateMock },
@@ -128,10 +123,11 @@ describe("POST /conversations/:id/recover-response", () => {
     expect(getResponseByIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns 200 with recovered false when no pending response id", async () => {
+  it("returns 200 with recovered false when no pending response id and no provider conversation", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({
       id: CONV_ID,
       metadata: {},
+      providerConversationId: null,
     });
 
     const app = createApp();
@@ -144,6 +140,7 @@ describe("POST /conversations/:id/recover-response", () => {
     const body = await response.json();
     expect(body.data).toEqual({ recovered: false });
     expect(getResponseByIdMock).not.toHaveBeenCalled();
+    expect(listCoworkerConversationItemsMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 with recovered false reason terminal and clears pending when GET response is terminal", async () => {
@@ -158,6 +155,7 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
+      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({
       status: "terminal",
@@ -188,6 +186,7 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
+      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({ status: "in_progress" });
 
@@ -220,6 +219,7 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
+      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({ status: "not_found" });
 
@@ -254,6 +254,7 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
+      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({ status: "not_found" });
     executeRawMock.mockResolvedValueOnce(0);
@@ -283,6 +284,7 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
+      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({
       status: "completed",
@@ -305,7 +307,7 @@ describe("POST /conversations/:id/recover-response", () => {
     const body = await response.json();
     expect(body.data).toEqual({ recovered: true });
     expect(transactionMock).toHaveBeenCalled();
-    expect(conversationItemCreateMock).toHaveBeenCalled();
+    expect(conversationMessageCreateMock).toHaveBeenCalled();
     expect(conversationUpdateMock).toHaveBeenCalledWith({
       where: { id: CONV_ID },
       data: {
@@ -322,6 +324,7 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
+      supportsConversationsApi: true,
     });
     conversationFindFirstMock.mockResolvedValueOnce({
       id: CONV_ID,
@@ -377,6 +380,7 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
+      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({
       status: "completed",
@@ -393,8 +397,8 @@ describe("POST /conversations/:id/recover-response", () => {
         fn({
           $executeRaw: vi.fn().mockResolvedValue(1),
           $queryRaw: vi.fn().mockResolvedValue([]),
-          conversationItem: {
-            create: conversationItemCreateMock,
+          conversationMessage: {
+            create: conversationMessageCreateMock,
             findFirst: vi.fn().mockResolvedValue({ id: "existing-item-id" }),
           },
           conversation: { update: conversationUpdateMock },
@@ -410,6 +414,43 @@ describe("POST /conversations/:id/recover-response", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data).toEqual({ recovered: true });
-    expect(conversationItemCreateMock).not.toHaveBeenCalled();
+    expect(conversationMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 with recovered true from conversation items when no pending id", async () => {
+    listCoworkerConversationItemsMock.mockResolvedValueOnce({
+      items: [
+        {
+          role: "assistant",
+          type: "message",
+          content: [{ type: "output_text", text: "From items API" }],
+          response_id: "resp_items_1",
+        },
+      ],
+    });
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: CONV_ID,
+      metadata: { coworker_slug: "ops-agent" },
+      providerConversationId: "conv_xyz",
+    });
+
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/${CONV_ID}/recover-response`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual({ recovered: true });
+    expect(listCoworkerConversationItemsMock).toHaveBeenCalledWith(
+      "conv_xyz",
+      expect.objectContaining({
+        responsesApiBaseUrl: "https://api.example.com",
+        coworkerSlug: "ops-agent",
+      }),
+    );
+    expect(getResponseByIdMock).not.toHaveBeenCalled();
+    expect(conversationMessageCreateMock).toHaveBeenCalled();
   });
 });

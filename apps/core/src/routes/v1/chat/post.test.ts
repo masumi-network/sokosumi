@@ -10,10 +10,12 @@ import mountPostChat from "./post";
 
 const {
   conversationFindFirstMock,
-  conversationItemCreateMock,
-  conversationItemFindManyMock,
+  conversationMessageCreateMock,
+  conversationMessageFindManyMock,
+  conversationUpdateManyMock,
   convertToModelMessagesMock,
   coworkerFindFirstMock,
+  createCoworkerConversationMock,
   generateChatTitleMock,
   getOpenRouterChatApiKeyForProviderMock,
   getSokosumiProviderMock,
@@ -22,10 +24,12 @@ const {
   validateUIMessagesMock,
 } = vi.hoisted(() => ({
   conversationFindFirstMock: vi.fn(),
-  conversationItemCreateMock: vi.fn(),
-  conversationItemFindManyMock: vi.fn(),
+  conversationMessageCreateMock: vi.fn(),
+  conversationMessageFindManyMock: vi.fn(),
+  conversationUpdateManyMock: vi.fn(),
   convertToModelMessagesMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
+  createCoworkerConversationMock: vi.fn(),
   generateChatTitleMock: vi.fn(),
   getOpenRouterChatApiKeyForProviderMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
@@ -49,6 +53,11 @@ vi.mock("@/helpers/access-control", () => ({
   requireCoworkerChatCapability: requireCoworkerChatCapabilityMock,
 }));
 
+vi.mock("./coworker-conversation", () => ({
+  createCoworkerConversation: (...args: unknown[]) =>
+    createCoworkerConversationMock(...args),
+}));
+
 vi.mock("@/clients/openrouter.client", () => ({
   openrouterClient: {
     generateChatTitle: generateChatTitleMock,
@@ -60,10 +69,11 @@ vi.mock("@/lib/db/prisma", () => ({
     conversation: {
       findFirst: conversationFindFirstMock,
       update: vi.fn(),
+      updateMany: conversationUpdateManyMock,
     },
-    conversationItem: {
-      create: conversationItemCreateMock,
-      findMany: conversationItemFindManyMock,
+    conversationMessage: {
+      create: conversationMessageCreateMock,
+      findMany: conversationMessageFindManyMock,
     },
     coworker: {
       findFirst: coworkerFindFirstMock,
@@ -104,8 +114,10 @@ describe("POST /chat", () => {
     );
     getSokosumiProviderMock.mockReturnValue(() => ({}));
     convertToModelMessagesMock.mockResolvedValue([]);
-    conversationItemCreateMock.mockResolvedValue(undefined);
-    conversationItemFindManyMock.mockResolvedValue([]);
+    conversationMessageCreateMock.mockResolvedValue(undefined);
+    conversationMessageFindManyMock.mockResolvedValue([]);
+    conversationUpdateManyMock.mockResolvedValue({ count: 1 });
+    createCoworkerConversationMock.mockResolvedValue({ id: "conv_test_1" });
     validateUIMessagesMock.mockImplementation(
       async ({ messages }: { messages: unknown[] }) => messages,
     );
@@ -122,6 +134,7 @@ describe("POST /chat", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://responses.example.com/v1",
+      supportsConversationsApi: false,
     });
   });
 
@@ -201,7 +214,7 @@ describe("POST /chat", () => {
         id: "550e8400-e29b-41d4-a716-446655440000",
         metadata: { model_id: "claude-opus-4-6" },
       })
-      .mockResolvedValueOnce({ _count: { items: 1 } });
+      .mockResolvedValueOnce({ _count: { messages: 1 } });
 
     const app = createApp();
     const response = await app.request("http://localhost/", {
@@ -230,7 +243,7 @@ describe("POST /chat", () => {
           previous_response_id: "resp_stale",
         },
       })
-      .mockResolvedValueOnce({ _count: { items: 1 } });
+      .mockResolvedValueOnce({ _count: { messages: 1 } });
     coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
 
     const app = createApp({ organizationId: "org_1" });
@@ -263,8 +276,8 @@ describe("POST /chat", () => {
         id: cid,
         metadata: { model_id: "claude-opus-4-6" },
       })
-      .mockResolvedValueOnce({ _count: { items: 1 } });
-    conversationItemFindManyMock.mockResolvedValueOnce([
+      .mockResolvedValueOnce({ _count: { messages: 1 } });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
       {
         id: "item-1",
         role: "user",
@@ -284,7 +297,7 @@ describe("POST /chat", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(conversationItemFindManyMock).toHaveBeenCalledOnce();
+    expect(conversationMessageFindManyMock).toHaveBeenCalledOnce();
     expect(convertToModelMessagesMock).toHaveBeenCalledOnce();
     const uiArg = convertToModelMessagesMock.mock.calls[0]![0] as Array<{
       role: string;

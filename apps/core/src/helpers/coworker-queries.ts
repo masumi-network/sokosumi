@@ -5,7 +5,12 @@ import prisma from "@/lib/db/prisma";
 export async function findCoworkerWithChatBySlug(
   slug: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<{ id: string; slug: string; baseURL: string | null } | null> {
+): Promise<{
+  id: string;
+  slug: string;
+  baseURL: string | null;
+  supportsConversationsApi: boolean;
+} | null> {
   return await tx.coworker.findFirst({
     where: {
       slug,
@@ -18,6 +23,7 @@ export async function findCoworkerWithChatBySlug(
       id: true,
       slug: true,
       baseURL: true,
+      supportsConversationsApi: true,
     },
   });
 }

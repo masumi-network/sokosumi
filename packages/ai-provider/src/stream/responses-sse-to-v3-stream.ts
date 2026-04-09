@@ -49,10 +49,6 @@ type SseChunk = {
   output?: unknown;
 };
 
-/**
- * Converts an OpenAI Responses-style SSE byte stream (OpenRouter or coworker) into
- * {@link LanguageModelV3StreamPart} chunks for `streamText` / `doStream`.
- */
 export function createResponsesSseToV3Stream(
   body: ReadableStream<Uint8Array>,
   options: ResponsesSseToV3Options,
@@ -174,13 +170,6 @@ export function createResponsesSseToV3Stream(
           controller.enqueue({ type: "response-metadata", id: responseId });
         }
 
-        // Do not emit a synthetic "Processing..." reasoning block here. Legacy chat uses
-        // custom `data-reasoning` for that; mapping it to model reasoning-start/end
-        // (e.g. sokosumi-prelude) breaks AI SDK UIMessage validation when streams drop
-        // or reorder chunks. Real reasoning still follows via output_item.added below.
-
-        // Reasoning must be handled even after text has started — Responses SSE can
-        // interleave output_text and reasoning (see AI SDK V3 reasoning streaming).
         if (chunk.type === "response.output_item.added") {
           const itemType = chunk.item?.type;
           if (itemType === "reasoning") {
@@ -307,9 +296,7 @@ export function createResponsesSseToV3Stream(
                 onResponseCompleted?.(parsed.id);
               }
             }
-          } catch {
-            // ignore tail parse failure
-          }
+          } catch {}
         }
 
         if (!streamClosed) {

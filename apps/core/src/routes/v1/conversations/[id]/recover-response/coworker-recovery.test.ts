@@ -3,13 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   extractTextFromCompletedOutput,
   getResponseById,
-} from "@/clients/coworker-api.client";
+} from "./coworker-recovery";
 
 const fetchMock = vi.fn();
 
 const DEFAULT_BASE_URL = "https://api.coworker.example.com/v1";
 
-describe("coworker-api.client", () => {
+describe("coworker-recovery", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
   });

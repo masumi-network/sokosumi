@@ -1,6 +1,3 @@
-/**
- * Extract assistant text from a completed Responses-style `output` payload.
- */
 export function extractTextFromCompletedOutput(output: unknown): string {
   if (!Array.isArray(output) || output.length === 0) {
     return "";

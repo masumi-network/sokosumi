@@ -79,9 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const { cursor, take, skip } = parseCursorPagination(queryParams);
       const takePlusOne = take + 1;
 
-      // Database is the source of truth - validate ownership and get items
       const { items, count } = await prisma.$transaction(async (tx) => {
-        // Validate ownership
         const conversation = await tx.conversation.findFirst({
           where: {
             id,
@@ -98,14 +96,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           conversationId: conversation.id,
         };
 
-        const items = await tx.conversationItem.findMany({
+        const items = await tx.conversationMessage.findMany({
           where,
           take: takePlusOne,
           skip,
           cursor: cursor ? { id: cursor } : undefined,
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         });
-        const count = await tx.conversationItem.count({ where });
+        const count = await tx.conversationMessage.count({ where });
 
         return { items, count };
       });
@@ -113,7 +111,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const hasMore = items.length === takePlusOne;
       const pagedItems = items.slice(0, take);
 
-      // Map to response schema - reconstruct content format from normalized columns
       const response = pagedItems.map((item) => {
         const content: string | Array<{ type: string; text: string }> =
           item.contentType && item.contentType !== ""
@@ -142,7 +139,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         paginationMeta,
       );
     } catch (error) {
-      // Re-throw HTTPException as-is, wrap other errors
       if (
         error &&
         typeof error === "object" &&

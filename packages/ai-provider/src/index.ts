@@ -5,6 +5,7 @@ export { parseSokosumiProviderOptions } from "./parse-provider-options.js";
 export type { OpenRouterResponsesInputMessage } from "./prompt/to-responses-input.js";
 export {
   buildResponsesApiWarnings,
+  lastTurnToResponsesInput,
   promptToResponsesInput,
 } from "./prompt/to-responses-input.js";
 export type { SokosumiLanguageModel } from "./sokosumi-language-model.js";

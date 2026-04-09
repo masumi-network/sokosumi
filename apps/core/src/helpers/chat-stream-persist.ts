@@ -53,7 +53,7 @@ export function streamWithAssistantPersistence(
         }
 
         if (responsesApiResponseId) {
-          const existing = await prisma.conversationItem.findFirst({
+          const existing = await prisma.conversationMessage.findFirst({
             where: {
               conversationId: conv.id,
               responsesApiResponseId,
@@ -62,7 +62,7 @@ export function streamWithAssistantPersistence(
           });
           if (existing) return;
           try {
-            await prisma.conversationItem.create({
+            await prisma.conversationMessage.create({
               data: {
                 conversationId: conv.id,
                 role: "assistant",
@@ -78,7 +78,7 @@ export function streamWithAssistantPersistence(
           return;
         }
 
-        await prisma.conversationItem.create({
+        await prisma.conversationMessage.create({
           data: {
             conversationId: conv.id,
             role: "assistant",
@@ -101,9 +101,7 @@ export function streamWithAssistantPersistence(
   ): void {
     try {
       controller.close();
-    } catch {
-      // Consumer already closed or cancelled the stream.
-    }
+    } catch {}
   }
 
   function safeError(
@@ -112,9 +110,7 @@ export function streamWithAssistantPersistence(
   ): void {
     try {
       controller.error(error);
-    } catch {
-      // Consumer already closed or cancelled the stream.
-    }
+    } catch {}
   }
 
   return new ReadableStream<Uint8Array>({
@@ -131,7 +127,6 @@ export function streamWithAssistantPersistence(
           try {
             controller.enqueue(value);
           } catch {
-            // Consumer cancelled; persist what we have and exit without closing again.
             await tryPersist(accumulatedText);
             return;
           }
@@ -156,9 +151,7 @@ export function streamWithAssistantPersistence(
               ) {
                 accumulatedText += parsed.delta;
               }
-            } catch {
-              // skip non-JSON lines
-            }
+            } catch {}
           }
         }
       } catch (error) {

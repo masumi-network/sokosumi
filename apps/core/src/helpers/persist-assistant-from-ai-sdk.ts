@@ -34,7 +34,7 @@ export async function persistAssistantFromAiSdk(params: {
   }
 
   if (responseId) {
-    const existing = await prisma.conversationItem.findFirst({
+    const existing = await prisma.conversationMessage.findFirst({
       where: {
         conversationId: conv.id,
         responsesApiResponseId: responseId,
@@ -45,7 +45,7 @@ export async function persistAssistantFromAiSdk(params: {
       return;
     }
     try {
-      await prisma.conversationItem.create({
+      await prisma.conversationMessage.create({
         data: {
           conversationId: conv.id,
           role: "assistant",
@@ -63,7 +63,7 @@ export async function persistAssistantFromAiSdk(params: {
     return;
   }
 
-  await prisma.conversationItem.create({
+  await prisma.conversationMessage.create({
     data: {
       conversationId: conv.id,
       role: "assistant",

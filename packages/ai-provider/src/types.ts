@@ -1,7 +1,3 @@
-/**
- * Per-call options passed through AI SDK as `providerOptions.sokosumi` (JSONObject).
- * Core maps auth and conversation metadata into this shape before `streamText`.
- */
 export interface SokosumiProviderCallOptions {
   /** Execution backend for this request. */
   mode: "openrouter" | "coworker";
@@ -15,6 +11,11 @@ export interface SokosumiProviderCallOptions {
   sokosumiOrganizationId?: string | null;
   /** Chain id for coworker Responses API. */
   previousResponseId?: string | null;
+  /**
+   * Coworker Conversations API id (`conv_…`); sent as `conversation_id` on
+   * `POST /responses`. When set, `previous_response_id` is omitted.
+   */
+  providerConversationId?: string | null;
   /** Fired when the remote API exposes a response id (e.g. after `response.created`). */
   onResponseStarted?: (responseId: string) => void;
   /** Fired when the stream reports completion for a response id. */
@@ -24,6 +25,11 @@ export interface SokosumiProviderCallOptions {
    * client can clear stale metadata; the provider then retries once without it.
    */
   onInvalidPreviousResponseId?: () => void | Promise<void>;
+  /**
+   * Coworker only: invoked when the API rejects `conversation_id`; the provider
+   * retries once with a full transcript and optional `previous_response_id`.
+   */
+  onInvalidProviderConversationId?: () => void | Promise<void>;
 }
 
 export interface CreateSokosumiOptions {
