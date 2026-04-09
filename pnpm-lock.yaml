@@ -644,7 +644,7 @@ importers:
         version: 0.0.14(react@19.2.5)
       '@react-email/render':
         specifier: 2.0.6
-        version: 2.0.6(react-dom@19.2.4(react@19.2.5))(react@19.2.5)
+        version: 2.0.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@react-email/section':
         specifier: 0.0.17
         version: 0.0.17(react@19.2.5)
@@ -658,8 +658,8 @@ importers:
         specifier: 19.2.5
         version: 19.2.5
       react-dom:
-        specifier: 19.2.4
-        version: 19.2.4(react@19.2.5)
+        specifier: 19.2.5
+        version: 19.2.5(react@19.2.5)
       use-intl:
         specifier: 4.9.0
         version: 4.9.0(react@19.2.5)
@@ -8139,11 +8139,6 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
 
-  react-dom@19.2.4:
-    resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==}
-    peerDependencies:
-      react: ^19.2.4
-
   react-dom@19.2.5:
     resolution: {integrity: sha512-J5bAZz+DXMMwW/wV3xzKke59Af6CHY7G4uYLN1OvBcKEsWOs4pQExj86BBKamxl/Ik5bx9whOrvBlSDfWzgSag==}
     peerDependencies:
@@ -12819,13 +12814,6 @@ snapshots:
   '@react-email/preview@0.0.14(react@19.2.5)':
     dependencies:
       react: 19.2.5
-
-  '@react-email/render@2.0.6(react-dom@19.2.4(react@19.2.5))(react@19.2.5)':
-    dependencies:
-      html-to-text: 9.0.5
-      prettier: 3.8.1
-      react: 19.2.5
-      react-dom: 19.2.4(react@19.2.5)
 
   '@react-email/render@2.0.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
     dependencies:
@@ -17937,11 +17925,6 @@ snapshots:
       date-fns: 4.1.0
       date-fns-jalali: 4.1.0-0
       react: 19.2.5
-
-  react-dom@19.2.4(react@19.2.5):
-    dependencies:
-      react: 19.2.5
-      scheduler: 0.27.0
 
   react-dom@19.2.5(react@19.2.5):
     dependencies:
