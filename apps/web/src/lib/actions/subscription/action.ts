@@ -41,20 +41,6 @@ const updateOrganizationSubscriptionSeatsSchema = z.object({
   seats: z.number().int().min(1),
 });
 
-function parseBetterAuthActionError(error: unknown): ActionError {
-  const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
-  if (parsedBetterAuthError.success) {
-    return {
-      code: parsedBetterAuthError.data.body.code,
-      message: parsedBetterAuthError.data.body.message,
-    };
-  }
-
-  return {
-    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-  };
-}
-
 function getErrorStatus(error: unknown): string | null {
   if (!(error instanceof Error)) {
     return null;
@@ -66,7 +52,7 @@ function getErrorStatus(error: unknown): string | null {
     : null;
 }
 
-function parseOrganizationSeatUpdateError(error: unknown): ActionError {
+function parseBetterAuthActionError(error: unknown): ActionError {
   const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
   if (parsedBetterAuthError.success) {
     return {
@@ -136,7 +122,7 @@ export const cancelPersonalSubscription = withSession<
     await stripeService.scheduleSubscriptionDowngradeToFree(session.user.id);
     return Ok({ mode: "scheduled" });
   } catch (error) {
-    return Err(parseOrganizationSeatUpdateError(error));
+    return Err(parseBetterAuthActionError(error));
   }
 });
 
@@ -183,7 +169,7 @@ export const upgradePersonalSubscription = withSession<
 
     return Ok({ mode: "redirect", url: result.url });
   } catch (error) {
-    return Err(parseOrganizationSeatUpdateError(error));
+    return Err(parseBetterAuthActionError(error));
   }
 });
 
@@ -257,7 +243,7 @@ export const cancelOrganizationSubscription = withSession<
     );
     return Ok({ mode: "scheduled" });
   } catch (error) {
-    return Err(parseOrganizationSeatUpdateError(error));
+    return Err(parseBetterAuthActionError(error));
   }
 });
 
@@ -308,7 +294,7 @@ export const upgradeOrganizationSubscription = withSession<
 
     return Ok({ mode: "redirect", url: result.url });
   } catch (error) {
-    return Err(parseOrganizationSeatUpdateError(error));
+    return Err(parseBetterAuthActionError(error));
   }
 });
 
@@ -384,6 +370,6 @@ export const updateOrganizationSubscriptionSeats = withSession<
 
     return Ok(result);
   } catch (error) {
-    return Err(parseOrganizationSeatUpdateError(error));
+    return Err(parseBetterAuthActionError(error));
   }
 });
