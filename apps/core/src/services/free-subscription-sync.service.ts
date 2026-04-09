@@ -105,6 +105,12 @@ function getNextLocalFreeSubscriptionPeriod(
   };
 }
 
+function isLocalFreeSubscriptionRecord(
+  subscription: FreeSubscriptionRecord,
+): subscription is LocalFreeSubscriptionRecord {
+  return subscription.stripeSubscriptionId === null;
+}
+
 function buildLocalFreeSubscriptionPeriodKey(
   record: LocalFreeSubscriptionPeriodRecord,
 ): string {
@@ -536,12 +542,15 @@ async function renewLocalFreeSubscriptions(
           (subscription) => !attemptedSubscriptionIds.has(subscription.id),
         ),
       );
+    const localSubscriptionsNeedingRenewal = subscriptionsNeedingRenewal.filter(
+      isLocalFreeSubscriptionRecord,
+    );
 
-    if (subscriptionsNeedingRenewal.length === 0) {
+    if (localSubscriptionsNeedingRenewal.length === 0) {
       return;
     }
 
-    for (const subscription of subscriptionsNeedingRenewal) {
+    for (const subscription of localSubscriptionsNeedingRenewal) {
       if (
         shouldStopSync(
           options,

@@ -599,6 +599,9 @@ describe("PUT /tasks/{id}/workspace", () => {
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
         update: taskUpdateMock,
       },
+      taskLink: {
+        findFirst: taskLinkFindFirstMock,
+      },
     });
     mapTaskMock.mockReturnValue(
       createTaskApi({

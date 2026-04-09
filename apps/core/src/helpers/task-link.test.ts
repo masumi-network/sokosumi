@@ -1,6 +1,8 @@
 import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
+import type { TaskLinkRow } from "@/types/task-link";
+
 import {
   assertTaskLinkAllowed,
   mapTaskLinkForTask,
@@ -14,26 +16,11 @@ function getTaskName(taskId: string) {
 }
 
 function createLink(
-  overrides?: Partial<{
-    id: string;
-    fromTaskId: string;
-    toTaskId: string;
-    type: TaskLinkType;
-    note: string | null;
-    fromTask: {
-      id: string;
-      name: string;
-      status: TaskStatus;
-      archivedAt?: Date | null;
-    } | null;
-    toTask: {
-      id: string;
-      name: string;
-      status: TaskStatus;
-      archivedAt?: Date | null;
-    } | null;
-  }>,
-) {
+  overrides?: Partial<Omit<TaskLinkRow, "fromTask" | "toTask">> & {
+    fromTask?: TaskLinkRow["fromTask"];
+    toTask?: TaskLinkRow["toTask"];
+  },
+): TaskLinkRow {
   return {
     id: overrides?.id ?? "tl_123",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
@@ -42,24 +29,22 @@ function createLink(
     toTaskId: overrides?.toTaskId ?? "tsk_b",
     type: overrides?.type ?? TaskLinkType.RELATES,
     note: overrides?.note ?? null,
-    fromTask:
-      overrides && "fromTask" in overrides
-        ? overrides.fromTask
-        : {
-            id: overrides?.fromTaskId ?? "tsk_a",
-            name: getTaskName(overrides?.fromTaskId ?? "tsk_a"),
-            status: TaskStatus.READY,
-            archivedAt: null,
-          },
-    toTask:
-      overrides && "toTask" in overrides
-        ? overrides.toTask
-        : {
-            id: overrides?.toTaskId ?? "tsk_b",
-            name: getTaskName(overrides?.toTaskId ?? "tsk_b"),
-            status: TaskStatus.READY,
-            archivedAt: null,
-          },
+    fromTask: {
+      id: overrides?.fromTaskId ?? "tsk_a",
+      name: getTaskName(overrides?.fromTaskId ?? "tsk_a"),
+      status: TaskStatus.READY,
+      archivedAt: null,
+      ...(overrides?.fromTask ?? {}),
+    },
+    toTask: {
+      id: overrides?.toTaskId ?? "tsk_b",
+      name: getTaskName(overrides?.toTaskId ?? "tsk_b"),
+      status: TaskStatus.READY,
+      archivedAt: null,
+      ...(overrides?.toTask ?? {}),
+    },
+    ...(overrides?.fromTask === null ? { fromTask: null } : {}),
+    ...(overrides?.toTask === null ? { toTask: null } : {}),
   };
 }
 
