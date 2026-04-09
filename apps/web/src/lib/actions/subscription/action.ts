@@ -138,9 +138,7 @@ export const upgradePersonalSubscription = withSession<
     });
 
     if (!result.url) {
-      return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
+      return Ok({ mode: "complete" });
     }
 
     return Ok({ mode: "redirect", url: result.url });
@@ -228,9 +226,7 @@ export const upgradeOrganizationSubscription = withSession<
     });
 
     if (!result.url) {
-      return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
+      return Ok({ mode: "complete" });
     }
 
     return Ok({ mode: "redirect", url: result.url });
