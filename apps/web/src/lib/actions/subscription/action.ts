@@ -82,10 +82,9 @@ function parseBetterAuthActionError(error: unknown): ActionError {
   };
 }
 
-type SubscriptionChangeResult = {
-  mode: "redirect";
-  url: string;
-};
+export type SubscriptionChangeResult =
+  | { mode: "complete" }
+  | { mode: "redirect"; url: string };
 
 function buildSubscriptionStatusPath(
   returnPath: string,

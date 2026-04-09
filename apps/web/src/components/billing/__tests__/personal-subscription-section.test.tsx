@@ -1,4 +1,5 @@
 import { render, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshMock = vi.fn();
@@ -156,6 +157,40 @@ describe("PersonalSubscriptionSection", () => {
         plan: "standard",
         returnPath: "/billing?tab=subscription",
       });
+    });
+  });
+
+  it("shows success toast and refreshes when upgrade completes without checkout redirect", async () => {
+    upgradePersonalSubscriptionMock.mockResolvedValue({
+      data: { mode: "complete" },
+      ok: true,
+    });
+
+    render(
+      <PersonalSubscriptionSection
+        cancelAtPeriodEnd={false}
+        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+        status={null}
+      />,
+    );
+
+    const standardPlanProps = subscriptionPlanCardMock.mock.calls
+      .map((call) => call[0])
+      .find(
+        (props) =>
+          props &&
+          typeof props === "object" &&
+          "plan" in props &&
+          props.plan?.name === "standard",
+      );
+
+    await standardPlanProps?.onAction("standard");
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith("statusSuccess");
+      expect(refreshMock).toHaveBeenCalled();
     });
   });
 });
