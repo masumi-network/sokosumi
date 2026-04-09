@@ -22,7 +22,10 @@ export const subscriptionRepository = {
       where: {
         referenceId,
       },
-      orderBy: [{ periodEnd: "desc" }, { updatedAt: "desc" }],
+      orderBy: [
+        { periodEnd: { sort: "desc", nulls: "last" } },
+        { updatedAt: "desc" },
+      ],
     });
   },
 
@@ -37,7 +40,10 @@ export const subscriptionRepository = {
           in: [...ACTIVE_SUBSCRIPTION_STATUSES],
         },
       },
-      orderBy: [{ periodEnd: "desc" }, { updatedAt: "desc" }],
+      orderBy: [
+        { periodEnd: { sort: "desc", nulls: "last" } },
+        { updatedAt: "desc" },
+      ],
     });
   },
 };
