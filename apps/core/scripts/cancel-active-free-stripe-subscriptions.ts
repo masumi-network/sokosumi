@@ -1,9 +1,6 @@
 import "dotenv/config";
 
-import {
-  ACTIVE_SUBSCRIPTION_STATUSES,
-  FREE_SUBSCRIPTION_PLAN,
-} from "@sokosumi/database/helpers";
+import { FREE_SUBSCRIPTION_PLAN } from "@sokosumi/database/helpers";
 
 import { stripeClient } from "../src/clients/stripe.client.js";
 import prisma from "../src/lib/db/prisma.js";
@@ -17,9 +14,6 @@ async function main(): Promise<void> {
       plan: FREE_SUBSCRIPTION_PLAN,
       periodEnd: {
         gt: new Date(),
-      },
-      status: {
-        in: [...ACTIVE_SUBSCRIPTION_STATUSES],
       },
       stripeSubscriptionId: {
         not: null,
