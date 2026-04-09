@@ -287,6 +287,7 @@ async function transitionToNextLocalFreeSubscriptionPeriod(
 
       await ensureLocalFreeSubscriptionPeriod(
         {
+          billingAnchorDate: subscription.createdAt,
           memberUserIds: members.map((member) => member.userId),
           organizationId: organization.id,
           periodEnd,
@@ -322,6 +323,7 @@ async function transitionToNextLocalFreeSubscriptionPeriod(
 
       await ensureLocalFreeSubscriptionPeriod(
         {
+          billingAnchorDate: subscription.createdAt,
           organizationId: null,
           userId: user.id,
           periodEnd,

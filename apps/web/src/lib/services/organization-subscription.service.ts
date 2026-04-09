@@ -16,6 +16,7 @@ import { stripeService } from "@/lib/services/stripe.service";
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 interface ActiveOrganizationSubscription {
+  createdAt: Date;
   id: string;
   periodEnd: Date | null;
   periodStart: Date | null;
@@ -41,6 +42,7 @@ async function getLatestActiveOrganizationSubscription(
   }
 
   return {
+    createdAt: subscription.createdAt,
     id: subscription.id,
     periodEnd: subscription.periodEnd,
     periodStart: subscription.periodStart,
@@ -238,6 +240,7 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
 
     await ensureLocalFreeSubscriptionPeriod(
       {
+        billingAnchorDate: currentActiveSubscription.createdAt,
         memberUserIds,
         organizationId,
         periodEnd,

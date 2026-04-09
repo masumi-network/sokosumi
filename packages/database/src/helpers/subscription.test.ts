@@ -151,6 +151,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
+        billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: null,
         userId: "user-1",
         periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -167,6 +168,10 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
     });
     assert.equal(findSubscriptionMock.mock.calls.length, 1);
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
+    assert.equal(
+      createSubscriptionMock.mock.calls[0]?.[0].data.createdAt?.toISOString(),
+      "2026-04-01T00:00:00.000Z",
+    );
     assert.equal(createSubscriptionMock.mock.calls[0]?.[0].data.seats, 1);
     assert.equal(findUniqueBucketMock.mock.calls.length, 1);
     assert.equal(createTransactionMock.mock.calls.length, 1);
@@ -178,6 +183,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
+        billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         memberUserIds: ["member-1", "member-1", "owner-1"],
         organizationId: "org-1",
         periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -193,6 +199,10 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
       subscriptionId: "subscription-local-free",
     });
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
+    assert.equal(
+      createSubscriptionMock.mock.calls[0]?.[0].data.createdAt?.toISOString(),
+      "2026-04-01T00:00:00.000Z",
+    );
     assert.equal(createSubscriptionMock.mock.calls[0]?.[0].data.seats, 2);
     assert.equal(createTransactionMock.mock.calls.length, 2);
   });
@@ -203,6 +213,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
     await assert.rejects(
       ensureLocalFreeSubscriptionPeriod(
         {
+          billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
           memberUserIds: [],
           organizationId: "org-1",
           periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -226,6 +237,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
+        billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: null,
         userId: "user-1",
         periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -272,6 +284,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     assert.deepEqual(createdPersonalSubscription, {
       billingInterval: "month",
       cancelAtPeriodEnd: false,
+      createdAt: new Date("2026-04-01T10:00:00.000Z"),
       id: createdPersonalSubscription.id,
       periodEnd: new Date("2026-05-01T10:00:00.000Z"),
       periodStart: new Date("2026-04-01T10:00:00.000Z"),
@@ -343,6 +356,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     assert.deepEqual(createdOrganizationSubscription, {
       billingInterval: "month",
       cancelAtPeriodEnd: false,
+      createdAt: new Date("2026-04-01T10:00:00.000Z"),
       id: createdOrganizationSubscription.id,
       periodEnd: new Date("2026-05-01T10:00:00.000Z"),
       periodStart: new Date("2026-04-01T10:00:00.000Z"),

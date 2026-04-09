@@ -27,6 +27,7 @@ interface LocalFreeSubscriptionGrant {
 }
 
 interface EnsureLocalFreeSubscriptionPeriodBaseParams {
+  billingAnchorDate: Date;
   periodEnd: Date;
   periodStart: Date;
   referenceId: string;
@@ -238,6 +239,7 @@ export async function ensureLocalFreeSubscriptionPeriod(
       data: {
         billingInterval: MONTHLY_BILLING_INTERVAL,
         cancelAtPeriodEnd: false,
+        createdAt: params.billingAnchorDate,
         id: uuidv4(),
         periodEnd: params.periodEnd,
         periodStart: params.periodStart,
@@ -323,6 +325,7 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
   if (params.kind === "user") {
     return await ensureLocalFreeSubscriptionPeriod(
       {
+        billingAnchorDate: params.createdAt,
         organizationId: null,
         userId: params.userId,
         periodEnd,
@@ -343,6 +346,7 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
 
   return await ensureLocalFreeSubscriptionPeriod(
     {
+      billingAnchorDate: params.createdAt,
       memberUserIds,
       organizationId: params.organizationId,
       periodEnd,
