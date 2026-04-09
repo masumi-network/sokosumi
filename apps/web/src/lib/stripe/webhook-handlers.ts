@@ -11,19 +11,25 @@ import {
   buildOrganizationInvoiceCreditReferenceId,
   buildOrganizationMemberSubscriptionReferenceId,
   buildUserInvoiceCreditReferenceId,
-  convertCentsToCredits,
-  convertCreditsToCents,
+  ensureInitialLocalFreeSubscriptionPeriod,
   escapeStringForLike,
-  FREE_CREDITS_EXPIRY_DAYS,
+  FREE_SUBSCRIPTION_PLAN,
   getCreditExpiryDate,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+  transitionToNextLocalFreeSubscriptionPeriod,
 } from "@sokosumi/database/helpers";
 import {
   memberRepository,
   organizationRepository,
+  subscriptionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import { getOrganizationMetadata } from "@sokosumi/utils";
+import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+  FREE_CREDITS_EXPIRY_DAYS,
+  getOrganizationMetadata,
+} from "@sokosumi/utils";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -898,27 +904,23 @@ export async function handleCustomerCreatedEvent(
   switch (metadata?.customerType) {
     case "user": {
       const userId = metadata.userId;
-      await prisma.user.update({
+      const user = await prisma.user.update({
         where: { id: userId },
         data: { stripeCustomerId: customer.id },
       });
       console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
 
-      const freeSubscriptionResult =
-        await stripeService.ensurePersonalFreeSubscription(userId);
-      if (freeSubscriptionResult.status === "created") {
-        console.log(
-          `✅ Created free subscription for user ${userId} (${freeSubscriptionResult.subscriptionId})`,
+      await prisma.$transaction(async (tx) => {
+        await ensureInitialLocalFreeSubscriptionPeriod(
+          {
+            createdAt: user.createdAt,
+            kind: "user",
+            stripeCustomerId: customer.id,
+            userId,
+          },
+          tx,
         );
-      } else if (freeSubscriptionResult.status === "skipped") {
-        console.log(
-          `ℹ️ Skipped free subscription for user ${userId}: ${freeSubscriptionResult.reason}`,
-        );
-      } else {
-        console.log(
-          `⚠️ Failed free subscription enrollment for user ${userId}: ${freeSubscriptionResult.reason}`,
-        );
-      }
+      });
 
       const { couponApplied, invoiceId } =
         await stripeService.claimWelcomeCoupon(userId);
@@ -932,7 +934,7 @@ export async function handleCustomerCreatedEvent(
       break;
     }
     case "organization": {
-      await prisma.organization.update({
+      const organization = await prisma.organization.update({
         where: { id: metadata.organizationId },
         data: { stripeCustomerId: customer.id },
       });
@@ -940,23 +942,17 @@ export async function handleCustomerCreatedEvent(
         `✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`,
       );
 
-      const freeSubscriptionResult =
-        await stripeService.ensureOrganizationFreeSubscription(
-          metadata.organizationId,
+      await prisma.$transaction(async (tx) => {
+        await ensureInitialLocalFreeSubscriptionPeriod(
+          {
+            createdAt: organization.createdAt,
+            kind: "organization",
+            organizationId: metadata.organizationId,
+            stripeCustomerId: customer.id,
+          },
+          tx,
         );
-      if (freeSubscriptionResult.status === "created") {
-        console.log(
-          `✅ Created free subscription for organization ${metadata.organizationId} (${freeSubscriptionResult.subscriptionId})`,
-        );
-      } else if (freeSubscriptionResult.status === "skipped") {
-        console.log(
-          `ℹ️ Skipped free subscription for organization ${metadata.organizationId}: ${freeSubscriptionResult.reason}`,
-        );
-      } else {
-        console.log(
-          `⚠️ Failed free subscription enrollment for organization ${metadata.organizationId}: ${freeSubscriptionResult.reason}`,
-        );
-      }
+      });
       break;
     }
     default: {
@@ -1008,4 +1004,51 @@ export async function handleCustomerUpdatedEvent(
     // Currently, user emails are managed through the auth system
     console.log(`User customer ${customer.id} updated, no action taken`);
   }
+}
+
+export async function handleSubscriptionDeletedEvent(
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  const localSubscription =
+    await subscriptionRepository.getSubscriptionByStripeSubscriptionId(
+      subscription.id,
+      prisma,
+    );
+
+  if (!localSubscription || localSubscription.stripeSubscriptionId === null) {
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const latestActiveSubscription =
+      await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+        localSubscription.referenceId,
+        tx,
+      );
+
+    if (
+      latestActiveSubscription &&
+      latestActiveSubscription.id !== localSubscription.id &&
+      latestActiveSubscription.plan !== FREE_SUBSCRIPTION_PLAN
+    ) {
+      return;
+    }
+
+    await transitionToNextLocalFreeSubscriptionPeriod(
+      {
+        setCanceledAt: true,
+        subscription: {
+          canceledAt: localSubscription.canceledAt,
+          createdAt: localSubscription.createdAt,
+          endedAt: localSubscription.endedAt,
+          id: localSubscription.id,
+          periodEnd: localSubscription.periodEnd,
+          referenceId: localSubscription.referenceId,
+          stripeCustomerId: localSubscription.stripeCustomerId,
+          stripeSubscriptionId: localSubscription.stripeSubscriptionId,
+        },
+      },
+      tx,
+    );
+  });
 }

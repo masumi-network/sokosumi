@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,12 +13,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { CommonErrorCode } from "@/lib/actions";
+import { CommonErrorCode } from "@/lib/actions/errors";
 import {
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+import type {
+  PaidSubscriptionPlanName,
+  SubscriptionPlanName,
+} from "@/lib/stripe/subscription-catalog";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
@@ -29,7 +32,9 @@ import {
 } from "./subscription-plan-utils";
 
 interface OrganizationSubscriptionSectionProps {
+  cancelAtPeriodEnd: boolean;
   currentPlan: SubscriptionPlanName | null;
+  currentPeriodEnd: Date | string | null;
   currentSeats: number;
   memberCount: number;
   organizationId: string;
@@ -38,7 +43,9 @@ interface OrganizationSubscriptionSectionProps {
 }
 
 export function OrganizationSubscriptionSection({
+  cancelAtPeriodEnd,
   currentPlan,
+  currentPeriodEnd,
   currentSeats,
   memberCount,
   organizationId,
@@ -49,6 +56,7 @@ export function OrganizationSubscriptionSection({
     "App.Organizations.OrganizationDetail.Subscription",
   );
   const tSubscriptions = useTranslations("App.Subscriptions");
+  const formatter = useFormatter();
   const router = useRouter();
   const { freePlan, paidPlans } = useMemo(
     () => splitSubscriptionPlans(plans),
@@ -66,6 +74,33 @@ export function OrganizationSubscriptionSection({
   useEffect(() => {
     setTargetSeats(Math.max(currentSeats, minimumSeats));
   }, [currentSeats, minimumSeats]);
+
+  const cancellationDate = useMemo(() => {
+    if (!cancelAtPeriodEnd || !currentPeriodEnd) {
+      return null;
+    }
+
+    const date =
+      currentPeriodEnd instanceof Date
+        ? currentPeriodEnd
+        : new Date(currentPeriodEnd);
+
+    return formatter.dateTime(date, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }, [cancelAtPeriodEnd, currentPeriodEnd, formatter]);
+
+  const cancellationLabel = useMemo(() => {
+    if (!cancellationDate) {
+      return null;
+    }
+
+    return tSubscriptions("cancelsOnDate", {
+      date: cancellationDate,
+    });
+  }, [cancellationDate, tSubscriptions]);
 
   const handleOpenLogin = useCallback(() => {
     router.push("/login");
@@ -106,23 +141,8 @@ export function OrganizationSubscriptionSection({
     [getSubscriptionActionErrorMessage, handleOpenLogin, t],
   );
 
-  const getPlanActionLabel = useCallback(
-    (plan: SubscriptionPlanView, hasSamePlanAndSeats: boolean) => {
-      if (hasSamePlanAndSeats) {
-        return t("currentPlanCta");
-      }
-
-      if (plan.isCurrent) {
-        return t("updateSeatsCta");
-      }
-
-      return t("choosePlanCta");
-    },
-    [t],
-  );
-
   const handleUpgradePlan = useCallback(
-    async (planName: SubscriptionPlanName) => {
+    async (planName: PaidSubscriptionPlanName) => {
       if (!Number.isInteger(targetSeats) || targetSeats < minimumSeats) {
         toast.error(t("Errors.badInput"));
         return;
@@ -159,15 +179,21 @@ export function OrganizationSubscriptionSection({
           return;
         }
 
-        window.location.href = result.data.url;
+        if (result.data.mode === "redirect") {
+          window.location.href = result.data.url;
+          return;
+        }
+
+        toast.success(tSubscriptions("statusSuccess"));
+        router.refresh();
       } finally {
         setPendingPlan(null);
       }
     },
     [
       currentPlan,
-      currentSeats,
       handleSubscriptionActionError,
+      currentSeats,
       minimumSeats,
       organizationId,
       returnPath,
@@ -178,16 +204,27 @@ export function OrganizationSubscriptionSection({
   );
 
   function getPlanPresentationProps(plan: SubscriptionPlanView) {
-    const hasSamePlanAndSeats = plan.isCurrent && currentSeats === targetSeats;
+    const isCurrentPlan = plan.isCurrent;
+    const hasSamePlanAndSeats = isCurrentPlan && currentSeats === targetSeats;
+
+    let actionLabel: null | string = t("choosePlanCta");
+    if (isCurrentPlan && cancelAtPeriodEnd) {
+      actionLabel = cancellationLabel;
+    } else if (isCurrentPlan && !hasSamePlanAndSeats) {
+      actionLabel = t("updateSeatsCta");
+    } else if (isCurrentPlan) {
+      actionLabel = tSubscriptions("currentPlanCta");
+    }
 
     return {
-      actionLabel: getPlanActionLabel(plan, hasSamePlanAndSeats),
+      actionLabel,
       creditsText: t("includedCreditsPerSeat", {
         credits: plan.credits,
       }),
       isDisabled:
         pendingPlan !== null ||
-        hasSamePlanAndSeats ||
+        (isCurrentPlan && cancelAtPeriodEnd) ||
+        (isCurrentPlan && hasSamePlanAndSeats) ||
         targetSeats < minimumSeats,
       isPlanPending: pendingPlan === plan.name,
       loadingLabel: t("updating"),
@@ -254,9 +291,7 @@ export function OrganizationSubscriptionSection({
                 key={plan.name}
                 {...planPresentationProps}
                 isAnyPlanPending={pendingPlan !== null}
-                onUpgrade={(nextPlan) => {
-                  void handleUpgradePlan(nextPlan);
-                }}
+                onAction={handleUpgradePlan}
                 plan={plan}
               />
             );
@@ -265,11 +300,9 @@ export function OrganizationSubscriptionSection({
 
         {freePlan ? (
           <SubscriptionFreePlanRow
-            {...getPlanPresentationProps(freePlan)}
-            isAnyPlanPending={pendingPlan !== null}
-            onUpgrade={(nextPlan) => {
-              void handleUpgradePlan(nextPlan);
-            }}
+            creditsText={t("includedCreditsPerSeat", {
+              credits: freePlan.credits,
+            })}
             plan={freePlan}
           />
         ) : null}

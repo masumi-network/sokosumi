@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Organization } from "@sokosumi/database";
-import { FREE_CREDITS_EXPIRY_DAYS } from "@sokosumi/database/helpers";
+import { FREE_CREDITS_EXPIRY_DAYS } from "@sokosumi/utils";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

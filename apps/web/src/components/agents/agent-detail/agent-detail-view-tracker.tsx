@@ -1,7 +1,7 @@
 "use client";
 
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { useEffect } from "react";
 
 import { fireGTMEvent } from "@/lib/gtm-events";

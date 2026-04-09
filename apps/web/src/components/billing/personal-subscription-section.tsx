@@ -2,13 +2,16 @@
 
 import { CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { CommonErrorCode } from "@/lib/actions";
+import { CommonErrorCode } from "@/lib/actions/errors";
 import { upgradePersonalSubscription } from "@/lib/actions/subscription";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+import type {
+  PaidSubscriptionPlanName,
+  SubscriptionPlanName,
+} from "@/lib/stripe/subscription-catalog";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
@@ -18,17 +21,22 @@ import {
 } from "./subscription-plan-utils";
 
 interface PersonalSubscriptionSectionProps {
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: Date | string | null;
   plans: SubscriptionPlanView[];
   returnPath?: string;
   status: "cancel" | "success" | null;
 }
 
 export function PersonalSubscriptionSection({
+  cancelAtPeriodEnd,
+  currentPeriodEnd,
   plans,
   returnPath,
   status,
 }: PersonalSubscriptionSectionProps) {
   const t = useTranslations("App.Subscriptions");
+  const formatter = useFormatter();
   const router = useRouter();
   const { freePlan, paidPlans } = useMemo(
     () => splitSubscriptionPlans(plans),
@@ -48,7 +56,34 @@ export function PersonalSubscriptionSection({
     return null;
   }, [status, t]);
 
-  async function handleUpgradePlan(plan: SubscriptionPlanName) {
+  const cancellationDate = useMemo(() => {
+    if (!cancelAtPeriodEnd || !currentPeriodEnd) {
+      return null;
+    }
+
+    const date =
+      currentPeriodEnd instanceof Date
+        ? currentPeriodEnd
+        : new Date(currentPeriodEnd);
+
+    return formatter.dateTime(date, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }, [cancelAtPeriodEnd, currentPeriodEnd, formatter]);
+
+  const cancellationLabel = useMemo(() => {
+    if (!cancellationDate) {
+      return null;
+    }
+
+    return t("cancelsOnDate", {
+      date: cancellationDate,
+    });
+  }, [cancellationDate, t]);
+
+  async function handlePlanAction(plan: PaidSubscriptionPlanName) {
     setPendingPlan(plan);
     try {
       const result = await upgradePersonalSubscription({
@@ -78,7 +113,13 @@ export function PersonalSubscriptionSection({
         return;
       }
 
-      window.location.href = result.data.url;
+      if (result.data.mode === "redirect") {
+        window.location.href = result.data.url;
+        return;
+      }
+
+      toast.success(t("statusSuccess"));
+      router.refresh();
     } finally {
       setPendingPlan(null);
     }
@@ -98,26 +139,22 @@ export function PersonalSubscriptionSection({
           {paidPlans.map((plan) => (
             <SubscriptionPlanCard
               key={plan.name}
+              actionLabel={
+                plan.isCurrent
+                  ? (cancellationLabel ?? t("currentPlanCta"))
+                  : t("upgradePlanCta")
+              }
+              isDisabled={pendingPlan !== null || plan.isCurrent}
               isAnyPlanPending={pendingPlan !== null}
               isPlanPending={pendingPlan === plan.name}
-              onUpgrade={(nextPlan) => {
-                void handleUpgradePlan(nextPlan);
-              }}
+              loadingLabel={t("upgrading")}
+              onAction={handlePlanAction}
               plan={plan}
             />
           ))}
         </div>
 
-        {freePlan ? (
-          <SubscriptionFreePlanRow
-            isAnyPlanPending={pendingPlan !== null}
-            isPlanPending={pendingPlan === freePlan.name}
-            onUpgrade={(nextPlan) => {
-              void handleUpgradePlan(nextPlan);
-            }}
-            plan={freePlan}
-          />
-        ) : null}
+        {freePlan ? <SubscriptionFreePlanRow plan={freePlan} /> : null}
       </div>
     </div>
   );

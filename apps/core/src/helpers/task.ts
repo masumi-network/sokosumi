@@ -1,5 +1,5 @@
 import { TaskStatus } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import { isCoworkerAuthContext } from "@/middleware/auth";
