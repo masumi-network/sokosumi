@@ -511,7 +511,13 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
         return;
       }
 
-      window.location.href = result.data.url;
+      if (result.data.mode === "redirect") {
+        window.location.href = result.data.url;
+        return;
+      }
+
+      toast.success(tSubscriptions("statusSuccess"));
+      await handleComplete("Onboarding subscription completed");
     } catch {
       toast.error(tErrors("unexpectedError"));
     } finally {
