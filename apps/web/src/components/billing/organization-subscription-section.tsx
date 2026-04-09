@@ -18,7 +18,10 @@ import {
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+import type {
+  PaidSubscriptionPlanName,
+  SubscriptionPlanName,
+} from "@/lib/stripe/subscription-catalog";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
@@ -38,8 +41,6 @@ interface OrganizationSubscriptionSectionProps {
   plans: SubscriptionPlanView[];
   returnPath: string;
 }
-
-type PaidSubscriptionPlanName = Exclude<SubscriptionPlanName, "free">;
 
 export function OrganizationSubscriptionSection({
   cancelAtPeriodEnd,
@@ -202,26 +203,12 @@ export function OrganizationSubscriptionSection({
     ],
   );
 
-  const handlePaidPlanAction = useCallback(
-    (planName: SubscriptionPlanName) => {
-      if (planName === "free") {
-        return;
-      }
-
-      void handleUpgradePlan(planName);
-    },
-    [handleUpgradePlan],
-  );
-
   function getPlanPresentationProps(plan: SubscriptionPlanView) {
-    const isFreePlan = plan.name === "free";
     const isCurrentPlan = plan.isCurrent;
     const hasSamePlanAndSeats = isCurrentPlan && currentSeats === targetSeats;
 
     let actionLabel: null | string = t("choosePlanCta");
-    if (isFreePlan) {
-      actionLabel = null;
-    } else if (isCurrentPlan && cancelAtPeriodEnd) {
+    if (isCurrentPlan && cancelAtPeriodEnd) {
       actionLabel = cancellationLabel;
     } else if (isCurrentPlan && !hasSamePlanAndSeats) {
       actionLabel = t("updateSeatsCta");
@@ -304,7 +291,7 @@ export function OrganizationSubscriptionSection({
                 key={plan.name}
                 {...planPresentationProps}
                 isAnyPlanPending={pendingPlan !== null}
-                onAction={handlePaidPlanAction}
+                onAction={handleUpgradePlan}
                 plan={plan}
               />
             );
@@ -313,9 +300,9 @@ export function OrganizationSubscriptionSection({
 
         {freePlan ? (
           <SubscriptionFreePlanRow
-            {...getPlanPresentationProps(freePlan)}
-            isAnyPlanPending={pendingPlan !== null}
-            onAction={handlePaidPlanAction}
+            creditsText={t("includedCreditsPerSeat", {
+              credits: freePlan.credits,
+            })}
             plan={freePlan}
           />
         ) : null}

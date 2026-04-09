@@ -8,7 +8,10 @@ import { toast } from "sonner";
 
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { upgradePersonalSubscription } from "@/lib/actions/subscription";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+import type {
+  PaidSubscriptionPlanName,
+  SubscriptionPlanName,
+} from "@/lib/stripe/subscription-catalog";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
@@ -24,8 +27,6 @@ interface PersonalSubscriptionSectionProps {
   returnPath?: string;
   status: "cancel" | "success" | null;
 }
-
-type PaidSubscriptionPlanName = Exclude<SubscriptionPlanName, "free">;
 
 export function PersonalSubscriptionSection({
   cancelAtPeriodEnd,
@@ -124,14 +125,6 @@ export function PersonalSubscriptionSection({
     }
   }
 
-  function handlePaidPlanAction(plan: SubscriptionPlanName) {
-    if (plan === "free") {
-      return;
-    }
-
-    void handlePlanAction(plan);
-  }
-
   return (
     <div className="space-y-8">
       {statusMessage ? (
@@ -155,21 +148,13 @@ export function PersonalSubscriptionSection({
               isAnyPlanPending={pendingPlan !== null}
               isPlanPending={pendingPlan === plan.name}
               loadingLabel={t("upgrading")}
-              onAction={handlePaidPlanAction}
+              onAction={handlePlanAction}
               plan={plan}
             />
           ))}
         </div>
 
-        {freePlan ? (
-          <SubscriptionFreePlanRow
-            actionLabel={null}
-            isAnyPlanPending={pendingPlan !== null}
-            isPlanPending={pendingPlan === freePlan.name}
-            onAction={handlePaidPlanAction}
-            plan={freePlan}
-          />
-        ) : null}
+        {freePlan ? <SubscriptionFreePlanRow plan={freePlan} /> : null}
       </div>
     </div>
   );

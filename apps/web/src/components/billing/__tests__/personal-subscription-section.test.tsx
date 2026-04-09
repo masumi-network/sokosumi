@@ -103,7 +103,6 @@ describe("PersonalSubscriptionSection", () => {
     );
     expect(subscriptionFreePlanRowMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        actionLabel: null,
         plan: expect.objectContaining({ name: "free" }),
       }),
     );

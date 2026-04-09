@@ -115,7 +115,7 @@ describe("OrganizationSubscriptionSection", () => {
     );
     expect(subscriptionFreePlanRowMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        actionLabel: null,
+        creditsText: 'includedCreditsPerSeat:{"credits":250}',
         plan: expect.objectContaining({ name: "free" }),
       }),
     );

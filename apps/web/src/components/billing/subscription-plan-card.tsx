@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import { cn } from "@/lib/utils";
 import {
   formatPlanPrice,
@@ -20,7 +20,7 @@ import {
 } from "./subscription-plan-presentation";
 import {
   getPlanTranslationKey,
-  type SubscriptionPlanView,
+  type PaidSubscriptionPlanView,
 } from "./subscription-plan-utils";
 
 interface SubscriptionPlanCardProps {
@@ -30,8 +30,8 @@ interface SubscriptionPlanCardProps {
   isAnyPlanPending: boolean;
   isPlanPending: boolean;
   loadingLabel?: string;
-  onAction: (plan: SubscriptionPlanName) => void;
-  plan: SubscriptionPlanView;
+  onAction: (plan: PaidSubscriptionPlanName) => void;
+  plan: PaidSubscriptionPlanView;
 }
 
 export function SubscriptionPlanCard({
@@ -108,8 +108,7 @@ export function SubscriptionPlanCard({
             isCurrent={plan.isCurrent}
             isPlanPending={isPlanPending}
             loadingLabel={resolvedLoadingLabel}
-            onAction={onAction}
-            planName={plan.name}
+            onPress={() => onAction(plan.name)}
           />
         </CardFooter>
       ) : null}

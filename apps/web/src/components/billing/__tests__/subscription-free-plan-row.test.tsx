@@ -20,13 +20,9 @@ vi.mock("next-intl", () => ({
 import { SubscriptionFreePlanRow } from "../subscription-free-plan-row";
 
 describe("SubscriptionFreePlanRow", () => {
-  it("does not render a CTA when actionLabel is null", () => {
+  it("renders plan details without a selectable CTA", () => {
     const { container } = render(
       <SubscriptionFreePlanRow
-        actionLabel={null}
-        isAnyPlanPending={false}
-        isPlanPending={false}
-        onAction={() => {}}
         plan={{
           credits: 250,
           currency: "eur",
@@ -37,11 +33,7 @@ describe("SubscriptionFreePlanRow", () => {
       />,
     );
 
-    expect(
-      screen.queryByRole("button", {
-        name: "upgradePlanCta",
-      }),
-    ).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
     expect(container.querySelector(".md\\:grid-cols-3")).toBeNull();
     expect(
       container.querySelector(

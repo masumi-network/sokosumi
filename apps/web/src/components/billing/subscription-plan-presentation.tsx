@@ -3,7 +3,6 @@
 import { Check, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
 interface FormatPlanPriceParams {
   formatCurrency: (amount: number) => string;
@@ -17,8 +16,7 @@ interface SubscriptionPlanActionButtonProps {
   isCurrent: boolean;
   isPlanPending: boolean;
   loadingLabel: string;
-  onAction: (plan: SubscriptionPlanName) => void;
-  planName: SubscriptionPlanName;
+  onPress: () => void;
 }
 
 interface SubscriptionPlanFeatureListProps {
@@ -77,8 +75,7 @@ export function SubscriptionPlanActionButton({
   isCurrent,
   isPlanPending,
   loadingLabel,
-  onAction,
-  planName,
+  onPress,
 }: SubscriptionPlanActionButtonProps) {
   if (!actionLabel) {
     return null;
@@ -89,7 +86,7 @@ export function SubscriptionPlanActionButton({
       className="w-full"
       variant={isCurrent ? "outline" : "default"}
       disabled={disabled}
-      onClick={() => onAction(planName)}
+      onClick={onPress}
     >
       {isPlanPending ? (
         <>
