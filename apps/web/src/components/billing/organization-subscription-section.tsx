@@ -202,7 +202,6 @@ export function OrganizationSubscriptionSection({
       }
     },
     [
-      cancellationDate,
       currentPlan,
       handleSubscriptionActionError,
       currentSeats,
@@ -211,6 +210,7 @@ export function OrganizationSubscriptionSection({
       returnPath,
       router,
       t,
+      tSubscriptions,
       targetSeats,
     ],
   );
