@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import { cn } from "@/lib/utils";
 import {
   formatPlanPrice,
@@ -20,18 +20,18 @@ import {
 } from "./subscription-plan-presentation";
 import {
   getPlanTranslationKey,
-  type SubscriptionPlanView,
+  type PaidSubscriptionPlanView,
 } from "./subscription-plan-utils";
 
 interface SubscriptionPlanCardProps {
-  actionLabel?: string;
+  actionLabel?: null | string;
   creditsText?: string;
   isDisabled?: boolean;
   isAnyPlanPending: boolean;
   isPlanPending: boolean;
   loadingLabel?: string;
-  onUpgrade: (plan: SubscriptionPlanName) => void;
-  plan: SubscriptionPlanView;
+  onAction: (plan: PaidSubscriptionPlanName) => void;
+  plan: PaidSubscriptionPlanView;
 }
 
 export function SubscriptionPlanCard({
@@ -41,7 +41,7 @@ export function SubscriptionPlanCard({
   isAnyPlanPending,
   isPlanPending,
   loadingLabel,
-  onUpgrade,
+  onAction,
   plan,
 }: SubscriptionPlanCardProps) {
   const t = useTranslations("App.Subscriptions");
@@ -51,7 +51,11 @@ export function SubscriptionPlanCard({
   const featureItems = resolvePlanFeatureItems(rawItems);
   const resolvedDisabled = isDisabled ?? (isAnyPlanPending || plan.isCurrent);
   const resolvedActionLabel =
-    actionLabel ?? (plan.isCurrent ? t("currentPlanCta") : t("upgradePlanCta"));
+    actionLabel === undefined
+      ? plan.isCurrent
+        ? t("currentPlanCta")
+        : t("upgradePlanCta")
+      : actionLabel;
   const resolvedLoadingLabel = loadingLabel ?? t("upgrading");
 
   return (
@@ -81,6 +85,7 @@ export function SubscriptionPlanCard({
               formatter.number(amount, {
                 style: "currency",
                 currency: plan.currency.toUpperCase(),
+                notation: "compact",
               }),
             freePriceLabel: t("freePrice"),
             monthlyAmount: plan.monthlyAmount,
@@ -95,17 +100,18 @@ export function SubscriptionPlanCard({
           title={t(`Plans.${translationKey}.features.title`)}
         />
       </CardContent>
-      <CardFooter className="mt-auto">
-        <SubscriptionPlanActionButton
-          actionLabel={resolvedActionLabel}
-          disabled={resolvedDisabled}
-          isCurrent={plan.isCurrent}
-          isPlanPending={isPlanPending}
-          loadingLabel={resolvedLoadingLabel}
-          onUpgrade={onUpgrade}
-          planName={plan.name}
-        />
-      </CardFooter>
+      {resolvedActionLabel ? (
+        <CardFooter className="mt-auto">
+          <SubscriptionPlanActionButton
+            actionLabel={resolvedActionLabel}
+            disabled={resolvedDisabled}
+            isCurrent={plan.isCurrent}
+            isPlanPending={isPlanPending}
+            loadingLabel={resolvedLoadingLabel}
+            onPress={() => onAction(plan.name)}
+          />
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }

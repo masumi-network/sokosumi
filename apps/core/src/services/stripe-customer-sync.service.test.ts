@@ -5,7 +5,9 @@ const {
   createUserCustomerMock,
   organizationFindManyMock,
   organizationFindUniqueMock,
+  organizationUpdateMock,
   pLimitMock,
+  userUpdateMock,
   userFindManyMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
@@ -13,7 +15,9 @@ const {
   createUserCustomerMock: vi.fn(),
   organizationFindManyMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
+  organizationUpdateMock: vi.fn(),
   pLimitMock: vi.fn(),
+  userUpdateMock: vi.fn(),
   userFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
 }));
@@ -35,10 +39,12 @@ vi.mock("@/lib/db/prisma", () => ({
     organization: {
       findMany: organizationFindManyMock,
       findUnique: organizationFindUniqueMock,
+      update: organizationUpdateMock,
     },
     user: {
       findMany: userFindManyMock,
       findUnique: userFindUniqueMock,
+      update: userUpdateMock,
     },
   },
 }));
@@ -74,7 +80,7 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
     pLimitMock.mockImplementation(() => (task: () => Promise<void>) => task());
 
     userFindManyMock.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);
-    organizationFindManyMock.mockResolvedValue([{ id: "organization-1" }]);
+    organizationFindManyMock.mockResolvedValue([{ id: "org-1" }]);
 
     userFindUniqueMock.mockImplementation(
       ({ where }: { where: { id: string } }) =>
@@ -84,14 +90,11 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
           name: `User ${where.id}`,
         }),
     );
-
     organizationFindUniqueMock.mockImplementation(
       ({ where }: { where: { id: string } }) =>
         Promise.resolve({
           id: where.id,
-          metadata: JSON.stringify({
-            invoiceEmail: `${where.id}@billing.example.com`,
-          }),
+          metadata: null,
           name: `Organization ${where.id}`,
           slug: `${where.id}-slug`,
         }),
@@ -99,6 +102,8 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
 
     createUserCustomerMock.mockResolvedValue({ id: "cus_user" });
     createOrganizationCustomerMock.mockResolvedValue({ id: "cus_org" });
+    userUpdateMock.mockResolvedValue(undefined);
+    organizationUpdateMock.mockResolvedValue(undefined);
   });
 
   it("uses p-limit with configured concurrency for users and organizations", async () => {
@@ -112,7 +117,6 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
     expect(pLimitMock).toHaveBeenCalledWith(5);
 
     expect(createUserCustomerMock).toHaveBeenCalledTimes(2);
-    expect(createOrganizationCustomerMock).toHaveBeenCalledTimes(1);
     expect(createUserCustomerMock).toHaveBeenCalledWith(
       {
         email: "user-1@example.com",
@@ -123,12 +127,13 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
         timeout: expect.any(Number),
       },
     );
+    expect(createOrganizationCustomerMock).toHaveBeenCalledTimes(1);
     expect(createOrganizationCustomerMock).toHaveBeenCalledWith(
       {
-        invoiceEmail: "organization-1@billing.example.com",
-        name: "Organization organization-1",
-        organizationId: "organization-1",
-        slug: "organization-1-slug",
+        invoiceEmail: null,
+        name: "Organization org-1",
+        organizationId: "org-1",
+        slug: "org-1-slug",
       },
       {
         timeout: expect.any(Number),
@@ -143,10 +148,7 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
       { id: "user-2" },
       { id: "user-3" },
     ]);
-    organizationFindManyMock.mockResolvedValue([
-      { id: "organization-1" },
-      { id: "organization-2" },
-    ]);
+    organizationFindManyMock.mockResolvedValue([]);
 
     let continueChecks = 0;
     const shouldContinue = vi.fn(() => {
@@ -161,7 +163,6 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
     );
 
     expect(createUserCustomerMock).toHaveBeenCalledTimes(1);
-    expect(createOrganizationCustomerMock).not.toHaveBeenCalled();
     expect(createUserCustomerMock).toHaveBeenCalledWith(
       {
         email: "user-1@example.com",
@@ -202,7 +203,7 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
   it("waits for already-scheduled operations to settle before returning", async () => {
     const stripeCustomerSyncService = await getStripeCustomerSyncService();
     userFindManyMock.mockResolvedValue([{ id: "user-1" }]);
-    organizationFindManyMock.mockResolvedValue([{ id: "organization-1" }]);
+    organizationFindManyMock.mockResolvedValue([]);
 
     let resolveFirstCreate: (() => void) | undefined;
     createUserCustomerMock
@@ -239,25 +240,12 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
 
     expect(settled).toBe(true);
     expect(createUserCustomerMock).toHaveBeenCalledTimes(1);
-    expect(createOrganizationCustomerMock).toHaveBeenCalledTimes(1);
     expect(createUserCustomerMock).toHaveBeenNthCalledWith(
       1,
       {
         email: "user-1@example.com",
         name: "User user-1",
         userId: "user-1",
-      },
-      {
-        timeout: expect.any(Number),
-      },
-    );
-    expect(createOrganizationCustomerMock).toHaveBeenNthCalledWith(
-      1,
-      {
-        invoiceEmail: "organization-1@billing.example.com",
-        name: "Organization organization-1",
-        organizationId: "organization-1",
-        slug: "organization-1-slug",
       },
       {
         timeout: expect.any(Number),

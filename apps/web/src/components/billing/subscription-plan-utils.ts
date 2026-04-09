@@ -23,14 +23,14 @@ export interface ActiveSubscription {
 
 interface SplitSubscriptionPlansResult {
   freePlan: SubscriptionPlanView | null;
-  paidPlans: SubscriptionPlanView[];
+  paidPlans: PaidSubscriptionPlanView[];
 }
 
 export function splitSubscriptionPlans(
   plans: SubscriptionPlanView[],
 ): SplitSubscriptionPlansResult {
   let freePlan: SubscriptionPlanView | null = null;
-  const paidPlans: SubscriptionPlanView[] = [];
+  const paidPlans: PaidSubscriptionPlanView[] = [];
 
   for (const plan of plans) {
     if (plan.name === "free") {
@@ -38,7 +38,7 @@ export function splitSubscriptionPlans(
       continue;
     }
 
-    paidPlans.push(plan);
+    paidPlans.push(plan as PaidSubscriptionPlanView);
   }
 
   return {

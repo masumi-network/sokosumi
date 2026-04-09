@@ -1,4 +1,4 @@
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
   AgentJobStatus,

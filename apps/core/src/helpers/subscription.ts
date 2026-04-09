@@ -1,8 +1,7 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
-import {
-  convertCentsToCredits,
-  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
-} from "@sokosumi/database/helpers";
+import { getOrganizationMemberSubscriptionReferencePrefixForStartsWith } from "@sokosumi/database/helpers";
+import { subscriptionRepository } from "@sokosumi/database/repositories";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { getCredits } from "@/helpers/user";
 
@@ -208,12 +207,15 @@ export async function buildCreditsPayload(params: {
     params.organizationId,
     params.tx,
   );
-  const latestSubscription = await params.tx.subscription.findFirst({
-    where: {
-      referenceId: params.referenceId,
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  const latestSubscription =
+    (await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+      params.referenceId,
+      params.tx,
+    )) ??
+    (await subscriptionRepository.getLatestSubscriptionByReferenceId(
+      params.referenceId,
+      params.tx,
+    ));
   const subscriptionCredits = await getCurrentSubscriptionCredits({
     subscription: latestSubscription,
     userId: params.userId,

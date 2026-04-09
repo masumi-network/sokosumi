@@ -1,13 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 import {
-  convertCentsToCredits,
-  convertCreditsToCents,
-} from "@sokosumi/database/helpers";
-import {
   type Consumption,
   creditBucketRepository,
 } from "@sokosumi/database/repositories";
+import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest, conflict } from "@/helpers/error";

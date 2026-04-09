@@ -65,22 +65,21 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "7.6.0",
-    "@prisma/client": "7.6.0",
+    "@prisma/adapter-pg": "7.7.0",
+    "@prisma/client": "7.7.0",
     "@sokosumi/masumi": "workspace:*",
     "@sokosumi/utils": "workspace:*",
-    "decimal.js": "10.6.0",
     "pg": "8.20.0",
     "pg-pool": "3.13.0",
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@types/node": "24.12.0",
+    "@types/node": "24.12.2",
     "@types/pg": "8.20.0",
-    "dotenv": "17.4.0",
-    "prisma": "7.6.0",
+    "dotenv": "17.4.1",
+    "prisma": "7.7.0",
     "tsx": "4.21.0",
     "typescript": "6.0.2",
-    "vitest": "4.1.2"
+    "vitest": "4.1.4"
   }
 }

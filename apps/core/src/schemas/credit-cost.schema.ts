@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import type { CreditCost as DatabaseCreditCost } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 

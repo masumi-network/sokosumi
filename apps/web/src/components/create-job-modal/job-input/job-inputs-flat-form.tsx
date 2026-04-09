@@ -1,11 +1,11 @@
 "use client";
 
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import type {
   InputFieldSchemaType,
   InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import {
   CalendarClock,
   Clock,

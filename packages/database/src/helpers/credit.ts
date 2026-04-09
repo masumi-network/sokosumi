@@ -1,11 +1,7 @@
-import { Decimal } from "decimal.js";
-
-const CREDITS_BASE = 10 ** 10;
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 export const ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX = "member:";
 export const USER_CREDIT_REFERENCE_PREFIX = "user:";
 export const ORGANIZATION_CREDIT_REFERENCE_PREFIX = "org:";
-export const FREE_CREDITS_EXPIRY_DAYS = 30;
 
 interface SplitAmountEvenlyWithRemainderRotationParams {
   memberIds: string[];
@@ -24,30 +20,6 @@ export function getCreditExpiryDate(baseDate: Date, days: number): Date {
   }
 
   return new Date(baseDate.getTime() + days * MILLISECONDS_PER_DAY);
-}
-
-/**
- * Converts credit cents (stored as BigInt) to user-facing credit value.
- * @param cents - Credit amount in cents (1 credit = 10^10 cents)
- * @returns Credit value as decimal number
- */
-export function convertCentsToCredits(cents: bigint): number {
-  let credits = 0;
-  if (cents > BigInt(Number.MAX_SAFE_INTEGER)) {
-    credits = new Decimal(cents.toString()).div(CREDITS_BASE).toNumber();
-  } else {
-    credits = Number(cents) / CREDITS_BASE;
-  }
-  return credits;
-}
-
-/**
- * Converts user-facing credit value to credit cents (stored as BigInt).
- * @param credits - Credit value as decimal number
- * @returns Credit amount in cents (1 credit = 10^10 cents)
- */
-export function convertCreditsToCents(credits: number): bigint {
-  return BigInt(new Decimal(credits).mul(CREDITS_BASE).toFixed(0).toString());
 }
 
 /**
