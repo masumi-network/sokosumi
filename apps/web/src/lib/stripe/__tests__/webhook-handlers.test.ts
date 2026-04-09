@@ -1448,9 +1448,10 @@ describe("handleSubscriptionDeletedEvent", () => {
       "sub_123",
       expect.anything(),
     );
-    expect(
-      getLatestActiveSubscriptionByReferenceIdMock,
-    ).toHaveBeenCalledWith("user-1", expect.anything());
+    expect(getLatestActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
+      "user-1",
+      expect.anything(),
+    );
     expect(
       transitionToNextLocalFreeSubscriptionPeriodMock,
     ).toHaveBeenCalledWith(
