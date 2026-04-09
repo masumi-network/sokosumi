@@ -1050,7 +1050,8 @@
         "skip": "Salta",
         "back": "Indietro",
         "next": "Avanti",
-        "getStarted": "Inizia"
+        "getStarted": "Inizia",
+        "subscribe": "Abbonati"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "Coworker",
@@ -1076,6 +1077,10 @@
         "orchestration": {
           "title": "Gestiscono il resto",
           "description": "Il tuo coworker assume agenti specializzati per ricerca, scrittura, analisi: tutto ciò che serve al task."
+        },
+        "plans": {
+          "title": "Scegli il piano che ti aiuta a crescere più velocemente",
+          "description": "Inizia con un piano a pagamento per sbloccare più crediti, coworker più potenti e funzionalità premium fin dal primo giorno."
         }
       },
       "visuals": {
@@ -1655,6 +1660,7 @@
       "currentPlanBadge": "Attuale",
       "pricePerMonth": "al mese",
       "includedCredits": "{credits, plural, =0 {Nessun credito} =1 {# credito incluso} other {# crediti inclusi}}",
+      "mostPopularBadge": "Più popolare",
       "upgrading": "Reindirizzamento...",
       "currentPlanCta": "Piano attuale",
       "upgradePlanCta": "Scegli un piano",

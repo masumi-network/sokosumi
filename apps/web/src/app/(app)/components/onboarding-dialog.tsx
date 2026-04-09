@@ -9,7 +9,9 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import type { SubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
 import { SokosumiIcon } from "@/components/masumi-logos";
+import { OnboardingPlanRadioGrid } from "@/components/onboarding/onboarding-plan-radio-grid";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,9 +25,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
+import { CommonErrorCode } from "@/lib/actions";
 import { completeOnboarding } from "@/lib/actions/onboarding";
+import { upgradePersonalSubscription } from "@/lib/actions/subscription";
+import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
-const INTRO_STEP_COUNT = 4;
+const INTRO_STEP_COUNT = 5;
+const DEFAULT_SELECTED_PLAN: SubscriptionPlanName = "standard";
 
 /* ─── Animated visuals ─── */
 
@@ -313,6 +319,7 @@ function OrchestrationVisual({
 function StepNavigation({
   step,
   totalSteps,
+  showSkip,
   labels,
   isLoading,
   onBack,
@@ -322,11 +329,12 @@ function StepNavigation({
 }: {
   step: number;
   totalSteps: number;
+  showSkip: boolean;
   labels: {
     skip: string;
     back: string;
     next: string;
-    getStarted: string;
+    finish: string;
   };
   isLoading: boolean;
   onBack: () => void;
@@ -350,7 +358,7 @@ function StepNavigation({
         ))}
       </div>
       <div className="flex items-center justify-between">
-        {!isLast ? (
+        {showSkip ? (
           <Button
             variant="ghost"
             className="text-muted-foreground"
@@ -373,7 +381,7 @@ function StepNavigation({
           </Button>
           {isLast ? (
             <Button variant="primary" onClick={onFinish} disabled={isLoading}>
-              {labels.getStarted}
+              {labels.finish}
             </Button>
           ) : (
             <Button variant="primary" onClick={onNext} disabled={isLoading}>
@@ -389,14 +397,33 @@ function StepNavigation({
 
 /* ─── Main dialog ─── */
 
-export function OnboardingDialog() {
+interface OnboardingDialogProps {
+  paidPlans: SubscriptionPlanView[];
+}
+
+function resolveInitialSelectedPlan(
+  paidPlans: SubscriptionPlanView[],
+): SubscriptionPlanName {
+  const selectablePlans = paidPlans.filter((plan) => !plan.isCurrent);
+  const preferredPlan = selectablePlans.find(
+    (plan) => plan.name === DEFAULT_SELECTED_PLAN,
+  );
+
+  return preferredPlan?.name ?? selectablePlans[0]?.name ?? "starter";
+}
+
+export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
   const tMetadata = useTranslations("Onboarding.Metadata");
   const tDialog = useTranslations("Onboarding.Dialog");
   const tErrors = useTranslations("Onboarding.Actions.Errors");
+  const tSubscriptions = useTranslations("App.Subscriptions");
   const router = useRouter();
   const [open, setOpen] = useState(true);
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanName>(() =>
+    resolveInitialSelectedPlan(paidPlans),
+  );
   const { coworkers: apiCoworkers } = useCoworkersContext();
 
   if (!open) return null;
@@ -427,6 +454,10 @@ export function OnboardingDialog() {
       title: tDialog("intro.orchestration.title"),
       description: tDialog("intro.orchestration.description"),
     },
+    {
+      title: tDialog("intro.plans.title"),
+      description: tDialog("intro.plans.description"),
+    },
   ];
 
   const handleComplete = async (eventName: string) => {
@@ -447,8 +478,48 @@ export function OnboardingDialog() {
       setIsLoading(false);
     }
   };
+
+  const handleStartSubscription = async () => {
+    track("Onboarding plan checkout started", { plan: selectedPlan });
+    setIsLoading(true);
+
+    try {
+      const result = await upgradePersonalSubscription({
+        plan: selectedPlan,
+        returnPath: "/tasks?onboarding_subscription=1",
+      });
+
+      if (!result.ok) {
+        switch (result.error.code) {
+          case CommonErrorCode.UNAUTHENTICATED:
+            toast.error(tSubscriptions("Errors.unauthenticated"), {
+              action: {
+                label: tSubscriptions("Errors.unauthenticatedAction"),
+                onClick: () => {
+                  router.push("/login");
+                },
+              },
+            });
+            break;
+          case CommonErrorCode.BAD_INPUT:
+            toast.error(tSubscriptions("Errors.badInput"));
+            break;
+          default:
+            toast.error(tSubscriptions("Errors.general"));
+            break;
+        }
+        return;
+      }
+
+      window.location.href = result.data.url;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const isWelcome = step === 0;
-  const hasSplitLayout = !isWelcome;
+  const isPlanStep = step === INTRO_STEP_COUNT - 1;
+  const hasSplitLayout = !isWelcome && !isPlanStep;
   const firstCoworkerName = coworkers[0]?.name ?? "";
   const firstCoworkerAvatarUrl =
     coworkers[0]?.avatar ?? "/images/coworkers/elena.webp";
@@ -459,7 +530,7 @@ export function OnboardingDialog() {
   return (
     <Dialog open={open}>
       <DialogContent
-        className="max-w-3xl! overflow-hidden border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[90vw] [&>button]:hidden"
+        className="max-w-6xl! h-full md:h-auto overflow-hidden border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[90vw] [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
@@ -468,9 +539,9 @@ export function OnboardingDialog() {
           {tMetadata("description")}
         </DialogDescription>
 
-        <div className="bg-background flex max-h-svh flex-col overflow-hidden rounded-xl shadow-lg md:h-[560px]">
+        <div className="bg-background flex max-h-svh flex-col overflow-hidden rounded-xl shadow-lg md:max-h-[85vh] md:min-h-[768px]">
           {/* Content area */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:overflow-hidden md:flex-row">
             {/* Visual panel — stacked on mobile, side panel on desktop */}
             {hasSplitLayout && (
               <div className="bg-muted flex h-44 shrink-0 border-b md:h-auto md:w-[42%] md:shrink md:border-r md:border-b-0">
@@ -512,12 +583,13 @@ export function OnboardingDialog() {
             )}
 
             {/* Main content */}
-            <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto p-6 text-center md:p-10">
+            <div className="flex flex-1 flex-col items-center justify-center p-6 text-center md:overflow-y-auto md:p-10">
               {/* Welcome */}
               {isWelcome && (
                 <>
                   <SokosumiIcon
-                    size={48}
+                    width={72}
+                    height={72}
                     animated={false}
                     className="text-foreground"
                   />
@@ -562,7 +634,7 @@ export function OnboardingDialog() {
                 </>
               )}
 
-              {/* Steps 1–3 text content */}
+              {/* Steps 1-3 text content */}
               {hasSplitLayout && (
                 <div className="md:self-start md:text-left">
                   <h2 className="text-2xl font-semibold tracking-tight">
@@ -573,6 +645,24 @@ export function OnboardingDialog() {
                   </p>
                 </div>
               )}
+
+              {isPlanStep && (
+                <div className="w-full max-w-5xl space-y-6 text-left">
+                  <div className="space-y-3 text-center">
+                    <h2 className="text-2xl font-semibold tracking-tight">
+                      {introSteps[step].title}
+                    </h2>
+                    <p className="text-muted-foreground mx-auto max-w-2xl text-[15px] leading-relaxed">
+                      {introSteps[step].description}
+                    </p>
+                  </div>
+                  <OnboardingPlanRadioGrid
+                    plans={paidPlans}
+                    value={selectedPlan}
+                    onValueChange={setSelectedPlan}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -581,17 +671,20 @@ export function OnboardingDialog() {
             <StepNavigation
               step={step}
               totalSteps={INTRO_STEP_COUNT}
+              showSkip
               labels={{
                 skip: tDialog("navigation.skip"),
                 back: tDialog("navigation.back"),
                 next: tDialog("navigation.next"),
-                getStarted: tDialog("navigation.getStarted"),
+                finish: isPlanStep
+                  ? tDialog("navigation.subscribe")
+                  : tDialog("navigation.getStarted"),
               }}
               isLoading={isLoading}
-              onBack={() => setStep(step - 1)}
-              onNext={() => setStep(step + 1)}
-              onSkip={() => handleComplete("Onboarding skipped")}
-              onFinish={() => handleComplete("Onboarding completed")}
+              onBack={() => setStep((currentStep) => currentStep - 1)}
+              onNext={() => setStep((currentStep) => currentStep + 1)}
+              onSkip={() => void handleComplete("Onboarding skipped")}
+              onFinish={() => void handleStartSubscription()}
             />
           </div>
         </div>
