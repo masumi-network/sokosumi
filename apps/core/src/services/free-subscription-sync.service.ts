@@ -147,8 +147,7 @@ async function renewLocalFreeSubscriptionPeriod(
   await prisma.$transaction(async (tx) => {
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
-        operationKind: "renew-local-free",
-        setCanceledAtOnCloseOut: false,
+        setCanceledAt: false,
         subscription,
       },
       tx,
@@ -205,16 +204,12 @@ async function renewLocalFreeSubscriptions(
           (subscription) => !attemptedSubscriptionIds.has(subscription.id),
         ),
       );
-    const localSubscriptionsNeedingRenewal = subscriptionsNeedingRenewal.filter(
-      (subscription): subscription is LocalFreeSubscriptionRecord =>
-        subscription.stripeSubscriptionId === null,
-    );
 
-    if (localSubscriptionsNeedingRenewal.length === 0) {
+    if (subscriptionsNeedingRenewal.length === 0) {
       return;
     }
 
-    for (const subscription of localSubscriptionsNeedingRenewal) {
+    for (const subscription of subscriptionsNeedingRenewal) {
       if (
         shouldStopSync(
           options,

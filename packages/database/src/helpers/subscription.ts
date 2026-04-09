@@ -57,8 +57,7 @@ export interface EnsureLocalFreeSubscriptionPeriodResult {
 }
 
 export interface TransitionToNextLocalFreeSubscriptionParams {
-  operationKind: "migrate" | "renew-local-free";
-  setCanceledAtOnCloseOut: boolean;
+  setCanceledAt: boolean;
   subscription: {
     canceledAt: Date | null;
     createdAt: Date;
@@ -264,12 +263,8 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
     });
 
     if (members.length === 0) {
-      const prefix =
-        params.operationKind === "migrate"
-          ? `Cannot migrate subscription ${subscription.id}`
-          : `Cannot renew local free subscription ${subscription.id}`;
       throw new Error(
-        `${prefix}: organization ${organization.id} has no members`,
+        `Cannot transition subscription ${subscription.id}: organization ${organization.id} has no members`,
       );
     }
 
@@ -328,7 +323,7 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
       id: subscription.id,
     },
     data: {
-      ...(params.setCanceledAtOnCloseOut
+      ...(params.setCanceledAt
         ? { canceledAt: subscription.canceledAt ?? settledAt }
         : {}),
       endedAt: subscription.endedAt ?? periodStart,

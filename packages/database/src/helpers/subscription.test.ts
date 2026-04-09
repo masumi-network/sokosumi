@@ -451,8 +451,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
 
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
-        operationKind: "migrate",
-        setCanceledAtOnCloseOut: true,
+        setCanceledAt: true,
         subscription: {
           canceledAt: null,
           createdAt: new Date("2026-01-30T10:00:00.000Z"),
@@ -494,8 +493,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
 
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
-        operationKind: "renew-local-free",
-        setCanceledAtOnCloseOut: false,
+        setCanceledAt: false,
         subscription: {
           canceledAt: null,
           createdAt: new Date("2026-02-01T00:00:00.000Z"),

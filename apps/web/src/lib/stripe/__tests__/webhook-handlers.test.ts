@@ -1448,8 +1448,7 @@ describe("handleSubscriptionDeletedEvent", () => {
       transitionToNextLocalFreeSubscriptionPeriodMock,
     ).toHaveBeenCalledWith(
       {
-        operationKind: "migrate",
-        setCanceledAtOnCloseOut: true,
+        setCanceledAt: true,
         subscription: {
           canceledAt: new Date("2026-04-09T07:39:30.188Z"),
           createdAt: new Date("2026-03-09T07:39:30.188Z"),
@@ -1489,8 +1488,7 @@ describe("handleSubscriptionDeletedEvent", () => {
       transitionToNextLocalFreeSubscriptionPeriodMock,
     ).toHaveBeenCalledWith(
       {
-        operationKind: "migrate",
-        setCanceledAtOnCloseOut: true,
+        setCanceledAt: true,
         subscription: {
           canceledAt: new Date("2026-04-09T07:39:30.188Z"),
           createdAt: new Date("2026-03-09T07:39:30.188Z"),

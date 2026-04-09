@@ -1021,8 +1021,7 @@ export async function handleSubscriptionDeletedEvent(
   await prisma.$transaction(async (tx) => {
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
-        operationKind: "migrate",
-        setCanceledAtOnCloseOut: true,
+        setCanceledAt: true,
         subscription: {
           canceledAt: localSubscription.canceledAt,
           createdAt: localSubscription.createdAt,
