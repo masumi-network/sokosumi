@@ -66,6 +66,7 @@ export interface TransitionToNextLocalFreeSubscriptionParams {
     periodEnd: Date | null;
     referenceId: string;
     stripeCustomerId: string | null;
+    stripeSubscriptionId: string | null;
   };
 }
 

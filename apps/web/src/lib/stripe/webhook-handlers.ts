@@ -1030,6 +1030,7 @@ export async function handleSubscriptionDeletedEvent(
           periodEnd: localSubscription.periodEnd,
           referenceId: localSubscription.referenceId,
           stripeCustomerId: localSubscription.stripeCustomerId,
+          stripeSubscriptionId: localSubscription.stripeSubscriptionId,
         },
       },
       tx,
