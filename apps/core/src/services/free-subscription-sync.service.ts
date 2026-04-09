@@ -373,8 +373,13 @@ async function syncLegacyStripeFreeSubscriptions(
   const now = new Date();
   const subscriptionsToCancelAtPeriodEnd = await prisma.subscription.findMany({
     where: {
-      cancelAtPeriodEnd: false,
+      NOT: {
+        cancelAtPeriodEnd: true,
+      },
       plan: FREE_SUBSCRIPTION_PLAN,
+      periodEnd: {
+        gt: now,
+      },
       status: {
         in: [...LEGACY_STRIPE_FREE_SUBSCRIPTION_STATUSES],
       },
@@ -419,11 +424,28 @@ async function syncLegacyStripeFreeSubscriptions(
 
   const dueStripeBackedSubscriptions = await prisma.subscription.findMany({
     where: {
-      cancelAtPeriodEnd: true,
       plan: FREE_SUBSCRIPTION_PLAN,
       periodEnd: {
         lte: now,
       },
+      OR: [
+        {
+          cancelAtPeriodEnd: true,
+        },
+        {
+          status: "canceled",
+        },
+        {
+          endedAt: {
+            not: null,
+          },
+        },
+        {
+          canceledAt: {
+            not: null,
+          },
+        },
+      ],
       stripeSubscriptionId: {
         not: null,
       },

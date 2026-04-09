@@ -127,6 +127,12 @@ describe("freeSubscriptionSyncService", () => {
       1,
       expect.objectContaining({
         where: expect.objectContaining({
+          NOT: {
+            cancelAtPeriodEnd: true,
+          },
+          periodEnd: {
+            gt: new Date("2026-04-15T00:00:00.000Z"),
+          },
           status: {
             in: expect.arrayContaining(["incomplete", "paused"]),
           },
@@ -238,7 +244,14 @@ describe("freeSubscriptionSyncService", () => {
       2,
       expect.objectContaining({
         where: expect.objectContaining({
-          cancelAtPeriodEnd: true,
+          OR: expect.arrayContaining([
+            {
+              cancelAtPeriodEnd: true,
+            },
+            {
+              status: "canceled",
+            },
+          ]),
           plan: "free",
           periodEnd: {
             lte: expect.any(Date),
@@ -256,6 +269,85 @@ describe("freeSubscriptionSyncService", () => {
       }),
       expect.any(Object),
     );
+  });
+
+  it("migrates overdue Stripe-backed subscriptions with terminal state even when cancel-at-period-end was never stored", async () => {
+    subscriptionFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          cancelAtPeriodEnd: null,
+          canceledAt: new Date("2026-04-01T00:00:00.000Z"),
+          endedAt: new Date("2026-04-01T00:00:00.000Z"),
+          id: "sub-terminal-null-flag",
+          periodEnd: new Date("2026-04-01T00:00:00.000Z"),
+          referenceId: "org-1",
+          seats: 3,
+          status: "canceled",
+          stripeCustomerId: "cus_terminal",
+          stripeSubscriptionId: "sub_stripe_terminal",
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    await freeSubscriptionSyncService.syncLegacyStripeFreeSubscriptions(
+      createSyncExecutionOptions(),
+    );
+
+    expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memberUserIds: ["user-1", "user-2"],
+        organizationId: "org-1",
+        periodStart: new Date("2026-04-01T00:00:00.000Z"),
+        referenceId: "org-1",
+        stripeCustomerId: "cus_terminal",
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it("does not migrate future Stripe-backed subscriptions before they are due", async () => {
+    subscriptionFindManyMock
+      .mockResolvedValueOnce([
+        {
+          cancelAtPeriodEnd: null,
+          canceledAt: null,
+          endedAt: null,
+          id: "sub-future-1",
+          periodEnd: new Date("2026-05-01T00:00:00.000Z"),
+          referenceId: "user-future",
+          seats: 1,
+          status: "active",
+          stripeCustomerId: "cus_future",
+          stripeSubscriptionId: "sub_stripe_future",
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    await freeSubscriptionSyncService.syncLegacyStripeFreeSubscriptions(
+      createSyncExecutionOptions(),
+    );
+
+    expect(subscriptionFindManyMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          periodEnd: {
+            lte: new Date("2026-04-15T00:00:00.000Z"),
+          },
+        }),
+      }),
+    );
+    expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
+    expect(transactionSubscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
   it("skips migration when the next local free period already exists", async () => {
