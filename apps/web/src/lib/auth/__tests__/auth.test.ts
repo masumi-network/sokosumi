@@ -1070,6 +1070,128 @@ describe("web auth config", () => {
     );
   });
 
+  it("does not block user creation on a pending Stripe customer request", async () => {
+    let resolveStripeCustomerCreation:
+      | ((value: { id: string }) => void)
+      | null = null;
+    stripeCreateUserCustomerMock.mockImplementation(
+      () =>
+        new Promise<{ id: string }>((resolve) => {
+          resolveStripeCustomerCreation = resolve;
+        }),
+    );
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  marketingOptIn: boolean;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    let settled = false;
+
+    const afterPromise = config.databaseHooks.user.create.after({
+      email: "magic@example.com",
+      id: "user_123",
+      marketingOptIn: true,
+      name: "magic",
+    });
+    afterPromise.then(() => {
+      settled = true;
+    });
+
+    await Promise.resolve();
+
+    expect(settled).toBe(true);
+    expect(callUserCreatedWebHookMock).toHaveBeenCalledWith(
+      "user_123",
+      "magic@example.com",
+      "magic",
+      true,
+    );
+
+    resolveStripeCustomerCreation?.({ id: "cus_user_pending" });
+    await afterPromise;
+  });
+
+  it("does not block organization creation on a pending Stripe customer request", async () => {
+    let resolveStripeCustomerCreation:
+      | ((value: { id: string }) => void)
+      | null = null;
+    stripeCreateOrganizationCustomerMock.mockImplementation(
+      () =>
+        new Promise<{ id: string }>((resolve) => {
+          resolveStripeCustomerCreation = resolve;
+        }),
+    );
+
+    await import("../auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              member: { userId: string };
+              organization: {
+                createdAt?: Date;
+                id: string;
+                metadata?: string | null;
+                name: string;
+                slug: string;
+              };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    let settled = false;
+
+    const afterPromise = config.organizationHooks.afterCreateOrganization({
+      member: { userId: "user-1" },
+      organization: {
+        createdAt: new Date("2026-04-08T00:00:00.000Z"),
+        id: "org-1",
+        metadata: null,
+        name: "Org One",
+        slug: "org-one",
+      },
+      user: { id: "user-1" },
+    });
+    afterPromise.then(() => {
+      settled = true;
+    });
+
+    await Promise.resolve();
+
+    expect(settled).toBe(true);
+    expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
+      "org-1",
+      "org-one",
+      "Org One",
+      null,
+    );
+
+    resolveStripeCustomerCreation?.({ id: "cus_org_pending" });
+    await afterPromise;
+  });
+
   it("syncs local free organization seats and credits after accepting an invitation", async () => {
     await import("../auth");
 

@@ -317,7 +317,7 @@ export const auth = betterAuth({
           };
         },
         after: async (user, _ctx) => {
-          await ensureStripeCustomerForCreatedUser(user);
+          void ensureStripeCustomerForCreatedUser(user);
 
           // Validate user data before calling webhook
           const { success, data, error } =
@@ -555,7 +555,7 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
-          await ensureStripeCustomerForCreatedOrganization(organization);
+          void ensureStripeCustomerForCreatedOrganization(organization);
         },
         beforeAcceptInvitation: async ({ organization }) => {
           await organizationSubscriptionService.ensureCanAcceptInvitation(
