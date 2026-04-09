@@ -287,7 +287,9 @@ async function TaskDetailActionsSlot({
       taskId={taskId}
       status={taskWithCoworker.status}
       jobsCount={taskWithCoworker.jobsCount}
-      canCollaborate={canCollaborateOnTask}
+      canEdit={isTaskOwner}
+      canChangeStatus={isTaskOwner}
+      canManageRelations={canCollaborateOnTask}
       canDelete={isTaskOwner}
       canMove={isTaskOwner}
       canShare={isTaskOwner}

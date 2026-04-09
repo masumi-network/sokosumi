@@ -135,6 +135,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         coworkerId: authContext.coworkerId,
         archivedAt: null,
         ...(statuses ? { status: { in: statuses } } : {}),
+        ...(agentId ? { jobs: { some: { agentId } } } : {}),
         ...searchFilter,
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };

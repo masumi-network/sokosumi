@@ -76,4 +76,56 @@ describe("GET /coworkers/me/events", () => {
     expect(taskEventFindManyMock).not.toHaveBeenCalled();
     expect(taskEventCountMock).not.toHaveBeenCalled();
   });
+
+  it("serializes coworker task events with nullable user data", async () => {
+    taskEventFindManyMock.mockResolvedValue([
+      {
+        id: "evt_123",
+        taskId: "tsk_123",
+        createdAt: new Date("2025-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+        userId: null,
+        coworkerId: "cow_123",
+        transactionId: null,
+        cents: null,
+        comment: "Looks good.",
+        authenticationUrl: null,
+        origin: "SOKOSUMI",
+        status: "RUNNING",
+        user: null,
+        transaction: null,
+      },
+    ]);
+    taskEventCountMock.mockResolvedValue(1);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/me/events");
+
+    expect(response.status).toBe(200);
+    expect(taskEventFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+          transaction: {
+            select: { amount: true },
+          },
+        },
+      }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      data: [
+        {
+          id: "evt_123",
+          user: null,
+          credits: null,
+        },
+      ],
+    });
+  });
 });

@@ -541,7 +541,9 @@ function renderActions(
       share={null}
       status={TASK_STATUS.READY}
       jobsCount={0}
-      canCollaborate
+      canEdit
+      canChangeStatus
+      canManageRelations
       canDelete
       canMove
       canShare
@@ -587,7 +589,9 @@ describe("TaskDetailActions", () => {
 
   it("hides all actions when the viewer has no task permissions", () => {
     renderActions({
-      canCollaborate: false,
+      canEdit: false,
+      canChangeStatus: false,
+      canManageRelations: false,
       canDelete: false,
       canMove: false,
       canShare: false,
@@ -605,6 +609,8 @@ describe("TaskDetailActions", () => {
     const user = userEvent.setup();
 
     renderActions({
+      canEdit: false,
+      canChangeStatus: false,
       canDelete: false,
       canMove: false,
       canShare: false,
@@ -619,7 +625,9 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
-    expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Edit" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: "Mark as" }),
     ).toBeInTheDocument();

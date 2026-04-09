@@ -282,6 +282,32 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("filters coworker task lists by associated agentId", async () => {
+    const app = createApp("coworker");
+
+    const response = await app.request("http://localhost/?agentId=agent_456");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          coworkerId: "cow_123",
+          jobs: {
+            some: {
+              agentId: "agent_456",
+            },
+          },
+          NOT: {
+            status: {
+              in: [TaskStatus.DRAFT],
+            },
+          },
+        },
+      }),
+    );
+  });
+
   it("rejects memberId values outside the active organization", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
     const app = createApp();

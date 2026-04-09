@@ -3,6 +3,7 @@ import {
   type WorkspaceWithRelations,
   workspaceSummaryInclude,
 } from "../types/workspace.js";
+import { memberRepository } from "./member.repository.js";
 
 export const workspaceRepository = {
   async findPersonalWorkspace(
@@ -75,10 +76,17 @@ export const workspaceRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<WorkspaceWithRelations | null> {
     if (organizationId) {
+      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+        userId,
+        organizationId,
+        tx,
+      );
+      if (!member) {
+        return null;
+      }
       return await this.findOrganizationWorkspace(organizationId, tx);
-    } else {
-      return await this.findPersonalWorkspace(userId, tx);
     }
+    return await this.findPersonalWorkspace(userId, tx);
   },
 
   async upsertWorkspaceForContext(
@@ -87,9 +95,16 @@ export const workspaceRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<WorkspaceWithRelations> {
     if (organizationId) {
+      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+        userId,
+        organizationId,
+        tx,
+      );
+      if (!member) {
+        return await this.upsertPersonalWorkspace(userId, tx);
+      }
       return await this.upsertOrganizationWorkspace(organizationId, tx);
-    } else {
-      return await this.upsertPersonalWorkspace(userId, tx);
     }
+    return await this.upsertPersonalWorkspace(userId, tx);
   },
 };

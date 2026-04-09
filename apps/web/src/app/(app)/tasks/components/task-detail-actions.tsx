@@ -97,7 +97,9 @@ interface TaskDetailActionsProps {
   share: TaskShare | null;
   status: TaskStatus;
   jobsCount: number;
-  canCollaborate?: boolean;
+  canEdit?: boolean;
+  canChangeStatus?: boolean;
+  canManageRelations?: boolean;
   canDelete?: boolean;
   canMove?: boolean;
   canShare?: boolean;
@@ -117,7 +119,9 @@ export function TaskDetailActions({
   share,
   status,
   jobsCount,
-  canCollaborate = false,
+  canEdit = false,
+  canChangeStatus = false,
+  canManageRelations = false,
   canDelete = false,
   canMove = false,
   canShare = false,
@@ -176,9 +180,9 @@ export function TaskDetailActions({
     status === TASK_STATUS.FAILED ||
     status === TASK_STATUS.CANCELED ||
     status === TASK_STATUS.CANCEL_REQUESTED;
-  const canEdit = canCollaborate && canEditOrDeleteByStatus;
-  const canManageRelations = canCollaborate && !isFinalized;
-  const statusActions = canCollaborate
+  const canEditTask = canEdit && canEditOrDeleteByStatus;
+  const canManageTaskRelations = canManageRelations && !isFinalized;
+  const statusActions = canChangeStatus
     ? getTaskStatusActions(status, labels)
     : [];
   const canMoveTask =
@@ -199,12 +203,13 @@ export function TaskDetailActions({
       ),
     [taskLinks],
   );
-  const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
-  const canRemoveParent = canManageRelations && parentLinks.length > 0;
+  const canRemoveRelated =
+    canManageTaskRelations && removableTaskLinks.length > 0;
+  const canRemoveParent = canManageTaskRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
     statusActions.length > 0 ||
-    canEdit ||
-    canManageRelations ||
+    canEditTask ||
+    canManageTaskRelations ||
     canMoveTask ||
     canDeleteTask;
   const taskPickerOptions = useMemo(
@@ -431,11 +436,14 @@ export function TaskDetailActions({
             })}
 
             {statusActions.length > 0 &&
-            (canEdit || canManageRelations || canMoveTask || canDeleteTask) ? (
+            (canEditTask ||
+              canManageTaskRelations ||
+              canMoveTask ||
+              canDeleteTask) ? (
               <DropdownMenuSeparator />
             ) : null}
 
-            {canEdit ? (
+            {canEditTask ? (
               <DropdownMenuItem asChild disabled={actionsDisabled}>
                 <Link
                   href={`/tasks/${taskId}/edit`}
@@ -449,7 +457,7 @@ export function TaskDetailActions({
               </DropdownMenuItem>
             ) : null}
 
-            {canManageRelations ? (
+            {canManageTaskRelations ? (
               <>
                 {isMobile ? (
                   <>
@@ -709,7 +717,7 @@ export function TaskDetailActions({
               </>
             ) : null}
 
-            {(canEdit || canManageRelations) && canMoveTask ? (
+            {(canEditTask || canManageTaskRelations) && canMoveTask ? (
               <DropdownMenuSeparator />
             ) : null}
 
@@ -725,8 +733,8 @@ export function TaskDetailActions({
 
             {canDeleteTask &&
             (statusActions.length > 0 ||
-              canEdit ||
-              canManageRelations ||
+              canEditTask ||
+              canManageTaskRelations ||
               canMoveTask) ? (
               <DropdownMenuSeparator />
             ) : null}
