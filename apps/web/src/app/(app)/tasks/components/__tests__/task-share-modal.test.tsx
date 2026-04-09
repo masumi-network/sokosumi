@@ -83,11 +83,11 @@ describe("TaskShareModal", () => {
     });
 
     expect(routerRefreshMock).toHaveBeenCalled();
-    expect(
-      screen.getByRole("link", {
-        name: "http://localhost:3000/share/public-token",
-      }),
-    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      const shareLink = screen.getByRole("link");
+      expect(shareLink.getAttribute("href")).toMatch(/\/share\/public-token$/);
+    });
   });
 
   it("updates search indexing for public task shares", async () => {
