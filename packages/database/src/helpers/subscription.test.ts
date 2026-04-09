@@ -542,6 +542,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
           periodEnd: null,
           referenceId: "user-1",
           stripeCustomerId: "cus_1",
+          stripeSubscriptionId: null,
         },
       },
       tx,
