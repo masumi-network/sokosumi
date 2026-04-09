@@ -55,7 +55,9 @@ export default async function TaskDetailPage({
   const membersPromise = userService.getMyMembersWithOrganizations();
   const sessionPromise = getSession();
   const localePromise = getLocale();
-  const currentPlanPromise = getCurrentPlan(task.organizationId);
+  const currentPlanPromise = sessionPromise.then((session) =>
+    getCurrentPlan(session, task.organizationId),
+  );
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
 
@@ -398,9 +400,9 @@ async function TaskActivitySectionContent({
 }
 
 async function getCurrentPlan(
+  session: SessionResult,
   organizationId: string | null,
 ): Promise<"free" | "pro" | "standard" | "starter"> {
-  const session = await getSession();
   if (!session) {
     return "free";
   }
