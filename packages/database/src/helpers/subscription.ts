@@ -90,6 +90,11 @@ export type EnsureInitialLocalFreeSubscriptionPeriodParams =
   | EnsureInitialLocalFreeOrganizationSubscriptionPeriodParams
   | EnsureInitialLocalFreeUserSubscriptionPeriodParams;
 
+interface NextLocalFreePeriod {
+  periodEnd: Date;
+  periodStart: Date;
+}
+
 function cloneDate(value: Date): Date {
   return new Date(value.getTime());
 }
@@ -227,6 +232,39 @@ function normalizeLocalFreeSubscriptionPeriod(
   };
 }
 
+function buildNextLocalFreePeriod(subscription: {
+  createdAt: Date;
+  periodEnd: Date;
+}): NextLocalFreePeriod {
+  const periodStart = new Date(subscription.periodEnd.getTime());
+  return {
+    periodEnd: getNextMonthlyPeriodEnd(periodStart, subscription.createdAt),
+    periodStart,
+  };
+}
+
+async function closeOutSourceSubscription(params: {
+  id: string;
+  periodStart: Date;
+  setCanceledAt: boolean;
+  settledAt: Date;
+  subscription: TransitionToNextLocalFreeSubscriptionParams["subscription"];
+  tx: Prisma.TransactionClient;
+}): Promise<void> {
+  await params.tx.subscription.update({
+    where: {
+      id: params.id,
+    },
+    data: {
+      ...(params.setCanceledAt
+        ? { canceledAt: params.subscription.canceledAt ?? params.settledAt }
+        : {}),
+      endedAt: params.subscription.endedAt ?? params.periodStart,
+      status: "canceled",
+    },
+  });
+}
+
 export async function transitionToNextLocalFreeSubscriptionPeriod(
   params: TransitionToNextLocalFreeSubscriptionParams,
   tx: Prisma.TransactionClient,
@@ -237,11 +275,10 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
     return;
   }
 
-  const periodStart = new Date(subscription.periodEnd.getTime());
-  const periodEnd = getNextMonthlyPeriodEnd(
-    periodStart,
-    subscription.createdAt,
-  );
+  const { periodEnd, periodStart } = buildNextLocalFreePeriod({
+    createdAt: subscription.createdAt,
+    periodEnd: subscription.periodEnd,
+  });
   const settledAt = new Date();
   const organization = await tx.organization.findUnique({
     where: {
@@ -291,15 +328,13 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
     });
 
     if (!user) {
-      await tx.subscription.update({
-        where: {
-          id: subscription.id,
-        },
-        data: {
-          canceledAt: subscription.canceledAt ?? settledAt,
-          endedAt: subscription.endedAt ?? periodStart,
-          status: "canceled",
-        },
+      await closeOutSourceSubscription({
+        id: subscription.id,
+        periodStart,
+        setCanceledAt: true,
+        settledAt,
+        subscription,
+        tx,
       });
       return;
     }
@@ -318,17 +353,13 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
     );
   }
 
-  await tx.subscription.update({
-    where: {
-      id: subscription.id,
-    },
-    data: {
-      ...(params.setCanceledAt
-        ? { canceledAt: subscription.canceledAt ?? settledAt }
-        : {}),
-      endedAt: subscription.endedAt ?? periodStart,
-      status: "canceled",
-    },
+  await closeOutSourceSubscription({
+    id: subscription.id,
+    periodStart,
+    setCanceledAt: params.setCanceledAt,
+    settledAt,
+    subscription,
+    tx,
   });
 }
 

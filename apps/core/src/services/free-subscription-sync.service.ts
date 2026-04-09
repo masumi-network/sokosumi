@@ -30,6 +30,17 @@ interface LocalFreeSubscriptionPeriodRecord {
   referenceId: string;
 }
 
+interface DueLocalFreeSubscriptionRow {
+  canceledAt: Date | null;
+  createdAt: Date;
+  endedAt: Date | null;
+  id: string;
+  periodEnd: Date | null;
+  referenceId: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: null;
+}
+
 function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
 }
@@ -170,7 +181,7 @@ async function renewLocalFreeSubscriptions(
       return;
     }
 
-    const dueLocalFreeSubscriptions = await prisma.subscription.findMany({
+    const dueLocalFreeSubscriptions = (await prisma.subscription.findMany({
       where: {
         plan: FREE_SUBSCRIPTION_PLAN,
         periodEnd: {
@@ -192,15 +203,11 @@ async function renewLocalFreeSubscriptions(
         stripeCustomerId: true,
         stripeSubscriptionId: true,
       },
-    });
-    const localDueSubscriptions = dueLocalFreeSubscriptions.filter(
-      (subscription): subscription is LocalFreeSubscriptionRecord =>
-        subscription.stripeSubscriptionId === null,
-    );
+    })) as DueLocalFreeSubscriptionRow[];
 
     const subscriptionsNeedingRenewal =
       await filterSubscriptionsMissingNextLocalSuccessor(
-        localDueSubscriptions.filter(
+        dueLocalFreeSubscriptions.filter(
           (subscription) => !attemptedSubscriptionIds.has(subscription.id),
         ),
       );
