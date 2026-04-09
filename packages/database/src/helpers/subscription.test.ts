@@ -521,4 +521,43 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
     });
     vi.useRealTimers();
   });
+
+  it("closes out the source subscription when period end is missing", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-09T00:00:00.000Z"));
+    const { createSubscriptionMock, tx, updateSubscriptionMock } =
+      createTransitionClient({
+        organization: null,
+        user: { id: "user-1" },
+      });
+
+    await transitionToNextLocalFreeSubscriptionPeriod(
+      {
+        setCanceledAt: true,
+        subscription: {
+          canceledAt: null,
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          endedAt: null,
+          id: "subscription-missing-period-end",
+          periodEnd: null,
+          referenceId: "user-1",
+          stripeCustomerId: "cus_1",
+        },
+      },
+      tx,
+    );
+
+    assert.deepEqual(updateSubscriptionMock.mock.calls[0][0], {
+      where: {
+        id: "subscription-missing-period-end",
+      },
+      data: {
+        canceledAt: new Date("2026-04-09T00:00:00.000Z"),
+        endedAt: new Date("2026-04-09T00:00:00.000Z"),
+        status: "canceled",
+      },
+    });
+    assert.equal(createSubscriptionMock.mock.calls.length, 0);
+    vi.useRealTimers();
+  });
 });

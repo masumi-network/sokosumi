@@ -245,8 +245,8 @@ function buildNextLocalFreePeriod(subscription: {
 }
 
 async function closeOutSourceSubscription(params: {
+  endedAtFallback: Date;
   id: string;
-  periodStart: Date;
   setCanceledAt: boolean;
   settledAt: Date;
   subscription: TransitionToNextLocalFreeSubscriptionParams["subscription"];
@@ -260,7 +260,7 @@ async function closeOutSourceSubscription(params: {
       ...(params.setCanceledAt
         ? { canceledAt: params.subscription.canceledAt ?? params.settledAt }
         : {}),
-      endedAt: params.subscription.endedAt ?? params.periodStart,
+      endedAt: params.subscription.endedAt ?? params.endedAtFallback,
       status: "canceled",
     },
   });
@@ -271,8 +271,17 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
   tx: Prisma.TransactionClient,
 ): Promise<void> {
   const { subscription } = params;
+  const settledAt = new Date();
 
   if (!subscription.periodEnd) {
+    await closeOutSourceSubscription({
+      endedAtFallback: settledAt,
+      id: subscription.id,
+      setCanceledAt: params.setCanceledAt,
+      settledAt,
+      subscription,
+      tx,
+    });
     return;
   }
 
@@ -280,7 +289,6 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
     createdAt: subscription.createdAt,
     periodEnd: subscription.periodEnd,
   });
-  const settledAt = new Date();
   const organization = await tx.organization.findUnique({
     where: {
       id: subscription.referenceId,
@@ -330,8 +338,8 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
 
     if (!user) {
       await closeOutSourceSubscription({
+        endedAtFallback: periodStart,
         id: subscription.id,
-        periodStart,
         setCanceledAt: true,
         settledAt,
         subscription,
@@ -355,8 +363,8 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
   }
 
   await closeOutSourceSubscription({
+    endedAtFallback: periodStart,
     id: subscription.id,
-    periodStart,
     setCanceledAt: params.setCanceledAt,
     settledAt,
     subscription,
