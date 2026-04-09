@@ -1,12 +1,11 @@
-import { randomUUID } from "node:crypto";
-
+import { convertCreditsToCents } from "@sokosumi/utils";
+import { v4 as uuidv4 } from "uuid";
 import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../generated/prisma/client.js";
 import {
   buildOrganizationMemberSubscriptionReferenceId,
-  convertCreditsToCents,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
 
@@ -212,7 +211,7 @@ export async function ensureLocalFreeSubscriptionPeriod(
       data: {
         billingInterval: MONTHLY_BILLING_INTERVAL,
         cancelAtPeriodEnd: false,
-        id: randomUUID(),
+        id: uuidv4(),
         periodEnd: params.periodEnd,
         periodStart: params.periodStart,
         plan: FREE_SUBSCRIPTION_PLAN,

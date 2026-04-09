@@ -1,7 +1,6 @@
 "use client";
 
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
-import { isDemoJob } from "@sokosumi/database/helpers";
+import { JobType, type JobWithSokosumiStatus } from "@sokosumi/database";
 import { useQueryClient } from "@tanstack/react-query";
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import type { useFormatter, useTranslations } from "next-intl";
@@ -55,7 +54,7 @@ export function getJobColumns(
       cell: ({ row }) => {
         return (
           <div className="p-2">
-            {isDemoJob(row.original) ? (
+            {row.original.jobType === JobType.DEMO ? (
               <JobStatusBadge
                 key={`${row.original.id}-${row.original.status}-column-badge`}
                 status={row.original.status}

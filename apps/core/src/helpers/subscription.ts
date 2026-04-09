@@ -1,9 +1,7 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
-import {
-  convertCentsToCredits,
-  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
-} from "@sokosumi/database/helpers";
+import { getOrganizationMemberSubscriptionReferencePrefixForStartsWith } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { getCredits } from "@/helpers/user";
 
