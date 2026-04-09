@@ -8,6 +8,7 @@ const {
   subscriptionUpdateMock,
   transactionSubscriptionUpdateMock,
   updateSubscriptionCancelAtPeriodEndMock,
+  userFindUniqueMock,
 } = vi.hoisted(() => ({
   ensureLocalFreeSubscriptionPeriodMock: vi.fn(),
   memberFindManyMock: vi.fn(),
@@ -16,6 +17,7 @@ const {
   subscriptionUpdateMock: vi.fn(),
   transactionSubscriptionUpdateMock: vi.fn(),
   updateSubscriptionCancelAtPeriodEndMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@sokosumi/database", () => ({
@@ -58,6 +60,9 @@ vi.mock("@/lib/db/prisma", () => ({
           update: (...args: unknown[]) =>
             transactionSubscriptionUpdateMock(...args),
         },
+        user: {
+          findUnique: (...args: unknown[]) => userFindUniqueMock(...args),
+        },
       }),
     subscription: {
       findMany: (...args: unknown[]) => subscriptionFindManyMock(...args),
@@ -91,6 +96,7 @@ describe("freeSubscriptionSyncService", () => {
     subscriptionUpdateMock.mockResolvedValue(undefined);
     transactionSubscriptionUpdateMock.mockResolvedValue(undefined);
     updateSubscriptionCancelAtPeriodEndMock.mockResolvedValue(undefined);
+    userFindUniqueMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -205,6 +211,96 @@ describe("freeSubscriptionSyncService", () => {
     expect(transactionSubscriptionUpdateMock).toHaveBeenCalledWith({
       where: {
         id: "sub-2",
+      },
+      data: expect.objectContaining({
+        endedAt: new Date("2026-04-01T00:00:00.000Z"),
+        status: "canceled",
+      }),
+    });
+  });
+
+  it("migrates due Stripe-backed personal subscriptions as users, not stale org fallbacks", async () => {
+    organizationFindUniqueMock.mockResolvedValue(null);
+    userFindUniqueMock.mockResolvedValue({ id: "user-7" });
+    subscriptionFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          cancelAtPeriodEnd: true,
+          canceledAt: null,
+          endedAt: null,
+          id: "sub-user-7",
+          periodEnd: new Date("2026-04-01T00:00:00.000Z"),
+          referenceId: "user-7",
+          seats: 1,
+          status: "active",
+          stripeCustomerId: "cus_7",
+          stripeSubscriptionId: "sub_stripe_7",
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    await freeSubscriptionSyncService.syncLegacyStripeFreeSubscriptions(
+      createSyncExecutionOptions(),
+    );
+
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        id: "user-7",
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: null,
+        periodStart: new Date("2026-04-01T00:00:00.000Z"),
+        referenceId: "user-7",
+        stripeCustomerId: "cus_7",
+        userId: "user-7",
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it("marks stale Stripe-backed subscriptions canceled when neither organization nor user exists", async () => {
+    organizationFindUniqueMock.mockResolvedValue(null);
+    userFindUniqueMock.mockResolvedValue(null);
+    subscriptionFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          cancelAtPeriodEnd: true,
+          canceledAt: null,
+          endedAt: null,
+          id: "sub-stale-1",
+          periodEnd: new Date("2026-04-01T00:00:00.000Z"),
+          referenceId: "stale-ref-1",
+          seats: 3,
+          status: "active",
+          stripeCustomerId: "cus_stale_1",
+          stripeSubscriptionId: "sub_stripe_stale_1",
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    await freeSubscriptionSyncService.syncLegacyStripeFreeSubscriptions(
+      createSyncExecutionOptions(),
+    );
+
+    expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
+    expect(transactionSubscriptionUpdateMock).toHaveBeenCalledWith({
+      where: {
+        id: "sub-stale-1",
       },
       data: expect.objectContaining({
         endedAt: new Date("2026-04-01T00:00:00.000Z"),
