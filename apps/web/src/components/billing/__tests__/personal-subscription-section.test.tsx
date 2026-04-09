@@ -2,7 +2,6 @@ import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshMock = vi.fn();
-const cancelPersonalSubscriptionMock = vi.fn();
 const upgradePersonalSubscriptionMock = vi.fn();
 const subscriptionPlanCardMock = vi.fn();
 const subscriptionFreePlanRowMock = vi.fn();
@@ -29,8 +28,6 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/actions/subscription", () => ({
-  cancelPersonalSubscription: (...args: unknown[]) =>
-    cancelPersonalSubscriptionMock(...args),
   upgradePersonalSubscription: (...args: unknown[]) =>
     upgradePersonalSubscriptionMock(...args),
 }));
@@ -80,10 +77,6 @@ function createPlans() {
 describe("PersonalSubscriptionSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    cancelPersonalSubscriptionMock.mockResolvedValue({
-      data: { mode: "scheduled" },
-      ok: true,
-    });
     upgradePersonalSubscriptionMock.mockResolvedValue({
       data: { mode: "redirect", url: "https://checkout.stripe.com/test" },
       ok: true,
@@ -103,8 +96,8 @@ describe("PersonalSubscriptionSection", () => {
 
     expect(subscriptionPlanCardMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        actionLabel: "cancelSubscriptionCta",
-        isDisabled: false,
+        actionLabel: "currentPlanCta",
+        isDisabled: true,
         plan: expect.objectContaining({ name: "starter" }),
       }),
     );
@@ -116,7 +109,7 @@ describe("PersonalSubscriptionSection", () => {
     );
   });
 
-  it("shows the scheduled cancellation state on the current paid plan", () => {
+  it("shows the scheduled cancellation date on the current paid plan", () => {
     render(
       <PersonalSubscriptionSection
         cancelAtPeriodEnd
@@ -136,7 +129,7 @@ describe("PersonalSubscriptionSection", () => {
     );
   });
 
-  it("uses the cancel action for the current paid plan", async () => {
+  it("uses the upgrade action for non-current paid plans", async () => {
     render(
       <PersonalSubscriptionSection
         cancelAtPeriodEnd={false}
@@ -154,15 +147,16 @@ describe("PersonalSubscriptionSection", () => {
           props &&
           typeof props === "object" &&
           "plan" in props &&
-          props.plan?.name === "starter",
+          props.plan?.name === "standard",
       );
 
-    await currentPlanProps?.onAction("starter");
+    await currentPlanProps?.onAction("standard");
 
     await waitFor(() => {
-      expect(cancelPersonalSubscriptionMock).toHaveBeenCalledTimes(1);
+      expect(upgradePersonalSubscriptionMock).toHaveBeenCalledWith({
+        plan: "standard",
+        returnPath: "/billing?tab=subscription",
+      });
     });
-    expect(upgradePersonalSubscriptionMock).not.toHaveBeenCalled();
-    expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 });

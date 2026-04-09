@@ -182,8 +182,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 cancelAtPeriodEnd={
                   latestSubscription?.cancelAtPeriodEnd ?? false
                 }
-                currentPeriodEnd={latestSubscription?.periodEnd ?? null}
                 currentPlan={currentPlan}
+                currentPeriodEnd={latestSubscription?.periodEnd ?? null}
                 currentSeats={currentSeats}
                 memberCount={activeOrganization._count.members}
                 organizationId={activeOrganization.id}

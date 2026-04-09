@@ -2,11 +2,9 @@ import "server-only";
 
 import {
   organizationRepository,
-  subscriptionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import { getOrganizationMetadata } from "@sokosumi/utils";
-import { APIError } from "better-auth/api";
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
@@ -68,54 +66,6 @@ export const stripeService = (() => {
   }
 
   return {
-    async scheduleSubscriptionDowngradeToFree(
-      referenceId: string,
-    ): Promise<void> {
-      const activeSubscription =
-        await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
-          referenceId,
-          prisma,
-        );
-
-      if (!activeSubscription) {
-        throw new APIError("BAD_REQUEST", {
-          message: "An active subscription is required before changing plans.",
-        });
-      }
-
-      if (!activeSubscription.stripeSubscriptionId) {
-        if (activeSubscription.plan === "free") {
-          return;
-        }
-
-        throw new APIError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Subscription is missing its Stripe reference. Please contact support.",
-        });
-      }
-
-      if (activeSubscription.cancelAtPeriodEnd) {
-        return;
-      }
-
-      await stripeInstance.subscriptions.update(
-        activeSubscription.stripeSubscriptionId,
-        {
-          cancel_at_period_end: true,
-        },
-      );
-
-      await prisma.subscription.update({
-        where: {
-          id: activeSubscription.id,
-        },
-        data: {
-          cancelAt: activeSubscription.periodEnd ?? null,
-          cancelAtPeriodEnd: true,
-        },
-      });
-    },
-
     async createStripeCheckoutSession(
       userId: string,
       organizationId: string | null,

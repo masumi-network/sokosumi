@@ -9,14 +9,14 @@ import {
   CommonErrorCode,
 } from "@/lib/actions/errors";
 import { auth } from "@/lib/auth/auth";
-import { organizationSubscriptionService, stripeService } from "@/lib/services";
+import { organizationSubscriptionService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 
-const subscriptionPlanSchema = z.enum(["free", "starter", "standard", "pro"]);
+const subscriptionPlanSchema = z.enum(["starter", "standard", "pro"]);
 const personalReturnPathSchema = z.string().startsWith("/");
 
 const upgradePersonalSubscriptionSchema = z.object({
@@ -82,14 +82,10 @@ function parseBetterAuthActionError(error: unknown): ActionError {
   };
 }
 
-type SubscriptionChangeResult =
-  | {
-      mode: "redirect";
-      url: string;
-    }
-  | {
-      mode: "scheduled";
-    };
+type SubscriptionChangeResult = {
+  mode: "redirect";
+  url: string;
+};
 
 function buildSubscriptionStatusPath(
   returnPath: string,
@@ -108,23 +104,9 @@ function buildSubscriptionStatusPath(
 }
 
 interface UpgradePersonalSubscriptionParameters extends AuthenticatedRequest {
-  plan: "free" | "starter" | "standard" | "pro";
+  plan: "starter" | "standard" | "pro";
   returnPath?: string;
 }
-
-interface CancelPersonalSubscriptionParameters extends AuthenticatedRequest {}
-
-export const cancelPersonalSubscription = withSession<
-  CancelPersonalSubscriptionParameters,
-  Result<{ mode: "scheduled" }, ActionError>
->(async ({ session }) => {
-  try {
-    await stripeService.scheduleSubscriptionDowngradeToFree(session.user.id);
-    return Ok({ mode: "scheduled" });
-  } catch (error) {
-    return Err(parseBetterAuthActionError(error));
-  }
-});
 
 export const upgradePersonalSubscription = withSession<
   UpgradePersonalSubscriptionParameters,
@@ -143,11 +125,6 @@ export const upgradePersonalSubscription = withSession<
   try {
     const resolvedReturnPath =
       parsed.data.returnPath ?? "/billing?tab=subscription";
-
-    if (parsed.data.plan === "free") {
-      await stripeService.scheduleSubscriptionDowngradeToFree(session.user.id);
-      return Ok({ mode: "scheduled" });
-    }
 
     const result = await auth.api.upgradeSubscription({
       headers: await headers(),
@@ -215,37 +192,10 @@ export const openPersonalBillingPortal = withSession<
 interface UpgradeOrganizationSubscriptionParameters
   extends AuthenticatedRequest {
   organizationId: string;
-  plan: "free" | "starter" | "standard" | "pro";
+  plan: "starter" | "standard" | "pro";
   returnPath: string;
   seats: number;
 }
-
-interface CancelOrganizationSubscriptionParameters
-  extends AuthenticatedRequest {
-  organizationId: string;
-}
-
-export const cancelOrganizationSubscription = withSession<
-  CancelOrganizationSubscriptionParameters,
-  Result<{ mode: "scheduled" }, ActionError>
->(async ({ organizationId, session }) => {
-  const parsedOrganizationId = z.string().min(1).safeParse(organizationId);
-  if (!parsedOrganizationId.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-    });
-  }
-
-  try {
-    await organizationSubscriptionService.scheduleDowngradeToFree(
-      session.user.id,
-      parsedOrganizationId.data,
-    );
-    return Ok({ mode: "scheduled" });
-  } catch (error) {
-    return Err(parseBetterAuthActionError(error));
-  }
-});
 
 export const upgradeOrganizationSubscription = withSession<
   UpgradeOrganizationSubscriptionParameters,
@@ -264,14 +214,6 @@ export const upgradeOrganizationSubscription = withSession<
   }
 
   try {
-    if (parsed.data.plan === "free") {
-      await organizationSubscriptionService.scheduleDowngradeToFree(
-        session.user.id,
-        parsed.data.organizationId,
-      );
-      return Ok({ mode: "scheduled" });
-    }
-
     const result = await auth.api.upgradeSubscription({
       headers: await headers(),
       body: {

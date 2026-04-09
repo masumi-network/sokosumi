@@ -17,7 +17,6 @@ const memberCountMock = vi.fn();
 const ensureLocalFreeSubscriptionPeriodMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const prismaTransactionMock = vi.fn();
-const scheduleSubscriptionDowngradeToFreeMock = vi.fn();
 const updateSubscriptionRecordMock = vi.fn();
 const retrieveStripeSubscriptionMock = vi.fn();
 const updateStripeSubscriptionMock = vi.fn();
@@ -56,13 +55,6 @@ vi.mock("@/lib/db/prisma", () => ({
     subscription: {
       update: (...args: unknown[]) => updateSubscriptionRecordMock(...args),
     },
-  },
-}));
-
-vi.mock("@/lib/services/stripe.service", () => ({
-  stripeService: {
-    scheduleSubscriptionDowngradeToFree: (...args: unknown[]) =>
-      scheduleSubscriptionDowngradeToFreeMock(...args),
   },
 }));
 
@@ -460,33 +452,6 @@ describe("organizationSubscriptionService", () => {
         expect.objectContaining({
           __tx: true,
         }),
-      );
-    });
-
-    it("schedules organization downgrade to free after authorization", async () => {
-      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-        role: "owner",
-      });
-      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-        id: "sub-row-1",
-        plan: "starter",
-        seats: 2,
-        stripeSubscriptionId: "sub_stripe_1",
-      });
-
-      const { organizationSubscriptionService } = await import(
-        "../organization-subscription.service"
-      );
-
-      await expect(
-        organizationSubscriptionService.scheduleDowngradeToFree(
-          "user-1",
-          "org-1",
-        ),
-      ).resolves.toBeUndefined();
-
-      expect(scheduleSubscriptionDowngradeToFreeMock).toHaveBeenCalledWith(
-        "org-1",
       );
     });
   });

@@ -15,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import {
-  cancelOrganizationSubscription,
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
@@ -31,8 +30,8 @@ import {
 
 interface OrganizationSubscriptionSectionProps {
   cancelAtPeriodEnd: boolean;
-  currentPeriodEnd: Date | string | null;
   currentPlan: SubscriptionPlanName | null;
+  currentPeriodEnd: Date | string | null;
   currentSeats: number;
   memberCount: number;
   organizationId: string;
@@ -42,8 +41,8 @@ interface OrganizationSubscriptionSectionProps {
 
 export function OrganizationSubscriptionSection({
   cancelAtPeriodEnd,
-  currentPeriodEnd,
   currentPlan,
+  currentPeriodEnd,
   currentSeats,
   memberCount,
   organizationId,
@@ -82,6 +81,7 @@ export function OrganizationSubscriptionSection({
       currentPeriodEnd instanceof Date
         ? currentPeriodEnd
         : new Date(currentPeriodEnd);
+
     return formatter.dateTime(date, {
       day: "numeric",
       month: "short",
@@ -165,20 +165,6 @@ export function OrganizationSubscriptionSection({
           return;
         }
 
-        if (isCurrentPlan) {
-          const result = await cancelOrganizationSubscription({
-            organizationId,
-          });
-          if (!result.ok) {
-            handleSubscriptionActionError(result.error);
-            return;
-          }
-
-          toast.success(tSubscriptions("statusCancellationScheduled"));
-          router.refresh();
-          return;
-        }
-
         const result = await upgradeOrganizationSubscription({
           organizationId,
           plan: planName,
@@ -210,7 +196,6 @@ export function OrganizationSubscriptionSection({
       returnPath,
       router,
       t,
-      tSubscriptions,
       targetSeats,
     ],
   );
@@ -228,7 +213,7 @@ export function OrganizationSubscriptionSection({
     } else if (isCurrentPlan && !hasSamePlanAndSeats) {
       actionLabel = t("updateSeatsCta");
     } else if (isCurrentPlan) {
-      actionLabel = tSubscriptions("cancelSubscriptionCta");
+      actionLabel = tSubscriptions("currentPlanCta");
     }
 
     return {
@@ -239,12 +224,10 @@ export function OrganizationSubscriptionSection({
       isDisabled:
         pendingPlan !== null ||
         (isCurrentPlan && cancelAtPeriodEnd) ||
+        (isCurrentPlan && hasSamePlanAndSeats) ||
         targetSeats < minimumSeats,
       isPlanPending: pendingPlan === plan.name,
-      loadingLabel:
-        isCurrentPlan && currentSeats === targetSeats
-          ? tSubscriptions("canceling")
-          : t("updating"),
+      loadingLabel: t("updating"),
     };
   }
 

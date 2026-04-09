@@ -7,10 +7,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CommonErrorCode } from "@/lib/actions/errors";
-import {
-  cancelPersonalSubscription,
-  upgradePersonalSubscription,
-} from "@/lib/actions/subscription";
+import { upgradePersonalSubscription } from "@/lib/actions/subscription";
 import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
@@ -65,6 +62,7 @@ export function PersonalSubscriptionSection({
       currentPeriodEnd instanceof Date
         ? currentPeriodEnd
         : new Date(currentPeriodEnd);
+
     return formatter.dateTime(date, {
       day: "numeric",
       month: "short",
@@ -85,40 +83,6 @@ export function PersonalSubscriptionSection({
   async function handlePlanAction(plan: SubscriptionPlanName) {
     setPendingPlan(plan);
     try {
-      const isCurrentPlan = paidPlans.some(
-        (item) => item.name === plan && item.isCurrent,
-      );
-
-      if (isCurrentPlan) {
-        const result = await cancelPersonalSubscription({});
-
-        if (!result.ok) {
-          switch (result.error.code) {
-            case CommonErrorCode.UNAUTHENTICATED:
-              toast.error(t("Errors.unauthenticated"), {
-                action: {
-                  label: t("Errors.unauthenticatedAction"),
-                  onClick: () => {
-                    router.push("/login");
-                  },
-                },
-              });
-              break;
-            case CommonErrorCode.BAD_INPUT:
-              toast.error(t("Errors.badInput"));
-              break;
-            default:
-              toast.error(t("Errors.general"));
-              break;
-          }
-          return;
-        }
-
-        toast.success(t("statusCancellationScheduled"));
-        router.refresh();
-        return;
-      }
-
       const result = await upgradePersonalSubscription({
         plan,
         returnPath,
@@ -174,17 +138,13 @@ export function PersonalSubscriptionSection({
               key={plan.name}
               actionLabel={
                 plan.isCurrent
-                  ? cancelAtPeriodEnd
-                    ? cancellationLabel
-                    : t("cancelSubscriptionCta")
+                  ? (cancellationLabel ?? t("currentPlanCta"))
                   : t("upgradePlanCta")
               }
-              isDisabled={
-                pendingPlan !== null || (plan.isCurrent && cancelAtPeriodEnd)
-              }
+              isDisabled={pendingPlan !== null || plan.isCurrent}
               isAnyPlanPending={pendingPlan !== null}
               isPlanPending={pendingPlan === plan.name}
-              loadingLabel={plan.isCurrent ? t("canceling") : t("upgrading")}
+              loadingLabel={t("upgrading")}
               onAction={(nextPlan) => {
                 void handlePlanAction(nextPlan);
               }}

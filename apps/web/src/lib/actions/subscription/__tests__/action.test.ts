@@ -7,8 +7,6 @@ vi.mock("server-only", () => ({}));
 const headersMock = vi.fn(async () => new Headers());
 const upgradeSubscriptionMock = vi.fn();
 const createBillingPortalMock = vi.fn();
-const scheduleSubscriptionDowngradeToFreeMock = vi.fn();
-const scheduleOrganizationDowngradeToFreeMock = vi.fn();
 const updateOrganizationSeatsImmediatelyMock = vi.fn();
 
 vi.mock("next/headers", () => ({
@@ -26,13 +24,7 @@ vi.mock("@/lib/auth/auth", () => ({
 
 vi.mock("@/lib/services", () => ({
   organizationSubscriptionService: {
-    scheduleDowngradeToFree: (...args: unknown[]) =>
-      scheduleOrganizationDowngradeToFreeMock(...args),
     updateOrganizationSeatsImmediately: updateOrganizationSeatsImmediatelyMock,
-  },
-  stripeService: {
-    scheduleSubscriptionDowngradeToFree: (...args: unknown[]) =>
-      scheduleSubscriptionDowngradeToFreeMock(...args),
   },
 }));
 
@@ -114,41 +106,6 @@ describe("subscription actions", () => {
       },
       headers: new Headers(),
     });
-  });
-
-  it("schedules personal downgrades to free without opening checkout", async () => {
-    const { upgradePersonalSubscription } = await import("../action");
-
-    const result = await upgradePersonalSubscription({
-      session,
-      plan: "free",
-    });
-
-    expect(result).toEqual({
-      data: { mode: "scheduled" },
-      ok: true,
-    });
-    expect(scheduleSubscriptionDowngradeToFreeMock).toHaveBeenCalledWith(
-      "user-1",
-    );
-    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
-  });
-
-  it("cancels personal subscriptions at period end without opening checkout", async () => {
-    const { cancelPersonalSubscription } = await import("../action");
-
-    const result = await cancelPersonalSubscription({
-      session,
-    });
-
-    expect(result).toEqual({
-      data: { mode: "scheduled" },
-      ok: true,
-    });
-    expect(scheduleSubscriptionDowngradeToFreeMock).toHaveBeenCalledWith(
-      "user-1",
-    );
-    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
   });
 
   it("maps better-auth API errors for upgrade flow", async () => {
@@ -346,47 +303,6 @@ describe("subscription actions", () => {
       },
       headers: new Headers(),
     });
-  });
-
-  it("schedules organization downgrades to free without opening checkout", async () => {
-    const { upgradeOrganizationSubscription } = await import("../action");
-
-    const result = await upgradeOrganizationSubscription({
-      session: organizationSession,
-      organizationId: "org-1",
-      plan: "free",
-      returnPath: "/organizations/acme",
-      seats: 7,
-    });
-
-    expect(result).toEqual({
-      data: { mode: "scheduled" },
-      ok: true,
-    });
-    expect(scheduleOrganizationDowngradeToFreeMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-    );
-    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
-  });
-
-  it("cancels organization subscriptions at period end without opening checkout", async () => {
-    const { cancelOrganizationSubscription } = await import("../action");
-
-    const result = await cancelOrganizationSubscription({
-      session: organizationSession,
-      organizationId: "org-1",
-    });
-
-    expect(result).toEqual({
-      data: { mode: "scheduled" },
-      ok: true,
-    });
-    expect(scheduleOrganizationDowngradeToFreeMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-    );
-    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
   });
 
   it("returns BAD_INPUT for invalid immediate organization seat update", async () => {

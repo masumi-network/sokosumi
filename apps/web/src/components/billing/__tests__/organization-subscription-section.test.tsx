@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshMock = vi.fn();
 const pushMock = vi.fn();
-const cancelOrganizationSubscriptionMock = vi.fn();
 const updateOrganizationSubscriptionSeatsMock = vi.fn();
 const upgradeOrganizationSubscriptionMock = vi.fn();
 const subscriptionPlanCardMock = vi.fn();
@@ -32,8 +31,6 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/actions/subscription", () => ({
-  cancelOrganizationSubscription: (...args: unknown[]) =>
-    cancelOrganizationSubscriptionMock(...args),
   updateOrganizationSubscriptionSeats: (...args: unknown[]) =>
     updateOrganizationSubscriptionSeatsMock(...args),
   upgradeOrganizationSubscription: (...args: unknown[]) =>
@@ -85,10 +82,6 @@ function createPlans() {
 describe("OrganizationSubscriptionSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    cancelOrganizationSubscriptionMock.mockResolvedValue({
-      data: { mode: "scheduled" },
-      ok: true,
-    });
     updateOrganizationSubscriptionSeatsMock.mockResolvedValue({
       data: { seats: 3 },
       ok: true,
@@ -103,8 +96,8 @@ describe("OrganizationSubscriptionSection", () => {
     render(
       <OrganizationSubscriptionSection
         cancelAtPeriodEnd={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentPlan="starter"
+        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -115,8 +108,8 @@ describe("OrganizationSubscriptionSection", () => {
 
     expect(subscriptionPlanCardMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        actionLabel: "cancelSubscriptionCta",
-        isDisabled: false,
+        actionLabel: "currentPlanCta",
+        isDisabled: true,
         plan: expect.objectContaining({ name: "starter" }),
       }),
     );
@@ -128,12 +121,12 @@ describe("OrganizationSubscriptionSection", () => {
     );
   });
 
-  it("shows the scheduled cancellation state on the current paid plan", () => {
+  it("shows the scheduled cancellation date on the current paid plan", () => {
     render(
       <OrganizationSubscriptionSection
         cancelAtPeriodEnd
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentPlan="starter"
+        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -155,8 +148,8 @@ describe("OrganizationSubscriptionSection", () => {
     render(
       <OrganizationSubscriptionSection
         cancelAtPeriodEnd={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentPlan="starter"
+        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={2}
         memberCount={3}
         organizationId="org-1"
@@ -173,12 +166,12 @@ describe("OrganizationSubscriptionSection", () => {
     );
   });
 
-  it("uses the cancel action for the current paid plan", async () => {
+  it("uses the upgrade action for non-current paid plans", async () => {
     render(
       <OrganizationSubscriptionSection
         cancelAtPeriodEnd={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentPlan="starter"
+        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -194,17 +187,18 @@ describe("OrganizationSubscriptionSection", () => {
           props &&
           typeof props === "object" &&
           "plan" in props &&
-          props.plan?.name === "starter",
+          props.plan?.name === "standard",
       );
 
-    await currentPlanProps?.onAction("starter");
+    await currentPlanProps?.onAction("standard");
 
     await waitFor(() => {
-      expect(cancelOrganizationSubscriptionMock).toHaveBeenCalledWith({
+      expect(upgradeOrganizationSubscriptionMock).toHaveBeenCalledWith({
         organizationId: "org-1",
+        plan: "standard",
+        returnPath: "/billing?tab=subscription",
+        seats: 2,
       });
     });
-    expect(upgradeOrganizationSubscriptionMock).not.toHaveBeenCalled();
-    expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 });

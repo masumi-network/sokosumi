@@ -11,7 +11,6 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
-import { stripeService } from "@/lib/services/stripe.service";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
@@ -321,18 +320,6 @@ export const organizationSubscriptionService = (() => {
       await syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
         organizationId,
       );
-    },
-
-    async scheduleDowngradeToFree(
-      userId: string,
-      organizationId: string,
-    ): Promise<void> {
-      await ensureCanManageOrganizationSubscription(userId, organizationId);
-      await ensureActiveOrganizationSubscription(
-        organizationId,
-        "An active organization subscription is required before changing plans.",
-      );
-      await stripeService.scheduleSubscriptionDowngradeToFree(organizationId);
     },
   };
 })();
