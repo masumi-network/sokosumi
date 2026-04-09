@@ -1131,7 +1131,7 @@ model Coworker {
 
   /// When true, Core uses OpenAI-compatible POST /conversations + conversation_id on /responses.
   /// When false, legacy coworker path (previous_response_id + merged transcript).
-  supportsConversationsApi Boolean @default(false)
+  supportsConversationsApi Boolean @default(true)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)

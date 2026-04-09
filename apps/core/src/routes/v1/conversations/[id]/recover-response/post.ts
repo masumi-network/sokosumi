@@ -86,7 +86,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         id: string;
         slug: string;
         baseURL: string | null;
-        supportsConversationsApi: boolean;
       }> => {
         const coworkerSlug = metadata.coworker_slug as string | undefined;
         const coworkerId = metadata.coworker_id as string | undefined;
@@ -206,9 +205,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const coworkerForItems = await resolveCoworkerFromMetadata();
-      if (!coworkerForItems.supportsConversationsApi) {
-        return ok(c, { recovered: false });
-      }
       if (!coworkerForItems.baseURL?.trim()) {
         throw badRequest("Coworker has no Responses API base URL");
       }

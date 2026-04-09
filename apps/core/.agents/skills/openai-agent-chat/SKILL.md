@@ -43,9 +43,9 @@ Conversations API  ←  the "thread store"  →  POST   /v1/conversations
                                               GET    /v1/conversations/{id}
                                               PATCH  /v1/conversations/{id}
                                               DELETE /v1/conversations/{id}
-                                              POST   /v1/conversations/{id}/items
-                                              GET    /v1/conversations/{id}/items
-                                              DELETE /v1/conversations/{id}/items/{item_id}
+                                              POST   /v1/conversations/{id}/messages
+                                              GET    /v1/conversations/{id}/messages
+                                              DELETE /v1/conversations/{id}/messages/{message_id}
 ```
 
 A **Conversation** is a durable thread (no 30-day TTL). A **Response** is one generation turn. You link them by passing `conversation_id` to `responses.create()`.

@@ -226,13 +226,10 @@ async function streamCoworker(
   sokosumiOpts: ReturnType<typeof parseSokosumiProviderOptions>,
   options: LanguageModelV3CallOptions,
 ): Promise<LanguageModelV3StreamResult> {
-  const conversationsMode = Boolean(
-    sokosumiOpts.providerConversationId?.trim(),
-  );
+  const providerConvId = sokosumiOpts.providerConversationId!.trim();
+
   const fullResponsesInput = promptToResponsesInput(options.prompt);
-  const responsesInput = conversationsMode
-    ? lastTurnToResponsesInput(options.prompt)
-    : fullResponsesInput;
+  const responsesInput = lastTurnToResponsesInput(options.prompt);
 
   if (responsesInput.length === 0) {
     throw new APICallError({
@@ -248,37 +245,28 @@ async function streamCoworker(
   const url = `${base}/responses`;
 
   type CoworkerResponsesBody = {
-    input: typeof responsesInput;
+    input: typeof fullResponsesInput;
     stream: boolean;
-    previous_response_id?: string;
     conversation_id?: string;
   };
 
   function buildCoworkerResponsesBody(
-    input: typeof responsesInput,
+    input: typeof fullResponsesInput,
     includeConversationId: boolean,
-    includePreviousResponseId: boolean,
   ): CoworkerResponsesBody {
     const body: CoworkerResponsesBody = {
       input,
       stream: true,
     };
-    if (includeConversationId && sokosumiOpts.providerConversationId?.trim()) {
-      body.conversation_id = sokosumiOpts.providerConversationId.trim();
-    }
-    if (includePreviousResponseId && sokosumiOpts.previousResponseId) {
-      body.previous_response_id = sokosumiOpts.previousResponseId;
+    if (includeConversationId) {
+      body.conversation_id = providerConvId;
     }
     return body;
   }
 
-  let body = buildCoworkerResponsesBody(
-    responsesInput,
-    conversationsMode,
-    !conversationsMode,
-  );
+  let body = buildCoworkerResponsesBody(responsesInput, true);
 
-  let requestBodyForError: CoworkerResponsesBody | { stream: true } = body;
+  let requestBodyForError: CoworkerResponsesBody = body;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -306,11 +294,8 @@ async function streamCoworker(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "Unknown error");
-    const isInvalidPreviousResponseId =
-      errorText.includes("invalid_previous_response_id") ||
-      errorText.includes("previous_response_id not found");
     const isInvalidConversationId =
-      Boolean(conversationsMode && body.conversation_id) &&
+      Boolean(body.conversation_id) &&
       (errorText.includes("invalid_conversation") ||
         errorText.includes("conversation not found") ||
         errorText.includes("invalid_conversation_id") ||
@@ -323,29 +308,8 @@ async function streamCoworker(
           await Promise.resolve(notify());
         } catch {}
       }
-      const retryBody = buildCoworkerResponsesBody(
-        fullResponsesInput,
-        false,
-        Boolean(sokosumiOpts.previousResponseId),
-      );
-      requestBodyForError = retryBody;
-      response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(retryBody),
-        signal: options.abortSignal,
-      });
-    } else if (isInvalidPreviousResponseId && body.previous_response_id) {
-      const notify = sokosumiOpts.onInvalidPreviousResponseId;
-      if (notify) {
-        try {
-          await Promise.resolve(notify());
-        } catch {}
-      }
-      const retryBody = {
-        input: fullResponsesInput,
-        stream: true as const,
-      };
+      const retryBody = buildCoworkerResponsesBody(fullResponsesInput, false);
+      body = retryBody;
       requestBodyForError = retryBody;
       response = await fetch(url, {
         method: "POST",

@@ -9,11 +9,14 @@ export interface SokosumiProviderCallOptions {
   sokosumiUserId?: string | null;
   /** Optional org (header `X-Sokosumi-Organization-Id`). */
   sokosumiOrganizationId?: string | null;
-  /** Chain id for coworker Responses API. */
+  /**
+   * Optional chain id; not used for mandatory coworker Conversations mode (Core
+   * omits it). Kept for compatibility with direct provider callers.
+   */
   previousResponseId?: string | null;
   /**
-   * Coworker Conversations API id (`conv_…`); sent as `conversation_id` on
-   * `POST /responses`. When set, `previous_response_id` is omitted.
+   * Coworker Conversations API id (`conv_…`); required for `mode: "coworker"`,
+   * sent as `conversation_id` on `POST /responses`.
    */
   providerConversationId?: string | null;
   /** Fired when the remote API exposes a response id (e.g. after `response.created`). */
@@ -21,13 +24,12 @@ export interface SokosumiProviderCallOptions {
   /** Fired when the stream reports completion for a response id. */
   onResponseCompleted?: (responseId: string) => void;
   /**
-   * Coworker only: invoked when the API rejects `previous_response_id` so the
-   * client can clear stale metadata; the provider then retries once without it.
+   * Legacy: coworker Conversations mode does not send `previous_response_id`.
    */
   onInvalidPreviousResponseId?: () => void | Promise<void>;
   /**
    * Coworker only: invoked when the API rejects `conversation_id`; the provider
-   * retries once with a full transcript and optional `previous_response_id`.
+   * retries once with a full transcript (no `conversation_id` or chain id).
    */
   onInvalidProviderConversationId?: () => void | Promise<void>;
 }

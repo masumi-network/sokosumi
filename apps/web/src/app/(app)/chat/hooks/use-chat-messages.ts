@@ -4,7 +4,7 @@ import type { UIMessage } from "ai";
 import { useCallback, useEffect, useRef } from "react";
 
 import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
-import { getConversationItems } from "@/lib/actions/conversation/core-api-actions";
+import { getConversationMessages } from "@/lib/actions/conversation/core-api-actions";
 
 interface UseChatMessagesProps {
   selectedChatId: string | null;
@@ -130,7 +130,7 @@ export function useChatMessages({
             );
           }
 
-          const rawItemsResult: unknown = await getConversationItems({
+          const rawItemsResult: unknown = await getConversationMessages({
             conversationId: currentSelectedChatId,
             limit: 100,
           });
@@ -185,7 +185,7 @@ export function useChatMessages({
                 messagesChatIdRef.current === null
               ) {
                 try {
-                  const retryResult: unknown = await getConversationItems({
+                  const retryResult: unknown = await getConversationMessages({
                     conversationId: currentSelectedChatId,
                     limit: 100,
                   });

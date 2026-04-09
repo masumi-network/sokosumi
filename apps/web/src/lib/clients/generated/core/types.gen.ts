@@ -3710,7 +3710,7 @@ export type PatchConversationsByIdArchiveResponses = {
 
 export type PatchConversationsByIdArchiveResponse = PatchConversationsByIdArchiveResponses[keyof PatchConversationsByIdArchiveResponses];
 
-export type GetConversationsByIdItemsData = {
+export type GetConversationsByIdMessagesData = {
     body?: never;
     path: {
         /**
@@ -3728,10 +3728,10 @@ export type GetConversationsByIdItemsData = {
          */
         limit?: number;
     };
-    url: '/conversations/{id}/items';
+    url: '/conversations/{id}/messages';
 };
 
-export type GetConversationsByIdItemsErrors = {
+export type GetConversationsByIdMessagesErrors = {
     /**
      * Unauthorized
      */
@@ -3786,9 +3786,9 @@ export type GetConversationsByIdItemsErrors = {
     };
 };
 
-export type GetConversationsByIdItemsError = GetConversationsByIdItemsErrors[keyof GetConversationsByIdItemsErrors];
+export type GetConversationsByIdMessagesError = GetConversationsByIdMessagesErrors[keyof GetConversationsByIdMessagesErrors];
 
-export type GetConversationsByIdItemsResponses = {
+export type GetConversationsByIdMessagesResponses = {
     /**
      * Conversation items retrieved successfully
      */
@@ -3802,9 +3802,9 @@ export type GetConversationsByIdItemsResponses = {
     };
 };
 
-export type GetConversationsByIdItemsResponse = GetConversationsByIdItemsResponses[keyof GetConversationsByIdItemsResponses];
+export type GetConversationsByIdMessagesResponse = GetConversationsByIdMessagesResponses[keyof GetConversationsByIdMessagesResponses];
 
-export type PostConversationsByIdItemsData = {
+export type PostConversationsByIdMessagesData = {
     body?: CreateConversationItemRequest;
     path: {
         /**
@@ -3813,10 +3813,10 @@ export type PostConversationsByIdItemsData = {
         id: string;
     };
     query?: never;
-    url: '/conversations/{id}/items';
+    url: '/conversations/{id}/messages';
 };
 
-export type PostConversationsByIdItemsErrors = {
+export type PostConversationsByIdMessagesErrors = {
     /**
      * Unauthorized
      */
@@ -3871,9 +3871,9 @@ export type PostConversationsByIdItemsErrors = {
     };
 };
 
-export type PostConversationsByIdItemsError = PostConversationsByIdItemsErrors[keyof PostConversationsByIdItemsErrors];
+export type PostConversationsByIdMessagesError = PostConversationsByIdMessagesErrors[keyof PostConversationsByIdMessagesErrors];
 
-export type PostConversationsByIdItemsResponses = {
+export type PostConversationsByIdMessagesResponses = {
     /**
      * Conversation item created successfully
      */
@@ -3887,7 +3887,7 @@ export type PostConversationsByIdItemsResponses = {
     };
 };
 
-export type PostConversationsByIdItemsResponse = PostConversationsByIdItemsResponses[keyof PostConversationsByIdItemsResponses];
+export type PostConversationsByIdMessagesResponse = PostConversationsByIdMessagesResponses[keyof PostConversationsByIdMessagesResponses];
 
 export type PostConversationsByIdRecoverResponseData = {
     body?: never;

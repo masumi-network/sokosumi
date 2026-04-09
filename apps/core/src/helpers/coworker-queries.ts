@@ -9,7 +9,6 @@ export async function findCoworkerWithChatBySlug(
   id: string;
   slug: string;
   baseURL: string | null;
-  supportsConversationsApi: boolean;
 } | null> {
   return await tx.coworker.findFirst({
     where: {
@@ -23,7 +22,6 @@ export async function findCoworkerWithChatBySlug(
       id: true,
       slug: true,
       baseURL: true,
-      supportsConversationsApi: true,
     },
   });
 }

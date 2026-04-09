@@ -204,7 +204,6 @@ async function findUsableCoworkerByCapability(
       id: true,
       slug: true,
       baseURL: true,
-      supportsConversationsApi: true,
     },
   });
 }
@@ -232,7 +231,6 @@ export async function requireCoworkerChatCapability(
   id: string;
   slug: string;
   baseURL: string | null;
-  supportsConversationsApi: boolean;
 }> {
   const coworker = await findUsableCoworkerByCapability(
     coworkerId,

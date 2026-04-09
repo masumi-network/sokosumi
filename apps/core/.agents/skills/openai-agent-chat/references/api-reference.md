@@ -181,7 +181,7 @@ await openai.conversations.del("conv_abc123");
 
 ---
 
-### POST /v1/conversations/{id}/items — Create an item
+### POST /v1/conversations/{id}/messages — Create a message
 
 Inject items without triggering a model response. Use for:
 - Injecting tool outputs after a function call
@@ -215,7 +215,7 @@ Accepts: `EasyInputMessage`, `ResponseInputItem`, `Item` (any valid input item t
 
 ---
 
-### GET /v1/conversations/{id}/items — List items
+### GET /v1/conversations/{id}/messages — List messages
 
 ```typescript
 const page = await openai.conversations.items.list("conv_abc123", {
@@ -231,7 +231,7 @@ const page = await openai.conversations.items.list("conv_abc123", {
 
 ---
 
-### GET /v1/conversations/{id}/items/{item_id} — Retrieve an item
+### GET /v1/conversations/{id}/messages/{message_id} — Retrieve a message
 
 ```typescript
 const item = await openai.conversations.items.retrieve("conv_abc123", "msg_xyz");
@@ -239,7 +239,7 @@ const item = await openai.conversations.items.retrieve("conv_abc123", "msg_xyz")
 
 ---
 
-### DELETE /v1/conversations/{id}/items/{item_id} — Delete an item
+### DELETE /v1/conversations/{id}/messages/{message_id} — Delete a message
 
 ```typescript
 await openai.conversations.items.del("conv_abc123", "msg_xyz");

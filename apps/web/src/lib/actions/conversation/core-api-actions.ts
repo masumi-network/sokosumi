@@ -49,13 +49,13 @@ interface ListConversationsParameters extends AuthenticatedRequest {
   order?: "asc" | "desc";
 }
 
-interface AddConversationItemParameters extends AuthenticatedRequest {
+interface AddConversationMessageParameters extends AuthenticatedRequest {
   conversationId: string; // Internal database ID
   role: "user" | "assistant" | "system";
   content: Array<{ type: string; text?: string }> | string;
 }
 
-interface GetConversationItemsParameters extends AuthenticatedRequest {
+interface GetConversationMessagesParameters extends AuthenticatedRequest {
   conversationId: string; // Internal database ID
   limit?: number;
   cursor?: string | null;
@@ -112,19 +112,19 @@ export const listConversations = withSession<
 });
 
 /**
- * Gets conversation items (messages) by conversation ID via Core API
+ * Gets conversation messages by conversation ID via Core API
  * CRITICAL: Validates ownership before returning.
  * Returns items and pagination metadata for cursor-based pagination.
  */
-export const getConversationItems = withSession<
-  GetConversationItemsParameters,
+export const getConversationMessages = withSession<
+  GetConversationMessagesParameters,
   Result<
     { items: ConversationItem[]; pagination: CoreApiPagination | null },
     ActionError
   >
 >(async ({ conversationId, limit, cursor }) => {
   const result = await makeCoreApiRequest(() =>
-    coreClient.getConversationItems(conversationId, {
+    coreClient.getConversationMessages(conversationId, {
       limit,
       cursor: cursor ?? undefined,
     }),
@@ -226,13 +226,13 @@ export const getConversation = withSession<
     } as unknown as Result<ConversationWithItems, ActionError>;
   }
 
-  // Fetch conversation items from database (limit 100 so list/conversation view has full history)
-  const itemsResult = await getConversationItems({
+  // Fetch conversation messages from database (limit 100 so list/conversation view has full history)
+  const itemsResult = await getConversationMessages({
     conversationId: id,
     limit: 100,
   });
 
-  // Handle serialized Result format from getConversationItems
+  // Handle serialized Result format from getConversationMessages
   if (
     itemsResult &&
     typeof itemsResult === "object" &&
@@ -377,15 +377,15 @@ export const getConversationId = withSession<
 });
 
 /**
- * Adds an item to a conversation via Core API
+ * Adds a message to a conversation via Core API
  * Used by chat route to store messages in conversations
  */
-export const addConversationItem = withSession<
-  AddConversationItemParameters,
+export const addConversationMessage = withSession<
+  AddConversationMessageParameters,
   Result<{ id: string }, ActionError>
 >(async ({ conversationId, role, content }) => {
   const result = await makeCoreApiRequest(() =>
-    coreClient.addConversationItem(conversationId, {
+    coreClient.addConversationMessage(conversationId, {
       role,
       content,
     }),
@@ -404,7 +404,7 @@ export const addConversationItem = withSession<
       ok: false,
       error: {
         code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Failed to add conversation item",
+        message: "Failed to add conversation message",
       },
     } as unknown as Result<{ id: string }, ActionError>;
   }

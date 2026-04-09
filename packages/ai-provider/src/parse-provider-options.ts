@@ -77,6 +77,13 @@ export function parseSokosumiProviderOptions(
           'providerOptions.sokosumi.sokosumiUserId is required when mode is "coworker".',
       });
     }
+    if (!providerConversationId?.trim()) {
+      throw new InvalidPromptError({
+        prompt: raw,
+        message:
+          'providerOptions.sokosumi.providerConversationId is required when mode is "coworker" (Conversations API id).',
+      });
+    }
   }
 
   return {

@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 
 import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
 import {
-  getConversationItems,
+  getConversationMessages,
   recoverConversationResponse,
 } from "@/lib/actions/conversation";
 
@@ -75,7 +75,7 @@ export function useRecoverOnTabHide({
         const refId = recoveredConversationIdOnHideRef.current;
         if (refId === null || refId !== cid) return;
         recoveredConversationIdOnHideRef.current = null;
-        void getConversationItems({
+        void getConversationMessages({
           conversationId: refId,
           limit: 100,
         }).then((itemsResult) => {

@@ -78,7 +78,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         message: singleMessage,
         conversationId,
         model,
-        previousResponseId: bodyPreviousResponseId,
         trigger,
       } = c.req.valid("json");
 
@@ -147,24 +146,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       > | null;
       const coworkerSlug = metadata?.coworker_slug as string | undefined;
       const coworkerId = metadata?.coworker_id as string | undefined;
-      const previousResponseIdFromMeta = metadata?.previous_response_id as
-        | string
-        | undefined;
-
-      const trimmedBodyPrevious = bodyPreviousResponseId?.trim();
-      const previousResponseId =
-        trimmedBodyPrevious && trimmedBodyPrevious.length > 0
-          ? trimmedBodyPrevious
-          : typeof previousResponseIdFromMeta === "string" &&
-              previousResponseIdFromMeta.trim().length > 0
-            ? previousResponseIdFromMeta.trim()
-            : null;
-
       let coworker: {
         id: string;
         slug: string;
         baseURL: string | null;
-        supportsConversationsApi: boolean;
       } | null = null;
 
       if (coworkerSlug || coworkerId) {
@@ -290,7 +275,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (
         useCoworker &&
         coworker &&
-        coworker.supportsConversationsApi &&
         internalConversationId &&
         !providerConversationId
       ) {
@@ -323,11 +307,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      if (useCoworker && !providerConversationId?.trim()) {
+        throw serviceUnavailable(
+          "Coworker chat could not create or resolve a remote conversation. Try again shortly.",
+        );
+      }
+
       const coworkerConversationsMode = Boolean(
-        useCoworker &&
-          coworker &&
-          coworker.supportsConversationsApi &&
-          providerConversationId,
+        useCoworker && coworker && providerConversationId,
       );
 
       const modelMessages = await convertToModelMessages(
@@ -338,41 +325,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         current: null,
       };
 
-      let onInvalidPreviousResponseId: (() => Promise<void>) | undefined;
-      if (useCoworker && internalConversationId && !coworkerConversationsMode) {
-        const conversationIdForInvalidChain = internalConversationId;
-        onInvalidPreviousResponseId = async () => {
-          try {
-            const conv = await prisma.conversation.findFirst({
-              where: {
-                id: conversationIdForInvalidChain,
-                userId: authContext.userId,
-              },
-              select: { metadata: true },
-            });
-            const currentMeta =
-              (conv?.metadata as Record<string, unknown>) ?? {};
-            const { previous_response_id: _removed, ...metaWithoutPrevious } =
-              currentMeta as Record<string, unknown>;
-            await prisma.conversation.update({
-              where: { id: conversationIdForInvalidChain },
-              data: { metadata: metaWithoutPrevious },
-            });
-          } catch (error) {
-            console.error(
-              "Failed to clear previous_response_id from conversation after invalid chain (POST /chat):",
-              error,
-            );
-          }
-        };
-      }
-
       let onInvalidProviderConversationId: (() => Promise<void>) | undefined;
-      if (
-        useCoworker &&
-        internalConversationId &&
-        coworker?.supportsConversationsApi
-      ) {
+      if (useCoworker && internalConversationId) {
         const conversationIdForInvalidProviderConv = internalConversationId;
         onInvalidProviderConversationId = async () => {
           try {
@@ -398,8 +352,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         coworkerSlug: coworker?.slug ?? null,
         sokosumiUserId: authContext.userId,
         sokosumiOrganizationId: authContext.organizationId ?? null,
-        previousResponseId:
-          useCoworker && !coworkerConversationsMode ? previousResponseId : null,
+        previousResponseId: null,
         providerConversationId: coworkerConversationsMode
           ? providerConversationId
           : null,
@@ -435,7 +388,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             );
           }
         },
-        onInvalidPreviousResponseId,
         onInvalidProviderConversationId,
       };
 

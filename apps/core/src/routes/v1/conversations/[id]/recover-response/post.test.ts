@@ -85,13 +85,11 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
-      supportsConversationsApi: true,
     });
     findCoworkerWithChatBySlugMock.mockResolvedValue({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
-      supportsConversationsApi: true,
     });
     conversationMessageCreateMock.mockResolvedValue(undefined);
     conversationUpdateMock.mockResolvedValue(undefined);
@@ -155,7 +153,6 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
-      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({
       status: "terminal",
@@ -186,7 +183,6 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
-      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({ status: "in_progress" });
 
@@ -219,7 +215,6 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
-      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({ status: "not_found" });
 
@@ -254,7 +249,6 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
-      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({ status: "not_found" });
     executeRawMock.mockResolvedValueOnce(0);
@@ -284,7 +278,6 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
-      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({
       status: "completed",
@@ -324,7 +317,6 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
-      supportsConversationsApi: true,
     });
     conversationFindFirstMock.mockResolvedValueOnce({
       id: CONV_ID,
@@ -380,7 +372,6 @@ describe("POST /conversations/:id/recover-response", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
-      supportsConversationsApi: true,
     });
     getResponseByIdMock.mockResolvedValueOnce({
       status: "completed",

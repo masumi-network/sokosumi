@@ -5,11 +5,11 @@ export {};
 vi.mock("server-only", () => ({}));
 
 const coreClientMock = {
-  addConversationItem: vi.fn(),
+  addConversationMessage: vi.fn(),
   archiveConversation: vi.fn(),
   createConversation: vi.fn(),
   getConversation: vi.fn(),
-  getConversationItems: vi.fn(),
+  getConversationMessages: vi.fn(),
   getConversations: vi.fn(),
   updateConversation: vi.fn(),
 };
@@ -93,8 +93,8 @@ describe("core conversation api actions", () => {
     });
   });
 
-  it("returns pagination metadata when loading conversation items", async () => {
-    coreClientMock.getConversationItems.mockResolvedValue({
+  it("returns pagination metadata when loading conversation messages", async () => {
+    coreClientMock.getConversationMessages.mockResolvedValue({
       data: [
         {
           id: "item-1",
@@ -113,18 +113,21 @@ describe("core conversation api actions", () => {
       },
     });
 
-    const { getConversationItems } = await import("../core-api-actions");
-    const result = await getConversationItems({
+    const { getConversationMessages } = await import("../core-api-actions");
+    const result = await getConversationMessages({
       session,
       conversationId: "conv-1",
       cursor: null,
       limit: 20,
     });
 
-    expect(coreClientMock.getConversationItems).toHaveBeenCalledWith("conv-1", {
-      cursor: undefined,
-      limit: 20,
-    });
+    expect(coreClientMock.getConversationMessages).toHaveBeenCalledWith(
+      "conv-1",
+      {
+        cursor: undefined,
+        limit: 20,
+      },
+    );
     expect(result).toEqual({
       ok: true,
       data: {
@@ -157,7 +160,7 @@ describe("core conversation api actions", () => {
         updatedAt: new Date("2026-02-19T11:00:00.000Z"),
       },
     });
-    coreClientMock.getConversationItems.mockRejectedValue(
+    coreClientMock.getConversationMessages.mockRejectedValue(
       new Error("items failed"),
     );
 
@@ -203,8 +206,8 @@ describe("core conversation api actions", () => {
     });
   });
 
-  it("returns the created conversation item id", async () => {
-    coreClientMock.addConversationItem.mockResolvedValue({
+  it("returns the created conversation message id", async () => {
+    coreClientMock.addConversationMessage.mockResolvedValue({
       data: {
         id: "item-123",
         role: "user",
@@ -213,18 +216,21 @@ describe("core conversation api actions", () => {
       },
     });
 
-    const { addConversationItem } = await import("../core-api-actions");
-    const result = await addConversationItem({
+    const { addConversationMessage } = await import("../core-api-actions");
+    const result = await addConversationMessage({
       session,
       conversationId: "conv-1",
       role: "user",
       content: "hello",
     });
 
-    expect(coreClientMock.addConversationItem).toHaveBeenCalledWith("conv-1", {
-      role: "user",
-      content: "hello",
-    });
+    expect(coreClientMock.addConversationMessage).toHaveBeenCalledWith(
+      "conv-1",
+      {
+        role: "user",
+        content: "hello",
+      },
+    );
     expect(result).toEqual({
       ok: true,
       data: { id: "item-123" },

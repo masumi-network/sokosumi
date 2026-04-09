@@ -180,7 +180,6 @@ describe("requireTaskAssignableCoworker", () => {
         id: true,
         slug: true,
         baseURL: true,
-        supportsConversationsApi: true,
       },
     });
   });
@@ -216,7 +215,6 @@ describe("requireCoworkerChatCapability", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://responses.example.com/v1",
-      supportsConversationsApi: false,
     } as never);
 
     await requireCoworkerChatCapability("cow_123", tx);
@@ -237,7 +235,6 @@ describe("requireCoworkerChatCapability", () => {
         id: true,
         slug: true,
         baseURL: true,
-        supportsConversationsApi: true,
       },
     });
   });

@@ -18,8 +18,8 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/{id}/items",
-  description: "Get all items (messages) for a conversation (paginated)",
+  path: "/{id}/messages",
+  description: "Get messages for a conversation (paginated)",
   tags: ["Conversations"],
   request: {
     params: z.object({
@@ -40,7 +40,7 @@ const route = createRoute({
   responses: {
     200: jsonPaginatedSuccessResponse(
       z.array(conversationItemSchema),
-      "Conversation items retrieved successfully",
+      "Conversation messages retrieved successfully",
       {
         data: [
           {
@@ -148,7 +148,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw error;
       }
       throw internalServerError(
-        `Failed to retrieve conversation items: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to retrieve conversation messages: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   });

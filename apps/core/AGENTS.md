@@ -441,7 +441,7 @@ Use `cursorPaginationQuerySchema` for query parameters and `jsonPaginatedSuccess
 ```typescript
 const route = createRoute({
   method: "get",
-  path: "/{id}/items",
+  path: "/{id}/messages",
   description: "Get items (paginated)",
   tags: ["Resources"],
   request: {
@@ -550,7 +550,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
 #### Example: Reference Implementation
 
-See `apps/core/src/routes/v1/coworkers/me/events/get.ts` and `apps/core/src/routes/v1/conversations/[id]/items/get.ts` for complete reference implementations.
+See `apps/core/src/routes/v1/coworkers/me/events/get.ts` and `apps/core/src/routes/v1/conversations/[id]/messages/get.ts` for complete reference implementations.
 
 ### Accessing Job-Related Resources
 

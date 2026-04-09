@@ -14,8 +14,8 @@ import {
 
 const route = createRoute({
   method: "post",
-  path: "/{id}/items",
-  description: "Add an item to a conversation",
+  path: "/{id}/messages",
+  description: "Add a message to a conversation",
   tags: ["Conversations"],
   request: {
     params: z.object({
@@ -42,7 +42,7 @@ const route = createRoute({
   responses: {
     201: jsonSuccessResponse(
       conversationItemSchema,
-      "Conversation item created successfully",
+      "Conversation message created successfully",
       {
         data: {
           id: "550e8400-e29b-41d4-a716-446655440000",

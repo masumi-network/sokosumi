@@ -4,7 +4,7 @@ import type { UIMessage } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
-import { getConversationItems } from "@/lib/actions/conversation/core-api-actions";
+import { getConversationMessages } from "@/lib/actions/conversation/core-api-actions";
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_COUNT = 60; // 2 minutes at 2s interval
@@ -92,7 +92,7 @@ export function usePendingResponsePolling({
       return;
     }
     try {
-      const raw = await getConversationItems({
+      const raw = await getConversationMessages({
         conversationId: selectedChatId,
         limit: 100,
       });

@@ -180,7 +180,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 **Acceptance scenarios**:
 
 1. **Given** `pending_responses_api_response_id` in metadata, **when** `useChatMessages` loads, **then** it may skip DB reload per `skipLoadWhenPendingId` / metadata checks.
-2. **Given** pending metadata, **when** the client runs `usePendingResponsePolling`, **then** it polls `getConversationItems` until an assistant message appears or timeout, then refreshes the sidebar.
+2. **Given** pending metadata, **when** the client runs `usePendingResponsePolling`, **then** it polls `getConversationMessages` until an assistant message appears or timeout, then refreshes the sidebar.
 3. **Given** a coworker stream starts, **when** the response begins, **then** Core persists the pending id and on completion clears/commits `previous_response_id` (`persistPendingResponseId`, `clearPendingAndSetPrevious`).
 
 ---
@@ -253,7 +253,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 
 **Acceptance scenarios**:
 
-1. **Given** a conversation id, **when** the client loads history, **then** it uses `getConversationItems` with a configured limit of 100 messages.
+1. **Given** a conversation id, **when** the client loads history, **then** it uses `getConversationMessages` with a configured limit of 100 messages.
 2. **Given** raw items from the API, **when** converted, **then** `convertItemsToMessages` maps them to client message shape.
 3. **Given** duplicate ids in edge cases, **when** the client normalizes, **then** `deduplicateMessagesById` applies as implemented.
 
@@ -322,7 +322,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 - **FR-013**: The transport contract seen by the web app MUST preserve fields **`messages`**, **`conversationId`**, **`previousResponseId`**, **`model`** and SSE shape expected by `useChat`, including **`data-reasoning`** parts, or the web layer MUST provide a compatibility adapter.
 - **FR-014**: OpenRouter mode MUST own transcript/history in Sokosumi (request and DB mirror); coworker mode MUST maintain the Responses id chain and pending/completed metadata; a unified provider MUST NOT merge these without an explicit mode flag.
 - **FR-015**: OpenAPI for **`/v1/chat`** MUST remain consistent with implementation for status codes **400, 401, 403, 404, 503, 500** where applicable.
-- **FR-016**: The default thread history load MUST use `getConversationItems` with a limit of **100** items until pagination is specified.
+- **FR-016**: The default thread history load MUST use `getConversationMessages` with a limit of **100** items until pagination is specified.
 - **FR-017**: Welcome flow with `?coworker=` MUST deep-link when that coworker exists in the list; when **elena** is absent from the list, the app MUST select the next available coworker or LLM per `useChatCreation`.
 
 ---

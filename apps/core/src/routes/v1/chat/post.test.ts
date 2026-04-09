@@ -134,7 +134,6 @@ describe("POST /chat", () => {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://responses.example.com/v1",
-      supportsConversationsApi: false,
     });
   });
 
@@ -234,7 +233,7 @@ describe("POST /chat", () => {
     expect(call.providerOptions?.sokosumi?.mode).toBe("openrouter");
   });
 
-  it("passes onInvalidPreviousResponseId for coworker threads with conversation id", async () => {
+  it("uses Conversations mode for coworker (no onInvalidPreviousResponseId)", async () => {
     conversationFindFirstMock
       .mockResolvedValueOnce({
         id: "550e8400-e29b-41d4-a716-446655440000",
@@ -242,6 +241,7 @@ describe("POST /chat", () => {
           coworker_slug: "ops-agent",
           previous_response_id: "resp_stale",
         },
+        providerConversationId: "conv_remote_1",
       })
       .mockResolvedValueOnce({ _count: { messages: 1 } });
     coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
@@ -260,13 +260,22 @@ describe("POST /chat", () => {
     expect(streamTextMock).toHaveBeenCalledOnce();
     const args = streamTextMock.mock.calls[0]![0] as {
       providerOptions?: {
-        sokosumi?: { mode?: string; onInvalidPreviousResponseId?: unknown };
+        sokosumi?: {
+          mode?: string;
+          onInvalidPreviousResponseId?: unknown;
+          previousResponseId?: string | null;
+          providerConversationId?: string | null;
+        };
       };
     };
     expect(args.providerOptions?.sokosumi?.mode).toBe("coworker");
-    expect(
-      typeof args.providerOptions?.sokosumi?.onInvalidPreviousResponseId,
-    ).toBe("function");
+    expect(args.providerOptions?.sokosumi?.providerConversationId).toBe(
+      "conv_remote_1",
+    );
+    expect(args.providerOptions?.sokosumi?.previousResponseId).toBeNull();
+    expect(args.providerOptions?.sokosumi?.onInvalidPreviousResponseId).toBe(
+      undefined,
+    );
   });
 
   it("merges DB history when the client sends only the new message (submit-message)", async () => {
