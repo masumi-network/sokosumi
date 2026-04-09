@@ -85,6 +85,7 @@ export function SubscriptionPlanCard({
               formatter.number(amount, {
                 style: "currency",
                 currency: plan.currency.toUpperCase(),
+                notation: "compact",
               }),
             freePriceLabel: t("freePrice"),
             monthlyAmount: plan.monthlyAmount,
