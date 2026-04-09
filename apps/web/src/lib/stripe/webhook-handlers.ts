@@ -19,6 +19,7 @@ import {
 import {
   memberRepository,
   organizationRepository,
+  subscriptionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import {
@@ -907,17 +908,25 @@ export async function handleCustomerCreatedEvent(
       });
       console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
 
-      await prisma.$transaction(async (tx) => {
-        await ensureInitialLocalFreeSubscriptionPeriod(
-          {
-            createdAt: user.createdAt,
-            kind: "user",
-            stripeCustomerId: customer.id,
-            userId,
-          },
-          tx,
+      const existingSubscription =
+        await subscriptionRepository.getLatestSubscriptionByReferenceId(
+          userId,
+          prisma,
         );
-      });
+
+      if (!existingSubscription) {
+        await prisma.$transaction(async (tx) => {
+          await ensureInitialLocalFreeSubscriptionPeriod(
+            {
+              createdAt: user.createdAt,
+              kind: "user",
+              stripeCustomerId: customer.id,
+              userId,
+            },
+            tx,
+          );
+        });
+      }
 
       const { couponApplied, invoiceId } =
         await stripeService.claimWelcomeCoupon(userId);
@@ -939,17 +948,25 @@ export async function handleCustomerCreatedEvent(
         `✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`,
       );
 
-      await prisma.$transaction(async (tx) => {
-        await ensureInitialLocalFreeSubscriptionPeriod(
-          {
-            createdAt: organization.createdAt,
-            kind: "organization",
-            organizationId: metadata.organizationId,
-            stripeCustomerId: customer.id,
-          },
-          tx,
+      const existingSubscription =
+        await subscriptionRepository.getLatestSubscriptionByReferenceId(
+          metadata.organizationId,
+          prisma,
         );
-      });
+
+      if (!existingSubscription) {
+        await prisma.$transaction(async (tx) => {
+          await ensureInitialLocalFreeSubscriptionPeriod(
+            {
+              createdAt: organization.createdAt,
+              kind: "organization",
+              organizationId: metadata.organizationId,
+              stripeCustomerId: customer.id,
+            },
+            tx,
+          );
+        });
+      }
       break;
     }
     default: {
