@@ -529,6 +529,121 @@ describe("freeSubscriptionSyncService", () => {
     expect(transactionSubscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("skips free migration when a paid subscription is still active", async () => {
+    subscriptionFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          cancelAtPeriodEnd: true,
+          canceledAt: new Date("2026-04-01T00:00:00.000Z"),
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
+          endedAt: new Date("2026-04-01T00:00:00.000Z"),
+          id: "sub-free-override",
+          periodEnd: new Date("2026-04-01T00:00:00.000Z"),
+          referenceId: "org-paid",
+          seats: 3,
+          status: "canceled",
+          stripeCustomerId: "cus_paid",
+          stripeSubscriptionId: "sub_stripe_free_override",
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "sub-paid-active",
+          referenceId: "org-paid",
+        },
+      ]);
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    await freeSubscriptionSyncService.syncLegacyStripeFreeSubscriptions(
+      createSyncExecutionOptions(),
+    );
+
+    expect(subscriptionFindManyMock).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({
+        where: {
+          OR: [
+            {
+              id: {
+                not: "sub-free-override",
+              },
+              referenceId: "org-paid",
+              status: {
+                in: ["active", "trialing", "past_due", "unpaid"],
+              },
+              OR: [
+                {
+                  plan: {
+                    not: "free",
+                  },
+                },
+                {
+                  periodEnd: {
+                    gt: new Date("2026-04-01T00:00:00.000Z"),
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        select: {
+          id: true,
+          referenceId: true,
+        },
+      }),
+    );
+    expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
+    expect(transactionSubscriptionUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("allows free migration after a paid subscription has already ended", async () => {
+    organizationFindUniqueMock.mockResolvedValue({ id: "org-after-paid" });
+    subscriptionFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          cancelAtPeriodEnd: true,
+          canceledAt: new Date("2026-04-01T00:00:00.000Z"),
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
+          endedAt: new Date("2026-04-01T00:00:00.000Z"),
+          id: "sub-free-after-paid",
+          periodEnd: new Date("2026-04-01T00:00:00.000Z"),
+          referenceId: "org-after-paid",
+          seats: 3,
+          status: "canceled",
+          stripeCustomerId: "cus_after_paid",
+          stripeSubscriptionId: "sub_stripe_after_paid",
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    await freeSubscriptionSyncService.syncLegacyStripeFreeSubscriptions(
+      createSyncExecutionOptions(),
+    );
+
+    expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        billingAnchorDate: new Date("2026-03-01T00:00:00.000Z"),
+        memberUserIds: ["user-1", "user-2"],
+        organizationId: "org-after-paid",
+        periodStart: new Date("2026-04-01T00:00:00.000Z"),
+        referenceId: "org-after-paid",
+        stripeCustomerId: "cus_after_paid",
+      }),
+      expect.any(Object),
+    );
+  });
+
   it("renews due local free subscriptions and preserves history", async () => {
     organizationFindUniqueMock.mockResolvedValue(null);
     userFindUniqueMock.mockResolvedValue({ id: "user-5" });

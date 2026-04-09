@@ -197,6 +197,60 @@ async function filterSubscriptionsMissingNextLocalSuccessor<
   });
 }
 
+async function filterSubscriptionsWithoutActivePaidOverride<
+  TSubscription extends FreeSubscriptionRecord,
+>(subscriptions: TSubscription[]): Promise<TSubscription[]> {
+  const subscriptionsWithPeriodEnd = subscriptions.filter(
+    (
+      subscription,
+    ): subscription is TSubscription & {
+      periodEnd: Date;
+    } => subscription.periodEnd instanceof Date,
+  );
+
+  if (subscriptionsWithPeriodEnd.length === 0) {
+    return subscriptions;
+  }
+
+  const activeOverrides = await prisma.subscription.findMany({
+    where: {
+      OR: subscriptionsWithPeriodEnd.map((subscription) => ({
+        id: {
+          not: subscription.id,
+        },
+        referenceId: subscription.referenceId,
+        status: {
+          in: [...ACTIVE_SUBSCRIPTION_STATUSES],
+        },
+        OR: [
+          {
+            plan: {
+              not: FREE_SUBSCRIPTION_PLAN,
+            },
+          },
+          {
+            periodEnd: {
+              gt: subscription.periodEnd,
+            },
+          },
+        ],
+      })),
+    },
+    select: {
+      id: true,
+      referenceId: true,
+    },
+  });
+
+  const blockedReferenceIds = new Set(
+    activeOverrides.map((subscription) => subscription.referenceId),
+  );
+
+  return subscriptions.filter(
+    (subscription) => !blockedReferenceIds.has(subscription.referenceId),
+  );
+}
+
 async function markStripeSubscriptionToCancelAtPeriodEnd(
   subscription: StripeBackedSubscriptionRecord,
   options: SyncExecutionOptions,
@@ -471,8 +525,12 @@ async function syncLegacyStripeFreeSubscriptions(
     await filterSubscriptionsMissingNextLocalSuccessor(
       dueStripeBackedSubscriptions,
     );
+  const subscriptionsSafeToMigrate =
+    await filterSubscriptionsWithoutActivePaidOverride(
+      subscriptionsNeedingMigration,
+    );
 
-  for (const subscription of subscriptionsNeedingMigration) {
+  for (const subscription of subscriptionsSafeToMigrate) {
     if (
       shouldStopSync(
         options,
