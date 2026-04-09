@@ -1661,7 +1661,7 @@
       "upgradePlanCta": "プランを選択",
       "cancelSubscriptionCta": "サブスクリプションを解約",
       "cancelsOnDate": "{date}に終了",
-      "statusCancellationScheduled": "サブスクリプションは{date}に終了します。",
+      "statusCancellationScheduled": "サブスクリプションの解約を予約しました。",
       "billingPortalTitle": "請求ポータル",
       "billingPortalDescription": "Stripe の請求ポータルを開いて、サブスクリプションと請求書を管理します。",
       "billingPortalDescriptionWithPlan": "現在のプランは{plan}です。Stripe で請求情報と請求書を管理してください。",

@@ -1599,7 +1599,7 @@
       "upgradePlanCta": "Plan auswählen",
       "cancelSubscriptionCta": "Abonnement kündigen",
       "cancelsOnDate": "Endet am {date}",
-      "statusCancellationScheduled": "Das Abonnement endet am {date}.",
+      "statusCancellationScheduled": "Die Kündigung des Abonnements wurde geplant.",
       "billingPortalTitle": "Billing-Portal",
       "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um dein Abonnement und deine Rechnungen zu verwalten.",
       "billingPortalDescriptionWithPlan": "Du nutzt aktuell {plan}. Verwalte Zahlungsdetails und Rechnungen in Stripe.",

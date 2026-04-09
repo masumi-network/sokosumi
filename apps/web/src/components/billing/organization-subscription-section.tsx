@@ -174,11 +174,7 @@ export function OrganizationSubscriptionSection({
             return;
           }
 
-          toast.success(
-            tSubscriptions("statusCancellationScheduled", {
-              date: cancellationDate ?? "",
-            }),
-          );
+          toast.success(tSubscriptions("statusCancellationScheduled"));
           router.refresh();
           return;
         }

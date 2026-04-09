@@ -21,6 +21,7 @@ const createTransactionMock = vi.fn();
 const findOutOfCreditsTasksMock = vi.fn();
 const updateTaskMock = vi.fn();
 const claimWelcomeCouponMock = vi.fn();
+const ensureInitialLocalFreeSubscriptionPeriodMock = vi.fn();
 const prismaOrganizationUpdateMock = vi.fn();
 const prismaUserUpdateMock = vi.fn();
 
@@ -49,6 +50,16 @@ vi.mock("@/config/env.secrets", () => ({
     STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "prod_starter",
   }),
 }));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    ensureInitialLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
+      ensureInitialLocalFreeSubscriptionPeriodMock(...args),
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
@@ -1323,8 +1334,15 @@ describe("handleCustomerCreatedEvent", () => {
       couponApplied: false,
       invoiceId: null,
     });
-    prismaUserUpdateMock.mockResolvedValue(undefined);
-    prismaOrganizationUpdateMock.mockResolvedValue(undefined);
+    ensureInitialLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
+    prismaUserUpdateMock.mockResolvedValue({
+      createdAt: new Date("2026-04-09T07:03:48.591Z"),
+      id: "user-1",
+    });
+    prismaOrganizationUpdateMock.mockResolvedValue({
+      createdAt: new Date("2026-04-09T07:03:48.591Z"),
+      id: "org-1",
+    });
   });
 
   it("stores Stripe customer ids for newly created organization customers without creating a Stripe free subscription", async () => {
@@ -1342,6 +1360,15 @@ describe("handleCustomerCreatedEvent", () => {
       where: { id: "org-1" },
       data: { stripeCustomerId: "cus_org_1" },
     });
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      {
+        createdAt: new Date("2026-04-09T07:03:48.591Z"),
+        kind: "organization",
+        organizationId: "org-1",
+        stripeCustomerId: "cus_org_1",
+      },
+      expect.anything(),
+    );
     expect(claimWelcomeCouponMock).not.toHaveBeenCalled();
   });
 
@@ -1360,6 +1387,15 @@ describe("handleCustomerCreatedEvent", () => {
       where: { id: "user-1" },
       data: { stripeCustomerId: "cus_user_1" },
     });
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      {
+        createdAt: new Date("2026-04-09T07:03:48.591Z"),
+        kind: "user",
+        stripeCustomerId: "cus_user_1",
+        userId: "user-1",
+      },
+      expect.anything(),
+    );
     expect(claimWelcomeCouponMock).toHaveBeenCalledWith("user-1");
   });
 });

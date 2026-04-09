@@ -1660,7 +1660,7 @@
       "upgradePlanCta": "Choisir un forfait",
       "cancelSubscriptionCta": "Annuler l’abonnement",
       "cancelsOnDate": "Annulation le {date}",
-      "statusCancellationScheduled": "L’abonnement sera annulé le {date}.",
+      "statusCancellationScheduled": "L’annulation de l’abonnement a été planifiée.",
       "billingPortalTitle": "Portail de facturation",
       "billingPortalDescription": "Ouvrez le portail de facturation Stripe pour gérer votre abonnement et vos factures.",
       "billingPortalDescriptionWithPlan": "Vous êtes actuellement sur {plan}. Gérez la facturation et les factures dans Stripe.",

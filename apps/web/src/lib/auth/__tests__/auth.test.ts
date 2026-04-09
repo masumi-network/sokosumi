@@ -933,14 +933,7 @@ describe("web auth config", () => {
       "magic",
       true,
     );
-    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        createdAt: new Date("2026-04-08T00:00:00.000Z"),
-        kind: "user",
-        userId: "user_123",
-      }),
-      { __tx: true },
-    );
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith(
       "user_123",
       "magic",
@@ -1036,52 +1029,13 @@ describe("web auth config", () => {
       user: { id: "user-1" },
     });
 
-    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        createdAt: new Date("2026-04-08T00:00:00.000Z"),
-        kind: "organization",
-        organizationId: "org-1",
-      }),
-      { __tx: true },
-    );
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
     expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
       "org-1",
       "org-one",
       "Org One",
       null,
     );
-  });
-
-  it("fails when the created user is missing createdAt", async () => {
-    await import("../auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          databaseHooks: {
-            user: {
-              create: {
-                after: (user: {
-                  email: string;
-                  id: string;
-                  marketingOptIn: boolean;
-                  name: string;
-                }) => Promise<void>;
-              };
-            };
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.databaseHooks.user.create.after({
-        email: "magic@example.com",
-        id: "user_123",
-        marketingOptIn: true,
-        name: "magic",
-      }),
-    ).rejects.toThrow("User is missing its createdAt timestamp.");
   });
 
   it("syncs local free organization seats and credits after accepting an invitation", async () => {

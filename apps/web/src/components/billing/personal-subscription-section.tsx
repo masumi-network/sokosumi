@@ -114,11 +114,7 @@ export function PersonalSubscriptionSection({
           return;
         }
 
-        toast.success(
-          t("statusCancellationScheduled", {
-            date: cancellationDate ?? "",
-          }),
-        );
+        toast.success(t("statusCancellationScheduled"));
         router.refresh();
         return;
       }

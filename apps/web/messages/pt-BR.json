@@ -1660,7 +1660,7 @@
       "upgradePlanCta": "Escolher plano",
       "cancelSubscriptionCta": "Cancelar assinatura",
       "cancelsOnDate": "Cancela em {date}",
-      "statusCancellationScheduled": "A assinatura será cancelada em {date}.",
+      "statusCancellationScheduled": "O cancelamento da assinatura foi agendado.",
       "billingPortalTitle": "Portal de cobrança",
       "billingPortalDescription": "Abra o Portal de Cobrança da Stripe para gerenciar sua assinatura e suas faturas.",
       "billingPortalDescriptionWithPlan": "Você está no plano {plan}. Gerencie a cobrança e as faturas na Stripe.",

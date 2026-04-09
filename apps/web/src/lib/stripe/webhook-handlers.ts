@@ -11,6 +11,7 @@ import {
   buildOrganizationInvoiceCreditReferenceId,
   buildOrganizationMemberSubscriptionReferenceId,
   buildUserInvoiceCreditReferenceId,
+  ensureInitialLocalFreeSubscriptionPeriod,
   escapeStringForLike,
   getCreditExpiryDate,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
@@ -900,11 +901,23 @@ export async function handleCustomerCreatedEvent(
   switch (metadata?.customerType) {
     case "user": {
       const userId = metadata.userId;
-      await prisma.user.update({
+      const user = await prisma.user.update({
         where: { id: userId },
         data: { stripeCustomerId: customer.id },
       });
       console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
+
+      await prisma.$transaction(async (tx) => {
+        await ensureInitialLocalFreeSubscriptionPeriod(
+          {
+            createdAt: user.createdAt,
+            kind: "user",
+            stripeCustomerId: customer.id,
+            userId,
+          },
+          tx,
+        );
+      });
 
       const { couponApplied, invoiceId } =
         await stripeService.claimWelcomeCoupon(userId);
@@ -918,13 +931,25 @@ export async function handleCustomerCreatedEvent(
       break;
     }
     case "organization": {
-      await prisma.organization.update({
+      const organization = await prisma.organization.update({
         where: { id: metadata.organizationId },
         data: { stripeCustomerId: customer.id },
       });
       console.log(
         `✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`,
       );
+
+      await prisma.$transaction(async (tx) => {
+        await ensureInitialLocalFreeSubscriptionPeriod(
+          {
+            createdAt: organization.createdAt,
+            kind: "organization",
+            organizationId: metadata.organizationId,
+            stripeCustomerId: customer.id,
+          },
+          tx,
+        );
+      });
       break;
     }
     default: {

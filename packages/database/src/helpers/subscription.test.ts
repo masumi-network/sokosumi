@@ -221,6 +221,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       {
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         kind: "user",
+        stripeCustomerId: "cus_user_1",
         userId: "user-1",
       },
       tx,
@@ -245,7 +246,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       referenceId: "user-1",
       seats: 1,
       status: "active",
-      stripeCustomerId: null,
+      stripeCustomerId: "cus_user_1",
       stripeSubscriptionId: null,
     });
     assert.equal(createTransactionMock.mock.calls.length, 1);
@@ -259,6 +260,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
         {
           createdAt: new Date("not-a-date"),
           kind: "user",
+          stripeCustomerId: "cus_user_1",
           userId: "user-1",
         },
         tx,
@@ -285,6 +287,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         kind: "organization",
         organizationId: "org-1",
+        stripeCustomerId: "cus_org_1",
       },
       tx,
     );
@@ -314,7 +317,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       referenceId: "org-1",
       seats: 2,
       status: "active",
-      stripeCustomerId: null,
+      stripeCustomerId: "cus_org_1",
       stripeSubscriptionId: null,
     });
     assert.equal(createTransactionMock.mock.calls.length, 2);
@@ -331,6 +334,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
           createdAt: new Date("2026-04-01T10:00:00.000Z"),
           kind: "organization",
           organizationId: "org-1",
+          stripeCustomerId: "cus_org_1",
         },
         tx,
       ),

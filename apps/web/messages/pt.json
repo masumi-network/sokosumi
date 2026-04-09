@@ -1661,7 +1661,7 @@
       "upgradePlanCta": "Escolher plano",
       "cancelSubscriptionCta": "Cancelar subscrição",
       "cancelsOnDate": "Cancela em {date}",
-      "statusCancellationScheduled": "A subscrição será cancelada em {date}.",
+      "statusCancellationScheduled": "O cancelamento da subscrição foi agendado.",
       "billingPortalTitle": "Portal de faturação",
       "billingPortalDescription": "Abra o Portal de faturação da Stripe para gerir a sua subscrição e faturas.",
       "billingPortalDescriptionWithPlan": "Atualmente está no plano {plan}. Gira os detalhes de faturação e as faturas na Stripe.",

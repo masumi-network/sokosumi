@@ -8,7 +8,6 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { MemberRole, type User } from "@sokosumi/database";
-import { ensureInitialLocalFreeSubscriptionPeriod } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 import {
   renderMagicLinkEmail,
@@ -140,19 +139,6 @@ function getEmailLocale(
     cookieLocale: getEmailLocaleCookieValue(cookieHeader),
     acceptLanguageHeader,
     defaultLocale: DEFAULT_LOCALE,
-  });
-}
-
-function ensureEntityCreatedAt(
-  value: Date | undefined,
-  entityName: string,
-): Date {
-  if (value instanceof Date) {
-    return value;
-  }
-
-  throw new APIError("INTERNAL_SERVER_ERROR", {
-    message: `${entityName} is missing its createdAt timestamp.`,
   });
 }
 
@@ -333,19 +319,6 @@ export const auth = betterAuth({
         after: async (user, _ctx) => {
           await ensureStripeCustomerForCreatedUser(user);
 
-          await prisma.$transaction(async (tx) => {
-            await ensureInitialLocalFreeSubscriptionPeriod(
-              {
-                createdAt: ensureEntityCreatedAt(
-                  "createdAt" in user ? user.createdAt : undefined,
-                  "User",
-                ),
-                kind: "user",
-                userId: user.id,
-              },
-              tx,
-            );
-          });
           // Validate user data before calling webhook
           const { success, data, error } =
             marketingOptInUserSchema.safeParse(user);
@@ -583,22 +556,6 @@ export const auth = betterAuth({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
           await ensureStripeCustomerForCreatedOrganization(organization);
-
-          await prisma.$transaction(async (tx) => {
-            await ensureInitialLocalFreeSubscriptionPeriod(
-              {
-                createdAt: ensureEntityCreatedAt(
-                  "createdAt" in organization
-                    ? organization.createdAt
-                    : undefined,
-                  "Organization",
-                ),
-                kind: "organization",
-                organizationId: organization.id,
-              },
-              tx,
-            );
-          });
         },
         beforeAcceptInvitation: async ({ organization }) => {
           await organizationSubscriptionService.ensureCanAcceptInvitation(

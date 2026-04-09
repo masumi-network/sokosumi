@@ -57,6 +57,7 @@ export interface EnsureLocalFreeSubscriptionPeriodResult {
 
 interface EnsureInitialLocalFreeSubscriptionPeriodBaseParams {
   createdAt: Date;
+  stripeCustomerId: string;
 }
 
 export interface EnsureInitialLocalFreeUserSubscriptionPeriodParams
@@ -301,6 +302,7 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
         periodEnd,
         periodStart,
         referenceId: params.userId,
+        stripeCustomerId: params.stripeCustomerId,
       },
       tx,
     );
@@ -320,6 +322,7 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
       periodEnd,
       periodStart,
       referenceId: params.organizationId,
+      stripeCustomerId: params.stripeCustomerId,
     },
     tx,
   );
