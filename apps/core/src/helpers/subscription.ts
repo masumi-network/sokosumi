@@ -208,10 +208,14 @@ export async function buildCreditsPayload(params: {
     params.tx,
   );
   const latestSubscription =
-    await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+    (await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
       params.referenceId,
       params.tx,
-    );
+    )) ??
+    (await subscriptionRepository.getLatestSubscriptionByReferenceId(
+      params.referenceId,
+      params.tx,
+    ));
   const subscriptionCredits = await getCurrentSubscriptionCredits({
     subscription: latestSubscription,
     userId: params.userId,
