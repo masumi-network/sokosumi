@@ -1,6 +1,7 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 import {
   buildWorkspaceWhere,
+  isWorkspaceContext,
   resolveWorkspaceContext,
 } from "@/helpers/access-control";
 import {
@@ -56,7 +57,7 @@ async function buildVisiblePeerTaskWhere(
     };
   }
 
-  if ("workspaceId" in authContext) {
+  if (isWorkspaceContext(authContext)) {
     return buildWorkspaceWhere(authContext);
   }
 

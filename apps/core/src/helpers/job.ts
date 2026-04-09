@@ -26,6 +26,7 @@ import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import {
   buildWorkspaceWhere,
+  isWorkspaceContext,
   resolveWorkspaceContext,
 } from "@/helpers/access-control";
 import {
@@ -484,10 +485,9 @@ export async function getUserJobs(
     skip,
     tx = prisma,
   } = options;
-  const workspaceContext =
-    "workspaceId" in context
-      ? context
-      : await resolveWorkspaceContext(context, tx);
+  const workspaceContext = isWorkspaceContext(context)
+    ? context
+    : await resolveWorkspaceContext(context, tx);
 
   if (!workspaceContext) {
     return {

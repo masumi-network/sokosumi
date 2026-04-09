@@ -59,7 +59,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           archivedAt: new Date(),
         },
-        include: await buildTaskIncludeForViewer(authContext, tx),
+        include: await buildTaskIncludeForViewer(viewerContext, tx),
       });
     });
 

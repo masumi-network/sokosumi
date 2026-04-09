@@ -20,8 +20,15 @@ import { badRequest, forbidden, notFound } from "./error";
 
 type WorkspaceContextInput = WorkspaceContext | UserAuthenticationContext;
 
-function isWorkspaceContext(
-  context: WorkspaceContextInput,
+/**
+ * Runtime discriminator for {@link WorkspaceContext} vs user/coworker auth objects
+ * (only workspace context carries `workspaceId`).
+ */
+export function isWorkspaceContext(
+  context:
+    | WorkspaceContext
+    | UserAuthenticationContext
+    | CoworkerAuthenticationContext,
 ): context is WorkspaceContext {
   return "workspaceId" in context;
 }

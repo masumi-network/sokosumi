@@ -108,7 +108,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description,
           coworkerId,
         },
-        include: await buildTaskIncludeForViewer(authContext, tx),
+        include: await buildTaskIncludeForViewer(viewerContext, tx),
       });
     });
 

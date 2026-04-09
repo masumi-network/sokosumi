@@ -9,7 +9,10 @@ import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  requireUserAuthContext,
+  type WorkspaceContext,
+} from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
@@ -57,6 +60,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await prisma.$transaction(
       async (tx) => {
+        const viewerContext = c.var.workspaceContext ?? authContext;
+
         const task = await tx.task.findFirst({
           where: {
             id,
@@ -82,7 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!workspaceChanged) {
           return await tx.task.findUniqueOrThrow({
             where: { id },
-            include: await buildTaskIncludeForViewer(authContext, tx),
+            include: await buildTaskIncludeForViewer(viewerContext, tx),
           });
         }
 
@@ -132,9 +137,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
 
+        const postMoveViewerContext: WorkspaceContext = {
+          workspaceId: workspace.id,
+          userId: authContext.userId,
+          organizationId: targetOrganizationId,
+        };
+
         return await tx.task.findUniqueOrThrow({
           where: { id },
-          include: await buildTaskIncludeForViewer(authContext, tx),
+          include: await buildTaskIncludeForViewer(postMoveViewerContext, tx),
         });
       },
       {
