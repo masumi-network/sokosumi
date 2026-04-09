@@ -8,6 +8,7 @@ import {
   ensureInitialLocalFreeSubscriptionPeriod,
   ensureLocalFreeSubscriptionPeriod,
   getNextMonthlyPeriodEnd,
+  transitionToNextLocalFreeSubscriptionPeriod,
 } from "./subscription.js";
 
 function createTransactionClient(params?: {
@@ -69,6 +70,50 @@ function createTransactionClient(params?: {
       },
       transaction: {
         create: createTransactionMock,
+      },
+    } as unknown as PrismaType.TransactionClient,
+  };
+}
+
+function createTransitionClient(params?: {
+  members?: Array<{ userId: string }>;
+  organization?: { id: string } | null;
+  user?: { id: string } | null;
+}) {
+  const findManyMembersMock = vi.fn().mockResolvedValue(params?.members ?? []);
+  const findOrganizationMock = vi
+    .fn()
+    .mockResolvedValue(params?.organization ?? null);
+  const findUserMock = vi.fn().mockResolvedValue(params?.user ?? null);
+  const updateSubscriptionMock = vi.fn().mockResolvedValue({
+    id: "subscription-1",
+  });
+  const ensureTx = createTransactionClient({
+    members: (params?.members ?? []).map((member) => ({
+      userId: member.userId,
+    })),
+  });
+
+  return {
+    ...ensureTx,
+    findManyMembersMock,
+    findOrganizationMock,
+    findUserMock,
+    updateSubscriptionMock,
+    tx: {
+      ...ensureTx.tx,
+      member: {
+        findMany: findManyMembersMock,
+      },
+      organization: {
+        findUnique: findOrganizationMock,
+      },
+      subscription: {
+        ...ensureTx.tx.subscription,
+        update: updateSubscriptionMock,
+      },
+      user: {
+        findUnique: findUserMock,
       },
     } as unknown as PrismaType.TransactionClient,
   };
@@ -387,5 +432,93 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       ),
       /Cannot create local free subscription period for organization org-1: no members found/,
     );
+  });
+});
+
+describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
+  it("creates the next personal local free period and closes out the source subscription", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-09T00:00:00.000Z"));
+    const {
+      createSubscriptionMock,
+      createTransactionMock,
+      tx,
+      updateSubscriptionMock,
+    } = createTransitionClient({
+      organization: null,
+      user: { id: "user-1" },
+    });
+
+    await transitionToNextLocalFreeSubscriptionPeriod(
+      {
+        operationKind: "migrate",
+        setCanceledAtOnCloseOut: true,
+        subscription: {
+          canceledAt: null,
+          createdAt: new Date("2026-01-30T10:00:00.000Z"),
+          endedAt: null,
+          id: "subscription-source",
+          periodEnd: new Date("2026-02-28T10:00:00.000Z"),
+          referenceId: "user-1",
+          stripeCustomerId: "cus_1",
+        },
+      },
+      tx,
+    );
+
+    assert.equal(
+      createSubscriptionMock.mock.calls[0][0].data.periodEnd.toISOString(),
+      "2026-03-30T10:00:00.000Z",
+    );
+    assert.equal(createTransactionMock.mock.calls.length, 1);
+    assert.deepEqual(updateSubscriptionMock.mock.calls[0][0], {
+      where: {
+        id: "subscription-source",
+      },
+      data: {
+        canceledAt: new Date("2026-04-09T00:00:00.000Z"),
+        endedAt: new Date("2026-02-28T10:00:00.000Z"),
+        status: "canceled",
+      },
+    });
+    vi.useRealTimers();
+  });
+
+  it("marks stale subscriptions canceled when neither user nor organization exists", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-09T00:00:00.000Z"));
+    const { tx, updateSubscriptionMock } = createTransitionClient({
+      organization: null,
+      user: null,
+    });
+
+    await transitionToNextLocalFreeSubscriptionPeriod(
+      {
+        operationKind: "renew-local-free",
+        setCanceledAtOnCloseOut: false,
+        subscription: {
+          canceledAt: null,
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          endedAt: null,
+          id: "subscription-stale",
+          periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+          referenceId: "missing-user",
+          stripeCustomerId: null,
+        },
+      },
+      tx,
+    );
+
+    assert.deepEqual(updateSubscriptionMock.mock.calls[0][0], {
+      where: {
+        id: "subscription-stale",
+      },
+      data: {
+        canceledAt: new Date("2026-04-09T00:00:00.000Z"),
+        endedAt: new Date("2026-03-01T00:00:00.000Z"),
+        status: "canceled",
+      },
+    });
+    vi.useRealTimers();
   });
 });

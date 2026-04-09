@@ -56,6 +56,20 @@ export interface EnsureLocalFreeSubscriptionPeriodResult {
   subscriptionId: string;
 }
 
+export interface TransitionToNextLocalFreeSubscriptionParams {
+  operationKind: "migrate" | "renew-local-free";
+  setCanceledAtOnCloseOut: boolean;
+  subscription: {
+    canceledAt: Date | null;
+    createdAt: Date;
+    endedAt: Date | null;
+    id: string;
+    periodEnd: Date | null;
+    referenceId: string;
+    stripeCustomerId: string | null;
+  };
+}
+
 interface EnsureInitialLocalFreeSubscriptionPeriodBaseParams {
   createdAt: Date;
   stripeCustomerId: string;
@@ -212,6 +226,115 @@ function normalizeLocalFreeSubscriptionPeriod(
     organizationId: params.organizationId,
     seats: memberUserIds.length,
   };
+}
+
+export async function transitionToNextLocalFreeSubscriptionPeriod(
+  params: TransitionToNextLocalFreeSubscriptionParams,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const { subscription } = params;
+
+  if (!subscription.periodEnd) {
+    return;
+  }
+
+  const periodStart = new Date(subscription.periodEnd.getTime());
+  const periodEnd = getNextMonthlyPeriodEnd(
+    periodStart,
+    subscription.createdAt,
+  );
+  const settledAt = new Date();
+  const organization = await tx.organization.findUnique({
+    where: {
+      id: subscription.referenceId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (organization) {
+    const members = await tx.member.findMany({
+      where: {
+        organizationId: organization.id,
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    if (members.length === 0) {
+      const prefix =
+        params.operationKind === "migrate"
+          ? `Cannot migrate subscription ${subscription.id}`
+          : `Cannot renew local free subscription ${subscription.id}`;
+      throw new Error(
+        `${prefix}: organization ${organization.id} has no members`,
+      );
+    }
+
+    await ensureLocalFreeSubscriptionPeriod(
+      {
+        billingAnchorDate: subscription.createdAt,
+        memberUserIds: members.map((member) => member.userId),
+        organizationId: organization.id,
+        periodEnd,
+        periodStart,
+        referenceId: organization.id,
+        stripeCustomerId: subscription.stripeCustomerId,
+      },
+      tx,
+    );
+  } else {
+    const user = await tx.user.findUnique({
+      where: {
+        id: subscription.referenceId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!user) {
+      await tx.subscription.update({
+        where: {
+          id: subscription.id,
+        },
+        data: {
+          canceledAt: subscription.canceledAt ?? settledAt,
+          endedAt: subscription.endedAt ?? periodStart,
+          status: "canceled",
+        },
+      });
+      return;
+    }
+
+    await ensureLocalFreeSubscriptionPeriod(
+      {
+        billingAnchorDate: subscription.createdAt,
+        organizationId: null,
+        periodEnd,
+        periodStart,
+        referenceId: user.id,
+        stripeCustomerId: subscription.stripeCustomerId,
+        userId: user.id,
+      },
+      tx,
+    );
+  }
+
+  await tx.subscription.update({
+    where: {
+      id: subscription.id,
+    },
+    data: {
+      ...(params.setCanceledAtOnCloseOut
+        ? { canceledAt: subscription.canceledAt ?? settledAt }
+        : {}),
+      endedAt: subscription.endedAt ?? periodStart,
+      status: "canceled",
+    },
+  });
 }
 
 export async function ensureLocalFreeSubscriptionPeriod(

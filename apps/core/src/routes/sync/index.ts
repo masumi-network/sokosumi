@@ -2,7 +2,6 @@ import { Hono } from "hono";
 
 import mountGetAgentsSync from "./agents/get.js";
 import mountGetAgentsSummarySync from "./agents-summary/get.js";
-import mountGetFreeSubscriptionsMigrationSync from "./free-subscriptions-migration/get.js";
 import mountGetFreeSubscriptionsRenewalSync from "./free-subscriptions-renewal/get.js";
 import mountGetJobSchedulesSync from "./job-schedules/get.js";
 import mountGetJobsSync from "./jobs/get.js";
@@ -13,7 +12,6 @@ const app = new Hono();
 
 mountGetAgentsSync(app);
 mountGetAgentsSummarySync(app);
-mountGetFreeSubscriptionsMigrationSync(app);
 mountGetFreeSubscriptionsRenewalSync(app);
 mountGetJobsSync(app);
 mountGetJobSchedulesSync(app);

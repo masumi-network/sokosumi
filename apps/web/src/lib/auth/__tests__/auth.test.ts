@@ -37,6 +37,10 @@ const stripePluginMock = vi.fn();
 const stripeSdkMock = vi.fn(function MockStripe() {
   return { __stripe: true };
 });
+const handleCustomerCreatedEventMock = vi.fn();
+const handleCustomerUpdatedEventMock = vi.fn();
+const handleInvoicePaidEventMock = vi.fn();
+const handleSubscriptionDeletedEventMock = vi.fn();
 
 function getDefaultEnvSecrets() {
   return {
@@ -255,9 +259,14 @@ vi.mock("@/lib/stripe/subscription-catalog", () => ({
 }));
 
 vi.mock("@/lib/stripe/webhook-handlers", () => ({
-  handleCustomerCreatedEvent: vi.fn(),
-  handleCustomerUpdatedEvent: vi.fn(),
-  handleInvoicePaidEvent: vi.fn(),
+  handleCustomerCreatedEvent: (...args: unknown[]) =>
+    handleCustomerCreatedEventMock(...args),
+  handleCustomerUpdatedEvent: (...args: unknown[]) =>
+    handleCustomerUpdatedEventMock(...args),
+  handleInvoicePaidEvent: (...args: unknown[]) =>
+    handleInvoicePaidEventMock(...args),
+  handleSubscriptionDeletedEvent: (...args: unknown[]) =>
+    handleSubscriptionDeletedEventMock(...args),
 }));
 
 describe("web auth config", () => {
@@ -321,6 +330,10 @@ describe("web auth config", () => {
       subject: "Sokosumi - E-Mail-Adresse bestätigen",
     });
     stripePluginMock.mockReturnValue("stripe-plugin");
+    handleCustomerCreatedEventMock.mockResolvedValue(undefined);
+    handleCustomerUpdatedEventMock.mockResolvedValue(undefined);
+    handleInvoicePaidEventMock.mockResolvedValue(undefined);
+    handleSubscriptionDeletedEventMock.mockResolvedValue(undefined);
   });
 
   it("uses the canonical production URL for the OAuth proxy", async () => {
@@ -364,6 +377,40 @@ describe("web auth config", () => {
           enabled: true,
         },
       },
+    });
+  });
+
+  it("handles customer.subscription.deleted via the Stripe webhook handlers", async () => {
+    await import("../auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [
+        {
+          onEvent: (event: {
+            data: {
+              object: {
+                id: string;
+              };
+            };
+            id: string;
+            type: string;
+          }) => Promise<void>;
+        },
+      ]
+    >;
+
+    await config.onEvent({
+      data: {
+        object: {
+          id: "sub_123",
+        },
+      },
+      id: "evt_123",
+      type: "customer.subscription.deleted",
+    });
+
+    expect(handleSubscriptionDeletedEventMock).toHaveBeenCalledWith({
+      id: "sub_123",
     });
   });
 
@@ -1124,7 +1171,9 @@ describe("web auth config", () => {
       true,
     );
 
-    resolveStripeCustomerCreation?.({ id: "cus_user_pending" });
+    if (resolveStripeCustomerCreation) {
+      resolveStripeCustomerCreation({ id: "cus_user_pending" });
+    }
     await afterPromise;
   });
 
@@ -1188,7 +1237,9 @@ describe("web auth config", () => {
       null,
     );
 
-    resolveStripeCustomerCreation?.({ id: "cus_org_pending" });
+    if (resolveStripeCustomerCreation) {
+      resolveStripeCustomerCreation({ id: "cus_org_pending" });
+    }
     await afterPromise;
   });
 

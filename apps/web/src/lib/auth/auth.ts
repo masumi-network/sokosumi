@@ -63,6 +63,7 @@ import {
   handleCustomerCreatedEvent,
   handleCustomerUpdatedEvent,
   handleInvoicePaidEvent,
+  handleSubscriptionDeletedEvent,
 } from "@/lib/stripe/webhook-handlers";
 
 export type Session = typeof auth.$Infer.Session;
@@ -721,6 +722,29 @@ export const auth = betterAuth({
                   eventId: event.id,
                   customer: customer.id,
                   email: customer.email,
+                },
+              });
+              throw error;
+            }
+            break;
+          }
+          case "customer.subscription.deleted": {
+            const subscription = event.data.object as Stripe.Subscription;
+            try {
+              await handleSubscriptionDeletedEvent(subscription);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "customer.subscription.deleted",
+                  stripeSubscriptionId: subscription.id,
+                },
+                extra: {
+                  customer:
+                    typeof subscription.customer === "string"
+                      ? subscription.customer
+                      : subscription.customer.id,
+                  eventId: event.id,
+                  subscription: subscription.id,
                 },
               });
               throw error;

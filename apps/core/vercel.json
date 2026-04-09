@@ -22,10 +22,6 @@
       "schedule": "0 * * * *"
     },
     {
-      "path": "/sync/free-subscriptions-migration",
-      "schedule": "0 * * * *"
-    },
-    {
       "path": "/sync/free-subscriptions-renewal",
       "schedule": "*/5 * * * *"
     },

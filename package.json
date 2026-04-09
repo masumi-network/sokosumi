@@ -75,6 +75,7 @@
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
     "prisma:migrate:reset": "pnpm --filter @sokosumi/database prisma:migrate:reset",
     "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio",
+    "data-migration:cancel-active-free-stripe-subscriptions": "pnpm --filter @sokosumi/core exec tsx scripts/cancel-active-free-stripe-subscriptions.ts",
     "perf:report": "lighthouse https://sokosumi-app-preprod.vercel.app/ --only-categories=performance --output=html --output=json --output-path=./.cursor/sokosumi-perf --chrome-flags='--headless --no-sandbox --disable-gpu'",
     "perf:report:auth": "node scripts/perf-report-authenticated.mjs"
   },
