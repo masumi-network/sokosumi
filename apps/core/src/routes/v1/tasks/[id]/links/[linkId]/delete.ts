@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import {
-  requireTaskCollaboratorAccess,
+  requireWorkspaceTaskAccess,
   resolveWorkspaceContext,
 } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
@@ -61,11 +61,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const workspaceContext =
         c.var.workspaceContext ??
         (await resolveWorkspaceContext(authContext, tx));
-      await requireTaskCollaboratorAccess(
-        workspaceContext ?? authContext,
-        id,
-        tx,
-      );
+      await requireWorkspaceTaskAccess(workspaceContext ?? authContext, id, tx);
 
       await tx.taskLink.delete({
         where: { id: linkId },

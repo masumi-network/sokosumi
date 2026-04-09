@@ -6,8 +6,8 @@ import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { LIMITS } from "@/config/constants";
 import {
   requireCoworkerTaskAccess,
-  requireTaskCollaboratorAccess,
-  requireUserTaskAccess,
+  requireOwnedTaskAccess,
+  requireWorkspaceTaskAccess,
   resolveWorkspaceContext,
 } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
@@ -109,12 +109,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const task = isCoworkerAuthContext(authContext)
           ? await requireCoworkerTaskAccess(authContext, taskId, tx)
           : isCollaboratorCommentEvent
-            ? await requireTaskCollaboratorAccess(
+            ? await requireWorkspaceTaskAccess(
                 workspaceContext ?? authContext,
                 taskId,
                 tx,
               )
-            : await requireUserTaskAccess(authContext, taskId, tx);
+            : await requireOwnedTaskAccess(
+                workspaceContext ?? authContext,
+                taskId,
+                tx,
+              );
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);

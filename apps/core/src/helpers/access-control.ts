@@ -195,25 +195,11 @@ export async function requireUserAccess(
 }
 
 /**
- * Validates access to a task based on user ownership in the active workspace
- * and fetches the task record.
- * Throws 403 if the authenticated user does not have access to the task.
+ * Validates workspace-scoped read access to a task (organization collaborators
+ * or personal workspace owner) and fetches the task record.
  *
- * @param authContext - The authenticated user context
- * @param taskId - The task ID to fetch and validate
- * @param tx - Optional Prisma transaction client for transaction support
- * @returns The validated task if access is permitted
- * @throws {notFound} If the task does not exist
- * @throws {forbidden} If user does not have access to the task
- *
- * @example
- * const task = await requireUserTaskAccess(authContext, taskId);
- *
- * @example
- * await prisma.$transaction(async (tx) => {
- *   const task = await requireUserTaskAccess(authContext, taskId, tx);
- *   // ... additional operations
- * });
+ * Pass a {@link WorkspaceContext} from middleware when available to avoid
+ * resolving the workspace again inside the transaction.
  */
 export async function requireWorkspaceTaskAccess(
   context: WorkspaceContextInput,
@@ -238,6 +224,13 @@ export async function requireWorkspaceTaskAccess(
   return task;
 }
 
+/**
+ * Validates that the task is owned by the caller in the active workspace and
+ * fetches the task record.
+ *
+ * Pass a {@link WorkspaceContext} from middleware when available to avoid
+ * resolving the workspace again inside the transaction.
+ */
 export async function requireOwnedTaskAccess(
   context: WorkspaceContextInput,
   taskId: string,
@@ -260,22 +253,6 @@ export async function requireOwnedTaskAccess(
   }
 
   return task;
-}
-
-export async function requireUserTaskAccess(
-  authContext: UserAuthenticationContext,
-  taskId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  return await requireOwnedTaskAccess(authContext, taskId, tx);
-}
-
-export async function requireTaskCollaboratorAccess(
-  authContext: UserAuthenticationContext | WorkspaceContext,
-  taskId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  return await requireWorkspaceTaskAccess(authContext, taskId, tx);
 }
 
 /**

@@ -10,16 +10,16 @@ import mountPatchTask from "./patch";
 
 const {
   prismaTransactionMock,
+  requireOwnedTaskAccessMock,
   requireTaskAssignableCoworkerMock,
-  requireUserTaskAccessMock,
   buildTaskIncludeForViewerMock,
   mapTaskMock,
   validateTaskCoworkerAssignmentMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
+  requireOwnedTaskAccessMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireUserTaskAccessMock: vi.fn(),
   buildTaskIncludeForViewerMock: vi.fn().mockResolvedValue({}),
   mapTaskMock: vi.fn((task: unknown) => task),
   validateTaskCoworkerAssignmentMock: vi.fn(),
@@ -33,8 +33,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/helpers/access-control", () => ({
+  requireOwnedTaskAccess: requireOwnedTaskAccessMock,
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireUserTaskAccess: requireUserTaskAccessMock,
 }));
 
 vi.mock("@/helpers/task", () => ({
@@ -107,7 +107,7 @@ describe("PATCH /tasks/{id}", () => {
     });
     requireTaskAssignableCoworkerMock.mockResolvedValue(undefined);
     validateTaskCoworkerAssignmentMock.mockReturnValue(undefined);
-    requireUserTaskAccessMock.mockResolvedValue(createTaskRecord());
+    requireOwnedTaskAccessMock.mockResolvedValue(createTaskRecord());
     taskUpdateMock.mockResolvedValue({
       id: "tsk_123",
       name: "Updated task title",
@@ -131,7 +131,7 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(requireUserTaskAccessMock).toHaveBeenCalledWith(
+    expect(requireOwnedTaskAccessMock).toHaveBeenCalledWith(
       {
         actor: "user",
         userId: "user_123",
@@ -157,7 +157,7 @@ describe("PATCH /tasks/{id}", () => {
   });
 
   it("returns 404 when the current user does not own the task", async () => {
-    requireUserTaskAccessMock.mockRejectedValueOnce(
+    requireOwnedTaskAccessMock.mockRejectedValueOnce(
       new HTTPException(404, { message: "Task not found" }),
     );
 

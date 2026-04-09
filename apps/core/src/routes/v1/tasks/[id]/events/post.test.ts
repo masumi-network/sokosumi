@@ -15,21 +15,21 @@ const {
   prismaTransactionMock,
   publishTaskEventDataMock,
   requireCoworkerTaskAccessMock,
-  requireTaskCollaboratorAccessMock,
-  requireUserTaskAccessMock,
+  requireOwnedTaskAccessMock,
+  requireWorkspaceTaskAccessMock,
 } = vi.hoisted(() => ({
   createTaskEventTransactionMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
   requireCoworkerTaskAccessMock: vi.fn(),
-  requireTaskCollaboratorAccessMock: vi.fn(),
-  requireUserTaskAccessMock: vi.fn(),
+  requireOwnedTaskAccessMock: vi.fn(),
+  requireWorkspaceTaskAccessMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
-  requireTaskCollaboratorAccess: requireTaskCollaboratorAccessMock,
-  requireUserTaskAccess: requireUserTaskAccessMock,
+  requireOwnedTaskAccess: requireOwnedTaskAccessMock,
+  requireWorkspaceTaskAccess: requireWorkspaceTaskAccessMock,
 }));
 
 vi.mock("@/helpers/task-credits", () => ({
@@ -243,7 +243,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskCollaboratorAccessMock.mockResolvedValue(
+    requireWorkspaceTaskAccessMock.mockResolvedValue(
       createTask({
         userId: "user_456",
         organizationId: "org_123",
@@ -282,7 +282,7 @@ describe("POST /{id}/events", () => {
       }),
     );
     expect(tx.task.updateMany).not.toHaveBeenCalled();
-    expect(requireTaskCollaboratorAccessMock).toHaveBeenCalledWith(
+    expect(requireWorkspaceTaskAccessMock).toHaveBeenCalledWith(
       {
         workspaceId: "11111111-1111-7111-8111-111111111111",
         userId: "user_789",
@@ -291,7 +291,7 @@ describe("POST /{id}/events", () => {
       TASK_ID,
       expect.any(Object),
     );
-    expect(requireUserTaskAccessMock).not.toHaveBeenCalled();
+    expect(requireOwnedTaskAccessMock).not.toHaveBeenCalled();
   });
 
   it("returns the author summary for user status changes", async () => {
@@ -318,7 +318,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireUserTaskAccessMock.mockResolvedValue(
+    requireOwnedTaskAccessMock.mockResolvedValue(
       createTask({
         status: TaskStatus.READY,
         userId: USER_ID,
@@ -357,16 +357,16 @@ describe("POST /{id}/events", () => {
         include: TASK_EVENT_USER_INCLUDE,
       }),
     );
-    expect(requireUserTaskAccessMock).toHaveBeenCalledWith(
+    expect(requireOwnedTaskAccessMock).toHaveBeenCalledWith(
       {
-        actor: "user",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
         userId: USER_ID,
         organizationId: null,
       },
       TASK_ID,
       expect.any(Object),
     );
-    expect(requireTaskCollaboratorAccessMock).not.toHaveBeenCalled();
+    expect(requireWorkspaceTaskAccessMock).not.toHaveBeenCalled();
   });
 
   it("rejects OUT_OF_CREDITS for users", async () => {
@@ -380,7 +380,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireUserTaskAccessMock.mockResolvedValue(createTask());
+    requireOwnedTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "user",
@@ -414,7 +414,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireUserTaskAccessMock.mockRejectedValue(
+    requireOwnedTaskAccessMock.mockRejectedValue(
       new HTTPException(404, { message: "Task not found" }),
     );
 
@@ -438,16 +438,16 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(404);
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(tx.task.updateMany).not.toHaveBeenCalled();
-    expect(requireUserTaskAccessMock).toHaveBeenCalledWith(
+    expect(requireOwnedTaskAccessMock).toHaveBeenCalledWith(
       {
-        actor: "user",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
         userId: "user_789",
         organizationId: "org_123",
       },
       TASK_ID,
       expect.any(Object),
     );
-    expect(requireTaskCollaboratorAccessMock).not.toHaveBeenCalled();
+    expect(requireWorkspaceTaskAccessMock).not.toHaveBeenCalled();
   });
 
   it("fails COMPLETED for coworkers when credits are insufficient", async () => {

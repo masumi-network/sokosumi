@@ -3,7 +3,7 @@ import { Prisma } from "@sokosumi/database";
 
 import {
   buildWorkspaceWhere,
-  requireTaskCollaboratorAccess,
+  requireWorkspaceTaskAccess,
   resolveWorkspaceContext,
 } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
@@ -73,7 +73,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             const workspaceContext =
               c.var.workspaceContext ??
               (await resolveWorkspaceContext(authContext, tx));
-            await requireTaskCollaboratorAccess(
+            await requireWorkspaceTaskAccess(
               workspaceContext ?? authContext,
               id,
               tx,

@@ -13,9 +13,8 @@ import {
   requireCoworkerChatCapability,
   requireCoworkerTaskAccess,
   requireOwnedJobAccess,
+  requireOwnedTaskAccess,
   requireTaskAssignableCoworker,
-  requireTaskCollaboratorAccess,
-  requireUserTaskAccess,
   requireWorkspaceJobAccess,
   requireWorkspaceTaskAccess,
 } from "./access-control";
@@ -195,9 +194,58 @@ describe("requireWorkspaceTaskAccess", () => {
     ).rejects.toThrow("Task not found");
     expect(tx.task.findFirst).not.toHaveBeenCalled();
   });
+
+  it("resolves organization workspace for workspace-wide reads", async () => {
+    findWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+    } as never);
+
+    await requireWorkspaceTaskAccess(userAuthContext, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+    });
+    expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("keeps personal workspace reads owner-scoped", async () => {
+    findWorkspaceForContextMock.mockResolvedValue({
+      id: "22222222-2222-7222-8222-222222222222",
+    });
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+    } as never);
+
+    await requireWorkspaceTaskAccess(
+      {
+        ...userAuthContext,
+        organizationId: null,
+      },
+      "tsk_123",
+      tx,
+    );
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        userId: "user_123",
+        workspaceId: "22222222-2222-7222-8222-222222222222",
+      },
+    });
+  });
 });
 
-describe("requireUserTaskAccess", () => {
+describe("requireOwnedTaskAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     findWorkspaceForContextMock.mockResolvedValue({
@@ -211,7 +259,7 @@ describe("requireUserTaskAccess", () => {
       id: "tsk_123",
     } as never);
 
-    await requireUserTaskAccess(userAuthContext, "tsk_123", tx);
+    await requireOwnedTaskAccess(userAuthContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -254,61 +302,6 @@ describe("requireCoworkerTaskAccess", () => {
         id: "tsk_123",
         status: { not: TaskStatus.DRAFT },
         archivedAt: null,
-      },
-    });
-  });
-});
-
-describe("requireTaskCollaboratorAccess", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    findWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
-  });
-
-  it("uses workspace-wide task access for organization workspaces", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-    } as never);
-
-    await requireTaskCollaboratorAccess(userAuthContext, "tsk_123", tx);
-
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        archivedAt: null,
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-      },
-    });
-    expect(tx.task.findUnique).not.toHaveBeenCalled();
-  });
-
-  it("keeps personal workspace collaborator access owner-scoped", async () => {
-    findWorkspaceForContextMock.mockResolvedValue({
-      id: "22222222-2222-7222-8222-222222222222",
-    });
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-    } as never);
-
-    await requireTaskCollaboratorAccess(
-      {
-        ...userAuthContext,
-        organizationId: null,
-      },
-      "tsk_123",
-      tx,
-    );
-
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        archivedAt: null,
-        userId: "user_123",
-        workspaceId: "22222222-2222-7222-8222-222222222222",
       },
     });
   });

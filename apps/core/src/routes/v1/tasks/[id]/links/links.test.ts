@@ -14,7 +14,6 @@ import mountPostTaskLink from "./post";
 const {
   prismaTransactionMock,
   requireCoworkerTaskAccessMock,
-  requireTaskCollaboratorAccessMock,
   requireWorkspaceTaskAccessMock,
   resolveWorkspaceContextMock,
   taskFindFirstMock,
@@ -26,7 +25,6 @@ const {
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireCoworkerTaskAccessMock: vi.fn(),
-  requireTaskCollaboratorAccessMock: vi.fn(),
   requireWorkspaceTaskAccessMock: vi.fn(),
   resolveWorkspaceContextMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
@@ -44,7 +42,6 @@ vi.mock("@/helpers/access-control", async (importOriginal) => {
   return {
     ...actual,
     requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
-    requireTaskCollaboratorAccess: requireTaskCollaboratorAccessMock,
     requireWorkspaceTaskAccess: requireWorkspaceTaskAccessMock,
     resolveWorkspaceContext: resolveWorkspaceContextMock,
   };
@@ -386,7 +383,7 @@ describe("POST /tasks/{id}/links", () => {
       userId: "user_123",
       organizationId: "org_123",
     });
-    requireTaskCollaboratorAccessMock.mockImplementation(
+    requireWorkspaceTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_456",
@@ -513,7 +510,7 @@ describe("POST /tasks/{id}/links", () => {
   });
 
   it("returns 404 when the path task is not accessible", async () => {
-    requireTaskCollaboratorAccessMock.mockRejectedValueOnce(
+    requireWorkspaceTaskAccessMock.mockRejectedValueOnce(
       new HTTPException(404, { message: "Task not found" }),
     );
 
@@ -637,7 +634,7 @@ describe("POST /tasks/{id}/links", () => {
 describe("DELETE /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskCollaboratorAccessMock.mockImplementation(
+    requireWorkspaceTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_456",
@@ -680,7 +677,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
   });
 
   it("returns 200 when the peer task is archived but still in the workspace", async () => {
-    requireTaskCollaboratorAccessMock.mockImplementation(
+    requireWorkspaceTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -715,7 +712,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
   });
 
   it("returns 200 when the peer task is outside the user's current workspace", async () => {
-    requireTaskCollaboratorAccessMock.mockImplementation(
+    requireWorkspaceTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -801,7 +798,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 describe("PATCH /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskCollaboratorAccessMock.mockImplementation(
+    requireWorkspaceTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_456",
@@ -985,7 +982,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
   });
 
   it("returns 404 when the path task is not accessible", async () => {
-    requireTaskCollaboratorAccessMock.mockRejectedValueOnce(
+    requireWorkspaceTaskAccessMock.mockRejectedValueOnce(
       new HTTPException(404, { message: "Task not found" }),
     );
 
