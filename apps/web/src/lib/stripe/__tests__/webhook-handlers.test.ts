@@ -13,7 +13,6 @@ vi.mock("server-only", () => ({}));
 const getUserByStripeCustomerIdMock = vi.fn();
 const getOrganizationByStripeCustomerIdMock = vi.fn();
 const getMembersByOrganizationIdMock = vi.fn();
-const getLatestSubscriptionByReferenceIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const findExistingBucketMock = vi.fn();
 const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
@@ -72,10 +71,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
       getOrganizationByStripeCustomerIdMock(...args),
     getOrganizationWithRelationsById: vi.fn(),
     updateOrganizationInvoiceEmail: vi.fn(),
-  },
-  subscriptionRepository: {
-    getLatestSubscriptionByReferenceId: (...args: unknown[]) =>
-      getLatestSubscriptionByReferenceIdMock(...args),
   },
   userRepository: {
     getUserByStripeCustomerId: (...args: unknown[]) =>
@@ -1335,7 +1330,6 @@ describe("handleInvoicePaidEvent", () => {
 describe("handleCustomerCreatedEvent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
     claimWelcomeCouponMock.mockResolvedValue({
       couponApplied: false,
       invoiceId: null,
@@ -1366,10 +1360,6 @@ describe("handleCustomerCreatedEvent", () => {
       where: { id: "org-1" },
       data: { stripeCustomerId: "cus_org_1" },
     });
-    expect(getLatestSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
-      "org-1",
-      expect.anything(),
-    );
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
       {
         createdAt: new Date("2026-04-09T07:03:48.591Z"),
@@ -1397,10 +1387,6 @@ describe("handleCustomerCreatedEvent", () => {
       where: { id: "user-1" },
       data: { stripeCustomerId: "cus_user_1" },
     });
-    expect(getLatestSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
-      "user-1",
-      expect.anything(),
-    );
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
       {
         createdAt: new Date("2026-04-09T07:03:48.591Z"),
@@ -1411,45 +1397,5 @@ describe("handleCustomerCreatedEvent", () => {
       expect.anything(),
     );
     expect(claimWelcomeCouponMock).toHaveBeenCalledWith("user-1");
-  });
-
-  it("skips creating the initial free user subscription when a subscription row already exists", async () => {
-    getLatestSubscriptionByReferenceIdMock.mockResolvedValue({
-      id: "sub_paid_1",
-      plan: "starter",
-    });
-
-    const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
-
-    await handleCustomerCreatedEvent({
-      id: "cus_user_1",
-      metadata: {
-        customerType: "user",
-        userId: "user-1",
-      },
-    } as never);
-
-    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
-    expect(claimWelcomeCouponMock).toHaveBeenCalledWith("user-1");
-  });
-
-  it("skips creating the initial free organization subscription when a subscription row already exists", async () => {
-    getLatestSubscriptionByReferenceIdMock.mockResolvedValue({
-      id: "sub_paid_org_1",
-      plan: "starter",
-    });
-
-    const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
-
-    await handleCustomerCreatedEvent({
-      id: "cus_org_1",
-      metadata: {
-        customerType: "organization",
-        organizationId: "org-1",
-      },
-    } as never);
-
-    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
-    expect(claimWelcomeCouponMock).not.toHaveBeenCalled();
   });
 });
