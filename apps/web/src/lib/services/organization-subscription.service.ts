@@ -1,18 +1,24 @@
 import "server-only";
 
 import { MemberRole } from "@sokosumi/database";
-import { memberRepository } from "@sokosumi/database/repositories";
+import { ensureLocalFreeSubscriptionPeriod } from "@sokosumi/database/helpers";
+import {
+  memberRepository,
+  subscriptionRepository,
+} from "@sokosumi/database/repositories";
 import { APIError } from "better-auth/api";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
-import { getLatestActiveOrganizationSubscription as getLatestActiveOrganizationSubscriptionQuery } from "@/lib/stripe/subscription-utils";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 interface ActiveOrganizationSubscription {
+  createdAt: Date;
   id: string;
+  periodEnd: Date | null;
+  periodStart: Date | null;
   seats: number | null;
   stripeSubscriptionId: string | null;
 }
@@ -24,14 +30,24 @@ function isOwnerOrAdmin(role: string): boolean {
 async function getLatestActiveOrganizationSubscription(
   organizationId: string,
 ): Promise<ActiveOrganizationSubscription | null> {
-  return await getLatestActiveOrganizationSubscriptionQuery({
-    organizationId,
-    select: {
-      id: true,
-      seats: true,
-      stripeSubscriptionId: true,
-    },
-  });
+  const subscription =
+    await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+      organizationId,
+      prisma,
+    );
+
+  if (!subscription) {
+    return null;
+  }
+
+  return {
+    createdAt: subscription.createdAt,
+    id: subscription.id,
+    periodEnd: subscription.periodEnd,
+    periodStart: subscription.periodStart,
+    seats: subscription.seats,
+    stripeSubscriptionId: subscription.stripeSubscriptionId,
+  };
 }
 
 async function getCurrentMemberCount(organizationId: string): Promise<number> {
@@ -148,6 +164,16 @@ async function syncOrganizationSeatCount(
   activeSubscription: ActiveOrganizationSubscription,
   seats: number,
 ): Promise<void> {
+  if (!activeSubscription.stripeSubscriptionId) {
+    await prisma.subscription.update({
+      where: { id: activeSubscription.id },
+      data: {
+        seats,
+      },
+    });
+    return;
+  }
+
   const stripeSubscriptionId = ensureStripeSubscriptionId(activeSubscription);
   await increaseSubscriptionSeats(stripeSubscriptionId, seats);
 
@@ -159,6 +185,74 @@ async function syncOrganizationSeatCount(
   });
 }
 
+function ensureSubscriptionPeriodDate(
+  value: Date | null,
+  fieldName: string,
+): Date {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  throw new APIError("INTERNAL_SERVER_ERROR", {
+    message: `Organization subscription is missing its ${fieldName}. Please contact support.`,
+  });
+}
+
+async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
+  organizationId: string,
+  activeSubscription?: ActiveOrganizationSubscription | null,
+): Promise<number> {
+  const currentActiveSubscription =
+    activeSubscription ??
+    (await getLatestActiveOrganizationSubscription(organizationId));
+
+  if (
+    !currentActiveSubscription ||
+    currentActiveSubscription.stripeSubscriptionId
+  ) {
+    return resolveCurrentSeats(currentActiveSubscription?.seats);
+  }
+
+  const periodStart = ensureSubscriptionPeriodDate(
+    currentActiveSubscription.periodStart,
+    "period start",
+  );
+  const periodEnd = ensureSubscriptionPeriodDate(
+    currentActiveSubscription.periodEnd,
+    "period end",
+  );
+
+  return await prisma.$transaction(async (tx) => {
+    const members = await memberRepository.getMembersByOrganizationId(
+      organizationId,
+      tx,
+    );
+    const memberUserIds = members.map((member) => member.userId);
+    const seats = memberUserIds.length;
+
+    await tx.subscription.update({
+      where: { id: currentActiveSubscription.id },
+      data: {
+        seats,
+      },
+    });
+
+    await ensureLocalFreeSubscriptionPeriod(
+      {
+        billingAnchorDate: currentActiveSubscription.createdAt,
+        memberUserIds,
+        organizationId,
+        periodEnd,
+        periodStart,
+        referenceId: organizationId,
+      },
+      tx,
+    );
+
+    return seats;
+  });
+}
+
 export const organizationSubscriptionService = (() => {
   return {
     async updateOrganizationSeatsImmediately(
@@ -167,13 +261,23 @@ export const organizationSubscriptionService = (() => {
       seats: number,
     ): Promise<{ seats: number }> {
       await ensureCanManageOrganizationSubscription(userId, organizationId);
-      const [memberCount, activeSubscription] = await Promise.all([
-        getCurrentMemberCount(organizationId),
-        ensureActiveOrganizationSubscription(
-          organizationId,
-          "An active organization subscription is required before updating seats.",
-        ),
-      ]);
+      ensureValidSeatCount(seats);
+      const activeSubscription = await ensureActiveOrganizationSubscription(
+        organizationId,
+        "An active organization subscription is required before updating seats.",
+      );
+
+      if (!activeSubscription.stripeSubscriptionId) {
+        const synchronizedSeats =
+          await syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
+            organizationId,
+            activeSubscription,
+          );
+
+        return { seats: synchronizedSeats };
+      }
+
+      const memberCount = await getCurrentMemberCount(organizationId);
       ensureValidSeatCount(seats, memberCount);
 
       const currentSeats = resolveCurrentSeats(activeSubscription.seats);
@@ -195,6 +299,11 @@ export const organizationSubscriptionService = (() => {
         organizationId,
         "An active organization subscription is required before adding members.",
       );
+
+      if (!activeSubscription.stripeSubscriptionId) {
+        return;
+      }
+
       const requiredSeats = await getRequiredSeatsForNextMember(organizationId);
 
       const currentSeats = resolveCurrentSeats(activeSubscription.seats);
@@ -203,6 +312,14 @@ export const organizationSubscriptionService = (() => {
       }
 
       await syncOrganizationSeatCount(activeSubscription, requiredSeats);
+    },
+
+    async syncLocalFreeSeatsAndCreditsForCurrentMembers(
+      organizationId: string,
+    ): Promise<void> {
+      await syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
+        organizationId,
+      );
     },
   };
 })();

@@ -1,8 +1,8 @@
 "use client";
 
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

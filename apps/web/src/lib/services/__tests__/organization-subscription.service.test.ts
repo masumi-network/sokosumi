@@ -12,8 +12,11 @@ vi.mock("better-auth/api", () => ({
 }));
 
 const getMemberByUserIdAndOrganizationIdMock = vi.fn();
+const getMembersByOrganizationIdMock = vi.fn();
 const memberCountMock = vi.fn();
-const findSubscriptionMock = vi.fn();
+const ensureLocalFreeSubscriptionPeriodMock = vi.fn();
+const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
+const prismaTransactionMock = vi.fn();
 const updateSubscriptionRecordMock = vi.fn();
 const retrieveStripeSubscriptionMock = vi.fn();
 const updateStripeSubscriptionMock = vi.fn();
@@ -22,7 +25,18 @@ vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberByUserIdAndOrganizationIdMock(...args),
+    getMembersByOrganizationId: (...args: unknown[]) =>
+      getMembersByOrganizationIdMock(...args),
   },
+  subscriptionRepository: {
+    getLatestActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      getLatestActiveSubscriptionByReferenceIdMock(...args),
+  },
+}));
+
+vi.mock("@sokosumi/database/helpers", () => ({
+  ensureLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
+    ensureLocalFreeSubscriptionPeriodMock(...args),
 }));
 
 vi.mock("@/config/env.secrets", () => ({
@@ -34,11 +48,11 @@ vi.mock("@/config/env.secrets", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
+    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
     member: {
       count: (...args: unknown[]) => memberCountMock(...args),
     },
     subscription: {
-      findFirst: (...args: unknown[]) => findSubscriptionMock(...args),
       update: (...args: unknown[]) => updateSubscriptionRecordMock(...args),
     },
   },
@@ -62,6 +76,16 @@ vi.mock("stripe", () => {
 describe("organizationSubscriptionService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    prismaTransactionMock.mockImplementation(
+      async (callback) =>
+        await callback({
+          __tx: true,
+          subscription: {
+            update: (...args: unknown[]) =>
+              updateSubscriptionRecordMock(...args),
+          },
+        }),
+    );
   });
 
   describe("ensureCanCreateInvitation", () => {
@@ -76,7 +100,7 @@ describe("organizationSubscriptionService", () => {
     });
 
     it("does not load subscription data or update seats when creating invitations", async () => {
-      findSubscriptionMock.mockResolvedValue({
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
         id: "sub-row-1",
         plan: "starter",
         seats: 2,
@@ -89,7 +113,9 @@ describe("organizationSubscriptionService", () => {
 
       await organizationSubscriptionService.ensureCanCreateInvitation("org-1");
 
-      expect(findSubscriptionMock).not.toHaveBeenCalled();
+      expect(
+        getLatestActiveSubscriptionByReferenceIdMock,
+      ).not.toHaveBeenCalled();
       expect(memberCountMock).not.toHaveBeenCalled();
       expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
       expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
@@ -99,7 +125,7 @@ describe("organizationSubscriptionService", () => {
 
   describe("ensureCanAcceptInvitation", () => {
     it("throws when no active organization subscription exists", async () => {
-      findSubscriptionMock.mockResolvedValue(null);
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
 
       const { organizationSubscriptionService } = await import(
         "../organization-subscription.service"
@@ -117,21 +143,13 @@ describe("organizationSubscriptionService", () => {
       expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
     });
 
-    it("updates Stripe and local seats when a free subscription lacks capacity", async () => {
-      memberCountMock.mockResolvedValue(4);
-      findSubscriptionMock.mockResolvedValue({
+    it("does not pre-allocate seats for a local free subscription", async () => {
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
         id: "sub-row-1",
         plan: "free",
         seats: 2,
-        stripeSubscriptionId: "sub_stripe_1",
+        stripeSubscriptionId: null,
       });
-      retrieveStripeSubscriptionMock.mockResolvedValue({
-        items: {
-          data: [{ id: "si_1" }],
-        },
-      });
-      updateStripeSubscriptionMock.mockResolvedValue({});
-      updateSubscriptionRecordMock.mockResolvedValue({});
 
       const { organizationSubscriptionService } = await import(
         "../organization-subscription.service"
@@ -139,41 +157,19 @@ describe("organizationSubscriptionService", () => {
 
       await organizationSubscriptionService.ensureCanAcceptInvitation("org-1");
 
-      expect(findSubscriptionMock).toHaveBeenCalledWith({
-        where: {
-          referenceId: "org-1",
-          status: {
-            in: ["active", "trialing", "past_due", "unpaid"],
-          },
-        },
-        orderBy: [{ periodEnd: "desc" }, { updatedAt: "desc" }],
-        select: {
-          id: true,
-          seats: true,
-          stripeSubscriptionId: true,
-        },
-      });
-      expect(retrieveStripeSubscriptionMock).toHaveBeenCalledWith(
-        "sub_stripe_1",
-        { expand: ["items"] },
+      expect(getLatestActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
+        "org-1",
+        expect.any(Object),
       );
-      expect(updateStripeSubscriptionMock).toHaveBeenCalledWith(
-        "sub_stripe_1",
-        {
-          items: [{ id: "si_1", quantity: 5 }],
-          payment_behavior: "error_if_incomplete",
-          proration_behavior: "always_invoice",
-        },
-      );
-      expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
-        where: { id: "sub-row-1" },
-        data: { seats: 5 },
-      });
+      expect(memberCountMock).not.toHaveBeenCalled();
+      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
     });
 
     it("updates Stripe and local subscription seats when a paid subscription lacks capacity", async () => {
       memberCountMock.mockResolvedValue(4);
-      findSubscriptionMock.mockResolvedValue({
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
         id: "sub-row-1",
         plan: "starter",
         seats: 2,
@@ -213,7 +209,7 @@ describe("organizationSubscriptionService", () => {
 
     it("does not update Stripe when existing seats already satisfy requirement", async () => {
       memberCountMock.mockResolvedValue(3);
-      findSubscriptionMock.mockResolvedValue({
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
         id: "sub-row-1",
         plan: "starter",
         seats: 10,
@@ -257,7 +253,7 @@ describe("organizationSubscriptionService", () => {
       getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
         role: "owner",
       });
-      findSubscriptionMock.mockResolvedValue(null);
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
 
       const { organizationSubscriptionService } = await import(
         "../organization-subscription.service"
@@ -278,7 +274,7 @@ describe("organizationSubscriptionService", () => {
       getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
         role: "owner",
       });
-      findSubscriptionMock.mockResolvedValue({
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
         id: "sub-row-1",
         plan: "starter",
         seats: 4,
@@ -308,7 +304,7 @@ describe("organizationSubscriptionService", () => {
       getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
         role: "admin",
       });
-      findSubscriptionMock.mockResolvedValue({
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
         id: "sub-row-1",
         plan: "starter",
         seats: 2,
@@ -348,6 +344,115 @@ describe("organizationSubscriptionService", () => {
         where: { id: "sub-row-1" },
         data: { seats: 6 },
       });
+    });
+
+    it("syncs local free seats to member count and ensures current-period grants", async () => {
+      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+        role: "admin",
+      });
+      const periodStart = new Date("2026-04-08T00:00:00.000Z");
+      const periodEnd = new Date("2026-05-08T00:00:00.000Z");
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+        id: "sub-row-1",
+        plan: "free",
+        seats: 2,
+        periodEnd,
+        periodStart,
+        stripeSubscriptionId: null,
+      });
+      getMembersByOrganizationIdMock.mockResolvedValue([
+        { role: "OWNER", userId: "user-1" },
+        { role: "MEMBER", userId: "user-2" },
+        { role: "MEMBER", userId: "user-3" },
+      ]);
+      updateSubscriptionRecordMock.mockResolvedValue({});
+      ensureLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await expect(
+        organizationSubscriptionService.updateOrganizationSeatsImmediately(
+          "user-1",
+          "org-1",
+          6,
+        ),
+      ).resolves.toEqual({
+        seats: 3,
+      });
+
+      expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
+      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
+        where: { id: "sub-row-1" },
+        data: { seats: 3 },
+      });
+      expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+        {
+          memberUserIds: ["user-1", "user-2", "user-3"],
+          organizationId: "org-1",
+          periodEnd,
+          periodStart,
+          referenceId: "org-1",
+        },
+        expect.objectContaining({
+          __tx: true,
+        }),
+      );
+    });
+
+    it("syncs local free seats and credits after members change", async () => {
+      const periodStart = new Date("2026-04-08T00:00:00.000Z");
+      const periodEnd = new Date("2026-05-08T00:00:00.000Z");
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+        id: "sub-row-1",
+        plan: "free",
+        seats: 1,
+        periodEnd,
+        periodStart,
+        stripeSubscriptionId: null,
+      });
+      getMembersByOrganizationIdMock.mockResolvedValue([
+        { role: "OWNER", userId: "user-1" },
+        { role: "MEMBER", userId: "user-2" },
+      ]);
+      updateSubscriptionRecordMock.mockResolvedValue({});
+      ensureLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await expect(
+        organizationSubscriptionService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
+          "org-1",
+        ),
+      ).resolves.toBeUndefined();
+
+      expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith(
+        "org-1",
+        expect.objectContaining({
+          __tx: true,
+        }),
+      );
+      expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
+        where: { id: "sub-row-1" },
+        data: { seats: 2 },
+      });
+      expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+        {
+          memberUserIds: ["user-1", "user-2"],
+          organizationId: "org-1",
+          periodEnd,
+          periodStart,
+          referenceId: "org-1",
+        },
+        expect.objectContaining({
+          __tx: true,
+        }),
+      );
     });
   });
 });

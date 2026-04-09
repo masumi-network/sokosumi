@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 
+import { FREE_CREDITS_EXPIRY_DAYS } from "@sokosumi/utils";
 import { describe, it } from "vitest";
 
 import {
   buildOrganizationInvoiceCreditReferenceId,
   buildUserInvoiceCreditReferenceId,
-  FREE_CREDITS_EXPIRY_DAYS,
   getCreditExpiryDate,
   splitAmountEvenlyWithRemainderRotation,
 } from "./credit.js";

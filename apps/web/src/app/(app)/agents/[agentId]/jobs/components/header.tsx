@@ -5,7 +5,7 @@ import type {
   AgentWithCreditsPrice,
   AgentWithRelations,
 } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { ArrowLeft, Bookmark, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";

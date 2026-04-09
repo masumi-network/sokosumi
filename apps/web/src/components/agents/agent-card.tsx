@@ -3,7 +3,7 @@ import type {
   AgentWithCreditsPrice,
   AgentWithRelations,
 } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
