@@ -31,10 +31,26 @@ vi.mock("@sokosumi/database/helpers", () => ({
   ensureLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
     ensureLocalFreeSubscriptionPeriodMock(...args),
   FREE_SUBSCRIPTION_PLAN: "free",
-  getNextMonthlyPeriodEnd: (periodStart: Date) => {
-    const nextPeriodEnd = new Date(periodStart.getTime());
-    nextPeriodEnd.setUTCMonth(nextPeriodEnd.getUTCMonth() + 1);
-    return nextPeriodEnd;
+  getNextMonthlyPeriodEnd: (periodStart: Date, anchorDate: Date) => {
+    const targetMonthIndex = periodStart.getUTCMonth() + 1;
+    const targetYear =
+      periodStart.getUTCFullYear() + Math.floor(targetMonthIndex / 12);
+    const targetMonth = targetMonthIndex % 12;
+    const lastDayOfTargetMonth = new Date(
+      Date.UTC(targetYear, targetMonth + 1, 0),
+    ).getUTCDate();
+
+    return new Date(
+      Date.UTC(
+        targetYear,
+        targetMonth,
+        Math.min(anchorDate.getUTCDate(), lastDayOfTargetMonth),
+        periodStart.getUTCHours(),
+        periodStart.getUTCMinutes(),
+        periodStart.getUTCSeconds(),
+        periodStart.getUTCMilliseconds(),
+      ),
+    );
   },
 }));
 
@@ -109,6 +125,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: false,
           canceledAt: null,
+          createdAt: new Date("2026-04-01T00:00:00.000Z"),
           endedAt: null,
           id: "sub-1",
           periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -170,6 +187,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: true,
           canceledAt: null,
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
           endedAt: null,
           id: "sub-2",
           periodEnd: new Date("2026-04-01T00:00:00.000Z"),
@@ -228,6 +246,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: true,
           canceledAt: null,
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
           endedAt: null,
           id: "sub-user-7",
           periodEnd: new Date("2026-04-01T00:00:00.000Z"),
@@ -277,6 +296,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: true,
           canceledAt: null,
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
           endedAt: null,
           id: "sub-stale-1",
           periodEnd: new Date("2026-04-01T00:00:00.000Z"),
@@ -316,6 +336,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: true,
           canceledAt: new Date("2026-04-01T00:00:00.000Z"),
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
           endedAt: new Date("2026-04-01T00:00:00.000Z"),
           id: "sub-3",
           periodEnd: new Date("2026-04-01T00:00:00.000Z"),
@@ -374,6 +395,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: null,
           canceledAt: new Date("2026-04-01T00:00:00.000Z"),
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
           endedAt: new Date("2026-04-01T00:00:00.000Z"),
           id: "sub-terminal-null-flag",
           periodEnd: new Date("2026-04-01T00:00:00.000Z"),
@@ -412,6 +434,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: null,
           canceledAt: null,
+          createdAt: new Date("2026-04-01T00:00:00.000Z"),
           endedAt: null,
           id: "sub-future-1",
           periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -453,6 +476,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: true,
           canceledAt: new Date("2026-04-01T00:00:00.000Z"),
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
           endedAt: new Date("2026-04-01T00:00:00.000Z"),
           id: "sub-4",
           periodEnd: new Date("2026-04-01T00:00:00.000Z"),
@@ -513,6 +537,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: false,
           canceledAt: null,
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
           endedAt: null,
           id: "sub-5",
           periodEnd: new Date("2026-04-01T00:00:00.000Z"),
@@ -574,6 +599,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: false,
           canceledAt: null,
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
           endedAt: null,
           id: "sub-stale-local-1",
           periodEnd: new Date("2026-04-01T00:00:00.000Z"),
@@ -623,6 +649,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: false,
           canceledAt: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
           endedAt: null,
           id: "sub-6-period-1",
           periodEnd: new Date("2026-02-01T00:00:00.000Z"),
@@ -638,6 +665,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: false,
           canceledAt: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
           endedAt: null,
           id: "sub-6-period-2",
           periodEnd: new Date("2026-03-01T00:00:00.000Z"),
@@ -653,6 +681,7 @@ describe("freeSubscriptionSyncService", () => {
         {
           cancelAtPeriodEnd: false,
           canceledAt: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
           endedAt: null,
           id: "sub-6-period-3",
           periodEnd: new Date("2026-04-01T00:00:00.000Z"),
@@ -732,6 +761,49 @@ describe("freeSubscriptionSyncService", () => {
           stripeSubscriptionId: null,
         }),
       }),
+    );
+  });
+
+  it("renews clamped month-end periods using the original created-at anchor day", async () => {
+    organizationFindUniqueMock.mockResolvedValue(null);
+    userFindUniqueMock.mockResolvedValue({ id: "user-anchor" });
+    subscriptionFindManyMock
+      .mockResolvedValueOnce([
+        {
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+          createdAt: new Date("2026-01-30T00:00:00.000Z"),
+          endedAt: null,
+          id: "sub-anchor-1",
+          periodEnd: new Date("2026-02-28T00:00:00.000Z"),
+          referenceId: "user-anchor",
+          seats: null,
+          status: "active",
+          stripeCustomerId: "cus_anchor",
+          stripeSubscriptionId: null,
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    await freeSubscriptionSyncService.renewLocalFreeSubscriptions(
+      createSyncExecutionOptions(),
+    );
+
+    expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: null,
+        periodEnd: new Date("2026-03-30T00:00:00.000Z"),
+        periodStart: new Date("2026-02-28T00:00:00.000Z"),
+        referenceId: "user-anchor",
+        stripeCustomerId: "cus_anchor",
+        userId: "user-anchor",
+      }),
+      expect.any(Object),
     );
   });
 });

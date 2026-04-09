@@ -24,6 +24,7 @@ interface SyncExecutionOptions {
 interface StripeBackedSubscriptionRecord {
   cancelAtPeriodEnd: boolean | null;
   canceledAt: Date | null;
+  createdAt: Date;
   endedAt: Date | null;
   id: string;
   periodEnd: Date | null;
@@ -37,6 +38,7 @@ interface StripeBackedSubscriptionRecord {
 interface LocalFreeSubscriptionRecord {
   cancelAtPeriodEnd: boolean | null;
   canceledAt: Date | null;
+  createdAt: Date;
   endedAt: Date | null;
   id: string;
   periodEnd: Date | null;
@@ -100,7 +102,7 @@ function getNextLocalFreeSubscriptionPeriod(
   const periodStart = new Date(subscription.periodEnd.getTime());
 
   return {
-    periodEnd: getNextMonthlyPeriodEnd(periodStart),
+    periodEnd: getNextMonthlyPeriodEnd(periodStart, subscription.createdAt),
     periodStart,
   };
 }
@@ -231,7 +233,10 @@ async function migrateStripeBackedSubscriptionToLocalFree(
   }
 
   const periodStart = new Date(subscription.periodEnd.getTime());
-  const periodEnd = getNextMonthlyPeriodEnd(periodStart);
+  const periodEnd = getNextMonthlyPeriodEnd(
+    periodStart,
+    subscription.createdAt,
+  );
   const settledAt = new Date();
 
   await prisma.$transaction(async (tx) => {
@@ -330,7 +335,10 @@ async function renewLocalFreeSubscriptionPeriod(
   }
 
   const periodStart = new Date(subscription.periodEnd.getTime());
-  const periodEnd = getNextMonthlyPeriodEnd(periodStart);
+  const periodEnd = getNextMonthlyPeriodEnd(
+    periodStart,
+    subscription.createdAt,
+  );
   const settledAt = new Date();
 
   await prisma.$transaction(async (tx) => {
@@ -444,6 +452,7 @@ async function syncLegacyStripeFreeSubscriptions(
     select: {
       cancelAtPeriodEnd: true,
       canceledAt: true,
+      createdAt: true,
       endedAt: true,
       id: true,
       periodEnd: true,
@@ -507,6 +516,7 @@ async function syncLegacyStripeFreeSubscriptions(
     select: {
       cancelAtPeriodEnd: true,
       canceledAt: true,
+      createdAt: true,
       endedAt: true,
       id: true,
       periodEnd: true,
@@ -573,6 +583,7 @@ async function renewLocalFreeSubscriptions(
       select: {
         cancelAtPeriodEnd: true,
         canceledAt: true,
+        createdAt: true,
         endedAt: true,
         id: true,
         periodEnd: true,

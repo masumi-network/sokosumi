@@ -90,10 +90,36 @@ function resolveSubscriptionPeriodStart(value: Date): Date {
   return periodStart;
 }
 
-export function getNextMonthlyPeriodEnd(periodStart: Date): Date {
-  const nextPeriodEnd = cloneDate(periodStart);
-  nextPeriodEnd.setUTCMonth(nextPeriodEnd.getUTCMonth() + 1);
-  return nextPeriodEnd;
+export function getNextMonthlyPeriodEnd(
+  periodStart: Date,
+  anchorDate: Date,
+): Date {
+  const year = periodStart.getUTCFullYear();
+  const month = periodStart.getUTCMonth();
+  const day = anchorDate.getUTCDate();
+  const hours = periodStart.getUTCHours();
+  const minutes = periodStart.getUTCMinutes();
+  const seconds = periodStart.getUTCSeconds();
+  const milliseconds = periodStart.getUTCMilliseconds();
+
+  const targetMonthIndex = month + 1;
+  const targetYear = year + Math.floor(targetMonthIndex / 12);
+  const targetMonth = targetMonthIndex % 12;
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(targetYear, targetMonth + 1, 0),
+  ).getUTCDate();
+
+  return new Date(
+    Date.UTC(
+      targetYear,
+      targetMonth,
+      Math.min(day, lastDayOfTargetMonth),
+      hours,
+      minutes,
+      seconds,
+      milliseconds,
+    ),
+  );
 }
 
 export function isActiveSubscriptionStatus(status: string): boolean {
@@ -292,7 +318,7 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
   tx: Prisma.TransactionClient,
 ): Promise<EnsureLocalFreeSubscriptionPeriodResult> {
   const periodStart = resolveSubscriptionPeriodStart(params.createdAt);
-  const periodEnd = getNextMonthlyPeriodEnd(periodStart);
+  const periodEnd = getNextMonthlyPeriodEnd(periodStart, params.createdAt);
 
   if (params.kind === "user") {
     return await ensureLocalFreeSubscriptionPeriod(

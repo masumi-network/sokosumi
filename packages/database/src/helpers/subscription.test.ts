@@ -102,8 +102,39 @@ describe("getNextMonthlyPeriodEnd", () => {
     assert.equal(
       getNextMonthlyPeriodEnd(
         new Date("2026-04-08T12:30:00.000Z"),
+        new Date("2026-04-08T12:30:00.000Z"),
       ).toISOString(),
       "2026-05-08T12:30:00.000Z",
+    );
+  });
+
+  it("clamps january month-end periods into february", () => {
+    assert.equal(
+      getNextMonthlyPeriodEnd(
+        new Date("2026-01-31T10:00:00.000Z"),
+        new Date("2026-01-31T10:00:00.000Z"),
+      ).toISOString(),
+      "2026-02-28T10:00:00.000Z",
+    );
+  });
+
+  it("preserves leap-day capacity when february supports it", () => {
+    assert.equal(
+      getNextMonthlyPeriodEnd(
+        new Date("2028-01-31T10:00:00.000Z"),
+        new Date("2028-01-31T10:00:00.000Z"),
+      ).toISOString(),
+      "2028-02-29T10:00:00.000Z",
+    );
+  });
+
+  it("clamps 31-day month ends into shorter target months", () => {
+    assert.equal(
+      getNextMonthlyPeriodEnd(
+        new Date("2026-03-31T10:00:00.000Z"),
+        new Date("2026-03-31T10:00:00.000Z"),
+      ).toISOString(),
+      "2026-04-30T10:00:00.000Z",
     );
   });
 });
