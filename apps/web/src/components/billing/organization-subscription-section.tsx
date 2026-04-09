@@ -39,6 +39,8 @@ interface OrganizationSubscriptionSectionProps {
   returnPath: string;
 }
 
+type PaidSubscriptionPlanName = Exclude<SubscriptionPlanName, "free">;
+
 export function OrganizationSubscriptionSection({
   cancelAtPeriodEnd,
   currentPlan,
@@ -139,7 +141,7 @@ export function OrganizationSubscriptionSection({
   );
 
   const handleUpgradePlan = useCallback(
-    async (planName: SubscriptionPlanName) => {
+    async (planName: PaidSubscriptionPlanName) => {
       if (!Number.isInteger(targetSeats) || targetSeats < minimumSeats) {
         toast.error(t("Errors.badInput"));
         return;
@@ -198,6 +200,17 @@ export function OrganizationSubscriptionSection({
       t,
       targetSeats,
     ],
+  );
+
+  const handlePaidPlanAction = useCallback(
+    (planName: SubscriptionPlanName) => {
+      if (planName === "free") {
+        return;
+      }
+
+      void handleUpgradePlan(planName);
+    },
+    [handleUpgradePlan],
   );
 
   function getPlanPresentationProps(plan: SubscriptionPlanView) {
@@ -291,9 +304,7 @@ export function OrganizationSubscriptionSection({
                 key={plan.name}
                 {...planPresentationProps}
                 isAnyPlanPending={pendingPlan !== null}
-                onAction={(nextPlan) => {
-                  void handleUpgradePlan(nextPlan);
-                }}
+                onAction={handlePaidPlanAction}
                 plan={plan}
               />
             );
@@ -304,9 +315,7 @@ export function OrganizationSubscriptionSection({
           <SubscriptionFreePlanRow
             {...getPlanPresentationProps(freePlan)}
             isAnyPlanPending={pendingPlan !== null}
-            onAction={(nextPlan) => {
-              void handleUpgradePlan(nextPlan);
-            }}
+            onAction={handlePaidPlanAction}
             plan={freePlan}
           />
         ) : null}

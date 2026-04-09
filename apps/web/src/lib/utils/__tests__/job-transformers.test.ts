@@ -32,8 +32,17 @@ function buildPurchase(overrides?: Partial<PurchaseInput>): PurchaseInput {
       errorNote: null,
     },
     CurrentTransaction: {
+      id: "transaction_1",
+      createdAt: new Date("2026-04-09T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-09T00:00:00.000Z"),
+      fees: null,
+      blockHeight: null,
+      blockTime: null,
       txHash: "tx_hash_1",
       status: "FailedViaManualReset",
+      previousOnChainState: "FundsLocked",
+      newOnChainState: "FundsLocked",
+      confirmations: null,
     },
     ...overrides,
   };

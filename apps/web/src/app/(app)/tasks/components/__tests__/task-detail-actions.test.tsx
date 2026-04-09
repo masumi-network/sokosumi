@@ -6,6 +6,7 @@ import {
   cloneElement,
   createContext,
   isValidElement,
+  type ReactElement,
   type ReactNode,
   useContext,
   useState,
@@ -190,7 +191,7 @@ vi.mock("@/components/ui/dropdown-menu", () => {
     };
 
     if (asChild && isValidElement(children)) {
-      return cloneElement(children, {
+      return cloneElement(children as ReactElement<{ onClick?: () => void }>, {
         onClick: handleClick,
       });
     }
@@ -241,7 +242,7 @@ vi.mock("@/components/ui/dropdown-menu", () => {
     };
 
     if (asChild && isValidElement(children)) {
-      return cloneElement(children, {
+      return cloneElement(children as ReactElement<{ onClick?: () => void }>, {
         onClick: handleSelect,
       });
     }
@@ -411,7 +412,9 @@ function createDeferred<T>() {
   return { promise, resolve };
 }
 
-function buildTaskListItem(overrides?: Partial<{ id: string; name: string }>) {
+function buildTaskListItem(
+  overrides?: Partial<{ id: string; name: string; status: TaskStatus }>,
+) {
   return {
     id: "task-2",
     createdAt: new Date("2026-03-31T10:00:00.000Z"),

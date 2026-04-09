@@ -25,6 +25,8 @@ interface PersonalSubscriptionSectionProps {
   status: "cancel" | "success" | null;
 }
 
+type PaidSubscriptionPlanName = Exclude<SubscriptionPlanName, "free">;
+
 export function PersonalSubscriptionSection({
   cancelAtPeriodEnd,
   currentPeriodEnd,
@@ -80,7 +82,7 @@ export function PersonalSubscriptionSection({
     });
   }, [cancellationDate, t]);
 
-  async function handlePlanAction(plan: SubscriptionPlanName) {
+  async function handlePlanAction(plan: PaidSubscriptionPlanName) {
     setPendingPlan(plan);
     try {
       const result = await upgradePersonalSubscription({
@@ -122,6 +124,14 @@ export function PersonalSubscriptionSection({
     }
   }
 
+  function handlePaidPlanAction(plan: SubscriptionPlanName) {
+    if (plan === "free") {
+      return;
+    }
+
+    void handlePlanAction(plan);
+  }
+
   return (
     <div className="space-y-8">
       {statusMessage ? (
@@ -145,9 +155,7 @@ export function PersonalSubscriptionSection({
               isAnyPlanPending={pendingPlan !== null}
               isPlanPending={pendingPlan === plan.name}
               loadingLabel={t("upgrading")}
-              onAction={(nextPlan) => {
-                void handlePlanAction(nextPlan);
-              }}
+              onAction={handlePaidPlanAction}
               plan={plan}
             />
           ))}
@@ -158,9 +166,7 @@ export function PersonalSubscriptionSection({
             actionLabel={null}
             isAnyPlanPending={pendingPlan !== null}
             isPlanPending={pendingPlan === freePlan.name}
-            onAction={(nextPlan) => {
-              void handlePlanAction(nextPlan);
-            }}
+            onAction={handlePaidPlanAction}
             plan={freePlan}
           />
         ) : null}

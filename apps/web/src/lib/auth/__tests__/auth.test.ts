@@ -1171,8 +1171,11 @@ describe("web auth config", () => {
       true,
     );
 
-    if (resolveStripeCustomerCreation) {
-      resolveStripeCustomerCreation({ id: "cus_user_pending" });
+    const resolvePendingUserStripeCustomer = resolveStripeCustomerCreation as
+      | ((value: { id: string }) => void)
+      | null;
+    if (resolvePendingUserStripeCustomer) {
+      resolvePendingUserStripeCustomer({ id: "cus_user_pending" });
     }
     await afterPromise;
   });
@@ -1237,8 +1240,10 @@ describe("web auth config", () => {
       null,
     );
 
-    if (resolveStripeCustomerCreation) {
-      resolveStripeCustomerCreation({ id: "cus_org_pending" });
+    const resolvePendingOrganizationStripeCustomer =
+      resolveStripeCustomerCreation as ((value: { id: string }) => void) | null;
+    if (resolvePendingOrganizationStripeCustomer) {
+      resolvePendingOrganizationStripeCustomer({ id: "cus_org_pending" });
     }
     await afterPromise;
   });
