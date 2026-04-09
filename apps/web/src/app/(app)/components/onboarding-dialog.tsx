@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
-import type { SubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
+import type { PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import { OnboardingPlanRadioGrid } from "@/components/onboarding/onboarding-plan-radio-grid";
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,10 @@ import { useCoworkersContext } from "@/contexts/coworkers-context";
 import { CommonErrorCode } from "@/lib/actions";
 import { completeOnboarding } from "@/lib/actions/onboarding";
 import { upgradePersonalSubscription } from "@/lib/actions/subscription";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
 const INTRO_STEP_COUNT = 5;
-const DEFAULT_SELECTED_PLAN: SubscriptionPlanName = "standard";
+const DEFAULT_SELECTED_PLAN: PaidSubscriptionPlanName = "standard";
 
 /* ─── Animated visuals ─── */
 
@@ -398,12 +398,12 @@ function StepNavigation({
 /* ─── Main dialog ─── */
 
 interface OnboardingDialogProps {
-  paidPlans: SubscriptionPlanView[];
+  paidPlans: PaidSubscriptionPlanView[];
 }
 
 function resolveInitialSelectedPlan(
-  paidPlans: SubscriptionPlanView[],
-): SubscriptionPlanName {
+  paidPlans: PaidSubscriptionPlanView[],
+): PaidSubscriptionPlanName {
   const selectablePlans = paidPlans.filter((plan) => !plan.isCurrent);
   const preferredPlan = selectablePlans.find(
     (plan) => plan.name === DEFAULT_SELECTED_PLAN,
@@ -421,8 +421,8 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
   const [open, setOpen] = useState(true);
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanName>(() =>
-    resolveInitialSelectedPlan(paidPlans),
+  const [selectedPlan, setSelectedPlan] = useState<PaidSubscriptionPlanName>(
+    () => resolveInitialSelectedPlan(paidPlans),
   );
   const { coworkers: apiCoworkers } = useCoworkersContext();
 
@@ -512,6 +512,8 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
       }
 
       window.location.href = result.data.url;
+    } catch {
+      toast.error(tErrors("unexpectedError"));
     } finally {
       setIsLoading(false);
     }

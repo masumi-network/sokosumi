@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import { cn } from "@/lib/utils";
 
 import {
@@ -22,14 +22,14 @@ import {
 } from "../billing/subscription-plan-presentation";
 import {
   getPlanTranslationKey,
-  type SubscriptionPlanView,
+  type PaidSubscriptionPlanView,
 } from "../billing/subscription-plan-utils";
 
 interface OnboardingPlanRadioGridProps {
-  plans: SubscriptionPlanView[];
-  recommendedPlan?: SubscriptionPlanName;
-  value: SubscriptionPlanName;
-  onValueChange: (value: SubscriptionPlanName) => void;
+  plans: PaidSubscriptionPlanView[];
+  recommendedPlan?: PaidSubscriptionPlanName;
+  value: PaidSubscriptionPlanName;
+  onValueChange: (value: PaidSubscriptionPlanName) => void;
 }
 
 const FEATURE_HIGHLIGHT_LIMIT = 3;

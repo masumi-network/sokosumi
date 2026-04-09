@@ -1,4 +1,7 @@
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+import type {
+  PaidSubscriptionPlanName,
+  SubscriptionPlanName,
+} from "@/lib/stripe/subscription-catalog";
 
 export interface SubscriptionPlanView {
   credits: number;
@@ -7,6 +10,10 @@ export interface SubscriptionPlanView {
   monthlyAmount: number;
   name: SubscriptionPlanName;
 }
+
+export type PaidSubscriptionPlanView = Omit<SubscriptionPlanView, "name"> & {
+  name: PaidSubscriptionPlanName;
+};
 
 export interface ActiveSubscription {
   periodEnd?: Date | string | null;

@@ -9,8 +9,8 @@ import Stripe from "stripe";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import {
   type ActiveSubscription,
+  type PaidSubscriptionPlanView,
   resolveCurrentPlanName,
-  type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -91,7 +91,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     coworkerService.listCoworkers("chat").catch(() => []),
   ]);
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
-  let onboardingPlans: SubscriptionPlanView[] = [];
+  let onboardingPlans: PaidSubscriptionPlanView[] = [];
   if (shouldShowOnboarding) {
     const [requestHeaders, subscriptionCatalog] = await Promise.all([
       requestHeadersPromise,

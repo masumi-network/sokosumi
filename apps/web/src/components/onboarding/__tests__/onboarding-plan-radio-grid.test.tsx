@@ -3,11 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { SubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
+import type { PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
 import { OnboardingPlanRadioGrid } from "@/components/onboarding/onboarding-plan-radio-grid";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
-const basePlans: SubscriptionPlanView[] = [
+const basePlans: PaidSubscriptionPlanView[] = [
   {
     credits: 250,
     currency: "usd",
@@ -86,8 +86,8 @@ vi.mock("next-intl", () => ({
 }));
 
 interface TestHarnessProps {
-  initialPlan?: SubscriptionPlanName;
-  plans?: SubscriptionPlanView[];
+  initialPlan?: PaidSubscriptionPlanName;
+  plans?: PaidSubscriptionPlanView[];
 }
 
 function TestHarness({
@@ -95,7 +95,7 @@ function TestHarness({
   plans = basePlans,
 }: TestHarnessProps) {
   const [selectedPlan, setSelectedPlan] =
-    useState<SubscriptionPlanName>(initialPlan);
+    useState<PaidSubscriptionPlanName>(initialPlan);
 
   return (
     <OnboardingPlanRadioGrid
