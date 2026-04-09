@@ -331,6 +331,7 @@ async function renewLocalFreeSubscriptionPeriod(
 
   const periodStart = new Date(subscription.periodEnd.getTime());
   const periodEnd = getNextMonthlyPeriodEnd(periodStart);
+  const settledAt = new Date();
 
   await prisma.$transaction(async (tx) => {
     const organization = await tx.organization.findUnique({
@@ -371,13 +372,36 @@ async function renewLocalFreeSubscriptionPeriod(
         tx,
       );
     } else {
+      const user = await tx.user.findUnique({
+        where: {
+          id: subscription.referenceId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!user) {
+        await tx.subscription.update({
+          where: {
+            id: subscription.id,
+          },
+          data: {
+            canceledAt: subscription.canceledAt ?? settledAt,
+            endedAt: subscription.endedAt ?? periodStart,
+            status: "canceled",
+          },
+        });
+        return;
+      }
+
       await ensureLocalFreeSubscriptionPeriod(
         {
           organizationId: null,
-          userId: subscription.referenceId,
+          userId: user.id,
           periodEnd,
           periodStart,
-          referenceId: subscription.referenceId,
+          referenceId: user.id,
           stripeCustomerId: subscription.stripeCustomerId,
         },
         tx,

@@ -507,6 +507,7 @@ describe("freeSubscriptionSyncService", () => {
 
   it("renews due local free subscriptions and preserves history", async () => {
     organizationFindUniqueMock.mockResolvedValue(null);
+    userFindUniqueMock.mockResolvedValue({ id: "user-5" });
     subscriptionFindManyMock
       .mockResolvedValueOnce([
         {
@@ -565,8 +566,58 @@ describe("freeSubscriptionSyncService", () => {
     });
   });
 
+  it("marks stale local free subscriptions canceled when the referenced user no longer exists", async () => {
+    organizationFindUniqueMock.mockResolvedValue(null);
+    userFindUniqueMock.mockResolvedValue(null);
+    subscriptionFindManyMock
+      .mockResolvedValueOnce([
+        {
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+          endedAt: null,
+          id: "sub-stale-local-1",
+          periodEnd: new Date("2026-04-01T00:00:00.000Z"),
+          referenceId: "stale-user-1",
+          seats: null,
+          status: "active",
+          stripeCustomerId: "cus_stale_local_1",
+          stripeSubscriptionId: null,
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    await freeSubscriptionSyncService.renewLocalFreeSubscriptions(
+      createSyncExecutionOptions(),
+    );
+
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        id: "stale-user-1",
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
+    expect(transactionSubscriptionUpdateMock).toHaveBeenCalledWith({
+      where: {
+        id: "sub-stale-local-1",
+      },
+      data: expect.objectContaining({
+        canceledAt: expect.any(Date),
+        endedAt: new Date("2026-04-01T00:00:00.000Z"),
+        status: "canceled",
+      }),
+    });
+  });
+
   it("catches up overdue local free subscriptions in a single renewal run", async () => {
     organizationFindUniqueMock.mockResolvedValue(null);
+    userFindUniqueMock.mockResolvedValue({ id: "user-6" });
     subscriptionFindManyMock
       .mockResolvedValueOnce([
         {
