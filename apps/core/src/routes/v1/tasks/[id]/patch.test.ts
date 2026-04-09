@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthVariables, WorkspaceContext } from "@/middleware/auth";
 
 import mountPatchTask from "./patch";
 
@@ -52,6 +52,13 @@ vi.mock("@/schemas/task.schema", () => ({
   },
 }));
 
+/** Matches production when tasks router runs with `includeWorkspaceContext: true`. */
+const testWorkspaceContext: WorkspaceContext = {
+  workspaceId: "workspace_123",
+  userId: "user_123",
+  organizationId: "org_123",
+};
+
 function createApp() {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
@@ -64,6 +71,7 @@ function createApp() {
       userId: "user_123",
       organizationId: "org_123",
     });
+    c.set("workspaceContext", testWorkspaceContext);
 
     return await next();
   });
@@ -132,11 +140,7 @@ describe("PATCH /tasks/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(requireOwnedTaskAccessMock).toHaveBeenCalledWith(
-      {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-      },
+      testWorkspaceContext,
       "tsk_123",
       expect.any(Object),
     );
