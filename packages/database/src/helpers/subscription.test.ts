@@ -134,7 +134,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
     });
     assert.equal(findSubscriptionMock.mock.calls.length, 1);
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
-    assert.equal(createSubscriptionMock.mock.calls[0]?.[0].data.seats, null);
+    assert.equal(createSubscriptionMock.mock.calls[0]?.[0].data.seats, 1);
     assert.equal(findUniqueBucketMock.mock.calls.length, 1);
     assert.equal(createTransactionMock.mock.calls.length, 1);
   });
@@ -243,7 +243,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       periodStart: new Date("2026-04-01T10:00:00.000Z"),
       plan: "free",
       referenceId: "user-1",
-      seats: null,
+      seats: 1,
       status: "active",
       stripeCustomerId: null,
       stripeSubscriptionId: null,

@@ -165,7 +165,7 @@ function normalizeLocalFreeSubscriptionPeriod(
         },
       ],
       organizationId: null,
-      seats: null,
+      seats: 1,
     };
   }
 
