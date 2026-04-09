@@ -10,9 +10,7 @@ import { memberRepository } from "@sokosumi/database/repositories";
 
 import prisma from "@/lib/db/prisma";
 import {
-  type AuthenticationContext,
   type CoworkerAuthenticationContext,
-  isCoworkerAuthContext,
   type UserAuthenticationContext,
   type WorkspaceContext,
 } from "@/middleware/auth";
@@ -126,7 +124,7 @@ export async function requireWorkspaceJobAccess(
     : null;
 
   if (!job) {
-    throw forbidden("You can only access your own jobs");
+    throw forbidden("This job is not available in your active workspace.");
   }
   return job;
 }
@@ -264,14 +262,6 @@ export async function requireOwnedTaskAccess(
   return task;
 }
 
-export async function requireJobAccess(
-  authContext: UserAuthenticationContext | WorkspaceContext,
-  jobId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Job> {
-  return await requireWorkspaceJobAccess(authContext, jobId, tx);
-}
-
 export async function requireUserTaskAccess(
   authContext: UserAuthenticationContext,
   taskId: string,
@@ -406,16 +396,4 @@ export async function requireTaskAssignableCoworker(
   if (!coworker) {
     throw notFound("Coworker not found");
   }
-}
-
-export async function requireTaskReadAccess(
-  authContext: AuthenticationContext | WorkspaceContext,
-  taskId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  if ("actor" in authContext && isCoworkerAuthContext(authContext)) {
-    return await requireCoworkerTaskAccess(authContext, taskId, tx);
-  }
-
-  return await requireWorkspaceTaskAccess(authContext, taskId, tx);
 }

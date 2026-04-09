@@ -14,7 +14,7 @@ const {
   mapJobWithStatusMock,
   prismaTransactionMock,
   resolveMemberOrganizationByIdMock,
-  resolveWorkspaceForContextMock,
+  workspaceForContextMock,
   serializeJobDetailsMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
@@ -24,7 +24,7 @@ const {
   mapJobWithStatusMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
+  workspaceForContextMock: vi.fn(),
   serializeJobDetailsMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
 }));
@@ -40,7 +40,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   return {
     ...actual,
     mapJobWithStatus: mapJobWithStatusMock,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    findWorkspaceForContext: workspaceForContextMock,
+    resolveWorkspaceForContext: workspaceForContextMock,
   };
 });
 
@@ -74,7 +75,7 @@ interface TransactionMock {
   };
 }
 
-/** Matches `resolveWorkspaceForContextMock` default active workspace id */
+/** Matches `workspaceForContextMock` default active workspace id */
 const ACTIVE_WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 
 function createOwnedJobRecord(
@@ -205,7 +206,7 @@ describe("PUT /jobs/{id}/workspace", () => {
       },
       role: "member",
     });
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    workspaceForContextMock.mockResolvedValue({
       id: ACTIVE_WORKSPACE_ID,
     });
     mapJobWithStatusMock.mockReturnValue(createJobApi());

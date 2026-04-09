@@ -11,11 +11,10 @@ import {
   buildWorkspaceWhere,
   requireCoworkerCapability,
   requireCoworkerChatCapability,
-  requireJobAccess,
+  requireCoworkerTaskAccess,
   requireOwnedJobAccess,
   requireTaskAssignableCoworker,
   requireTaskCollaboratorAccess,
-  requireTaskReadAccess,
   requireUserTaskAccess,
   requireWorkspaceJobAccess,
   requireWorkspaceTaskAccess,
@@ -225,57 +224,12 @@ describe("requireUserTaskAccess", () => {
   });
 });
 
-describe("requireTaskReadAccess", () => {
+describe("requireCoworkerTaskAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    findWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
   });
 
-  it("uses workspace-wide user reads inside organization workspaces", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-    } as never);
-
-    await requireTaskReadAccess(userAuthContext, "tsk_123", tx);
-
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        archivedAt: null,
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-      },
-    });
-  });
-
-  it("keeps personal workspace reads owner-scoped", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-    } as never);
-
-    await requireTaskReadAccess(
-      {
-        ...userAuthContext,
-        organizationId: null,
-      },
-      "tsk_123",
-      tx,
-    );
-
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        archivedAt: null,
-        userId: "user_123",
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-      },
-    });
-  });
-
-  it("keeps coworker task reads unchanged", async () => {
+  it("loads non-draft tasks assigned to the authenticated coworker", async () => {
     const tx = createTransactionClient();
     const coworkerContext: CoworkerAuthenticationContext = {
       actor: "coworker",
@@ -293,7 +247,7 @@ describe("requireTaskReadAccess", () => {
       status: TaskStatus.READY,
     } as never);
 
-    await requireTaskReadAccess(coworkerContext, "tsk_123", tx);
+    await requireCoworkerTaskAccess(coworkerContext, "tsk_123", tx);
 
     expect(tx.task.findUnique).toHaveBeenCalledWith({
       where: {
@@ -491,23 +445,17 @@ describe("requireWorkspaceJobAccess", () => {
     });
     expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
   });
-});
 
-describe("requireJobAccess", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it("resolves workspace-wide reads for organization workspaces from user auth", async () => {
     findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
-  });
-
-  it("uses workspace-wide reads inside organization workspaces", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
     } as never);
 
-    await requireJobAccess(userAuthContext, "job_123", tx);
+    await requireWorkspaceJobAccess(userAuthContext, "job_123", tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -517,13 +465,16 @@ describe("requireJobAccess", () => {
     });
   });
 
-  it("keeps personal workspace reads owner-scoped", async () => {
+  it("keeps personal workspace reads owner-scoped when resolving from user auth", async () => {
+    findWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
     } as never);
 
-    await requireJobAccess(
+    await requireWorkspaceJobAccess(
       {
         ...userAuthContext,
         organizationId: null,
@@ -541,13 +492,16 @@ describe("requireJobAccess", () => {
     });
   });
 
-  it("rejects inaccessible jobs", async () => {
+  it("rejects inaccessible jobs after workspace resolution", async () => {
+    findWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireJobAccess(userAuthContext, "job_123", tx),
-    ).rejects.toThrow("You can only access your own jobs");
+      requireWorkspaceJobAccess(userAuthContext, "job_123", tx),
+    ).rejects.toThrow("This job is not available in your active workspace.");
   });
 });
 
