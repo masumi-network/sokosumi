@@ -13,6 +13,7 @@ import {
   buildUserInvoiceCreditReferenceId,
   ensureInitialLocalFreeSubscriptionPeriod,
   escapeStringForLike,
+  FREE_SUBSCRIPTION_PLAN,
   getCreditExpiryDate,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
   transitionToNextLocalFreeSubscriptionPeriod,
@@ -1019,6 +1020,20 @@ export async function handleSubscriptionDeletedEvent(
   }
 
   await prisma.$transaction(async (tx) => {
+    const latestActiveSubscription =
+      await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+        localSubscription.referenceId,
+        tx,
+      );
+
+    if (
+      latestActiveSubscription &&
+      latestActiveSubscription.id !== localSubscription.id &&
+      latestActiveSubscription.plan !== FREE_SUBSCRIPTION_PLAN
+    ) {
+      return;
+    }
+
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
         setCanceledAt: true,
