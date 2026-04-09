@@ -76,11 +76,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const workspaceContext =
         c.var.workspaceContext ??
         (await resolveWorkspaceContext(authContext, tx));
-      await requireWorkspaceTaskAccess(workspaceContext ?? authContext, id, tx);
-
       if (!workspaceContext) {
         throw notFound("Task not found");
       }
+      await requireWorkspaceTaskAccess(workspaceContext, id, tx);
 
       const peerTaskContextWhere = buildWorkspaceWhere(workspaceContext);
       const peerTask = await tx.task.findFirst({

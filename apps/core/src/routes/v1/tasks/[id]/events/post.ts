@@ -10,7 +10,7 @@ import {
   requireWorkspaceTaskAccess,
   resolveWorkspaceContext,
 } from "@/helpers/access-control";
-import { conflict, unprocessableEntity } from "@/helpers/error";
+import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
@@ -102,23 +102,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           comment !== undefined &&
           authenticationUrl === undefined &&
           credits == null;
-        const workspaceContext = isCoworkerAuthContext(authContext)
-          ? null
-          : (c.var.workspaceContext ??
-            (await resolveWorkspaceContext(authContext, tx)));
-        const task = isCoworkerAuthContext(authContext)
-          ? await requireCoworkerTaskAccess(authContext, taskId, tx)
-          : isCollaboratorCommentEvent
-            ? await requireWorkspaceTaskAccess(
-                workspaceContext ?? authContext,
-                taskId,
-                tx,
-              )
-            : await requireOwnedTaskAccess(
-                workspaceContext ?? authContext,
-                taskId,
-                tx,
-              );
+        let task;
+        if (isCoworkerAuthContext(authContext)) {
+          task = await requireCoworkerTaskAccess(authContext, taskId, tx);
+        } else {
+          const workspaceContext =
+            c.var.workspaceContext ??
+            (await resolveWorkspaceContext(authContext, tx));
+          if (!workspaceContext) {
+            throw notFound("Task not found");
+          }
+          task = isCollaboratorCommentEvent
+            ? await requireWorkspaceTaskAccess(workspaceContext, taskId, tx)
+            : await requireOwnedTaskAccess(workspaceContext, taskId, tx);
+        }
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);

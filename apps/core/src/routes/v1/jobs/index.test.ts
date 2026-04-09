@@ -2,28 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import jobsRouter from "./index";
 
-function getScopeDescriptionFromGetOperation(
-  doc: ReturnType<typeof jobsRouter.getOpenAPI31Document>,
-  path: string,
-): string {
-  const operation = doc.paths?.[path]?.get;
-  const parameters = operation?.parameters ?? [];
-  const scopeParameter = parameters.find((parameter) => {
-    if (!parameter || typeof parameter !== "object") {
-      return false;
-    }
-
-    return (
-      "name" in parameter &&
-      parameter.name === "scope" &&
-      "in" in parameter &&
-      parameter.in === "query"
-    );
-  }) as { description?: string } | undefined;
-
-  return scopeParameter?.description ?? "";
-}
-
 function getQueryDescriptionFromGetOperation(
   doc: ReturnType<typeof jobsRouter.getOpenAPI31Document>,
   path: string,
@@ -57,8 +35,8 @@ describe("jobs routes OpenAPI scope contract", () => {
       },
     });
 
-    expect(getScopeDescriptionFromGetOperation(doc, "/")).toBe("");
-    expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toBe("");
+    expect(getQueryDescriptionFromGetOperation(doc, "/", "scope")).toBe("");
+    expect(getQueryDescriptionFromGetOperation(doc, "/{id}", "scope")).toBe("");
     expect(getQueryDescriptionFromGetOperation(doc, "/", "memberId")).toContain(
       "member user ID",
     );
