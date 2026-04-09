@@ -30,17 +30,6 @@ interface LocalFreeSubscriptionPeriodRecord {
   referenceId: string;
 }
 
-interface DueLocalFreeSubscriptionRow {
-  canceledAt: Date | null;
-  createdAt: Date;
-  endedAt: Date | null;
-  id: string;
-  periodEnd: Date | null;
-  referenceId: string;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: null;
-}
-
 function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
 }
@@ -203,7 +192,7 @@ async function renewLocalFreeSubscriptions(
         stripeCustomerId: true,
         stripeSubscriptionId: true,
       },
-    })) as DueLocalFreeSubscriptionRow[];
+    })) as LocalFreeSubscriptionRecord[];
 
     const subscriptionsNeedingRenewal =
       await filterSubscriptionsMissingNextLocalSuccessor(
