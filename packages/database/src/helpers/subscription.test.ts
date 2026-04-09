@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it, vi } from "vitest";
-import type { Prisma } from "../generated/prisma/client.js";
+import { type Prisma as PrismaType } from "../generated/prisma/client.js";
 
 import {
   buildLocalFreeOrganizationMemberSubscriptionReferenceId,
@@ -15,12 +15,14 @@ function createTransactionClient(params?: {
   existingBucketReferenceIds?: string[];
   existingSubscriptionId?: null | string;
 }) {
-  const findSubscriptionMock = vi.fn().mockResolvedValue(
-    params?.existingSubscriptionId
-      ? {
-          id: params.existingSubscriptionId,
-        }
-      : null,
+  const findSubscriptionMock = vi.fn().mockImplementation(() =>
+    Promise.resolve(
+      params?.existingSubscriptionId
+        ? {
+            id: params.existingSubscriptionId,
+          }
+        : null,
+    ),
   );
   const createSubscriptionMock = vi.fn().mockResolvedValue({
     id: "subscription-local-free",
@@ -68,7 +70,7 @@ function createTransactionClient(params?: {
       transaction: {
         create: createTransactionMock,
       },
-    } as unknown as Prisma.TransactionClient,
+    } as unknown as PrismaType.TransactionClient,
   };
 }
 
