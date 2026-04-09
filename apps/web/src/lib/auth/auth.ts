@@ -147,20 +147,7 @@ async function ensureStripeCustomerForCreatedUser(user: {
   id: string;
   name: string;
 }): Promise<void> {
-  try {
-    await stripeClient.createUserCustomer(user.id, user.name, user.email);
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        context: "stripe_user_customer_creation",
-      },
-      extra: {
-        email: user.email,
-        name: user.name,
-        userId: user.id,
-      },
-    });
-  }
+  await stripeClient.createUserCustomer(user.id, user.name, user.email);
 }
 
 async function ensureStripeCustomerForCreatedOrganization(organization: {
@@ -169,26 +156,13 @@ async function ensureStripeCustomerForCreatedOrganization(organization: {
   name: string;
   slug: string;
 }): Promise<void> {
-  try {
-    const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
-    await stripeClient.createOrganizationCustomer(
-      organization.id,
-      organization.slug,
-      organization.name,
-      invoiceEmail,
-    );
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        context: "stripe_organization_customer_creation",
-      },
-      extra: {
-        organizationId: organization.id,
-        organizationName: organization.name,
-        organizationSlug: organization.slug,
-      },
-    });
-  }
+  const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
+  await stripeClient.createOrganizationCustomer(
+    organization.id,
+    organization.slug,
+    organization.name,
+    invoiceEmail,
+  );
 }
 
 async function ensureOrganizationHasNoAdditionalMembers(
@@ -317,7 +291,18 @@ export const auth = betterAuth({
           };
         },
         after: async (user, _ctx) => {
-          void ensureStripeCustomerForCreatedUser(user);
+          void ensureStripeCustomerForCreatedUser(user).catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "stripe_user_customer_creation",
+              },
+              extra: {
+                email: user.email,
+                name: user.name,
+                userId: user.id,
+              },
+            });
+          });
 
           // Validate user data before calling webhook
           const { success, data, error } =
@@ -555,7 +540,20 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
-          void ensureStripeCustomerForCreatedOrganization(organization);
+          void ensureStripeCustomerForCreatedOrganization(organization).catch(
+            (error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "stripe_organization_customer_creation",
+                },
+                extra: {
+                  organizationId: organization.id,
+                  organizationName: organization.name,
+                  organizationSlug: organization.slug,
+                },
+              });
+            },
+          );
         },
         beforeAcceptInvitation: async ({ organization }) => {
           await organizationSubscriptionService.ensureCanAcceptInvitation(
