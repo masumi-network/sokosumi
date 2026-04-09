@@ -47,7 +47,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     await prisma.$transaction(async (tx) => {
-      await requireOwnedJobAccess(authContext, id, tx);
+      await requireOwnedJobAccess(
+        c.var.workspaceContext ?? authContext,
+        id,
+        tx,
+      );
 
       await publicShareRepository.deleteByJobId(id, tx);
     });

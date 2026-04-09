@@ -54,7 +54,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { allowSearchIndexing } = c.req.valid("json");
 
     const share = await prisma.$transaction(async (tx) => {
-      await requireOwnedJobAccess(authContext, id, tx);
+      await requireOwnedJobAccess(
+        c.var.workspaceContext ?? authContext,
+        id,
+        tx,
+      );
 
       return await publicShareRepository.upsertForJob(
         id,

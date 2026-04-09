@@ -6,19 +6,22 @@ const { getMemberByUserIdAndOrganizationIdMock } = vi.hoisted(() => ({
   getMemberByUserIdAndOrganizationIdMock: vi.fn(),
 }));
 
-vi.mock("../member.repository.js", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("../member.repository.js")>();
+vi.mock(
+  "../member.repository.js",
+  async (importOriginal: () => Promise<unknown>) => {
+    const actual =
+      (await importOriginal()) as typeof import("../member.repository.js");
 
-  return {
-    ...actual,
-    memberRepository: {
-      ...actual.memberRepository,
-      getMemberByUserIdAndOrganizationId:
-        getMemberByUserIdAndOrganizationIdMock,
-    },
-  };
-});
+    return {
+      ...actual,
+      memberRepository: {
+        ...actual.memberRepository,
+        getMemberByUserIdAndOrganizationId:
+          getMemberByUserIdAndOrganizationIdMock,
+      },
+    };
+  },
+);
 
 import { workspaceRepository } from "../workspace.repository.js";
 
