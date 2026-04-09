@@ -335,6 +335,38 @@ describe("web auth config", () => {
     });
   });
 
+  it("requires a billing address for subscription checkout", async () => {
+    await import("../auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [
+        {
+          subscription: {
+            getCheckoutSessionParams: () => Promise<{
+              params?: {
+                billing_address_collection?: string;
+                tax_id_collection?: {
+                  enabled: boolean;
+                };
+              };
+            }>;
+          };
+        },
+      ]
+    >;
+
+    const sessionParams = await config.subscription.getCheckoutSessionParams();
+
+    expect(sessionParams).toEqual({
+      params: {
+        billing_address_collection: "required",
+        tax_id_collection: {
+          enabled: true,
+        },
+      },
+    });
+  });
+
   it("disables cross-subdomain cookies on localhost", async () => {
     getEnvSecretsMock.mockReturnValue({
       ...getDefaultEnvSecrets(),

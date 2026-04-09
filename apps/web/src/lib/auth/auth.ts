@@ -636,6 +636,14 @@ export const auth = betterAuth({
       subscription: {
         enabled: true,
         plans: async () => await getBetterAuthSubscriptionPlans(stripeInstance),
+        getCheckoutSessionParams: async () => ({
+          params: {
+            billing_address_collection: "required",
+            tax_id_collection: {
+              enabled: true,
+            },
+          },
+        }),
         authorizeReference: async ({ referenceId, user }) => {
           const member =
             await memberRepository.getMemberByUserIdAndOrganizationId(
