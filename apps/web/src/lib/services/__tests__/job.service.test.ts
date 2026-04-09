@@ -1,3 +1,4 @@
+import { InputType } from "@sokosumi/masumi/types";
 import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -241,12 +242,12 @@ function buildStartInput(overrides: Record<string, unknown> = {}) {
       input_data: [
         {
           id: "prompt",
-          type: "string",
+          type: InputType.STRING,
           name: "Prompt",
         },
       ],
     },
-    maxAcceptedCents: 10n,
+    maxAcceptedCents: BigInt(10),
     ...overrides,
   } as never;
 }
@@ -268,7 +269,7 @@ describe("job.service workspace persistence", () => {
     generateJobNameMock.mockResolvedValue("Generated Job");
     publishJobStatusDataMock.mockResolvedValue(undefined);
     enqueueFromMarkdownMock.mockResolvedValue(undefined);
-    getBalanceMock.mockResolvedValue(1000n);
+    getBalanceMock.mockResolvedValue(BigInt(1000));
     createJobPurchaseMock.mockResolvedValue(undefined);
     trackMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
@@ -340,7 +341,7 @@ describe("job.service workspace persistence", () => {
     getAgentCreditsPriceMock.mockResolvedValue({
       ...paidAgent,
       creditsPrice: {
-        cents: 5n,
+        cents: BigInt(5),
       },
     });
     startPaidAgentJobMock.mockResolvedValue(

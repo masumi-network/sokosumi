@@ -5,15 +5,19 @@ vi.mock("server-only", () => ({}));
 import { MemberRole } from "@sokosumi/database";
 import { render } from "@testing-library/react";
 
-const listActiveSubscriptionsMock = vi.fn();
 const getSessionMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const getBalanceMock = vi.fn();
+const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
+const getUserByIdMock = vi.fn();
 const zeroMarginTopUpEnabledMock = vi.fn();
+const billingPortalCardMock = vi.fn();
 const creditsSectionMock = vi.fn();
 const billingTabsMock = vi.fn();
+const organizationSubscriptionSectionMock = vi.fn();
+const personalSubscriptionSectionMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -36,15 +40,6 @@ vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     STRIPE_SECRET_KEY: "sk_test_mock",
   }),
-}));
-
-vi.mock("@/lib/auth/auth", () => ({
-  auth: {
-    api: {
-      listActiveSubscriptions: (...args: unknown[]) =>
-        listActiveSubscriptionsMock(...args),
-    },
-  },
 }));
 
 vi.mock("@/lib/auth/utils", () => ({
@@ -83,6 +78,13 @@ vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     getBalance: (...args: unknown[]) => getBalanceMock(...args),
   },
+  subscriptionRepository: {
+    getLatestActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      getLatestActiveSubscriptionByReferenceIdMock(...args),
+  },
+  userRepository: {
+    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
+  },
 }));
 
 vi.mock("@/components/billing/balance-section", () => ({
@@ -90,7 +92,10 @@ vi.mock("@/components/billing/balance-section", () => ({
 }));
 
 vi.mock("@/components/billing/billing-portal-card", () => ({
-  BillingPortalCard: () => <div data-testid="billing-portal-card" />,
+  BillingPortalCard: (props: unknown) => {
+    billingPortalCardMock(props);
+    return <div data-testid="billing-portal-card" />;
+  },
 }));
 
 vi.mock("@/components/billing/billing-tabs", () => ({
@@ -125,15 +130,17 @@ vi.mock("@/components/billing/credits-section", () => ({
 }));
 
 vi.mock("@/components/billing/organization-subscription-section", () => ({
-  OrganizationSubscriptionSection: () => (
-    <div data-testid="organization-subscription-section" />
-  ),
+  OrganizationSubscriptionSection: (props: unknown) => {
+    organizationSubscriptionSectionMock(props);
+    return <div data-testid="organization-subscription-section" />;
+  },
 }));
 
 vi.mock("@/components/billing/personal-subscription-section", () => ({
-  PersonalSubscriptionSection: () => (
-    <div data-testid="personal-subscription-section" />
-  ),
+  PersonalSubscriptionSection: (props: unknown) => {
+    personalSubscriptionSectionMock(props);
+    return <div data-testid="personal-subscription-section" />;
+  },
 }));
 
 function createSubscriptionCatalog() {
@@ -156,26 +163,26 @@ describe("BillingPage", () => {
       },
     });
     getBalanceMock.mockResolvedValue(BigInt(0));
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      periodEnd: "2026-03-01T00:00:00.000Z",
+      plan: "pro",
+      seats: 2,
+    });
     getSubscriptionCatalogMock.mockResolvedValue(createSubscriptionCatalog());
-    listActiveSubscriptionsMock.mockResolvedValue([
-      {
-        periodEnd: "2026-03-01T00:00:00.000Z",
-        plan: "pro",
-        seats: 2,
-      },
-    ]);
+    getUserByIdMock.mockResolvedValue({
+      id: "user-1",
+      stripeCustomerId: "cus_user_1",
+    });
   });
 
   it("passes the zero-margin override to personal billing credits when the flag is enabled", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     zeroMarginTopUpEnabledMock.mockResolvedValue(true);
-    listActiveSubscriptionsMock.mockResolvedValue([
-      {
-        periodEnd: "2026-03-01T00:00:00.000Z",
-        plan: "free",
-        seats: 1,
-      },
-    ]);
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      periodEnd: "2026-03-01T00:00:00.000Z",
+      plan: "free",
+      seats: 1,
+    });
 
     const { default: BillingPage } = await import("../page");
 
@@ -207,13 +214,11 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(true);
-    listActiveSubscriptionsMock.mockResolvedValue([
-      {
-        periodEnd: "2026-03-01T00:00:00.000Z",
-        plan: "free",
-        seats: 2,
-      },
-    ]);
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      periodEnd: "2026-03-01T00:00:00.000Z",
+      plan: "free",
+      seats: 2,
+    });
 
     const { default: BillingPage } = await import("../page");
 
@@ -263,13 +268,11 @@ describe("BillingPage", () => {
   it("shows the personal credits tab even on the free plan", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
-    listActiveSubscriptionsMock.mockResolvedValue([
-      {
-        periodEnd: "2026-03-01T00:00:00.000Z",
-        plan: "free",
-        seats: 1,
-      },
-    ]);
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      periodEnd: "2026-03-01T00:00:00.000Z",
+      plan: "free",
+      seats: 1,
+    });
 
     const { default: BillingPage } = await import("../page");
 
@@ -293,5 +296,53 @@ describe("BillingPage", () => {
         returnPath: "/billing?tab=credits",
       }),
     );
+    expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: "2026-03-01T00:00:00.000Z",
+        returnPath: "/billing?tab=subscription",
+        status: null,
+      }),
+    );
+  });
+
+  it("uses the local subscription row for organization seats and hides the billing portal without a Stripe customer", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      _count: { members: 2 },
+      id: "org-1",
+      name: "Org One",
+      stripeCustomerId: null,
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      periodEnd: "2026-03-01T00:00:00.000Z",
+      plan: "free",
+      seats: 5,
+    });
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancelAtPeriodEnd: false,
+        currentPlan: "free",
+        currentPeriodEnd: "2026-03-01T00:00:00.000Z",
+        currentSeats: 5,
+        memberCount: 2,
+      }),
+    );
+    expect(billingPortalCardMock).not.toHaveBeenCalled();
+    expect(view.queryByTestId("billing-portal-card")).toBeNull();
   });
 });

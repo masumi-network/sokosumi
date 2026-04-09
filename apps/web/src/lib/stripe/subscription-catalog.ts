@@ -7,6 +7,8 @@ import { getEnvSecrets } from "@/config/env.secrets";
 
 export type SubscriptionPlanName = "free" | "starter" | "standard" | "pro";
 
+export type PaidSubscriptionPlanName = Exclude<SubscriptionPlanName, "free">;
+
 interface SubscriptionCatalogPlan {
   credits: number;
   currency: string;

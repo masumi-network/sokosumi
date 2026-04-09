@@ -89,7 +89,10 @@ describe("subscription actions", () => {
     });
 
     expect(result).toEqual({
-      data: { url: "https://checkout.stripe.com/session/test" },
+      data: {
+        mode: "redirect",
+        url: "https://checkout.stripe.com/session/test",
+      },
       ok: true,
     });
     expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
@@ -98,35 +101,6 @@ describe("subscription actions", () => {
         customerType: "user",
         disableRedirect: true,
         plan: "starter",
-        returnUrl: "/billing?tab=subscription",
-        successUrl: "/billing?tab=subscription&status=success",
-      },
-      headers: new Headers(),
-    });
-  });
-
-  it("allows downgrading to free via better-auth upgradeSubscription", async () => {
-    upgradeSubscriptionMock.mockResolvedValue({
-      url: "https://checkout.stripe.com/session/free",
-    });
-
-    const { upgradePersonalSubscription } = await import("../action");
-
-    const result = await upgradePersonalSubscription({
-      session,
-      plan: "free",
-    });
-
-    expect(result).toEqual({
-      data: { url: "https://checkout.stripe.com/session/free" },
-      ok: true,
-    });
-    expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
-      body: {
-        cancelUrl: "/billing?tab=subscription&status=cancel",
-        customerType: "user",
-        disableRedirect: true,
-        plan: "free",
         returnUrl: "/billing?tab=subscription",
         successUrl: "/billing?tab=subscription&status=success",
       },
@@ -199,7 +173,10 @@ describe("subscription actions", () => {
     });
 
     expect(result).toEqual({
-      data: { url: "https://checkout.stripe.com/session/test" },
+      data: {
+        mode: "redirect",
+        url: "https://checkout.stripe.com/session/test",
+      },
       ok: true,
     });
     expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
@@ -278,7 +255,10 @@ describe("subscription actions", () => {
     });
 
     expect(result).toEqual({
-      data: { url: "https://checkout.stripe.com/session/org-test" },
+      data: {
+        mode: "redirect",
+        url: "https://checkout.stripe.com/session/org-test",
+      },
       ok: true,
     });
 

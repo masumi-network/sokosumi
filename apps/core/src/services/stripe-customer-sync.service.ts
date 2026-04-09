@@ -93,8 +93,8 @@ async function createStripeCustomerForOrganization(
     return;
   }
 
-  const requestTimeoutMs = getStripeRequestTimeoutMs(options);
   const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
+  const requestTimeoutMs = getStripeRequestTimeoutMs(options);
   await stripeClient.createOrganizationCustomer(
     {
       invoiceEmail,
@@ -135,7 +135,10 @@ export const stripeCustomerSyncService = {
     console.info(
       "Syncing",
       usersWithoutStripeCustomer.length,
-      "users and",
+      "users without Stripe customers",
+    );
+    console.info(
+      "Syncing",
       organizationsWithoutStripeCustomer.length,
       "organizations without Stripe customers",
     );
@@ -207,6 +210,7 @@ export const stripeCustomerSyncService = {
         }),
       );
     }
+
     await Promise.allSettled(runningSyncPromises);
   },
 };

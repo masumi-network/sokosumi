@@ -16,7 +16,7 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-const subscriptionPlanSchema = z.enum(["free", "starter", "standard", "pro"]);
+const subscriptionPlanSchema = z.enum(["starter", "standard", "pro"]);
 const personalReturnPathSchema = z.string().startsWith("/");
 
 const upgradePersonalSubscriptionSchema = z.object({
@@ -41,20 +41,6 @@ const updateOrganizationSubscriptionSeatsSchema = z.object({
   seats: z.number().int().min(1),
 });
 
-function parseBetterAuthActionError(error: unknown): ActionError {
-  const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
-  if (parsedBetterAuthError.success) {
-    return {
-      code: parsedBetterAuthError.data.body.code,
-      message: parsedBetterAuthError.data.body.message,
-    };
-  }
-
-  return {
-    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-  };
-}
-
 function getErrorStatus(error: unknown): string | null {
   if (!(error instanceof Error)) {
     return null;
@@ -66,7 +52,15 @@ function getErrorStatus(error: unknown): string | null {
     : null;
 }
 
-function parseOrganizationSeatUpdateError(error: unknown): ActionError {
+function parseBetterAuthActionError(error: unknown): ActionError {
+  const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
+  if (parsedBetterAuthError.success) {
+    return {
+      code: parsedBetterAuthError.data.body.code,
+      message: parsedBetterAuthError.data.body.message,
+    };
+  }
+
   const status = getErrorStatus(error);
   if (status === "FORBIDDEN") {
     return {
@@ -88,6 +82,10 @@ function parseOrganizationSeatUpdateError(error: unknown): ActionError {
   };
 }
 
+export type SubscriptionChangeResult =
+  | { mode: "complete" }
+  | { mode: "redirect"; url: string };
+
 function buildSubscriptionStatusPath(
   returnPath: string,
   status: "cancel" | "success",
@@ -105,14 +103,14 @@ function buildSubscriptionStatusPath(
 }
 
 interface UpgradePersonalSubscriptionParameters extends AuthenticatedRequest {
-  plan: "free" | "starter" | "standard" | "pro";
+  plan: "starter" | "standard" | "pro";
   returnPath?: string;
 }
 
 export const upgradePersonalSubscription = withSession<
   UpgradePersonalSubscriptionParameters,
-  Result<{ url: string }, ActionError>
->(async ({ plan, returnPath }) => {
+  Result<SubscriptionChangeResult, ActionError>
+>(async ({ plan, returnPath, session }) => {
   const parsed = upgradePersonalSubscriptionSchema.safeParse({
     plan,
     returnPath,
@@ -140,12 +138,10 @@ export const upgradePersonalSubscription = withSession<
     });
 
     if (!result.url) {
-      return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
+      return Ok({ mode: "complete" });
     }
 
-    return Ok({ url: result.url });
+    return Ok({ mode: "redirect", url: result.url });
   } catch (error) {
     return Err(parseBetterAuthActionError(error));
   }
@@ -193,15 +189,15 @@ export const openPersonalBillingPortal = withSession<
 interface UpgradeOrganizationSubscriptionParameters
   extends AuthenticatedRequest {
   organizationId: string;
-  plan: "free" | "starter" | "standard" | "pro";
+  plan: "starter" | "standard" | "pro";
   returnPath: string;
   seats: number;
 }
 
 export const upgradeOrganizationSubscription = withSession<
   UpgradeOrganizationSubscriptionParameters,
-  Result<{ url: string }, ActionError>
->(async ({ organizationId, plan, returnPath, seats }) => {
+  Result<SubscriptionChangeResult, ActionError>
+>(async ({ organizationId, plan, returnPath, seats, session }) => {
   const parsed = upgradeOrganizationSubscriptionSchema.safeParse({
     organizationId,
     plan,
@@ -230,12 +226,10 @@ export const upgradeOrganizationSubscription = withSession<
     });
 
     if (!result.url) {
-      return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
+      return Ok({ mode: "complete" });
     }
 
-    return Ok({ url: result.url });
+    return Ok({ mode: "redirect", url: result.url });
   } catch (error) {
     return Err(parseBetterAuthActionError(error));
   }
@@ -313,6 +307,6 @@ export const updateOrganizationSubscriptionSeats = withSession<
 
     return Ok(result);
   } catch (error) {
-    return Err(parseOrganizationSeatUpdateError(error));
+    return Err(parseBetterAuthActionError(error));
   }
 });

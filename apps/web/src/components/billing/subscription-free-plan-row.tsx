@@ -8,13 +8,11 @@ import {
   CardDescription,
   CardTitle,
 } from "@/components/ui/card";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import { cn } from "@/lib/utils";
 
 import {
   formatPlanPrice,
   resolvePlanFeatureItems,
-  SubscriptionPlanActionButton,
   SubscriptionPlanFeatureList,
 } from "./subscription-plan-presentation";
 import {
@@ -23,24 +21,12 @@ import {
 } from "./subscription-plan-utils";
 
 interface SubscriptionFreePlanRowProps {
-  actionLabel?: string;
   creditsText?: string;
-  isDisabled?: boolean;
-  isAnyPlanPending: boolean;
-  isPlanPending: boolean;
-  loadingLabel?: string;
-  onUpgrade: (plan: SubscriptionPlanName) => void;
   plan: SubscriptionPlanView;
 }
 
 export function SubscriptionFreePlanRow({
-  actionLabel,
   creditsText,
-  isDisabled,
-  isAnyPlanPending,
-  isPlanPending,
-  loadingLabel,
-  onUpgrade,
   plan,
 }: SubscriptionFreePlanRowProps) {
   const t = useTranslations("App.Subscriptions");
@@ -49,10 +35,6 @@ export function SubscriptionFreePlanRow({
   const featureItems = resolvePlanFeatureItems(
     t.raw(`Plans.${translationKey}.features.items`),
   );
-  const resolvedDisabled = isDisabled ?? (isAnyPlanPending || plan.isCurrent);
-  const resolvedActionLabel =
-    actionLabel ?? (plan.isCurrent ? t("currentPlanCta") : t("upgradePlanCta"));
-  const resolvedLoadingLabel = loadingLabel ?? t("upgrading");
 
   return (
     <Card
@@ -61,7 +43,7 @@ export function SubscriptionFreePlanRow({
         plan.isCurrent ? "border-primary" : undefined,
       )}
     >
-      <CardContent className="grid gap-6 md:grid-cols-3 md:items-start">
+      <CardContent className="grid gap-6 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] md:items-start md:gap-10">
         <div className="space-y-3">
           <div className="space-y-2">
             <CardTitle className="flex items-center gap-2">
@@ -83,6 +65,7 @@ export function SubscriptionFreePlanRow({
                   formatter.number(amount, {
                     style: "currency",
                     currency: plan.currency.toUpperCase(),
+                    notation: "compact",
                   }),
                 freePriceLabel: t("freePrice"),
                 monthlyAmount: plan.monthlyAmount,
@@ -97,23 +80,11 @@ export function SubscriptionFreePlanRow({
           </p>
         </div>
 
-        <SubscriptionPlanFeatureList
-          items={featureItems}
-          title={t(`Plans.${translationKey}.features.title`)}
-        />
-
-        <div className="flex md:min-h-full md:items-center md:justify-end">
-          <div className="flex w-full md:max-w-56 md:justify-end">
-            <SubscriptionPlanActionButton
-              actionLabel={resolvedActionLabel}
-              disabled={resolvedDisabled}
-              isCurrent={plan.isCurrent}
-              isPlanPending={isPlanPending}
-              loadingLabel={resolvedLoadingLabel}
-              onUpgrade={onUpgrade}
-              planName={plan.name}
-            />
-          </div>
+        <div className="md:max-w-2xl">
+          <SubscriptionPlanFeatureList
+            items={featureItems}
+            title={t(`Plans.${translationKey}.features.title`)}
+          />
         </div>
       </CardContent>
     </Card>

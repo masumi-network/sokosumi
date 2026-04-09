@@ -4,7 +4,7 @@ import type {
   AgentWithCreditsPrice,
   AgentWithRelations,
 } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { AgentBookmarkButton, AgentHireButton } from "@/components/agents";

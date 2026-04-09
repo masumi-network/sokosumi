@@ -63,6 +63,7 @@ import {
   handleCustomerCreatedEvent,
   handleCustomerUpdatedEvent,
   handleInvoicePaidEvent,
+  handleSubscriptionDeletedEvent,
 } from "@/lib/stripe/webhook-handlers";
 
 export type Session = typeof auth.$Infer.Session;
@@ -140,6 +141,29 @@ function getEmailLocale(
     acceptLanguageHeader,
     defaultLocale: DEFAULT_LOCALE,
   });
+}
+
+async function ensureStripeCustomerForCreatedUser(user: {
+  email: string;
+  id: string;
+  name: string;
+}): Promise<void> {
+  await stripeClient.createUserCustomer(user.id, user.name, user.email);
+}
+
+async function ensureStripeCustomerForCreatedOrganization(organization: {
+  id: string;
+  metadata?: string | null;
+  name: string;
+  slug: string;
+}): Promise<void> {
+  const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
+  await stripeClient.createOrganizationCustomer(
+    organization.id,
+    organization.slug,
+    organization.name,
+    invoiceEmail,
+  );
 }
 
 async function ensureOrganizationHasNoAdditionalMembers(
@@ -268,20 +292,19 @@ export const auth = betterAuth({
           };
         },
         after: async (user, _ctx) => {
-          stripeClient
-            .createUserCustomer(user.id, user.name, user.email)
-            .catch((error) => {
-              Sentry.captureException(error, {
-                tags: {
-                  context: "stripe_user_customer_creation",
-                },
-                extra: {
-                  userId: user.id,
-                  email: user.email,
-                  name: user.name,
-                },
-              });
+          void ensureStripeCustomerForCreatedUser(user).catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "stripe_user_customer_creation",
+              },
+              extra: {
+                email: user.email,
+                name: user.name,
+                userId: user.id,
+              },
             });
+          });
+
           // Validate user data before calling webhook
           const { success, data, error } =
             marketingOptInUserSchema.safeParse(user);
@@ -518,32 +541,33 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
-          const { invoiceEmail } = getOrganizationMetadata(
-            organization.metadata,
-          );
-          stripeClient
-            .createOrganizationCustomer(
-              organization.id,
-              organization.slug,
-              organization.name,
-              invoiceEmail,
-            )
-            .catch((error) => {
+          void ensureStripeCustomerForCreatedOrganization(organization).catch(
+            (error) => {
               Sentry.captureException(error, {
                 tags: {
                   context: "stripe_organization_customer_creation",
                 },
                 extra: {
                   organizationId: organization.id,
-                  name: organization.name,
-                  slug: organization.slug,
-                  invoiceEmail,
+                  organizationName: organization.name,
+                  organizationSlug: organization.slug,
                 },
               });
-            });
+            },
+          );
         },
         beforeAcceptInvitation: async ({ organization }) => {
           await organizationSubscriptionService.ensureCanAcceptInvitation(
+            organization.id,
+          );
+        },
+        afterAcceptInvitation: async ({ organization }) => {
+          await organizationSubscriptionService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
+            organization.id,
+          );
+        },
+        afterAddMember: async ({ organization }) => {
+          await organizationSubscriptionService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
             organization.id,
           );
         },
@@ -611,6 +635,14 @@ export const auth = betterAuth({
       subscription: {
         enabled: true,
         plans: async () => await getBetterAuthSubscriptionPlans(stripeInstance),
+        getCheckoutSessionParams: async () => ({
+          params: {
+            billing_address_collection: "required",
+            tax_id_collection: {
+              enabled: true,
+            },
+          },
+        }),
         authorizeReference: async ({ referenceId, user }) => {
           const member =
             await memberRepository.getMemberByUserIdAndOrganizationId(
@@ -690,6 +722,29 @@ export const auth = betterAuth({
                   eventId: event.id,
                   customer: customer.id,
                   email: customer.email,
+                },
+              });
+              throw error;
+            }
+            break;
+          }
+          case "customer.subscription.deleted": {
+            const subscription = event.data.object as Stripe.Subscription;
+            try {
+              await handleSubscriptionDeletedEvent(subscription);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "customer.subscription.deleted",
+                  stripeSubscriptionId: subscription.id,
+                },
+                extra: {
+                  customer:
+                    typeof subscription.customer === "string"
+                      ? subscription.customer
+                      : subscription.customer.id,
+                  eventId: event.id,
+                  subscription: subscription.id,
                 },
               });
               throw error;
