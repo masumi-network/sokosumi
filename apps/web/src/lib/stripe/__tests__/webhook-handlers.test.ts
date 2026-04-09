@@ -22,6 +22,8 @@ const findOutOfCreditsTasksMock = vi.fn();
 const updateTaskMock = vi.fn();
 const claimWelcomeCouponMock = vi.fn();
 const ensureInitialLocalFreeSubscriptionPeriodMock = vi.fn();
+const transitionToNextLocalFreeSubscriptionPeriodMock = vi.fn();
+const getSubscriptionByStripeSubscriptionIdMock = vi.fn();
 const prismaOrganizationUpdateMock = vi.fn();
 const prismaUserUpdateMock = vi.fn();
 
@@ -58,6 +60,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     ...actual,
     ensureInitialLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
       ensureInitialLocalFreeSubscriptionPeriodMock(...args),
+    transitionToNextLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
+      transitionToNextLocalFreeSubscriptionPeriodMock(...args),
   };
 });
 
@@ -71,6 +75,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
       getOrganizationByStripeCustomerIdMock(...args),
     getOrganizationWithRelationsById: vi.fn(),
     updateOrganizationInvoiceEmail: vi.fn(),
+  },
+  subscriptionRepository: {
+    getSubscriptionByStripeSubscriptionId: (...args: unknown[]) =>
+      getSubscriptionByStripeSubscriptionIdMock(...args),
   },
   userRepository: {
     getUserByStripeCustomerId: (...args: unknown[]) =>
@@ -262,6 +270,10 @@ describe("handleInvoicePaidEvent", () => {
     createTransactionMock.mockResolvedValue({});
     findOutOfCreditsTasksMock.mockResolvedValue([]);
     updateTaskMock.mockResolvedValue({});
+    transitionToNextLocalFreeSubscriptionPeriodMock.mockResolvedValue(
+      undefined,
+    );
+    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue(null);
   });
 
   it("does not grant subscription credits for unpaid subscription_update invoices", async () => {
@@ -1397,5 +1409,99 @@ describe("handleCustomerCreatedEvent", () => {
       expect.anything(),
     );
     expect(claimWelcomeCouponMock).toHaveBeenCalledWith("user-1");
+  });
+});
+
+describe("handleSubscriptionDeletedEvent", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transitionToNextLocalFreeSubscriptionPeriodMock.mockResolvedValue(
+      undefined,
+    );
+    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
+      canceledAt: new Date("2026-04-09T07:39:30.188Z"),
+      createdAt: new Date("2026-03-09T07:39:30.188Z"),
+      endedAt: null,
+      id: "sub_local_1",
+      periodEnd: new Date("2026-04-09T07:40:10.000Z"),
+      plan: "free",
+      referenceId: "user-1",
+      stripeCustomerId: "cus_123",
+      stripeSubscriptionId: "sub_123",
+    });
+  });
+
+  it("creates the first local free successor when a Stripe free subscription ends", async () => {
+    const { handleSubscriptionDeletedEvent } = await import(
+      "../webhook-handlers"
+    );
+
+    await handleSubscriptionDeletedEvent({
+      id: "sub_123",
+    } as never);
+
+    expect(getSubscriptionByStripeSubscriptionIdMock).toHaveBeenCalledWith(
+      "sub_123",
+      expect.anything(),
+    );
+    expect(
+      transitionToNextLocalFreeSubscriptionPeriodMock,
+    ).toHaveBeenCalledWith(
+      {
+        operationKind: "migrate",
+        setCanceledAtOnCloseOut: true,
+        subscription: {
+          canceledAt: new Date("2026-04-09T07:39:30.188Z"),
+          createdAt: new Date("2026-03-09T07:39:30.188Z"),
+          endedAt: null,
+          id: "sub_local_1",
+          periodEnd: new Date("2026-04-09T07:40:10.000Z"),
+          referenceId: "user-1",
+          stripeCustomerId: "cus_123",
+        },
+      },
+      expect.anything(),
+    );
+  });
+
+  it("creates the first local free successor when a Stripe paid subscription ends", async () => {
+    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
+      canceledAt: new Date("2026-04-09T07:39:30.188Z"),
+      createdAt: new Date("2026-03-09T07:39:30.188Z"),
+      endedAt: null,
+      id: "sub_paid_1",
+      periodEnd: new Date("2026-04-09T07:40:10.000Z"),
+      plan: "starter",
+      referenceId: "user-1",
+      stripeCustomerId: "cus_123",
+      stripeSubscriptionId: "sub_paid_stripe_1",
+    });
+
+    const { handleSubscriptionDeletedEvent } = await import(
+      "../webhook-handlers"
+    );
+
+    await handleSubscriptionDeletedEvent({
+      id: "sub_paid_stripe_1",
+    } as never);
+
+    expect(
+      transitionToNextLocalFreeSubscriptionPeriodMock,
+    ).toHaveBeenCalledWith(
+      {
+        operationKind: "migrate",
+        setCanceledAtOnCloseOut: true,
+        subscription: {
+          canceledAt: new Date("2026-04-09T07:39:30.188Z"),
+          createdAt: new Date("2026-03-09T07:39:30.188Z"),
+          endedAt: null,
+          id: "sub_paid_1",
+          periodEnd: new Date("2026-04-09T07:40:10.000Z"),
+          referenceId: "user-1",
+          stripeCustomerId: "cus_123",
+        },
+      },
+      expect.anything(),
+    );
   });
 });

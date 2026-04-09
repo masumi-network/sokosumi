@@ -15,10 +15,12 @@ import {
   escapeStringForLike,
   getCreditExpiryDate,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+  transitionToNextLocalFreeSubscriptionPeriod,
 } from "@sokosumi/database/helpers";
 import {
   memberRepository,
   organizationRepository,
+  subscriptionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import {
@@ -1001,4 +1003,37 @@ export async function handleCustomerUpdatedEvent(
     // Currently, user emails are managed through the auth system
     console.log(`User customer ${customer.id} updated, no action taken`);
   }
+}
+
+export async function handleSubscriptionDeletedEvent(
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  const localSubscription =
+    await subscriptionRepository.getSubscriptionByStripeSubscriptionId(
+      subscription.id,
+      prisma,
+    );
+
+  if (!localSubscription || localSubscription.stripeSubscriptionId === null) {
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await transitionToNextLocalFreeSubscriptionPeriod(
+      {
+        operationKind: "migrate",
+        setCanceledAtOnCloseOut: true,
+        subscription: {
+          canceledAt: localSubscription.canceledAt,
+          createdAt: localSubscription.createdAt,
+          endedAt: localSubscription.endedAt,
+          id: localSubscription.id,
+          periodEnd: localSubscription.periodEnd,
+          referenceId: localSubscription.referenceId,
+          stripeCustomerId: localSubscription.stripeCustomerId,
+        },
+      },
+      tx,
+    );
+  });
 }
