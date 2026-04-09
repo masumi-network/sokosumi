@@ -27,6 +27,7 @@ export default function ThoughtSummaryBar({
   const frozenSeconds = isFrozen
     ? Math.max(0, Math.floor((reasoningEndedAt - reasoningStartedAt) / 1000))
     : 0;
+  const hasNoTiming = reasoningStartedAt == null && reasoningEndedAt == null;
 
   const subordinateSteps = reasoningMessages
     .map(({ message }) => getReasoningStepDisplayText(message))
@@ -50,6 +51,8 @@ export default function ThoughtSummaryBar({
   }, [subordinateSteps, isOpen]);
 
   const displaySeconds = isFrozen ? frozenSeconds : liveSeconds;
+  /** Sub-second durations floor to 0; never show "0s" in copy. */
+  const secondsForThoughtCopy = Math.max(1, displaySeconds);
 
   return (
     <div className="mb-1 flex flex-col">
@@ -64,7 +67,11 @@ export default function ThoughtSummaryBar({
           }
         >
           <span>
-            {t("reasoning.thoughtForSeconds", { seconds: displaySeconds })}
+            {hasNoTiming
+              ? t("reasoning.expandSteps")
+              : t("reasoning.thoughtForSeconds", {
+                  seconds: secondsForThoughtCopy,
+                })}
           </span>
           <span
             className={cn(
@@ -82,7 +89,11 @@ export default function ThoughtSummaryBar({
         </button>
       ) : (
         <div className="text-muted-foreground flex w-full items-center px-4 py-1.5 text-sm">
-          {t("reasoning.thoughtForSeconds", { seconds: displaySeconds })}
+          {hasNoTiming
+            ? t("reasoning.expandSteps")
+            : t("reasoning.thoughtForSeconds", {
+                seconds: secondsForThoughtCopy,
+              })}
         </div>
       )}
       {isOpen && subordinateSteps.length > 0 && (

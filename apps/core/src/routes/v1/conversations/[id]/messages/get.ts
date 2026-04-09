@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import {
+  conversationMessageToApiContent,
+  thoughtTimingFromMessageMetadata,
+} from "@/helpers/conversation-message-api-content";
 import { internalServerError, notFound } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -112,16 +116,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const pagedItems = items.slice(0, take);
 
       const response = pagedItems.map((item) => {
-        const content: string | Array<{ type: string; text: string }> =
-          item.contentType && item.contentType !== ""
-            ? [{ type: item.contentType, text: item.contentText }]
-            : item.contentText;
+        const content = conversationMessageToApiContent({
+          contentType: item.contentType,
+          contentText: item.contentText,
+          metadata: item.metadata,
+        });
+        const thoughtTiming = thoughtTimingFromMessageMetadata(item.metadata);
 
         return {
           id: item.id,
           role: item.role as "user" | "assistant" | "system",
           content,
           createdAt: Math.floor(item.createdAt.getTime() / 1000),
+          ...(thoughtTiming != null ? { thoughtTiming } : {}),
         };
       });
 

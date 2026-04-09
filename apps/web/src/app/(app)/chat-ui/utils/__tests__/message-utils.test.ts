@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  convertItemsToMessages,
   deduplicateMessagesById,
   extractMessageContent,
   extractReasoningStepMessages,
+  getThoughtTimingMsFromMessage,
+  mergeAssistantThoughtMetadataFromDb,
 } from "../message-utils";
 
 describe("extractMessageContent", () => {
@@ -108,6 +111,108 @@ describe("extractReasoningStepMessages", () => {
     expect(extractReasoningStepMessages(message)).toEqual([
       { id: "m2-reasoning-0", message: "I will check the facts first." },
     ]);
+  });
+});
+
+describe("getThoughtTimingMsFromMessage", () => {
+  it("returns nulls when metadata is absent", () => {
+    expect(getThoughtTimingMsFromMessage({ role: "assistant" })).toEqual({
+      startedAtMs: null,
+      endedAtMs: null,
+    });
+  });
+
+  it("reads persisted thought timestamps from metadata", () => {
+    expect(
+      getThoughtTimingMsFromMessage({
+        metadata: {
+          thoughtStartedAtMs: 1_700_000_000_000,
+          thoughtEndedAtMs: 1_700_000_012_000,
+        },
+      }),
+    ).toEqual({
+      startedAtMs: 1_700_000_000_000,
+      endedAtMs: 1_700_000_012_000,
+    });
+  });
+
+  it("reads thought_timing_ms from metadata when camelCase is absent", () => {
+    expect(
+      getThoughtTimingMsFromMessage({
+        metadata: {
+          thought_timing_ms: { start: 100, end: 200 },
+        },
+      }),
+    ).toEqual({
+      startedAtMs: 100,
+      endedAtMs: 200,
+    });
+  });
+});
+
+describe("mergeAssistantThoughtMetadataFromDb", () => {
+  it("merges thought timing from DB messages onto slot messages by id", () => {
+    const slot = [
+      {
+        id: "asst-1",
+        role: "assistant" as const,
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+    const db = convertItemsToMessages([
+      {
+        id: "asst-1",
+        role: "assistant",
+        createdAt: 1700000000,
+        content: [{ type: "output_text", text: "Hi" }],
+        thoughtTiming: { startedAtMs: 10, endedAtMs: 50 },
+      },
+    ]);
+    const merged = mergeAssistantThoughtMetadataFromDb(slot, db);
+    expect(merged[0]).toMatchObject({
+      id: "asst-1",
+      metadata: { thoughtStartedAtMs: 10, thoughtEndedAtMs: 50 },
+    });
+  });
+});
+
+describe("convertItemsToMessages", () => {
+  it("maps API content arrays with reasoning then assistant text", () => {
+    const messages = convertItemsToMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        createdAt: 1700000000,
+        content: [
+          { type: "reasoning", text: "Think" },
+          { type: "output_text", text: "Hi" },
+        ],
+      },
+    ]);
+    expect(messages[0]?.parts).toEqual([
+      { type: "reasoning", text: "Think" },
+      { type: "text", text: "Hi" },
+    ]);
+    expect(messages[0]?.content).toBe("Hi");
+  });
+
+  it("attaches thought timing metadata when the API item includes thoughtTiming", () => {
+    const messages = convertItemsToMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        createdAt: 1700000000,
+        content: [{ type: "output_text", text: "Hi" }],
+        thoughtTiming: {
+          startedAtMs: 1000,
+          endedAtMs: 5000,
+        },
+      },
+    ]);
+    expect(messages[0]?.metadata).toEqual({
+      thoughtStartedAtMs: 1000,
+      thoughtEndedAtMs: 5000,
+    });
   });
 });
 

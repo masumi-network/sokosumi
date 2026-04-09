@@ -114,22 +114,83 @@ export function deduplicateMessagesById<T extends { id?: string }>(
   });
 }
 
+function readEpochMsFromUnknown(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/** Persisted thought phase timestamps (ms since epoch) from assistant message metadata. */
+export function getThoughtTimingMsFromMessage(message: unknown): {
+  startedAtMs: number | null;
+  endedAtMs: number | null;
+} {
+  const messageAny = message as Record<string, unknown>;
+  const metadata = messageAny.metadata;
+  if (!metadata || typeof metadata !== "object") {
+    return { startedAtMs: null, endedAtMs: null };
+  }
+  const m = metadata as Record<string, unknown>;
+  const nested = m.thought_timing_ms;
+  let nestedStart: number | null = null;
+  let nestedEnd: number | null = null;
+  if (nested && typeof nested === "object") {
+    const t = nested as Record<string, unknown>;
+    nestedStart = readEpochMsFromUnknown(t.start);
+    nestedEnd = readEpochMsFromUnknown(t.end);
+  }
+  const started = readEpochMsFromUnknown(m.thoughtStartedAtMs) ?? nestedStart;
+  const ended = readEpochMsFromUnknown(m.thoughtEndedAtMs) ?? nestedEnd;
+  return { startedAtMs: started, endedAtMs: ended };
+}
+
 /**
  * Convert ConversationItem[] to UIMessage format
  */
+function partsFromApiItemContent(
+  content: Array<{ type: string; text?: string }> | string,
+): UIMessage["parts"] {
+  if (typeof content === "string") {
+    return [{ type: "text", text: content }];
+  }
+  const parts: UIMessage["parts"] = [];
+  for (const c of content) {
+    if (c.type === "reasoning") {
+      parts.push({ type: "reasoning", text: c.text ?? "" });
+      continue;
+    }
+    parts.push({ type: "text", text: c.text ?? "" });
+  }
+  return parts.length > 0 ? parts : [{ type: "text", text: "" }];
+}
+
+function visibleTextFromParts(parts: UIMessage["parts"]): string {
+  return parts
+    .filter(
+      (p): p is { type: "text"; text: string } =>
+        p.type === "text" && "text" in p,
+    )
+    .map((p) => p.text)
+    .join("");
+}
+
 export function convertItemsToMessages(
   items: Array<{
     id: string;
     role: string;
     content: Array<{ type: string; text?: string }> | string;
     createdAt: number;
+    thoughtTiming?: { startedAtMs: number; endedAtMs: number };
   }>,
 ): UIMessage[] {
   return items.map((item) => {
-    const contentText =
-      typeof item.content === "string"
-        ? item.content
-        : item.content.map((c) => c.text || "").join("");
+    const parts = partsFromApiItemContent(item.content);
+    const visibleText = visibleTextFromParts(parts);
 
     const validRole: "assistant" | "user" | "system" =
       item.role === "assistant" ||
@@ -141,9 +202,17 @@ export function convertItemsToMessages(
     return {
       id: item.id,
       role: validRole,
-      parts: [{ type: "text", text: contentText }],
-      content: contentText,
+      parts,
+      content: visibleText,
       createdAt: new Date(item.createdAt * 1000),
+      ...(item.thoughtTiming != null
+        ? {
+            metadata: {
+              thoughtStartedAtMs: item.thoughtTiming.startedAtMs,
+              thoughtEndedAtMs: item.thoughtTiming.endedAtMs,
+            },
+          }
+        : {}),
     };
   });
 }

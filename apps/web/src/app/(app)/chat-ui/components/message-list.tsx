@@ -21,7 +21,11 @@ import {
   isDifferentDay,
 } from "@/app/chat/utils/date-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
-import { extractMessageContent } from "@/app/chat-ui/utils/message-utils";
+import {
+  extractMessageContent,
+  extractReasoningStepMessages,
+  getThoughtTimingMsFromMessage,
+} from "@/app/chat-ui/utils/message-utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -164,11 +168,6 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       reasoningMessages.length > 0 &&
       !isRecoveringPolling &&
       !isRecovering;
-    const hasStreamingWithReasoning =
-      isCoworker &&
-      reasoningMessages.length > 0 &&
-      lastMessage?.role === "assistant" &&
-      lastMessageContent.trim().length > 0;
     const recoveryInFlight = isRecovering || isRecoveringPolling;
     const showPendingError =
       !recoveryInFlight &&
@@ -283,6 +282,35 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         (currentCreatedAt &&
           isDifferentDay(currentCreatedAt, previousCreatedAt));
       const content = extractMessageContent(message);
+      const isLastMessage = index === messagesWithTimestamps.length - 1;
+      const reasoningFromParts =
+        role === "assistant" && isCoworker
+          ? extractReasoningStepMessages(message)
+          : [];
+      const showStreamOnlyThoughtBar =
+        role === "assistant" &&
+        isCoworker &&
+        isLastMessage &&
+        reasoningFromParts.length === 0 &&
+        reasoningMessages.length > 0 &&
+        content.trim().length > 0;
+      const storedThoughtTiming =
+        role === "assistant" && isCoworker
+          ? getThoughtTimingMsFromMessage(message)
+          : { startedAtMs: null, endedAtMs: null };
+      const hasStoredThoughtTiming =
+        storedThoughtTiming.startedAtMs != null ||
+        storedThoughtTiming.endedAtMs != null;
+      const reasoningStartedAtForBar = hasStoredThoughtTiming
+        ? storedThoughtTiming.startedAtMs
+        : reasoningFromParts.length > 0 && !isLastMessage
+          ? null
+          : (reasoningStartedAt ?? null);
+      const reasoningEndedAtForBar = hasStoredThoughtTiming
+        ? storedThoughtTiming.endedAtMs
+        : reasoningFromParts.length > 0 && !isLastMessage
+          ? null
+          : (reasoningEndedAt ?? null);
       let createdAt: Date | undefined;
       if ("createdAt" in message) {
         const createdAtValue = message.createdAt;
@@ -295,7 +323,6 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           createdAt = new Date(createdAtValue);
         }
       }
-      const isLastMessage = index === messagesWithTimestamps.length - 1;
       const isStreaming = isLoading && isLastMessage && role === "assistant";
       const hideEmptyAssistantWhileLoading =
         isLastMessage &&
@@ -323,6 +350,17 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           )}
           {!hideEmptyAssistantWhileLoading && !hideEmptyAssistantShowError && (
             <div className="mb-1">
+              {(reasoningFromParts.length > 0 || showStreamOnlyThoughtBar) && (
+                <ThoughtSummaryBar
+                  reasoningMessages={
+                    reasoningFromParts.length > 0
+                      ? reasoningFromParts
+                      : reasoningMessages
+                  }
+                  reasoningStartedAt={reasoningStartedAtForBar}
+                  reasoningEndedAt={reasoningEndedAtForBar}
+                />
+              )}
               <ChatMessage
                 role={role}
                 content={content}
@@ -397,22 +435,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                     className="flex flex-col justify-start pt-4"
                   >
                     {section.map((message, i) => {
-                      const isLastInSection = i === section.length - 1;
-                      const role = message.role as string;
-                      const showThoughtBar =
-                        sectionIndex === sections.length - 1 &&
-                        isLastInSection &&
-                        role === "assistant" &&
-                        hasStreamingWithReasoning;
                       return (
                         <Fragment key={`section-${sectionIndex}-msg-${i}`}>
-                          {showThoughtBar && (
-                            <ThoughtSummaryBar
-                              reasoningEndedAt={reasoningEndedAt ?? null}
-                              reasoningMessages={reasoningMessages}
-                              reasoningStartedAt={reasoningStartedAt ?? null}
-                            />
-                          )}
                           {renderMessage(message, globalStart + i)}
                         </Fragment>
                       );

@@ -1,6 +1,30 @@
 import { describe, expect, it } from "vitest";
 
-import { deduplicateMessagesById } from "../message-utils";
+import {
+  convertItemsToMessages,
+  deduplicateMessagesById,
+} from "../message-utils";
+
+describe("convertItemsToMessages", () => {
+  it("maps API content arrays with reasoning then assistant text", () => {
+    const messages = convertItemsToMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        createdAt: 1700000000,
+        content: [
+          { type: "reasoning", text: "Think" },
+          { type: "output_text", text: "Hi" },
+        ],
+      },
+    ]);
+    expect(messages[0]?.parts).toEqual([
+      { type: "reasoning", text: "Think" },
+      { type: "text", text: "Hi" },
+    ]);
+    expect(messages[0]?.content).toBe("Hi");
+  });
+});
 
 describe("deduplicateMessagesById", () => {
   it("keeps every message when ids are missing (no empty-key collapse)", () => {

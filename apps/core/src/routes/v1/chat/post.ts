@@ -325,6 +325,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         current: null,
       };
 
+      const thoughtPhaseMs = {
+        start: null as number | null,
+        end: null as number | null,
+        sawReasoningChunk: false,
+      };
+
       let onInvalidProviderConversationId: (() => Promise<void>) | undefined;
       if (useCoworker && internalConversationId) {
         const conversationIdForInvalidProviderConv = internalConversationId;
@@ -400,16 +406,58 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         } as unknown as NonNullable<
           Parameters<typeof streamText>[0]["providerOptions"]
         >,
-        onFinish: async ({ text }) => {
+        onChunk: ({ chunk }) => {
+          if (!useCoworker) {
+            return;
+          }
+          if (
+            chunk.type === "reasoning-start" ||
+            chunk.type === "reasoning-delta"
+          ) {
+            thoughtPhaseMs.sawReasoningChunk = true;
+            thoughtPhaseMs.start = thoughtPhaseMs.start ?? Date.now();
+          }
+          if (chunk.type === "reasoning-end") {
+            thoughtPhaseMs.end = Date.now();
+          }
+          if (
+            chunk.type === "text-delta" &&
+            thoughtPhaseMs.sawReasoningChunk &&
+            thoughtPhaseMs.end == null
+          ) {
+            thoughtPhaseMs.end = Date.now();
+          }
+        },
+        onFinish: async (finishEvent) => {
           if (!internalConversationId) {
             return;
           }
           try {
+            const hasReasoning =
+              Array.isArray(finishEvent.reasoning) &&
+              finishEvent.reasoning.length > 0;
+            if (
+              useCoworker &&
+              hasReasoning &&
+              thoughtPhaseMs.start != null &&
+              thoughtPhaseMs.end == null
+            ) {
+              thoughtPhaseMs.end = Date.now();
+            }
+            const thoughtTiming =
+              useCoworker && hasReasoning && thoughtPhaseMs.start != null
+                ? {
+                    startedAtMs: thoughtPhaseMs.start,
+                    endedAtMs: thoughtPhaseMs.end ?? Date.now(),
+                  }
+                : undefined;
             await persistAssistantFromAiSdk({
               conversationId: internalConversationId,
               userId: authContext.userId,
-              text,
+              text: finishEvent.text,
               responsesApiResponseId: responsesApiResponseIdRef.current,
+              reasoning: useCoworker ? finishEvent.reasoning : undefined,
+              thoughtTiming,
             });
           } catch (error) {
             console.error(

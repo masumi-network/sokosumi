@@ -306,7 +306,7 @@ async function streamCoworker(
       if (notify) {
         try {
           await Promise.resolve(notify());
-        } catch {}
+        } catch (_error) {}
       }
       const retryBody = buildCoworkerResponsesBody(fullResponsesInput, false);
       body = retryBody;

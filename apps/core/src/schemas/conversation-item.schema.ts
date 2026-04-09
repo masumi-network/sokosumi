@@ -1,10 +1,5 @@
 import { z } from "@hono/zod-openapi";
 
-/**
- * Conversation item response schema.
- * Content is reconstructed from contentType and contentText columns.
- * Matches the ConversationItem model structure from Prisma schema.
- */
 export const conversationItemSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -34,6 +29,16 @@ export const conversationItemSchema = z
       description: "Unix timestamp in seconds",
       example: 1706284800,
     }),
+    thoughtTiming: z
+      .object({
+        startedAtMs: z.coerce.number(),
+        endedAtMs: z.coerce.number(),
+      })
+      .optional()
+      .openapi({
+        description:
+          "Wall-clock thought phase (ms since epoch), when persisted for coworker reasoning",
+      }),
   })
   .openapi("ConversationItem");
 

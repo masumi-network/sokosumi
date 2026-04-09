@@ -96,6 +96,32 @@ describe("GET /chat", () => {
     expect(body.messages[1]?.role).toBe("assistant");
   });
 
+  it("includes stored reasoning parts before assistant text", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "m2",
+        role: "assistant",
+        contentText: "Done",
+        metadata: { reasoning: [{ type: "reasoning", text: "Step A" }] },
+      },
+    ]);
+
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/?conversationId=${cid}`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      messages: Array<{ parts: Array<{ type: string; text: string }> }>;
+    };
+    expect(body.messages[0]?.parts).toEqual([
+      { type: "reasoning", text: "Step A" },
+      { type: "text", text: "Done" },
+    ]);
+  });
+
   it("coalesces null contentText to empty string so validation is not tripped", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
     conversationMessageFindManyMock.mockResolvedValueOnce([

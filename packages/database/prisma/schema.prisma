@@ -1129,8 +1129,6 @@ model Coworker {
   image       String?
   metadata    Json?
 
-  /// When true, Core uses OpenAI-compatible POST /conversations + conversation_id on /responses.
-  /// When false, legacy coworker path (previous_response_id + merged transcript).
   supportsConversationsApi Boolean @default(true)
 
   userId String
@@ -1329,11 +1327,9 @@ model Conversation {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  /// Coworker Conversations API id (conv_…); null for OpenRouter-only threads until created.
   providerConversationId String? @unique
 
   messages          ConversationMessage[]
-  /// Legacy mirror table; retained alongside `messages` until a follow-up migration drops it.
   conversationItems ConversationItem[]
 
   @@index([userId])
@@ -1342,7 +1338,6 @@ model Conversation {
   @@map("conversation")
 }
 
-/// Persisted turns aligned with Conversations/Responses item semantics (mirror for UI and recovery).
 model ConversationMessage {
   id                     String       @id @default(uuid())
   conversationId         String
@@ -1360,7 +1355,6 @@ model ConversationMessage {
   @@map("messages")
 }
 
-/// Legacy persisted turns; superseded by `ConversationMessage` / `messages` for new writes.
 model ConversationItem {
   id                     String       @id @default(uuid())
   conversationId         String

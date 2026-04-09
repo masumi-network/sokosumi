@@ -38,6 +38,7 @@ import {
   deduplicateMessagesById,
   extractMessageContent,
   extractReasoningStepMessages,
+  mergeAssistantThoughtMetadataFromDb,
 } from "@/app/chat-ui/utils/message-utils";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
@@ -635,14 +636,26 @@ export default function ChatInterface({
     (convId: string, messages: UIMessage[]) => {
       if (streamingConversationIdsRef.current.has(convId)) return;
       const slot = conversationToSlot.get(convId);
-      if (slot !== undefined) return;
+      if (slot !== undefined && slot >= 0 && slot < NUM_SLOTS) {
+        setMessagesSlots[slot]((prev) => {
+          const prevArr = (prev ?? []) as UIMessage[];
+          if (prevArr.length === 0 && messages.length > 0) {
+            return messages;
+          }
+          if (messages.length === 0) {
+            return prevArr;
+          }
+          return mergeAssistantThoughtMetadataFromDb(prevArr, messages);
+        });
+        return;
+      }
       setCachedMessagesByConversation((prev) => ({
         ...prev,
         [convId]: messages,
       }));
       chatMessagesRef.current.set(convId, messages);
     },
-    [conversationToSlot],
+    [conversationToSlot, setMessagesSlots],
   );
 
   useEffect(() => {
@@ -730,7 +743,15 @@ export default function ChatInterface({
     let needPersistStarted = false;
     for (let slot = 0; slot < NUM_SLOTS; slot++) {
       const steps = reasoningBySlot[slot];
-      if (steps && steps.length > 0 && effectiveStarted[slot] == null) {
+      const messages = (slotMessages[slot] ?? []) as UIMessage[];
+      const last = messages[messages.length - 1];
+      const hasReasoningInAssistantParts =
+        last != null &&
+        (last.role as string) === "assistant" &&
+        extractReasoningStepMessages(last).length > 0;
+      const hasReasoningSteps =
+        (steps != null && steps.length > 0) || hasReasoningInAssistantParts;
+      if (hasReasoningSteps && effectiveStarted[slot] == null) {
         effectiveStarted[slot] = now;
         needPersistStarted = true;
       }
@@ -829,17 +850,18 @@ export default function ChatInterface({
 
   const selectedChatReasoningMessages = useMemo(() => {
     if (!selectedChatId) return [];
+    for (let i = displayedMessages.length - 1; i >= 0; i--) {
+      const m = displayedMessages[i];
+      if (m?.role === "assistant") {
+        const fromParts = extractReasoningStepMessages(m);
+        if (fromParts.length > 0) return fromParts;
+        break;
+      }
+    }
     const slot = conversationToSlot.get(selectedChatId);
     if (slot === undefined) return [];
-    const messages = (slotMessages[slot] ?? []) as UIMessage[];
-    const last = messages[messages.length - 1];
-    const fromParts =
-      last?.role === "assistant" ? extractReasoningStepMessages(last) : [];
-    if (fromParts.length > 0) {
-      return fromParts;
-    }
     return reasoningBySlot[slot] ?? [];
-  }, [selectedChatId, conversationToSlot, reasoningBySlot, slotMessages]);
+  }, [selectedChatId, displayedMessages, conversationToSlot, reasoningBySlot]);
 
   const selectedChatReasoningStartedAt = useMemo(() => {
     const slot =

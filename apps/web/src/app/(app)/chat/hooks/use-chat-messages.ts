@@ -15,6 +15,7 @@ interface UseChatMessagesProps {
       role: string;
       content: Array<{ type: string; text?: string }> | string;
       createdAt: number;
+      thoughtTiming?: { startedAtMs: number; endedAtMs: number };
     }>;
     metadata?: Record<string, unknown> | null;
   } | null;
@@ -106,6 +107,7 @@ export function useChatMessages({
                   role: string;
                   content: Array<{ type: string; text?: string }> | string;
                   createdAt: number;
+                  thoughtTiming?: { startedAtMs: number; endedAtMs: number };
                 }>;
                 pagination: {
                   cursor: string | null;
@@ -141,6 +143,7 @@ export function useChatMessages({
             role: string;
             content: Array<{ type: string; text?: string }> | string;
             createdAt: number;
+            thoughtTiming?: { startedAtMs: number; endedAtMs: number };
           }> | null = null;
 
           if (
@@ -165,6 +168,7 @@ export function useChatMessages({
                   role: string;
                   content: Array<{ type: string; text?: string }> | string;
                   createdAt: number;
+                  thoughtTiming?: { startedAtMs: number; endedAtMs: number };
                 }>;
               };
               items = value.items;
@@ -195,6 +199,7 @@ export function useChatMessages({
                     role: string;
                     content: Array<{ type: string; text?: string }> | string;
                     createdAt: number;
+                    thoughtTiming?: { startedAtMs: number; endedAtMs: number };
                   }> | null = null;
 
                   if (
@@ -221,6 +226,10 @@ export function useChatMessages({
                             | Array<{ type: string; text?: string }>
                             | string;
                           createdAt: number;
+                          thoughtTiming?: {
+                            startedAtMs: number;
+                            endedAtMs: number;
+                          };
                         }>;
                       };
                       retryItems = value.items;

@@ -81,7 +81,7 @@ export function parseSokosumiProviderOptions(
       throw new InvalidPromptError({
         prompt: raw,
         message:
-          'providerOptions.sokosumi.providerConversationId is required when mode is "coworker" (Conversations API id).',
+          'providerOptions.sokosumi.providerConversationId is required when mode is "coworker".',
       });
     }
   }
