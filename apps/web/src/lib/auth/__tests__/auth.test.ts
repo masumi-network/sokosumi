@@ -9,6 +9,7 @@ const getEnvPublicConfigMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
 const getInfraAuthPluginsMock = vi.fn();
 const i18nPluginMock = vi.fn();
+const ensureInitialLocalFreeSubscriptionPeriodMock = vi.fn();
 const jwtPluginMock = vi.fn();
 const lastLoginMethodPluginMock = vi.fn();
 const magicLinkPluginMock = vi.fn();
@@ -24,8 +25,13 @@ const callUserCreatedWebHookMock = vi.fn();
 const callUserUpdatedWebHookMock = vi.fn();
 const postmarkSendEmailMock = vi.fn();
 const prismaAdapterMock = vi.fn();
+const prismaOrganizationUpdateMock = vi.fn();
+const prismaTransactionMock = vi.fn();
+const prismaUserUpdateMock = vi.fn();
 const getMembersByOrganizationIdMock = vi.fn();
 const renderMagicLinkEmailMock = vi.fn();
+const syncLocalFreeSeatsAndCreditsForCurrentMembersMock = vi.fn();
+const stripeCreateOrganizationCustomerMock = vi.fn();
 const stripeCreateUserCustomerMock = vi.fn();
 const stripePluginMock = vi.fn();
 const stripeSdkMock = vi.fn(function MockStripe() {
@@ -148,6 +154,11 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
+vi.mock("@sokosumi/database/helpers", () => ({
+  ensureInitialLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
+    ensureInitialLocalFreeSubscriptionPeriodMock(...args),
+}));
+
 vi.mock("@sokosumi/email", () => ({
   renderMagicLinkEmail: (...args: unknown[]) =>
     renderMagicLinkEmailMock(...args),
@@ -190,7 +201,8 @@ vi.mock("@/lib/blob/utils", () => ({
 
 vi.mock("@/lib/clients/stripe.client", () => ({
   stripeClient: {
-    createOrganizationCustomer: vi.fn(() => Promise.resolve()),
+    createOrganizationCustomer: (...args: unknown[]) =>
+      stripeCreateOrganizationCustomerMock(...args),
     createUserCustomer: (...args: unknown[]) =>
       stripeCreateUserCustomerMock(...args),
   },
@@ -198,7 +210,16 @@ vi.mock("@/lib/clients/stripe.client", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
-  default: { __prisma: true },
+  default: {
+    __prisma: true,
+    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    organization: {
+      update: (...args: unknown[]) => prismaOrganizationUpdateMock(...args),
+    },
+    user: {
+      update: (...args: unknown[]) => prismaUserUpdateMock(...args),
+    },
+  },
 }));
 
 vi.mock("@/lib/email/postmark", () => ({
@@ -220,6 +241,8 @@ vi.mock("@/lib/services", () => ({
   organizationSubscriptionService: {
     ensureCanAcceptInvitation: vi.fn(),
     ensureCanCreateInvitation: vi.fn(),
+    syncLocalFreeSeatsAndCreditsForCurrentMembers: (...args: unknown[]) =>
+      syncLocalFreeSeatsAndCreditsForCurrentMembersMock(...args),
   },
   preferredOrganizationService: {
     resolveActiveOrganizationIdForSession: vi.fn(),
@@ -265,7 +288,19 @@ describe("web auth config", () => {
       success: true,
       data: input,
     }));
-    stripeCreateUserCustomerMock.mockResolvedValue(undefined);
+    ensureInitialLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
+    prismaTransactionMock.mockImplementation(
+      async (callback) => await callback({ __tx: true }),
+    );
+    prismaOrganizationUpdateMock.mockResolvedValue(undefined);
+    prismaUserUpdateMock.mockResolvedValue(undefined);
+    stripeCreateOrganizationCustomerMock.mockResolvedValue({
+      id: "cus_org_1",
+    });
+    stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_user_1" });
+    syncLocalFreeSeatsAndCreditsForCurrentMembersMock.mockResolvedValue(
+      undefined,
+    );
     postmarkSendEmailMock.mockResolvedValue({ MessageID: "message_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
     getMembersByOrganizationIdMock.mockReset();
@@ -733,9 +768,12 @@ describe("web auth config", () => {
       status: "BAD_REQUEST",
     });
 
-    expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith("org-1", {
-      __prisma: true,
-    });
+    expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith(
+      "org-1",
+      expect.objectContaining({
+        __prisma: true,
+      }),
+    );
   });
 
   it("allows organization deletion when the current user is the only member", async () => {
@@ -858,6 +896,7 @@ describe("web auth config", () => {
     >;
 
     const user = {
+      createdAt: new Date("2026-04-08T00:00:00.000Z"),
       id: "user_123",
       email: "magic@example.com",
       marketingOptIn: true,
@@ -893,6 +932,19 @@ describe("web auth config", () => {
       "magic@example.com",
       "magic",
       true,
+    );
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        createdAt: new Date("2026-04-08T00:00:00.000Z"),
+        kind: "user",
+        userId: "user_123",
+      }),
+      { __tx: true },
+    );
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith(
+      "user_123",
+      "magic",
+      "magic@example.com",
     );
     expect(callUserUpdatedWebHookMock).toHaveBeenCalledWith(
       "user_123",
@@ -942,5 +994,151 @@ describe("web auth config", () => {
         name: "@example.com",
       },
     });
+  });
+
+  it("creates a local free organization subscription and Stripe customer", async () => {
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { role: "owner", userId: "user-1" },
+      { role: "member", userId: "user-2" },
+    ]);
+
+    await import("../auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              member: { userId: string };
+              organization: {
+                createdAt?: Date;
+                id: string;
+                metadata?: string | null;
+                name: string;
+                slug: string;
+              };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterCreateOrganization({
+      member: { userId: "user-1" },
+      organization: {
+        createdAt: new Date("2026-04-08T00:00:00.000Z"),
+        id: "org-1",
+        metadata: null,
+        name: "Org One",
+        slug: "org-one",
+      },
+      user: { id: "user-1" },
+    });
+
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        createdAt: new Date("2026-04-08T00:00:00.000Z"),
+        kind: "organization",
+        organizationId: "org-1",
+      }),
+      { __tx: true },
+    );
+    expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
+      "org-1",
+      "org-one",
+      "Org One",
+      null,
+    );
+  });
+
+  it("fails when the created user is missing createdAt", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  marketingOptIn: boolean;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.databaseHooks.user.create.after({
+        email: "magic@example.com",
+        id: "user_123",
+        marketingOptIn: true,
+        name: "magic",
+      }),
+    ).rejects.toThrow("User is missing its createdAt timestamp.");
+  });
+
+  it("syncs local free organization seats and credits after accepting an invitation", async () => {
+    await import("../auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterAcceptInvitation: (input: {
+              invitation: { id: string };
+              member: { userId: string };
+              organization: { id: string };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterAcceptInvitation({
+      invitation: { id: "invite-1" },
+      member: { userId: "user-2" },
+      organization: { id: "org-1" },
+      user: { id: "user-2" },
+    });
+
+    expect(
+      syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
+    ).toHaveBeenCalledWith("org-1");
+  });
+
+  it("syncs local free organization seats and credits after adding a member", async () => {
+    await import("../auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterAddMember: (input: {
+              member: { userId: string };
+              organization: { id: string };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterAddMember({
+      member: { userId: "user-2" },
+      organization: { id: "org-1" },
+      user: { id: "user-1" },
+    });
+
+    expect(
+      syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
+    ).toHaveBeenCalledWith("org-1");
   });
 });

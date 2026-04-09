@@ -24,13 +24,13 @@ import {
 } from "./subscription-plan-utils";
 
 interface SubscriptionPlanCardProps {
-  actionLabel?: string;
+  actionLabel?: null | string;
   creditsText?: string;
   isDisabled?: boolean;
   isAnyPlanPending: boolean;
   isPlanPending: boolean;
   loadingLabel?: string;
-  onUpgrade: (plan: SubscriptionPlanName) => void;
+  onAction: (plan: SubscriptionPlanName) => void;
   plan: SubscriptionPlanView;
 }
 
@@ -41,7 +41,7 @@ export function SubscriptionPlanCard({
   isAnyPlanPending,
   isPlanPending,
   loadingLabel,
-  onUpgrade,
+  onAction,
   plan,
 }: SubscriptionPlanCardProps) {
   const t = useTranslations("App.Subscriptions");
@@ -51,7 +51,11 @@ export function SubscriptionPlanCard({
   const featureItems = resolvePlanFeatureItems(rawItems);
   const resolvedDisabled = isDisabled ?? (isAnyPlanPending || plan.isCurrent);
   const resolvedActionLabel =
-    actionLabel ?? (plan.isCurrent ? t("currentPlanCta") : t("upgradePlanCta"));
+    actionLabel === undefined
+      ? plan.isCurrent
+        ? t("currentPlanCta")
+        : t("upgradePlanCta")
+      : actionLabel;
   const resolvedLoadingLabel = loadingLabel ?? t("upgrading");
 
   return (
@@ -95,17 +99,19 @@ export function SubscriptionPlanCard({
           title={t(`Plans.${translationKey}.features.title`)}
         />
       </CardContent>
-      <CardFooter className="mt-auto">
-        <SubscriptionPlanActionButton
-          actionLabel={resolvedActionLabel}
-          disabled={resolvedDisabled}
-          isCurrent={plan.isCurrent}
-          isPlanPending={isPlanPending}
-          loadingLabel={resolvedLoadingLabel}
-          onUpgrade={onUpgrade}
-          planName={plan.name}
-        />
-      </CardFooter>
+      {resolvedActionLabel ? (
+        <CardFooter className="mt-auto">
+          <SubscriptionPlanActionButton
+            actionLabel={resolvedActionLabel}
+            disabled={resolvedDisabled}
+            isCurrent={plan.isCurrent}
+            isPlanPending={isPlanPending}
+            loadingLabel={resolvedLoadingLabel}
+            onAction={onAction}
+            planName={plan.name}
+          />
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }

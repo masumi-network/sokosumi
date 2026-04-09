@@ -9,7 +9,7 @@ import {
   CommonErrorCode,
 } from "@/lib/actions/errors";
 import { auth } from "@/lib/auth/auth";
-import { organizationSubscriptionService } from "@/lib/services";
+import { organizationSubscriptionService, stripeService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -67,6 +67,14 @@ function getErrorStatus(error: unknown): string | null {
 }
 
 function parseOrganizationSeatUpdateError(error: unknown): ActionError {
+  const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
+  if (parsedBetterAuthError.success) {
+    return {
+      code: parsedBetterAuthError.data.body.code,
+      message: parsedBetterAuthError.data.body.message,
+    };
+  }
+
   const status = getErrorStatus(error);
   if (status === "FORBIDDEN") {
     return {
@@ -87,6 +95,15 @@ function parseOrganizationSeatUpdateError(error: unknown): ActionError {
     ...(error instanceof Error ? { message: error.message } : {}),
   };
 }
+
+type SubscriptionChangeResult =
+  | {
+      mode: "redirect";
+      url: string;
+    }
+  | {
+      mode: "scheduled";
+    };
 
 function buildSubscriptionStatusPath(
   returnPath: string,
@@ -109,10 +126,24 @@ interface UpgradePersonalSubscriptionParameters extends AuthenticatedRequest {
   returnPath?: string;
 }
 
+interface CancelPersonalSubscriptionParameters extends AuthenticatedRequest {}
+
+export const cancelPersonalSubscription = withSession<
+  CancelPersonalSubscriptionParameters,
+  Result<{ mode: "scheduled" }, ActionError>
+>(async ({ session }) => {
+  try {
+    await stripeService.scheduleSubscriptionDowngradeToFree(session.user.id);
+    return Ok({ mode: "scheduled" });
+  } catch (error) {
+    return Err(parseOrganizationSeatUpdateError(error));
+  }
+});
+
 export const upgradePersonalSubscription = withSession<
   UpgradePersonalSubscriptionParameters,
-  Result<{ url: string }, ActionError>
->(async ({ plan, returnPath }) => {
+  Result<SubscriptionChangeResult, ActionError>
+>(async ({ plan, returnPath, session }) => {
   const parsed = upgradePersonalSubscriptionSchema.safeParse({
     plan,
     returnPath,
@@ -126,6 +157,11 @@ export const upgradePersonalSubscription = withSession<
   try {
     const resolvedReturnPath =
       parsed.data.returnPath ?? "/billing?tab=subscription";
+
+    if (parsed.data.plan === "free") {
+      await stripeService.scheduleSubscriptionDowngradeToFree(session.user.id);
+      return Ok({ mode: "scheduled" });
+    }
 
     const result = await auth.api.upgradeSubscription({
       headers: await headers(),
@@ -145,9 +181,9 @@ export const upgradePersonalSubscription = withSession<
       });
     }
 
-    return Ok({ url: result.url });
+    return Ok({ mode: "redirect", url: result.url });
   } catch (error) {
-    return Err(parseBetterAuthActionError(error));
+    return Err(parseOrganizationSeatUpdateError(error));
   }
 });
 
@@ -198,10 +234,37 @@ interface UpgradeOrganizationSubscriptionParameters
   seats: number;
 }
 
+interface CancelOrganizationSubscriptionParameters
+  extends AuthenticatedRequest {
+  organizationId: string;
+}
+
+export const cancelOrganizationSubscription = withSession<
+  CancelOrganizationSubscriptionParameters,
+  Result<{ mode: "scheduled" }, ActionError>
+>(async ({ organizationId, session }) => {
+  const parsedOrganizationId = z.string().min(1).safeParse(organizationId);
+  if (!parsedOrganizationId.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+    });
+  }
+
+  try {
+    await organizationSubscriptionService.scheduleDowngradeToFree(
+      session.user.id,
+      parsedOrganizationId.data,
+    );
+    return Ok({ mode: "scheduled" });
+  } catch (error) {
+    return Err(parseOrganizationSeatUpdateError(error));
+  }
+});
+
 export const upgradeOrganizationSubscription = withSession<
   UpgradeOrganizationSubscriptionParameters,
-  Result<{ url: string }, ActionError>
->(async ({ organizationId, plan, returnPath, seats }) => {
+  Result<SubscriptionChangeResult, ActionError>
+>(async ({ organizationId, plan, returnPath, seats, session }) => {
   const parsed = upgradeOrganizationSubscriptionSchema.safeParse({
     organizationId,
     plan,
@@ -215,6 +278,14 @@ export const upgradeOrganizationSubscription = withSession<
   }
 
   try {
+    if (parsed.data.plan === "free") {
+      await organizationSubscriptionService.scheduleDowngradeToFree(
+        session.user.id,
+        parsed.data.organizationId,
+      );
+      return Ok({ mode: "scheduled" });
+    }
+
     const result = await auth.api.upgradeSubscription({
       headers: await headers(),
       body: {
@@ -235,9 +306,9 @@ export const upgradeOrganizationSubscription = withSession<
       });
     }
 
-    return Ok({ url: result.url });
+    return Ok({ mode: "redirect", url: result.url });
   } catch (error) {
-    return Err(parseBetterAuthActionError(error));
+    return Err(parseOrganizationSeatUpdateError(error));
   }
 });
 

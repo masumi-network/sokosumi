@@ -23,13 +23,13 @@ import {
 } from "./subscription-plan-utils";
 
 interface SubscriptionFreePlanRowProps {
-  actionLabel?: string;
+  actionLabel?: null | string;
   creditsText?: string;
   isDisabled?: boolean;
   isAnyPlanPending: boolean;
   isPlanPending: boolean;
   loadingLabel?: string;
-  onUpgrade: (plan: SubscriptionPlanName) => void;
+  onAction: (plan: SubscriptionPlanName) => void;
   plan: SubscriptionPlanView;
 }
 
@@ -40,7 +40,7 @@ export function SubscriptionFreePlanRow({
   isAnyPlanPending,
   isPlanPending,
   loadingLabel,
-  onUpgrade,
+  onAction,
   plan,
 }: SubscriptionFreePlanRowProps) {
   const t = useTranslations("App.Subscriptions");
@@ -51,8 +51,13 @@ export function SubscriptionFreePlanRow({
   );
   const resolvedDisabled = isDisabled ?? (isAnyPlanPending || plan.isCurrent);
   const resolvedActionLabel =
-    actionLabel ?? (plan.isCurrent ? t("currentPlanCta") : t("upgradePlanCta"));
+    actionLabel === undefined
+      ? plan.isCurrent
+        ? t("currentPlanCta")
+        : t("upgradePlanCta")
+      : actionLabel;
   const resolvedLoadingLabel = loadingLabel ?? t("upgrading");
+  const hasAction = resolvedActionLabel !== null;
 
   return (
     <Card
@@ -61,7 +66,14 @@ export function SubscriptionFreePlanRow({
         plan.isCurrent ? "border-primary" : undefined,
       )}
     >
-      <CardContent className="grid gap-6 md:grid-cols-3 md:items-start">
+      <CardContent
+        className={cn(
+          "grid gap-6 md:items-start",
+          hasAction
+            ? "md:grid-cols-3"
+            : "md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] md:gap-10",
+        )}
+      >
         <div className="space-y-3">
           <div className="space-y-2">
             <CardTitle className="flex items-center gap-2">
@@ -97,24 +109,28 @@ export function SubscriptionFreePlanRow({
           </p>
         </div>
 
-        <SubscriptionPlanFeatureList
-          items={featureItems}
-          title={t(`Plans.${translationKey}.features.title`)}
-        />
-
-        <div className="flex md:min-h-full md:items-center md:justify-end">
-          <div className="flex w-full md:max-w-56 md:justify-end">
-            <SubscriptionPlanActionButton
-              actionLabel={resolvedActionLabel}
-              disabled={resolvedDisabled}
-              isCurrent={plan.isCurrent}
-              isPlanPending={isPlanPending}
-              loadingLabel={resolvedLoadingLabel}
-              onUpgrade={onUpgrade}
-              planName={plan.name}
-            />
-          </div>
+        <div className={cn(!hasAction ? "md:max-w-2xl" : undefined)}>
+          <SubscriptionPlanFeatureList
+            items={featureItems}
+            title={t(`Plans.${translationKey}.features.title`)}
+          />
         </div>
+
+        {hasAction ? (
+          <div className="flex md:min-h-full md:items-center md:justify-end">
+            <div className="flex w-full md:max-w-56 md:justify-end">
+              <SubscriptionPlanActionButton
+                actionLabel={resolvedActionLabel}
+                disabled={resolvedDisabled}
+                isCurrent={plan.isCurrent}
+                isPlanPending={isPlanPending}
+                loadingLabel={resolvedLoadingLabel}
+                onAction={onAction}
+                planName={plan.name}
+              />
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

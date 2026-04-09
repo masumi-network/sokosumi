@@ -11,10 +11,7 @@ import {
   buildOrganizationInvoiceCreditReferenceId,
   buildOrganizationMemberSubscriptionReferenceId,
   buildUserInvoiceCreditReferenceId,
-  convertCentsToCredits,
-  convertCreditsToCents,
   escapeStringForLike,
-  FREE_CREDITS_EXPIRY_DAYS,
   getCreditExpiryDate,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
 } from "@sokosumi/database/helpers";
@@ -23,7 +20,12 @@ import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import { getOrganizationMetadata } from "@sokosumi/utils";
+import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+  FREE_CREDITS_EXPIRY_DAYS,
+  getOrganizationMetadata,
+} from "@sokosumi/utils";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -904,22 +906,6 @@ export async function handleCustomerCreatedEvent(
       });
       console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
 
-      const freeSubscriptionResult =
-        await stripeService.ensurePersonalFreeSubscription(userId);
-      if (freeSubscriptionResult.status === "created") {
-        console.log(
-          `✅ Created free subscription for user ${userId} (${freeSubscriptionResult.subscriptionId})`,
-        );
-      } else if (freeSubscriptionResult.status === "skipped") {
-        console.log(
-          `ℹ️ Skipped free subscription for user ${userId}: ${freeSubscriptionResult.reason}`,
-        );
-      } else {
-        console.log(
-          `⚠️ Failed free subscription enrollment for user ${userId}: ${freeSubscriptionResult.reason}`,
-        );
-      }
-
       const { couponApplied, invoiceId } =
         await stripeService.claimWelcomeCoupon(userId);
       if (couponApplied && invoiceId) {
@@ -939,24 +925,6 @@ export async function handleCustomerCreatedEvent(
       console.log(
         `✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`,
       );
-
-      const freeSubscriptionResult =
-        await stripeService.ensureOrganizationFreeSubscription(
-          metadata.organizationId,
-        );
-      if (freeSubscriptionResult.status === "created") {
-        console.log(
-          `✅ Created free subscription for organization ${metadata.organizationId} (${freeSubscriptionResult.subscriptionId})`,
-        );
-      } else if (freeSubscriptionResult.status === "skipped") {
-        console.log(
-          `ℹ️ Skipped free subscription for organization ${metadata.organizationId}: ${freeSubscriptionResult.reason}`,
-        );
-      } else {
-        console.log(
-          `⚠️ Failed free subscription enrollment for organization ${metadata.organizationId}: ${freeSubscriptionResult.reason}`,
-        );
-      }
       break;
     }
     default: {

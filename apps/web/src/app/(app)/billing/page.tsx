@@ -1,7 +1,10 @@
 import { MemberRole } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
-import { headers } from "next/headers";
+import {
+  creditBucketRepository,
+  subscriptionRepository,
+  userRepository,
+} from "@sokosumi/database/repositories";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import Stripe from "stripe";
 
@@ -13,14 +16,11 @@ import CreditsSection from "@/components/billing/credits-section";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import {
-  type ActiveSubscription,
   parsePlanName,
-  resolveLatestSubscription,
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { auth } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
@@ -86,9 +86,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     : undefined;
 
   if (activeOrganization) {
-    const [member, requestHeaders, subscriptionCatalog] = await Promise.all([
+    const [member, subscriptionCatalog] = await Promise.all([
       userService.getMyMemberInOrganization(activeOrganization.id),
-      headers(),
       getSubscriptionCatalog(stripeInstance),
     ]);
     const isOwnerOrAdmin =
@@ -116,17 +115,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       );
     }
 
-    const activeSubscriptions = await auth.api.listActiveSubscriptions({
-      headers: requestHeaders,
-      query: {
-        customerType: "organization",
-        referenceId: activeOrganization.id,
-      },
-    });
-
-    const latestSubscription = resolveLatestSubscription(
-      activeSubscriptions as ActiveSubscription[],
-    );
+    const latestSubscription =
+      await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+        activeOrganization.id,
+        prisma,
+      );
     const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
     const canPurchaseCredits =
       isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
@@ -186,6 +179,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             showCreditsTab
             subscriptionContent={
               <OrganizationSubscriptionSection
+                cancelAtPeriodEnd={
+                  latestSubscription?.cancelAtPeriodEnd ?? false
+                }
+                currentPeriodEnd={latestSubscription?.periodEnd ?? null}
                 currentPlan={currentPlan}
                 currentSeats={currentSeats}
                 memberCount={activeOrganization._count.members}
@@ -212,41 +209,40 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             }
           />
 
-          <BillingPortalCard
-            baseReturnPath="/billing"
-            ctaLabel={t("billingPortalCta")}
-            description={t("billingPortalDescription")}
-            generalErrorMessage={t("Errors.general")}
-            openingLabel={t("openingBillingPortal")}
-            organizationId={activeOrganization.id}
-            returnPath="/billing"
-            title={t("billingPortalTitle")}
-            unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-            unauthenticatedErrorMessage={t("Errors.unauthenticated")}
-            unauthorizedErrorMessage={t("Errors.unauthorized")}
-          />
+          {activeOrganization.stripeCustomerId ? (
+            <BillingPortalCard
+              baseReturnPath="/billing"
+              ctaLabel={t("billingPortalCta")}
+              description={t("billingPortalDescription")}
+              generalErrorMessage={t("Errors.general")}
+              openingLabel={t("openingBillingPortal")}
+              organizationId={activeOrganization.id}
+              returnPath="/billing"
+              title={t("billingPortalTitle")}
+              unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
+              unauthenticatedErrorMessage={t("Errors.unauthenticated")}
+              unauthorizedErrorMessage={t("Errors.unauthorized")}
+            />
+          ) : null}
         </div>
       </div>
     );
   }
 
-  const [balanceInCents, requestHeaders, subscriptionCatalog] =
-    await Promise.all([
-      creditBucketRepository.getBalance(userId, null, prisma),
-      headers(),
-      getSubscriptionCatalog(stripeInstance),
-    ]);
-
-  const personalActiveSubscriptions = await auth.api.listActiveSubscriptions({
-    headers: requestHeaders,
-    query: {
-      customerType: "user",
-    },
-  });
-
-  const latestPersonalSubscription = resolveLatestSubscription(
-    personalActiveSubscriptions as ActiveSubscription[],
-  );
+  const [
+    balanceInCents,
+    latestPersonalSubscription,
+    subscriptionCatalog,
+    user,
+  ] = await Promise.all([
+    creditBucketRepository.getBalance(userId, null, prisma),
+    subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+      userId,
+      prisma,
+    ),
+    getSubscriptionCatalog(stripeInstance),
+    userRepository.getUserById(userId, prisma),
+  ]);
   const currentPlan = parsePlanName(latestPersonalSubscription?.plan) ?? "free";
   const credits = convertCentsToCredits(balanceInCents);
   const displayCredits = formatCreditsForDisplay(credits);
@@ -291,6 +287,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           showCreditsTab
           subscriptionContent={
             <PersonalSubscriptionSection
+              cancelAtPeriodEnd={
+                latestPersonalSubscription?.cancelAtPeriodEnd ?? false
+              }
+              currentPeriodEnd={latestPersonalSubscription?.periodEnd ?? null}
               plans={personalPlans}
               returnPath="/billing?tab=subscription"
               status={parseStatus(query.status)}
@@ -314,17 +314,19 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           }
         />
 
-        <BillingPortalCard
-          baseReturnPath="/billing"
-          ctaLabel={t("billingPortalCta")}
-          description={t("billingPortalDescription")}
-          generalErrorMessage={t("Errors.general")}
-          openingLabel={t("openingBillingPortal")}
-          returnPath="/billing"
-          title={t("billingPortalTitle")}
-          unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-          unauthenticatedErrorMessage={t("Errors.unauthenticated")}
-        />
+        {user?.stripeCustomerId ? (
+          <BillingPortalCard
+            baseReturnPath="/billing"
+            ctaLabel={t("billingPortalCta")}
+            description={t("billingPortalDescription")}
+            generalErrorMessage={t("Errors.general")}
+            openingLabel={t("openingBillingPortal")}
+            returnPath="/billing"
+            title={t("billingPortalTitle")}
+            unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
+            unauthenticatedErrorMessage={t("Errors.unauthenticated")}
+          />
+        ) : null}
       </div>
     </div>
   );

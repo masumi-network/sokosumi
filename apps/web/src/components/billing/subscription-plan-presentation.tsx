@@ -12,12 +12,12 @@ interface FormatPlanPriceParams {
 }
 
 interface SubscriptionPlanActionButtonProps {
-  actionLabel: string;
+  actionLabel: null | string;
   disabled: boolean;
   isCurrent: boolean;
   isPlanPending: boolean;
   loadingLabel: string;
-  onUpgrade: (plan: SubscriptionPlanName) => void;
+  onAction: (plan: SubscriptionPlanName) => void;
   planName: SubscriptionPlanName;
 }
 
@@ -77,15 +77,19 @@ export function SubscriptionPlanActionButton({
   isCurrent,
   isPlanPending,
   loadingLabel,
-  onUpgrade,
+  onAction,
   planName,
 }: SubscriptionPlanActionButtonProps) {
+  if (!actionLabel) {
+    return null;
+  }
+
   return (
     <Button
       className="w-full"
       variant={isCurrent ? "outline" : "default"}
       disabled={disabled}
-      onClick={() => onUpgrade(planName)}
+      onClick={() => onAction(planName)}
     >
       {isPlanPending ? (
         <>

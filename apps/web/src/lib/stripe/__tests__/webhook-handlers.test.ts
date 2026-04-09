@@ -3,9 +3,9 @@ import {
   buildOrganizationMemberSubscriptionReferenceId,
   buildUserInvoiceCreditReferenceId,
   escapeStringForLike,
-  FREE_CREDITS_EXPIRY_DAYS,
   getCreditExpiryDate,
 } from "@sokosumi/database/helpers";
+import { FREE_CREDITS_EXPIRY_DAYS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -20,8 +20,6 @@ const aggregateGrantedCreditsMock = vi.fn();
 const createTransactionMock = vi.fn();
 const findOutOfCreditsTasksMock = vi.fn();
 const updateTaskMock = vi.fn();
-const ensurePersonalFreeSubscriptionMock = vi.fn();
-const ensureOrganizationFreeSubscriptionMock = vi.fn();
 const claimWelcomeCouponMock = vi.fn();
 const prismaOrganizationUpdateMock = vi.fn();
 const prismaUserUpdateMock = vi.fn();
@@ -90,10 +88,6 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/services", () => ({
   stripeService: {
-    ensurePersonalFreeSubscription: (...args: unknown[]) =>
-      ensurePersonalFreeSubscriptionMock(...args),
-    ensureOrganizationFreeSubscription: (...args: unknown[]) =>
-      ensureOrganizationFreeSubscriptionMock(...args),
     claimWelcomeCoupon: (...args: unknown[]) => claimWelcomeCouponMock(...args),
   },
 }));
@@ -1325,14 +1319,6 @@ describe("handleInvoicePaidEvent", () => {
 describe("handleCustomerCreatedEvent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    ensurePersonalFreeSubscriptionMock.mockResolvedValue({
-      status: "skipped",
-      reason: "ALREADY_HAS_SUBSCRIPTION",
-    });
-    ensureOrganizationFreeSubscriptionMock.mockResolvedValue({
-      status: "skipped",
-      reason: "ALREADY_HAS_SUBSCRIPTION",
-    });
     claimWelcomeCouponMock.mockResolvedValue({
       couponApplied: false,
       invoiceId: null,
@@ -1341,7 +1327,7 @@ describe("handleCustomerCreatedEvent", () => {
     prismaOrganizationUpdateMock.mockResolvedValue(undefined);
   });
 
-  it("ensures a free subscription for newly created organization customers", async () => {
+  it("stores Stripe customer ids for newly created organization customers without creating a Stripe free subscription", async () => {
     const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
 
     await handleCustomerCreatedEvent({
@@ -1356,13 +1342,10 @@ describe("handleCustomerCreatedEvent", () => {
       where: { id: "org-1" },
       data: { stripeCustomerId: "cus_org_1" },
     });
-    expect(ensureOrganizationFreeSubscriptionMock).toHaveBeenCalledWith(
-      "org-1",
-    );
-    expect(ensurePersonalFreeSubscriptionMock).not.toHaveBeenCalled();
+    expect(claimWelcomeCouponMock).not.toHaveBeenCalled();
   });
 
-  it("keeps personal free subscription enrollment for user customers", async () => {
+  it("claims the welcome coupon for user customers without creating a Stripe free subscription", async () => {
     const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
 
     await handleCustomerCreatedEvent({
@@ -1377,7 +1360,6 @@ describe("handleCustomerCreatedEvent", () => {
       where: { id: "user-1" },
       data: { stripeCustomerId: "cus_user_1" },
     });
-    expect(ensurePersonalFreeSubscriptionMock).toHaveBeenCalledWith("user-1");
-    expect(ensureOrganizationFreeSubscriptionMock).not.toHaveBeenCalled();
+    expect(claimWelcomeCouponMock).toHaveBeenCalledWith("user-1");
   });
 });

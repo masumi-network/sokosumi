@@ -8,6 +8,7 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { MemberRole, type User } from "@sokosumi/database";
+import { ensureInitialLocalFreeSubscriptionPeriod } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 import {
   renderMagicLinkEmail,
@@ -142,6 +143,68 @@ function getEmailLocale(
   });
 }
 
+function ensureEntityCreatedAt(
+  value: Date | undefined,
+  entityName: string,
+): Date {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  throw new APIError("INTERNAL_SERVER_ERROR", {
+    message: `${entityName} is missing its createdAt timestamp.`,
+  });
+}
+
+async function ensureStripeCustomerForCreatedUser(user: {
+  email: string;
+  id: string;
+  name: string;
+}): Promise<void> {
+  try {
+    await stripeClient.createUserCustomer(user.id, user.name, user.email);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "stripe_user_customer_creation",
+      },
+      extra: {
+        email: user.email,
+        name: user.name,
+        userId: user.id,
+      },
+    });
+  }
+}
+
+async function ensureStripeCustomerForCreatedOrganization(organization: {
+  id: string;
+  metadata?: string | null;
+  name: string;
+  slug: string;
+}): Promise<void> {
+  try {
+    const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
+    await stripeClient.createOrganizationCustomer(
+      organization.id,
+      organization.slug,
+      organization.name,
+      invoiceEmail,
+    );
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "stripe_organization_customer_creation",
+      },
+      extra: {
+        organizationId: organization.id,
+        organizationName: organization.name,
+        organizationSlug: organization.slug,
+      },
+    });
+  }
+}
+
 async function ensureOrganizationHasNoAdditionalMembers(
   organizationId: string,
   userId: string,
@@ -268,20 +331,21 @@ export const auth = betterAuth({
           };
         },
         after: async (user, _ctx) => {
-          stripeClient
-            .createUserCustomer(user.id, user.name, user.email)
-            .catch((error) => {
-              Sentry.captureException(error, {
-                tags: {
-                  context: "stripe_user_customer_creation",
-                },
-                extra: {
-                  userId: user.id,
-                  email: user.email,
-                  name: user.name,
-                },
-              });
-            });
+          await ensureStripeCustomerForCreatedUser(user);
+
+          await prisma.$transaction(async (tx) => {
+            await ensureInitialLocalFreeSubscriptionPeriod(
+              {
+                createdAt: ensureEntityCreatedAt(
+                  "createdAt" in user ? user.createdAt : undefined,
+                  "User",
+                ),
+                kind: "user",
+                userId: user.id,
+              },
+              tx,
+            );
+          });
           // Validate user data before calling webhook
           const { success, data, error } =
             marketingOptInUserSchema.safeParse(user);
@@ -518,32 +582,36 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
-          const { invoiceEmail } = getOrganizationMetadata(
-            organization.metadata,
-          );
-          stripeClient
-            .createOrganizationCustomer(
-              organization.id,
-              organization.slug,
-              organization.name,
-              invoiceEmail,
-            )
-            .catch((error) => {
-              Sentry.captureException(error, {
-                tags: {
-                  context: "stripe_organization_customer_creation",
-                },
-                extra: {
-                  organizationId: organization.id,
-                  name: organization.name,
-                  slug: organization.slug,
-                  invoiceEmail,
-                },
-              });
-            });
+          await ensureStripeCustomerForCreatedOrganization(organization);
+
+          await prisma.$transaction(async (tx) => {
+            await ensureInitialLocalFreeSubscriptionPeriod(
+              {
+                createdAt: ensureEntityCreatedAt(
+                  "createdAt" in organization
+                    ? organization.createdAt
+                    : undefined,
+                  "Organization",
+                ),
+                kind: "organization",
+                organizationId: organization.id,
+              },
+              tx,
+            );
+          });
         },
         beforeAcceptInvitation: async ({ organization }) => {
           await organizationSubscriptionService.ensureCanAcceptInvitation(
+            organization.id,
+          );
+        },
+        afterAcceptInvitation: async ({ organization }) => {
+          await organizationSubscriptionService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
+            organization.id,
+          );
+        },
+        afterAddMember: async ({ organization }) => {
+          await organizationSubscriptionService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
             organization.id,
           );
         },

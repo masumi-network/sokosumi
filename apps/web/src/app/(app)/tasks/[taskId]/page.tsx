@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+import { subscriptionRepository } from "@sokosumi/database/repositories";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -16,13 +16,10 @@ import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-r
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
-import {
-  type ActiveSubscription,
-  resolveCurrentPlanName,
-} from "@/components/billing/subscription-plan-utils";
-import { auth } from "@/lib/auth/auth";
+import { parsePlanName } from "@/components/billing/subscription-plan-utils";
 import { getSession } from "@/lib/auth/utils";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
+import prisma from "@/lib/db/prisma";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -58,9 +55,7 @@ export default async function TaskDetailPage({
   const membersPromise = userService.getMyMembersWithOrganizations();
   const sessionPromise = getSession();
   const localePromise = getLocale();
-  const activeSubscriptionsPromise = getActiveSubscriptions(
-    task.organizationId,
-  );
+  const currentPlanPromise = getCurrentPlan(task.organizationId);
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
 
@@ -148,7 +143,7 @@ export default async function TaskDetailPage({
               coworkersPromise={coworkersPromise}
               agentsPromise={agentsPromise}
               sessionPromise={sessionPromise}
-              activeSubscriptionsPromise={activeSubscriptionsPromise}
+              currentPlanPromise={currentPlanPromise}
             />
           </Suspense>
         </div>
@@ -342,25 +337,23 @@ async function TaskActivitySectionContent({
   coworkersPromise,
   agentsPromise,
   sessionPromise,
-  activeSubscriptionsPromise,
+  currentPlanPromise,
 }: {
   taskId: string;
   task: Task;
   coworkersPromise: Promise<CoworkersResult>;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
-  activeSubscriptionsPromise: Promise<ActiveSubscription[]>;
+  currentPlanPromise: Promise<"free" | "pro" | "standard" | "starter">;
 }) {
-  const [coworkers, agents, session, activeSubscriptions, t] =
-    await Promise.all([
-      coworkersPromise,
-      agentsPromise,
-      sessionPromise,
-      activeSubscriptionsPromise,
-      getTranslations("App.Tasks.Detail"),
-    ]);
+  const [coworkers, agents, session, currentPlan, t] = await Promise.all([
+    coworkersPromise,
+    agentsPromise,
+    sessionPromise,
+    currentPlanPromise,
+    getTranslations("App.Tasks.Detail"),
+  ]);
   const { agentNameById } = buildTaskDetailContext(task, coworkers, agents);
-  const currentPlan = resolveCurrentPlanName(activeSubscriptions) ?? "free";
   const isFreePlan = currentPlan === "free";
   const currentUser = session?.user
     ? {
@@ -404,32 +397,21 @@ async function TaskActivitySectionContent({
   );
 }
 
-async function getActiveSubscriptions(organizationId: string | null) {
-  let activeSubscriptions: ActiveSubscription[] = [];
-
-  try {
-    const requestHeaders = await headers();
-    const subscriptions = organizationId
-      ? await auth.api.listActiveSubscriptions({
-          headers: requestHeaders,
-          query: {
-            customerType: "organization",
-            referenceId: organizationId,
-          },
-        })
-      : await auth.api.listActiveSubscriptions({
-          headers: requestHeaders,
-          query: {
-            customerType: "user",
-          },
-        });
-
-    activeSubscriptions = subscriptions as ActiveSubscription[];
-  } catch {
-    activeSubscriptions = [];
+async function getCurrentPlan(
+  organizationId: string | null,
+): Promise<"free" | "pro" | "standard" | "starter"> {
+  const session = await getSession();
+  if (!session) {
+    return "free";
   }
 
-  return activeSubscriptions;
+  const latestSubscription =
+    await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+      organizationId ?? session.user.id,
+      prisma,
+    );
+
+  return parsePlanName(latestSubscription?.plan) ?? "free";
 }
 
 function buildTaskDetailContext(

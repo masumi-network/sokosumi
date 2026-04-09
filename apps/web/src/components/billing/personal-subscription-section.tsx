@@ -2,12 +2,15 @@
 
 import { CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { CommonErrorCode } from "@/lib/actions";
-import { upgradePersonalSubscription } from "@/lib/actions/subscription";
+import { CommonErrorCode } from "@/lib/actions/errors";
+import {
+  cancelPersonalSubscription,
+  upgradePersonalSubscription,
+} from "@/lib/actions/subscription";
 import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
@@ -18,17 +21,22 @@ import {
 } from "./subscription-plan-utils";
 
 interface PersonalSubscriptionSectionProps {
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: Date | string | null;
   plans: SubscriptionPlanView[];
   returnPath?: string;
   status: "cancel" | "success" | null;
 }
 
 export function PersonalSubscriptionSection({
+  cancelAtPeriodEnd,
+  currentPeriodEnd,
   plans,
   returnPath,
   status,
 }: PersonalSubscriptionSectionProps) {
   const t = useTranslations("App.Subscriptions");
+  const formatter = useFormatter();
   const router = useRouter();
   const { freePlan, paidPlans } = useMemo(
     () => splitSubscriptionPlans(plans),
@@ -48,9 +56,73 @@ export function PersonalSubscriptionSection({
     return null;
   }, [status, t]);
 
-  async function handleUpgradePlan(plan: SubscriptionPlanName) {
+  const cancellationDate = useMemo(() => {
+    if (!cancelAtPeriodEnd || !currentPeriodEnd) {
+      return null;
+    }
+
+    const date =
+      currentPeriodEnd instanceof Date
+        ? currentPeriodEnd
+        : new Date(currentPeriodEnd);
+    return formatter.dateTime(date, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }, [cancelAtPeriodEnd, currentPeriodEnd, formatter]);
+
+  const cancellationLabel = useMemo(() => {
+    if (!cancellationDate) {
+      return null;
+    }
+
+    return t("cancelsOnDate", {
+      date: cancellationDate,
+    });
+  }, [cancellationDate, t]);
+
+  async function handlePlanAction(plan: SubscriptionPlanName) {
     setPendingPlan(plan);
     try {
+      const isCurrentPlan = paidPlans.some(
+        (item) => item.name === plan && item.isCurrent,
+      );
+
+      if (isCurrentPlan) {
+        const result = await cancelPersonalSubscription({});
+
+        if (!result.ok) {
+          switch (result.error.code) {
+            case CommonErrorCode.UNAUTHENTICATED:
+              toast.error(t("Errors.unauthenticated"), {
+                action: {
+                  label: t("Errors.unauthenticatedAction"),
+                  onClick: () => {
+                    router.push("/login");
+                  },
+                },
+              });
+              break;
+            case CommonErrorCode.BAD_INPUT:
+              toast.error(t("Errors.badInput"));
+              break;
+            default:
+              toast.error(t("Errors.general"));
+              break;
+          }
+          return;
+        }
+
+        toast.success(
+          t("statusCancellationScheduled", {
+            date: cancellationDate ?? "",
+          }),
+        );
+        router.refresh();
+        return;
+      }
+
       const result = await upgradePersonalSubscription({
         plan,
         returnPath,
@@ -78,7 +150,13 @@ export function PersonalSubscriptionSection({
         return;
       }
 
-      window.location.href = result.data.url;
+      if (result.data.mode === "redirect") {
+        window.location.href = result.data.url;
+        return;
+      }
+
+      toast.success(t("statusSuccess"));
+      router.refresh();
     } finally {
       setPendingPlan(null);
     }
@@ -98,10 +176,21 @@ export function PersonalSubscriptionSection({
           {paidPlans.map((plan) => (
             <SubscriptionPlanCard
               key={plan.name}
+              actionLabel={
+                plan.isCurrent
+                  ? cancelAtPeriodEnd
+                    ? cancellationLabel
+                    : t("cancelSubscriptionCta")
+                  : t("upgradePlanCta")
+              }
+              isDisabled={
+                pendingPlan !== null || (plan.isCurrent && cancelAtPeriodEnd)
+              }
               isAnyPlanPending={pendingPlan !== null}
               isPlanPending={pendingPlan === plan.name}
-              onUpgrade={(nextPlan) => {
-                void handleUpgradePlan(nextPlan);
+              loadingLabel={plan.isCurrent ? t("canceling") : t("upgrading")}
+              onAction={(nextPlan) => {
+                void handlePlanAction(nextPlan);
               }}
               plan={plan}
             />
@@ -110,10 +199,11 @@ export function PersonalSubscriptionSection({
 
         {freePlan ? (
           <SubscriptionFreePlanRow
+            actionLabel={null}
             isAnyPlanPending={pendingPlan !== null}
             isPlanPending={pendingPlan === freePlan.name}
-            onUpgrade={(nextPlan) => {
-              void handleUpgradePlan(nextPlan);
+            onAction={(nextPlan) => {
+              void handlePlanAction(nextPlan);
             }}
             plan={freePlan}
           />

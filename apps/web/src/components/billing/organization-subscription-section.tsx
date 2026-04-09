@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,8 +13,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { CommonErrorCode } from "@/lib/actions";
+import { CommonErrorCode } from "@/lib/actions/errors";
 import {
+  cancelOrganizationSubscription,
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
@@ -29,6 +30,8 @@ import {
 } from "./subscription-plan-utils";
 
 interface OrganizationSubscriptionSectionProps {
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: Date | string | null;
   currentPlan: SubscriptionPlanName | null;
   currentSeats: number;
   memberCount: number;
@@ -38,6 +41,8 @@ interface OrganizationSubscriptionSectionProps {
 }
 
 export function OrganizationSubscriptionSection({
+  cancelAtPeriodEnd,
+  currentPeriodEnd,
   currentPlan,
   currentSeats,
   memberCount,
@@ -49,6 +54,7 @@ export function OrganizationSubscriptionSection({
     "App.Organizations.OrganizationDetail.Subscription",
   );
   const tSubscriptions = useTranslations("App.Subscriptions");
+  const formatter = useFormatter();
   const router = useRouter();
   const { freePlan, paidPlans } = useMemo(
     () => splitSubscriptionPlans(plans),
@@ -66,6 +72,32 @@ export function OrganizationSubscriptionSection({
   useEffect(() => {
     setTargetSeats(Math.max(currentSeats, minimumSeats));
   }, [currentSeats, minimumSeats]);
+
+  const cancellationDate = useMemo(() => {
+    if (!cancelAtPeriodEnd || !currentPeriodEnd) {
+      return null;
+    }
+
+    const date =
+      currentPeriodEnd instanceof Date
+        ? currentPeriodEnd
+        : new Date(currentPeriodEnd);
+    return formatter.dateTime(date, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }, [cancelAtPeriodEnd, currentPeriodEnd, formatter]);
+
+  const cancellationLabel = useMemo(() => {
+    if (!cancellationDate) {
+      return null;
+    }
+
+    return tSubscriptions("cancelsOnDate", {
+      date: cancellationDate,
+    });
+  }, [cancellationDate, tSubscriptions]);
 
   const handleOpenLogin = useCallback(() => {
     router.push("/login");
@@ -106,21 +138,6 @@ export function OrganizationSubscriptionSection({
     [getSubscriptionActionErrorMessage, handleOpenLogin, t],
   );
 
-  const getPlanActionLabel = useCallback(
-    (plan: SubscriptionPlanView, hasSamePlanAndSeats: boolean) => {
-      if (hasSamePlanAndSeats) {
-        return t("currentPlanCta");
-      }
-
-      if (plan.isCurrent) {
-        return t("updateSeatsCta");
-      }
-
-      return t("choosePlanCta");
-    },
-    [t],
-  );
-
   const handleUpgradePlan = useCallback(
     async (planName: SubscriptionPlanName) => {
       if (!Number.isInteger(targetSeats) || targetSeats < minimumSeats) {
@@ -148,6 +165,24 @@ export function OrganizationSubscriptionSection({
           return;
         }
 
+        if (isCurrentPlan) {
+          const result = await cancelOrganizationSubscription({
+            organizationId,
+          });
+          if (!result.ok) {
+            handleSubscriptionActionError(result.error);
+            return;
+          }
+
+          toast.success(
+            tSubscriptions("statusCancellationScheduled", {
+              date: cancellationDate ?? "",
+            }),
+          );
+          router.refresh();
+          return;
+        }
+
         const result = await upgradeOrganizationSubscription({
           organizationId,
           plan: planName,
@@ -159,15 +194,22 @@ export function OrganizationSubscriptionSection({
           return;
         }
 
-        window.location.href = result.data.url;
+        if (result.data.mode === "redirect") {
+          window.location.href = result.data.url;
+          return;
+        }
+
+        toast.success(tSubscriptions("statusSuccess"));
+        router.refresh();
       } finally {
         setPendingPlan(null);
       }
     },
     [
+      cancellationDate,
       currentPlan,
-      currentSeats,
       handleSubscriptionActionError,
+      currentSeats,
       minimumSeats,
       organizationId,
       returnPath,
@@ -178,19 +220,35 @@ export function OrganizationSubscriptionSection({
   );
 
   function getPlanPresentationProps(plan: SubscriptionPlanView) {
-    const hasSamePlanAndSeats = plan.isCurrent && currentSeats === targetSeats;
+    const isFreePlan = plan.name === "free";
+    const isCurrentPlan = plan.isCurrent;
+    const hasSamePlanAndSeats = isCurrentPlan && currentSeats === targetSeats;
+
+    let actionLabel: null | string = t("choosePlanCta");
+    if (isFreePlan) {
+      actionLabel = null;
+    } else if (isCurrentPlan && cancelAtPeriodEnd) {
+      actionLabel = cancellationLabel;
+    } else if (isCurrentPlan && !hasSamePlanAndSeats) {
+      actionLabel = t("updateSeatsCta");
+    } else if (isCurrentPlan) {
+      actionLabel = tSubscriptions("cancelSubscriptionCta");
+    }
 
     return {
-      actionLabel: getPlanActionLabel(plan, hasSamePlanAndSeats),
+      actionLabel,
       creditsText: t("includedCreditsPerSeat", {
         credits: plan.credits,
       }),
       isDisabled:
         pendingPlan !== null ||
-        hasSamePlanAndSeats ||
+        (isCurrentPlan && cancelAtPeriodEnd) ||
         targetSeats < minimumSeats,
       isPlanPending: pendingPlan === plan.name,
-      loadingLabel: t("updating"),
+      loadingLabel:
+        isCurrentPlan && currentSeats === targetSeats
+          ? tSubscriptions("canceling")
+          : t("updating"),
     };
   }
 
@@ -254,7 +312,7 @@ export function OrganizationSubscriptionSection({
                 key={plan.name}
                 {...planPresentationProps}
                 isAnyPlanPending={pendingPlan !== null}
-                onUpgrade={(nextPlan) => {
+                onAction={(nextPlan) => {
                   void handleUpgradePlan(nextPlan);
                 }}
                 plan={plan}
@@ -267,7 +325,7 @@ export function OrganizationSubscriptionSection({
           <SubscriptionFreePlanRow
             {...getPlanPresentationProps(freePlan)}
             isAnyPlanPending={pendingPlan !== null}
-            onUpgrade={(nextPlan) => {
+            onAction={(nextPlan) => {
               void handleUpgradePlan(nextPlan);
             }}
             plan={freePlan}
