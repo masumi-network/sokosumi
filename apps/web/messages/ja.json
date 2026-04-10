@@ -1129,6 +1129,7 @@
       "description": "AI同僚とチャット",
       "Chat": {
         "newChat": "新しいチャット",
+        "newTask": "新しいタスク",
         "noChats": "チャットはまだありません",
         "noCoworkersAvailable": "利用可能な同僚がいません。しばらくしてから再度お試しください。",
         "emptyState": {

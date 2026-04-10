@@ -1129,6 +1129,7 @@
       "description": "Chatea con tus AI Coworkers",
       "Chat": {
         "newChat": "Nuevo chat",
+        "newTask": "Nueva tarea",
         "noChats": "Aún sin chats",
         "noCoworkersAvailable": "No hay Coworkers disponibles. Por favor, inténtalo más tarde.",
         "emptyState": {

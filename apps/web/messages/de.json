@@ -1129,6 +1129,7 @@
       "description": "Chatte mit deinen KI-Coworkern",
       "Chat": {
         "newChat": "Neuer Chat",
+        "newTask": "Neue Aufgabe",
         "noChats": "Noch keine Chats",
         "noCoworkersAvailable": "Keine Coworker verfügbar. Bitte versuche es später erneut.",
         "emptyState": {

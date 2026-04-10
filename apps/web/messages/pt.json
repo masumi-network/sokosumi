@@ -1129,6 +1129,7 @@
       "description": "Converse com os seus colegas de trabalho de IA",
       "Chat": {
         "newChat": "Novo chat",
+        "newTask": "Nova tarefa",
         "noChats": "Ainda não existem chats",
         "noCoworkersAvailable": "Não existem colegas de trabalho disponíveis. Tente novamente mais tarde.",
         "emptyState": {
