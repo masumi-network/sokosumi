@@ -21,7 +21,7 @@ export default function NewChatButton() {
   const isActive = pathname === "/chat" || pathname.startsWith("/chat/");
 
   return (
-    <SidebarGroup className="min-w-0 flex-1 pb-0">
+    <SidebarGroup className="w-full pb-0">
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>

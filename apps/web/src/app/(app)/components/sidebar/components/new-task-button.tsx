@@ -22,7 +22,7 @@ export default function NewTaskButton() {
     pathname === "/tasks/new" || pathname.startsWith("/tasks/new/");
 
   return (
-    <SidebarGroup className="min-w-0 flex-1 pb-0">
+    <SidebarGroup className="w-full pb-0">
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>

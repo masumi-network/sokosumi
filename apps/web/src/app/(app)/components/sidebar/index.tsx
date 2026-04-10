@@ -43,7 +43,7 @@ export default function Sidebar({
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
         <div className="flex flex-col gap-0">
-          <div className="flex w-full gap-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1">
+          <div className="flex w-full flex-col gap-1">
             <NewChatButton />
             <NewTaskButton />
           </div>
