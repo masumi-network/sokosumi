@@ -18,7 +18,6 @@ vi.mock("@/middleware/auth", () => ({
       userId: "user_123",
       organizationId: null,
     });
-    c.set("workspaceContext", null);
     await next();
   },
 }));

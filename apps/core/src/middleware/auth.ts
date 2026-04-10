@@ -61,7 +61,6 @@ function syncSentryUser(context: AuthContextState) {
 export function setAuthContext(c: Context<AuthEnv>, context: AuthContextState) {
   c.set("isAuthenticated", context.isAuthenticated);
   c.set("authContext", context.authContext);
-  c.set("workspaceContext", c.var.workspaceContext ?? null);
   syncSentryUser(context);
 }
 

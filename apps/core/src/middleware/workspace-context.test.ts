@@ -1,9 +1,6 @@
-import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type AuthVariables, authMiddleware } from "./auth";
-import { organizationHeaderMiddleware } from "./organization";
-import { workspaceContextMiddleware } from "./workspace-context";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 const {
   verifyApiKeyMock,
@@ -53,16 +50,9 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 });
 
 function createApp(includeWorkspaceContext: boolean) {
-  const app = new Hono<{
-    Variables: AuthVariables;
-  }>();
-
-  app.use("*", authMiddleware);
-  app.use("*", organizationHeaderMiddleware);
-
-  if (includeWorkspaceContext) {
-    app.use("*", workspaceContextMiddleware);
-  }
+  const app = new OpenAPIHonoWithAuth({
+    includeWorkspaceContext,
+  });
 
   app.get("/", (c) => {
     return c.json({

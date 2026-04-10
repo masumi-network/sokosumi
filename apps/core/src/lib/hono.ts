@@ -56,6 +56,10 @@ export class OpenAPIHonoWithAuth extends OpenAPIHono<AuthEnv> {
     super({
       defaultHook: defaultValidationHook,
     });
+    this.use(async (c, next) => {
+      c.set("workspaceContext", null);
+      return await next();
+    });
     this.use(authMiddleware);
     if (includeOrganizationHeader) {
       this.use(organizationHeaderMiddleware);
