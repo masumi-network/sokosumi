@@ -5,7 +5,6 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import { convertCreditsToCents } from "@sokosumi/utils";
 import {
   creditBucketRepository,
   jobPurchaseRepository,
@@ -20,6 +19,7 @@ import type {
   InputSchemaType,
   StartFreeJobResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { v4 as uuidv4 } from "uuid";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
