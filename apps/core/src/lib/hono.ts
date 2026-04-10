@@ -1,9 +1,12 @@
 import { OpenAPIHono, type RouteConfig, z } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import { type AuthEnv, authMiddleware } from "@/middleware/auth";
+import { authMiddleware } from "@/middleware/auth";
 import { organizationHeaderMiddleware } from "@/middleware/organization";
-import { workspaceContextMiddleware } from "@/middleware/workspace-context";
+import {
+  type AuthWithWorkspaceEnv,
+  workspaceContextMiddleware,
+} from "@/middleware/workspace-context";
 
 /**
  * Global hook for OpenAPI validation errors
@@ -46,7 +49,7 @@ export interface OpenAPIHonoWithAuthOptions {
  * const app = new OpenAPIHonoWithAuth();
  * // authMiddleware and organizationHeaderMiddleware are already applied
  */
-export class OpenAPIHonoWithAuth extends OpenAPIHono<AuthEnv> {
+export class OpenAPIHonoWithAuth extends OpenAPIHono<AuthWithWorkspaceEnv> {
   constructor(options: OpenAPIHonoWithAuthOptions = {}) {
     const {
       includeOrganizationHeader = true,

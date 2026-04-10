@@ -7,7 +7,6 @@ import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
 import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
-import type { WorkspaceContext } from "@/middleware/workspace-context";
 
 export interface UserAuthenticationContext {
   actor: "user";
@@ -27,16 +26,13 @@ export type AuthenticationContext =
 export type AuthVariables = {
   isAuthenticated: boolean;
   authContext: AuthenticationContext;
-  workspaceContext: WorkspaceContext | null;
 };
-
-type AuthContextState = Pick<AuthVariables, "isAuthenticated" | "authContext">;
 
 export type AuthEnv = {
   Variables: AuthVariables;
 };
 
-function syncSentryUser(context: AuthContextState) {
+function syncSentryUser(context: AuthVariables) {
   const scope = Sentry.getCurrentScope();
 
   if (!context.isAuthenticated) {
@@ -58,7 +54,7 @@ function syncSentryUser(context: AuthContextState) {
   });
 }
 
-export function setAuthContext(c: Context<AuthEnv>, context: AuthContextState) {
+export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
   c.set("isAuthenticated", context.isAuthenticated);
   c.set("authContext", context.authContext);
   syncSentryUser(context);
