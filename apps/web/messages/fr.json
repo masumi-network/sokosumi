@@ -1129,6 +1129,7 @@
       "description": "Discutez avec vos collègues IA",
       "Chat": {
         "newChat": "Nouveau chat",
+        "newTask": "Nouvelle tâche",
         "noChats": "Aucun chat pour le moment",
         "noCoworkersAvailable": "Aucun collègue disponible. Veuillez réessayer plus tard.",
         "emptyState": {

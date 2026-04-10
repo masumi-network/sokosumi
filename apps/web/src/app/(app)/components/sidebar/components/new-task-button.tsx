@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquarePlus } from "lucide-react";
+import { ListPlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -15,10 +15,11 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
-export default function NewChatButton() {
+export default function NewTaskButton() {
   const tChat = useTranslations("App.Chat.Chat");
   const pathname = usePathname();
-  const isActive = pathname === "/chat" || pathname.startsWith("/chat/");
+  const isActive =
+    pathname === "/tasks/new" || pathname.startsWith("/tasks/new/");
 
   return (
     <SidebarGroup className="min-w-0 flex-1 pb-0">
@@ -28,7 +29,7 @@ export default function NewChatButton() {
             <SidebarMenuButton asChild isActive={isActive}>
               <SheetClose asChild>
                 <Link
-                  href="/chat"
+                  href="/tasks/new"
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex min-h-auto w-full items-center gap-2 px-3",
@@ -37,8 +38,8 @@ export default function NewChatButton() {
                       : "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
                   )}
                 >
-                  <MessageSquarePlus className="size-4" aria-hidden />
-                  <span className="flex-1 truncate">{tChat("newChat")}</span>
+                  <ListPlus className="size-4" aria-hidden />
+                  <span className="flex-1 truncate">{tChat("newTask")}</span>
                 </Link>
               </SheetClose>
             </SidebarMenuButton>
