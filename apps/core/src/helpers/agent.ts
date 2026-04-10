@@ -130,7 +130,7 @@ export const getAgentCost = (
  * Converts on-chain pricing rows (unit + amount in smallest units) to billable cents
  * using the CreditCost table. Used for fixed agent pricing and task masumi payments.
  */
-export function calculateCentsFromPricingAmountRows(
+function calculateCentsFromPricingAmountRows(
   rows: readonly { unit: string; amount: bigint }[],
   creditCosts: CreditCost[],
 ): bigint {
