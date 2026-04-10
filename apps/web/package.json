@@ -160,6 +160,7 @@
     "@types/react-file-icon": "1.0.5",
     "@types/react-window": "2.0.0",
     "@types/sanitize-html": "2.16.1",
+    "@biomejs/biome": "2.4.10",
     "postcss": "8.5.9",
     "puppeteer": "24.35.0",
     "tailwindcss": "4.2.2",

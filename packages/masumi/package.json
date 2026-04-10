@@ -67,6 +67,7 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.10",
     "@hey-api/openapi-ts": "0.95.0",
     "@types/node": "24.12.2",
     "typescript": "6.0.2",

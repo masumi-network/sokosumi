@@ -30,10 +30,10 @@
     "start": "pnpm -r start",
     "core:start": "pnpm --filter core start",
     "web:start": "pnpm --filter web start",
-    "lint": "biome lint .",
-    "lint:write": "biome lint --write .",
-    "check": "biome check .",
-    "check:write": "biome check --write .",
+    "lint": "pnpm --filter web exec biome lint ../..",
+    "lint:write": "pnpm --filter web exec biome lint --write ../..",
+    "check": "pnpm --filter web exec biome check ../..",
+    "check:write": "pnpm --filter web exec biome check --write ../..",
     "web:lint": "pnpm --filter web lint",
     "web:lint:write": "pnpm --filter web lint:write",
     "web:check": "pnpm --filter web check",
@@ -62,8 +62,8 @@
     "web:test:ci": "pnpm --filter web test:ci",
     "core:test:ci": "pnpm --filter core test:ci",
     "masumi:test:ci": "pnpm --filter @sokosumi/masumi test:ci",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
+    "format": "pnpm --filter web exec biome format --write ../..",
+    "format:check": "pnpm --filter web exec biome format ../..",
     "web:format": "pnpm --filter web format",
     "web:agents-md": "cd apps/web && npx @next/codemod agents-md --output AGENTS.md",
     "core:format": "pnpm --filter core format",
@@ -79,7 +79,6 @@
     "perf:report:auth": "node scripts/perf-report-authenticated.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.10",
     "chrome-launcher": "1.2.1",
     "lighthouse": "13.1.0"
   }

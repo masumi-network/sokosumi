@@ -1,8 +1,32 @@
 {
   "folders": [
     {
-      "name": "Sokosumi",
-      "path": "."
+      "name": "App: Web",
+      "path": "apps/web"
+    },
+    {
+      "name": "App: Core",
+      "path": "apps/core"
+    },
+    {
+      "name": "Package: Database",
+      "path": "packages/database"
+    },
+    {
+      "name": "Package: Masumi",
+      "path": "packages/masumi"
+    },
+    {
+      "name": "Package: Email",
+      "path": "packages/email"
+    },
+    {
+      "name": "Package: Chat",
+      "path": "packages/chat"
+    },
+    {
+      "name": "Package: Utils",
+      "path": "packages/utils"
     }
   ],
   "settings": {

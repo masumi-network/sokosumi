@@ -12,9 +12,6 @@ importers:
 
   .:
     devDependencies:
-      '@biomejs/biome':
-        specifier: 2.4.10
-        version: 2.4.10
       chrome-launcher:
         specifier: 1.2.1
         version: 1.2.1
@@ -121,6 +118,9 @@ importers:
         specifier: 13.0.0
         version: 13.0.0
     devDependencies:
+      '@biomejs/biome':
+        specifier: 2.4.10
+        version: 2.4.10
       '@types/node':
         specifier: 24.12.2
         version: 24.12.2
@@ -482,6 +482,9 @@ importers:
         specifier: 4.3.6
         version: 4.3.6
     devDependencies:
+      '@biomejs/biome':
+        specifier: 2.4.10
+        version: 2.4.10
       '@hey-api/openapi-ts':
         specifier: 0.95.0
         version: 0.95.0(typescript@6.0.2)
@@ -557,6 +560,9 @@ importers:
 
   packages/chat:
     devDependencies:
+      '@biomejs/biome':
+        specifier: 2.4.10
+        version: 2.4.10
       '@types/node':
         specifier: 24.12.2
         version: 24.12.2
@@ -591,6 +597,9 @@ importers:
         specifier: 13.0.0
         version: 13.0.0
     devDependencies:
+      '@biomejs/biome':
+        specifier: 2.4.10
+        version: 2.4.10
       '@types/node':
         specifier: 24.12.2
         version: 24.12.2
@@ -664,6 +673,9 @@ importers:
         specifier: 4.9.0
         version: 4.9.0(react@19.2.5)
     devDependencies:
+      '@biomejs/biome':
+        specifier: 2.4.10
+        version: 2.4.10
       '@types/node':
         specifier: 24.12.2
         version: 24.12.2
@@ -692,6 +704,9 @@ importers:
         specifier: 4.3.6
         version: 4.3.6
     devDependencies:
+      '@biomejs/biome':
+        specifier: 2.4.10
+        version: 2.4.10
       '@hey-api/openapi-ts':
         specifier: 0.95.0
         version: 0.95.0(typescript@6.0.2)
@@ -711,6 +726,9 @@ importers:
         specifier: 10.6.0
         version: 10.6.0
     devDependencies:
+      '@biomejs/biome':
+        specifier: 2.4.10
+        version: 2.4.10
       '@types/node':
         specifier: 24.12.2
         version: 24.12.2
