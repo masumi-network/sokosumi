@@ -311,28 +311,4 @@ describe("createTaskEventRequestSchema", () => {
 
     expect(result.success).toBe(false);
   });
-
-  it("rejects invalid amount string in masumiPayment.Amounts", () => {
-    const result = taskEventRequestSchema.safeParse({
-      status: TaskStatus.COMPLETED,
-      masumiPayment: {
-        ...validMasumiPayment,
-        Amounts: [{ amount: "not-a-number", unit: "lovelace" }],
-      },
-    });
-
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects non-positive amount in masumiPayment.Amounts", () => {
-    const result = taskEventRequestSchema.safeParse({
-      status: TaskStatus.COMPLETED,
-      masumiPayment: {
-        ...validMasumiPayment,
-        Amounts: [{ amount: "0", unit: "lovelace" }],
-      },
-    });
-
-    expect(result.success).toBe(false);
-  });
 });

@@ -528,7 +528,7 @@ describe("POST /{id}/events", () => {
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
-  it("forbids masumiPayment for user auth", async () => {
+  it("rejects user COMPLETED with masumiPayment (invalid status transition)", async () => {
     const tx: TransactionMock = {
       taskEvent: { create: vi.fn() },
       task: { updateMany: vi.fn() },
@@ -552,7 +552,7 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(422);
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });

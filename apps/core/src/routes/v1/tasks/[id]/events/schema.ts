@@ -130,29 +130,6 @@ export function createTaskEventRequestSchema(
             path: ["masumiPayment", "PaymentSource", "network"],
           });
         }
-
-        for (let i = 0; i < data.masumiPayment.Amounts.length; i++) {
-          const raw = data.masumiPayment.Amounts[i]?.amount;
-          if (raw === undefined) {
-            continue;
-          }
-          try {
-            const parsed = BigInt(raw);
-            if (parsed <= 0n) {
-              ctx.addIssue({
-                code: "custom",
-                message: "Amount must be a positive integer string",
-                path: ["masumiPayment", "Amounts", i, "amount"],
-              });
-            }
-          } catch {
-            ctx.addIssue({
-              code: "custom",
-              message: "Amount must be a valid integer string",
-              path: ["masumiPayment", "Amounts", i, "amount"],
-            });
-          }
-        }
       }
 
       if (!isTaskStatusSpendable(data.status) && data.credits != null) {
