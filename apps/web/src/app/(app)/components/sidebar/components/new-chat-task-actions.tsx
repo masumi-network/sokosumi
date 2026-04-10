@@ -44,8 +44,8 @@ export default function NewChatTaskActions() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            {/* Tasks nav owns `/tasks/*` (menu-items); never duplicate active state here. */}
-            <SidebarMenuButton asChild isActive={false}>
+            {/* New Task is never shown as the active sidebar item (Tasks nav covers `/tasks/*`). */}
+            <SidebarMenuButton asChild>
               <SheetClose asChild>
                 <Link
                   href="/tasks/new"
