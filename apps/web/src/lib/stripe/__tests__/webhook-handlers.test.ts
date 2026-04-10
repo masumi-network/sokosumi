@@ -46,7 +46,6 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
 vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
-    STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID: "prod_free",
     STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: "prod_pro",
     STRIPE_SECRET_KEY: "sk_test_mock",
     STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: "prod_standard",
@@ -123,7 +122,7 @@ const DEFAULT_PERIOD_END_UNIX = 1_735_689_600;
 const DEFAULT_INVOICE_CREATED_UNIX = 1_735_689_600;
 const DEFAULT_PERIOD_DURATION_SECONDS = 2_592_000;
 const SUBSCRIPTION_CATALOG = {
-  free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+  free: { credits: 250, monthlyAmount: 0, productId: "local-free" },
   pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
   standard: {
     credits: 5250,
@@ -295,7 +294,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("grants free-plan seat credits for zero-amount subscription_update invoices", async () => {
+  it("does not grant subscription credits for legacy Stripe free product lines on personal subscription_update", async () => {
     mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
@@ -304,83 +303,16 @@ describe("handleInvoicePaidEvent", () => {
       createInvoice({
         amountPaid: 0,
         billingReason: "subscription_update",
-        id: "in_free_sub_update",
+        id: "in_legacy_free_personal",
         lines: [{ amount: 0, productId: "prod_free", quantity: 1 }],
       }) as never,
     );
 
-    expect(createTransactionMock).toHaveBeenCalledTimes(1);
-
-    const createCall = createTransactionMock.mock.calls[0][0] as {
-      data: {
-        amount: bigint;
-        sourceCreditBucket: {
-          create: {
-            referenceId: string;
-            referenceType: string;
-          };
-        };
-      };
-    };
-
-    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      buildUserInvoiceCreditReferenceId(
-        "user-1",
-        "in_free_sub_update",
-        "subscription",
-      ),
-    );
-    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
-      "STRIPE_SUBSCRIPTION_PERIOD",
-    );
-    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
+    expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("credits only the newly added free seats on subscription_update invoices", async () => {
-    mockSubscriptionCatalog();
-    aggregateGrantedCreditsMock.mockResolvedValue({
-      _sum: { amount: BigInt("2500000000000") },
-    });
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    await handleInvoicePaidEvent(
-      createInvoice({
-        amountPaid: 0,
-        billingReason: "subscription_update",
-        id: "in_free_sub_update_incremental",
-        lines: [{ amount: 0, productId: "prod_free", quantity: 2 }],
-      }) as never,
-    );
-
-    expect(createTransactionMock).toHaveBeenCalledTimes(1);
-
-    const createCall = createTransactionMock.mock.calls[0][0] as {
-      data: {
-        amount: bigint;
-        sourceCreditBucket: {
-          create: {
-            referenceId: string;
-            referenceType: string;
-          };
-        };
-      };
-    };
-
-    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      buildUserInvoiceCreditReferenceId(
-        "user-1",
-        "in_free_sub_update_incremental",
-        "subscription",
-      ),
-    );
-    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
-      "STRIPE_SUBSCRIPTION_PERIOD",
-    );
-    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
-  });
-
-  it("dedupes free organization subscription_update credits by organization period", async () => {
+  it("does not grant subscription credits for legacy Stripe free product lines on organization subscription_update", async () => {
     mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
@@ -396,25 +328,14 @@ describe("handleInvoicePaidEvent", () => {
       createInvoice({
         amountPaid: 0,
         billingReason: "subscription_update",
-        id: "in_org_free_sub_update",
+        id: "in_legacy_free_org",
         lines: [{ amount: 0, productId: "prod_free", quantity: 2 }],
       }) as never,
     );
 
-    expect(aggregateGrantedCreditsMock).toHaveBeenCalledTimes(1);
-    const aggregateCall = aggregateGrantedCreditsMock.mock.calls[0][0] as {
-      where: Record<string, unknown>;
-    };
-    expect(aggregateCall.where).toMatchObject({
-      organizationId: "org-1",
-      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-      referenceId: {
-        startsWith: "member:",
-      },
-    });
-    expect(aggregateCall.where).not.toHaveProperty("userId");
-
-    expect(createTransactionMock).not.toHaveBeenCalled();
+    expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
+    expect(aggregateGrantedCreditsMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("splits organization subscription cycle credits equally with deterministic remainder", async () => {

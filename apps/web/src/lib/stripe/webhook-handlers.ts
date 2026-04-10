@@ -256,7 +256,6 @@ function calculateProratedSubscriptionCredits(params: {
 
 function shouldGrantSubscriptionCreditsForLine(params: {
   billingReason: Stripe.Invoice.BillingReason | null;
-  freeSubscriptionProductId: string;
   invoiceAmountPaid: number;
   lineAmount: number;
   productId: string;
@@ -272,10 +271,6 @@ function shouldGrantSubscriptionCreditsForLine(params: {
 
   if (billingReason !== SUBSCRIPTION_UPDATE_BILLING_REASON) {
     return false;
-  }
-
-  if (params.productId === params.freeSubscriptionProductId) {
-    return true;
   }
 
   return params.invoiceAmountPaid > 0 && params.lineAmount !== 0;
@@ -708,9 +703,7 @@ export async function handleInvoicePaidEvent(
 
   const env = getEnvSecrets();
   const creditProductId = env.STRIPE_CREDIT_PRODUCT_ID;
-  const freeSubscriptionProductId = env.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID;
   const subscriptionProductIds = new Set([
-    freeSubscriptionProductId,
     env.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID,
     env.STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID,
     env.STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID,
@@ -751,7 +744,6 @@ export async function handleInvoicePaidEvent(
       if (
         !shouldGrantSubscriptionCreditsForLine({
           billingReason,
-          freeSubscriptionProductId,
           invoiceAmountPaid: invoice.amount_paid,
           lineAmount,
           productId,
