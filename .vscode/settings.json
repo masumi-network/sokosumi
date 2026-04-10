@@ -1,6 +1,7 @@
 {
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "biome.lsp.bin": "${workspaceFolder}/node_modules/@biomejs/biome/bin/biome",
   "[prisma]": {
     "editor.defaultFormatter": "Prisma.prisma"
   },

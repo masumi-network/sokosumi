@@ -1,36 +1,8 @@
 {
   "folders": [
     {
-      "name": "Root",
+      "name": "Sokosumi",
       "path": "."
-    },
-    {
-      "name": "App: Web",
-      "path": "apps/web"
-    },
-    {
-      "name": "App: Core",
-      "path": "apps/core"
-    },
-    {
-      "name": "Package: Database",
-      "path": "packages/database"
-    },
-    {
-      "name": "Package: Masumi",
-      "path": "packages/masumi"
-    },
-    {
-      "name": "Package: Email",
-      "path": "packages/email"
-    },
-    {
-      "name": "Package: Chat",
-      "path": "packages/chat"
-    },
-    {
-      "name": "Package: Utils",
-      "path": "packages/utils"
     }
   ],
   "settings": {
@@ -62,7 +34,8 @@
       "**/src/app/**/route.ts": "${dirname}/route.ts",
       "**/src/app/**/layout.tsx": "${dirname}/layout.tsx"
     },
-    "npm.packageManager": "pnpm"
+    "npm.packageManager": "pnpm",
+    "biome.lsp.bin": "${workspaceFolder}/node_modules/@biomejs/biome/bin/biome"
   },
   "extensions": {
     "recommendations": [
