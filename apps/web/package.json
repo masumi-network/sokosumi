@@ -27,7 +27,7 @@
     "generate:core": "openapi-ts -f openapi-ts.core.config.ts"
   },
   "dependencies": {
-    "@ai-sdk/react": "3.0.156",
+    "@ai-sdk/react": "3.0.158",
     "@better-auth/api-key": "1.6.2",
     "@better-auth/i18n": "1.6.2",
     "@better-auth/infra": "0.1.14",
@@ -54,7 +54,7 @@
     "@openrouter/ai-sdk-provider": "2.5.1",
     "@radix-ui/react-slot": "1.2.4",
     "@react-email/components": "1.0.12",
-    "@sentry/nextjs": "10.47.0",
+    "@sentry/nextjs": "10.48.0",
     "@sokosumi/chat": "workspace:*",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/email": "workspace:*",
@@ -70,7 +70,7 @@
     "@vercel/related-projects": "1.0.1",
     "@vercel/speed-insights": "2.0.0",
     "ably": "2.21.0",
-    "ai": "6.0.154",
+    "ai": "6.0.156",
     "babel-plugin-react-compiler": "1.0.0",
     "better-auth": "1.6.2",
     "class-variance-authority": "0.7.1",
