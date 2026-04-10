@@ -18,7 +18,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     if (key === "couponExpiryPolicyNotice") {
-      return "Coupon credits only expire when ttl_days is set on the coupon.";
+      return "Promotional credits may expire; terms vary by coupon or offer.";
     }
     return key;
   },
@@ -73,7 +73,7 @@ describe("CouponForm", () => {
 
     expect(
       screen.getByText(
-        "Coupon credits only expire when ttl_days is set on the coupon.",
+        "Promotional credits may expire; terms vary by coupon or offer.",
       ),
     ).toBeInTheDocument();
   });

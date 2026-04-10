@@ -1764,7 +1764,7 @@
       },
       "paidSubscriptionRequiredDescription": "Se requiere una suscripción de pago para comprar créditos adicionales.",
       "paidSubscriptionRequiredHint": "Elige un plan de pago en la pestaña Suscripción para desbloquear las recargas de créditos.",
-      "couponExpiryPolicyNotice": "Los créditos no caducan a menos que el cupón defina un ttl_days positivo (días hasta el vencimiento)."
+      "couponExpiryPolicyNotice": "Los créditos promocionales pueden caducar; las condiciones dependen del cupón o de la oferta."
     },
     "Connections": {
       "tabs": {
