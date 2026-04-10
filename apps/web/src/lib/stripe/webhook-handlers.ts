@@ -258,7 +258,6 @@ function shouldGrantSubscriptionCreditsForLine(params: {
   billingReason: Stripe.Invoice.BillingReason | null;
   invoiceAmountPaid: number;
   lineAmount: number;
-  productId: string;
 }): boolean {
   const { billingReason } = params;
   if (billingReason === null) {
@@ -746,7 +745,6 @@ export async function handleInvoicePaidEvent(
           billingReason,
           invoiceAmountPaid: invoice.amount_paid,
           lineAmount,
-          productId,
         })
       ) {
         continue;
