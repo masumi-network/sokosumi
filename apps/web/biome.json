@@ -1,0 +1,12 @@
+{
+  "extends": "//",
+  "files": {
+    "includes": [
+      "**",
+      "!src/components/ui/**",
+      "!src/lib/clients/generated/**",
+      "!public/js/**/*.js",
+      "!next-env.d.ts"
+    ]
+  }
+}

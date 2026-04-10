@@ -103,12 +103,14 @@ sokosumi/
 
 #### Biome Configuration
 
-The monorepo uses a shared Biome configuration at the repo root.
+The monorepo uses a shared Biome configuration at the repo root (`biome.jsonc`). Each app and package that Biome should cover also has a `biome.json` with `"extends": "//"` so nested projects inherit that root config (see [Biome: big projects / monorepos](https://biomejs.dev/guides/big-projects/)).
+
+`@biomejs/biome` is a **root-only** `devDependency`. Root-level and workspace scripts all invoke `biome …` the same way; `pnpm run` puts `node_modules/.bin` on `PATH`, so the hoisted `@biomejs/biome` binary is used for full-repo commands (`pnpm check`, `pnpm lint`, `pnpm format`, …) and for per-package scripts without duplicating the dependency in each workspace package.
 
 **Import Organization**:
 
-- `pnpm check` runs `biome check`, which enforces linting, formatting, and import organization
-- `pnpm lint` runs `biome lint`, which checks lint rules only
+- `pnpm check` runs a repo-wide `biome check`, which enforces linting, formatting, and import organization
+- `pnpm lint` runs a repo-wide `biome lint`, which checks lint rules only
 - Unused imports are reported and can be auto-fixed by Biome
 
 **TypeScript Rules**:
@@ -184,8 +186,10 @@ const config = {
 | `pnpm web:build`       | Build web app for production  |
 | `pnpm core:build`      | Build core API for production |
 | `pnpm web:start`       | Smoke test production build   |
-| `pnpm lint`            | Run Biome lint rules across the codebase |
-| `pnpm check`           | Run full Biome checks across the codebase |
+| `pnpm lint`            | Run Biome lint across the repo (`biome lint .`) |
+| `pnpm check`           | Run full Biome checks across the repo (`biome check .`) |
+| `pnpm format`          | Format entire repo with Biome (`biome format --write .`) |
+| `pnpm format:check`    | Check formatting for entire repo (`biome format .`) |
 | `pnpm web:lint`        | Run Biome lint rules for the web app |
 | `pnpm web:check`       | Run full Biome checks for the web app |
 | `pnpm test`            | Run tests locally             |

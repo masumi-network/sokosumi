@@ -1,4 +1,5 @@
 import { TaskStatus } from "@sokosumi/database";
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -14,7 +15,7 @@ import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Edit Task",
 };
 
