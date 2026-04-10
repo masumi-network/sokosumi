@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPaymentClient } from "../masumi-payment.client.js";
 
 const getPurchaseMock = vi.fn();
+const postPurchaseMock = vi.fn();
 const postPurchaseResolveBlockchainIdentifierMock = vi.fn();
 
 vi.mock("../openapi/generated/payment/index.js", () => ({
   getPurchase: (...args: unknown[]) => getPurchaseMock(...args),
+  postPurchase: (...args: unknown[]) => postPurchaseMock(...args),
   postPurchaseResolveBlockchainIdentifier: (...args: unknown[]) =>
     postPurchaseResolveBlockchainIdentifierMock(...args),
 }));
@@ -35,6 +37,13 @@ describe("createPaymentClient polling requests", () => {
       response: {
         status: 200,
       },
+    });
+    postPurchaseMock.mockResolvedValue({
+      data: {
+        data: { id: "task_purchase_1" },
+      },
+      error: undefined,
+      response: { status: 200 },
     });
   });
 
@@ -106,6 +115,56 @@ describe("createPaymentClient polling requests", () => {
           cursorId: "purchase_2",
           network: "Mainnet",
           limit: 1,
+        }),
+      }),
+    );
+  });
+});
+
+describe("createPurchaseFromMasumiTaskPayment", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    postPurchaseMock.mockResolvedValue({
+      data: {
+        data: { id: "task_purchase_1" },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+  });
+
+  it("posts purchase with Amounts and network", async () => {
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const amounts = [{ amount: "470000000000", unit: "16a55b2a349361ff" }];
+    const result = await client.createPurchaseFromMasumiTaskPayment({
+      blockchainIdentifier: "chain1",
+      agentIdentifier: "agent1",
+      sellerVkey: "vkey1",
+      submitResultTime: "1775681853000",
+      payByTime: "1775737949000",
+      unlockTime: "1775763149000",
+      externalDisputeUnlockTime: "1775784749000",
+      inputHash: "abc",
+      Amounts: amounts,
+      identifierFromPurchaser: "aabbccddeeff00112233",
+      metadata: JSON.stringify({ taskId: "tsk_1", taskEventId: "evt_1" }),
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(postPurchaseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          network: "Preprod",
+          blockchainIdentifier: "chain1",
+          agentIdentifier: "agent1",
+          Amounts: amounts,
+          identifierFromPurchaser: "aabbccddeeff00112233",
+          metadata: JSON.stringify({ taskId: "tsk_1", taskEventId: "evt_1" }),
         }),
       }),
     );
