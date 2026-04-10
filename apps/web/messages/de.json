@@ -1795,7 +1795,7 @@
       },
       "paidSubscriptionRequiredDescription": "Du benötigst ein kostenpflichtiges Abonnement, um zusätzliche Credits zu kaufen.",
       "paidSubscriptionRequiredHint": "Wähle im Tab „Abonnement“ einen kostenpflichtigen Plan, um das Aufladen von Credits freizuschalten.",
-      "couponExpiryNotice": "Credits verfallen nach {days, plural, one {# Tag} other {# Tagen}}."
+      "couponExpiryPolicyNotice": "Aktionsguthaben kann verfallen; die Bedingungen hängen vom jeweiligen Gutschein oder Angebot ab."
     },
     "Connections": {
       "tabs": {
