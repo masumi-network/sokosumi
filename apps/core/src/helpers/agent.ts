@@ -121,12 +121,6 @@ export const getAgentCost = (
 };
 
 /**
- * This function calculates the cost for an agent.
- * @param agent - The agent with pricing.
- * @param creditCosts - The credit costs.
- * @returns The cost for the agent.
- */
-/**
  * Converts on-chain pricing rows (unit + amount in smallest units) to billable cents
  * using the CreditCost table. Used for fixed agent pricing and task masumi payments.
  */
@@ -176,6 +170,12 @@ export function calculateCentsFromMasumiAmountStrings(
   return calculateCentsFromPricingAmountRows(rows, creditCosts);
 }
 
+/**
+ * Calculates the cost for an agent from its pricing configuration.
+ * @param agent - The agent with pricing.
+ * @param creditCosts - The credit costs.
+ * @returns The cost for the agent.
+ */
 const calculateAgentCost = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
