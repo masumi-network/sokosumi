@@ -35,7 +35,7 @@ vi.mock("@/lib/utils/credits", () => ({
 
 describe("Header", () => {
   it("renders detail actions in both desktop and mobile header areas", () => {
-  render(
+    render(
       <Header
         agent={
           {
