@@ -16,7 +16,6 @@ const getMembersByOrganizationIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const findExistingBucketMock = vi.fn();
 const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
-const aggregateGrantedCreditsMock = vi.fn();
 const createTransactionMock = vi.fn();
 const findOutOfCreditsTasksMock = vi.fn();
 const updateTaskMock = vi.fn();
@@ -94,7 +93,6 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: (callback: (tx: unknown) => unknown) =>
       transactionMock(callback),
     creditBucket: {
-      aggregate: (...args: unknown[]) => aggregateGrantedCreditsMock(...args),
       findFirst: (...args: unknown[]) =>
         findExistingOrganizationInvoiceSubscriptionBucketMock(...args),
     },
@@ -266,9 +264,6 @@ describe("handleInvoicePaidEvent", () => {
     findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue(
       null,
     );
-    aggregateGrantedCreditsMock.mockResolvedValue({
-      _sum: { amount: null },
-    });
     createTransactionMock.mockResolvedValue({});
     findOutOfCreditsTasksMock.mockResolvedValue([]);
     updateTaskMock.mockResolvedValue({});
@@ -318,9 +313,6 @@ describe("handleInvoicePaidEvent", () => {
       { role: "owner", userId: "owner-2" },
     ]);
     mockSubscriptionCatalog();
-    aggregateGrantedCreditsMock.mockResolvedValue({
-      _sum: { amount: BigInt("5000000000000") },
-    });
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -334,7 +326,6 @@ describe("handleInvoicePaidEvent", () => {
     );
 
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
-    expect(aggregateGrantedCreditsMock).not.toHaveBeenCalled();
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
