@@ -16,9 +16,9 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: { days?: number }) => {
-    if (key === "couponExpiryNotice") {
-      return `Credits expire after ${values?.days} days.`;
+  useTranslations: () => (key: string) => {
+    if (key === "couponExpiryPolicyNotice") {
+      return "Coupon credits only expire when ttl_days is set on the coupon.";
     }
     return key;
   },
@@ -72,7 +72,9 @@ describe("CouponForm", () => {
     render(<CouponForm organization={null} />);
 
     expect(
-      screen.getByText("Credits expire after 30 days."),
+      screen.getByText(
+        "Coupon credits only expire when ttl_days is set on the coupon.",
+      ),
     ).toBeInTheDocument();
   });
 

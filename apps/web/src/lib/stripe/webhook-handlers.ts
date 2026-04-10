@@ -27,7 +27,6 @@ import {
 import {
   convertCentsToCredits,
   convertCreditsToCents,
-  FREE_CREDITS_EXPIRY_DAYS,
   getOrganizationMetadata,
 } from "@sokosumi/utils";
 import Stripe from "stripe";
@@ -155,30 +154,27 @@ function getTopUpCreditsFromInvoiceMetadata(
   return credits;
 }
 
+/**
+ * Reads `ttl_days` from invoice metadata for free (zero-amount) credit grants.
+ * - Missing, empty, invalid, negative, or zero → no expiry (`expiresAt` null).
+ * - Positive integer → expiry after that many days from the invoice time.
+ */
 function getTopUpExpiryDaysFromInvoiceMetadata(
   invoice: Stripe.Invoice,
-): number | null | undefined {
+): number | null {
   const ttlDaysRaw = invoice.metadata?.ttl_days;
   if (ttlDaysRaw === undefined) {
-    return undefined;
+    return null;
   }
 
   const normalizedTtlDays = ttlDaysRaw.trim();
   if (!normalizedTtlDays) {
-    return undefined;
-  }
-
-  const ttlDays = Number(normalizedTtlDays);
-  if (!Number.isInteger(ttlDays)) {
-    return undefined;
-  }
-
-  if (ttlDays === 0) {
     return null;
   }
 
-  if (ttlDays < 0) {
-    return undefined;
+  const ttlDays = Number(normalizedTtlDays);
+  if (!Number.isInteger(ttlDays) || ttlDays <= 0) {
+    return null;
   }
 
   return ttlDays;
@@ -209,10 +205,7 @@ function resolveTopUpGrantPolicy(invoice: Stripe.Invoice): {
     expiresAt:
       freeTopUpExpiryDays === null
         ? null
-        : getCreditExpiryDate(
-            invoiceCreatedAt,
-            freeTopUpExpiryDays ?? FREE_CREDITS_EXPIRY_DAYS,
-          ),
+        : getCreditExpiryDate(invoiceCreatedAt, freeTopUpExpiryDays),
     referenceType: CreditBucketReferenceType.STRIPE_FREE,
   };
 }
