@@ -1805,7 +1805,7 @@
       "topUpDescription": "Choisissez un montant ou saisissez une valeur personnalisée",
       "paidSubscriptionRequiredDescription": "Un abonnement payant est nécessaire pour acheter des crédits supplémentaires.",
       "paidSubscriptionRequiredHint": "Choisissez une offre payante dans l’onglet Abonnement pour débloquer les recharges de crédits.",
-      "couponExpiryNotice": "Les crédits expirent après {days, plural, one {# jour} other {# jours}}.",
+      "couponExpiryPolicyNotice": "Les crédits promotionnels peuvent expirer ; les conditions varient selon le bon ou l'offre.",
       "costPerCredit": "{cost} par crédit",
       "creditAmount": "{count, plural, one {# crédit} other {# crédits}}",
       "creditsLabel": "Nombre de crédits",

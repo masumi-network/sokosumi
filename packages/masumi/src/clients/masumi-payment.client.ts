@@ -17,6 +17,20 @@ interface PaymentClientRequestOptions {
   signal?: AbortSignal;
 }
 
+interface MasumiTaskPurchaseInput {
+  blockchainIdentifier: string;
+  agentIdentifier: string;
+  sellerVkey: string;
+  submitResultTime: string;
+  payByTime: string;
+  unlockTime: string;
+  externalDisputeUnlockTime: string;
+  inputHash: string;
+  Amounts: Array<{ amount: string; unit: string }>;
+  identifierFromPurchaser: string;
+  metadata?: string;
+}
+
 export function createPaymentClient(
   network: "Preprod" | "Mainnet",
   apiUrl: string,
@@ -137,6 +151,44 @@ export function createPaymentClient(
 
         if (response.error || !response.data) {
           console.error("Failed to create purchase request", response.error);
+          return err("Failed to create purchase request");
+        }
+
+        return ok(response.data.data);
+      } catch (error) {
+        return err(String(error) || "Failed to create purchase request");
+      }
+    },
+
+    async createPurchaseFromMasumiTaskPayment(
+      input: MasumiTaskPurchaseInput,
+    ): Promise<Result<PostPurchaseResponses["200"]["data"], string>> {
+      try {
+        const response = await postPurchase({
+          client: client(),
+          body: {
+            blockchainIdentifier: input.blockchainIdentifier,
+            agentIdentifier: input.agentIdentifier,
+            sellerVkey: input.sellerVkey,
+            submitResultTime: input.submitResultTime,
+            payByTime: input.payByTime,
+            unlockTime: input.unlockTime,
+            externalDisputeUnlockTime: input.externalDisputeUnlockTime,
+            inputHash: input.inputHash,
+            Amounts: input.Amounts,
+            identifierFromPurchaser: input.identifierFromPurchaser,
+            network,
+            ...(input.metadata !== undefined
+              ? { metadata: input.metadata }
+              : {}),
+          },
+        });
+
+        if (response.error || !response.data) {
+          console.error(
+            "Failed to create task purchase request",
+            response.error,
+          );
           return err("Failed to create purchase request");
         }
 

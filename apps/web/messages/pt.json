@@ -1805,7 +1805,7 @@
       "topUpDescription": "Escolha um montante ou introduza um valor personalizado",
       "paidSubscriptionRequiredDescription": "É necessária uma subscrição paga para comprar créditos adicionais.",
       "paidSubscriptionRequiredHint": "Escolha um plano pago no separador Subscrição para desbloquear os carregamentos de créditos.",
-      "couponExpiryNotice": "Os créditos expiram após {days, plural, one {# dia} other {# dias}}.",
+      "couponExpiryPolicyNotice": "Os créditos promocionais podem expirar; os termos variam consoante o cupão ou a oferta.",
       "costPerCredit": "{cost} por crédito",
       "creditAmount": "{count, plural, one {# crédito} other {# créditos}}",
       "creditsLabel": "Número de créditos",

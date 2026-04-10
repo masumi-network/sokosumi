@@ -1,7 +1,6 @@
 import { Decimal } from "decimal.js";
 
 const CREDITS_BASE = 10 ** 10;
-export const FREE_CREDITS_EXPIRY_DAYS = 30;
 
 export function convertCentsToCredits(cents: bigint): number {
   if (cents > BigInt(Number.MAX_SAFE_INTEGER)) {
