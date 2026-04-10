@@ -4,80 +4,200 @@ import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { LIMITS } from "@/config/constants";
 import { isTaskStatusSpendable } from "@/helpers/task";
 
-export const createTaskEventRequestSchema = z
+const masumiPaymentAmountSchema = z.object({
+  amount: z.string().min(1).openapi({ example: "470000000000" }),
+  unit: z.string().min(1).openapi({
+    example: "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde",
+  }),
+});
+
+const masumiPaymentSourceSchema = z
   .object({
-    status: z
-      .enum(TaskStatus)
-      .optional()
-      .openapi({ example: TaskStatus.RUNNING }),
-    comment: z
-      .string()
-      .optional()
-      .openapi({ example: "Task Event is running" }),
-    authenticationUrl: z
-      .httpUrl()
-      .optional()
-      .openapi({ example: "https://example.com/oauth/authorize" }),
-    credits: z.number().positive().nullish().openapi({ example: 5 }),
-    origin: z
-      .enum(TaskEventOrigin)
-      .optional()
-      .default(TaskEventOrigin.SOKOSUMI)
-      .openapi({
-        example: TaskEventOrigin.SLACK,
-        description:
-          "The origin of the task event. Defaults to SOKOSUMI if undefined.",
-      }),
+    network: z.enum(["Preprod", "Mainnet"]).openapi({ example: "Preprod" }),
+    smartContractAddress: z.string().min(1).openapi({
+      example:
+        "addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm",
+    }),
+    policyId: z.string().min(1).openapi({
+      example: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
+    }),
   })
-  .superRefine((data, ctx) => {
-    if (data.status === undefined && data.comment === undefined) {
-      ctx.addIssue({
-        code: "custom",
-        message: "At least one of status or comment is required",
-        path: ["status", "comment"],
-      });
-    }
+  .openapi("MasumiTaskPaymentSource");
 
-    if (!isTaskStatusSpendable(data.status) && data.credits != null) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Credits can only be set when completing or canceling a task",
-        path: ["credits"],
-      });
-    }
+const masumiPaymentPayloadSchema = z
+  .object({
+    blockchainIdentifier: z.string().min(1).openapi({
+      example: "0b00e04c0860a60c61066056281180462d0b12",
+    }),
+    agentIdentifier: z.string().min(1).openapi({
+      example: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
+    }),
+    sellerVkey: z.string().min(1).openapi({
+      example: "0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd",
+    }),
+    submitResultTime: z.string().min(1).openapi({ example: "1775681853000" }),
+    payByTime: z.string().min(1).openapi({ example: "1775737949000" }),
+    unlockTime: z.string().min(1).openapi({ example: "1775763149000" }),
+    externalDisputeUnlockTime: z
+      .string()
+      .min(1)
+      .openapi({ example: "1775784749000" }),
+    inputHash: z.string().min(1).openapi({
+      example:
+        "3b2d456a720bf5b3e2cc2cebaea9f9a937cd8b4d64267da3271bca937cb56af1",
+    }),
+    Amounts: z.array(masumiPaymentAmountSchema).min(1).openapi({ example: [] }),
+    PaymentSource: masumiPaymentSourceSchema.optional(),
+  })
+  .openapi("MasumiTaskPayment");
 
-    if (
-      isTaskStatusSpendable(data.status) &&
-      data.credits != null &&
-      data.credits < LIMITS.MIN_CHARGEABLE_CREDITS
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message: `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
-        path: ["credits"],
-      });
-    }
+export type MasumiTaskPaymentPayload = z.infer<
+  typeof masumiPaymentPayloadSchema
+>;
 
-    if (data.status === TaskStatus.AUTHENTICATION_REQUIRED) {
-      if (!data.authenticationUrl) {
+export function createTaskEventRequestSchema(
+  params: { serverNetwork: "Preprod" | "Mainnet" } = {
+    serverNetwork: "Preprod",
+  },
+) {
+  const { serverNetwork } = params;
+
+  return z
+    .object({
+      status: z
+        .enum(TaskStatus)
+        .optional()
+        .openapi({ example: TaskStatus.RUNNING }),
+      comment: z
+        .string()
+        .optional()
+        .openapi({ example: "Task Event is running" }),
+      authenticationUrl: z
+        .httpUrl()
+        .optional()
+        .openapi({ example: "https://example.com/oauth/authorize" }),
+      credits: z.number().positive().nullish().openapi({
+        example: 5,
+        description:
+          "Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.",
+      }),
+      origin: z
+        .enum(TaskEventOrigin)
+        .optional()
+        .default(TaskEventOrigin.SOKOSUMI)
+        .openapi({
+          example: TaskEventOrigin.SLACK,
+          description:
+            "The origin of the task event. Defaults to SOKOSUMI if undefined.",
+        }),
+      masumiPayment: masumiPaymentPayloadSchema.optional().openapi({
+        description:
+          "On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.",
+      }),
+    })
+    .superRefine((data, ctx) => {
+      if (data.status === undefined && data.comment === undefined) {
         ctx.addIssue({
           code: "custom",
-          message: "authenticationUrl is required for authentication requests",
-          path: ["authenticationUrl"],
+          message: "At least one of status or comment is required",
+          path: ["status", "comment"],
         });
-      } else if (!data.authenticationUrl.startsWith("https://")) {
+      }
+
+      if (data.masumiPayment !== undefined) {
+        if (data.credits !== undefined) {
+          ctx.addIssue({
+            code: "custom",
+            message:
+              "Do not send credits when masumiPayment is set; billing uses masumiPayment.Amounts instead.",
+            path: ["credits"],
+          });
+        }
+
+        if (data.status !== TaskStatus.COMPLETED) {
+          ctx.addIssue({
+            code: "custom",
+            message: "masumiPayment is only allowed when status is COMPLETED",
+            path: ["masumiPayment"],
+          });
+        }
+
+        const sourceNetwork = data.masumiPayment.PaymentSource?.network;
+        if (sourceNetwork !== undefined && sourceNetwork !== serverNetwork) {
+          ctx.addIssue({
+            code: "custom",
+            message: `PaymentSource.network must match server network (${serverNetwork})`,
+            path: ["masumiPayment", "PaymentSource", "network"],
+          });
+        }
+
+        for (let i = 0; i < data.masumiPayment.Amounts.length; i++) {
+          const raw = data.masumiPayment.Amounts[i]?.amount;
+          if (raw === undefined) {
+            continue;
+          }
+          try {
+            const parsed = BigInt(raw);
+            if (parsed <= 0n) {
+              ctx.addIssue({
+                code: "custom",
+                message: "Amount must be a positive integer string",
+                path: ["masumiPayment", "Amounts", i, "amount"],
+              });
+            }
+          } catch {
+            ctx.addIssue({
+              code: "custom",
+              message: "Amount must be a valid integer string",
+              path: ["masumiPayment", "Amounts", i, "amount"],
+            });
+          }
+        }
+      }
+
+      if (!isTaskStatusSpendable(data.status) && data.credits != null) {
         ctx.addIssue({
           code: "custom",
-          message: "authenticationUrl must be an https URL",
+          message:
+            "Credits can only be set when completing or canceling a task",
+          path: ["credits"],
+        });
+      }
+
+      if (
+        isTaskStatusSpendable(data.status) &&
+        data.credits != null &&
+        data.credits < LIMITS.MIN_CHARGEABLE_CREDITS
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
+          path: ["credits"],
+        });
+      }
+
+      if (data.status === TaskStatus.AUTHENTICATION_REQUIRED) {
+        if (!data.authenticationUrl) {
+          ctx.addIssue({
+            code: "custom",
+            message:
+              "authenticationUrl is required for authentication requests",
+            path: ["authenticationUrl"],
+          });
+        } else if (!data.authenticationUrl.startsWith("https://")) {
+          ctx.addIssue({
+            code: "custom",
+            message: "authenticationUrl must be an https URL",
+            path: ["authenticationUrl"],
+          });
+        }
+      } else if (data.authenticationUrl !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "authenticationUrl is only allowed for authentication requests",
           path: ["authenticationUrl"],
         });
       }
-    } else if (data.authenticationUrl !== undefined) {
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "authenticationUrl is only allowed for authentication requests",
-        path: ["authenticationUrl"],
-      });
-    }
-  });
+    });
+}
