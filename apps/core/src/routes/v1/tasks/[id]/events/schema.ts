@@ -51,10 +51,6 @@ const masumiPaymentPayloadSchema = z
   })
   .openapi("MasumiTaskPayment");
 
-export type MasumiTaskPaymentPayload = z.infer<
-  typeof masumiPaymentPayloadSchema
->;
-
 export function createTaskEventRequestSchema(
   params: { serverNetwork: "Preprod" | "Mainnet" } = {
     serverNetwork: "Preprod",
