@@ -12,27 +12,15 @@ const {
   getMemberByUserIdAndOrganizationIdMock,
   prismaTransactionMock,
   requireCoworkerCapabilityMock,
-  findWorkspaceForContextMock,
   taskCountMock,
   taskFindManyMock,
 } = vi.hoisted(() => ({
   getMemberByUserIdAndOrganizationIdMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
-  findWorkspaceForContextMock: vi.fn(),
   taskCountMock: vi.fn(),
   taskFindManyMock: vi.fn(),
 }));
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    findWorkspaceForContext: findWorkspaceForContextMock,
-  };
-});
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
@@ -142,10 +130,6 @@ describe("GET /tasks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
-    findWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-      organizationId: "org_123",
-    });
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
@@ -223,12 +207,10 @@ describe("GET /tasks", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
   });
 
-  it("returns an empty page when no workspace path resolves", async () => {
+  it("returns an empty page when workspaceContext is null", async () => {
     const app = createApp("user", "org_123", null);
-    findWorkspaceForContextMock.mockResolvedValueOnce(null);
 
     const response = await app.request("http://localhost/");
 
@@ -244,11 +226,6 @@ describe("GET /tasks", () => {
         },
       },
     });
-    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_123",
-      expect.any(Object),
-    );
   });
 
   it("filters org workspace task lists by memberId", async () => {

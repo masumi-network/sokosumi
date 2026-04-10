@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
-import { findWorkspaceForContext } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
@@ -25,6 +24,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { isCoworkerAuthContext } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace-context";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
 import { taskListInclude } from "@/types/task";
@@ -137,19 +137,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
-      const resolvedWorkspace =
-        c.var.workspaceContext ??
-        (await findWorkspaceForContext(
-          authContext.userId,
-          authContext.organizationId,
-          prisma,
-        ));
-      const workspaceId = resolvedWorkspace
-        ? "workspaceId" in resolvedWorkspace
-          ? resolvedWorkspace.workspaceId
-          : resolvedWorkspace.id
-        : null;
-      const workspaceOrganizationId = resolvedWorkspace?.organizationId ?? null;
+      const workspaceContext: WorkspaceContext | null = c.var.workspaceContext;
+      const workspaceId = workspaceContext?.workspaceId ?? null;
+      const workspaceOrganizationId = workspaceContext?.organizationId ?? null;
       const isOrganizationWorkspace =
         workspaceOrganizationId !== null &&
         workspaceOrganizationId === authContext.organizationId;

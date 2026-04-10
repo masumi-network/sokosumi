@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
-import { findWorkspaceForContext } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
@@ -21,6 +20,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace-context";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
@@ -128,25 +128,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { agentId, status, memberId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
-    const resolvedWorkspace =
-      c.var.workspaceContext ??
-      (await findWorkspaceForContext(
-        authContext.userId,
-        authContext.organizationId,
-        prisma,
-      ));
-    const workspaceId = resolvedWorkspace
-      ? "workspaceId" in resolvedWorkspace
-        ? resolvedWorkspace.workspaceId
-        : resolvedWorkspace.id
-      : null;
-    const workspaceContext = resolvedWorkspace
-      ? {
-          workspaceId: workspaceId ?? "",
-          userId: resolvedWorkspace.userId ?? authContext.userId,
-          organizationId: resolvedWorkspace.organizationId,
-        }
-      : null;
+    const workspaceContext: WorkspaceContext | null = c.var.workspaceContext;
     const isOrganizationWorkspace =
       workspaceContext?.organizationId !== null &&
       workspaceContext?.organizationId === authContext.organizationId;
@@ -172,7 +154,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const { jobs, count, hasMore } = await getUserJobs(authContext, {
-      workspaceContext: workspaceId ? workspaceContext : null,
+      workspaceContext,
       agentId,
       memberId,
       status,

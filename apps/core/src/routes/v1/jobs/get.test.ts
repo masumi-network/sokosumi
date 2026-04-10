@@ -105,7 +105,7 @@ describe("GET /jobs", () => {
       expect.objectContaining({
         workspaceContext: {
           workspaceId: "workspace_123",
-          userId: "user_123",
+          userId: null,
           organizationId: "org_123",
         },
         memberId: "user_456",
@@ -133,5 +133,39 @@ describe("GET /jobs", () => {
     expect(response.status).toBe(400);
     expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
     expect(getUserJobsMock).not.toHaveBeenCalled();
+  });
+
+  it("passes through a null workspaceContext without resolving a fallback", async () => {
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      });
+      c.set("workspaceContext", null);
+
+      return await next();
+    });
+
+    mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(getUserJobsMock).toHaveBeenCalledWith(
+      {
+        userId: "user_123",
+        organizationId: "org_123",
+        actor: "user",
+      },
+      expect.objectContaining({
+        workspaceContext: null,
+      }),
+    );
   });
 });

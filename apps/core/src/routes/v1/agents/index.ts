@@ -6,7 +6,9 @@ import mountGetJobsByAgentId from "./[id]/jobs/get.js";
 import mountPostAgentJob from "./[id]/jobs/post.js";
 import mountGetAgents from "./get.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({
+  includeWorkspaceContext: true,
+});
 
 mountGetAgents(app);
 mountGetAgentById(app);

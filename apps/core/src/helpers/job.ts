@@ -5,7 +5,6 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import { findWorkspaceForContext } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobPurchaseRepository,
@@ -457,7 +456,7 @@ export async function createAgentJobForUser(
 export async function getUserJobs(
   authContext: UserAuthenticationContext,
   options: {
-    workspaceContext?: WorkspaceContext | null;
+    workspaceContext: WorkspaceContext | null;
     agentId?: string;
     memberId?: string;
     status?: AgentJobStatus;
@@ -472,7 +471,7 @@ export async function getUserJobs(
   hasMore: boolean;
 }> {
   const {
-    workspaceContext: scopedWorkspace = null,
+    workspaceContext,
     agentId,
     memberId,
     status,
@@ -481,20 +480,9 @@ export async function getUserJobs(
     skip,
     tx = prisma,
   } = options;
-  const workspace =
-    scopedWorkspace ??
-    (await findWorkspaceForContext(
-      authContext.userId,
-      authContext.organizationId,
-      tx,
-    ));
-  const workspaceId = workspace
-    ? "workspaceId" in workspace
-      ? workspace.workspaceId
-      : workspace.id
-    : null;
+  const workspaceId = workspaceContext?.workspaceId ?? null;
 
-  if (!workspace || !workspaceId) {
+  if (!workspaceContext || !workspaceId) {
     return {
       jobs: [],
       count: 0,
@@ -503,8 +491,8 @@ export async function getUserJobs(
   }
 
   const isOrganizationWorkspace =
-    workspace.organizationId !== null &&
-    workspace.organizationId === authContext.organizationId;
+    workspaceContext.organizationId !== null &&
+    workspaceContext.organizationId === authContext.organizationId;
 
   const where: Prisma.JobWhereInput = {
     AND: [

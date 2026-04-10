@@ -7,21 +7,6 @@ import type { WorkspaceContext } from "@/middleware/workspace-context";
 
 import { getUserJobs } from "./job";
 
-const { findWorkspaceForContextMock } = vi.hoisted(() => ({
-  findWorkspaceForContextMock: vi.fn(),
-}));
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    findWorkspaceForContext: (...args: unknown[]) =>
-      findWorkspaceForContextMock(...args),
-  };
-});
-
 function createTransactionClient() {
   return {
     job: {
@@ -42,33 +27,16 @@ describe("getUserJobs", () => {
     vi.clearAllMocks();
   });
 
-  it("resolves the active workspace before reading jobs", async () => {
-    const tx = createTransactionClient();
-    findWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-      organizationId: "org_123",
-    });
-
-    await getUserJobs(orgAuthContext, {
-      take: 20,
-      tx,
-    });
-
-    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_123",
-      tx,
-    );
-  });
-
   it("filters org jobs by active workspace", async () => {
     const tx = createTransactionClient();
-    findWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
+    const workspaceContext: WorkspaceContext = {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: null,
       organizationId: "org_123",
-    });
+    };
 
     await getUserJobs(orgAuthContext, {
+      workspaceContext,
       take: 20,
       tx,
     });
@@ -89,10 +57,11 @@ describe("getUserJobs", () => {
 
   it("uses personal context when organization is missing", async () => {
     const tx = createTransactionClient();
-    findWorkspaceForContextMock.mockResolvedValue({
-      id: "22222222-2222-7222-8222-222222222222",
+    const workspaceContext: WorkspaceContext = {
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+      userId: "user_123",
       organizationId: null,
-    });
+    };
     const personalContext: UserAuthenticationContext = {
       actor: "user",
       userId: "user_123",
@@ -100,6 +69,7 @@ describe("getUserJobs", () => {
     };
 
     await getUserJobs(personalContext, {
+      workspaceContext,
       take: 20,
       tx,
     });
@@ -120,10 +90,10 @@ describe("getUserJobs", () => {
 
   it("returns an empty page when no workspace path resolves", async () => {
     const tx = createTransactionClient();
-    findWorkspaceForContextMock.mockResolvedValueOnce(null);
 
     await expect(
       getUserJobs(orgAuthContext, {
+        workspaceContext: null,
         take: 20,
         tx,
       }),
@@ -163,17 +133,18 @@ describe("getUserJobs", () => {
         },
       }),
     );
-    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
   });
 
   it("accepts any agent job status query without throwing", async () => {
     const tx = createTransactionClient();
-    findWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
+    const workspaceContext: WorkspaceContext = {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: null,
       organizationId: "org_123",
-    });
+    };
 
     await getUserJobs(orgAuthContext, {
+      workspaceContext,
       take: 20,
       tx,
       status: AgentJobStatus.COMPLETED,
