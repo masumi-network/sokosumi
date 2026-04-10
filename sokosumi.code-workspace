@@ -3,34 +3,6 @@
     {
       "name": "Sokosumi",
       "path": "."
-    },
-    {
-      "name": "App: Web",
-      "path": "apps/web"
-    },
-    {
-      "name": "App: Core",
-      "path": "apps/core"
-    },
-    {
-      "name": "Package: Database",
-      "path": "packages/database"
-    },
-    {
-      "name": "Package: Masumi",
-      "path": "packages/masumi"
-    },
-    {
-      "name": "Package: Email",
-      "path": "packages/email"
-    },
-    {
-      "name": "Package: Chat",
-      "path": "packages/chat"
-    },
-    {
-      "name": "Package: Utils",
-      "path": "packages/utils"
     }
   ],
   "settings": {
@@ -48,7 +20,7 @@
     "files.associations": {
       "*.css": "tailwindcss"
     },
-    "i18n-ally.localesPaths": ["/apps/web/messages", "/apps/web/src/i18n"],
+    "i18n-ally.localesPaths": ["apps/web/messages", "apps/web/src/i18n"],
     "i18n-ally.keystyle": "nested",
     "[typescriptreact]": {
       "editor.defaultFormatter": "biomejs.biome"
@@ -62,7 +34,9 @@
       "**/src/app/**/route.ts": "${dirname}/route.ts",
       "**/src/app/**/layout.tsx": "${dirname}/layout.tsx"
     },
-    "npm.packageManager": "pnpm"
+    "npm.packageManager": "pnpm",
+    "biome.lsp.bin": "node_modules/.bin/biome",
+    "typescript.tsdk": "apps/web/node_modules/typescript/lib"
   },
   "extensions": {
     "recommendations": [
