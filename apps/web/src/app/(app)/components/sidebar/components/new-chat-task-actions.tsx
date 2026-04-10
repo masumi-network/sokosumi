@@ -19,8 +19,6 @@ export default function NewChatTaskActions() {
   const tChat = useTranslations("App.Chat.Chat");
   const pathname = usePathname();
   const isChatActive = pathname === "/chat" || pathname.startsWith("/chat/");
-  const isNewTaskActive =
-    pathname === "/tasks/new" || pathname.startsWith("/tasks/new/");
 
   return (
     <SidebarGroup className="w-full">
@@ -46,16 +44,14 @@ export default function NewChatTaskActions() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isNewTaskActive}>
+            {/* Tasks nav owns `/tasks/*` (menu-items); never duplicate active state here. */}
+            <SidebarMenuButton asChild isActive={false}>
               <SheetClose asChild>
                 <Link
                   href="/tasks/new"
-                  aria-current={isNewTaskActive ? "page" : undefined}
                   className={cn(
                     "flex min-h-auto w-full items-center gap-2 px-3",
-                    isNewTaskActive
-                      ? "text-primary-foreground"
-                      : "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
+                    "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
                   )}
                 >
                   <ListPlus className="size-4" aria-hidden />
