@@ -255,16 +255,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         })
         .then((createPurchaseResult) => {
           if (createPurchaseResult.isErr()) {
-            Sentry.setTag("error_type", "task_purchase_creation_failed");
-            Sentry.setContext("task_purchase_creation", {
-              taskId,
-              taskEventId,
-              blockchainIdentifier: mp.blockchainIdentifier,
-              error: createPurchaseResult.error,
-            });
             Sentry.captureMessage(
               `Task purchase creation failed: ${createPurchaseResult.error}`,
-              "error",
+              {
+                level: "error",
+                tags: {
+                  error_type: "task_purchase_creation_failed",
+                },
+                contexts: {
+                  task_purchase_creation: {
+                    taskId,
+                    taskEventId,
+                    blockchainIdentifier: mp.blockchainIdentifier,
+                    error: createPurchaseResult.error,
+                  },
+                },
+              },
             );
             return;
           }
