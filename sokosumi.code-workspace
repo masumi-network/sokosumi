@@ -1,6 +1,10 @@
 {
   "folders": [
     {
+      "name": "Sokosumi",
+      "path": "."
+    },
+    {
       "name": "App: Web",
       "path": "apps/web"
     },
@@ -58,8 +62,7 @@
       "**/src/app/**/route.ts": "${dirname}/route.ts",
       "**/src/app/**/layout.tsx": "${dirname}/layout.tsx"
     },
-    "npm.packageManager": "pnpm",
-    "biome.lsp.bin": "${workspaceFolder}/node_modules/@biomejs/biome/bin/biome"
+    "npm.packageManager": "pnpm"
   },
   "extensions": {
     "recommendations": [

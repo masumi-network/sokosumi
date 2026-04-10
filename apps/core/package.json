@@ -61,7 +61,6 @@
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.10",
     "@types/node": "24.12.2",
     "tsup": "8.5.1",
     "tsx": "4.21.0",

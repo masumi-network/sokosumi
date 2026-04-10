@@ -38,8 +38,7 @@
     "@better-auth/sso": "1.6.2",
     "@better-auth/utils": "0.4.0",
     "@dnd-kit/core": "6.3.1",
-    "@hey-api/client-fetch": "0.13.1",
-    "@hey-api/client-next": "0.5.1",
+    "@hey-api/openapi-ts": "0.95.0",
     "@hookform/resolvers": "5.2.2",
     "@icons-pack/react-simple-icons": "13.13.0",
     "@lobehub/icons": "5.4.0",
@@ -143,7 +142,6 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "0.95.0",
     "@noble/hashes": "2.0.1",
     "@swc/core": "1.15.24",
     "@swc/helpers": "0.5.21",
@@ -158,9 +156,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/react-file-icon": "1.0.5",
-    "@types/react-window": "2.0.0",
     "@types/sanitize-html": "2.16.1",
-    "@biomejs/biome": "2.4.10",
     "postcss": "8.5.9",
     "puppeteer": "24.35.0",
     "tailwindcss": "4.2.2",

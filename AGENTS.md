@@ -105,11 +105,11 @@ sokosumi/
 
 The monorepo uses a shared Biome configuration at the repo root (`biome.jsonc`). Each app and package that Biome should cover also has a `biome.json` with `"extends": "//"` so nested projects inherit that root config (see [Biome: big projects / monorepos](https://biomejs.dev/guides/big-projects/)).
 
-`@biomejs/biome` is declared on those workspace packages, not on the root `package.json`. Root-level scripts still lint and format the **entire** repository by running the CLI from the `web` workspace (which owns the binary): `pnpm --filter web exec biome … ../..`. So `pnpm check`, `pnpm lint`, `pnpm format`, and `pnpm format:check` behave like a full-repo `biome` run; they are not limited to `apps/web`.
+`@biomejs/biome` is a **root-only** `devDependency`. Root-level scripts use `pnpm exec biome …` from the repository root for full-repo `pnpm check`, `pnpm lint`, `pnpm format`, and `pnpm format:check`. Apps and packages keep ordinary `biome … .` scripts; pnpm hoists `@biomejs/biome` (`publicHoistPattern` in `pnpm-workspace.yaml`) so those commands resolve the same binary without duplicating the dependency in each workspace package.
 
 **Import Organization**:
 
-- `pnpm check` runs a repo-wide `biome check` (via the `web` workspace’s Biome install), which enforces linting, formatting, and import organization
+- `pnpm check` runs a repo-wide `biome check`, which enforces linting, formatting, and import organization
 - `pnpm lint` runs a repo-wide `biome lint`, which checks lint rules only
 - Unused imports are reported and can be auto-fixed by Biome
 
@@ -186,10 +186,10 @@ const config = {
 | `pnpm web:build`       | Build web app for production  |
 | `pnpm core:build`      | Build core API for production |
 | `pnpm web:start`       | Smoke test production build   |
-| `pnpm lint`            | Run Biome lint across the repo (`pnpm --filter web exec biome lint ../..`) |
-| `pnpm check`           | Run full Biome checks across the repo (`pnpm --filter web exec biome check ../..`) |
-| `pnpm format`          | Format entire repo with Biome (`pnpm --filter web exec biome format --write ../..`) |
-| `pnpm format:check`    | Check formatting for entire repo (`pnpm --filter web exec biome format ../..`) |
+| `pnpm lint`            | Run Biome lint across the repo (`pnpm exec biome lint .`) |
+| `pnpm check`           | Run full Biome checks across the repo (`pnpm exec biome check .`) |
+| `pnpm format`          | Format entire repo with Biome (`pnpm exec biome format --write .`) |
+| `pnpm format:check`    | Check formatting for entire repo (`pnpm exec biome format .`) |
 | `pnpm web:lint`        | Run Biome lint rules for the web app |
 | `pnpm web:check`       | Run full Biome checks for the web app |
 | `pnpm test`            | Run tests locally             |
