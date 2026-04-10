@@ -70,4 +70,18 @@ export const stripeClient = {
       ),
     );
   },
+
+  async updateSubscriptionCancelAtPeriodEnd(
+    subscriptionId: string,
+    cancelAtPeriodEnd: boolean,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Subscription> {
+    return await stripe.subscriptions.update(
+      subscriptionId,
+      {
+        cancel_at_period_end: cancelAtPeriodEnd,
+      },
+      requestOptions,
+    );
+  },
 };

@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Prisma } from "@sokosumi/database";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
+import { convertCreditsToCents } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import {

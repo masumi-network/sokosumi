@@ -1,14 +1,12 @@
 import { jobInclude, type Prisma } from "@sokosumi/database";
-import {
-  convertCentsToCredits,
-  mapJobWithStatus,
-} from "@sokosumi/database/helpers";
+import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import {
   jobWithEvents,
   jobWithPurchase,
   jobWithShare,
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import { serializeJobDetails } from "@/types/job";

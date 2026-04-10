@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
   buildAvailableAgentWhereClause,

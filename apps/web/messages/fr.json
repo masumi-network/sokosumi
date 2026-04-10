@@ -1050,7 +1050,8 @@
         "skip": "Passer",
         "back": "Retour",
         "next": "Suivant",
-        "getStarted": "Commencer"
+        "getStarted": "Commencer",
+        "subscribe": "S’abonner"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "Collègue",
@@ -1076,6 +1077,10 @@
         "orchestration": {
           "title": "Ils gèrent le reste",
           "description": "Votre collègue engage des agents spécialisés pour rechercher, rédiger, analyser — selon les besoins de la tâche."
+        },
+        "plans": {
+          "title": "Choisissez le forfait qui vous aide à accélérer votre croissance",
+          "description": "Commencez avec une offre payante pour débloquer plus de crédits, des collègues plus performants et des fonctionnalités premium dès le premier jour."
         }
       },
       "visuals": {
@@ -1686,9 +1691,14 @@
       "currentPlanBadge": "Actuel",
       "pricePerMonth": "par mois",
       "includedCredits": "{credits, plural, =0 {Aucun crédit} =1 {# crédit inclus} other {# crédits inclus}}",
+      "mostPopularBadge": "Le plus populaire",
       "upgrading": "Redirection...",
+      "canceling": "Planification de l’annulation...",
       "currentPlanCta": "Forfait actuel",
       "upgradePlanCta": "Choisir un forfait",
+      "cancelSubscriptionCta": "Annuler l’abonnement",
+      "cancelsOnDate": "Annulation le {date}",
+      "statusCancellationScheduled": "L’annulation de l’abonnement a été planifiée.",
       "billingPortalTitle": "Portail de facturation",
       "billingPortalDescription": "Ouvrez le portail de facturation Stripe pour gérer votre abonnement et vos factures.",
       "billingPortalDescriptionWithPlan": "Vous êtes actuellement sur {plan}. Gérez la facturation et les factures dans Stripe.",

@@ -5,4 +5,4 @@
 export {
   makeAgentJobsChannelName,
   makeUserTasksChannelName,
-} from "@sokosumi/database/helpers";
+} from "@sokosumi/utils";

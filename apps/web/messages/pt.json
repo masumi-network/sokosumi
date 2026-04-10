@@ -1042,67 +1042,72 @@
   },
   "Onboarding": {
     "Metadata": {
-      "title": "Welcome to Sokosumi",
-      "description": "Invite your colleagues and earn $10 in credits for each, up to a maximum of $40."
+      "title": "Bem-vindo ao Sokosumi",
+      "description": "Convide os seus colegas e ganhe 10 US$ em créditos por cada convite, até um máximo de 40 US$."
     },
     "Dialog": {
       "navigation": {
-        "skip": "Skip",
-        "back": "Back",
-        "next": "Next",
-        "getStarted": "Get Started"
+        "skip": "Saltar",
+        "back": "Voltar",
+        "next": "Seguinte",
+        "getStarted": "Começar",
+        "subscribe": "Subscrever"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "Coworker",
       "alt": {
-        "coworkerAvatar": "{name} avatar"
+        "coworkerAvatar": "Avatar de {name}"
       },
       "welcome": {
-        "coworkersSummary": "{first}, {second} & more"
+        "coworkersSummary": "{first}, {second} e mais"
       },
       "intro": {
         "welcome": {
-          "title": "Welcome to Sokosumi",
-          "description": "Your AI marketing hub. Meet your new coworkers - they are ready to get to work."
+          "title": "Bem-vindo ao Sokosumi",
+          "description": "O seu hub de marketing com IA. Conheça os seus novos coworkers — estão prontos para começar a trabalhar."
         },
         "chat": {
-          "title": "Tell Them What You Need",
-          "description": "Chat naturally with your coworkers. Describe what you need and they will take it from there."
+          "title": "Diga o que precisa",
+          "description": "Converse naturalmente com os seus coworkers. Descreva o que precisa e eles tratam do resto."
         },
         "taskboard": {
-          "title": "Work Gets Organized",
-          "description": "Your coworker creates tasks, tracks progress on the Taskboard, and keeps everything on track."
+          "title": "O trabalho organiza-se",
+          "description": "O seu coworker cria tarefas, acompanha o progresso no quadro de tarefas e mantém tudo sob controlo."
         },
         "orchestration": {
-          "title": "They Handle the Rest",
-          "description": "Your coworker hires specialized agents to research, write, analyze - whatever the task requires."
+          "title": "Eles tratam do resto",
+          "description": "O seu coworker contrata agentes especializados para pesquisar, escrever, analisar — o que a tarefa exigir."
+        },
+        "plans": {
+          "title": "Escolha o plano que o ajuda a crescer mais depressa",
+          "description": "Comece com um plano pago para desbloquear mais créditos, coworkers mais capazes e funcionalidades premium desde o primeiro dia."
         }
       },
       "visuals": {
         "chat": {
-          "userMessage": "Create a marketing campaign for our product launch",
-          "reply": "On it! I will research the market and draft a campaign strategy."
+          "userMessage": "Crie uma campanha de marketing para o lançamento do nosso produto",
+          "reply": "A tratar! Vou pesquisar o mercado e preparar uma estratégia de campanha."
         },
         "taskboard": {
-          "taskTitle": "Marketing campaign",
-          "todo": "Todo",
-          "inProgress": "In Progress"
+          "taskTitle": "Campanha de marketing",
+          "todo": "Por fazer",
+          "inProgress": "Em curso"
         },
         "orchestration": {
-          "hires": "Hires",
-          "workDelivered": "Work delivered",
+          "hires": "Contratações",
+          "workDelivered": "Trabalho entregue",
           "agents": {
-            "research": "Research",
-            "writing": "Writing",
-            "analytics": "Analytics"
+            "research": "Pesquisa",
+            "writing": "Redação",
+            "analytics": "Análise"
           }
         }
       }
     },
     "Actions": {
       "Errors": {
-        "failedToComplete": "Failed to complete onboarding",
-        "unexpectedError": "An unexpected error occurred"
+        "failedToComplete": "Não foi possível concluir o onboarding",
+        "unexpectedError": "Ocorreu um erro inesperado"
       }
     }
   },
@@ -1686,9 +1691,14 @@
       "currentPlanBadge": "Atual",
       "pricePerMonth": "por mês",
       "includedCredits": "{credits, plural, =0 {Sem créditos} =1 {# crédito incluído} other {# créditos incluídos}}",
+      "mostPopularBadge": "Mais popular",
       "upgrading": "A redirecionar...",
+      "canceling": "A agendar cancelamento...",
       "currentPlanCta": "Plano atual",
       "upgradePlanCta": "Escolher plano",
+      "cancelSubscriptionCta": "Cancelar subscrição",
+      "cancelsOnDate": "Cancela em {date}",
+      "statusCancellationScheduled": "O cancelamento da subscrição foi agendado.",
       "billingPortalTitle": "Portal de faturação",
       "billingPortalDescription": "Abra o Portal de faturação da Stripe para gerir a sua subscrição e faturas.",
       "billingPortalDescriptionWithPlan": "Atualmente está no plano {plan}. Gira os detalhes de faturação e as faturas na Stripe.",

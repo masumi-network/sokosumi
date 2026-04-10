@@ -1,5 +1,5 @@
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import type { AuthenticationContext } from "@/middleware/auth";

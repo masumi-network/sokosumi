@@ -7,7 +7,7 @@ interface LogoProps extends Omit<ImageProps, "src" | "alt"> {
   variant?: "black" | "white";
 }
 
-interface IconProps extends Omit<SVGProps<SVGSVGElement>, "width" | "height"> {
+interface IconProps extends SVGProps<SVGSVGElement> {
   size?: number;
   animated?: boolean;
 }

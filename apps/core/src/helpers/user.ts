@@ -1,6 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 

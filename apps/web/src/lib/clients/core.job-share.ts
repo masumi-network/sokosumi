@@ -1,5 +1,5 @@
 import type { JobShare, JobWithSokosumiStatus } from "@sokosumi/database";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
+import { convertCreditsToCents } from "@sokosumi/utils";
 
 import type {
   Job as CoreJob,

@@ -1050,7 +1050,8 @@
         "skip": "跳过",
         "back": "返回",
         "next": "下一步",
-        "getStarted": "开始使用"
+        "getStarted": "开始使用",
+        "subscribe": "订阅"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "协作伙伴",
@@ -1076,6 +1077,10 @@
         "orchestration": {
           "title": "其余交给他们",
           "description": "您的协作伙伴会雇用专业智能体来进行调研、写作与分析——满足任务所需的一切。"
+        },
+        "plans": {
+          "title": "选择最适合你加速增长的方案",
+          "description": "从付费方案开始，第一天起即可解锁更多积分、更强大的协作伙伴和高级功能。"
         }
       },
       "visuals": {
@@ -1686,9 +1691,14 @@
       "currentPlanBadge": "当前",
       "pricePerMonth": "每月",
       "includedCredits": "{credits, plural, =0 {无积分} =1 {包含 # 积分} other {包含 # 积分}}",
+      "mostPopularBadge": "最受欢迎",
       "upgrading": "正在跳转...",
+      "canceling": "正在安排取消...",
       "currentPlanCta": "当前套餐",
       "upgradePlanCta": "选择套餐",
+      "cancelSubscriptionCta": "取消订阅",
+      "cancelsOnDate": "将于 {date} 取消",
+      "statusCancellationScheduled": "订阅取消已安排。",
       "billingPortalTitle": "计费门户",
       "billingPortalDescription": "打开 Stripe 计费门户以管理您的订阅和发票。",
       "billingPortalDescriptionWithPlan": "您当前使用 {plan}。请在 Stripe 中管理账单信息和发票。",

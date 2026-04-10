@@ -1,3 +1,4 @@
+import { InputType } from "@sokosumi/masumi/types";
 import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -241,7 +242,7 @@ function buildStartInput(overrides: Record<string, unknown> = {}) {
       input_data: [
         {
           id: "prompt",
-          type: "string",
+          type: InputType.STRING,
           name: "Prompt",
         },
       ],

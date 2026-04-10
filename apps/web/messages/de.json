@@ -1050,7 +1050,8 @@
         "skip": "Überspringen",
         "back": "Zurück",
         "next": "Weiter",
-        "getStarted": "Loslegen"
+        "getStarted": "Loslegen",
+        "subscribe": "Abonnieren"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "Coworker",
@@ -1076,6 +1077,10 @@
         "orchestration": {
           "title": "Sie übernehmen den Rest",
           "description": "Dein Coworker beauftragt spezialisierte Agents zum Recherchieren, Schreiben, Analysieren – je nach Aufgabe."
+        },
+        "plans": {
+          "title": "Wähle den Plan, mit dem du schneller wachsen kannst",
+          "description": "Starte mit einem kostenpflichtigen Plan, um mehr Credits, leistungsstärkere Coworker und Premium-Funktionen ab dem ersten Tag freizuschalten."
         }
       },
       "visuals": {
@@ -1624,9 +1629,14 @@
       "currentPlanBadge": "Aktuell",
       "pricePerMonth": "pro Monat",
       "includedCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit enthalten} other {# Credits enthalten}}",
+      "mostPopularBadge": "Am beliebtesten",
       "upgrading": "Weiterleitung...",
+      "canceling": "Kündigung wird geplant...",
       "currentPlanCta": "Aktueller Plan",
       "upgradePlanCta": "Plan auswählen",
+      "cancelSubscriptionCta": "Abonnement kündigen",
+      "cancelsOnDate": "Endet am {date}",
+      "statusCancellationScheduled": "Die Kündigung des Abonnements wurde geplant.",
       "billingPortalTitle": "Billing-Portal",
       "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um dein Abonnement und deine Rechnungen zu verwalten.",
       "billingPortalDescriptionWithPlan": "Du nutzt aktuell {plan}. Verwalte Zahlungsdetails und Rechnungen in Stripe.",

@@ -1050,7 +1050,8 @@
         "skip": "スキップ",
         "back": "戻る",
         "next": "次へ",
-        "getStarted": "開始する"
+        "getStarted": "開始する",
+        "subscribe": "購読する"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "同僚",
@@ -1076,6 +1077,10 @@
         "orchestration": {
           "title": "あとは同僚が対応",
           "description": "同僚が必要に応じて、リサーチ、執筆、分析などの専門エージェントを雇用します。"
+        },
+        "plans": {
+          "title": "より早く成長できるプランを選びましょう",
+          "description": "有料プランを選ぶと、より多くのクレジット、より高機能な同僚、プレミアム機能を初日から利用できます。"
         }
       },
       "visuals": {
@@ -1686,9 +1691,14 @@
       "currentPlanBadge": "現在",
       "pricePerMonth": "／月",
       "includedCredits": "{credits, plural, =0 {クレジットなし} =1 {# クレジットが含まれます} other {# クレジットが含まれます}}",
+      "mostPopularBadge": "一番人気",
       "upgrading": "リダイレクトしています...",
+      "canceling": "解約を予約しています...",
       "currentPlanCta": "現在のプラン",
       "upgradePlanCta": "プランを選択",
+      "cancelSubscriptionCta": "サブスクリプションを解約",
+      "cancelsOnDate": "{date}に終了",
+      "statusCancellationScheduled": "サブスクリプションの解約を予約しました。",
       "billingPortalTitle": "請求ポータル",
       "billingPortalDescription": "Stripe の請求ポータルを開いて、サブスクリプションと請求書を管理します。",
       "billingPortalDescriptionWithPlan": "現在のプランは{plan}です。Stripe で請求情報と請求書を管理してください。",
