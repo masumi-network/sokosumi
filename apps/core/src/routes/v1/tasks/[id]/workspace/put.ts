@@ -52,6 +52,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
+    const { workspaceContext } = c.var;
     const { id } = c.req.valid("param");
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
@@ -82,7 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!workspaceChanged) {
           return await tx.task.findUniqueOrThrow({
             where: { id },
-            include: buildTaskIncludeForViewer(authContext),
+            include: buildTaskIncludeForViewer(authContext, workspaceContext),
           });
         }
 
@@ -134,7 +135,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         return await tx.task.findUniqueOrThrow({
           where: { id },
-          include: buildTaskIncludeForViewer(authContext),
+          include: buildTaskIncludeForViewer(authContext, workspaceContext),
         });
       },
       {

@@ -13,6 +13,7 @@ import {
   isCoworkerAuthContext,
   type UserAuthenticationContext,
 } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace-context";
 
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
@@ -295,6 +296,7 @@ export async function requireTaskAccess(
 
 export async function requireTaskReadAccess(
   authContext: AuthenticationContext,
+  workspaceContext: WorkspaceContext | null,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
@@ -302,11 +304,22 @@ export async function requireTaskReadAccess(
     return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
 
+  const workspaceId = workspaceContext?.workspaceId ?? null;
+  const workspaceOrganizationId = workspaceContext?.organizationId ?? null;
+  const isOrganizationWorkspace =
+    workspaceOrganizationId !== null &&
+    workspaceOrganizationId === authContext.organizationId;
+
+  if (!workspaceId) {
+    throw notFound("Task not found");
+  }
+
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
       archivedAt: null,
-      userId: authContext.userId,
+      workspaceId,
+      ...(isOrganizationWorkspace ? {} : { userId: authContext.userId }),
     },
   });
 

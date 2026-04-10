@@ -37,6 +37,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
+    const { workspaceContext } = c.var;
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
@@ -58,7 +59,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           archivedAt: new Date(),
         },
-        include: buildTaskIncludeForViewer(authContext),
+        include: buildTaskIncludeForViewer(authContext, workspaceContext),
       });
     });
 

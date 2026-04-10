@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
-import { memberRepository } from "@sokosumi/database/repositories";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
@@ -147,27 +146,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!workspaceId) {
         const paginationMeta = createPaginationMeta([], 0, take, false, cursor);
         return ok(c, taskListSchema.parse([]), paginationMeta);
-      }
-
-      if (memberId) {
-        if (!isOrganizationWorkspace) {
-          throw badRequest(
-            "memberId is only supported in organization workspaces.",
-          );
-        }
-
-        const member =
-          await memberRepository.getMemberByUserIdAndOrganizationId(
-            memberId,
-            workspaceOrganizationId,
-            prisma,
-          );
-
-        if (!member) {
-          throw badRequest(
-            "memberId must belong to the active organization workspace.",
-          );
-        }
       }
 
       where = {

@@ -11,18 +11,18 @@ import mountGetTaskEvents from "./get";
 const {
   prismaTransactionMock,
   requireCoworkerTaskAccessMock,
-  requireWorkspaceTaskAccessMock,
+  requireTaskReadAccessMock,
   taskEventFindManyMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireCoworkerTaskAccessMock: vi.fn(),
-  requireWorkspaceTaskAccessMock: vi.fn(),
+  requireTaskReadAccessMock: vi.fn(),
   taskEventFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
-  requireWorkspaceTaskAccess: requireWorkspaceTaskAccessMock,
+  requireTaskReadAccess: requireTaskReadAccessMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -60,7 +60,7 @@ function createApp() {
 describe("GET /tasks/{id}/events", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireWorkspaceTaskAccessMock.mockResolvedValue(undefined);
+    requireTaskReadAccessMock.mockResolvedValue(undefined);
     requireCoworkerTaskAccessMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
@@ -99,7 +99,12 @@ describe("GET /tasks/{id}/events", () => {
     const response = await app.request("http://localhost/tsk_123/events");
 
     expect(response.status).toBe(200);
-    expect(requireWorkspaceTaskAccessMock).toHaveBeenCalledWith(
+    expect(requireTaskReadAccessMock).toHaveBeenCalledWith(
+      {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      },
       {
         workspaceId: "11111111-1111-7111-8111-111111111111",
         userId: "user_123",
@@ -127,7 +132,7 @@ describe("GET /tasks/{id}/events", () => {
   });
 
   it("does not query events when task read access is denied", async () => {
-    requireWorkspaceTaskAccessMock.mockRejectedValueOnce(
+    requireTaskReadAccessMock.mockRejectedValueOnce(
       new HTTPException(404, { message: "Task not found" }),
     );
     const app = createApp();

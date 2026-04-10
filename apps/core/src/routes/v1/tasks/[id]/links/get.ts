@@ -34,16 +34,16 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const { authContext, workspaceContext } = c.var;
     const { id } = c.req.valid("param");
 
     const row = await prisma.$transaction(async (tx) => {
-      await requireTaskReadAccess(authContext, id, tx);
+      await requireTaskReadAccess(authContext, workspaceContext, id, tx);
       return tx.task.findUnique({
         where: { id, archivedAt: null },
         select: {
           id: true,
-          ...buildVisibleTaskLinksInclude(authContext),
+          ...buildVisibleTaskLinksInclude(authContext, workspaceContext),
         },
       });
     });

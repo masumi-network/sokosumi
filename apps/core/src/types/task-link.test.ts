@@ -1,26 +1,13 @@
 import { TaskStatus } from "@sokosumi/database";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type {
   CoworkerAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace-context";
 
 import { buildVisibleTaskLinksInclude } from "./task-link";
-
-const { findWorkspaceForContextMock } = vi.hoisted(() => ({
-  findWorkspaceForContextMock: vi.fn(),
-}));
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    findWorkspaceForContext: findWorkspaceForContextMock,
-  };
-});
 
 const userAuthContext: UserAuthenticationContext = {
   actor: "user",
@@ -28,19 +15,26 @@ const userAuthContext: UserAuthenticationContext = {
   organizationId: "org_123",
 };
 
+const organizationWorkspaceContext: WorkspaceContext = {
+  workspaceId: "11111111-1111-7111-8111-111111111111",
+  userId: null,
+  organizationId: "org_123",
+};
+
+const personalWorkspaceContext: WorkspaceContext = {
+  workspaceId: "22222222-2222-7222-8222-222222222222",
+  userId: "user_123",
+  organizationId: null,
+};
+
 describe("buildVisibleTaskLinksInclude", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("constrains org peer tasks to the active workspace", async () => {
-    findWorkspaceForContextMock.mockResolvedValueOnce({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
-
-    await expect(
-      buildVisibleTaskLinksInclude(userAuthContext),
-    ).resolves.toEqual({
+  it("constrains org peer tasks to the active workspace", () => {
+    expect(
+      buildVisibleTaskLinksInclude(
+        userAuthContext,
+        organizationWorkspaceContext,
+      ),
+    ).toEqual({
       linksFrom: {
         where: {
           toTask: {
@@ -104,15 +98,14 @@ describe("buildVisibleTaskLinksInclude", () => {
     });
   });
 
-  it("keeps personal workspace peer tasks owner-scoped", async () => {
-    findWorkspaceForContextMock.mockResolvedValueOnce({
-      id: "22222222-2222-7222-8222-222222222222",
-    });
-
-    const include = await buildVisibleTaskLinksInclude({
-      ...userAuthContext,
-      organizationId: null,
-    });
+  it("keeps personal workspace peer tasks owner-scoped", () => {
+    const include = buildVisibleTaskLinksInclude(
+      {
+        ...userAuthContext,
+        organizationId: null,
+      },
+      personalWorkspaceContext,
+    );
 
     expect(include.linksFrom.where).toEqual({
       toTask: {
@@ -132,15 +125,14 @@ describe("buildVisibleTaskLinksInclude", () => {
     });
   });
 
-  it("returns no visible peer tasks when no workspace exists", async () => {
-    findWorkspaceForContextMock.mockResolvedValueOnce(null);
-
-    const include = await buildVisibleTaskLinksInclude(userAuthContext);
+  it("returns no visible peer tasks when no workspace exists", () => {
+    const include = buildVisibleTaskLinksInclude(userAuthContext, null);
 
     expect(include.linksFrom.where).toEqual({
       toTask: {
         is: {
           workspaceId: "__missing_workspace__",
+          userId: "user_123",
         },
       },
     });
@@ -148,18 +140,19 @@ describe("buildVisibleTaskLinksInclude", () => {
       fromTask: {
         is: {
           workspaceId: "__missing_workspace__",
+          userId: "user_123",
         },
       },
     });
   });
 
-  it("keeps coworker peer task visibility unchanged", async () => {
+  it("keeps coworker peer task visibility unchanged", () => {
     const authContext: CoworkerAuthenticationContext = {
       actor: "coworker",
       coworkerId: "cow_123",
     };
 
-    const include = await buildVisibleTaskLinksInclude(authContext);
+    const include = buildVisibleTaskLinksInclude(authContext, null);
 
     expect(include.linksFrom.where).toEqual({
       toTask: {
@@ -187,6 +180,5 @@ describe("buildVisibleTaskLinksInclude", () => {
         },
       },
     });
-    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
   });
 });

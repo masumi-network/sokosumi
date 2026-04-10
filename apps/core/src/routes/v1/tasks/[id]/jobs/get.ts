@@ -33,11 +33,11 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const { authContext, workspaceContext } = c.var;
     const { id } = c.req.valid("param");
 
     const jobs = await prisma.$transaction(async (tx) => {
-      await requireTaskReadAccess(authContext, id, tx);
+      await requireTaskReadAccess(authContext, workspaceContext, id, tx);
 
       const jobsList = await tx.job.findMany({
         where: { taskId: id },

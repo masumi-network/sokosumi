@@ -5,6 +5,7 @@ import type {
   CoworkerAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace-context";
 
 import {
   requireCoworkerCapability,
@@ -38,6 +39,18 @@ const userAuthContext: UserAuthenticationContext = {
   organizationId: "org_123",
 };
 
+const organizationWorkspaceContext: WorkspaceContext = {
+  workspaceId: "11111111-1111-7111-8111-111111111111",
+  userId: null,
+  organizationId: "org_123",
+};
+
+const personalWorkspaceContext: WorkspaceContext = {
+  workspaceId: "22222222-2222-7222-8222-222222222222",
+  userId: "user_123",
+  organizationId: null,
+};
+
 describe("requireUserTaskAccess", () => {
   it("uses owner-only task access", async () => {
     const tx = createTransactionClient();
@@ -58,21 +71,62 @@ describe("requireUserTaskAccess", () => {
 });
 
 describe("requireTaskReadAccess", () => {
-  it("uses owner-only user reads", async () => {
+  it("uses workspace-scoped reads in organization workspaces", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
     } as never);
 
-    await requireTaskReadAccess(userAuthContext, "tsk_123", tx);
+    await requireTaskReadAccess(
+      userAuthContext,
+      organizationWorkspaceContext,
+      "tsk_123",
+      tx,
+    );
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
         archivedAt: null,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+    });
+  });
+
+  it("keeps personal workspace reads owner-scoped", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+    } as never);
+
+    await requireTaskReadAccess(
+      {
+        ...userAuthContext,
+        organizationId: null,
+      },
+      personalWorkspaceContext,
+      "tsk_123",
+      tx,
+    );
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId: "22222222-2222-7222-8222-222222222222",
         userId: "user_123",
       },
     });
+  });
+
+  it("returns not found when no workspace context is available", async () => {
+    const tx = createTransactionClient();
+
+    await expect(
+      requireTaskReadAccess(userAuthContext, null, "tsk_123", tx),
+    ).rejects.toThrow("Task not found");
+
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
   });
 
   it("keeps coworker task reads unchanged", async () => {
@@ -93,7 +147,7 @@ describe("requireTaskReadAccess", () => {
       status: TaskStatus.READY,
     } as never);
 
-    await requireTaskReadAccess(coworkerContext, "tsk_123", tx);
+    await requireTaskReadAccess(coworkerContext, null, "tsk_123", tx);
 
     expect(tx.task.findUnique).toHaveBeenCalledWith({
       where: {

@@ -68,6 +68,11 @@ function createUserApp() {
       userId: "user_123",
       organizationId: "org_123",
     });
+    c.set("workspaceContext", {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: null,
+      organizationId: "org_123",
+    });
     return await next();
   });
 
@@ -85,6 +90,7 @@ function createCoworkerApp() {
       actor: "coworker",
       coworkerId: "cow_123",
     } satisfies AuthenticationContext);
+    c.set("workspaceContext", null);
     return await next();
   });
 
@@ -267,6 +273,20 @@ describe("GET /tasks/{id}/links", () => {
     const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(200);
+    expect(requireTaskReadAccessMock).toHaveBeenCalledWith(
+      {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+      {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      },
+      "tsk_a",
+      expect.any(Object),
+    );
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       select: {
@@ -275,7 +295,7 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             toTask: {
               is: {
-                userId: "user_123",
+                workspaceId: "11111111-1111-7111-8111-111111111111",
               },
             },
           },
@@ -303,7 +323,7 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             fromTask: {
               is: {
-                userId: "user_123",
+                workspaceId: "11111111-1111-7111-8111-111111111111",
               },
             },
           },

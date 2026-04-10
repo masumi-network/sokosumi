@@ -4,6 +4,7 @@ import {
   type AuthenticationContext,
   isCoworkerAuthContext,
 } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace-context";
 
 export const taskLinkPeerTaskSelect = {
   id: true,
@@ -38,6 +39,7 @@ export const taskLinksInclude = {
 
 function buildVisiblePeerTaskWhere(
   authContext: AuthenticationContext,
+  workspaceContext: WorkspaceContext | null,
 ): Prisma.TaskWhereInput {
   if (isCoworkerAuthContext(authContext)) {
     return {
@@ -51,15 +53,26 @@ function buildVisiblePeerTaskWhere(
     };
   }
 
+  const workspaceId = workspaceContext?.workspaceId ?? "__missing_workspace__";
+  const workspaceOrganizationId = workspaceContext?.organizationId ?? null;
+  const isOrganizationWorkspace =
+    workspaceOrganizationId !== null &&
+    workspaceOrganizationId === authContext.organizationId;
+
   return {
-    userId: authContext.userId,
+    workspaceId,
+    ...(isOrganizationWorkspace ? {} : { userId: authContext.userId }),
   };
 }
 
 export function buildVisibleTaskLinksInclude(
   authContext: AuthenticationContext,
+  workspaceContext: WorkspaceContext | null,
 ) {
-  const peerTaskWhere = buildVisiblePeerTaskWhere(authContext);
+  const peerTaskWhere = buildVisiblePeerTaskWhere(
+    authContext,
+    workspaceContext,
+  );
 
   return {
     linksFrom: {
