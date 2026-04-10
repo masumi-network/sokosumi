@@ -17,7 +17,7 @@ interface PaymentClientRequestOptions {
   signal?: AbortSignal;
 }
 
-export interface MasumiTaskPurchaseInput {
+interface MasumiTaskPurchaseInput {
   blockchainIdentifier: string;
   agentIdentifier: string;
   sellerVkey: string;
