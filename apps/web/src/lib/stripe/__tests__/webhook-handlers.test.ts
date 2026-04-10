@@ -5,7 +5,6 @@ import {
   escapeStringForLike,
   getCreditExpiryDate,
 } from "@sokosumi/database/helpers";
-import { FREE_CREDITS_EXPIRY_DAYS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -961,7 +960,7 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
-  it("classifies free top-up invoices as STRIPE_FREE with 30-day expiry", async () => {
+  it("classifies free top-up invoices as STRIPE_FREE with no expiry when ttl_days is omitted", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
     await handleInvoicePaidEvent(
@@ -989,12 +988,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_FREE",
     );
-    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
-      getCreditExpiryDate(
-        new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000),
-        FREE_CREDITS_EXPIRY_DAYS,
-      ),
-    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
   });
 
   it("uses ttl_days invoice metadata for free top-up expiry", async () => {
@@ -1065,7 +1059,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
   });
 
-  it("falls back to default free expiry for invalid ttl_days metadata", async () => {
+  it("sets no expiry for free top-up when ttl_days metadata is invalid", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
     await handleInvoicePaidEvent(
@@ -1094,12 +1088,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_FREE",
     );
-    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
-      getCreditExpiryDate(
-        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
-        FREE_CREDITS_EXPIRY_DAYS,
-      ),
-    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
   });
 
   it("splits top-up and subscription credits into separate buckets when both are present", async () => {

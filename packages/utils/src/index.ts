@@ -13,11 +13,7 @@ export {
   resolveBetterAuthProductionUrl,
   resolveBetterAuthPublicBaseUrl,
 } from "./better-auth-public-url.js";
-export {
-  convertCentsToCredits,
-  convertCreditsToCents,
-  FREE_CREDITS_EXPIRY_DAYS,
-} from "./credit.js";
+export { convertCentsToCredits, convertCreditsToCents } from "./credit.js";
 export {
   FILE_EXTENSION_ALLOWLIST,
   getExtensionFromUrl,

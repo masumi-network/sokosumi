@@ -1774,7 +1774,7 @@
       "topUpDescription": "金額を選択するか、任意の値を入力してください",
       "paidSubscriptionRequiredDescription": "追加のクレジットを購入するには有料サブスクリプションが必要です。",
       "paidSubscriptionRequiredHint": "クレジットの追加購入を利用するには、サブスクリプションタブで有料プランを選択してください。",
-      "couponExpiryNotice": "クレジットは{days, plural, one {# 日} other {# 日}}後に失効します。",
+      "couponExpiryPolicyNotice": "クーポンに正の ttl_days（失効までの日数）がない限り、クレジットは失効しません。",
       "costPerCredit": "1クレジットあたり{cost}",
       "creditAmount": "{count, plural, one {# クレジット} other {# クレジット}}",
       "creditsLabel": "クレジット数",

@@ -1773,7 +1773,7 @@
       "topUpDescription": "选择金额或输入自定义数值",
       "paidSubscriptionRequiredDescription": "购买额外积分需要付费订阅。",
       "paidSubscriptionRequiredHint": "请在“订阅”标签页选择付费套餐以解锁积分充值。",
-      "couponExpiryNotice": "积分将在 {days, plural, one {# 天} other {# 天}}后过期。",
+      "couponExpiryPolicyNotice": "除非优惠券设置了正数的 ttl_days（距离过期的天数），否则积分不会过期。",
       "costPerCredit": "{cost} / 积分",
       "creditAmount": "{count, plural, one {# 积分} other {# 积分}}",
       "creditsLabel": "积分数量",

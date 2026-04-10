@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  convertCentsToCredits,
-  convertCreditsToCents,
-  FREE_CREDITS_EXPIRY_DAYS,
-} from "../credit";
+import { convertCentsToCredits, convertCreditsToCents } from "../credit";
 
 describe("convertCentsToCredits", () => {
   it("converts cents to credits", () => {
@@ -25,11 +21,5 @@ describe("convertCreditsToCents", () => {
 
   it("rounds half up when more than 10 decimal places are provided", () => {
     expect(convertCreditsToCents(0.12345678905)).toBe(1_234_567_891n);
-  });
-});
-
-describe("FREE_CREDITS_EXPIRY_DAYS", () => {
-  it("keeps the shared expiry window", () => {
-    expect(FREE_CREDITS_EXPIRY_DAYS).toBe(30);
   });
 });

@@ -1773,7 +1773,7 @@
       "topUpDescription": "Choose an amount or enter a custom value",
       "paidSubscriptionRequiredDescription": "A paid subscription is required to buy additional credits.",
       "paidSubscriptionRequiredHint": "Choose a paid plan in the Subscription tab to unlock credit top-ups.",
-      "couponExpiryNotice": "Credits expire after {days, plural, one {# day} other {# days}}.",
+      "couponExpiryPolicyNotice": "Credits do not expire unless the coupon sets a positive ttl_days (days until expiry).",
       "costPerCredit": "{cost} per credit",
       "creditAmount": "{count, plural, one {# credit} other {# credits}}",
       "creditsLabel": "Number of credits",
