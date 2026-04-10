@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireOwnedTaskAccess } from "@/helpers/access-control";
+import { requireUserTaskAccess } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -40,8 +40,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      const viewerContext = c.var.workspaceContext ?? authContext;
-      const currentTask = await requireOwnedTaskAccess(viewerContext, id, tx);
+      const currentTask = await requireUserTaskAccess(authContext, id, tx);
 
       if (!isTaskArchivableStatus(currentTask.status)) {
         throw forbidden(
@@ -59,7 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           archivedAt: new Date(),
         },
-        include: await buildTaskIncludeForViewer(viewerContext, tx),
+        include: buildTaskIncludeForViewer(authContext),
       });
     });
 

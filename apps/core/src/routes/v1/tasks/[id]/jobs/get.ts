@@ -1,15 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobSummaryInclude } from "@sokosumi/database/types/job";
 
-import {
-  requireCoworkerTaskAccess,
-  requireWorkspaceTaskAccess,
-} from "@/helpers/access-control";
+import { requireTaskReadAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { isCoworkerAuthContext } from "@/middleware/auth";
 import { jobSummariesSchema } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
 
@@ -41,15 +37,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const jobs = await prisma.$transaction(async (tx) => {
-      if (isCoworkerAuthContext(authContext)) {
-        await requireCoworkerTaskAccess(authContext, id, tx);
-      } else {
-        await requireWorkspaceTaskAccess(
-          c.var.workspaceContext ?? authContext,
-          id,
-          tx,
-        );
-      }
+      await requireTaskReadAccess(authContext, id, tx);
 
       const jobsList = await tx.job.findMany({
         where: { taskId: id },

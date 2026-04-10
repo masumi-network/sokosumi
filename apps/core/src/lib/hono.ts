@@ -29,7 +29,7 @@ export interface OpenAPIHonoWithAuthOptions {
   includeOrganizationHeader?: boolean;
   /**
    * Whether to include the workspace context middleware.
-   * Defaults to false. Set to true for routers that need existing workspace-scoped reads.
+   * Defaults to false. Set to true for routers that need workspace-scoped reads.
    */
   includeWorkspaceContext?: boolean;
 }

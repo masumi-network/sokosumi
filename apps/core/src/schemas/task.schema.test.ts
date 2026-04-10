@@ -15,14 +15,14 @@ describe("taskEventWithTaskIdSchema", () => {
       origin: TaskEventOrigin.SOKOSUMI,
       status: TaskStatus.RUNNING,
       userId: "user_123",
+      coworkerId: "cow_123",
+      transactionId: "txn_123",
+      credits: 2.5,
       user: {
         id: "user_123",
         name: "Ada Lovelace",
         image: "https://example.com/avatar.png",
       },
-      coworkerId: "cow_123",
-      transactionId: "txn_123",
-      credits: 2.5,
     });
 
     expect(result.taskId).toBe("tsk_123");
@@ -30,6 +30,7 @@ describe("taskEventWithTaskIdSchema", () => {
     expect(typeof result.updatedAt).toBe("string");
     expect(result.transactionId).toBe("txn_123");
     expect(result.credits).toBe(2.5);
+    expect(result.user?.name).toBe("Ada Lovelace");
   });
 
   it("fails when taskId is missing", () => {
@@ -41,8 +42,8 @@ describe("taskEventWithTaskIdSchema", () => {
         origin: TaskEventOrigin.SOKOSUMI,
         status: TaskStatus.RUNNING,
         userId: "user_123",
-        user: null,
         coworkerId: "cow_123",
+        user: null,
       });
     }).toThrow();
   });

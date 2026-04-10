@@ -1,12 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
+import { findWorkspaceForContext } from "@sokosumi/database/helpers";
+import { memberRepository } from "@sokosumi/database/repositories";
 
-import {
-  assertValidMemberIdFilter,
-  buildWorkspaceWhere,
-  requireCoworkerCapability,
-  resolveWorkspaceContext,
-} from "@/helpers/access-control";
+import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -140,23 +137,57 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
-      const workspaceContext =
+      const resolvedWorkspace =
         c.var.workspaceContext ??
-        (await resolveWorkspaceContext(authContext, prisma));
-      await assertValidMemberIdFilter(
-        workspaceContext ?? authContext,
-        memberId,
-        prisma,
-      );
+        (await findWorkspaceForContext(
+          authContext.userId,
+          authContext.organizationId,
+          prisma,
+        ));
+      const workspaceId = resolvedWorkspace
+        ? "workspaceId" in resolvedWorkspace
+          ? resolvedWorkspace.workspaceId
+          : resolvedWorkspace.id
+        : null;
+      const workspaceOrganizationId = resolvedWorkspace?.organizationId ?? null;
+      const isOrganizationWorkspace =
+        workspaceOrganizationId !== null &&
+        workspaceOrganizationId === authContext.organizationId;
 
-      if (!workspaceContext) {
+      if (!workspaceId) {
         const paginationMeta = createPaginationMeta([], 0, take, false, cursor);
         return ok(c, taskListSchema.parse([]), paginationMeta);
       }
 
+      if (memberId) {
+        if (!isOrganizationWorkspace) {
+          throw badRequest(
+            "memberId is only supported in organization workspaces.",
+          );
+        }
+
+        const member =
+          await memberRepository.getMemberByUserIdAndOrganizationId(
+            memberId,
+            workspaceOrganizationId,
+            prisma,
+          );
+
+        if (!member) {
+          throw badRequest(
+            "memberId must belong to the active organization workspace.",
+          );
+        }
+      }
+
       where = {
         archivedAt: null,
-        ...buildWorkspaceWhere(workspaceContext, memberId),
+        workspaceId,
+        ...(isOrganizationWorkspace
+          ? memberId
+            ? { userId: memberId }
+            : {}
+          : { userId: authContext.userId }),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
         ...(agentId ? { jobs: { some: { agentId } } } : {}),

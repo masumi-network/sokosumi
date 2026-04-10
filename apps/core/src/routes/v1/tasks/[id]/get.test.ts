@@ -3,48 +3,20 @@ import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type {
-  AuthenticationContext,
-  AuthVariables,
-  WorkspaceContext,
-} from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountGetTaskById from "./get";
 
-const {
-  prismaTransactionMock,
-  requireCoworkerTaskAccessMock,
-  requireWorkspaceTaskAccessMock,
-  findWorkspaceForContextMock,
-  taskFindUniqueMock,
-} = vi.hoisted(() => ({
-  prismaTransactionMock: vi.fn(),
-  requireCoworkerTaskAccessMock: vi.fn(),
-  requireWorkspaceTaskAccessMock: vi.fn(),
-  findWorkspaceForContextMock: vi.fn(),
-  taskFindUniqueMock: vi.fn(),
+const { prismaTransactionMock, requireTaskReadAccessMock, taskFindUniqueMock } =
+  vi.hoisted(() => ({
+    prismaTransactionMock: vi.fn(),
+    requireTaskReadAccessMock: vi.fn(),
+    taskFindUniqueMock: vi.fn(),
+  }));
+
+vi.mock("@/helpers/access-control", () => ({
+  requireTaskReadAccess: requireTaskReadAccessMock,
 }));
-
-vi.mock("@/helpers/access-control", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/helpers/access-control")>();
-
-  return {
-    ...actual,
-    requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
-    requireWorkspaceTaskAccess: requireWorkspaceTaskAccessMock,
-  };
-});
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    findWorkspaceForContext: findWorkspaceForContextMock,
-  };
-});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -52,10 +24,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp(
-  actor: "user" | "coworker" = "user",
-  options?: { workspaceContext: WorkspaceContext | null },
-) {
+function createApp(actor: "user" | "coworker" = "user") {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -75,9 +44,6 @@ function createApp(
             organizationId: "org_123",
           },
     );
-    if (options && "workspaceContext" in options) {
-      c.set("workspaceContext", options.workspaceContext);
-    }
     return await next();
   });
 
@@ -88,7 +54,6 @@ function createTask(
   overrides?: Partial<{
     linksFrom: unknown[];
     linksTo: unknown[];
-    events: unknown[];
   }>,
 ) {
   return {
@@ -106,7 +71,7 @@ function createTask(
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
-    events: overrides?.events ?? [],
+    events: [],
     jobs: [],
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
@@ -126,11 +91,7 @@ function createTask(
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireWorkspaceTaskAccessMock.mockResolvedValue(undefined);
-    requireCoworkerTaskAccessMock.mockResolvedValue(undefined);
-    findWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
+    requireTaskReadAccessMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb({
@@ -150,48 +111,15 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(requireWorkspaceTaskAccessMock).toHaveBeenCalledWith(
-      {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-      },
-      "tsk_a",
-      expect.any(Object),
-    );
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        },
-        events: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-              },
-            },
-            transaction: {
-              select: {
-                amount: true,
-              },
-            },
-          },
-          orderBy: { createdAt: "asc" },
-        },
         share: true,
         linksFrom: {
           where: {
             toTask: {
               is: {
-                workspaceId: "11111111-1111-7111-8111-111111111111",
+                userId: "user_123",
               },
             },
           },
@@ -219,7 +147,7 @@ describe("GET /tasks/{id}", () => {
           where: {
             fromTask: {
               is: {
-                workspaceId: "11111111-1111-7111-8111-111111111111",
+                userId: "user_123",
               },
             },
           },
@@ -247,26 +175,6 @@ describe("GET /tasks/{id}", () => {
     });
   });
 
-  it("reuses middleware workspace context for link visibility without extra workspace lookup", async () => {
-    const workspaceContext: WorkspaceContext = {
-      workspaceId: "11111111-1111-7111-8111-111111111111",
-      userId: "user_123",
-      organizationId: "org_123",
-    };
-    const app = createApp("user", { workspaceContext });
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
-
-    const response = await app.request("http://localhost/tsk_a");
-
-    expect(response.status).toBe(200);
-    expect(requireWorkspaceTaskAccessMock).toHaveBeenCalledWith(
-      workspaceContext,
-      "tsk_a",
-      expect.any(Object),
-    );
-    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
-  });
-
   it("filters included links to peer tasks visible to the coworker", async () => {
     const app = createApp("coworker");
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
@@ -274,14 +182,6 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(requireCoworkerTaskAccessMock).toHaveBeenCalledWith(
-      {
-        actor: "coworker",
-        coworkerId: "cow_123",
-      },
-      "tsk_a",
-      expect.any(Object),
-    );
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       include: expect.objectContaining({
@@ -401,68 +301,6 @@ describe("GET /tasks/{id}", () => {
         status: TaskStatus.RUNNING,
         archivedAt: null,
       },
-    });
-  });
-
-  it("returns creator and event user summaries", async () => {
-    taskFindUniqueMock.mockResolvedValue(
-      createTask({
-        events: [
-          {
-            id: "evt_1",
-            createdAt: new Date("2026-03-25T11:00:00.000Z"),
-            updatedAt: new Date("2026-03-25T11:00:00.000Z"),
-            taskId: "tsk_a",
-            status: null,
-            comment: "Created by teammate",
-            authenticationUrl: null,
-            origin: "SOKOSUMI",
-            userId: "user_456",
-            user: {
-              id: "user_456",
-              name: "Grace Hopper",
-              image: "https://example.com/grace.png",
-            },
-            coworkerId: null,
-            transactionId: null,
-            cents: null,
-            transaction: null,
-          },
-        ],
-      }),
-    );
-    const app = createApp();
-    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
-
-    const response = await app.request("http://localhost/tsk_a");
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      data: {
-        user: {
-          id: string;
-          name: string;
-          image: string | null;
-        };
-        events: Array<{
-          user: {
-            id: string;
-            name: string;
-            image: string | null;
-          } | null;
-        }>;
-      };
-    };
-
-    expect(body.data.user).toEqual({
-      id: "user_123",
-      name: "Ada Lovelace",
-      image: "https://example.com/ada.png",
-    });
-    expect(body.data.events[0]?.user).toEqual({
-      id: "user_456",
-      name: "Grace Hopper",
-      image: "https://example.com/grace.png",
     });
   });
 });

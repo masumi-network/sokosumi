@@ -11,7 +11,6 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import { mapTaskEvent } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
@@ -86,24 +85,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         skip,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-            },
-          },
-          transaction: {
-            select: { amount: true },
-          },
-        },
       }),
       prisma.taskEvent.count({ where }),
     ]);
 
     const hasMore = events.length === takePlusOne;
-    const pagedEvents = events.slice(0, take).map(mapTaskEvent);
+    const pagedEvents = events.slice(0, take);
     const paginationMeta = createPaginationMeta(
       pagedEvents,
       count,

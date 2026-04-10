@@ -4,13 +4,8 @@ import { Prisma } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import {
-  requireCoworkerTaskAccess,
-  requireOwnedTaskAccess,
-  requireWorkspaceTaskAccess,
-  resolveWorkspaceContext,
-} from "@/helpers/access-control";
-import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
+import { requireTaskAccess } from "@/helpers/access-control";
+import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
@@ -37,16 +32,6 @@ const paramsSchema = z.object({
     example: "tsk_123",
   }),
 });
-
-const taskEventUserInclude = {
-  user: {
-    select: {
-      id: true,
-      name: true,
-      image: true,
-    },
-  },
-} satisfies Prisma.TaskEventInclude;
 
 const route = createRoute({
   method: "post",
@@ -96,26 +81,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { event, userId } = await prisma.$transaction(
       async (tx) => {
+        const task = await requireTaskAccess(authContext, taskId, tx);
         const { status, comment, credits, authenticationUrl, origin } = body;
-        const isCollaboratorCommentEvent =
-          status === undefined &&
-          comment !== undefined &&
-          authenticationUrl === undefined &&
-          credits == null;
-        let task;
-        if (isCoworkerAuthContext(authContext)) {
-          task = await requireCoworkerTaskAccess(authContext, taskId, tx);
-        } else {
-          const workspaceContext =
-            c.var.workspaceContext ??
-            (await resolveWorkspaceContext(authContext, tx));
-          if (!workspaceContext) {
-            throw notFound("Task not found");
-          }
-          task = isCollaboratorCommentEvent
-            ? await requireWorkspaceTaskAccess(workspaceContext, taskId, tx)
-            : await requireOwnedTaskAccess(workspaceContext, taskId, tx);
-        }
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
@@ -133,16 +100,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               credits != null &&
               credits > 0
             ) {
-              cents = convertCreditsToCents(credits);
-              if (cents === 0n) {
+              const spendCents = convertCreditsToCents(credits);
+              if (spendCents === 0n) {
                 throw unprocessableEntity(
                   `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
                 );
               }
+              cents = spendCents;
               transactionId = await createTaskEventTransaction({
                 userId: task.userId,
                 organizationId: task.organizationId,
-                cents,
+                cents: spendCents,
                 tx,
               });
             }
@@ -159,7 +127,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               transactionId,
               ...getActorData(authContext),
             },
-            include: taskEventUserInclude,
           });
 
           const updateResult = await tx.task.updateMany({
@@ -189,7 +156,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             origin,
             ...getActorData(authContext),
           },
-          include: taskEventUserInclude,
         });
 
         return { event: mapTaskEvent(event), userId: task.userId };

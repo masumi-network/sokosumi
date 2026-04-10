@@ -1,11 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 
-import {
-  buildWorkspaceWhere,
-  requireWorkspaceTaskAccess,
-  resolveWorkspaceContext,
-} from "@/helpers/access-control";
+import { requireUserTaskAccess } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
@@ -13,6 +9,7 @@ import {
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
+import { buildCurrentUserTaskContextWhere } from "@/helpers/task-context";
 import {
   assertTaskLinkAllowed,
   mapTaskLink,
@@ -70,13 +67,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       try {
         return await prisma.$transaction(
           async (tx) => {
-            const workspaceContext =
-              c.var.workspaceContext ??
-              (await resolveWorkspaceContext(authContext, tx));
-            if (!workspaceContext) {
-              throw notFound("Task not found");
-            }
-            await requireWorkspaceTaskAccess(workspaceContext, id, tx);
+            await requireUserTaskAccess(authContext, id, tx);
             assertTaskLinkAllowed(id, peerTaskId);
             const linkData = mapTaskLinkRelationToWriteData(
               id,
@@ -84,7 +75,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               relation,
             );
 
-            const peerTaskContextWhere = buildWorkspaceWhere(workspaceContext);
+            const peerTaskContextWhere = await buildCurrentUserTaskContextWhere(
+              authContext,
+              tx,
+            );
 
             const peerTask = await tx.task.findFirst({
               where: {

@@ -1,8 +1,6 @@
 import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import type { TaskLinkPeerTaskRow } from "@/types/task-link";
-
 import {
   assertTaskLinkAllowed,
   mapTaskLinkForTask,
@@ -13,23 +11,6 @@ import {
 
 function getTaskName(taskId: string) {
   return `Task ${taskId.split("_").pop()?.toUpperCase() ?? "X"}`;
-}
-
-function normalizePeerTask(task: {
-  id: string;
-  name: string;
-  status: TaskStatus;
-  archivedAt?: Date | null;
-}): {
-  id: string;
-  name: string;
-  status: TaskStatus;
-  archivedAt: Date | null;
-} {
-  return {
-    ...task,
-    archivedAt: task.archivedAt ?? null,
-  };
 }
 
 function createLink(
@@ -43,47 +24,16 @@ function createLink(
       id: string;
       name: string;
       status: TaskStatus;
-      archivedAt?: Date | null;
+      archivedAt: Date | null;
     } | null;
     toTask: {
       id: string;
       name: string;
       status: TaskStatus;
-      archivedAt?: Date | null;
+      archivedAt: Date | null;
     } | null;
   }>,
 ) {
-  const defaultFromTask = normalizePeerTask({
-    id: overrides?.fromTaskId ?? "tsk_a",
-    name: getTaskName(overrides?.fromTaskId ?? "tsk_a"),
-    status: TaskStatus.READY,
-    archivedAt: null,
-  });
-  const defaultToTask = normalizePeerTask({
-    id: overrides?.toTaskId ?? "tsk_b",
-    name: getTaskName(overrides?.toTaskId ?? "tsk_b"),
-    status: TaskStatus.READY,
-    archivedAt: null,
-  });
-
-  let fromTask: TaskLinkPeerTaskRow | null = defaultFromTask;
-  if (overrides && "fromTask" in overrides) {
-    if (overrides.fromTask === null) {
-      fromTask = null;
-    } else if (overrides.fromTask !== undefined) {
-      fromTask = normalizePeerTask(overrides.fromTask);
-    }
-  }
-
-  let toTask: TaskLinkPeerTaskRow | null = defaultToTask;
-  if (overrides && "toTask" in overrides) {
-    if (overrides.toTask === null) {
-      toTask = null;
-    } else if (overrides.toTask !== undefined) {
-      toTask = normalizePeerTask(overrides.toTask);
-    }
-  }
-
   return {
     id: overrides?.id ?? "tl_123",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
@@ -92,8 +42,24 @@ function createLink(
     toTaskId: overrides?.toTaskId ?? "tsk_b",
     type: overrides?.type ?? TaskLinkType.RELATES,
     note: overrides?.note ?? null,
-    fromTask,
-    toTask,
+    fromTask:
+      overrides && "fromTask" in overrides
+        ? overrides.fromTask
+        : {
+            id: overrides?.fromTaskId ?? "tsk_a",
+            name: getTaskName(overrides?.fromTaskId ?? "tsk_a"),
+            status: TaskStatus.READY,
+            archivedAt: null,
+          },
+    toTask:
+      overrides && "toTask" in overrides
+        ? overrides.toTask
+        : {
+            id: overrides?.toTaskId ?? "tsk_b",
+            name: getTaskName(overrides?.toTaskId ?? "tsk_b"),
+            status: TaskStatus.READY,
+            archivedAt: null,
+          },
   };
 }
 

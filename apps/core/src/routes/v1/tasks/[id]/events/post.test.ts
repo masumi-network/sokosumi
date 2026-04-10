@@ -14,22 +14,16 @@ const {
   createTaskEventTransactionMock,
   prismaTransactionMock,
   publishTaskEventDataMock,
-  requireCoworkerTaskAccessMock,
-  requireOwnedTaskAccessMock,
-  requireWorkspaceTaskAccessMock,
+  requireTaskAccessMock,
 } = vi.hoisted(() => ({
   createTaskEventTransactionMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
-  requireCoworkerTaskAccessMock: vi.fn(),
-  requireOwnedTaskAccessMock: vi.fn(),
-  requireWorkspaceTaskAccessMock: vi.fn(),
+  requireTaskAccessMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
-  requireOwnedTaskAccess: requireOwnedTaskAccessMock,
-  requireWorkspaceTaskAccess: requireWorkspaceTaskAccessMock,
+  requireTaskAccess: requireTaskAccessMock,
 }));
 
 vi.mock("@/helpers/task-credits", () => ({
@@ -49,15 +43,6 @@ vi.mock("@/lib/db/prisma", () => ({
 const TASK_ID = "tsk_123";
 const USER_ID = "user_123";
 const COWORKER_ID = "cow_123";
-const TASK_EVENT_USER_INCLUDE = {
-  user: {
-    select: {
-      id: true,
-      name: true,
-      image: true,
-    },
-  },
-};
 
 interface TaskEventRecord {
   id: string;
@@ -72,11 +57,6 @@ interface TaskEventRecord {
   coworkerId: string | null;
   transactionId: string | null;
   cents: bigint | null;
-  user?: {
-    id: string;
-    name: string;
-    image: string | null;
-  } | null;
 }
 
 interface TransactionMock {
@@ -134,16 +114,6 @@ function createApp(authContext: AuthenticationContext) {
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
-    c.set(
-      "workspaceContext",
-      authContext.actor === "user"
-        ? {
-            workspaceId: "11111111-1111-7111-8111-111111111111",
-            userId: authContext.userId,
-            organizationId: authContext.organizationId,
-          }
-        : null,
-    );
     return await next();
   });
 
@@ -180,7 +150,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireCoworkerTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "coworker",
@@ -209,7 +179,6 @@ describe("POST /{id}/events", () => {
           coworkerId: COWORKER_ID,
           userId: null,
         }),
-        include: TASK_EVENT_USER_INCLUDE,
       }),
     );
     expect(tx.task.updateMany).toHaveBeenCalledWith(
@@ -217,156 +186,6 @@ describe("POST /{id}/events", () => {
         data: { status: TaskStatus.OUT_OF_CREDITS },
       }),
     );
-  });
-
-  it("allows org members to comment on workspace tasks they do not own", async () => {
-    const taskEventUser = {
-      id: "user_789",
-      name: "Grace Hopper",
-      image: "https://example.com/grace.png",
-    };
-    const tx: TransactionMock = {
-      taskEvent: {
-        create: vi.fn().mockResolvedValue(
-          createTaskEvent({
-            status: null,
-            comment: "Handled by teammate",
-            userId: "user_789",
-            coworkerId: null,
-            user: taskEventUser,
-          }),
-        ),
-      },
-      task: {
-        updateMany: vi.fn(),
-      },
-    };
-
-    mockTransaction(tx);
-    requireWorkspaceTaskAccessMock.mockResolvedValue(
-      createTask({
-        userId: "user_456",
-        organizationId: "org_123",
-        coworkerId: null,
-      }),
-    );
-
-    const app = createApp({
-      actor: "user",
-      userId: "user_789",
-      organizationId: "org_123",
-    });
-
-    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        comment: "Handled by teammate",
-      }),
-    });
-
-    expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.data.user).toEqual(taskEventUser);
-    expect(tx.taskEvent.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          taskId: TASK_ID,
-          comment: "Handled by teammate",
-          userId: "user_789",
-          coworkerId: null,
-        }),
-        include: TASK_EVENT_USER_INCLUDE,
-      }),
-    );
-    expect(tx.task.updateMany).not.toHaveBeenCalled();
-    expect(requireWorkspaceTaskAccessMock).toHaveBeenCalledWith(
-      {
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-        userId: "user_789",
-        organizationId: "org_123",
-      },
-      TASK_ID,
-      expect.any(Object),
-    );
-    expect(requireOwnedTaskAccessMock).not.toHaveBeenCalled();
-  });
-
-  it("returns the author summary for user status changes", async () => {
-    const taskEventUser = {
-      id: USER_ID,
-      name: "Ada Lovelace",
-      image: "https://example.com/ada.png",
-    };
-    const tx: TransactionMock = {
-      taskEvent: {
-        create: vi.fn().mockResolvedValue(
-          createTaskEvent({
-            status: TaskStatus.CANCELED,
-            comment: "Stopping this run",
-            userId: USER_ID,
-            coworkerId: null,
-            user: taskEventUser,
-          }),
-        ),
-      },
-      task: {
-        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-      },
-    };
-
-    mockTransaction(tx);
-    requireOwnedTaskAccessMock.mockResolvedValue(
-      createTask({
-        status: TaskStatus.READY,
-        userId: USER_ID,
-        coworkerId: null,
-      }),
-    );
-
-    const app = createApp({
-      actor: "user",
-      userId: USER_ID,
-      organizationId: null,
-    });
-
-    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: TaskStatus.CANCELED,
-        comment: "Stopping this run",
-      }),
-    });
-
-    expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.data.user).toEqual(taskEventUser);
-    expect(tx.taskEvent.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          taskId: TASK_ID,
-          status: TaskStatus.CANCELED,
-          userId: USER_ID,
-          coworkerId: null,
-        }),
-        include: TASK_EVENT_USER_INCLUDE,
-      }),
-    );
-    expect(requireOwnedTaskAccessMock).toHaveBeenCalledWith(
-      {
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-        userId: USER_ID,
-        organizationId: null,
-      },
-      TASK_ID,
-      expect.any(Object),
-    );
-    expect(requireWorkspaceTaskAccessMock).not.toHaveBeenCalled();
   });
 
   it("rejects OUT_OF_CREDITS for users", async () => {
@@ -380,7 +199,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireOwnedTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "user",
@@ -403,53 +222,6 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
-  it("rejects org member status changes on tasks they do not own", async () => {
-    const tx: TransactionMock = {
-      taskEvent: {
-        create: vi.fn(),
-      },
-      task: {
-        updateMany: vi.fn(),
-      },
-    };
-
-    mockTransaction(tx);
-    requireOwnedTaskAccessMock.mockRejectedValue(
-      new HTTPException(404, { message: "Task not found" }),
-    );
-
-    const app = createApp({
-      actor: "user",
-      userId: "user_789",
-      organizationId: "org_123",
-    });
-
-    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: TaskStatus.CANCELED,
-        comment: "Trying to stop teammate task",
-      }),
-    });
-
-    expect(response.status).toBe(404);
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
-    expect(tx.task.updateMany).not.toHaveBeenCalled();
-    expect(requireOwnedTaskAccessMock).toHaveBeenCalledWith(
-      {
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-        userId: "user_789",
-        organizationId: "org_123",
-      },
-      TASK_ID,
-      expect.any(Object),
-    );
-    expect(requireWorkspaceTaskAccessMock).not.toHaveBeenCalled();
-  });
-
   it("fails COMPLETED for coworkers when credits are insufficient", async () => {
     const tx: TransactionMock = {
       taskEvent: {
@@ -461,7 +233,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireCoworkerTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskAccessMock.mockResolvedValue(createTask());
     createTaskEventTransactionMock.mockRejectedValue(
       new HTTPException(422, {
         message: "Insufficient balance",
@@ -505,7 +277,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireCoworkerTaskAccessMock.mockResolvedValue(
+    requireTaskAccessMock.mockResolvedValue(
       createTask({
         status: TaskStatus.READY,
       }),
@@ -540,7 +312,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireCoworkerTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "coworker",

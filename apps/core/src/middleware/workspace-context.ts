@@ -2,11 +2,13 @@ import { findWorkspaceForContext } from "@sokosumi/database/helpers";
 import { createMiddleware } from "hono/factory";
 
 import prisma from "@/lib/db/prisma";
-import {
-  type AuthEnv,
-  isUserAuthContext,
-  type WorkspaceContext,
-} from "@/middleware/auth";
+import { type AuthEnv, isUserAuthContext } from "@/middleware/auth";
+
+export interface WorkspaceContext {
+  workspaceId: string;
+  userId: string | null;
+  organizationId: string | null;
+}
 
 /**
  * Resolves the active workspace for authenticated user requests.
@@ -32,8 +34,8 @@ export const workspaceContextMiddleware = createMiddleware<AuthEnv>(
     const workspaceContext: WorkspaceContext | null = workspace
       ? {
           workspaceId: workspace.id,
-          userId: authContext.userId,
-          organizationId: authContext.organizationId,
+          userId: workspace.userId,
+          organizationId: workspace.organizationId,
         }
       : null;
 

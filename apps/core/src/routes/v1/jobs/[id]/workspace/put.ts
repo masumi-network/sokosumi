@@ -5,8 +5,7 @@ import {
   resolveWorkspaceForContext,
 } from "@sokosumi/database/helpers";
 
-import { requireOwnedJobAccess } from "@/helpers/access-control";
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
@@ -65,27 +64,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const job = await prisma.$transaction(
       async (tx) => {
-        const ownedJob = await requireOwnedJobAccess(authContext, id, tx);
+        const currentJob = await tx.job.findFirst({
+          where: {
+            id,
+            userId: authContext.userId,
+          },
+          select: {
+            taskId: true,
+            jobScheduleId: true,
+            workspace: {
+              select: {
+                organizationId: true,
+              },
+            },
+          },
+        });
 
-        if (ownedJob.taskId !== null) {
+        if (!currentJob) {
+          throw forbidden("You can only access your own jobs");
+        }
+
+        if (currentJob.taskId !== null) {
           throw conflict("Task-attached jobs inherit their task workspace");
         }
 
-        if (ownedJob.jobScheduleId !== null) {
+        if (currentJob.jobScheduleId !== null) {
           throw conflict("Scheduled jobs inherit their schedule workspace");
         }
 
-        const currentWorkspace = await tx.workspace.findUnique({
-          where: { id: ownedJob.workspaceId },
-          select: { organizationId: true },
-        });
-
-        if (!currentWorkspace) {
-          throw notFound("Job workspace not found");
-        }
-
         const workspaceChanged =
-          targetOrganizationId !== currentWorkspace.organizationId;
+          targetOrganizationId !== currentJob.workspace.organizationId;
 
         if (!workspaceChanged) {
           const existingJob = await tx.job.findUnique({

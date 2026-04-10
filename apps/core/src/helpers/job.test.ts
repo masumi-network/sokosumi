@@ -3,6 +3,7 @@ import { jobSummaryInclude } from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UserAuthenticationContext } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace-context";
 
 import { getUserJobs } from "./job";
 
@@ -45,6 +46,7 @@ describe("getUserJobs", () => {
     const tx = createTransactionClient();
     findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_123",
     });
 
     await getUserJobs(orgAuthContext, {
@@ -63,6 +65,7 @@ describe("getUserJobs", () => {
     const tx = createTransactionClient();
     findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_123",
     });
 
     await getUserJobs(orgAuthContext, {
@@ -88,6 +91,7 @@ describe("getUserJobs", () => {
     const tx = createTransactionClient();
     findWorkspaceForContextMock.mockResolvedValue({
       id: "22222222-2222-7222-8222-222222222222",
+      organizationId: null,
     });
     const personalContext: UserAuthenticationContext = {
       actor: "user",
@@ -132,10 +136,41 @@ describe("getUserJobs", () => {
     expect(tx.job.count).not.toHaveBeenCalled();
   });
 
+  it("uses memberId when reading jobs in an org workspace", async () => {
+    const tx = createTransactionClient();
+    const workspaceContext: WorkspaceContext = {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: null,
+      organizationId: "org_123",
+    };
+
+    await getUserJobs(orgAuthContext, {
+      workspaceContext,
+      memberId: "user_456",
+      take: 20,
+      tx,
+    });
+
+    expect(tx.job.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              userId: "user_456",
+              workspaceId: "11111111-1111-7111-8111-111111111111",
+            },
+          ],
+        },
+      }),
+    );
+    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
+  });
+
   it("accepts any agent job status query without throwing", async () => {
     const tx = createTransactionClient();
     findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_123",
     });
 
     await getUserJobs(orgAuthContext, {

@@ -15,13 +15,12 @@ describe("share routes OpenAPI contract", () => {
     expect(doc.paths?.["/{token}"]?.get?.description).toContain(
       "publicly shared resource",
     );
-    const publicSharedResourceSchema =
-      doc.components?.schemas?.PublicSharedResourceResponse;
-
     expect(
-      publicSharedResourceSchema && !("$ref" in publicSharedResourceSchema)
-        ? publicSharedResourceSchema.discriminator
-        : undefined,
+      (
+        doc.components?.schemas?.PublicSharedResourceResponse as {
+          discriminator?: unknown;
+        } | null
+      )?.discriminator,
     ).toEqual({
       propertyName: "kind",
       mapping: {

@@ -48,7 +48,20 @@ function createApp(organizationId: string | null = "org_123") {
       userId: "user_123",
       organizationId,
     });
-    c.set("workspaceContext", null);
+    c.set(
+      "workspaceContext",
+      organizationId
+        ? {
+            workspaceId: "workspace_123",
+            userId: null,
+            organizationId,
+          }
+        : {
+            workspaceId: "workspace_123",
+            userId: "user_123",
+            organizationId: null,
+          },
+    );
 
     return await next();
   });
@@ -90,6 +103,11 @@ describe("GET /jobs", () => {
         actor: "user",
       },
       expect.objectContaining({
+        workspaceContext: {
+          workspaceId: "workspace_123",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
         memberId: "user_456",
         agentId: "agent_456",
         status: AgentJobStatus.COMPLETED,

@@ -941,7 +941,7 @@ describe("mapTask", () => {
     expect(result.events[0]?.credits).toBe(5);
   });
 
-  it("maps creator and event user summaries", () => {
+  it("maps task.user and event.user actor summaries", () => {
     const task = {
       id: "tsk_123",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -954,10 +954,9 @@ describe("mapTask", () => {
       },
       organizationId: null,
       coworkerId: "cow_123",
-      name: "Task with people",
+      name: "Task with actors",
       description: null,
       status: TaskStatus.READY,
-      share: null,
       jobs: [],
       linksFrom: [],
       linksTo: [],
@@ -966,26 +965,27 @@ describe("mapTask", () => {
         organizationId: null,
         organization: null,
       },
+      share: null,
       events: [
         {
-          id: "evt_123",
+          id: "evt_actor",
           taskId: "tsk_123",
           createdAt: new Date("2026-01-01T00:00:00.000Z"),
           updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-          status: null,
-          comment: "Looks good",
+          status: TaskStatus.READY,
+          comment: null,
           authenticationUrl: null,
           origin: TaskEventOrigin.SOKOSUMI,
-          userId: "user_456",
-          user: {
-            id: "user_456",
-            name: "Grace Hopper",
-            image: null,
-          },
+          userId: "user_123",
           coworkerId: null,
           transactionId: null,
           cents: null,
           transaction: null,
+          user: {
+            id: "user_123",
+            name: "Ada Lovelace",
+            image: "https://example.com/ada.png",
+          },
         },
       ],
     } as unknown as TaskWithIncludes;
@@ -998,9 +998,9 @@ describe("mapTask", () => {
       image: "https://example.com/ada.png",
     });
     expect(result.events[0]?.user).toEqual({
-      id: "user_456",
-      name: "Grace Hopper",
-      image: null,
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: "https://example.com/ada.png",
     });
   });
 });

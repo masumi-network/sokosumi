@@ -1,7 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
+import { findWorkspaceForContext } from "@sokosumi/database/helpers";
+import { memberRepository } from "@sokosumi/database/repositories";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
-import { assertValidMemberIdFilter } from "@/helpers/access-control";
+
+import { badRequest } from "@/helpers/error";
 import { getUserJobs } from "@/helpers/job";
 import {
   jsonErrorResponse,
@@ -12,6 +15,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -124,11 +128,51 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { agentId, status, memberId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const resolvedWorkspace =
+      c.var.workspaceContext ??
+      (await findWorkspaceForContext(
+        authContext.userId,
+        authContext.organizationId,
+        prisma,
+      ));
+    const workspaceId = resolvedWorkspace
+      ? "workspaceId" in resolvedWorkspace
+        ? resolvedWorkspace.workspaceId
+        : resolvedWorkspace.id
+      : null;
+    const workspaceContext = resolvedWorkspace
+      ? {
+          workspaceId: workspaceId ?? "",
+          userId: resolvedWorkspace.userId ?? authContext.userId,
+          organizationId: resolvedWorkspace.organizationId,
+        }
+      : null;
+    const isOrganizationWorkspace =
+      workspaceContext?.organizationId !== null &&
+      workspaceContext?.organizationId === authContext.organizationId;
 
-    const workspaceContext = c.var.workspaceContext ?? authContext;
-    await assertValidMemberIdFilter(workspaceContext, memberId);
+    if (memberId) {
+      if (!isOrganizationWorkspace || !workspaceContext?.organizationId) {
+        throw badRequest(
+          "memberId is only supported in organization workspaces.",
+        );
+      }
 
-    const { jobs, count, hasMore } = await getUserJobs(workspaceContext, {
+      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+        memberId,
+        workspaceContext.organizationId,
+        prisma,
+      );
+
+      if (!member) {
+        throw badRequest(
+          "memberId must belong to the active organization workspace.",
+        );
+      }
+    }
+
+    const { jobs, count, hasMore } = await getUserJobs(authContext, {
+      workspaceContext: workspaceId ? workspaceContext : null,
       agentId,
       memberId,
       status,

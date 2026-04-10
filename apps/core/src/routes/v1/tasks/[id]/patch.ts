@@ -2,8 +2,8 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
 import {
-  requireOwnedTaskAccess,
   requireTaskAssignableCoworker,
+  requireUserTaskAccess,
 } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -74,8 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { name, description, coworkerId } = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
-      const viewerContext = c.var.workspaceContext ?? authContext;
-      const task = await requireOwnedTaskAccess(viewerContext, id, tx);
+      const task = await requireUserTaskAccess(authContext, id, tx);
 
       const canUpdateTask =
         task.status === TaskStatus.DRAFT || task.status === TaskStatus.READY;
@@ -100,7 +99,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           id,
           userId: authContext.userId,
-          workspaceId: task.workspaceId,
           status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
         },
         data: {
@@ -108,7 +106,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description,
           coworkerId,
         },
-        include: await buildTaskIncludeForViewer(viewerContext, tx),
+        include: buildTaskIncludeForViewer(authContext),
       });
     });
 

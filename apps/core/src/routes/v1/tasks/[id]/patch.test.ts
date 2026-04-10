@@ -4,7 +4,8 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables, WorkspaceContext } from "@/middleware/auth";
+import type { AuthVariables } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace-context";
 
 import mountPatchTask from "./patch";
 

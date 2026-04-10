@@ -87,6 +87,8 @@ describe("workspaceContextMiddleware", () => {
     memberFindFirstMock.mockResolvedValue(null);
     findWorkspaceForContextMock.mockResolvedValue({
       id: "workspace_123",
+      userId: "user_123",
+      organizationId: null,
     });
 
     prismaTransactionMock.mockImplementation(async (callback) => {
@@ -137,6 +139,11 @@ describe("workspaceContextMiddleware", () => {
     });
 
     memberFindFirstMock.mockResolvedValue({
+      organizationId: "org_123",
+    });
+    findWorkspaceForContextMock.mockResolvedValueOnce({
+      id: "workspace_123",
+      userId: "user_123",
       organizationId: "org_123",
     });
 

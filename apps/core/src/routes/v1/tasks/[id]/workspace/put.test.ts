@@ -13,7 +13,6 @@ const {
   jobUpdateManyMock,
   mapTaskMock,
   prismaTransactionMock,
-  findWorkspaceForContextMock,
   resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
@@ -25,7 +24,6 @@ const {
   jobUpdateManyMock: vi.fn(),
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  findWorkspaceForContextMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
@@ -42,16 +40,9 @@ vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
 }));
 
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    findWorkspaceForContext: findWorkspaceForContextMock,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
-  };
-});
+vi.mock("@sokosumi/database/helpers", () => ({
+  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -83,7 +74,7 @@ interface TransactionMock {
     findUniqueOrThrow: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
-  taskLink: {
+  taskLink?: {
     findFirst: ReturnType<typeof vi.fn>;
   };
 }
@@ -111,11 +102,6 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     createdAt: "2026-03-25T10:00:00.000Z",
     updatedAt: "2026-03-25T10:00:00.000Z",
     userId: "user_123",
-    user: {
-      id: "user_123",
-      name: "Ada Lovelace",
-      image: "https://example.com/ada.png",
-    },
     organizationId: "org_current",
     coworkerId: "cow_123",
     name: "Current task",
@@ -208,14 +194,6 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       role: "member",
     });
-    findWorkspaceForContextMock.mockImplementation(
-      async (_userId: string, organizationId: string | null | undefined) => {
-        if (organizationId === null || organizationId === undefined) {
-          return { id: "11111111-1111-7111-8111-111111111111" };
-        }
-        return { id: "11111111-1111-4111-8111-111111111111" };
-      },
-    );
     resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
     });
@@ -620,9 +598,6 @@ describe("PUT /tasks/{id}/workspace", () => {
         findFirst: taskFindFirstMock,
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
         update: taskUpdateMock,
-      },
-      taskLink: {
-        findFirst: taskLinkFindFirstMock,
       },
     });
     mapTaskMock.mockReturnValue(

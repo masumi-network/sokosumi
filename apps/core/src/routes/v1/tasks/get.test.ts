@@ -34,15 +34,9 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   };
 });
 
-vi.mock("@/helpers/access-control", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/helpers/access-control")>();
-
-  return {
-    ...actual,
-    requireCoworkerCapability: requireCoworkerCapabilityMock,
-  };
-});
+vi.mock("@/helpers/access-control", () => ({
+  requireCoworkerCapability: requireCoworkerCapabilityMock,
+}));
 
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
   const actual =
@@ -71,6 +65,21 @@ vi.mock("@/lib/db/prisma", () => ({
 function createApp(
   actor: "user" | "coworker" = "user",
   organizationId: string | null = "org_123",
+  workspaceContext: {
+    workspaceId: string;
+    userId: string | null;
+    organizationId: string | null;
+  } | null = organizationId
+    ? {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId,
+      }
+    : {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: "user_123",
+        organizationId: null,
+      },
 ) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
@@ -90,6 +99,7 @@ function createApp(
         organizationId,
       });
     }
+    c.set("workspaceContext", workspaceContext);
 
     return await next();
   });
@@ -134,6 +144,7 @@ describe("GET /tasks", () => {
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_123",
     });
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
@@ -212,16 +223,12 @@ describe("GET /tasks", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_123",
-      expect.any(Object),
-    );
+    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
   });
 
   it("returns an empty page when no workspace path resolves", async () => {
+    const app = createApp("user", "org_123", null);
     findWorkspaceForContextMock.mockResolvedValueOnce(null);
-    const app = createApp();
 
     const response = await app.request("http://localhost/");
 
@@ -237,6 +244,11 @@ describe("GET /tasks", () => {
         },
       },
     });
+    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_123",
+      expect.any(Object),
+    );
   });
 
   it("filters org workspace task lists by memberId", async () => {

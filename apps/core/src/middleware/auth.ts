@@ -7,6 +7,7 @@ import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
 import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
+import type { WorkspaceContext } from "@/middleware/workspace-context";
 
 export interface UserAuthenticationContext {
   actor: "user";
@@ -17,12 +18,6 @@ export interface UserAuthenticationContext {
 export interface CoworkerAuthenticationContext {
   actor: "coworker";
   coworkerId: string;
-}
-
-export interface WorkspaceContext {
-  workspaceId: string;
-  userId: string;
-  organizationId: string | null;
 }
 
 export type AuthenticationContext =

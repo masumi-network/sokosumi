@@ -5,27 +5,22 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetJobById from "./get";
 
-const {
-  authContextState,
-  prismaTransactionMock,
-  jobFindUniqueMock,
-  requireWorkspaceJobAccessMock,
-} = vi.hoisted(() => ({
-  authContextState: {
-    current: {
-      actor: "user",
-      userId: "user_123",
-      organizationId: "org_123",
-    } as {
-      actor: "user";
-      userId: string;
-      organizationId: string | null;
-    } | null,
-  },
-  prismaTransactionMock: vi.fn(),
-  jobFindUniqueMock: vi.fn(),
-  requireWorkspaceJobAccessMock: vi.fn(),
-}));
+const { authContextState, prismaTransactionMock, jobFindUniqueMock } =
+  vi.hoisted(() => ({
+    authContextState: {
+      current: {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      } as {
+        actor: "user";
+        userId: string;
+        organizationId: string | null;
+      } | null,
+    },
+    prismaTransactionMock: vi.fn(),
+    jobFindUniqueMock: vi.fn(),
+  }));
 
 vi.mock("@/middleware/auth", () => ({
   authMiddleware: async (
@@ -60,7 +55,7 @@ vi.mock("@/middleware/auth", () => ({
 }));
 
 vi.mock("@/helpers/access-control.js", () => ({
-  requireWorkspaceJobAccess: requireWorkspaceJobAccessMock,
+  requireJobReadAccess: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -196,7 +191,6 @@ describe("GET /jobs/{id}", () => {
         }),
     );
     jobFindUniqueMock.mockResolvedValue(createJob());
-    requireWorkspaceJobAccessMock.mockResolvedValue(undefined);
   });
 
   it("returns a rich job details payload", async () => {
@@ -206,15 +200,6 @@ describe("GET /jobs/{id}", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(requireWorkspaceJobAccessMock).toHaveBeenCalledWith(
-      {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-      },
-      "job_123",
-      expect.any(Object),
-    );
     expect(jobFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "job_123" },
       include: expect.any(Object),

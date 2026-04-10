@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus } from "@sokosumi/database";
 
-import { requireWorkspaceJobAccess } from "@/helpers/access-control.js";
+import { requireJobAccess } from "@/helpers/access-control.js";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -67,11 +67,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const jobEvent = await prisma.$transaction(async (tx) => {
-      await requireWorkspaceJobAccess(
-        c.var.workspaceContext ?? authContext,
-        id,
-        tx,
-      );
+      await requireJobAccess(authContext, id, tx);
       const jobEvent = await tx.jobEvent.findFirst({
         where: {
           jobId: id,

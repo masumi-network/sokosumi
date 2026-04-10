@@ -11,14 +11,14 @@ import mountPostTask from "./post";
 
 const {
   prismaTransactionMock,
-  requireOwnedTaskAccessMock,
   requireTaskAssignableCoworkerMock,
+  requireUserTaskAccessMock,
   mapTaskMock,
   validateTaskCoworkerAssignmentMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireOwnedTaskAccessMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
+  requireUserTaskAccessMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => task),
   validateTaskCoworkerAssignmentMock: vi.fn(),
 }));
@@ -29,16 +29,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/helpers/access-control", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/helpers/access-control")>();
-
-  return {
-    ...actual,
-    requireOwnedTaskAccess: requireOwnedTaskAccessMock,
-    requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  };
-});
+vi.mock("@/helpers/access-control", () => ({
+  requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  requireUserTaskAccess: requireUserTaskAccessMock,
+}));
 
 vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
@@ -115,9 +109,8 @@ describe("task coworker whitelist enforcement", () => {
       return await callback(tx);
     });
 
-    requireOwnedTaskAccessMock.mockResolvedValue({
+    requireUserTaskAccessMock.mockResolvedValue({
       id: "tsk_123",
-      workspaceId: "workspace_123",
       status: TaskStatus.READY,
       coworkerId: null,
     });

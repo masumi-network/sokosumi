@@ -14,9 +14,8 @@ const {
   mapJobWithStatusMock,
   prismaTransactionMock,
   resolveMemberOrganizationByIdMock,
-  workspaceForContextMock,
+  resolveWorkspaceForContextMock,
   serializeJobDetailsMock,
-  workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
   jobFindFirstMock: vi.fn(),
   jobFindUniqueMock: vi.fn(),
@@ -24,26 +23,18 @@ const {
   mapJobWithStatusMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  workspaceForContextMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   serializeJobDetailsMock: vi.fn(),
-  workspaceFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
 
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    mapJobWithStatus: mapJobWithStatusMock,
-    findWorkspaceForContext: workspaceForContextMock,
-    resolveWorkspaceForContext: workspaceForContextMock,
-  };
-});
+vi.mock("@sokosumi/database/helpers", () => ({
+  mapJobWithStatus: mapJobWithStatusMock,
+  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+}));
 
 vi.mock("@/types/job", () => ({
   serializeJobDetails: serializeJobDetailsMock,
@@ -55,13 +46,16 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-interface OwnedJobRecord {
+interface CurrentJobRecord {
   id: string;
   userId: string;
   organizationId: string | null;
   taskId: string | null;
   jobScheduleId: string | null;
   workspaceId: string;
+  workspace: {
+    organizationId: string | null;
+  };
 }
 
 interface TransactionMock {
@@ -70,24 +64,21 @@ interface TransactionMock {
     findUnique: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
-  workspace: {
-    findUnique: ReturnType<typeof vi.fn>;
-  };
 }
 
-/** Matches `workspaceForContextMock` default active workspace id */
-const ACTIVE_WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
-
-function createOwnedJobRecord(
-  overrides: Partial<OwnedJobRecord> = {},
-): OwnedJobRecord {
+function createCurrentJobRecord(
+  overrides: Partial<CurrentJobRecord> = {},
+): CurrentJobRecord {
   return {
     id: "job_123",
     userId: "user_123",
     organizationId: "org_billing",
     taskId: null,
     jobScheduleId: null,
-    workspaceId: ACTIVE_WORKSPACE_ID,
+    workspaceId: "11111111-1111-7111-8111-111111111111",
+    workspace: {
+      organizationId: null,
+    },
     ...overrides,
   };
 }
@@ -196,18 +187,17 @@ describe("PUT /jobs/{id}/workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    jobFindFirstMock.mockResolvedValue(createOwnedJobRecord());
+    jobFindFirstMock.mockResolvedValue(createCurrentJobRecord());
     jobFindUniqueMock.mockResolvedValue({ id: "job_123" });
     jobUpdateMock.mockResolvedValue({ id: "job_123" });
-    workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: {
         id: "org_target",
       },
       role: "member",
     });
-    workspaceForContextMock.mockResolvedValue({
-      id: ACTIVE_WORKSPACE_ID,
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
     });
     mapJobWithStatusMock.mockReturnValue(createJobApi());
     serializeJobDetailsMock.mockImplementation((job) => job);
@@ -217,9 +207,6 @@ describe("PUT /jobs/{id}/workspace", () => {
         findFirst: jobFindFirstMock,
         findUnique: jobFindUniqueMock,
         update: jobUpdateMock,
-      },
-      workspace: {
-        findUnique: workspaceFindUniqueMock,
       },
     });
   });
@@ -254,7 +241,7 @@ describe("PUT /jobs/{id}/workspace", () => {
 
   it("returns 409 for task-attached jobs", async () => {
     jobFindFirstMock.mockResolvedValue(
-      createOwnedJobRecord({
+      createCurrentJobRecord({
         taskId: "tsk_123",
       }),
     );
@@ -276,7 +263,7 @@ describe("PUT /jobs/{id}/workspace", () => {
 
   it("returns 409 for schedule-backed jobs", async () => {
     jobFindFirstMock.mockResolvedValue(
-      createOwnedJobRecord({
+      createCurrentJobRecord({
         jobScheduleId: "js_123",
       }),
     );
@@ -314,24 +301,6 @@ describe("PUT /jobs/{id}/workspace", () => {
     expect(jobUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when the owned job is outside the active workspace", async () => {
-    jobFindFirstMock.mockResolvedValueOnce(null);
-
-    const app = createApp("org_current");
-    const response = await app.request("http://localhost/job_123/workspace", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        organizationId: "org_target",
-      }),
-    });
-
-    expect(response.status).toBe(403);
-    expect(jobUpdateMock).not.toHaveBeenCalled();
-  });
-
   it("returns 403 when the target organization is not a current membership", async () => {
     resolveMemberOrganizationByIdMock.mockRejectedValue(
       new HTTPException(403, {
@@ -355,10 +324,14 @@ describe("PUT /jobs/{id}/workspace", () => {
   });
 
   it("allows idempotent no-op updates without membership or write checks", async () => {
-    jobFindFirstMock.mockResolvedValue(createOwnedJobRecord());
-    workspaceFindUniqueMock.mockResolvedValue({
-      organizationId: "org_current",
-    });
+    jobFindFirstMock.mockResolvedValue(
+      createCurrentJobRecord({
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        workspace: {
+          organizationId: "org_current",
+        },
+      }),
+    );
 
     const app = createApp("org_current");
     const response = await app.request("http://localhost/job_123/workspace", {

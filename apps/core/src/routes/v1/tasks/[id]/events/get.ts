@@ -1,15 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import {
-  requireCoworkerTaskAccess,
-  requireWorkspaceTaskAccess,
-} from "@/helpers/access-control";
+import { requireTaskAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTaskEvent } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { isCoworkerAuthContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
 const paramsSchema = z.object({
@@ -40,27 +36,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const events = await prisma.$transaction(async (tx) => {
-      if (isCoworkerAuthContext(authContext)) {
-        await requireCoworkerTaskAccess(authContext, id, tx);
-      } else {
-        await requireWorkspaceTaskAccess(
-          c.var.workspaceContext ?? authContext,
-          id,
-          tx,
-        );
-      }
+      await requireTaskAccess(authContext, id, tx);
 
       return tx.taskEvent.findMany({
         where: { taskId: id },
         orderBy: { createdAt: "asc" },
         include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-            },
-          },
           transaction: {
             select: { amount: true },
           },

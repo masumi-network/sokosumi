@@ -146,11 +146,6 @@ describe("POST /tasks", () => {
       createdAt: "2026-04-02T08:00:00.000Z",
       updatedAt: "2026-04-02T08:00:00.000Z",
       userId: "user_123",
-      user: {
-        id: "user_123",
-        name: "Ada Lovelace",
-        image: "https://example.com/ada.png",
-      },
       organizationId: "org_123",
       coworkerId: null,
       name: "New Task",

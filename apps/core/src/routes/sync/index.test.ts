@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   acquireLockMock,
-  syncFreeSubscriptionRenewalMock,
   releaseLockMock,
   syncAgentSummariesMock,
   syncJobsMock,
@@ -13,7 +12,6 @@ const {
   syncStripeCustomersMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
-  syncFreeSubscriptionRenewalMock: vi.fn(),
   releaseLockMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncJobsMock: vi.fn(),
@@ -50,12 +48,6 @@ vi.mock("@/services/agent-sync.service", () => ({
 vi.mock("@/services/source-import-sync.service", () => ({
   sourceImportSyncService: {
     importPendingResultBlobs: syncSourceImportMock,
-  },
-}));
-
-vi.mock("@/services/free-subscription-sync.service", () => ({
-  freeSubscriptionSyncService: {
-    renewLocalFreeSubscriptions: syncFreeSubscriptionRenewalMock,
   },
 }));
 
@@ -133,7 +125,6 @@ describe("sync routes", () => {
       durationMs: 0,
     });
     syncSourceImportMock.mockResolvedValue(3);
-    syncFreeSubscriptionRenewalMock.mockResolvedValue(undefined);
     syncStripeCustomersMock.mockResolvedValue(undefined);
   });
 
@@ -288,34 +279,6 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {
-    const app = await createApp();
-
-    const response = await app.request(
-      "http://localhost/sync/free-subscriptions-renewal",
-      {
-        headers: {
-          Authorization: "Bearer test-cron-secret",
-        },
-      },
-    );
-
-    expect(response.status).toBe(200);
-    expect(acquireLockMock).toHaveBeenCalledWith(
-      "free-subscriptions-renewal-sync",
-    );
-
-    await flushMicrotasks();
-    expect(syncFreeSubscriptionRenewalMock).toHaveBeenCalledTimes(1);
-    expect(syncFreeSubscriptionRenewalMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        deadlineMs: expect.any(Number),
-        msRemaining: expect.any(Function),
-        shouldContinue: expect.any(Function),
-      }),
-    );
   });
 
   it("returns 200 and starts source import sync exactly once in background", async () => {
