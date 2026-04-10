@@ -5,7 +5,7 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import {
   creditBucketRepository,
   jobPurchaseRepository,
