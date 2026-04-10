@@ -113,16 +113,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           let cents: bigint | undefined;
           let transactionId: string | null = null;
 
-<<<<<<< feat/sok-448-workspace-collaboration
-          if (isCoworkerAuthContext(authContext)) {
-            if (
-              isTaskStatusSpendable(status) &&
-              credits != null &&
-              credits > 0
-            ) {
-              const spendCents = convertCreditsToCents(credits);
-              if (spendCents === 0n) {
-=======
           if (
             isCoworkerAuthContext(authContext) &&
             isTaskStatusSpendable(status)
@@ -153,16 +143,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             } else if (credits != null && credits > 0) {
               cents = convertCreditsToCents(credits);
               if (cents === 0n) {
->>>>>>> main
                 throw unprocessableEntity(
                   `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
                 );
               }
-              cents = spendCents;
               transactionId = await createTaskEventTransaction({
                 userId: task.userId,
                 organizationId: task.organizationId,
-                cents: spendCents,
+                cents,
                 tx,
               });
             }
