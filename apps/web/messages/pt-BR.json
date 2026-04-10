@@ -1773,7 +1773,7 @@
       "topUpDescription": "Escolha um valor ou digite um valor personalizado",
       "paidSubscriptionRequiredDescription": "É necessária uma assinatura paga para comprar créditos adicionais.",
       "paidSubscriptionRequiredHint": "Escolha um plano pago na aba Assinatura para desbloquear as recargas de créditos.",
-      "couponExpiryPolicyNotice": "Os créditos não expiram a menos que o cupom defina um ttl_days positivo (dias até expirar).",
+      "couponExpiryPolicyNotice": "Os créditos promocionais podem expirar; os termos variam conforme o cupom ou a oferta.",
       "costPerCredit": "{cost} por crédito",
       "creditAmount": "{count, plural, one {# crédito} other {# créditos}}",
       "creditsLabel": "Quantidade de créditos",
