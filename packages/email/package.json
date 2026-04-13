@@ -49,7 +49,7 @@
     "@react-email/text": "0.1.6",
     "react": "19.2.5",
     "react-dom": "19.2.5",
-    "use-intl": "4.9.0"
+    "use-intl": "4.9.1"
   },
   "devDependencies": {
     "@types/node": "24.12.2",
