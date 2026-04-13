@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
   getCreditTopUpLookupKeyByCredits,
+  getCreditTopUpTotalMinorUnits,
   isPositiveIntegerCredits,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "../credit-topup-pricing";
@@ -35,6 +36,23 @@ describe("credit-topup-pricing", () => {
         ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
       ),
     ).toBe("credit_0_margin");
+  });
+
+  it("computes top-up total minor units with ceiling rounding", () => {
+    expect(getCreditTopUpTotalMinorUnits(100, 1.2)).toBe(120);
+    expect(getCreditTopUpTotalMinorUnits(1, 115)).toBe(115);
+  });
+
+  it("rejects invalid top-up totals", () => {
+    expect(() => getCreditTopUpTotalMinorUnits(Number.NaN, 100)).toThrow(
+      "Computed credit top-up total is invalid",
+    );
+    expect(() => getCreditTopUpTotalMinorUnits(100, Number.NaN)).toThrow(
+      "Computed credit top-up total is invalid",
+    );
+    expect(() => getCreditTopUpTotalMinorUnits(0, 100)).toThrow(
+      "Computed credit top-up total is invalid",
+    );
   });
 
   it("rejects invalid credit amounts", () => {

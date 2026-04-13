@@ -42,25 +42,13 @@ import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
   type CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
+  getCreditTopUpTotalMinorUnits,
   isPositiveIntegerCredits,
 } from "@/lib/stripe/credit-topup-pricing";
 import { cn } from "@/lib/utils";
 
 function hasValidCreditsInput(credits: number | null | undefined): boolean {
   return isPositiveIntegerCredits(credits ?? Number.NaN);
-}
-
-function getCreditTopUpTotalMinorUnits(
-  credits: number,
-  amountPerCredit: number,
-): number {
-  const totalMinorUnits = Math.ceil(credits * amountPerCredit);
-
-  if (!Number.isFinite(totalMinorUnits) || totalMinorUnits < 1) {
-    throw new Error("Computed credit top-up total is invalid");
-  }
-
-  return totalMinorUnits;
 }
 
 interface CreditPricingSummary {
