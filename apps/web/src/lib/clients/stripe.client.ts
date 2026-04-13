@@ -8,6 +8,7 @@ import {
   CREDIT_TOPUP_LOOKUP_KEYS,
   type CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
+  getCreditTopUpTotalMinorUnits,
   type StandardCreditTopUpLookupKey,
 } from "@/lib/stripe/credit-topup-pricing";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
@@ -92,15 +93,6 @@ export const stripeClient = (() => {
       amountPerCredit,
       currency: price.currency,
     };
-  }
-
-  function getCheckoutUnitAmount(credits: number, price: Price): number {
-    const totalMinorUnits = Math.ceil(credits * price.amountPerCredit);
-    if (!Number.isFinite(totalMinorUnits) || totalMinorUnits < 1) {
-      throw new Error("Computed checkout amount is invalid");
-    }
-
-    return totalMinorUnits;
   }
 
   function normalizeCheckoutReturnPath(returnPath: string): string {
@@ -436,7 +428,10 @@ export const stripeClient = (() => {
         );
       }
       const env = getEnvSecrets();
-      const checkoutUnitAmount = getCheckoutUnitAmount(credits, price);
+      const checkoutUnitAmount = getCreditTopUpTotalMinorUnits(
+        credits,
+        price.amountPerCredit,
+      );
       const creditsLabel = credits.toLocaleString("en-US");
       const checkoutBaseUrl = (
         origin ??

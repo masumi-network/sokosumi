@@ -23,6 +23,23 @@ export function isPositiveIntegerCredits(credits: number): boolean {
   return Number.isFinite(credits) && Number.isInteger(credits) && credits > 0;
 }
 
+/**
+ * Total charge for a credit top-up in the smallest currency unit (Stripe minor units).
+ * Must stay aligned with checkout line-item amount computation.
+ */
+export function getCreditTopUpTotalMinorUnits(
+  credits: number,
+  amountPerCredit: number,
+): number {
+  const totalMinorUnits = Math.ceil(credits * amountPerCredit);
+
+  if (!Number.isFinite(totalMinorUnits) || totalMinorUnits < 1) {
+    throw new Error("Computed credit top-up total is invalid");
+  }
+
+  return totalMinorUnits;
+}
+
 export function getCreditTopUpLookupKeyByCredits(
   credits: number,
   lookupKeyOverride?: CreditTopUpLookupKey,
