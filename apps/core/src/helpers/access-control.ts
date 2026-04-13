@@ -260,40 +260,6 @@ export async function requireTaskAssignableCoworker(
   }
 }
 
-/**
- * Validates access to a task based on the authentication context (user or coworker)
- * and fetches the task record. Directs to the appropriate access control depending
- * on whether the request comes from a user or a coworker.
- *
- * Throws 403 if the authenticated user or coworker does not have access to the task.
- *
- * @param authContext - The authentication context of the current user or coworker
- * @param taskId - The ID of the task to fetch and validate
- * @param tx - Optional Prisma transaction client for transaction support (defaults to main Prisma client)
- * @returns The validated task if access is permitted
- * @throws {notFound} If the task does not exist
- * @throws {forbidden} If the user or coworker does not have access to the task
- *
- * @example
- * const task = await requireTaskAccess(authContext, taskId);
- *
- * @example
- * await prisma.$transaction(async (tx) => {
- *   const task = await requireTaskAccess(authContext, taskId, tx);
- *   // ... additional operations
- * });
- */
-export async function requireTaskAccess(
-  authContext: AuthenticationContext,
-  taskId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  if (isCoworkerAuthContext(authContext)) {
-    return await requireCoworkerTaskAccess(authContext, taskId, tx);
-  }
-  return await requireUserTaskAccess(authContext, taskId, tx);
-}
-
 export async function requireTaskReadAccess(
   authContext: AuthenticationContext,
   workspaceContext: WorkspaceContext | null,

@@ -12,7 +12,6 @@ import {
   requireCoworkerChatCapability,
   requireJobAccess,
   requireJobReadAccess,
-  requireTaskAccess,
   requireTaskAssignableCoworker,
   requireTaskReadAccess,
   requireUserTaskAccess,
@@ -156,54 +155,6 @@ describe("requireTaskReadAccess", () => {
         archivedAt: null,
       },
     });
-  });
-});
-
-describe("requireTaskAccess", () => {
-  it("keeps coworker access path unchanged", async () => {
-    const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-    };
-
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-      slug: "ops-agent",
-      baseURL: null,
-    } as never);
-    vi.mocked(tx.task.findUnique).mockResolvedValueOnce({
-      id: "tsk_123",
-      coworkerId: "cow_123",
-      status: TaskStatus.READY,
-    } as never);
-
-    await requireTaskAccess(coworkerContext, "tsk_123", tx);
-
-    expect(tx.task.findFirst).not.toHaveBeenCalled();
-    expect(tx.task.findUnique).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        status: { not: TaskStatus.DRAFT },
-        archivedAt: null,
-      },
-    });
-  });
-
-  it("rejects coworker task access when tasks capability is unavailable", async () => {
-    const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-    };
-
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
-
-    await expect(
-      requireTaskAccess(coworkerContext, "tsk_123", tx),
-    ).rejects.toThrow("Coworker is not allowed to use tasks");
-
-    expect(tx.task.findUnique).not.toHaveBeenCalled();
   });
 });
 
