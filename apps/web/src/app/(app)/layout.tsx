@@ -1,23 +1,36 @@
 import { NoticeKind } from "@sokosumi/database";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
+import Stripe from "stripe";
 
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+import {
+  type ActiveSubscription,
+  type PaidSubscriptionPlanView,
+  resolveCurrentPlanName,
+} from "@/components/billing/subscription-plan-utils";
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { getEnvSecrets } from "@/config/env.secrets";
 import { AppChatRailProvider } from "@/contexts/app-chat-rail-context";
 import { ChatSecondarySidebarProvider } from "@/contexts/chat-secondary-sidebar-context";
 import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import QueryProvider from "@/contexts/query-provider";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
+import { auth } from "@/lib/auth/auth";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import {
+  getSubscriptionCatalog,
+  type SubscriptionPlanName,
+} from "@/lib/stripe/subscription-catalog";
 
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
@@ -26,12 +39,21 @@ import Header from "./components/header";
 import LowCreditsNotice from "./components/low-credits-notice";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { OnboardingDialog } from "./components/onboarding-dialog";
+import { OnboardingSubscriptionReturnHandler } from "./components/onboarding-subscription-return-handler";
 import Sidebar from "./components/sidebar";
 import { resolveAppTopNotice } from "./components/top-notice-state";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
+
+const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+const PLAN_ORDER: SubscriptionPlanName[] = [
+  "free",
+  "starter",
+  "standard",
+  "pro",
+];
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Metadata");
@@ -47,6 +69,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStorePromise = cookies();
+  const requestHeadersPromise = headers();
   const session = await getSessionOrRedirect();
 
   const cookieStore = await cookieStorePromise;
@@ -68,6 +91,40 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     coworkerService.listCoworkers("chat").catch(() => []),
   ]);
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
+  let onboardingPlans: PaidSubscriptionPlanView[] = [];
+  if (shouldShowOnboarding) {
+    const [requestHeaders, subscriptionCatalog] = await Promise.all([
+      requestHeadersPromise,
+      getSubscriptionCatalog(stripeInstance),
+    ]);
+    const personalActiveSubscriptions = await auth.api.listActiveSubscriptions({
+      headers: requestHeaders,
+      query: {
+        customerType: "user",
+      },
+    });
+    const currentPlan =
+      resolveCurrentPlanName(
+        personalActiveSubscriptions as ActiveSubscription[],
+      ) ?? "free";
+
+    onboardingPlans = PLAN_ORDER.flatMap((planName) => {
+      if (planName === "free") {
+        return [];
+      }
+
+      const plan = subscriptionCatalog[planName];
+      return [
+        {
+          credits: plan.credits,
+          currency: plan.currency,
+          isCurrent: currentPlan === planName,
+          monthlyAmount: plan.monthlyAmount,
+          name: planName,
+        },
+      ];
+    });
+  }
   const pendingNotices = pendingNoticesResult.ok
     ? pendingNoticesResult.data
     : [];
@@ -163,7 +220,14 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       <ConversationsProvider>
         <CoworkersProvider initialCoworkers={coworkers}>
           {content}
-          {shouldShowOnboarding && <OnboardingDialog />}
+          {shouldShowOnboarding ? (
+            <>
+              <Suspense fallback={null}>
+                <OnboardingSubscriptionReturnHandler />
+              </Suspense>
+              <OnboardingDialog paidPlans={onboardingPlans} />
+            </>
+          ) : null}
         </CoworkersProvider>
       </ConversationsProvider>
     </QueryProvider>

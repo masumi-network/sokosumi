@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Organization } from "@sokosumi/database";
-import { FREE_CREDITS_EXPIRY_DAYS } from "@sokosumi/database/helpers";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -170,9 +169,7 @@ export default function CouponForm({
               {organization ? t("couponButtonOrganization") : t("couponButton")}
             </Button>
             <p className="text-muted-foreground text-right text-xs">
-              {t("couponExpiryNotice", {
-                days: FREE_CREDITS_EXPIRY_DAYS,
-              })}
+              {t("couponExpiryPolicyNotice")}
             </p>
           </CardFooter>
         </form>

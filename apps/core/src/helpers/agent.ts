@@ -121,7 +121,57 @@ export const getAgentCost = (
 };
 
 /**
- * This function calculates the cost for an agent.
+ * Converts on-chain pricing rows (unit + amount in smallest units) to billable cents
+ * using the CreditCost table. Used for fixed agent pricing and task masumi payments.
+ */
+function calculateCentsFromPricingAmountRows(
+  rows: readonly { unit: string; amount: bigint }[],
+  creditCosts: CreditCost[],
+): bigint {
+  let totalCents = BigInt(0);
+  for (const row of rows) {
+    const creditCost = creditCosts.find((c) => c.unit === row.unit);
+    if (!creditCost) {
+      throw unprocessableEntity(`Credit cost not found for unit ${row.unit}`);
+    }
+    totalCents += row.amount * creditCost.centsPerUnit;
+  }
+  return totalCents;
+}
+
+/**
+ * Parses Masumi payment Amounts (string amounts) and returns billable cents.
+ */
+export function calculateCentsFromMasumiAmountStrings(
+  amounts: readonly { amount: string; unit: string }[],
+  creditCosts: CreditCost[],
+): bigint {
+  if (amounts.length === 0) {
+    throw unprocessableEntity("Amounts must not be empty");
+  }
+
+  const rows: { unit: string; amount: bigint }[] = [];
+  for (const entry of amounts) {
+    let amount: bigint;
+    try {
+      amount = BigInt(entry.amount);
+    } catch {
+      throw unprocessableEntity(`Invalid amount: ${entry.amount}`);
+    }
+    if (amount <= 0n) {
+      throw unprocessableEntity("Amount must be positive");
+    }
+    if (entry.unit.trim().length === 0) {
+      throw unprocessableEntity("Unit must not be empty");
+    }
+    rows.push({ unit: entry.unit, amount });
+  }
+
+  return calculateCentsFromPricingAmountRows(rows, creditCosts);
+}
+
+/**
+ * Calculates the cost for an agent from its pricing configuration.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
  * @returns The cost for the agent.
@@ -143,21 +193,9 @@ const calculateAgentCost = (
         amount: amount.amount,
       }));
 
-      let totalCents = BigInt(0);
-      for (const amount of pricing) {
-        const creditCost = creditCosts.find(
-          (creditCost) => creditCost.unit === amount.unit,
-        );
-        if (!creditCost) {
-          throw unprocessableEntity(
-            `Credit cost not found for unit ${amount.unit}`,
-          );
-        }
-        const cents = amount.amount * creditCost.centsPerUnit;
-        totalCents += cents;
-      }
-
-      return { cents: totalCents };
+      return {
+        cents: calculateCentsFromPricingAmountRows(pricing, creditCosts),
+      };
     }
     case PricingType.FREE: {
       return { cents: BigInt(0) };

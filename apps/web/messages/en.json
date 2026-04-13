@@ -238,7 +238,8 @@
       "chat": "Chat",
       "tasks": "Tasks",
       "connections": "Connections",
-      "feed": "My Feed"
+      "feed": "My Feed",
+      "new": "New"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1050,7 +1051,8 @@
         "skip": "Skip",
         "back": "Back",
         "next": "Next",
-        "getStarted": "Get Started"
+        "getStarted": "Get Started",
+        "subscribe": "Subscribe"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "Coworker",
@@ -1076,6 +1078,10 @@
         "orchestration": {
           "title": "They Handle the Rest",
           "description": "Your coworker hires specialized agents to research, write, analyze - whatever the task requires."
+        },
+        "plans": {
+          "title": "Pick the plan that helps you grow faster",
+          "description": "Start with a paid plan to unlock more credits, more capable coworkers, and premium features from day one."
         }
       },
       "visuals": {
@@ -1124,6 +1130,7 @@
       "description": "Chat with your AI coworkers",
       "Chat": {
         "newChat": "New Chat",
+        "newTask": "New Task",
         "noChats": "No chats yet",
         "noCoworkersAvailable": "No coworkers available. Please try again later.",
         "emptyState": {
@@ -1654,9 +1661,14 @@
       "currentPlanBadge": "Current",
       "pricePerMonth": "per month",
       "includedCredits": "{credits, plural, =0 {No credits} =1 {# credit included} other {# credits included}}",
+      "mostPopularBadge": "Most popular",
       "upgrading": "Redirecting...",
+      "canceling": "Scheduling cancellation...",
       "currentPlanCta": "Current plan",
       "upgradePlanCta": "Choose plan",
+      "cancelSubscriptionCta": "Cancel subscription",
+      "cancelsOnDate": "Cancels on {date}",
+      "statusCancellationScheduled": "Subscription cancellation scheduled.",
       "billingPortalTitle": "Billing Portal",
       "billingPortalDescription": "Open Stripe Billing Portal to manage your subscription and invoices.",
       "billingPortalDescriptionWithPlan": "You are currently on {plan}. Manage billing details and invoices in Stripe.",
@@ -1762,7 +1774,7 @@
       "topUpDescription": "Choose an amount or enter a custom value",
       "paidSubscriptionRequiredDescription": "A paid subscription is required to buy additional credits.",
       "paidSubscriptionRequiredHint": "Choose a paid plan in the Subscription tab to unlock credit top-ups.",
-      "couponExpiryNotice": "Credits expire after {days, plural, one {# day} other {# days}}.",
+      "couponExpiryPolicyNotice": "Promotional credits may expire; terms vary by coupon or offer.",
       "costPerCredit": "{cost} per credit",
       "creditAmount": "{count, plural, one {# credit} other {# credits}}",
       "creditsLabel": "Number of credits",

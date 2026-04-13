@@ -11,7 +11,6 @@ vi.mock("@/config/env.secrets", () => ({
 }));
 
 const ENV = {
-  STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID: "prod_free",
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "prod_starter",
   STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: "prod_standard",
   STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: "prod_pro",
@@ -21,7 +20,7 @@ interface MockProductParams {
   credits?: number;
   interval?: "day" | "month" | "week" | "year";
   intervalCount?: number;
-  planName: "free" | "starter" | "standard" | "pro";
+  planName: "starter" | "standard" | "pro";
   priceId: string;
   productId: string;
   unitAmount: number;
@@ -56,17 +55,9 @@ describe("subscription-catalog", () => {
     getEnvSecretsMock.mockReturnValue(ENV);
   });
 
-  it("builds catalog from product metadata credits", async () => {
+  it("builds catalog from paid product metadata and a synthetic local free tier", async () => {
     const retrieveMock = vi.fn(async (productId: string) => {
       switch (productId) {
-        case ENV.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID:
-          return createMockProduct({
-            planName: "free",
-            priceId: "price_free",
-            productId,
-            credits: 250,
-            unitAmount: 0,
-          });
         case ENV.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID:
           return createMockProduct({
             planName: "starter",
@@ -106,18 +97,15 @@ describe("subscription-catalog", () => {
 
     const catalog = await getSubscriptionCatalog(stripe as never);
     expect(catalog.free.credits).toBe(250);
+    expect(catalog.free.productId).toBe("local-free");
+    expect(catalog.free.monthlyAmount).toBe(0);
     expect(catalog.starter.credits).toBe(1750);
     expect(catalog.standard.monthlyAmount).toBe(7500);
     expect(catalog.pro.priceId).toBe("price_pro");
-    expect(retrieveMock).toHaveBeenCalledTimes(4);
+    expect(retrieveMock).toHaveBeenCalledTimes(3);
 
     const plans = await getBetterAuthSubscriptionPlans(stripe as never);
     expect(plans).toEqual([
-      {
-        limits: { credits: 250 },
-        name: "free",
-        priceId: "price_free",
-      },
       {
         limits: { credits: 1750 },
         name: "starter",
@@ -136,22 +124,14 @@ describe("subscription-catalog", () => {
     ]);
   });
 
-  it("throws when product metadata credits are missing", async () => {
+  it("throws when paid product metadata credits are missing", async () => {
     const retrieveMock = vi.fn(async (productId: string) => {
       switch (productId) {
-        case ENV.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID:
-          return createMockProduct({
-            planName: "free",
-            priceId: "price_free",
-            productId,
-            unitAmount: 0,
-          });
         case ENV.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID:
           return createMockProduct({
             planName: "starter",
             priceId: "price_starter",
             productId,
-            credits: 1750,
             unitAmount: 2500,
           });
         case ENV.STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID:
@@ -184,7 +164,7 @@ describe("subscription-catalog", () => {
     const { getSubscriptionCatalog } = await import("../subscription-catalog");
 
     await expect(getSubscriptionCatalog(stripe as never)).rejects.toThrow(
-      "Missing credits metadata for free plan",
+      "Missing credits metadata for starter plan",
     );
   });
 });

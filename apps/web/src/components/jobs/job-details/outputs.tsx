@@ -3,9 +3,9 @@
 import {
   AgentJobStatus,
   type JobEventWithRelations,
+  JobType,
   type JobWithSokosumiStatus,
 } from "@sokosumi/database";
-import { isPaidJob } from "@sokosumi/database/helpers";
 import { hashResult } from "@sokosumi/masumi";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -89,7 +89,7 @@ function JobDetailsOutputsInner({
                     <CopyMarkdown markdown={result} />
                   </div>
                 </div>
-                {!readOnly && isPaidJob(job) && (
+                {!readOnly && job.jobType === JobType.PAID && (
                   <RequestRefundButton initialJob={job} />
                 )}
               </div>
@@ -115,7 +115,7 @@ function JobDetailsOutputsInner({
           <p className="text-base">{t("none")}</p>
           {event.status === AgentJobStatus.FAILED &&
             !readOnly &&
-            isPaidJob(job) && (
+            job.jobType === JobType.PAID && (
               <div className="flex justify-end">
                 <RequestRefundButton initialJob={job} />
               </div>

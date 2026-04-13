@@ -5,10 +5,7 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import {
-  convertCreditsToCents,
-  resolveWorkspaceForContext,
-} from "@sokosumi/database/helpers";
+import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobPurchaseRepository,
@@ -23,6 +20,7 @@ import type {
   InputSchemaType,
   StartFreeJobResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { v4 as uuidv4 } from "uuid";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
@@ -83,7 +81,7 @@ async function createPaidJob(
   agentJobResponse: StartPaidJobResponseSchemaType,
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient,
-): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+): Promise<JobWithSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
@@ -173,7 +171,7 @@ async function createFreeJob(
   },
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
-): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+): Promise<JobWithSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   return await tx.job.create({
     data: {

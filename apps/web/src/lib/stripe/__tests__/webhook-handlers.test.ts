@@ -3,7 +3,6 @@ import {
   buildOrganizationMemberSubscriptionReferenceId,
   buildUserInvoiceCreditReferenceId,
   escapeStringForLike,
-  FREE_CREDITS_EXPIRY_DAYS,
   getCreditExpiryDate,
 } from "@sokosumi/database/helpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,13 +15,14 @@ const getMembersByOrganizationIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const findExistingBucketMock = vi.fn();
 const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
-const aggregateGrantedCreditsMock = vi.fn();
 const createTransactionMock = vi.fn();
 const findOutOfCreditsTasksMock = vi.fn();
 const updateTaskMock = vi.fn();
-const ensurePersonalFreeSubscriptionMock = vi.fn();
-const ensureOrganizationFreeSubscriptionMock = vi.fn();
 const claimWelcomeCouponMock = vi.fn();
+const ensureInitialLocalFreeSubscriptionPeriodMock = vi.fn();
+const transitionToNextLocalFreeSubscriptionPeriodMock = vi.fn();
+const getSubscriptionByStripeSubscriptionIdMock = vi.fn();
+const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const prismaOrganizationUpdateMock = vi.fn();
 const prismaUserUpdateMock = vi.fn();
 
@@ -44,13 +44,24 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
 vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
-    STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID: "prod_free",
     STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: "prod_pro",
     STRIPE_SECRET_KEY: "sk_test_mock",
     STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: "prod_standard",
     STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "prod_starter",
   }),
 }));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    ensureInitialLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
+      ensureInitialLocalFreeSubscriptionPeriodMock(...args),
+    transitionToNextLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
+      transitionToNextLocalFreeSubscriptionPeriodMock(...args),
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
@@ -62,6 +73,12 @@ vi.mock("@sokosumi/database/repositories", () => ({
       getOrganizationByStripeCustomerIdMock(...args),
     getOrganizationWithRelationsById: vi.fn(),
     updateOrganizationInvoiceEmail: vi.fn(),
+  },
+  subscriptionRepository: {
+    getLatestActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      getLatestActiveSubscriptionByReferenceIdMock(...args),
+    getSubscriptionByStripeSubscriptionId: (...args: unknown[]) =>
+      getSubscriptionByStripeSubscriptionIdMock(...args),
   },
   userRepository: {
     getUserByStripeCustomerId: (...args: unknown[]) =>
@@ -75,7 +92,6 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: (callback: (tx: unknown) => unknown) =>
       transactionMock(callback),
     creditBucket: {
-      aggregate: (...args: unknown[]) => aggregateGrantedCreditsMock(...args),
       findFirst: (...args: unknown[]) =>
         findExistingOrganizationInvoiceSubscriptionBucketMock(...args),
     },
@@ -90,10 +106,6 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/services", () => ({
   stripeService: {
-    ensurePersonalFreeSubscription: (...args: unknown[]) =>
-      ensurePersonalFreeSubscriptionMock(...args),
-    ensureOrganizationFreeSubscription: (...args: unknown[]) =>
-      ensureOrganizationFreeSubscriptionMock(...args),
     claimWelcomeCoupon: (...args: unknown[]) => claimWelcomeCouponMock(...args),
   },
 }));
@@ -107,7 +119,7 @@ const DEFAULT_PERIOD_END_UNIX = 1_735_689_600;
 const DEFAULT_INVOICE_CREATED_UNIX = 1_735_689_600;
 const DEFAULT_PERIOD_DURATION_SECONDS = 2_592_000;
 const SUBSCRIPTION_CATALOG = {
-  free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+  free: { credits: 250, monthlyAmount: 0, productId: "local-free" },
   pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
   standard: {
     credits: 5250,
@@ -251,12 +263,13 @@ describe("handleInvoicePaidEvent", () => {
     findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue(
       null,
     );
-    aggregateGrantedCreditsMock.mockResolvedValue({
-      _sum: { amount: null },
-    });
     createTransactionMock.mockResolvedValue({});
     findOutOfCreditsTasksMock.mockResolvedValue([]);
     updateTaskMock.mockResolvedValue({});
+    transitionToNextLocalFreeSubscriptionPeriodMock.mockResolvedValue(
+      undefined,
+    );
+    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue(null);
   });
 
   it("does not grant subscription credits for unpaid subscription_update invoices", async () => {
@@ -275,7 +288,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("grants free-plan seat credits for zero-amount subscription_update invoices", async () => {
+  it("does not grant subscription credits for legacy Stripe free product lines on personal subscription_update", async () => {
     mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
@@ -284,91 +297,21 @@ describe("handleInvoicePaidEvent", () => {
       createInvoice({
         amountPaid: 0,
         billingReason: "subscription_update",
-        id: "in_free_sub_update",
+        id: "in_legacy_free_personal",
         lines: [{ amount: 0, productId: "prod_free", quantity: 1 }],
       }) as never,
     );
 
-    expect(createTransactionMock).toHaveBeenCalledTimes(1);
-
-    const createCall = createTransactionMock.mock.calls[0][0] as {
-      data: {
-        amount: bigint;
-        sourceCreditBucket: {
-          create: {
-            referenceId: string;
-            referenceType: string;
-          };
-        };
-      };
-    };
-
-    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      buildUserInvoiceCreditReferenceId(
-        "user-1",
-        "in_free_sub_update",
-        "subscription",
-      ),
-    );
-    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
-      "STRIPE_SUBSCRIPTION_PERIOD",
-    );
-    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
+    expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("credits only the newly added free seats on subscription_update invoices", async () => {
-    mockSubscriptionCatalog();
-    aggregateGrantedCreditsMock.mockResolvedValue({
-      _sum: { amount: BigInt("2500000000000") },
-    });
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    await handleInvoicePaidEvent(
-      createInvoice({
-        amountPaid: 0,
-        billingReason: "subscription_update",
-        id: "in_free_sub_update_incremental",
-        lines: [{ amount: 0, productId: "prod_free", quantity: 2 }],
-      }) as never,
-    );
-
-    expect(createTransactionMock).toHaveBeenCalledTimes(1);
-
-    const createCall = createTransactionMock.mock.calls[0][0] as {
-      data: {
-        amount: bigint;
-        sourceCreditBucket: {
-          create: {
-            referenceId: string;
-            referenceType: string;
-          };
-        };
-      };
-    };
-
-    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      buildUserInvoiceCreditReferenceId(
-        "user-1",
-        "in_free_sub_update_incremental",
-        "subscription",
-      ),
-    );
-    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
-      "STRIPE_SUBSCRIPTION_PERIOD",
-    );
-    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
-  });
-
-  it("dedupes free organization subscription_update credits by organization period", async () => {
+  it("does not grant subscription credits for legacy Stripe free product lines on organization subscription_update", async () => {
     mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
     ]);
     mockSubscriptionCatalog();
-    aggregateGrantedCreditsMock.mockResolvedValue({
-      _sum: { amount: BigInt("5000000000000") },
-    });
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -376,25 +319,13 @@ describe("handleInvoicePaidEvent", () => {
       createInvoice({
         amountPaid: 0,
         billingReason: "subscription_update",
-        id: "in_org_free_sub_update",
+        id: "in_legacy_free_org",
         lines: [{ amount: 0, productId: "prod_free", quantity: 2 }],
       }) as never,
     );
 
-    expect(aggregateGrantedCreditsMock).toHaveBeenCalledTimes(1);
-    const aggregateCall = aggregateGrantedCreditsMock.mock.calls[0][0] as {
-      where: Record<string, unknown>;
-    };
-    expect(aggregateCall.where).toMatchObject({
-      organizationId: "org-1",
-      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-      referenceId: {
-        startsWith: "member:",
-      },
-    });
-    expect(aggregateCall.where).not.toHaveProperty("userId");
-
-    expect(createTransactionMock).not.toHaveBeenCalled();
+    expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("splits organization subscription cycle credits equally with deterministic remainder", async () => {
@@ -1029,7 +960,7 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
-  it("classifies free top-up invoices as STRIPE_FREE with 30-day expiry", async () => {
+  it("classifies free top-up invoices as STRIPE_FREE with no expiry when ttl_days is omitted", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
     await handleInvoicePaidEvent(
@@ -1057,12 +988,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_FREE",
     );
-    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
-      getCreditExpiryDate(
-        new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000),
-        FREE_CREDITS_EXPIRY_DAYS,
-      ),
-    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
   });
 
   it("uses ttl_days invoice metadata for free top-up expiry", async () => {
@@ -1133,7 +1059,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
   });
 
-  it("falls back to default free expiry for invalid ttl_days metadata", async () => {
+  it("sets no expiry for free top-up when ttl_days metadata is invalid", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
     await handleInvoicePaidEvent(
@@ -1162,12 +1088,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_FREE",
     );
-    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
-      getCreditExpiryDate(
-        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
-        FREE_CREDITS_EXPIRY_DAYS,
-      ),
-    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
   });
 
   it("splits top-up and subscription credits into separate buckets when both are present", async () => {
@@ -1325,23 +1246,22 @@ describe("handleInvoicePaidEvent", () => {
 describe("handleCustomerCreatedEvent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    ensurePersonalFreeSubscriptionMock.mockResolvedValue({
-      status: "skipped",
-      reason: "ALREADY_HAS_SUBSCRIPTION",
-    });
-    ensureOrganizationFreeSubscriptionMock.mockResolvedValue({
-      status: "skipped",
-      reason: "ALREADY_HAS_SUBSCRIPTION",
-    });
     claimWelcomeCouponMock.mockResolvedValue({
       couponApplied: false,
       invoiceId: null,
     });
-    prismaUserUpdateMock.mockResolvedValue(undefined);
-    prismaOrganizationUpdateMock.mockResolvedValue(undefined);
+    ensureInitialLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
+    prismaUserUpdateMock.mockResolvedValue({
+      createdAt: new Date("2026-04-09T07:03:48.591Z"),
+      id: "user-1",
+    });
+    prismaOrganizationUpdateMock.mockResolvedValue({
+      createdAt: new Date("2026-04-09T07:03:48.591Z"),
+      id: "org-1",
+    });
   });
 
-  it("ensures a free subscription for newly created organization customers", async () => {
+  it("stores Stripe customer ids for newly created organization customers without creating a Stripe free subscription", async () => {
     const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
 
     await handleCustomerCreatedEvent({
@@ -1356,13 +1276,19 @@ describe("handleCustomerCreatedEvent", () => {
       where: { id: "org-1" },
       data: { stripeCustomerId: "cus_org_1" },
     });
-    expect(ensureOrganizationFreeSubscriptionMock).toHaveBeenCalledWith(
-      "org-1",
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      {
+        createdAt: new Date("2026-04-09T07:03:48.591Z"),
+        kind: "organization",
+        organizationId: "org-1",
+        stripeCustomerId: "cus_org_1",
+      },
+      expect.anything(),
     );
-    expect(ensurePersonalFreeSubscriptionMock).not.toHaveBeenCalled();
+    expect(claimWelcomeCouponMock).not.toHaveBeenCalled();
   });
 
-  it("keeps personal free subscription enrollment for user customers", async () => {
+  it("claims the welcome coupon for user customers without creating a Stripe free subscription", async () => {
     const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
 
     await handleCustomerCreatedEvent({
@@ -1377,7 +1303,133 @@ describe("handleCustomerCreatedEvent", () => {
       where: { id: "user-1" },
       data: { stripeCustomerId: "cus_user_1" },
     });
-    expect(ensurePersonalFreeSubscriptionMock).toHaveBeenCalledWith("user-1");
-    expect(ensureOrganizationFreeSubscriptionMock).not.toHaveBeenCalled();
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      {
+        createdAt: new Date("2026-04-09T07:03:48.591Z"),
+        kind: "user",
+        stripeCustomerId: "cus_user_1",
+        userId: "user-1",
+      },
+      expect.anything(),
+    );
+    expect(claimWelcomeCouponMock).toHaveBeenCalledWith("user-1");
+  });
+});
+
+describe("handleSubscriptionDeletedEvent", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transitionToNextLocalFreeSubscriptionPeriodMock.mockResolvedValue(
+      undefined,
+    );
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
+      canceledAt: new Date("2026-04-09T07:39:30.188Z"),
+      createdAt: new Date("2026-03-09T07:39:30.188Z"),
+      endedAt: null,
+      id: "sub_local_1",
+      periodEnd: new Date("2026-04-09T07:40:10.000Z"),
+      plan: "free",
+      referenceId: "user-1",
+      stripeCustomerId: "cus_123",
+      stripeSubscriptionId: "sub_123",
+    });
+  });
+
+  it("creates the first local free successor when a Stripe free subscription ends", async () => {
+    const { handleSubscriptionDeletedEvent } = await import(
+      "../webhook-handlers"
+    );
+
+    await handleSubscriptionDeletedEvent({
+      id: "sub_123",
+    } as never);
+
+    expect(getSubscriptionByStripeSubscriptionIdMock).toHaveBeenCalledWith(
+      "sub_123",
+      expect.anything(),
+    );
+    expect(getLatestActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
+      "user-1",
+      expect.anything(),
+    );
+    expect(
+      transitionToNextLocalFreeSubscriptionPeriodMock,
+    ).toHaveBeenCalledWith(
+      {
+        setCanceledAt: true,
+        subscription: {
+          canceledAt: new Date("2026-04-09T07:39:30.188Z"),
+          createdAt: new Date("2026-03-09T07:39:30.188Z"),
+          endedAt: null,
+          id: "sub_local_1",
+          periodEnd: new Date("2026-04-09T07:40:10.000Z"),
+          referenceId: "user-1",
+          stripeCustomerId: "cus_123",
+          stripeSubscriptionId: "sub_123",
+        },
+      },
+      expect.anything(),
+    );
+  });
+
+  it("creates the first local free successor when a Stripe paid subscription ends", async () => {
+    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
+      canceledAt: new Date("2026-04-09T07:39:30.188Z"),
+      createdAt: new Date("2026-03-09T07:39:30.188Z"),
+      endedAt: null,
+      id: "sub_paid_1",
+      periodEnd: new Date("2026-04-09T07:40:10.000Z"),
+      plan: "starter",
+      referenceId: "user-1",
+      stripeCustomerId: "cus_123",
+      stripeSubscriptionId: "sub_paid_stripe_1",
+    });
+
+    const { handleSubscriptionDeletedEvent } = await import(
+      "../webhook-handlers"
+    );
+
+    await handleSubscriptionDeletedEvent({
+      id: "sub_paid_stripe_1",
+    } as never);
+
+    expect(
+      transitionToNextLocalFreeSubscriptionPeriodMock,
+    ).toHaveBeenCalledWith(
+      {
+        setCanceledAt: true,
+        subscription: {
+          canceledAt: new Date("2026-04-09T07:39:30.188Z"),
+          createdAt: new Date("2026-03-09T07:39:30.188Z"),
+          endedAt: null,
+          id: "sub_paid_1",
+          periodEnd: new Date("2026-04-09T07:40:10.000Z"),
+          referenceId: "user-1",
+          stripeCustomerId: "cus_123",
+          stripeSubscriptionId: "sub_paid_stripe_1",
+        },
+      },
+      expect.anything(),
+    );
+  });
+
+  it("skips the free fallback when another paid subscription is still active", async () => {
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      id: "sub_active_paid_2",
+      plan: "pro",
+    });
+
+    const { handleSubscriptionDeletedEvent } = await import(
+      "../webhook-handlers"
+    );
+
+    await handleSubscriptionDeletedEvent({
+      id: "sub_123",
+    } as never);
+
+    expect(
+      transitionToNextLocalFreeSubscriptionPeriodMock,
+    ).not.toHaveBeenCalled();
   });
 });

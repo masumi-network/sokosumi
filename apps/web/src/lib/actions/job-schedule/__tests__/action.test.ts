@@ -1,4 +1,7 @@
+import { InputType } from "@sokosumi/masumi/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { Session } from "@/lib/auth/auth";
 
 import { JobScheduleType } from "@/lib/types/job";
 
@@ -44,6 +47,17 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 describe("createSchedule", () => {
+  function buildSession(activeOrganizationId: null | string): Session {
+    return {
+      user: {
+        id: "user_123",
+      },
+      session: {
+        activeOrganizationId,
+      },
+    } as Session;
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     resolveWorkspaceForContextMock.mockResolvedValue({
@@ -59,12 +73,7 @@ describe("createSchedule", () => {
 
     const result = await createSchedule({
       session: {
-        user: {
-          id: "user_123",
-        },
-        session: {
-          activeOrganizationId: "org_123",
-        },
+        ...buildSession("org_123"),
       },
       input: {
         agentId: "agent_123",
@@ -72,7 +81,7 @@ describe("createSchedule", () => {
           input_data: [
             {
               id: "prompt",
-              type: "string",
+              type: InputType.STRING,
               name: "Prompt",
             },
           ],
@@ -80,7 +89,7 @@ describe("createSchedule", () => {
         inputData: {
           prompt: "hello",
         },
-        maxAcceptedCents: 10n,
+        maxAcceptedCents: BigInt(10),
       },
       scheduleSelection: {
         mode: JobScheduleType.ONE_TIME,
@@ -118,12 +127,7 @@ describe("createSchedule", () => {
 
     await createSchedule({
       session: {
-        user: {
-          id: "user_123",
-        },
-        session: {
-          activeOrganizationId: null,
-        },
+        ...buildSession(null),
       },
       input: {
         agentId: "agent_123",
@@ -131,7 +135,7 @@ describe("createSchedule", () => {
           input_data: [
             {
               id: "prompt",
-              type: "string",
+              type: InputType.STRING,
               name: "Prompt",
             },
           ],
@@ -139,7 +143,7 @@ describe("createSchedule", () => {
         inputData: {
           prompt: "hello",
         },
-        maxAcceptedCents: 10n,
+        maxAcceptedCents: BigInt(10),
       },
       scheduleSelection: {
         mode: JobScheduleType.ONE_TIME,

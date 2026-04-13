@@ -81,8 +81,8 @@
     "perf:report:auth": "node scripts/perf-report-authenticated.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.10",
     "chrome-launcher": "1.2.1",
-    "lighthouse": "13.1.0"
+    "lighthouse": "13.1.0",
+    "@biomejs/biome": "2.4.11"
   }
 }

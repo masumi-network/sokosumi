@@ -1,4 +1,8 @@
 export {
+  makeAgentJobsChannelName,
+  makeUserTasksChannelName,
+} from "./ably-channel.js";
+export {
   type ResolveBetterAuthCookiePrefixParams,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
@@ -9,6 +13,7 @@ export {
   resolveBetterAuthProductionUrl,
   resolveBetterAuthPublicBaseUrl,
 } from "./better-auth-public-url.js";
+export { convertCentsToCredits, convertCreditsToCents } from "./credit.js";
 export {
   FILE_EXTENSION_ALLOWLIST,
   getExtensionFromUrl,

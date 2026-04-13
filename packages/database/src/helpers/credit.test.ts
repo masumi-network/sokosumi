@@ -5,7 +5,6 @@ import { describe, it } from "vitest";
 import {
   buildOrganizationInvoiceCreditReferenceId,
   buildUserInvoiceCreditReferenceId,
-  FREE_CREDITS_EXPIRY_DAYS,
   getCreditExpiryDate,
   splitAmountEvenlyWithRemainderRotation,
 } from "./credit.js";
@@ -120,10 +119,6 @@ describe("invoice credit reference builders", () => {
 });
 
 describe("credit expiration policy", () => {
-  it("defines expected expiration day constants", () => {
-    assert.equal(FREE_CREDITS_EXPIRY_DAYS, 30);
-  });
-
   it("calculates expiration date from a base date and day count", () => {
     const baseDate = new Date("2026-02-27T00:00:00.000Z");
     const expiryDate = getCreditExpiryDate(baseDate, 30);
