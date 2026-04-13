@@ -14,7 +14,6 @@ import type { Session } from "@/lib/auth/auth";
 import AgentLists from "./components/agent-lists";
 import AnnouncementCards from "./components/announcement-cards";
 import ChatListsClient from "./components/chat-lists.client";
-import ChatSidebarEntry from "./components/chat-sidebar-entry";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatTaskActions from "./components/new-chat-task-actions";
