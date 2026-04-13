@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import type { WorkspaceContextVariables } from "@/middleware/workspace-context";
 
 import mountPutTaskWorkspace, { putTaskWorkspaceRequestSchema } from "./put";
 
@@ -132,7 +133,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
 
 function createApp(activeOrganizationId: string | null = "org_current") {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & WorkspaceContextVariables;
   }>();
 
   app.use("*", async (c, next) => {
@@ -140,6 +141,11 @@ function createApp(activeOrganizationId: string | null = "org_current") {
     c.set("authContext", {
       actor: "user",
       userId: "user_123",
+      organizationId: activeOrganizationId,
+    });
+    c.set("workspaceContext", {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: activeOrganizationId === null ? "user_123" : null,
       organizationId: activeOrganizationId,
     });
 
@@ -289,6 +295,29 @@ describe("PUT /tasks/{id}/workspace", () => {
       data: {
         workspaceId: "11111111-1111-4111-8111-111111111111",
       },
+    });
+    expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      include: expect.objectContaining({
+        linksFrom: expect.objectContaining({
+          where: {
+            toTask: {
+              is: expect.objectContaining({
+                workspaceId: "11111111-1111-4111-8111-111111111111",
+              }),
+            },
+          },
+        }),
+        linksTo: expect.objectContaining({
+          where: {
+            fromTask: {
+              is: expect.objectContaining({
+                workspaceId: "11111111-1111-4111-8111-111111111111",
+              }),
+            },
+          },
+        }),
+      }),
     });
   });
 

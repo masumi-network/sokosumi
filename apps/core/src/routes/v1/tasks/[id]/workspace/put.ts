@@ -101,6 +101,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           targetOrganizationId,
           tx,
         );
+        const targetWorkspaceContext = {
+          workspaceId: workspace.id,
+          userId: targetOrganizationId === null ? authContext.userId : null,
+          organizationId: targetOrganizationId,
+        };
 
         const existingLink = await tx.taskLink.findFirst({
           where: {
@@ -135,7 +140,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         return await tx.task.findUniqueOrThrow({
           where: { id },
-          include: buildTaskIncludeForViewer(authContext, workspaceContext),
+          include: buildTaskIncludeForViewer(
+            authContext,
+            targetWorkspaceContext,
+          ),
         });
       },
       {
