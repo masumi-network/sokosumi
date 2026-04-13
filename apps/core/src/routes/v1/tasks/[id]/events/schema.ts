@@ -29,6 +29,9 @@ const masumiPaymentPayloadSchema = z
     blockchainIdentifier: z.string().min(1).openapi({
       example: "0b00e04c0860a60c61066056281180462d0b12",
     }),
+    identifierFromPurchaser: z.string().min(1).openapi({
+      example: "1234567890",
+    }),
     agentIdentifier: z.string().min(1).openapi({
       example: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
     }),
