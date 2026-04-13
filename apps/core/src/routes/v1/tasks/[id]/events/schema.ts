@@ -49,7 +49,7 @@ const masumiPaymentPayloadSchema = z
     Amounts: z.array(masumiPaymentAmountSchema).min(1).openapi({ example: [] }),
     PaymentSource: masumiPaymentSourceSchema.optional(),
   })
-  .openapi("MasumiTaskPayment");
+  .openapi("MasumiPayment");
 
 export function createTaskEventRequestSchema(
   params: { serverNetwork: "Preprod" | "Mainnet" } = {
