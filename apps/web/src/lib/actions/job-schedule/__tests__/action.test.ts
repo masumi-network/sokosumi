@@ -19,7 +19,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
 
 const createMock = vi.fn();
 const handleInputDataFileUploadsMock = vi.fn();
-const resolveWorkspaceForContextMock = vi.fn();
+const upsertWorkspaceMock = vi.fn();
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   const actual =
@@ -27,7 +27,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
   return {
     ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    upsertWorkspace: upsertWorkspaceMock,
   };
 });
 
@@ -48,7 +48,7 @@ vi.mock("@/lib/db/prisma", () => ({
 describe("createSchedule", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
     createMock.mockResolvedValue({
@@ -98,7 +98,7 @@ describe("createSchedule", () => {
         scheduleId: "schedule_123",
       },
     });
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       {},
@@ -150,7 +150,7 @@ describe("createSchedule", () => {
       },
     });
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceMock).toHaveBeenCalledWith(
       "user_123",
       null,
       {},

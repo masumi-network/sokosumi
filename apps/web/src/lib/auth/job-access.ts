@@ -3,7 +3,7 @@ import "server-only";
 import type { JobWithSokosumiStatus, Prisma } from "@sokosumi/database";
 import {
   canReadWorkspaceScopedRecord,
-  resolveWorkspaceForContext,
+  upsertWorkspace,
   type WorkspaceReadScope,
 } from "@sokosumi/database/helpers";
 
@@ -39,7 +39,7 @@ export async function resolveJobWorkspaceReadScope(
   context: JobWorkspaceContext,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<WorkspaceReadScope> {
-  const workspace = await resolveWorkspaceForContext(
+  const workspace = await upsertWorkspace(
     context.userId,
     context.activeOrganizationId,
     tx,

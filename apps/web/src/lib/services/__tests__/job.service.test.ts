@@ -8,7 +8,7 @@ const getBalanceMock = vi.fn();
 const createDemoJobMock = vi.fn();
 const createJobMock = vi.fn();
 const createJobPurchaseMock = vi.fn();
-const resolveWorkspaceForContextMock = vi.fn();
+const upsertWorkspaceMock = vi.fn();
 const publishJobStatusDataMock = vi.fn();
 const startFreeAgentJobMock = vi.fn();
 const startPaidAgentJobMock = vi.fn();
@@ -58,8 +58,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
   return {
     ...actual,
-    resolveWorkspaceForContext: (...args: unknown[]) =>
-      resolveWorkspaceForContextMock(...args),
+    upsertWorkspace: (...args: unknown[]) => upsertWorkspaceMock(...args),
   };
 });
 
@@ -255,7 +254,7 @@ function buildStartInput(overrides: Record<string, unknown> = {}) {
 describe("job.service workspace persistence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
     getSessionMock.mockResolvedValue({
@@ -295,7 +294,7 @@ describe("job.service workspace persistence", () => {
       result: "demo result",
     } as never);
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceMock).toHaveBeenCalledWith(
       "user_123",
       null,
       expect.any(Object),
@@ -321,7 +320,7 @@ describe("job.service workspace persistence", () => {
 
     await jobService.startJob(buildStartInput());
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       expect.any(Object),
@@ -370,7 +369,7 @@ describe("job.service workspace persistence", () => {
 
     await jobService.startJob(buildStartInput());
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       { tx: "transaction" },
@@ -416,7 +415,7 @@ describe("job.service workspace persistence", () => {
 
     const result = await jobService.getJobStatusesDataForAgents(["agent_123"]);
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       expect.any(Object),

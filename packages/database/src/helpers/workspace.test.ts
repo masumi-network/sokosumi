@@ -20,7 +20,7 @@ vi.mock("../repositories/workspace.repository.js", () => ({
   },
 }));
 
-import { resolveWorkspaceForContext } from "./workspace.js";
+import { upsertWorkspace } from "./workspace.js";
 
 describe("workspace helpers", () => {
   beforeEach(() => {
@@ -33,11 +33,7 @@ describe("workspace helpers", () => {
     });
 
     const tx = {} as never;
-    const workspace = await resolveWorkspaceForContext(
-      "user_123",
-      undefined,
-      tx,
-    );
+    const workspace = await upsertWorkspace("user_123", undefined, tx);
 
     expect(upsertPersonalWorkspaceMock).toHaveBeenCalledWith("user_123", tx);
     expect(upsertOrganizationWorkspaceMock).not.toHaveBeenCalled();
@@ -50,11 +46,7 @@ describe("workspace helpers", () => {
     });
 
     const tx = {} as never;
-    const workspace = await resolveWorkspaceForContext(
-      "user_123",
-      "org_123",
-      tx,
-    );
+    const workspace = await upsertWorkspace("user_123", "org_123", tx);
 
     expect(upsertOrganizationWorkspaceMock).toHaveBeenCalledWith("org_123", tx);
     expect(upsertPersonalWorkspaceMock).not.toHaveBeenCalled();

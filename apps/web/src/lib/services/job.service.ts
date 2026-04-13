@@ -14,7 +14,7 @@ import {
 } from "@sokosumi/database";
 import {
   isPaidJob,
-  resolveWorkspaceForContext,
+  upsertWorkspace,
 } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
@@ -160,7 +160,7 @@ export const jobService = (() => {
       throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
     }
 
-    const workspace = await resolveWorkspaceForContext(
+    const workspace = await upsertWorkspace(
       userId,
       activeOrganizationId,
       prisma,
@@ -380,7 +380,7 @@ export const jobService = (() => {
     // Create job, transaction, and consume credits in a single transaction
     const job = await prisma.$transaction(
       async (tx) => {
-        const workspace = await resolveWorkspaceForContext(
+        const workspace = await upsertWorkspace(
           userId,
           organizationId,
           tx,
@@ -538,7 +538,7 @@ export const jobService = (() => {
     // Generate job name
     const generatedName = await generateJobNameForAgent(agent, inputData);
 
-    const workspace = await resolveWorkspaceForContext(
+    const workspace = await upsertWorkspace(
       userId,
       organizationId,
       prisma,
@@ -763,7 +763,7 @@ export const jobService = (() => {
       return [];
     }
     const { userId, activeOrganizationId } = getJobWorkspaceContext(session);
-    const workspace = await resolveWorkspaceForContext(
+    const workspace = await upsertWorkspace(
       userId,
       activeOrganizationId,
       tx,

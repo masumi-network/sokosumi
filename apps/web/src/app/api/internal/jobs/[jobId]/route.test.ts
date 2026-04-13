@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
 const getJobByIdMock = vi.fn();
-const { resolveWorkspaceForContextMock } = vi.hoisted(() => ({
-  resolveWorkspaceForContextMock: vi.fn(),
+const { upsertWorkspaceMock } = vi.hoisted(() => ({
+  upsertWorkspaceMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/utils", () => ({
@@ -22,7 +22,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
   return {
     ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    upsertWorkspace: upsertWorkspaceMock,
   };
 });
 
@@ -43,7 +43,7 @@ describe("GET /api/internal/jobs/[jobId]", () => {
       user: { id: "user-1" },
       session: { activeOrganizationId: "org-1" },
     });
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceMock.mockResolvedValue({
       id: "workspace-1",
     });
   });

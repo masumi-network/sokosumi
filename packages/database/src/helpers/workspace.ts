@@ -1,7 +1,7 @@
 import type { Prisma } from "../generated/prisma/client.js";
 import { workspaceRepository } from "../repositories/workspace.repository.js";
 
-export async function resolveWorkspaceForContext(
+export async function upsertWorkspace(
   userId: string,
   organizationId: string | null | undefined,
   tx: Prisma.TransactionClient,

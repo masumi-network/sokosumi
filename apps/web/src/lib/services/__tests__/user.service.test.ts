@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 const getSessionMock = vi.fn();
 const getJobsMock = vi.fn();
 const getOwnedJobsMock = vi.fn();
-const resolveWorkspaceForContextMock = vi.fn();
+const upsertWorkspaceMock = vi.fn();
 
 vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
@@ -42,8 +42,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   return {
     ...actual,
     mapJobWithStatus: (job: unknown) => job,
-    resolveWorkspaceForContext: (...args: unknown[]) =>
-      resolveWorkspaceForContextMock(...args),
+    upsertWorkspace: (...args: unknown[]) => upsertWorkspaceMock(...args),
   };
 });
 
@@ -60,7 +59,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
 describe("user.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
   });

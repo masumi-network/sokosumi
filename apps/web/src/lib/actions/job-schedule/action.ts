@@ -2,7 +2,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import type { Prisma, ScheduleType } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
+import { upsertWorkspace } from "@sokosumi/database/helpers";
 import { jobScheduleRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
@@ -123,7 +123,7 @@ export const createSchedule = withSession<
       };
     }
 
-    const workspace = await resolveWorkspaceForContext(
+    const workspace = await upsertWorkspace(
       session.user.id,
       session.session.activeOrganizationId ?? null,
       prisma,

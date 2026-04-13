@@ -10,7 +10,7 @@ import type {
 } from "@sokosumi/database";
 import {
   buildWorkspaceReadWhere,
-  resolveWorkspaceForContext,
+  upsertWorkspace,
 } from "@sokosumi/database/helpers";
 import {
   invitationRepository,
@@ -106,7 +106,7 @@ export const userService = (() => {
     }
     const userId = session.user.id;
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await resolveWorkspaceForContext(
+    const workspace = await upsertWorkspace(
       userId,
       activeOrganizationId,
       prisma,

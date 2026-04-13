@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getSessionMock = vi.fn();
 const getAgentByIdMock = vi.fn();
 const getJobByIdMock = vi.fn();
-const { resolveWorkspaceForContextMock } = vi.hoisted(() => ({
-  resolveWorkspaceForContextMock: vi.fn(),
+const { upsertWorkspaceMock } = vi.hoisted(() => ({
+  upsertWorkspaceMock: vi.fn(),
 }));
 const setQueryDataMock = vi.fn();
 const redirectMock = vi.fn((url: string) => {
@@ -33,7 +33,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
   return {
     ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+    upsertWorkspace: upsertWorkspaceMock,
   };
 });
 
@@ -61,7 +61,7 @@ describe("loadJobDetails", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceMock.mockResolvedValue({
       id: "workspace-1",
     });
   });

@@ -1,4 +1,4 @@
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
+import { upsertWorkspace } from "@sokosumi/database/helpers";
 import { createMiddleware } from "hono/factory";
 
 import prisma from "@/lib/db/prisma";
@@ -39,7 +39,7 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
       return await next();
     }
 
-    const workspace = await resolveWorkspaceForContext(
+    const workspace = await upsertWorkspace(
       authContext.userId,
       authContext.organizationId,
       prisma,

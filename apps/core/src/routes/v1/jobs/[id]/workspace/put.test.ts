@@ -14,7 +14,7 @@ const {
   mapJobWithStatusMock,
   prismaTransactionMock,
   resolveMemberOrganizationByIdMock,
-  resolveWorkspaceForContextMock,
+  upsertWorkspaceMock,
   serializeJobDetailsMock,
 } = vi.hoisted(() => ({
   jobFindFirstMock: vi.fn(),
@@ -23,7 +23,7 @@ const {
   mapJobWithStatusMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
+  upsertWorkspaceMock: vi.fn(),
   serializeJobDetailsMock: vi.fn(),
 }));
 
@@ -33,7 +33,7 @@ vi.mock("@/helpers/organization", () => ({
 
 vi.mock("@sokosumi/database/helpers", () => ({
   mapJobWithStatus: mapJobWithStatusMock,
-  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+  upsertWorkspace: upsertWorkspaceMock,
 }));
 
 vi.mock("@/types/job", () => ({
@@ -196,7 +196,7 @@ describe("PUT /jobs/{id}/workspace", () => {
       },
       role: "member",
     });
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
     });
     mapJobWithStatusMock.mockReturnValue(createJobApi());
