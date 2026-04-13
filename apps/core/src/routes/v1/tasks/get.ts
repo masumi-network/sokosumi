@@ -1,9 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
-import { memberRepository } from "@sokosumi/database/repositories";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
-import { badRequest } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -24,7 +23,6 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { isCoworkerAuthContext } from "@/middleware/auth";
-import type { WorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
 import { taskListInclude } from "@/types/task";
@@ -60,6 +58,14 @@ const query = z
   .object({
     q: taskNameQuerySchema,
     status: taskStatusQuerySchema,
+    userId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "userId", in: "query" },
+        description: "Filter tasks by user ID",
+        example: "usr_123",
+      }),
     coworkerId: z
       .string()
       .optional()
@@ -67,14 +73,6 @@ const query = z
         param: { name: "coworkerId", in: "query" },
         description: "Filter tasks by coworker ID",
         example: "cow_123",
-      }),
-    memberId: z
-      .string()
-      .optional()
-      .openapi({
-        param: { name: "memberId", in: "query" },
-        description: "Filter tasks by member user ID",
-        example: "usr_123",
       }),
     agentId: z
       .string()
@@ -106,9 +104,9 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const { workspaceContext, authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { q, status: statuses, coworkerId, memberId, agentId } = queryParams;
+    const { q, status: statuses, coworkerId, agentId, userId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -133,54 +131,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         archivedAt: null,
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(agentId ? { jobs: { some: { agentId } } } : {}),
+        ...(userId ? { userId } : {}),
         ...searchFilter,
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
-      const workspaceContext: WorkspaceContext | null = c.var.workspaceContext;
-      const workspaceId = workspaceContext?.workspaceId ?? null;
-      const workspaceOrganizationId = workspaceContext?.organizationId ?? null;
-      const isOrganizationWorkspace =
-        workspaceOrganizationId !== null &&
-        workspaceOrganizationId === authContext.organizationId;
-
-      if (memberId) {
-        if (!isOrganizationWorkspace || !workspaceOrganizationId) {
-          throw badRequest(
-            "memberId is only supported in organization workspaces.",
-          );
-        }
-
-        const member =
-          await memberRepository.getMemberByUserIdAndOrganizationId(
-            memberId,
-            workspaceOrganizationId,
-            prisma,
-          );
-
-        if (!member) {
-          throw badRequest(
-            "memberId must belong to the active organization workspace.",
-          );
-        }
-      }
+      const workspaceId = workspaceContext?.workspaceId;
 
       if (!workspaceId) {
-        const paginationMeta = createPaginationMeta([], 0, take, false, cursor);
-        return ok(c, taskListSchema.parse([]), paginationMeta);
+        throw notFound("Workspace not found");
       }
 
       where = {
         archivedAt: null,
         workspaceId,
-        ...(isOrganizationWorkspace
-          ? memberId
-            ? { userId: memberId }
-            : {}
-          : { userId: authContext.userId }),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
         ...(agentId ? { jobs: { some: { agentId } } } : {}),
+        ...(userId ? { userId } : {}),
         ...searchFilter,
       };
     }

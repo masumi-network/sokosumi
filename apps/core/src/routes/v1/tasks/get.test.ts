@@ -9,13 +9,11 @@ import type { AuthWithWorkspaceEnv } from "@/middleware/workspace";
 import mountGetTasks from "./get";
 
 const {
-  getMemberByUserIdAndOrganizationIdMock,
   prismaTransactionMock,
   requireCoworkerCapabilityMock,
   taskCountMock,
   taskFindManyMock,
 } = vi.hoisted(() => ({
-  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
   taskCountMock: vi.fn(),
@@ -25,20 +23,6 @@ const {
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
 }));
-
-vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/repositories")>();
-
-  return {
-    ...actual,
-    memberRepository: {
-      ...actual.memberRepository,
-      getMemberByUserIdAndOrganizationId:
-        getMemberByUserIdAndOrganizationIdMock,
-    },
-  };
-});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -130,9 +114,6 @@ describe("GET /tasks", () => {
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-      id: "member_123",
-    });
     prismaTransactionMock.mockImplementation(async (operations) => {
       return await Promise.all(operations);
     });
@@ -207,42 +188,50 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(200);
   });
 
-  it("returns an empty page when workspaceContext is null", async () => {
+  it("returns 404 when workspaceContext is null", async () => {
     const app = createApp("user", "org_123", null);
 
     const response = await app.request("http://localhost/");
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(404);
     expect(taskFindManyMock).not.toHaveBeenCalled();
     expect(taskCountMock).not.toHaveBeenCalled();
-    await expect(response.json()).resolves.toMatchObject({
-      data: [],
-      meta: {
-        pagination: {
-          total: 0,
-          nextCursor: null,
-        },
-      },
-    });
   });
 
-  it("filters org workspace task lists by memberId", async () => {
+  it("filters task lists by userId", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/?memberId=user_456");
+    const response = await app.request("http://localhost/?userId=user_456");
 
     expect(response.status).toBe(200);
-    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
-      "user_456",
-      "org_123",
-      expect.any(Object),
-    );
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           archivedAt: null,
           workspaceId: "11111111-1111-7111-8111-111111111111",
           userId: "user_456",
+        },
+      }),
+    );
+  });
+
+  it("filters coworker task lists by userId", async () => {
+    const app = createApp("coworker");
+
+    const response = await app.request("http://localhost/?userId=user_456");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          coworkerId: "cow_123",
+          userId: "user_456",
+          NOT: {
+            status: {
+              in: [TaskStatus.DRAFT],
+            },
+          },
         },
       }),
     );
@@ -295,24 +284,45 @@ describe("GET /tasks", () => {
     );
   });
 
-  it("rejects memberId values outside the active organization", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+  it("ignores unknown memberId query params", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/?memberId=user_999");
 
-    expect(response.status).toBe(400);
-    expect(taskFindManyMock).not.toHaveBeenCalled();
-    expect(taskCountMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+      }),
+    );
   });
 
-  it("rejects memberId filters in personal workspaces", async () => {
+  it("returns 404 for missing personal workspaceContext even when userId is provided", async () => {
     const app = createApp("user", null);
 
-    const response = await app.request("http://localhost/?memberId=user_456");
+    const response = await app.request("http://localhost/?userId=user_456");
 
-    expect(response.status).toBe(400);
-    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: "user_456",
+        },
+      }),
+    );
+  });
+
+  it("returns 404 when personal workspaceContext is null and userId is provided", async () => {
+    const app = createApp("user", null, null);
+
+    const response = await app.request("http://localhost/?userId=user_456");
+
+    expect(response.status).toBe(404);
     expect(taskFindManyMock).not.toHaveBeenCalled();
     expect(taskCountMock).not.toHaveBeenCalled();
   });
