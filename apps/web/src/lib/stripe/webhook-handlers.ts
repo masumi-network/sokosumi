@@ -27,7 +27,6 @@ import {
 import {
   convertCentsToCredits,
   convertCreditsToCents,
-  FREE_CREDITS_EXPIRY_DAYS,
   getOrganizationMetadata,
 } from "@sokosumi/utils";
 import Stripe from "stripe";
@@ -58,12 +57,10 @@ interface SubscriptionLine {
 }
 
 interface CreditScope {
-  buildGrantedCreditsWhere: (expiresAt: Date) => Prisma.CreditBucketWhereInput;
   resolveDefaultQuantity: () => Promise<number>;
 }
 
 interface SubscriptionCreditTotals {
-  freeSubscriptionUpdateTargetCredits: number;
   maxSubscriptionPeriodEndUnix: number | null;
   paidOrCycleSubscriptionCredits: number;
 }
@@ -157,30 +154,27 @@ function getTopUpCreditsFromInvoiceMetadata(
   return credits;
 }
 
+/**
+ * Reads `ttl_days` from invoice metadata for free (zero-amount) credit grants.
+ * - Missing, empty, invalid, negative, or zero → no expiry (`expiresAt` null).
+ * - Positive integer → expiry after that many days from the invoice time.
+ */
 function getTopUpExpiryDaysFromInvoiceMetadata(
   invoice: Stripe.Invoice,
-): number | null | undefined {
+): number | null {
   const ttlDaysRaw = invoice.metadata?.ttl_days;
   if (ttlDaysRaw === undefined) {
-    return undefined;
+    return null;
   }
 
   const normalizedTtlDays = ttlDaysRaw.trim();
   if (!normalizedTtlDays) {
-    return undefined;
-  }
-
-  const ttlDays = Number(normalizedTtlDays);
-  if (!Number.isInteger(ttlDays)) {
-    return undefined;
-  }
-
-  if (ttlDays === 0) {
     return null;
   }
 
-  if (ttlDays < 0) {
-    return undefined;
+  const ttlDays = Number(normalizedTtlDays);
+  if (!Number.isInteger(ttlDays) || ttlDays <= 0) {
+    return null;
   }
 
   return ttlDays;
@@ -211,10 +205,7 @@ function resolveTopUpGrantPolicy(invoice: Stripe.Invoice): {
     expiresAt:
       freeTopUpExpiryDays === null
         ? null
-        : getCreditExpiryDate(
-            invoiceCreatedAt,
-            freeTopUpExpiryDays ?? FREE_CREDITS_EXPIRY_DAYS,
-          ),
+        : getCreditExpiryDate(invoiceCreatedAt, freeTopUpExpiryDays),
     referenceType: CreditBucketReferenceType.STRIPE_FREE,
   };
 }
@@ -256,10 +247,8 @@ function calculateProratedSubscriptionCredits(params: {
 
 function shouldGrantSubscriptionCreditsForLine(params: {
   billingReason: Stripe.Invoice.BillingReason | null;
-  freeSubscriptionProductId: string;
   invoiceAmountPaid: number;
   lineAmount: number;
-  productId: string;
 }): boolean {
   const { billingReason } = params;
   if (billingReason === null) {
@@ -274,29 +263,7 @@ function shouldGrantSubscriptionCreditsForLine(params: {
     return false;
   }
 
-  if (params.productId === params.freeSubscriptionProductId) {
-    return true;
-  }
-
   return params.invoiceAmountPaid > 0 && params.lineAmount !== 0;
-}
-
-async function getGrantedSubscriptionCreditsForPeriod(
-  where: Prisma.CreditBucketWhereInput,
-): Promise<number> {
-  const aggregateResult = await prisma.creditBucket.aggregate({
-    _sum: {
-      amount: true,
-    },
-    where,
-  });
-
-  const grantedCents = aggregateResult._sum.amount;
-  if (grantedCents === null) {
-    return 0;
-  }
-
-  return Math.max(0, Math.trunc(convertCentsToCredits(grantedCents)));
 }
 
 async function calculateSubscriptionCreditTotals(params: {
@@ -308,12 +275,10 @@ async function calculateSubscriptionCreditTotals(params: {
   subscriptionLines: SubscriptionLine[];
 }): Promise<SubscriptionCreditTotals> {
   let paidOrCycleSubscriptionCredits = 0;
-  let freeSubscriptionUpdateTargetCredits = 0;
   let maxSubscriptionPeriodEndUnix: number | null = null;
 
   if (params.subscriptionLines.length === 0) {
     return {
-      freeSubscriptionUpdateTargetCredits,
       maxSubscriptionPeriodEndUnix,
       paidOrCycleSubscriptionCredits,
     };
@@ -329,9 +294,6 @@ async function calculateSubscriptionCreditTotals(params: {
       },
     ]),
   );
-
-  let maxFreePlanQuantity = 0;
-  let freePlanCreditsPerSeat = 0;
 
   function logSeatCreditCapApplied(data: {
     activeMembers: number;
@@ -376,45 +338,30 @@ async function calculateSubscriptionCreditTotals(params: {
     const lineAmount = lineItem.amount ?? 0;
 
     if (params.isSubscriptionUpdate) {
-      if (catalogPlan.monthlyAmount === 0) {
-        let quantity = lineItem.quantity ?? 0;
-        if (quantity <= 0) {
-          continue;
-        }
+      let proratedCredits = calculateProratedSubscriptionCredits({
+        invoiceId: params.invoiceId,
+        lineAmount,
+        monthlyAmount: catalogPlan.monthlyAmount,
+        planCredits: catalogPlan.credits,
+        productId,
+      });
 
-        quantity = capSeatsToActiveMembers(quantity, productId);
-        if (quantity <= 0) {
-          continue;
-        }
-
-        maxFreePlanQuantity = Math.max(maxFreePlanQuantity, quantity);
-        freePlanCreditsPerSeat = catalogPlan.credits;
-      } else {
-        let proratedCredits = calculateProratedSubscriptionCredits({
-          invoiceId: params.invoiceId,
-          lineAmount,
-          monthlyAmount: catalogPlan.monthlyAmount,
-          planCredits: catalogPlan.credits,
+      const billedQuantity = lineItem.quantity ?? 0;
+      if (billedQuantity > 0) {
+        const grantedQuantity = capSeatsToActiveMembers(
+          billedQuantity,
           productId,
-        });
-
-        const billedQuantity = lineItem.quantity ?? 0;
-        if (billedQuantity > 0) {
-          const grantedQuantity = capSeatsToActiveMembers(
-            billedQuantity,
-            productId,
-          );
-          if (grantedQuantity <= 0) {
-            continue;
-          }
-
-          proratedCredits = Math.trunc(
-            (proratedCredits * grantedQuantity) / billedQuantity,
-          );
+        );
+        if (grantedQuantity <= 0) {
+          continue;
         }
 
-        paidOrCycleSubscriptionCredits += proratedCredits;
+        proratedCredits = Math.trunc(
+          (proratedCredits * grantedQuantity) / billedQuantity,
+        );
       }
+
+      paidOrCycleSubscriptionCredits += proratedCredits;
     } else {
       let quantity = lineItem.quantity ?? 0;
       if (quantity <= 0) {
@@ -439,20 +386,13 @@ async function calculateSubscriptionCreditTotals(params: {
     }
   }
 
-  if (maxFreePlanQuantity > 0 && freePlanCreditsPerSeat > 0) {
-    freeSubscriptionUpdateTargetCredits =
-      freePlanCreditsPerSeat * maxFreePlanQuantity;
-  }
-
   return {
-    freeSubscriptionUpdateTargetCredits,
     maxSubscriptionPeriodEndUnix,
     paidOrCycleSubscriptionCredits,
   };
 }
 
 async function finalizeAppliedSubscriptionCredits(params: {
-  creditScope: CreditScope;
   invoiceId: string;
   isSubscriptionUpdate: boolean;
   totals: SubscriptionCreditTotals;
@@ -463,42 +403,14 @@ async function finalizeAppliedSubscriptionCredits(params: {
     paidOrCycleSubscriptionCredits = 0;
   }
 
-  let freeSubscriptionUpdateCredits =
-    params.totals.freeSubscriptionUpdateTargetCredits;
-  const freeSubscriptionUpdateExpiry =
-    params.totals.freeSubscriptionUpdateTargetCredits > 0 &&
-    typeof params.totals.maxSubscriptionPeriodEndUnix === "number" &&
-    params.totals.maxSubscriptionPeriodEndUnix > 0
-      ? new Date(params.totals.maxSubscriptionPeriodEndUnix * 1000)
-      : null;
-
-  if (
-    freeSubscriptionUpdateExpiry &&
-    params.totals.freeSubscriptionUpdateTargetCredits > 0
-  ) {
-    const alreadyGrantedCredits = await getGrantedSubscriptionCreditsForPeriod(
-      params.creditScope.buildGrantedCreditsWhere(freeSubscriptionUpdateExpiry),
-    );
-    freeSubscriptionUpdateCredits = Math.max(
-      0,
-      params.totals.freeSubscriptionUpdateTargetCredits - alreadyGrantedCredits,
-    );
-  }
-
-  const subscriptionCredits =
-    paidOrCycleSubscriptionCredits + freeSubscriptionUpdateCredits;
+  const subscriptionCredits = paidOrCycleSubscriptionCredits;
 
   const subscriptionCreditsExpiry =
     subscriptionCredits > 0
-      ? params.isSubscriptionUpdate &&
-        paidOrCycleSubscriptionCredits === 0 &&
-        freeSubscriptionUpdateCredits > 0 &&
-        freeSubscriptionUpdateExpiry
-        ? freeSubscriptionUpdateExpiry
-        : getSubscriptionCreditExpiry({
-            invoiceId: params.invoiceId,
-            maxPeriodEndUnix: params.totals.maxSubscriptionPeriodEndUnix,
-          })
+      ? getSubscriptionCreditExpiry({
+          invoiceId: params.invoiceId,
+          maxPeriodEndUnix: params.totals.maxSubscriptionPeriodEndUnix,
+        })
       : null;
 
   return {
@@ -687,30 +599,14 @@ export async function handleInvoicePaidEvent(
   const creditScope: CreditScope = organizationId
     ? {
         resolveDefaultQuantity: async () => organizationMemberUserIds.length,
-        buildGrantedCreditsWhere: (expiresAt) => ({
-          expiresAt,
-          organizationId,
-          referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-          referenceId: {
-            startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-          },
-        }),
       }
     : {
         resolveDefaultQuantity: async () => 1,
-        buildGrantedCreditsWhere: (expiresAt) => ({
-          expiresAt,
-          organizationId: null,
-          referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-          userId,
-        }),
       };
 
   const env = getEnvSecrets();
   const creditProductId = env.STRIPE_CREDIT_PRODUCT_ID;
-  const freeSubscriptionProductId = env.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID;
   const subscriptionProductIds = new Set([
-    freeSubscriptionProductId,
     env.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID,
     env.STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID,
     env.STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID,
@@ -751,10 +647,8 @@ export async function handleInvoicePaidEvent(
       if (
         !shouldGrantSubscriptionCreditsForLine({
           billingReason,
-          freeSubscriptionProductId,
           invoiceAmountPaid: invoice.amount_paid,
           lineAmount,
-          productId,
         })
       ) {
         continue;
@@ -787,7 +681,6 @@ export async function handleInvoicePaidEvent(
   });
   const { subscriptionCredits, subscriptionCreditsExpiry } =
     await finalizeAppliedSubscriptionCredits({
-      creditScope,
       invoiceId,
       isSubscriptionUpdate,
       totals: subscriptionCreditTotals,

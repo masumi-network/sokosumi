@@ -7,10 +7,18 @@ import {
 
 import prisma from "@/lib/db/prisma";
 
+const LOG_PREFIX = "[sync/free-subscriptions-renewal]";
+
 interface SyncExecutionOptions {
   deadlineMs: number;
   msRemaining: () => number;
   shouldContinue: () => boolean;
+}
+
+export interface FreeSubscriptionRenewalSyncResult {
+  renewalErrors: number;
+  renewed: number;
+  stoppedEarly: boolean;
 }
 
 interface LocalFreeSubscriptionRecord {
@@ -39,12 +47,12 @@ function shouldStopSync(
   reason: string,
 ): boolean {
   if (!options.shouldContinue()) {
-    console.info(`[sync/free-subscriptions] ${reason}`);
+    console.info(`${LOG_PREFIX} ${reason} (cancelled)`);
     return true;
   }
 
   if (!hasTimeRemaining(options.deadlineMs)) {
-    console.info(`[sync/free-subscriptions] ${reason}`);
+    console.info(`${LOG_PREFIX} ${reason} (deadline)`);
     return true;
   }
 
@@ -157,8 +165,11 @@ async function renewLocalFreeSubscriptionPeriod(
 
 async function renewLocalFreeSubscriptions(
   options: SyncExecutionOptions,
-): Promise<void> {
+): Promise<FreeSubscriptionRenewalSyncResult> {
   const attemptedSubscriptionIds = new Set<string>();
+  let renewalErrors = 0;
+  let renewed = 0;
+  let stoppedEarly = false;
 
   while (true) {
     if (
@@ -167,7 +178,8 @@ async function renewLocalFreeSubscriptions(
         "Stopping before querying more local free subscriptions for renewal",
       )
     ) {
-      return;
+      stoppedEarly = true;
+      return { renewalErrors, renewed, stoppedEarly };
     }
 
     const dueLocalFreeSubscriptions = (await prisma.subscription.findMany({
@@ -202,7 +214,7 @@ async function renewLocalFreeSubscriptions(
       );
 
     if (subscriptionsNeedingRenewal.length === 0) {
-      return;
+      return { renewalErrors, renewed, stoppedEarly };
     }
 
     for (const subscription of subscriptionsNeedingRenewal) {
@@ -212,16 +224,19 @@ async function renewLocalFreeSubscriptions(
           "Stopping before renewing more local free subscriptions",
         )
       ) {
-        return;
+        stoppedEarly = true;
+        return { renewalErrors, renewed, stoppedEarly };
       }
 
       attemptedSubscriptionIds.add(subscription.id);
 
       try {
         await renewLocalFreeSubscriptionPeriod(subscription);
+        renewed += 1;
       } catch (error) {
+        renewalErrors += 1;
         console.error(
-          `Failed to renew local free subscription ${subscription.id}:`,
+          `${LOG_PREFIX} Failed to renew local free subscription ${subscription.id}:`,
           error,
         );
       }
@@ -232,7 +247,7 @@ async function renewLocalFreeSubscriptions(
 export const freeSubscriptionSyncService = {
   async renewLocalFreeSubscriptions(
     options: SyncExecutionOptions,
-  ): Promise<void> {
-    await renewLocalFreeSubscriptions(options);
+  ): Promise<FreeSubscriptionRenewalSyncResult> {
+    return await renewLocalFreeSubscriptions(options);
   },
 };

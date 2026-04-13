@@ -238,7 +238,8 @@
       "chat": "チャット",
       "tasks": "タスク",
       "connections": "接続",
-      "feed": "マイフィード"
+      "feed": "マイフィード",
+      "new": "新規"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1050,7 +1051,8 @@
         "skip": "スキップ",
         "back": "戻る",
         "next": "次へ",
-        "getStarted": "開始する"
+        "getStarted": "開始する",
+        "subscribe": "購読する"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "同僚",
@@ -1076,6 +1078,10 @@
         "orchestration": {
           "title": "あとは同僚が対応",
           "description": "同僚が必要に応じて、リサーチ、執筆、分析などの専門エージェントを雇用します。"
+        },
+        "plans": {
+          "title": "より早く成長できるプランを選びましょう",
+          "description": "有料プランを選ぶと、より多くのクレジット、より高機能な同僚、プレミアム機能を初日から利用できます。"
         }
       },
       "visuals": {
@@ -1124,6 +1130,7 @@
       "description": "AI同僚とチャット",
       "Chat": {
         "newChat": "新しいチャット",
+        "newTask": "新しいタスク",
         "noChats": "チャットはまだありません",
         "noCoworkersAvailable": "利用可能な同僚がいません。しばらくしてから再度お試しください。",
         "emptyState": {
@@ -1655,6 +1662,7 @@
       "currentPlanBadge": "現在",
       "pricePerMonth": "／月",
       "includedCredits": "{credits, plural, =0 {クレジットなし} =1 {# クレジットが含まれます} other {# クレジットが含まれます}}",
+      "mostPopularBadge": "一番人気",
       "upgrading": "リダイレクトしています...",
       "canceling": "解約を予約しています...",
       "currentPlanCta": "現在のプラン",
@@ -1767,7 +1775,7 @@
       "topUpDescription": "金額を選択するか、任意の値を入力してください",
       "paidSubscriptionRequiredDescription": "追加のクレジットを購入するには有料サブスクリプションが必要です。",
       "paidSubscriptionRequiredHint": "クレジットの追加購入を利用するには、サブスクリプションタブで有料プランを選択してください。",
-      "couponExpiryNotice": "クレジットは{days, plural, one {# 日} other {# 日}}後に失効します。",
+      "couponExpiryPolicyNotice": "プロモーションクレジットには有効期限がある場合があります。条件はクーポンやオファーによって異なります。",
       "costPerCredit": "1クレジットあたり{cost}",
       "creditAmount": "{count, plural, one {# クレジット} other {# クレジット}}",
       "creditsLabel": "クレジット数",

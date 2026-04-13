@@ -238,7 +238,8 @@
       "chat": "Chat",
       "tasks": "Tarefas",
       "connections": "Conexões",
-      "feed": "Meu feed"
+      "feed": "Meu feed",
+      "new": "Novo"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1050,7 +1051,8 @@
         "skip": "Pular",
         "back": "Voltar",
         "next": "Próximo",
-        "getStarted": "Começar"
+        "getStarted": "Começar",
+        "subscribe": "Assinar"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "Coworker",
@@ -1076,6 +1078,10 @@
         "orchestration": {
           "title": "Eles cuidam do resto",
           "description": "Seu coworker contrata agentes especializados para pesquisar, escrever, analisar — o que a task precisar."
+        },
+        "plans": {
+          "title": "Escolha o plano que ajuda você a crescer mais rápido",
+          "description": "Comece com um plano pago para desbloquear mais créditos, coworkers mais capazes e recursos premium desde o primeiro dia."
         }
       },
       "visuals": {
@@ -1124,6 +1130,7 @@
       "description": "Converse com seus coworkers de IA",
       "Chat": {
         "newChat": "Novo chat",
+        "newTask": "Nova tarefa",
         "noChats": "Ainda não há chats",
         "noCoworkersAvailable": "Nenhum coworker disponível. Tente novamente mais tarde.",
         "emptyState": {
@@ -1654,6 +1661,7 @@
       "currentPlanBadge": "Atual",
       "pricePerMonth": "por mês",
       "includedCredits": "{credits, plural, =0 {Sem créditos} =1 {# crédito incluído} other {# créditos incluídos}}",
+      "mostPopularBadge": "Mais popular",
       "upgrading": "Redirecionando...",
       "canceling": "Agendando cancelamento...",
       "currentPlanCta": "Plano atual",
@@ -1766,7 +1774,7 @@
       "topUpDescription": "Escolha um valor ou digite um valor personalizado",
       "paidSubscriptionRequiredDescription": "É necessária uma assinatura paga para comprar créditos adicionais.",
       "paidSubscriptionRequiredHint": "Escolha um plano pago na aba Assinatura para desbloquear as recargas de créditos.",
-      "couponExpiryNotice": "Os créditos expiram após {days, plural, one {# dia} other {# dias}}.",
+      "couponExpiryPolicyNotice": "Os créditos promocionais podem expirar; os termos variam conforme o cupom ou a oferta.",
       "costPerCredit": "{cost} por crédito",
       "creditAmount": "{count, plural, one {# crédito} other {# créditos}}",
       "creditsLabel": "Quantidade de créditos",

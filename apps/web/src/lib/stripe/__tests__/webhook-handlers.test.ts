@@ -5,7 +5,6 @@ import {
   escapeStringForLike,
   getCreditExpiryDate,
 } from "@sokosumi/database/helpers";
-import { FREE_CREDITS_EXPIRY_DAYS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -16,7 +15,6 @@ const getMembersByOrganizationIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const findExistingBucketMock = vi.fn();
 const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
-const aggregateGrantedCreditsMock = vi.fn();
 const createTransactionMock = vi.fn();
 const findOutOfCreditsTasksMock = vi.fn();
 const updateTaskMock = vi.fn();
@@ -46,7 +44,6 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
 vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
-    STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID: "prod_free",
     STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: "prod_pro",
     STRIPE_SECRET_KEY: "sk_test_mock",
     STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: "prod_standard",
@@ -95,7 +92,6 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: (callback: (tx: unknown) => unknown) =>
       transactionMock(callback),
     creditBucket: {
-      aggregate: (...args: unknown[]) => aggregateGrantedCreditsMock(...args),
       findFirst: (...args: unknown[]) =>
         findExistingOrganizationInvoiceSubscriptionBucketMock(...args),
     },
@@ -123,7 +119,7 @@ const DEFAULT_PERIOD_END_UNIX = 1_735_689_600;
 const DEFAULT_INVOICE_CREATED_UNIX = 1_735_689_600;
 const DEFAULT_PERIOD_DURATION_SECONDS = 2_592_000;
 const SUBSCRIPTION_CATALOG = {
-  free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+  free: { credits: 250, monthlyAmount: 0, productId: "local-free" },
   pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
   standard: {
     credits: 5250,
@@ -267,9 +263,6 @@ describe("handleInvoicePaidEvent", () => {
     findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue(
       null,
     );
-    aggregateGrantedCreditsMock.mockResolvedValue({
-      _sum: { amount: null },
-    });
     createTransactionMock.mockResolvedValue({});
     findOutOfCreditsTasksMock.mockResolvedValue([]);
     updateTaskMock.mockResolvedValue({});
@@ -295,7 +288,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("grants free-plan seat credits for zero-amount subscription_update invoices", async () => {
+  it("does not grant subscription credits for legacy Stripe free product lines on personal subscription_update", async () => {
     mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
@@ -304,91 +297,21 @@ describe("handleInvoicePaidEvent", () => {
       createInvoice({
         amountPaid: 0,
         billingReason: "subscription_update",
-        id: "in_free_sub_update",
+        id: "in_legacy_free_personal",
         lines: [{ amount: 0, productId: "prod_free", quantity: 1 }],
       }) as never,
     );
 
-    expect(createTransactionMock).toHaveBeenCalledTimes(1);
-
-    const createCall = createTransactionMock.mock.calls[0][0] as {
-      data: {
-        amount: bigint;
-        sourceCreditBucket: {
-          create: {
-            referenceId: string;
-            referenceType: string;
-          };
-        };
-      };
-    };
-
-    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      buildUserInvoiceCreditReferenceId(
-        "user-1",
-        "in_free_sub_update",
-        "subscription",
-      ),
-    );
-    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
-      "STRIPE_SUBSCRIPTION_PERIOD",
-    );
-    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
+    expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("credits only the newly added free seats on subscription_update invoices", async () => {
-    mockSubscriptionCatalog();
-    aggregateGrantedCreditsMock.mockResolvedValue({
-      _sum: { amount: BigInt("2500000000000") },
-    });
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    await handleInvoicePaidEvent(
-      createInvoice({
-        amountPaid: 0,
-        billingReason: "subscription_update",
-        id: "in_free_sub_update_incremental",
-        lines: [{ amount: 0, productId: "prod_free", quantity: 2 }],
-      }) as never,
-    );
-
-    expect(createTransactionMock).toHaveBeenCalledTimes(1);
-
-    const createCall = createTransactionMock.mock.calls[0][0] as {
-      data: {
-        amount: bigint;
-        sourceCreditBucket: {
-          create: {
-            referenceId: string;
-            referenceType: string;
-          };
-        };
-      };
-    };
-
-    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      buildUserInvoiceCreditReferenceId(
-        "user-1",
-        "in_free_sub_update_incremental",
-        "subscription",
-      ),
-    );
-    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
-      "STRIPE_SUBSCRIPTION_PERIOD",
-    );
-    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
-  });
-
-  it("dedupes free organization subscription_update credits by organization period", async () => {
+  it("does not grant subscription credits for legacy Stripe free product lines on organization subscription_update", async () => {
     mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
     ]);
     mockSubscriptionCatalog();
-    aggregateGrantedCreditsMock.mockResolvedValue({
-      _sum: { amount: BigInt("5000000000000") },
-    });
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -396,25 +319,13 @@ describe("handleInvoicePaidEvent", () => {
       createInvoice({
         amountPaid: 0,
         billingReason: "subscription_update",
-        id: "in_org_free_sub_update",
+        id: "in_legacy_free_org",
         lines: [{ amount: 0, productId: "prod_free", quantity: 2 }],
       }) as never,
     );
 
-    expect(aggregateGrantedCreditsMock).toHaveBeenCalledTimes(1);
-    const aggregateCall = aggregateGrantedCreditsMock.mock.calls[0][0] as {
-      where: Record<string, unknown>;
-    };
-    expect(aggregateCall.where).toMatchObject({
-      organizationId: "org-1",
-      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-      referenceId: {
-        startsWith: "member:",
-      },
-    });
-    expect(aggregateCall.where).not.toHaveProperty("userId");
-
-    expect(createTransactionMock).not.toHaveBeenCalled();
+    expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("splits organization subscription cycle credits equally with deterministic remainder", async () => {
@@ -1049,7 +960,7 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
-  it("classifies free top-up invoices as STRIPE_FREE with 30-day expiry", async () => {
+  it("classifies free top-up invoices as STRIPE_FREE with no expiry when ttl_days is omitted", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
     await handleInvoicePaidEvent(
@@ -1077,12 +988,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_FREE",
     );
-    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
-      getCreditExpiryDate(
-        new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000),
-        FREE_CREDITS_EXPIRY_DAYS,
-      ),
-    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
   });
 
   it("uses ttl_days invoice metadata for free top-up expiry", async () => {
@@ -1153,7 +1059,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
   });
 
-  it("falls back to default free expiry for invalid ttl_days metadata", async () => {
+  it("sets no expiry for free top-up when ttl_days metadata is invalid", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
     await handleInvoicePaidEvent(
@@ -1182,12 +1088,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_FREE",
     );
-    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
-      getCreditExpiryDate(
-        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
-        FREE_CREDITS_EXPIRY_DAYS,
-      ),
-    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
   });
 
   it("splits top-up and subscription credits into separate buckets when both are present", async () => {

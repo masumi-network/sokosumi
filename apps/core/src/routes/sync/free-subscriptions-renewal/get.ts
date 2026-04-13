@@ -13,10 +13,22 @@ export default function mount(app: Hono) {
       c,
       FREE_SUBSCRIPTIONS_RENEWAL_SYNC_LOCK_KEY,
       async (context) => {
-        await freeSubscriptionSyncService.renewLocalFreeSubscriptions({
-          deadlineMs: context.deadlineMs,
-          msRemaining: context.msRemaining,
-          shouldContinue: context.shouldContinue,
+        console.info(
+          "[sync/free-subscriptions-renewal] Starting local free subscription renewal",
+        );
+        const startedAt = Date.now();
+        const result =
+          await freeSubscriptionSyncService.renewLocalFreeSubscriptions({
+            deadlineMs: context.deadlineMs,
+            msRemaining: context.msRemaining,
+            shouldContinue: context.shouldContinue,
+          });
+
+        console.info("[sync/free-subscriptions-renewal] Completed sync", {
+          durationMs: Date.now() - startedAt,
+          renewalErrors: result.renewalErrors,
+          renewed: result.renewed,
+          stoppedEarly: result.stoppedEarly,
         });
       },
     );

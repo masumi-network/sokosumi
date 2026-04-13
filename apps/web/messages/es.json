@@ -238,7 +238,8 @@
       "chat": "Chat",
       "tasks": "Tareas",
       "connections": "Conexiones",
-      "feed": "My Feed"
+      "feed": "My Feed",
+      "new": "Nuevo"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1050,7 +1051,8 @@
         "skip": "Omitir",
         "back": "Atrás",
         "next": "Siguiente",
-        "getStarted": "Empezar"
+        "getStarted": "Empezar",
+        "subscribe": "Suscribirse"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "Coworker",
@@ -1076,6 +1078,10 @@
         "orchestration": {
           "title": "Ellos se encargan del resto",
           "description": "Tu Coworker contrata Agents especializados para investigar, escribir, analizar, según la tarea."
+        },
+        "plans": {
+          "title": "Elige el plan que te ayude a crecer más rápido",
+          "description": "Empieza con un plan de pago para desbloquear más Credits, Coworkers más capaces y funciones premium desde el primer día."
         }
       },
       "visuals": {
@@ -1124,6 +1130,7 @@
       "description": "Chatea con tus AI Coworkers",
       "Chat": {
         "newChat": "Nuevo chat",
+        "newTask": "Nueva tarea",
         "noChats": "Aún sin chats",
         "noCoworkersAvailable": "No hay Coworkers disponibles. Por favor, inténtalo más tarde.",
         "emptyState": {
@@ -1593,6 +1600,7 @@
       "currentPlanBadge": "Actual",
       "pricePerMonth": "por mes",
       "includedCredits": "{credits, plural, =0 {Sin Credits} =1 {# Credit incluido} other {# Credits incluidos}}",
+      "mostPopularBadge": "Más popular",
       "upgrading": "Redirigiendo...",
       "canceling": "Programando la cancelación...",
       "currentPlanCta": "Plan actual",
@@ -1757,7 +1765,7 @@
       },
       "paidSubscriptionRequiredDescription": "Se requiere una suscripción de pago para comprar créditos adicionales.",
       "paidSubscriptionRequiredHint": "Elige un plan de pago en la pestaña Suscripción para desbloquear las recargas de créditos.",
-      "couponExpiryNotice": "Los créditos vencen después de {days, plural, one {# día} other {# días}}."
+      "couponExpiryPolicyNotice": "Los créditos promocionales pueden caducar; las condiciones dependen del cupón o de la oferta."
     },
     "Connections": {
       "tabs": {

@@ -238,7 +238,8 @@
       "chat": "Chat",
       "tasks": "Aufgaben",
       "connections": "Verbindungen",
-      "feed": "Mein Feed"
+      "feed": "Mein Feed",
+      "new": "Neu"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1050,7 +1051,8 @@
         "skip": "Überspringen",
         "back": "Zurück",
         "next": "Weiter",
-        "getStarted": "Loslegen"
+        "getStarted": "Loslegen",
+        "subscribe": "Abonnieren"
       },
       "coworkerTooltip": "{name} · {role}",
       "defaultRole": "Coworker",
@@ -1076,6 +1078,10 @@
         "orchestration": {
           "title": "Sie übernehmen den Rest",
           "description": "Dein Coworker beauftragt spezialisierte Agents zum Recherchieren, Schreiben, Analysieren – je nach Aufgabe."
+        },
+        "plans": {
+          "title": "Wähle den Plan, mit dem du schneller wachsen kannst",
+          "description": "Starte mit einem kostenpflichtigen Plan, um mehr Credits, leistungsstärkere Coworker und Premium-Funktionen ab dem ersten Tag freizuschalten."
         }
       },
       "visuals": {
@@ -1124,6 +1130,7 @@
       "description": "Chatte mit deinen KI-Coworkern",
       "Chat": {
         "newChat": "Neuer Chat",
+        "newTask": "Neue Aufgabe",
         "noChats": "Noch keine Chats",
         "noCoworkersAvailable": "Keine Coworker verfügbar. Bitte versuche es später erneut.",
         "emptyState": {
@@ -1593,6 +1600,7 @@
       "currentPlanBadge": "Aktuell",
       "pricePerMonth": "pro Monat",
       "includedCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit enthalten} other {# Credits enthalten}}",
+      "mostPopularBadge": "Am beliebtesten",
       "upgrading": "Weiterleitung...",
       "canceling": "Kündigung wird geplant...",
       "currentPlanCta": "Aktueller Plan",
@@ -1757,7 +1765,7 @@
       },
       "paidSubscriptionRequiredDescription": "Du benötigst ein kostenpflichtiges Abonnement, um zusätzliche Credits zu kaufen.",
       "paidSubscriptionRequiredHint": "Wähle im Tab „Abonnement“ einen kostenpflichtigen Plan, um das Aufladen von Credits freizuschalten.",
-      "couponExpiryNotice": "Credits verfallen nach {days, plural, one {# Tag} other {# Tagen}}."
+      "couponExpiryPolicyNotice": "Aktionsguthaben kann verfallen; die Bedingungen hängen vom jeweiligen Gutschein oder Angebot ab."
     },
     "Connections": {
       "tabs": {

@@ -1,12 +1,14 @@
 import "server-only";
 
 import type { StripePlan } from "@better-auth/stripe";
+import { FREE_SUBSCRIPTION_MONTHLY_CREDITS } from "@sokosumi/database/helpers";
 import type Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
 export type SubscriptionPlanName = "free" | "starter" | "standard" | "pro";
 
+/** Paid catalog plans (excludes `free`). Used for Stripe checkout upgrade flows. */
 export type PaidSubscriptionPlanName = Exclude<SubscriptionPlanName, "free">;
 
 interface SubscriptionCatalogPlan {
@@ -25,20 +27,16 @@ type SubscriptionCatalog = Record<
 >;
 
 interface RawPlanConfig {
-  name: SubscriptionPlanName;
+  name: PaidSubscriptionPlanName;
   productId: string;
 }
 
 let catalogCache: Promise<SubscriptionCatalog> | null = null;
 
-function getPlanConfig(): RawPlanConfig[] {
+function getPaidPlanConfig(): RawPlanConfig[] {
   const env = getEnvSecrets();
 
   return [
-    {
-      name: "free",
-      productId: env.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID,
-    },
     {
       name: "starter",
       productId: env.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID,
@@ -105,8 +103,8 @@ function parsePrice(
 }
 
 async function loadCatalog(stripe: Stripe): Promise<SubscriptionCatalog> {
-  const plans = await Promise.all(
-    getPlanConfig().map(async (rawPlan) => {
+  const paidEntries = await Promise.all(
+    getPaidPlanConfig().map(async (rawPlan) => {
       const product = await stripe.products.retrieve(rawPlan.productId, {
         expand: ["default_price"],
       });
@@ -130,7 +128,25 @@ async function loadCatalog(stripe: Stripe): Promise<SubscriptionCatalog> {
     }),
   );
 
-  return Object.fromEntries(plans) as SubscriptionCatalog;
+  const paidCatalog = Object.fromEntries(paidEntries) as Record<
+    PaidSubscriptionPlanName,
+    SubscriptionCatalogPlan
+  >;
+
+  const freePlan: SubscriptionCatalogPlan = {
+    credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
+    currency: paidCatalog.starter.currency,
+    monthlyAmount: 0,
+    name: "free",
+    priceId: "",
+    productId: "local-free",
+    slug: "free",
+  };
+
+  return {
+    free: freePlan,
+    ...paidCatalog,
+  };
 }
 
 export async function getSubscriptionCatalog(
@@ -149,8 +165,9 @@ export async function getBetterAuthSubscriptionPlans(
   stripe: Stripe,
 ): Promise<StripePlan[]> {
   const catalog = await getSubscriptionCatalog(stripe);
+  const paidNames: PaidSubscriptionPlanName[] = ["starter", "standard", "pro"];
 
-  return (Object.keys(catalog) as SubscriptionPlanName[]).map((name) => ({
+  return paidNames.map((name) => ({
     limits: {
       credits: catalog[name].credits,
     },
