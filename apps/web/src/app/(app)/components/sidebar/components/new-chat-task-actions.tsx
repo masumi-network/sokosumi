@@ -15,11 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
-<<<<<<<< HEAD:apps/web/src/app/(app)/components/sidebar/components/chat-sidebar-entry.tsx
-export default function ChatSidebarEntry() {
-========
 export default function NewChatTaskActions() {
->>>>>>>> origin/main:apps/web/src/app/(app)/components/sidebar/components/new-chat-task-actions.tsx
   const tChat = useTranslations("App.Chat.Chat");
   const pathname = usePathname();
   const isChatActive = pathname === "/chat" || pathname.startsWith("/chat/");
