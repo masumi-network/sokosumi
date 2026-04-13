@@ -84,7 +84,7 @@ describe("loadJobDetails", () => {
 
     await expect(
       loadJobDetails({ agentId: "agent-1", jobId: "job-1" }),
-    ).rejects.toThrow("redirect:/agents/agent-1/jobs");
+    ).rejects.toMatchObject({ message: "redirect:/agents/agent-1/jobs" });
 
     expect(redirectMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
   });
@@ -134,7 +134,7 @@ describe("loadJobDetails", () => {
 
     await expect(
       loadJobDetails({ agentId: "agent-1", jobId: "job-1" }),
-    ).rejects.toThrow("redirect:/agents/agent-1/jobs");
+    ).rejects.toMatchObject({ message: "redirect:/agents/agent-1/jobs" });
 
     expect(redirectMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
   });
@@ -184,7 +184,7 @@ describe("loadJobDetails", () => {
 
     await expect(
       loadJobDetails({ agentId: "agent-1", jobId: "job-1" }),
-    ).rejects.toThrow("redirect:/agents/agent-1/jobs");
+    ).rejects.toMatchObject({ message: "redirect:/agents/agent-1/jobs" });
 
     expect(setQueryDataMock).not.toHaveBeenCalled();
     expect(redirectMock).toHaveBeenCalledWith("/agents/agent-1/jobs");

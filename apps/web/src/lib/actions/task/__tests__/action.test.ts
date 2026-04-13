@@ -178,7 +178,7 @@ describe("task link actions", () => {
         type: TaskLinkType.PARENT,
         direction: "incoming",
       }),
-    ).rejects.toThrow("link failed");
+    ).rejects.toMatchObject({ message: "link failed" });
 
     expect(taskServiceMock.deleteTaskLink).not.toHaveBeenCalled();
   });
@@ -231,7 +231,7 @@ describe("task link actions", () => {
         type: TaskLinkType.PARENT,
         direction: "incoming",
       }),
-    ).rejects.toThrow("cleanup failed");
+    ).rejects.toMatchObject({ message: "cleanup failed" });
 
     expect(taskServiceMock.deleteTaskLink).toHaveBeenNthCalledWith(
       1,
@@ -280,11 +280,13 @@ describe("task link actions", () => {
         type: TaskLinkType.PARENT,
         direction: "incoming",
       }),
-    ).rejects.toThrow(
-      new RegExp(
-        "inconsistent after a failed parent replacement[\\s\\S]*rollback delete failed[\\s\\S]*while recovering from: cleanup failed",
+    ).rejects.toMatchObject({
+      message: expect.stringMatching(
+        new RegExp(
+          "inconsistent after a failed parent replacement[\\s\\S]*rollback delete failed[\\s\\S]*while recovering from: cleanup failed",
+        ),
       ),
-    );
+    });
   });
 
   it("archives the created task when creating the link fails after task creation", async () => {
@@ -304,7 +306,7 @@ describe("task link actions", () => {
         type: TaskLinkType.PARENT,
         direction: "incoming",
       }),
-    ).rejects.toThrow("link failed");
+    ).rejects.toMatchObject({ message: "link failed" });
 
     expect(taskServiceMock.createTask).toHaveBeenCalledWith({
       name: "Generated task name",
@@ -361,7 +363,7 @@ describe("task link actions", () => {
         type: TaskLinkType.PARENT,
         direction: "incoming",
       }),
-    ).rejects.toThrow("cleanup failed");
+    ).rejects.toMatchObject({ message: "cleanup failed" });
 
     expect(taskServiceMock.deleteTaskLink).toHaveBeenNthCalledWith(
       1,

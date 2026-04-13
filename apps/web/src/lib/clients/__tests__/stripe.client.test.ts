@@ -142,9 +142,10 @@ describe("stripe.client lookup-key pricing", () => {
 
     await expect(
       stripeClient.getPriceByLookupKey("credit_10_margin"),
-    ).rejects.toThrow(
-      "No valid credit price found for lookup key credit_10_margin",
-    );
+    ).rejects.toMatchObject({
+      message:
+        "No valid credit price found for lookup key credit_10_margin. Expected currencies: eur, usd",
+    });
   });
 
   it("maps credit amounts to tiered lookup keys", async () => {

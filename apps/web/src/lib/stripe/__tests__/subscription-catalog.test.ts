@@ -163,8 +163,10 @@ describe("subscription-catalog", () => {
 
     const { getSubscriptionCatalog } = await import("../subscription-catalog");
 
-    await expect(getSubscriptionCatalog(stripe as never)).rejects.toThrow(
-      "Missing credits metadata for starter plan",
+    await expect(getSubscriptionCatalog(stripe as never)).rejects.toMatchObject(
+      {
+        message: "Missing credits metadata for starter plan",
+      },
     );
   });
 });

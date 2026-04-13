@@ -1147,9 +1147,9 @@ describe("handleInvoicePaidEvent", () => {
           lines: [{ productId: "prod_starter", quantity: 1, periodEnd: null }],
         }) as never,
       ),
-    ).rejects.toThrow(
-      "Missing subscription period end for invoice in_missing_period",
-    );
+    ).rejects.toMatchObject({
+      message: "Missing subscription period end for invoice in_missing_period",
+    });
 
     expect(createTransactionMock).not.toHaveBeenCalled();
   });

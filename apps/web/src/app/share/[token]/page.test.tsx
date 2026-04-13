@@ -290,7 +290,7 @@ describe("canonical share page", () => {
       SharePage({
         params: Promise.resolve({ token: "public-share-token" }),
       }),
-    ).rejects.toThrow("notFound");
+    ).rejects.toMatchObject({ message: "notFound" });
     expect(notFoundMock).toHaveBeenCalled();
   });
 });

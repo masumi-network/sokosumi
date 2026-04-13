@@ -187,7 +187,7 @@ describe("task.service", () => {
         status: TaskStatus.RUNNING,
         comment: "in progress",
       }),
-    ).rejects.toThrow("Failed to create task event");
+    ).rejects.toMatchObject({ message: "Failed to create task event" });
   });
 
   it("lists task links via core client", async () => {

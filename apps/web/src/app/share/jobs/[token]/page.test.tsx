@@ -16,7 +16,7 @@ describe("legacy share job page", () => {
       LegacySharedJobPage({
         params: Promise.resolve({ token: "public-share-token" }),
       }),
-    ).rejects.toThrow("redirect");
+    ).rejects.toMatchObject({ message: "redirect" });
 
     expect(redirectMock).toHaveBeenCalledWith("/share/public-share-token");
   });

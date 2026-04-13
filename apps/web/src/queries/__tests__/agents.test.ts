@@ -92,8 +92,8 @@ describe("getAgentInputSchemaQueryOptions", () => {
       throw new Error("queryFn is required");
     }
 
-    await expect(queryFn({} as never)).rejects.toThrow(
-      "Failed to fetch agent input schema",
-    );
+    await expect(queryFn({} as never)).rejects.toMatchObject({
+      message: "Failed to fetch agent input schema",
+    });
   });
 });

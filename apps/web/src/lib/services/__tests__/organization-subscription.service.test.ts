@@ -133,9 +133,10 @@ describe("organizationSubscriptionService", () => {
 
       await expect(
         organizationSubscriptionService.ensureCanAcceptInvitation("org-1"),
-      ).rejects.toThrow(
-        "An active organization subscription is required before adding members.",
-      );
+      ).rejects.toMatchObject({
+        message:
+          "An active organization subscription is required before adding members.",
+      });
 
       expect(memberCountMock).not.toHaveBeenCalled();
       expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
@@ -244,9 +245,9 @@ describe("organizationSubscriptionService", () => {
           "org-1",
           3,
         ),
-      ).rejects.toThrow(
-        "Only organization owners and admins can manage subscriptions",
-      );
+      ).rejects.toMatchObject({
+        message: "Only organization owners and admins can manage subscriptions",
+      });
     });
 
     it("throws when no active organization subscription exists", async () => {
@@ -265,9 +266,10 @@ describe("organizationSubscriptionService", () => {
           "org-1",
           3,
         ),
-      ).rejects.toThrow(
-        "An active organization subscription is required before updating seats.",
-      );
+      ).rejects.toMatchObject({
+        message:
+          "An active organization subscription is required before updating seats.",
+      });
     });
 
     it("returns current seats without calling Stripe when seats are unchanged", async () => {

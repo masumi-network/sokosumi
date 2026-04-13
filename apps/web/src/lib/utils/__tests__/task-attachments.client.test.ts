@@ -46,8 +46,8 @@ describe("task-attachments.client", () => {
       new Error("Network error while uploading file. Please try again."),
     );
 
-    await expect(uploadTaskAttachment(file)).rejects.toThrow(
-      "Network error while uploading file. Please try again.",
-    );
+    await expect(uploadTaskAttachment(file)).rejects.toMatchObject({
+      message: "Network error while uploading file. Please try again.",
+    });
   });
 });

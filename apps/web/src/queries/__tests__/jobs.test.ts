@@ -28,9 +28,9 @@ describe("getJobQueryOptions", () => {
       throw new Error("queryFn is required");
     }
 
-    await expect(queryFn({} as never)).rejects.toThrow(
-      "Failed to fetch job: Internal Server Error",
-    );
+    await expect(queryFn({} as never)).rejects.toMatchObject({
+      message: "Failed to fetch job: Internal Server Error",
+    });
 
     expect(fetchMock).toHaveBeenCalledWith("/api/internal/jobs/job-1", {
       credentials: "include",
