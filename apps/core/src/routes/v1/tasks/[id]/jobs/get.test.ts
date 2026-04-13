@@ -3,7 +3,7 @@ import { jobSummaryInclude } from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthWithWorkspaceEnv } from "@/middleware/workspace-context";
+import type { AuthWithWorkspaceEnv } from "@/middleware/workspace";
 
 import mountGetTaskJobs from "./get";
 

@@ -2,46 +2,33 @@ import assert from "node:assert/strict";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const findWorkspaceForContextMock = vi.fn();
-const upsertWorkspaceForContextMock = vi.fn();
+const getOrganizationWorkspaceMock = vi.fn();
+const getPersonalWorkspaceMock = vi.fn();
+const upsertOrganizationWorkspaceMock = vi.fn();
+const upsertPersonalWorkspaceMock = vi.fn();
 
 vi.mock("../repositories/workspace.repository.js", () => ({
   workspaceRepository: {
-    findWorkspaceForContext: (...args: unknown[]) =>
-      findWorkspaceForContextMock(...args),
-    upsertWorkspaceForContext: (...args: unknown[]) =>
-      upsertWorkspaceForContextMock(...args),
+    getOrganizationWorkspace: (...args: unknown[]) =>
+      getOrganizationWorkspaceMock(...args),
+    getPersonalWorkspace: (...args: unknown[]) =>
+      getPersonalWorkspaceMock(...args),
+    upsertOrganizationWorkspace: (...args: unknown[]) =>
+      upsertOrganizationWorkspaceMock(...args),
+    upsertPersonalWorkspace: (...args: unknown[]) =>
+      upsertPersonalWorkspaceMock(...args),
   },
 }));
 
-import {
-  findWorkspaceForContext,
-  resolveWorkspaceForContext,
-} from "./workspace.js";
+import { resolveWorkspaceForContext } from "./workspace.js";
 
 describe("workspace helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("normalizes undefined organization ids to null for lookups", async () => {
-    findWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
-
-    const tx = {} as never;
-    const workspace = await findWorkspaceForContext("user_123", undefined, tx);
-
-    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
-      "user_123",
-      null,
-      tx,
-    );
-    assert.equal(workspace?.id, "11111111-1111-7111-8111-111111111111");
-  });
-
-  it("normalizes undefined organization ids to null for ensure semantics", async () => {
-    upsertWorkspaceForContextMock.mockResolvedValue({
+  it("uses the personal workspace upsert when organization id is undefined", async () => {
+    upsertPersonalWorkspaceMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
 
@@ -52,11 +39,25 @@ describe("workspace helpers", () => {
       tx,
     );
 
-    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertPersonalWorkspaceMock).toHaveBeenCalledWith("user_123", tx);
+    expect(upsertOrganizationWorkspaceMock).not.toHaveBeenCalled();
+    assert.equal(workspace.id, "11111111-1111-7111-8111-111111111111");
+  });
+
+  it("uses the organization workspace upsert when organization id is present", async () => {
+    upsertOrganizationWorkspaceMock.mockResolvedValue({
+      id: "22222222-2222-7222-8222-222222222222",
+    });
+
+    const tx = {} as never;
+    const workspace = await resolveWorkspaceForContext(
       "user_123",
-      null,
+      "org_123",
       tx,
     );
-    assert.equal(workspace.id, "11111111-1111-7111-8111-111111111111");
+
+    expect(upsertOrganizationWorkspaceMock).toHaveBeenCalledWith("org_123", tx);
+    expect(upsertPersonalWorkspaceMock).not.toHaveBeenCalled();
+    assert.equal(workspace.id, "22222222-2222-7222-8222-222222222222");
   });
 });

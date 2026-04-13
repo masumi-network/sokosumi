@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
-import type { WorkspaceContextVariables } from "@/middleware/workspace-context";
+import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountPutTaskWorkspace, { putTaskWorkspaceRequestSchema } from "./put";
 
@@ -133,7 +133,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
 
 function createApp(activeOrganizationId: string | null = "org_current") {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceContextVariables;
+    Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {

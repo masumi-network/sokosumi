@@ -8,14 +8,14 @@ const {
   coworkerApiKeyFindUniqueMock,
   prismaTransactionMock,
   memberFindFirstMock,
-  findWorkspaceForContextMock,
+  resolveWorkspaceForContextMock,
 } = vi.hoisted(() => ({
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
-  findWorkspaceForContextMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -45,7 +45,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
   return {
     ...actual,
-    findWorkspaceForContext: findWorkspaceForContextMock,
+    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
   };
 });
 
@@ -64,7 +64,7 @@ function createApp(includeWorkspaceContext: boolean) {
   return app;
 }
 
-describe("workspaceContextMiddleware", () => {
+describe("workspaceMiddleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -75,7 +75,7 @@ describe("workspaceContextMiddleware", () => {
     getSessionMock.mockResolvedValue(null);
     coworkerApiKeyFindUniqueMock.mockResolvedValue(null);
     memberFindFirstMock.mockResolvedValue(null);
-    findWorkspaceForContextMock.mockResolvedValue({
+    resolveWorkspaceForContextMock.mockResolvedValue({
       id: "workspace_123",
       userId: "user_123",
       organizationId: null,
@@ -115,7 +115,7 @@ describe("workspaceContextMiddleware", () => {
       },
       workspaceContext: null,
     });
-    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
+    expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();
   });
 
   it("resolves workspaceContext for user requests when included", async () => {
@@ -131,7 +131,7 @@ describe("workspaceContextMiddleware", () => {
     memberFindFirstMock.mockResolvedValue({
       organizationId: "org_123",
     });
-    findWorkspaceForContextMock.mockResolvedValueOnce({
+    resolveWorkspaceForContextMock.mockResolvedValueOnce({
       id: "workspace_123",
       userId: "user_123",
       organizationId: "org_123",
@@ -157,7 +157,7 @@ describe("workspaceContextMiddleware", () => {
         organizationId: "org_123",
       },
     });
-    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       expect.anything(),
@@ -173,7 +173,7 @@ describe("workspaceContextMiddleware", () => {
         id: "user_123",
       },
     });
-    findWorkspaceForContextMock.mockResolvedValueOnce(null);
+    resolveWorkspaceForContextMock.mockResolvedValueOnce(null);
 
     const app = createApp(true);
     const response = await app.request("http://localhost/");
@@ -215,6 +215,6 @@ describe("workspaceContextMiddleware", () => {
       },
       workspaceContext: null,
     });
-    expect(findWorkspaceForContextMock).not.toHaveBeenCalled();
+    expect(resolveWorkspaceForContextMock).not.toHaveBeenCalled();
   });
 });

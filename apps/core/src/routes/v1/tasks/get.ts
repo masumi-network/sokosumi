@@ -24,7 +24,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { isCoworkerAuthContext } from "@/middleware/auth";
-import type { WorkspaceContext } from "@/middleware/workspace-context";
+import type { WorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
 import { taskListInclude } from "@/types/task";

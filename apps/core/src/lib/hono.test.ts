@@ -23,50 +23,60 @@ vi.mock("@/middleware/auth", () => ({
 }));
 
 vi.mock("@/middleware/organization", () => ({
-  organizationHeaderMiddleware: async (
-    c: {
-      set: (key: string, value: unknown) => void;
-      var: {
-        authContext: {
-          actor: "user";
-          userId: string;
-          organizationId: string | null;
+  organizationHeaderMiddleware:
+    (includeOrganizationHeader: boolean) =>
+    async (
+      c: {
+        set: (key: string, value: unknown) => void;
+        var: {
+          authContext: {
+            actor: "user";
+            userId: string;
+            organizationId: string | null;
+          };
         };
-      };
+      },
+      next: () => Promise<void>,
+    ) => {
+      if (includeOrganizationHeader) {
+        middlewareCalls.calls.push("organization");
+        c.set("authContext", {
+          ...c.var.authContext,
+          organizationId: "org_123",
+        });
+      }
+      await next();
     },
-    next: () => Promise<void>,
-  ) => {
-    middlewareCalls.calls.push("organization");
-    c.set("authContext", {
-      ...c.var.authContext,
-      organizationId: "org_123",
-    });
-    await next();
-  },
 }));
 
-vi.mock("@/middleware/workspace-context", () => ({
-  workspaceContextMiddleware: async (
-    c: {
-      set: (key: string, value: unknown) => void;
-      var: {
-        authContext: {
-          actor: "user";
-          userId: string;
-          organizationId: string | null;
+vi.mock("@/middleware/workspace", () => ({
+  workspaceMiddleware:
+    (includeWorkspaceContext: boolean) =>
+    async (
+      c: {
+        set: (key: string, value: unknown) => void;
+        var: {
+          authContext: {
+            actor: "user";
+            userId: string;
+            organizationId: string | null;
+          };
         };
-      };
+      },
+      next: () => Promise<void>,
+    ) => {
+      if (includeWorkspaceContext) {
+        middlewareCalls.calls.push("workspace");
+        c.set("workspaceContext", {
+          workspaceId: "workspace_123",
+          userId: c.var.authContext.userId,
+          organizationId: c.var.authContext.organizationId,
+        });
+      } else {
+        c.set("workspaceContext", null);
+      }
+      await next();
     },
-    next: () => Promise<void>,
-  ) => {
-    middlewareCalls.calls.push("workspace");
-    c.set("workspaceContext", {
-      workspaceId: "workspace_123",
-      userId: c.var.authContext.userId,
-      organizationId: c.var.authContext.organizationId,
-    });
-    await next();
-  },
 }));
 
 import { OpenAPIHonoWithAuth } from "./hono";

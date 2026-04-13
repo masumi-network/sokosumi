@@ -11,7 +11,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import type {
   AuthWithWorkspaceEnv,
   WorkspaceContext,
-} from "@/middleware/workspace-context";
+} from "@/middleware/workspace";
 
 import mountPostTaskEvents from "./post";
 

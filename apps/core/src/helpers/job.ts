@@ -31,7 +31,7 @@ import {
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 import type { UserAuthenticationContext } from "@/middleware/auth";
-import type { WorkspaceContext } from "@/middleware/workspace-context";
+import type { WorkspaceContext } from "@/middleware/workspace";
 import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
 import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";

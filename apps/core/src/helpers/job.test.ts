@@ -3,7 +3,7 @@ import { jobSummaryInclude } from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UserAuthenticationContext } from "@/middleware/auth";
-import type { WorkspaceContext } from "@/middleware/workspace-context";
+import type { WorkspaceContext } from "@/middleware/workspace";
 
 import { getUserJobs } from "./job";
 

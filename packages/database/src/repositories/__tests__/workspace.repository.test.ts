@@ -2,71 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Prisma } from "../../generated/prisma/client.js";
 
-const { getMemberByUserIdAndOrganizationIdMock } = vi.hoisted(() => ({
-  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
-}));
-
-vi.mock(
-  "../member.repository.js",
-  async (importOriginal: () => Promise<unknown>) => {
-    const actual =
-      (await importOriginal()) as typeof import("../member.repository.js");
-
-    return {
-      ...actual,
-      memberRepository: {
-        ...actual.memberRepository,
-        getMemberByUserIdAndOrganizationId:
-          getMemberByUserIdAndOrganizationIdMock,
-      },
-    };
-  },
-);
-
 import { workspaceRepository } from "../workspace.repository.js";
 
-describe("workspaceRepository.findWorkspaceForContext", () => {
+describe("workspaceRepository.getPersonalWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("does not resolve an organization workspace without membership", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce(null);
-    const findUnique = vi.fn();
-
-    const tx = {
-      workspace: { findUnique },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      workspaceRepository.findWorkspaceForContext("user_1", "org_1", tx),
-    ).resolves.toBeNull();
-
-    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
-      "user_1",
-      "org_1",
-      tx,
-    );
-    expect(findUnique).not.toHaveBeenCalled();
-  });
-
-  it("resolves the organization workspace when the user is a member", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce({ id: "m1" });
-    const workspace = { id: "ws_org" };
-    const findUnique = vi.fn().mockResolvedValueOnce(workspace);
-
-    const tx = {
-      workspace: { findUnique },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      workspaceRepository.findWorkspaceForContext("user_1", "org_1", tx),
-    ).resolves.toBe(workspace);
-
-    expect(findUnique).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not check membership for personal workspaces", async () => {
+  it("looks up the workspace by user id", async () => {
     const workspace = { id: "ws_personal" };
     const findUnique = vi.fn().mockResolvedValueOnce(workspace);
 
@@ -75,49 +18,78 @@ describe("workspaceRepository.findWorkspaceForContext", () => {
     } as unknown as Prisma.TransactionClient;
 
     await expect(
-      workspaceRepository.findWorkspaceForContext("user_1", null, tx),
+      workspaceRepository.getPersonalWorkspace("user_1", tx),
     ).resolves.toBe(workspace);
 
-    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
+    expect(findUnique).toHaveBeenCalledTimes(1);
+    expect(findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user_1" },
+      }),
+    );
   });
 });
 
-describe("workspaceRepository.upsertWorkspaceForContext", () => {
+describe("workspaceRepository.getOrganizationWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("falls back to the personal workspace when org context has no membership", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce(null);
+  it("looks up the workspace by organization id", async () => {
+    const workspace = { id: "ws_org" };
+    const findUnique = vi.fn().mockResolvedValueOnce(workspace);
+
+    const tx = {
+      workspace: { findUnique },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      workspaceRepository.getOrganizationWorkspace("org_1", tx),
+    ).resolves.toBe(workspace);
+
+    expect(findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId: "org_1" },
+      }),
+    );
+  });
+});
+
+describe("workspaceRepository.upsertPersonalWorkspace", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("upserts the workspace by user id", async () => {
     const upsert = vi.fn().mockResolvedValueOnce({ id: "ws_personal" });
 
     const tx = {
       workspace: { upsert },
     } as unknown as Prisma.TransactionClient;
 
-    await workspaceRepository.upsertWorkspaceForContext("user_1", "org_1", tx);
+    await workspaceRepository.upsertPersonalWorkspace("user_1", tx);
 
-    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
-      "user_1",
-      "org_1",
-      tx,
-    );
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId: "user_1" },
       }),
     );
   });
+});
 
-  it("upserts the organization workspace when the user is a member", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce({ id: "m1" });
+describe("workspaceRepository.upsertOrganizationWorkspace", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("upserts the workspace by organization id", async () => {
     const upsert = vi.fn().mockResolvedValueOnce({ id: "ws_org" });
 
     const tx = {
       workspace: { upsert },
     } as unknown as Prisma.TransactionClient;
 
-    await workspaceRepository.upsertWorkspaceForContext("user_1", "org_1", tx);
+    await workspaceRepository.upsertOrganizationWorkspace("org_1", tx);
 
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({

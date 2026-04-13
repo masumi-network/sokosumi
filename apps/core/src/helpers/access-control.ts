@@ -13,7 +13,7 @@ import {
   isCoworkerAuthContext,
   type UserAuthenticationContext,
 } from "@/middleware/auth";
-import type { WorkspaceContext } from "@/middleware/workspace-context";
+import type { WorkspaceContext } from "@/middleware/workspace";
 
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";

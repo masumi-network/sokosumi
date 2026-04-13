@@ -7,8 +7,8 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import type {
   WorkspaceContext,
-  WorkspaceContextVariables,
-} from "@/middleware/workspace-context";
+  WorkspaceVariables,
+} from "@/middleware/workspace";
 
 import mountPatchTask from "./patch";
 
@@ -65,7 +65,7 @@ const testWorkspaceContext: WorkspaceContext = {
 
 function createApp() {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceContextVariables;
+    Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {

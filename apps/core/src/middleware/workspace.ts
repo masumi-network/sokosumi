@@ -1,7 +1,8 @@
-import { findWorkspaceForContext } from "@sokosumi/database/helpers";
+import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import { createMiddleware } from "hono/factory";
 
 import prisma from "@/lib/db/prisma";
+import { type EnvVariables } from "@/lib/hono";
 import { type AuthVariables, isUserAuthContext } from "@/middleware/auth";
 
 export interface WorkspaceContext {
@@ -10,12 +11,12 @@ export interface WorkspaceContext {
   organizationId: string | null;
 }
 
-export interface WorkspaceContextVariables {
+export interface WorkspaceVariables {
   workspaceContext: WorkspaceContext | null;
 }
 
 export type AuthWithWorkspaceEnv = {
-  Variables: AuthVariables & WorkspaceContextVariables;
+  Variables: AuthVariables & WorkspaceVariables;
 };
 
 /**
@@ -24,8 +25,13 @@ export type AuthWithWorkspaceEnv = {
  * This middleware is intentionally user-only. Coworker requests keep
  * `workspaceContext` as `null` and continue to use `authContext` directly.
  */
-export const workspaceContextMiddleware =
-  createMiddleware<AuthWithWorkspaceEnv>(async (c, next) => {
+export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
+  createMiddleware<EnvVariables>(async (c, next) => {
+    if (!includeWorkspaceContext) {
+      c.set("workspaceContext", null);
+      return await next();
+    }
+
     const { authContext, isAuthenticated } = c.var;
 
     if (!isAuthenticated || !isUserAuthContext(authContext)) {
@@ -33,7 +39,7 @@ export const workspaceContextMiddleware =
       return await next();
     }
 
-    const workspace = await findWorkspaceForContext(
+    const workspace = await resolveWorkspaceForContext(
       authContext.userId,
       authContext.organizationId,
       prisma,

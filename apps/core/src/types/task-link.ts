@@ -4,7 +4,7 @@ import {
   type AuthenticationContext,
   isCoworkerAuthContext,
 } from "@/middleware/auth";
-import type { WorkspaceContext } from "@/middleware/workspace-context";
+import type { WorkspaceContext } from "@/middleware/workspace";
 
 export const taskLinkPeerTaskSelect = {
   id: true,

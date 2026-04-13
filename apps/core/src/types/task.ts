@@ -6,7 +6,7 @@ import {
 } from "@sokosumi/database/types/job";
 
 import type { AuthenticationContext } from "@/middleware/auth";
-import type { WorkspaceContext } from "@/middleware/workspace-context";
+import type { WorkspaceContext } from "@/middleware/workspace";
 import {
   buildVisibleTaskLinksInclude,
   taskLinksInclude,

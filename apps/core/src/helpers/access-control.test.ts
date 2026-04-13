@@ -5,7 +5,7 @@ import type {
   CoworkerAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
-import type { WorkspaceContext } from "@/middleware/workspace-context";
+import type { WorkspaceContext } from "@/middleware/workspace";
 
 import {
   requireCoworkerCapability,
