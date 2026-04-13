@@ -1777,6 +1777,7 @@
       "paidSubscriptionRequiredHint": "クレジットの追加購入を利用するには、サブスクリプションタブで有料プランを選択してください。",
       "couponExpiryPolicyNotice": "プロモーションクレジットには有効期限がある場合があります。条件はクーポンやオファーによって異なります。",
       "costPerCredit": "1クレジットあたり{cost}",
+      "youSaveLabel": "Save {amount}",
       "creditAmount": "{count, plural, one {# クレジット} other {# クレジット}}",
       "creditsLabel": "クレジット数",
       "creditsPlaceholder": "数量を入力",

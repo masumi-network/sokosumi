@@ -1777,6 +1777,7 @@
       "paidSubscriptionRequiredHint": "Scegli un piano a pagamento nella scheda Abbonamento per sbloccare le ricariche di crediti.",
       "couponExpiryPolicyNotice": "I crediti promozionali possono scadere; le condizioni dipendono dal coupon o dall'offerta.",
       "costPerCredit": "{cost} per credito",
+      "youSaveLabel": "Save {amount}",
       "creditAmount": "{count, plural, one {# credito} other {# crediti}}",
       "creditsLabel": "Numero di crediti",
       "creditsPlaceholder": "Inserisci l’importo",

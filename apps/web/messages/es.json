@@ -1712,6 +1712,7 @@
       "topUpTitle": "Recargar Credits",
       "topUpDescription": "Elige un importe o introduce uno personalizado",
       "costPerCredit": "{cost} por Credit",
+      "youSaveLabel": "Save {amount}",
       "creditAmount": "{count, plural, one {# Credit} other {# Credits}}",
       "creditsLabel": "Cantidad de Credits",
       "creditsPlaceholder": "Introduce el importe",

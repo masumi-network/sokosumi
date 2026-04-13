@@ -33,7 +33,10 @@ import {
   CreditsErrorCode,
   purchaseCredits,
 } from "@/lib/actions";
-import type { CreditTopUpPriceCatalog } from "@/lib/clients/stripe.client";
+import type {
+  CreditTopUpPriceCatalog,
+  Price,
+} from "@/lib/clients/stripe.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
@@ -41,9 +44,77 @@ import {
   getCreditTopUpLookupKeyByCredits,
   isPositiveIntegerCredits,
 } from "@/lib/stripe/credit-topup-pricing";
+import { cn } from "@/lib/utils";
 
 function hasValidCreditsInput(credits: number | null | undefined): boolean {
   return isPositiveIntegerCredits(credits ?? Number.NaN);
+}
+
+function getCreditTopUpTotalMinorUnits(
+  credits: number,
+  amountPerCredit: number,
+): number {
+  const totalMinorUnits = Math.ceil(credits * amountPerCredit);
+
+  if (!Number.isFinite(totalMinorUnits) || totalMinorUnits < 1) {
+    throw new Error("Computed credit top-up total is invalid");
+  }
+
+  return totalMinorUnits;
+}
+
+interface CreditPricingSummary {
+  baseTierTotalMinorUnits: number;
+  hasDiscountComparison: boolean;
+  price: Price;
+  savingsMinorUnits: number | null;
+  totalMinorUnits: number;
+}
+
+function getCreditPricingSummary(
+  credits: number,
+  priceCatalog: CreditTopUpPriceCatalog,
+  priceLookupKeyOverride?: CreditTopUpLookupKey,
+): CreditPricingSummary {
+  const selectedLookupKey = getCreditTopUpLookupKeyByCredits(
+    credits,
+    priceLookupKeyOverride,
+  );
+  const price = priceCatalog[selectedLookupKey];
+
+  if (!price) {
+    throw new Error(`Missing credit top-up price for ${selectedLookupKey}`);
+  }
+
+  const baseTierPrice = priceCatalog[BASE_CREDIT_TOPUP_LOOKUP_KEY];
+
+  if (!baseTierPrice) {
+    throw new Error(
+      `Missing credit top-up price for ${BASE_CREDIT_TOPUP_LOOKUP_KEY}`,
+    );
+  }
+
+  const totalMinorUnits = getCreditTopUpTotalMinorUnits(
+    credits,
+    price.amountPerCredit,
+  );
+  const baseTierTotalMinorUnits = getCreditTopUpTotalMinorUnits(
+    credits,
+    baseTierPrice.amountPerCredit,
+  );
+  const hasDiscountComparison =
+    baseTierPrice.currency === price.currency &&
+    baseTierTotalMinorUnits > totalMinorUnits;
+
+  return {
+    baseTierTotalMinorUnits,
+    hasDiscountComparison,
+    price,
+    savingsMinorUnits: hasDiscountComparison
+      ? baseTierTotalMinorUnits - totalMinorUnits
+      : null,
+    totalMinorUnits,
+  };
 }
 
 const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
@@ -79,6 +150,7 @@ export default function CreditsForm({
   priceLookupKeyOverride,
   returnPath,
 }: CreditsFormProps) {
+  const quickAmounts = [5_000, 20_000, 50_000, 100_000];
   const t = useTranslations("App.Credits");
   const formatter = useFormatter();
   const router = useRouter();
@@ -171,17 +243,43 @@ export default function CreditsForm({
   const { isSubmitting } = form.formState;
   const hasValidCreditsValue =
     hasValidCreditsInput(credits) && isPurchaseEnabled;
-  const selectedLookupKey = isPositiveIntegerCredits(credits ?? Number.NaN)
-    ? getCreditTopUpLookupKeyByCredits(
-        credits as number,
-        priceLookupKeyOverride,
-      )
-    : (priceLookupKeyOverride ?? BASE_CREDIT_TOPUP_LOOKUP_KEY);
-  const selectedPrice = priceCatalog[selectedLookupKey];
-
-  if (!selectedPrice) {
-    throw new Error(`Missing credit top-up price for ${selectedLookupKey}`);
-  }
+  const selectedCredits = hasValidCreditsValue ? (credits as number) : null;
+  const selectedPricing =
+    selectedCredits === null
+      ? null
+      : getCreditPricingSummary(
+          selectedCredits,
+          priceCatalog,
+          priceLookupKeyOverride,
+        );
+  const selectedPrice = selectedPricing?.price ?? null;
+  const formattedSelectedTotal =
+    selectedPricing === null
+      ? null
+      : formatter.number(selectedPricing.totalMinorUnits / 100, {
+          style: "currency",
+          currency: selectedPricing.price.currency.toUpperCase(),
+          notation: "compact",
+        });
+  const formattedBaseTierTotal =
+    selectedPricing === null || !selectedPricing.hasDiscountComparison
+      ? null
+      : formatter.number(selectedPricing.baseTierTotalMinorUnits / 100, {
+          style: "currency",
+          currency: selectedPricing.price.currency.toUpperCase(),
+          notation: "compact",
+        });
+  const formattedSavings =
+    selectedPricing?.savingsMinorUnits === null ||
+    selectedPricing?.savingsMinorUnits === undefined
+      ? null
+      : formatter.number(selectedPricing.savingsMinorUnits / 100, {
+          style: "currency",
+          currency: selectedPricing.price.currency.toUpperCase(),
+          notation: "compact",
+        });
+  const isQuickAmountSelected =
+    selectedCredits !== null && quickAmounts.includes(selectedCredits);
 
   return (
     <Card>
@@ -207,18 +305,94 @@ export default function CreditsForm({
           <CardContent className="space-y-4">
             {isPurchaseEnabled ? (
               <>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  {[5_000, 20_000, 50_000, 100_000].map((amount) => (
-                    <Button
-                      key={amount}
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleQuickAmount(amount)}
-                      disabled={isSubmitting}
-                    >
-                      {t("creditAmount", { count: amount })}
-                    </Button>
-                  ))}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {quickAmounts.map((amount) => {
+                    const pricing = getCreditPricingSummary(
+                      amount,
+                      priceCatalog,
+                      priceLookupKeyOverride,
+                    );
+                    const formattedTotal = formatter.number(
+                      pricing.totalMinorUnits / 100,
+                      {
+                        style: "currency",
+                        currency: pricing.price.currency.toUpperCase(),
+                        notation: "compact",
+                      },
+                    );
+                    const formattedCompareAt = pricing.hasDiscountComparison
+                      ? formatter.number(
+                          pricing.baseTierTotalMinorUnits / 100,
+                          {
+                            style: "currency",
+                            currency: pricing.price.currency.toUpperCase(),
+                            notation: "compact",
+                          },
+                        )
+                      : null;
+                    const formattedPerCredit = formatter.number(
+                      pricing.price.amountPerCredit / 100,
+                      {
+                        style: "currency",
+                        currency: pricing.price.currency.toUpperCase(),
+                        maximumFractionDigits: 4,
+                      },
+                    );
+                    const formattedCardSavings =
+                      pricing.savingsMinorUnits === null
+                        ? null
+                        : formatter.number(pricing.savingsMinorUnits / 100, {
+                            style: "currency",
+                            currency: pricing.price.currency.toUpperCase(),
+                            notation: "compact",
+                          });
+                    const isSelected = selectedCredits === amount;
+
+                    return (
+                      <Button
+                        key={amount}
+                        type="button"
+                        variant="outline"
+                        aria-pressed={isSelected}
+                        onClick={() => handleQuickAmount(amount)}
+                        disabled={isSubmitting}
+                        className={cn(
+                          "h-auto min-h-36 w-full flex-col items-start justify-between gap-6 whitespace-normal rounded-xl px-4 py-4 text-left",
+                          isSelected
+                            ? "border-primary ring-primary bg-primary/5 border-1 shadow-sm ring-1 hover:bg-primary/5"
+                            : "hover:bg-accent/40",
+                        )}
+                      >
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">
+                            {t("creditAmount", { count: amount })}
+                          </p>
+                          <p className="text-2xl font-medium md:text-3xl">
+                            {formattedTotal}
+                          </p>
+                          {formattedCompareAt ? (
+                            <p className="text-muted-foreground text-xs line-through">
+                              {formattedCompareAt}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="space-y-1">
+                          {formattedCardSavings ? (
+                            <p className="text-primary text-xl font-medium">
+                              {t("youSaveLabel", {
+                                amount: formattedCardSavings,
+                              })}
+                            </p>
+                          ) : null}
+                          <p className="text-muted-foreground text-xs">
+                            {t("costPerCredit", {
+                              cost: formattedPerCredit,
+                            })}
+                          </p>
+                        </div>
+                      </Button>
+                    );
+                  })}
                 </div>
                 <FormField
                   control={form.control}
@@ -260,7 +434,14 @@ export default function CreditsForm({
             )}
           </CardContent>
           {isPurchaseEnabled ? (
-            <CardFooter className="flex items-center justify-between pt-6">
+            <CardFooter
+              className={cn(
+                "gap-4 pt-6",
+                isQuickAmountSelected
+                  ? "justify-start"
+                  : "flex items-start justify-between",
+              )}
+            >
               <Button
                 type="submit"
                 disabled={isSubmitting || !hasValidCreditsValue}
@@ -270,20 +451,39 @@ export default function CreditsForm({
                 )}
                 {organization ? t("topUpButtonOrganization") : t("topUpButton")}
               </Button>
-              <div className="text-right">
-                <p className="text-muted-foreground text-sm">
-                  {t("costPerCredit", {
-                    cost: formatter.number(
-                      selectedPrice.amountPerCredit / 100,
-                      {
-                        style: "currency",
-                        currency: selectedPrice.currency,
-                        maximumFractionDigits: 4,
-                      },
-                    ),
-                  })}
-                </p>
-              </div>
+              {!isQuickAmountSelected &&
+              selectedCredits !== null &&
+              selectedPrice ? (
+                <div className="space-y-1 text-right">
+                  {formattedSelectedTotal ? (
+                    <p className="text-2xl font-medium md:text-3xl">
+                      {formattedSelectedTotal}
+                    </p>
+                  ) : null}
+                  {formattedBaseTierTotal ? (
+                    <p className="text-muted-foreground text-sm line-through">
+                      {formattedBaseTierTotal}
+                    </p>
+                  ) : null}
+                  {formattedSavings ? (
+                    <p className="text-primary text-sm font-medium">
+                      {t("youSaveLabel", { amount: formattedSavings })}
+                    </p>
+                  ) : null}
+                  <p className="text-muted-foreground text-sm">
+                    {t("costPerCredit", {
+                      cost: formatter.number(
+                        selectedPrice.amountPerCredit / 100,
+                        {
+                          style: "currency",
+                          currency: selectedPrice.currency.toUpperCase(),
+                          maximumFractionDigits: 4,
+                        },
+                      ),
+                    })}
+                  </p>
+                </div>
+              ) : null}
             </CardFooter>
           ) : null}
         </form>
