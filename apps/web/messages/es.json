@@ -1711,9 +1711,12 @@
       "billingPortalCta": "Gestionar compras",
       "topUpTitle": "Recargar Credits",
       "topUpDescription": "Elige un importe o introduce uno personalizado",
+      "paidSubscriptionRequiredDescription": "Se requiere una suscripción de pago para comprar créditos adicionales.",
+      "paidSubscriptionRequiredHint": "Elige un plan de pago en la pestaña Suscripción para desbloquear las recargas de créditos.",
+      "couponExpiryPolicyNotice": "Los créditos promocionales pueden caducar; las condiciones dependen del cupón o de la oferta.",
       "costPerCredit": "{cost} por Credit",
-      "youSaveLabel": "Save {amount}",
-      "creditAmount": "{count, plural, one {# Credit} other {# Credits}}",
+      "youSaveLabel": "Ahorra {amount}",
+      "creditAmount": "{count, plural, one {# crédito} other {# créditos}}",
       "creditsLabel": "Cantidad de Credits",
       "creditsPlaceholder": "Introduce el importe",
       "topUpButton": "Continuar",
@@ -1763,10 +1766,7 @@
         "unauthorizedOrganization": "No tienes permiso para comprar Credits para esta organización",
         "unauthorizedPersonal": "No tienes permiso para comprar Credits",
         "unknownError": "Algo salió mal"
-      },
-      "paidSubscriptionRequiredDescription": "Se requiere una suscripción de pago para comprar créditos adicionales.",
-      "paidSubscriptionRequiredHint": "Elige un plan de pago en la pestaña Suscripción para desbloquear las recargas de créditos.",
-      "couponExpiryPolicyNotice": "Los créditos promocionales pueden caducar; las condiciones dependen del cupón o de la oferta."
+      }
     },
     "Connections": {
       "tabs": {

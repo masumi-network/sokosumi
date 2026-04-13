@@ -1777,7 +1777,7 @@
       "paidSubscriptionRequiredHint": "Escolha um plano pago no separador Subscrição para desbloquear os carregamentos de créditos.",
       "couponExpiryPolicyNotice": "Os créditos promocionais podem expirar; os termos variam consoante o cupão ou a oferta.",
       "costPerCredit": "{cost} por crédito",
-      "youSaveLabel": "Save {amount}",
+      "youSaveLabel": "Poupe {amount}",
       "creditAmount": "{count, plural, one {# crédito} other {# créditos}}",
       "creditsLabel": "Número de créditos",
       "creditsPlaceholder": "Introduza o montante",
