@@ -91,7 +91,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const { event, userId, masumiAsyncPurchase } = await prisma.$transaction(
+    const { event, userId, masumiPayment } = await prisma.$transaction(
       async (tx) => {
         const task = await requireTaskAccess(authContext, taskId, tx);
         const {
@@ -118,6 +118,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             isTaskStatusSpendable(status)
           ) {
             if (masumiPayment) {
+              console.info("[tasks] masumi task payment: using masumiPayment", {
+                masumiPayment,
+              });
               const creditCosts = await getCreditCostsOrThrow(tx);
               cents = calculateCentsFromMasumiAmountStrings(
                 masumiPayment.Amounts,
@@ -177,17 +180,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             throw conflict("Task status was changed by another request");
           }
 
-          const masumiAsync =
+          const payment =
             masumiPayment !== undefined &&
             isCoworkerAuthContext(authContext) &&
             isTaskStatusSpendable(status)
-              ? { taskEventId: createdEvent.id, payment: masumiPayment }
+              ? masumiPayment
               : null;
 
           return {
             event: mapTaskEvent(createdEvent),
             userId: task.userId,
-            masumiAsyncPurchase: masumiAsync,
+            masumiPayment: payment,
           };
         }
 
@@ -210,7 +213,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return {
           event: mapTaskEvent(createdEvent),
           userId: task.userId,
-          masumiAsyncPurchase: null,
+          masumiPayment: null,
         };
       },
       {
@@ -218,9 +221,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     );
 
-    if (masumiAsyncPurchase !== null) {
-      const mp = masumiAsyncPurchase.payment;
-      const taskEventId = masumiAsyncPurchase.taskEventId;
+    if (masumiPayment != null) {
+      const taskEventId = event.id;
       const identifierFromPurchaser = uuidv4()
         .replace(/-/g, "")
         .substring(0, 20);
@@ -232,21 +234,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           taskId,
           taskEventId,
-          blockchainIdentifier: mp.blockchainIdentifier,
+          blockchainIdentifier: masumiPayment.blockchainIdentifier,
         },
       });
 
-      void paymentClient()
+      console.info("[tasks] masumi task payment: scheduling async purchase", {
+        taskId,
+        taskEventId,
+        blockchainIdentifier: masumiPayment.blockchainIdentifier,
+        agentIdentifier: masumiPayment.agentIdentifier,
+      });
+
+      paymentClient()
         .createPurchaseFromMasumiTaskPayment({
-          blockchainIdentifier: mp.blockchainIdentifier,
-          agentIdentifier: mp.agentIdentifier,
-          sellerVkey: mp.sellerVkey,
-          submitResultTime: mp.submitResultTime,
-          payByTime: mp.payByTime,
-          unlockTime: mp.unlockTime,
-          externalDisputeUnlockTime: mp.externalDisputeUnlockTime,
-          inputHash: mp.inputHash,
-          Amounts: mp.Amounts,
+          blockchainIdentifier: masumiPayment.blockchainIdentifier,
+          agentIdentifier: masumiPayment.agentIdentifier,
+          sellerVkey: masumiPayment.sellerVkey,
+          submitResultTime: masumiPayment.submitResultTime,
+          payByTime: masumiPayment.payByTime,
+          unlockTime: masumiPayment.unlockTime,
+          externalDisputeUnlockTime: masumiPayment.externalDisputeUnlockTime,
+          inputHash: masumiPayment.inputHash,
+          Amounts: masumiPayment.Amounts,
           identifierFromPurchaser,
           metadata: JSON.stringify({
             taskId,
@@ -255,6 +264,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         })
         .then((createPurchaseResult) => {
           if (createPurchaseResult.isErr()) {
+            console.error(
+              "[tasks] masumi task payment: purchase creation failed",
+              {
+                taskId,
+                taskEventId,
+                blockchainIdentifier: masumiPayment.blockchainIdentifier,
+                error: createPurchaseResult.error,
+              },
+            );
             Sentry.captureMessage(
               `Task purchase creation failed: ${createPurchaseResult.error}`,
               {
@@ -266,7 +284,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   task_purchase_creation: {
                     taskId,
                     taskEventId,
-                    blockchainIdentifier: mp.blockchainIdentifier,
+                    blockchainIdentifier: masumiPayment.blockchainIdentifier,
                     error: createPurchaseResult.error,
                   },
                 },
@@ -274,6 +292,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             );
             return;
           }
+
+          console.info("[tasks] masumi task payment: purchase created", {
+            taskId,
+            taskEventId,
+            purchaseId: createPurchaseResult.value.id,
+            blockchainIdentifier:
+              createPurchaseResult.value.blockchainIdentifier,
+          });
 
           Sentry.addBreadcrumb({
             category: "task_masumi_purchase",
@@ -286,6 +312,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         })
         .catch((error: unknown) => {
+          console.error("[tasks] masumi task payment: unexpected error", {
+            taskId,
+            taskEventId,
+            blockchainIdentifier: masumiPayment.blockchainIdentifier,
+            error,
+          });
           Sentry.captureException(error, {
             tags: {
               error_type: "task_masumi_purchase_unexpected",
