@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 
-import { requireUserTaskAccess } from "@/helpers/access-control";
+import { requireTaskReadAccess } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
@@ -9,7 +9,6 @@ import {
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
-import { buildCurrentUserTaskContextWhere } from "@/helpers/task-context";
 import {
   assertTaskLinkAllowed,
   mapTaskLink,
@@ -17,12 +16,14 @@ import {
 } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
 import {
   createTaskLinkRequestSchema,
   taskLinkSchema,
 } from "@/schemas/task-link.schema";
-import { taskLinkPeerTaskSelect } from "@/types/task-link";
+import {
+  buildVisiblePeerTaskWhere,
+  taskLinkPeerTaskSelect,
+} from "@/types/task-link";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -58,7 +59,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { authContext, workspaceContext } = c.var;
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
     const { toTaskId: peerTaskId, relation, note } = body;
@@ -67,7 +68,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       try {
         return await prisma.$transaction(
           async (tx) => {
-            await requireUserTaskAccess(authContext, id, tx);
+            await requireTaskReadAccess(authContext, workspaceContext, id, tx);
             assertTaskLinkAllowed(id, peerTaskId);
             const linkData = mapTaskLinkRelationToWriteData(
               id,
@@ -75,15 +76,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               relation,
             );
 
-            const peerTaskContextWhere = await buildCurrentUserTaskContextWhere(
-              authContext,
-              tx,
-            );
-
             const peerTask = await tx.task.findFirst({
               where: {
                 id: peerTaskId,
-                ...peerTaskContextWhere,
+                ...buildVisiblePeerTaskWhere(authContext, workspaceContext),
               },
               select: taskLinkPeerTaskSelect,
             });

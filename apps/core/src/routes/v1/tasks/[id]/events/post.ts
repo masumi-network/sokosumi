@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import { requireTaskAccess } from "@/helpers/access-control";
+import { requireTaskReadAccess } from "@/helpers/access-control";
 import {
   calculateCentsFromMasumiAmountStrings,
   getCreditCostsOrThrow,
@@ -88,13 +88,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   });
 
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const { authContext, workspaceContext } = c.var;
     const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
 
     const { event, userId, masumiPayment } = await prisma.$transaction(
       async (tx) => {
-        const task = await requireTaskAccess(authContext, taskId, tx);
+        const task = await requireTaskReadAccess(
+          authContext,
+          workspaceContext,
+          taskId,
+          tx,
+        );
         const {
           status,
           comment,

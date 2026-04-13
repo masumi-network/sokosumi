@@ -795,6 +795,31 @@ export type TaskLinkDeleted = {
 };
 
 /**
+ * On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.
+ */
+export type MasumiPayment = {
+    blockchainIdentifier: string;
+    agentIdentifier: string;
+    sellerVkey: string;
+    submitResultTime: string;
+    payByTime: string;
+    unlockTime: string;
+    externalDisputeUnlockTime: string;
+    inputHash: string;
+    Amounts: Array<{
+        amount: string;
+        unit: string;
+    }>;
+    PaymentSource?: MasumiTaskPaymentSource;
+};
+
+export type MasumiTaskPaymentSource = {
+    network: 'Preprod' | 'Mainnet';
+    smartContractAddress: string;
+    policyId: string;
+};
+
+/**
  * Optional organization slug to set the organization context.
  */
 export type OrganizationSlug = string;
@@ -8404,11 +8429,15 @@ export type PostTasksByIdEventsData = {
         status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
         comment?: string;
         authenticationUrl?: string;
+        /**
+         * Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.
+         */
         credits?: number | null;
         /**
          * The origin of the task event. Defaults to SOKOSUMI if undefined.
          */
         origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
+        masumiPayment?: MasumiPayment;
     };
     path: {
         id: string;
@@ -8487,6 +8516,19 @@ export type PostTasksByIdEventsErrors = {
      * Unprocessable Entity
      */
     422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
         error: string;
         message: string;
         meta: {

@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace-context";
 
 import mountPostTaskEvents from "./post";
 
@@ -18,7 +19,7 @@ const {
   getCreditCostsOrThrowMock,
   prismaTransactionMock,
   publishTaskEventDataMock,
-  requireTaskAccessMock,
+  requireTaskReadAccessMock,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
   createPurchaseFromMasumiTaskPaymentMock: vi.fn(),
@@ -26,11 +27,11 @@ const {
   getCreditCostsOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
-  requireTaskAccessMock: vi.fn(),
+  requireTaskReadAccessMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskAccess: requireTaskAccessMock,
+  requireTaskReadAccess: requireTaskReadAccessMock,
 }));
 
 vi.mock("@/helpers/task-credits", () => ({
@@ -67,6 +68,11 @@ vi.mock("@/clients/masumi-payment.client", () => ({
 const TASK_ID = "tsk_123";
 const USER_ID = "user_123";
 const COWORKER_ID = "cow_123";
+const ORG_WORKSPACE_CONTEXT: WorkspaceContext = {
+  workspaceId: "11111111-1111-7111-8111-111111111111",
+  userId: null,
+  organizationId: "org_123",
+};
 
 const validMasumiPaymentBody = {
   blockchainIdentifier: "0b00e04c0860a60c61066056281180462d0b12",
@@ -147,7 +153,10 @@ function createTaskEvent(
   };
 }
 
-function createApp(authContext: AuthenticationContext) {
+function createApp(
+  authContext: AuthenticationContext,
+  workspaceContext: WorkspaceContext | null = null,
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -155,6 +164,7 @@ function createApp(authContext: AuthenticationContext) {
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
+    c.set("workspaceContext", workspaceContext);
     return await next();
   });
 
@@ -206,7 +216,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskReadAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "coworker",
@@ -244,6 +254,73 @@ describe("POST /{id}/events", () => {
     );
   });
 
+  it("allows org workspace users to create comment events", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: null,
+            comment: "Shared workspace note",
+            userId: USER_ID,
+            coworkerId: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+    requireTaskReadAccessMock.mockResolvedValue(
+      createTask({
+        organizationId: "org_123",
+      }),
+    );
+
+    const app = createApp(
+      {
+        actor: "user",
+        userId: USER_ID,
+        organizationId: "org_123",
+      },
+      ORG_WORKSPACE_CONTEXT,
+    );
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        comment: "Shared workspace note",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(requireTaskReadAccessMock).toHaveBeenCalledWith(
+      {
+        actor: "user",
+        userId: USER_ID,
+        organizationId: "org_123",
+      },
+      ORG_WORKSPACE_CONTEXT,
+      TASK_ID,
+      expect.anything(),
+    );
+    expect(tx.taskEvent.create).toHaveBeenCalledWith({
+      data: {
+        taskId: TASK_ID,
+        status: null,
+        comment: "Shared workspace note",
+        origin: TaskEventOrigin.SOKOSUMI,
+        userId: USER_ID,
+        coworkerId: null,
+      },
+    });
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
   it("rejects OUT_OF_CREDITS for users", async () => {
     const tx: TransactionMock = {
       taskEvent: {
@@ -255,7 +332,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskReadAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "user",
@@ -289,7 +366,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskReadAccessMock.mockResolvedValue(createTask());
     createTaskEventTransactionMock.mockRejectedValue(
       new HTTPException(422, {
         message: "Insufficient balance",
@@ -333,7 +410,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(
+    requireTaskReadAccessMock.mockResolvedValue(
       createTask({
         status: TaskStatus.READY,
       }),
@@ -368,7 +445,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskReadAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "coworker",
@@ -408,7 +485,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskReadAccessMock.mockResolvedValue(createTask());
     createTaskEventTransactionMock.mockResolvedValue("txn_masumi");
 
     const app = createApp({
@@ -473,7 +550,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskReadAccessMock.mockResolvedValue(createTask());
     createTaskEventTransactionMock.mockResolvedValue("txn_fail");
 
     const app = createApp({
@@ -505,7 +582,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskReadAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "coworker",
@@ -535,7 +612,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskReadAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "user",

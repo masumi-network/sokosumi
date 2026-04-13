@@ -5,13 +5,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
-import type { WorkspaceContext } from "@/middleware/workspace-context";
+import type {
+  WorkspaceContext,
+  WorkspaceContextVariables,
+} from "@/middleware/workspace-context";
 
 import mountPatchTask from "./patch";
 
 const {
   prismaTransactionMock,
-  requireOwnedTaskAccessMock,
+  requireUserTaskAccessMock,
   requireTaskAssignableCoworkerMock,
   buildTaskIncludeForViewerMock,
   mapTaskMock,
@@ -19,9 +22,9 @@ const {
   taskUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireOwnedTaskAccessMock: vi.fn(),
+  requireUserTaskAccessMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  buildTaskIncludeForViewerMock: vi.fn().mockResolvedValue({}),
+  buildTaskIncludeForViewerMock: vi.fn().mockReturnValue({}),
   mapTaskMock: vi.fn((task: unknown) => task),
   validateTaskCoworkerAssignmentMock: vi.fn(),
   taskUpdateMock: vi.fn(),
@@ -34,7 +37,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireOwnedTaskAccess: requireOwnedTaskAccessMock,
+  requireUserTaskAccess: requireUserTaskAccessMock,
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
 }));
 
@@ -62,7 +65,7 @@ const testWorkspaceContext: WorkspaceContext = {
 
 function createApp() {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & WorkspaceContextVariables;
   }>();
 
   app.use("*", async (c, next) => {
@@ -116,7 +119,7 @@ describe("PATCH /tasks/{id}", () => {
     });
     requireTaskAssignableCoworkerMock.mockResolvedValue(undefined);
     validateTaskCoworkerAssignmentMock.mockReturnValue(undefined);
-    requireOwnedTaskAccessMock.mockResolvedValue(createTaskRecord());
+    requireUserTaskAccessMock.mockResolvedValue(createTaskRecord());
     taskUpdateMock.mockResolvedValue({
       id: "tsk_123",
       name: "Updated task title",
@@ -140,8 +143,12 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(requireOwnedTaskAccessMock).toHaveBeenCalledWith(
-      testWorkspaceContext,
+    expect(requireUserTaskAccessMock).toHaveBeenCalledWith(
+      {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      },
       "tsk_123",
       expect.any(Object),
     );
@@ -149,7 +156,6 @@ describe("PATCH /tasks/{id}", () => {
       where: {
         id: "tsk_123",
         userId: "user_123",
-        workspaceId: "workspace_123",
         status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
       },
       data: {
@@ -162,7 +168,7 @@ describe("PATCH /tasks/{id}", () => {
   });
 
   it("returns 404 when the current user does not own the task", async () => {
-    requireOwnedTaskAccessMock.mockRejectedValueOnce(
+    requireUserTaskAccessMock.mockRejectedValueOnce(
       new HTTPException(404, { message: "Task not found" }),
     );
 

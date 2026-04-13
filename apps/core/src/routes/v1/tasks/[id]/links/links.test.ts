@@ -56,7 +56,16 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createUserApp() {
+function createUserApp(
+  overrides?: Partial<{
+    authContext: Extract<AuthenticationContext, { actor: "user" }>;
+    workspaceContext: {
+      workspaceId: string;
+      userId: string | null;
+      organizationId: string | null;
+    } | null;
+  }>,
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -67,12 +76,16 @@ function createUserApp() {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      ...overrides?.authContext,
     });
-    c.set("workspaceContext", {
-      workspaceId: "11111111-1111-7111-8111-111111111111",
-      userId: null,
-      organizationId: "org_123",
-    });
+    c.set(
+      "workspaceContext",
+      overrides?.workspaceContext ?? {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      },
+    );
     return await next();
   });
 
@@ -369,7 +382,7 @@ describe("POST /tasks/{id}/links", () => {
     resolveWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskReadAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
@@ -427,7 +440,6 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        userId: "user_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {
@@ -459,7 +471,47 @@ describe("POST /tasks/{id}/links", () => {
     });
   });
 
-  it("returns 403 for coworker authentication", async () => {
+  it("keeps personal workspace peer-task visibility owner-scoped", async () => {
+    const app = createUserApp({
+      authContext: {
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+      },
+      workspaceContext: {
+        workspaceId: "22222222-2222-7222-8222-222222222222",
+        userId: "user_123",
+        organizationId: null,
+      },
+    });
+    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toTaskId: "tsk_b",
+        relation: "related",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_b",
+        workspaceId: "22222222-2222-7222-8222-222222222222",
+        userId: "user_123",
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        archivedAt: true,
+      },
+    });
+  });
+
+  it("allows coworkers to create links for visible tasks", async () => {
     const app = createCoworkerApp();
     mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
 
@@ -472,14 +524,56 @@ describe("POST /tasks/{id}/links", () => {
       }),
     });
 
-    expect(response.status).toBe(403);
-    expect(taskLinkCreateMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(requireTaskReadAccessMock).toHaveBeenCalledWith(
+      {
+        actor: "coworker",
+        coworkerId: "cow_123",
+      },
+      null,
+      "tsk_a",
+      expect.anything(),
+    );
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_b",
+        coworkerId: "cow_123",
+        archivedAt: null,
+        NOT: { status: { in: [TaskStatus.DRAFT] } },
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        archivedAt: true,
+      },
+    });
+    expect(taskLinkCreateMock).toHaveBeenCalled();
   });
 
   it("returns 404 when the target task is not accessible", async () => {
     taskFindFirstMock.mockResolvedValue(null);
 
     const app = createUserApp();
+    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toTaskId: "tsk_b",
+        relation: "related",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskLinkCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for coworkers when the peer task is not visible", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
+
+    const app = createCoworkerApp();
     mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
 
     const response = await app.request("http://localhost/tsk_a/links", {
