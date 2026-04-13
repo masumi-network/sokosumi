@@ -163,6 +163,16 @@ export function createPaymentClient(
     async createPurchaseFromMasumiTaskPayment(
       input: MasumiTaskPurchaseInput,
     ): Promise<Result<PostPurchaseResponses["200"]["data"], string>> {
+      const logLabel = "[masumi-payment] createPurchaseFromMasumiTaskPayment";
+      console.info(`${logLabel} request`, {
+        network,
+        blockchainIdentifier: input.blockchainIdentifier,
+        agentIdentifier: input.agentIdentifier,
+        identifierFromPurchaser: input.identifierFromPurchaser,
+        amountsCount: input.Amounts.length,
+        hasMetadata: input.metadata !== undefined,
+      });
+
       try {
         const response = await postPurchase({
           client: client(),
@@ -185,15 +195,28 @@ export function createPaymentClient(
         });
 
         if (response.error || !response.data) {
-          console.error(
-            "Failed to create task purchase request",
-            response.error,
-          );
+          console.error(`${logLabel} payment API error`, {
+            network,
+            blockchainIdentifier: input.blockchainIdentifier,
+            error: response.error,
+          });
           return err("Failed to create purchase request");
         }
 
-        return ok(response.data.data);
+        const data = response.data.data;
+        console.info(`${logLabel} success`, {
+          network,
+          purchaseId: data.id,
+          blockchainIdentifier: data.blockchainIdentifier,
+        });
+
+        return ok(data);
       } catch (error) {
+        console.error(`${logLabel} unexpected error`, {
+          network,
+          blockchainIdentifier: input.blockchainIdentifier,
+          error,
+        });
         return err(String(error) || "Failed to create purchase request");
       }
     },
