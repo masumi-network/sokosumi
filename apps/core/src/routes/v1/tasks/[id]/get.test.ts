@@ -3,7 +3,8 @@ import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext } from "@/middleware/auth";
+import type { AuthWithWorkspaceEnv } from "@/middleware/workspace-context";
 
 import mountGetTaskById from "./get";
 
@@ -25,9 +26,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 function createApp(actor: "user" | "coworker" = "user") {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHono<AuthWithWorkspaceEnv>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);

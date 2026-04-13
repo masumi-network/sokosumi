@@ -3,7 +3,7 @@ import { AgentJobStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthWithWorkspaceEnv } from "@/middleware/workspace-context";
 
 import mountGetJobs from "./get";
 
@@ -37,9 +37,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 function createApp(organizationId: string | null = "org_123") {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHono<AuthWithWorkspaceEnv>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -136,9 +134,7 @@ describe("GET /jobs", () => {
   });
 
   it("passes through a null workspaceContext without resolving a fallback", async () => {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables;
-    }>();
+    const app = new OpenAPIHono<AuthWithWorkspaceEnv>();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);

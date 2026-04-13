@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthWithWorkspaceEnv } from "@/middleware/workspace-context";
 
 import mountGetTasks from "./get";
 
@@ -69,9 +69,7 @@ function createApp(
         organizationId: null,
       },
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHono<AuthWithWorkspaceEnv>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);

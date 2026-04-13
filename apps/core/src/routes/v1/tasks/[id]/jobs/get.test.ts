@@ -3,7 +3,7 @@ import { jobSummaryInclude } from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthWithWorkspaceEnv } from "@/middleware/workspace-context";
 
 import mountGetTaskJobs from "./get";
 
@@ -25,9 +25,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 function createApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHono<AuthWithWorkspaceEnv>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);

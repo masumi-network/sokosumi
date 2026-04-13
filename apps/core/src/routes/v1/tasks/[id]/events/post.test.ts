@@ -7,8 +7,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
-import type { WorkspaceContext } from "@/middleware/workspace-context";
+import type { AuthenticationContext } from "@/middleware/auth";
+import type {
+  AuthWithWorkspaceEnv,
+  WorkspaceContext,
+} from "@/middleware/workspace-context";
 
 import mountPostTaskEvents from "./post";
 
@@ -157,9 +160,7 @@ function createApp(
   authContext: AuthenticationContext,
   workspaceContext: WorkspaceContext | null = null,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>();
+  const app = new OpenAPIHono<AuthWithWorkspaceEnv>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
