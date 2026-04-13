@@ -238,7 +238,8 @@
       "chat": "Chat",
       "tasks": "Tâches",
       "connections": "Connexions",
-      "feed": "Mon fil"
+      "feed": "Mon fil",
+      "new": "Nouveau"
     },
     "Jobs": {
       "StatusBadge": {

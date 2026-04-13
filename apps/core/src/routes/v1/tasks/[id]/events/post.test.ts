@@ -79,6 +79,7 @@ const ORG_WORKSPACE_CONTEXT: WorkspaceContext = {
 
 const validMasumiPaymentBody = {
   blockchainIdentifier: "0b00e04c0860a60c61066056281180462d0b12",
+  identifierFromPurchaser: "aabbccddeeff00112233",
   agentIdentifier: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
   sellerVkey: "0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd",
   submitResultTime: "1775681853000",
@@ -521,6 +522,7 @@ describe("POST /{id}/events", () => {
     expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         blockchainIdentifier: validMasumiPaymentBody.blockchainIdentifier,
+        identifierFromPurchaser: validMasumiPaymentBody.identifierFromPurchaser,
         Amounts: validMasumiPaymentBody.Amounts,
         metadata: expect.stringContaining(TASK_ID),
       }),
