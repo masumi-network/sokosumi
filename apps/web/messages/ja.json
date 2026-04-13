@@ -238,7 +238,8 @@
       "chat": "チャット",
       "tasks": "タスク",
       "connections": "接続",
-      "feed": "マイフィード"
+      "feed": "マイフィード",
+      "new": "新規"
     },
     "Jobs": {
       "StatusBadge": {
