@@ -1,10 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
-
+import { notFound } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -51,20 +49,20 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
+    const { workspaceContext } = c.var;
     const { id: agentId } = c.req.valid("param");
     const { maxCredits, inputData, inputSchema, name } = c.req.valid("json");
+    const workspaceId = workspaceContext?.workspaceId ?? null;
 
-    const workspace = await resolveWorkspaceForContext(
-      authContext.userId,
-      authContext.organizationId,
-      prisma,
-    );
+    if (!workspaceId) {
+      throw notFound("Workspace not found");
+    }
 
     const job = await createAgentJobForUser({
       owner: {
         userId: authContext.userId,
         organizationId: authContext.organizationId,
-        workspaceId: workspace.id,
+        workspaceId,
       },
       agentInput: {
         agentId,

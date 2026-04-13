@@ -16,7 +16,6 @@ const {
   prismaTransactionMock,
   requireTaskReadAccessMock,
   requireUserTaskAccessMock,
-  resolveWorkspaceForContextMock,
   taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
@@ -27,7 +26,6 @@ const {
   prismaTransactionMock: vi.fn(),
   requireTaskReadAccessMock: vi.fn(),
   requireUserTaskAccessMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
@@ -40,16 +38,6 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskReadAccess: requireTaskReadAccessMock,
   requireUserTaskAccess: requireUserTaskAccessMock,
 }));
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
-  };
-});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -79,11 +67,13 @@ function createUserApp(
     });
     c.set(
       "workspaceContext",
-      overrides?.workspaceContext ?? {
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-        userId: null,
-        organizationId: "org_123",
-      },
+      overrides?.workspaceContext === undefined
+        ? {
+            workspaceId: "11111111-1111-7111-8111-111111111111",
+            userId: null,
+            organizationId: "org_123",
+          }
+        : overrides.workspaceContext,
     );
     return await next();
   });
@@ -376,9 +366,6 @@ describe("GET /tasks/{id}/links", () => {
 describe("POST /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
     requireTaskReadAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
@@ -901,7 +888,6 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        userId: "user_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {
@@ -931,6 +917,25 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
         archivedAt: null,
       },
     });
+  });
+
+  it("returns 404 when no workspaceContext is available", async () => {
+    const app = createUserApp({
+      workspaceContext: null,
+    });
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        relation: "parent",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 when the link note is cleared", async () => {

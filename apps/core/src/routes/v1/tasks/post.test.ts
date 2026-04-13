@@ -3,7 +3,7 @@ import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthWithWorkspaceEnv } from "@/middleware/workspace-context";
 
 import mountPostTask, { createTaskRequestSchema } from "./post";
 
@@ -11,13 +11,11 @@ const {
   mapTaskMock,
   prismaTransactionMock,
   requireTaskAssignableCoworkerMock,
-  resolveWorkspaceForContextMock,
   taskCreateMock,
 } = vi.hoisted(() => ({
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
   taskCreateMock: vi.fn(),
 }));
 
@@ -31,16 +29,6 @@ vi.mock("@/helpers/task", async (importOriginal) => {
   return {
     ...actual,
     mapTask: mapTaskMock,
-  };
-});
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
   };
 });
 
@@ -115,10 +103,14 @@ describe("createTaskRequestSchema", () => {
 });
 
 describe("POST /tasks", () => {
-  function createApp() {
-    const app = new OpenAPIHono<{
-      Variables: AuthVariables;
-    }>();
+  function createApp(
+    workspaceContext: AuthWithWorkspaceEnv["Variables"]["workspaceContext"] = {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: null,
+      organizationId: "org_123",
+    },
+  ) {
+    const app = new OpenAPIHono<AuthWithWorkspaceEnv>();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -127,6 +119,7 @@ describe("POST /tasks", () => {
         userId: "user_123",
         organizationId: "org_123",
       });
+      c.set("workspaceContext", workspaceContext);
 
       return await next();
     });
@@ -137,9 +130,7 @@ describe("POST /tasks", () => {
   }
 
   beforeEach(() => {
-    resolveWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
+    vi.clearAllMocks();
     taskCreateMock.mockResolvedValue({ id: "tsk_123" });
     mapTaskMock.mockReturnValue({
       id: "tsk_123",
@@ -182,7 +173,7 @@ describe("POST /tasks", () => {
     );
   });
 
-  it("resolves the active workspace and persists workspaceId on create", async () => {
+  it("uses workspaceContext and persists workspaceId on create", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/", {
@@ -200,11 +191,6 @@ describe("POST /tasks", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_123",
-      expect.any(Object),
-    );
     expect(taskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -214,5 +200,26 @@ describe("POST /tasks", () => {
         }),
       }),
     );
+  });
+
+  it("returns 404 when no active workspaceContext is available", async () => {
+    const app = createApp(null);
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "New Task",
+        description: null,
+        coworkerId: null,
+        status: TaskStatus.DRAFT,
+        origin: TaskEventOrigin.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 });
