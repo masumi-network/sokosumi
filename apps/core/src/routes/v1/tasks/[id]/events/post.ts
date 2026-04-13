@@ -3,7 +3,6 @@ import * as Sentry from "@sentry/node";
 import { Prisma } from "@sokosumi/database";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
-import { v4 as uuidv4 } from "uuid";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { LIMITS } from "@/config/constants";
@@ -224,9 +223,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (masumiPayment != null) {
       const taskEventId = event.id;
-      const identifierFromPurchaser = uuidv4()
-        .replace(/-/g, "")
-        .substring(0, 20);
 
       Sentry.addBreadcrumb({
         category: "task_masumi_purchase",
@@ -257,7 +253,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           externalDisputeUnlockTime: masumiPayment.externalDisputeUnlockTime,
           inputHash: masumiPayment.inputHash,
           Amounts: masumiPayment.Amounts,
-          identifierFromPurchaser,
+          identifierFromPurchaser: masumiPayment.identifierFromPurchaser,
           metadata: JSON.stringify({
             taskId,
             taskEventId,
