@@ -75,14 +75,15 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
-    const { workspaceContext } = c.var;
-    const body = c.req.valid("json");
-    const workspaceId = workspaceContext?.workspaceId ?? null;
+    const { workspaceContext, authContext } = c.var;
+    const userAuthContext = requireUserAuthContext(authContext);
 
+    const workspaceId = workspaceContext?.workspaceId;
     if (!workspaceId) {
       throw notFound("Workspace not found");
     }
+
+    const body = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
       validateTaskCoworkerAssignment({
@@ -96,8 +97,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return tx.task.create({
         data: {
-          userId: authContext.userId,
-          organizationId: authContext.organizationId,
+          userId: userAuthContext.userId,
+          organizationId: userAuthContext.organizationId,
           workspaceId,
           name: body.name,
           description: body.description ?? null,
@@ -108,7 +109,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               status: body.status,
               comment: null,
               origin: body.origin,
-              userId: authContext.userId,
+              userId: userAuthContext.userId,
               coworkerId: null,
             },
           },
