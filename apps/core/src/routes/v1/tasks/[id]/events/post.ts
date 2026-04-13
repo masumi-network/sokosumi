@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Prisma } from "@sokosumi/database";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 import { v4 as uuidv4 } from "uuid";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
@@ -245,7 +246,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         agentIdentifier: masumiPayment.agentIdentifier,
       });
 
-      paymentClient()
+      const masumiPurchasePromise = paymentClient()
         .createPurchaseFromMasumiTaskPayment({
           blockchainIdentifier: masumiPayment.blockchainIdentifier,
           agentIdentifier: masumiPayment.agentIdentifier,
@@ -325,6 +326,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             extra: { taskId, taskEventId },
           });
         });
+
+      waitUntil(masumiPurchasePromise);
     }
 
     try {
