@@ -238,7 +238,8 @@
       "chat": "聊天",
       "tasks": "任务",
       "connections": "连接",
-      "feed": "我的动态"
+      "feed": "我的动态",
+      "new": "新建"
     },
     "Jobs": {
       "StatusBadge": {
