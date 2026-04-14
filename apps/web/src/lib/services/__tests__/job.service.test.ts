@@ -8,8 +8,7 @@ const getBalanceMock = vi.fn();
 const createDemoJobMock = vi.fn();
 const createJobMock = vi.fn();
 const createJobPurchaseMock = vi.fn();
-const findWorkspaceForContextMock = vi.fn();
-const upsertWorkspaceForContextMock = findWorkspaceForContextMock;
+const upsertWorkspaceForContextMock = vi.fn();
 const publishJobStatusDataMock = vi.fn();
 const startFreeAgentJobMock = vi.fn();
 const startPaidAgentJobMock = vi.fn();
@@ -249,7 +248,7 @@ function buildStartInput(overrides: Record<string, unknown> = {}) {
 describe("job.service workspace persistence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    findWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
     getSessionMock.mockResolvedValue({
@@ -289,7 +288,7 @@ describe("job.service workspace persistence", () => {
       result: "demo result",
     } as never);
 
-    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       null,
       expect.any(Object),
@@ -315,7 +314,7 @@ describe("job.service workspace persistence", () => {
 
     await jobService.startJob(buildStartInput());
 
-    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       expect.any(Object),
@@ -364,7 +363,7 @@ describe("job.service workspace persistence", () => {
 
     await jobService.startJob(buildStartInput());
 
-    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       { tx: "transaction" },
@@ -410,7 +409,7 @@ describe("job.service workspace persistence", () => {
 
     const result = await jobService.getJobStatusesDataForAgents(["agent_123"]);
 
-    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       expect.any(Object),

@@ -8,8 +8,7 @@ const getSessionMock = vi.fn();
 const getJobsMock = vi.fn();
 const findManyMock = vi.fn();
 const findUniqueMock = vi.fn();
-const findWorkspaceForContextMock = vi.fn();
-const upsertWorkspaceForContextMock = findWorkspaceForContextMock;
+const upsertWorkspaceForContextMock = vi.fn();
 
 vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
@@ -63,7 +62,7 @@ vi.mock("@/lib/db/prisma", () => ({
 describe("user.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    findWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
   });

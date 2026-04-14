@@ -10,8 +10,7 @@ import {
   PricingType,
 } from "@sokosumi/database";
 
-const findWorkspaceForContextMock = vi.fn();
-const upsertWorkspaceForContextMock = findWorkspaceForContextMock;
+const upsertWorkspaceForContextMock = vi.fn();
 
 const getShownAgentsWithRelationsByStatusMock = vi.fn();
 const getCreditCostsMock = vi.fn();
@@ -111,7 +110,7 @@ describe("agent.service", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    findWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
     transactionMock.mockImplementation(
@@ -259,7 +258,7 @@ describe("agent.service", () => {
 
     await agentService.getHiredAgents();
 
-    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       expect.any(Object),
