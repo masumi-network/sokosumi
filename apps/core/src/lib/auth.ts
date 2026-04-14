@@ -3,6 +3,7 @@ import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import * as Sentry from "@sentry/node";
+import { workspaceRepository } from "@sokosumi/database/repositories";
 import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
@@ -18,7 +19,6 @@ import {
   openAPI,
   organization,
 } from "better-auth/plugins";
-
 import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
@@ -72,13 +72,15 @@ export const auth = betterAuth({
             data: {
               ...user,
               name: getStoredUserName(user.name, user.email),
-              workspace: {
-                create: {},
-              },
             },
           };
         },
         after: async (user, _ctx) => {
+          await workspaceRepository.createWorkspace({
+            userId: user.id,
+            organizationId: null,
+            tx: prisma,
+          });
           stripeClient
             .createUserCustomer({
               email: user.email,
@@ -189,15 +191,12 @@ export const auth = betterAuth({
     jwt({ disableSettingJwtHeader: true }),
     organization({
       organizationHooks: {
-        beforeCreateOrganization: async ({ organization }) => {
-          return {
-            data: {
-              ...organization,
-              workspace: {
-                create: {},
-              },
-            },
-          };
+        afterCreateOrganization: async ({ organization }) => {
+          await workspaceRepository.createWorkspace({
+            userId: null,
+            organizationId: organization.id,
+            tx: prisma,
+          });
         },
       },
       schema: {
