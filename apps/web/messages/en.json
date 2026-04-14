@@ -1776,6 +1776,7 @@
       "paidSubscriptionRequiredHint": "Choose a paid plan in the Subscription tab to unlock credit top-ups.",
       "couponExpiryPolicyNotice": "Promotional credits may expire; terms vary by coupon or offer.",
       "costPerCredit": "{cost} per credit",
+      "youSaveLabel": "Save {amount}",
       "creditAmount": "{count, plural, one {# credit} other {# credits}}",
       "creditsLabel": "Number of credits",
       "creditsPlaceholder": "Enter amount",

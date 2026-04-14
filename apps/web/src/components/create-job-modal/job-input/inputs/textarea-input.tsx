@@ -11,13 +11,14 @@ export function TextareaInput({
   jobInputSchema,
 }: JobInputComponentProps<InputType.TEXTAREA, InputTextareaSchemaType>) {
   const { data } = jobInputSchema;
+  const defaultValue = data?.default ?? "";
 
   return (
     <Textarea
       id={id}
       placeholder={data?.placeholder ?? undefined}
       {...field}
-      value={typeof field.value === "string" ? field.value : ""}
+      value={typeof field.value === "string" ? field.value : defaultValue}
     />
   );
 }

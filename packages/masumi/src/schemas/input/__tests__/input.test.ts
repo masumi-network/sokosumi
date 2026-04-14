@@ -16,6 +16,7 @@ import {
   type InputHiddenSchemaType,
   type InputMonthSchemaType,
   type InputMultiselectSchemaType,
+  type InputNumberSchemaType,
   type InputPasswordSchemaType,
   type InputRadioGroupSchemaType,
   type InputRangeSchemaType,
@@ -133,12 +134,71 @@ describe("inputDataSchema", () => {
     });
   });
 
+  describe("Text input type", () => {
+    const validTextInput = {
+      id: "text-id",
+      type: InputType.TEXT,
+      name: "Test Text Input",
+      data: {
+        placeholder: "Enter text",
+        description: "Test text description",
+        default: "Default text",
+      },
+    };
+
+    it("should validate a text input with a default value", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [validTextInput],
+      });
+      expect(result.success).toBe(true);
+      expect(result.data).toMatchObject({
+        input_data: [
+          {
+            data: {
+              default: "Default text",
+            },
+          },
+        ],
+      });
+    });
+  });
+
+  describe("Textarea input type", () => {
+    const validTextareaInput = {
+      id: "textarea-id",
+      type: InputType.TEXTAREA,
+      name: "Test Textarea Input",
+      data: {
+        placeholder: "Enter a longer description",
+        description: "Test textarea description",
+        default: "Default textarea content",
+      },
+    };
+
+    it("should validate a textarea input with a default value", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [validTextareaInput],
+      });
+      expect(result.success).toBe(true);
+      expect(result.data).toMatchObject({
+        input_data: [
+          {
+            data: {
+              default: "Default textarea content",
+            },
+          },
+        ],
+      });
+    });
+  });
+
   describe("Number input type", () => {
     const validNumberInput = {
       id: "number-id",
       type: InputType.NUMBER,
       name: "Test Number Input",
       data: {
+        default: 42,
         placeholder: "Enter number",
         description: "Test number description",
       },
@@ -149,6 +209,15 @@ describe("inputDataSchema", () => {
         input_data: [validNumberInput],
       });
       expect(result.success).toBe(true);
+      expect(result.data).toMatchObject({
+        input_data: [
+          {
+            data: {
+              default: 42,
+            },
+          },
+        ],
+      });
     });
 
     it("should not fail with undefined data", () => {
@@ -182,6 +251,41 @@ describe("inputDataSchema", () => {
       expect(result.success).toBe(true);
     });
 
+    it("should treat blank string default as unset, not zero", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validNumberInput,
+            data: {
+              ...validNumberInput.data,
+              default: "",
+            },
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
+      const field = result.data!.input_data[0] as InputNumberSchemaType;
+      expect(field.data?.default).toBeUndefined();
+    });
+
+    it("should treat whitespace-only default as unset", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validNumberInput,
+            data: {
+              ...validNumberInput.data,
+              default: "   ",
+            },
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
+      const fieldWhitespace = result.data!
+        .input_data[0] as InputNumberSchemaType;
+      expect(fieldWhitespace.data?.default).toBeUndefined();
+    });
+
     it("should fail with invalid validations", () => {
       const result = inputDataSchema.safeParse({
         input_data: [
@@ -203,6 +307,7 @@ describe("inputDataSchema", () => {
       type: InputType.BOOLEAN,
       name: "Test Boolean Input",
       data: {
+        default: true,
         description: "Test boolean description",
       },
     };
@@ -212,6 +317,15 @@ describe("inputDataSchema", () => {
         input_data: [validBooleanInput],
       });
       expect(result.success).toBe(true);
+      expect(result.data).toMatchObject({
+        input_data: [
+          {
+            data: {
+              default: true,
+            },
+          },
+        ],
+      });
     });
 
     it("should not fail with undefined data", () => {
@@ -483,6 +597,25 @@ describe("inputDataSchema", () => {
       });
       expect(result.success).toBe(true);
     });
+
+    it("should treat blank string range default and step as unset", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validRange,
+            data: {
+              ...validRange.data,
+              default: "",
+              step: "",
+            },
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
+      const field = result.data!.input_data[0] as InputRangeSchemaType;
+      expect(field.data?.default).toBeUndefined();
+      expect(field.data?.step).toBeUndefined();
+    });
   });
 
   describe("Multiselect input type", () => {
@@ -535,12 +668,21 @@ describe("inputDataSchema", () => {
       id: "rg-id",
       type: InputType.RADIO_GROUP,
       name: "RG",
-      data: { values: ["a", "b"] },
+      data: { values: ["a", "b"], default: "b" },
     };
 
     it("should validate radio group schema", () => {
       const result = inputDataSchema.safeParse({ input_data: [rg] });
       expect(result.success).toBe(true);
+      expect(result.data).toMatchObject({
+        input_data: [
+          {
+            data: {
+              default: "b",
+            },
+          },
+        ],
+      });
     });
 
     it("should allow empty value in values array", () => {

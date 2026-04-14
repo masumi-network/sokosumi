@@ -1,0 +1,76 @@
+import * as Sentry from "@sentry/node";
+import { workspaceRepository } from "@sokosumi/database/repositories";
+import { createMiddleware } from "hono/factory";
+import { forbidden } from "@/helpers/error";
+import prisma from "@/lib/db/prisma";
+import { type EnvVariables } from "@/lib/hono";
+import { isUserAuthContext } from "@/middleware/auth";
+
+export interface WorkspaceContext {
+  workspaceId: string;
+  userId: string | null;
+  organizationId: string | null;
+}
+
+export interface WorkspaceVariables {
+  workspaceContext: WorkspaceContext | null;
+}
+
+export function requireWorkspaceContext(
+  workspaceContext: WorkspaceContext | null,
+): WorkspaceContext {
+  if (!workspaceContext) {
+    throw forbidden("Workspace is missing");
+  }
+  return workspaceContext;
+}
+
+/**
+ * Resolves the active workspace for authenticated user requests.
+ *
+ * This middleware is intentionally user-only. Coworker requests keep
+ * `workspaceContext` as `null` and continue to use `authContext` directly.
+ */
+export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
+  createMiddleware<EnvVariables>(async (c, next) => {
+    if (!includeWorkspaceContext) {
+      c.set("workspaceContext", null);
+      return await next();
+    }
+
+    const { authContext, isAuthenticated } = c.var;
+
+    if (!isAuthenticated || !isUserAuthContext(authContext)) {
+      c.set("workspaceContext", null);
+      return await next();
+    }
+
+    try {
+      const workspace = await workspaceRepository.upsertWorkspaceForContext(
+        authContext.userId,
+        authContext.organizationId ?? null,
+        prisma,
+      );
+
+      const workspaceContext: WorkspaceContext = {
+        workspaceId: workspace.id,
+        userId: workspace.userId,
+        organizationId: workspace.organizationId,
+      };
+
+      c.set("workspaceContext", workspaceContext);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: {
+          context: "workspace_context_resolution",
+        },
+        extra: {
+          activeOrganizationId: authContext.organizationId ?? null,
+          userId: authContext.userId,
+        },
+      });
+      c.set("workspaceContext", null);
+    }
+
+    return await next();
+  });

@@ -3,6 +3,7 @@ import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import * as Sentry from "@sentry/node";
+import { workspaceRepository } from "@sokosumi/database/repositories";
 import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
@@ -18,7 +19,6 @@ import {
   openAPI,
   organization,
 } from "better-auth/plugins";
-
 import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
@@ -38,6 +38,52 @@ const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
   vercelEnv: env.VERCEL_ENV,
   vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
 });
+
+async function ensureWorkspaceForCreatedUser(user: {
+  email: string;
+  id: string;
+  name: string;
+}): Promise<void> {
+  try {
+    await workspaceRepository.upsertPersonalWorkspace({
+      userId: user.id,
+      tx: prisma,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "workspace_user_creation",
+      },
+      extra: {
+        email: user.email,
+        name: user.name,
+        userId: user.id,
+      },
+    });
+  }
+}
+
+async function ensureWorkspaceForCreatedOrganization(organization: {
+  id: string;
+  name: string;
+}): Promise<void> {
+  try {
+    await workspaceRepository.upsertOrganizationWorkspace({
+      organizationId: organization.id,
+      tx: prisma,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "workspace_organization_creation",
+      },
+      extra: {
+        organizationId: organization.id,
+        organizationName: organization.name,
+      },
+    });
+  }
+}
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
@@ -76,6 +122,7 @@ export const auth = betterAuth({
           };
         },
         after: async (user, _ctx) => {
+          await ensureWorkspaceForCreatedUser(user);
           stripeClient
             .createUserCustomer({
               email: user.email,
@@ -185,6 +232,11 @@ export const auth = betterAuth({
     }),
     jwt({ disableSettingJwtHeader: true }),
     organization({
+      organizationHooks: {
+        afterCreateOrganization: async ({ organization }) => {
+          await ensureWorkspaceForCreatedOrganization(organization);
+        },
+      },
       schema: {
         organization: {
           additionalFields: {

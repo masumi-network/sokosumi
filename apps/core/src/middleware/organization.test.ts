@@ -80,7 +80,7 @@ function createUserApp(initialOrganizationId: string | null) {
     return await next();
   });
 
-  app.use("*", organizationHeaderMiddleware);
+  app.use("*", organizationHeaderMiddleware(true));
 
   app.get("/", (c) => {
     return c.json(c.var.authContext);
@@ -103,7 +103,7 @@ function createCoworkerApp() {
     return await next();
   });
 
-  app.use("*", organizationHeaderMiddleware);
+  app.use("*", organizationHeaderMiddleware(true));
 
   app.get("/", (c) => {
     return c.json(c.var.authContext);

@@ -1,3 +1,4 @@
+import { preprocessBlankNumericInput } from "@sokosumi/masumi/schemas";
 import {
   InputFormat,
   InputType,
@@ -224,7 +225,9 @@ export function applyNumericValidations(
     }
   }
 
-  return parsed.canBeOptional ? result.nullish() : result;
+  const inner: z.ZodTypeAny = parsed.canBeOptional ? result.nullish() : result;
+
+  return z.preprocess(preprocessBlankNumericInput, inner);
 }
 
 function applyDateRangeRefinements(
@@ -748,5 +751,9 @@ export function applyRangeValidations(
     );
   }
 
-  return parsed.canBeOptional ? finalSchema.nullish() : finalSchema;
+  const inner: z.ZodTypeAny = parsed.canBeOptional
+    ? finalSchema.nullish()
+    : finalSchema;
+
+  return z.preprocess(preprocessBlankNumericInput, inner);
 }

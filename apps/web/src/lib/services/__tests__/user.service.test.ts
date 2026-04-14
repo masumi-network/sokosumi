@@ -8,7 +8,7 @@ const getSessionMock = vi.fn();
 const getJobsMock = vi.fn();
 const findManyMock = vi.fn();
 const findUniqueMock = vi.fn();
-const resolveWorkspaceForContextMock = vi.fn();
+const upsertWorkspaceForContextMock = vi.fn();
 
 vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
@@ -33,8 +33,6 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   return {
     ...actual,
     mapJobWithStatus: (job: unknown) => job,
-    resolveWorkspaceForContext: (...args: unknown[]) =>
-      resolveWorkspaceForContextMock(...args),
   };
 });
 
@@ -46,6 +44,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {},
   organizationRepository: {},
   userRepository: {},
+  workspaceRepository: {
+    upsertWorkspaceForContext: (...args: unknown[]) =>
+      upsertWorkspaceForContextMock(...args),
+  },
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -60,7 +62,7 @@ vi.mock("@/lib/db/prisma", () => ({
 describe("user.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
   });

@@ -1,9 +1,5 @@
 import type {
-  InputCheckboxSchemaType,
-  InputColorSchemaType,
   InputFieldSchemaType,
-  InputHiddenSchemaType,
-  InputRangeSchemaType,
   InputSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
@@ -148,35 +144,73 @@ export function isInputSchemaValue(
  */
 type DefaultValueExtractor = (schema: InputFieldSchemaType) => unknown | null;
 
+function getSchemaDefaultValue(schema: InputFieldSchemaType): unknown {
+  if (
+    !schema.data ||
+    typeof schema.data !== "object" ||
+    !("default" in schema.data)
+  ) {
+    return undefined;
+  }
+
+  return schema.data.default;
+}
+
 /**
  * Extract default value for boolean types (BOOLEAN, CHECKBOX)
  */
 const getBooleanDefault: DefaultValueExtractor = (schema) => {
-  if (schema.type === InputType.CHECKBOX) {
-    return (schema as InputCheckboxSchemaType).data?.default ?? false;
-  }
-  return false;
+  const defaultValue = getSchemaDefaultValue(schema);
+  return typeof defaultValue === "boolean" ? defaultValue : false;
 };
 
 /**
  * Extract default value for color type
  */
 const getColorDefault: DefaultValueExtractor = (schema) => {
-  return (schema as InputColorSchemaType).data?.default ?? "#000000";
+  const defaultValue = getSchemaDefaultValue(schema);
+  return typeof defaultValue === "string" ? defaultValue : "#000000";
 };
 
 /**
- * Extract default value for range type
+ * Extract default value for numeric types
  */
-const getRangeDefault: DefaultValueExtractor = (schema) => {
-  return (schema as InputRangeSchemaType).data?.default ?? null;
+const getNumericDefault: DefaultValueExtractor = (schema) => {
+  const defaultValue = getSchemaDefaultValue(schema);
+  return typeof defaultValue === "number" ? defaultValue : null;
 };
 
 /**
  * Extract default value for hidden type
  */
 const getHiddenDefault: DefaultValueExtractor = (schema) => {
-  return (schema as InputHiddenSchemaType).data?.value ?? "";
+  return schema.type === InputType.HIDDEN ? (schema.data?.value ?? "") : "";
+};
+
+/**
+ * Extract default value for string-based inputs
+ */
+const getStringDefault: DefaultValueExtractor = (schema) => {
+  const defaultValue = getSchemaDefaultValue(schema);
+  return typeof defaultValue === "string" ? defaultValue : null;
+};
+
+/**
+ * Extract default value for radio group inputs.
+ * The form stores the selected option as an array containing the option index.
+ */
+const getRadioGroupDefault: DefaultValueExtractor = (schema) => {
+  if (schema.type !== InputType.RADIO_GROUP) {
+    return null;
+  }
+
+  const defaultValue = getSchemaDefaultValue(schema);
+  if (typeof defaultValue !== "string") {
+    return null;
+  }
+
+  const selectedIndex = schema.data.values.indexOf(defaultValue);
+  return selectedIndex >= 0 ? [selectedIndex] : null;
 };
 
 /**
@@ -191,8 +225,21 @@ const DEFAULT_VALUE_EXTRACTORS: Partial<
   [InputType.CHECKBOX]: getBooleanDefault,
   // Special types with data defaults
   [InputType.COLOR]: getColorDefault,
-  [InputType.RANGE]: getRangeDefault,
+  [InputType.NUMBER]: getNumericDefault,
+  [InputType.RANGE]: getNumericDefault,
   [InputType.HIDDEN]: getHiddenDefault,
+  [InputType.TEXT]: getStringDefault,
+  [InputType.TEXTAREA]: getStringDefault,
+  [InputType.EMAIL]: getStringDefault,
+  [InputType.TEL]: getStringDefault,
+  [InputType.URL]: getStringDefault,
+  [InputType.DATE]: getStringDefault,
+  [InputType.DATETIME]: getStringDefault,
+  [InputType.TIME]: getStringDefault,
+  [InputType.MONTH]: getStringDefault,
+  [InputType.WEEK]: getStringDefault,
+  [InputType.SEARCH]: getStringDefault,
+  [InputType.RADIO_GROUP]: getRadioGroupDefault,
 };
 
 /**

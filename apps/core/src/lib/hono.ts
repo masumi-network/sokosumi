@@ -1,8 +1,12 @@
 import { OpenAPIHono, type RouteConfig, z } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import { type AuthEnv, authMiddleware } from "@/middleware/auth";
+import { type AuthVariables, authMiddleware } from "@/middleware/auth";
 import { organizationHeaderMiddleware } from "@/middleware/organization";
+import {
+  type WorkspaceVariables,
+  workspaceMiddleware,
+} from "@/middleware/workspace";
 
 /**
  * Global hook for OpenAPI validation errors
@@ -26,7 +30,16 @@ export interface OpenAPIHonoWithAuthOptions {
    * Defaults to true. Set to false to disable organization context handling.
    */
   includeOrganizationHeader?: boolean;
+  /**
+   * Whether to include the workspace context middleware.
+   * Defaults to false. Set to true for routers that need workspace-scoped reads.
+   */
+  includeWorkspaceContext?: boolean;
 }
+
+export type EnvVariables = {
+  Variables: AuthVariables & WorkspaceVariables;
+};
 
 /**
  * Type-safe OpenAPIHono class with AuthContext in Variables
@@ -40,17 +53,20 @@ export interface OpenAPIHonoWithAuthOptions {
  * const app = new OpenAPIHonoWithAuth();
  * // authMiddleware and organizationHeaderMiddleware are already applied
  */
-export class OpenAPIHonoWithAuth extends OpenAPIHono<AuthEnv> {
-  constructor(
-    options: OpenAPIHonoWithAuthOptions = { includeOrganizationHeader: true },
-  ) {
+export class OpenAPIHonoWithAuth extends OpenAPIHono<EnvVariables> {
+  constructor(options: OpenAPIHonoWithAuthOptions = {}) {
+    const {
+      includeOrganizationHeader = true,
+      includeWorkspaceContext = false,
+    } = options;
+
     super({
       defaultHook: defaultValidationHook,
     });
+
     this.use(authMiddleware);
-    if (options.includeOrganizationHeader) {
-      this.use(organizationHeaderMiddleware);
-    }
+    this.use(organizationHeaderMiddleware(includeOrganizationHeader));
+    this.use(workspaceMiddleware(includeWorkspaceContext));
   }
 }
 

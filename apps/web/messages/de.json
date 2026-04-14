@@ -1711,7 +1711,11 @@
       "billingPortalCta": "Käufe verwalten",
       "topUpTitle": "Credits aufladen",
       "topUpDescription": "Wähle einen Betrag oder gib einen eigenen Wert ein",
+      "paidSubscriptionRequiredDescription": "Du benötigst ein kostenpflichtiges Abonnement, um zusätzliche Credits zu kaufen.",
+      "paidSubscriptionRequiredHint": "Wähle im Tab „Abonnement“ einen kostenpflichtigen Plan, um das Aufladen von Credits freizuschalten.",
+      "couponExpiryPolicyNotice": "Aktionsguthaben kann verfallen; die Bedingungen hängen vom jeweiligen Gutschein oder Angebot ab.",
       "costPerCredit": "{cost} pro Credit",
+      "youSaveLabel": "Spare {amount}",
       "creditAmount": "{count, plural, one {# Credit} other {# Credits}}",
       "creditsLabel": "Anzahl Credits",
       "creditsPlaceholder": "Betrag eingeben",
@@ -1762,10 +1766,7 @@
         "unauthorizedOrganization": "Du bist nicht berechtigt, Credits für diese Organisation zu kaufen",
         "unauthorizedPersonal": "Du bist nicht berechtigt, Credits zu kaufen",
         "unknownError": "Etwas ist schiefgelaufen"
-      },
-      "paidSubscriptionRequiredDescription": "Du benötigst ein kostenpflichtiges Abonnement, um zusätzliche Credits zu kaufen.",
-      "paidSubscriptionRequiredHint": "Wähle im Tab „Abonnement“ einen kostenpflichtigen Plan, um das Aufladen von Credits freizuschalten.",
-      "couponExpiryPolicyNotice": "Aktionsguthaben kann verfallen; die Bedingungen hängen vom jeweiligen Gutschein oder Angebot ab."
+      }
     },
     "Connections": {
       "tabs": {

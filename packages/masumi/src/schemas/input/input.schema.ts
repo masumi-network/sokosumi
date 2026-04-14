@@ -1,6 +1,7 @@
 import * as z from "zod";
 
 import { InputType, OutputFormat } from "../../types/input-types.js";
+import { preprocessBlankNumericInput } from "./blank-numeric-input.js";
 import {
   acceptValidationSchema,
   formatEmailValidationSchema,
@@ -56,6 +57,7 @@ export const inputTextSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -80,6 +82,7 @@ export const inputTextareaSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -102,6 +105,10 @@ export const inputNumberSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.preprocess(
+        preprocessBlankNumericInput,
+        z.coerce.number().nullish(),
+      ),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -124,6 +131,7 @@ export const inputBooleanSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.boolean().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -139,6 +147,7 @@ export const inputEmailSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -184,6 +193,7 @@ export const inputTelSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -206,6 +216,7 @@ export const inputUrlSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -229,6 +240,7 @@ export const inputDateSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -248,6 +260,7 @@ export const inputDatetimeSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -267,6 +280,7 @@ export const inputTimeSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -286,6 +300,7 @@ export const inputMonthSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -305,6 +320,7 @@ export const inputWeekSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -340,8 +356,14 @@ export const inputRangeSchema = z.object({
   data: z
     .object({
       description: z.string().nullish(),
-      step: z.coerce.number().min(0).nullish(),
-      default: z.coerce.number().nullish(),
+      step: z.preprocess(
+        preprocessBlankNumericInput,
+        z.coerce.number().min(0).nullish(),
+      ),
+      default: z.preprocess(
+        preprocessBlankNumericInput,
+        z.coerce.number().nullish(),
+      ),
     })
     .nullish(),
   validations: z
@@ -394,6 +416,7 @@ export const inputSearchSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -429,6 +452,7 @@ export const inputRadioGroupSchema = z.object({
   type: z.enum([InputType.RADIO_GROUP]),
   name: z.string().min(1),
   data: z.object({
+    default: z.string().nullish(),
     values: z
       .array(z.string())
       .min(1)

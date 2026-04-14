@@ -13,7 +13,7 @@ const {
   jobUpdateManyMock,
   mapTaskMock,
   prismaTransactionMock,
-  resolveWorkspaceForContextMock,
+  upsertWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
   taskLinkFindFirstMock,
@@ -24,7 +24,7 @@ const {
   jobUpdateManyMock: vi.fn(),
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
+  upsertWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskLinkFindFirstMock: vi.fn(),
@@ -40,8 +40,10 @@ vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
 }));
 
-vi.mock("@sokosumi/database/helpers", () => ({
-  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+vi.mock("@sokosumi/database/repositories", () => ({
+  workspaceRepository: {
+    upsertWorkspaceForContext: upsertWorkspaceForContextMock,
+  },
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -194,7 +196,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       role: "member",
     });
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
     });
     jobFindFirstMock.mockResolvedValue(null);
