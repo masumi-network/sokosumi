@@ -76,7 +76,11 @@ export const auth = betterAuth({
           };
         },
         after: async (user, _ctx) => {
-          await workspaceRepository.createWorkspace(user.id, null, prisma);
+          await workspaceRepository.createWorkspace({
+            userId: user.id,
+            organizationId: null,
+            tx: prisma,
+          });
           stripeClient
             .createUserCustomer({
               email: user.email,
@@ -188,23 +192,11 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
-          await workspaceRepository.createWorkspace(
-            null,
-            organization.id,
-            prisma,
-          );
-        },
-      },
-      schema: {
-        organization: {
-          additionalFields: {
-            stripeCustomerId: {
-              type: "string",
-              required: false,
-              defaultValue: null,
-              input: false,
-            },
-          },
+          await workspaceRepository.createWorkspace({
+            userId: null,
+            organizationId: organization.id,
+            tx: prisma,
+          });
         },
       },
     }),

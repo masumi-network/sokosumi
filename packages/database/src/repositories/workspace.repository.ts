@@ -41,11 +41,15 @@ export const workspaceRepository = {
     }
   },
 
-  async createWorkspace(
-    userId: string | null,
-    organizationId: string | null,
-    tx: Prisma.TransactionClient,
-  ): Promise<Workspace> {
+  async createWorkspace({
+    userId,
+    organizationId,
+    tx,
+  }: {
+    userId: string | null;
+    organizationId: string | null;
+    tx: Prisma.TransactionClient;
+  }): Promise<Workspace> {
     return await tx.workspace.create({
       data: {
         ...(userId && { userId }),

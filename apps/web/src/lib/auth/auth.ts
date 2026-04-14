@@ -295,7 +295,11 @@ export const auth = betterAuth({
           };
         },
         after: async (user, _ctx) => {
-          await workspaceRepository.createWorkspace(user.id, null, prisma);
+          await workspaceRepository.createWorkspace({
+            userId: user.id,
+            organizationId: null,
+            tx: prisma,
+          });
           void ensureStripeCustomerForCreatedUser(user).catch((error) => {
             Sentry.captureException(error, {
               tags: {
@@ -545,7 +549,11 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
-          await workspaceRepository.createWorkspace(null, organization.id, prisma);
+          await workspaceRepository.createWorkspace({
+            userId: null,
+            organizationId: organization.id,
+            tx: prisma,
+          });
           void ensureStripeCustomerForCreatedOrganization(organization).catch(
             (error) => {
               Sentry.captureException(error, {
