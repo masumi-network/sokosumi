@@ -1,7 +1,9 @@
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
+import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { type EnvVariables } from "@/lib/hono";
-import { type AuthVariables, isUserAuthContext } from "@/middleware/auth";
+import { isUserAuthContext } from "@/middleware/auth";
 
 export interface WorkspaceContext {
   workspaceId: string;
@@ -13,9 +15,14 @@ export interface WorkspaceVariables {
   workspaceContext: WorkspaceContext | null;
 }
 
-export type AuthWithWorkspaceEnv = {
-  Variables: AuthVariables & WorkspaceVariables;
-};
+export function requireWorkspaceContext(
+  c: Context<EnvVariables>,
+): WorkspaceContext {
+  if (!c.var.workspaceContext) {
+    throw forbidden("Workspace is missing");
+  }
+  return c.var.workspaceContext;
+}
 
 /**
  * Resolves the active workspace for authenticated user requests.

@@ -2,7 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { JobType, OnChainJobStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
-import { notFound } from "@/helpers/error";
 import { getUserJobs } from "@/helpers/job";
 import {
   jsonErrorResponse,
@@ -18,6 +17,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
@@ -103,8 +103,9 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { workspaceContext, authContext } = c.var;
+    const { authContext } = c.var;
     const userAuthContext = requireUserAuthContext(authContext);
+    const workspaceContext = requireWorkspaceContext(c);
     const { id } = c.req.valid("param");
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);

@@ -43,7 +43,7 @@ import { getCents } from "./user";
 
 export interface JobContext {
   authContext: UserAuthenticationContext;
-  workspaceContext: WorkspaceContext | null;
+  workspaceContext: WorkspaceContext;
 }
 
 /**
@@ -488,7 +488,7 @@ export async function getUserJobs(
     AND: [
       {
         userId: authContext.userId,
-        workspaceId: workspaceContext?.workspaceId,
+        workspaceId: workspaceContext.workspaceId,
       },
       ...(agentId ? [{ agentId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),

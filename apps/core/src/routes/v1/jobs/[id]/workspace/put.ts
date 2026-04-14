@@ -121,7 +121,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tx,
         );
         if (!workspace) {
-          throw notFound("Workspace not found");
+          throw forbidden("Target workspace is missing");
         }
 
         await tx.job.update({

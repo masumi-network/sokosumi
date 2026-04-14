@@ -467,7 +467,7 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskLinkCreateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the active workspace is missing", async () => {
+  it("returns 403 when the active workspace is missing", async () => {
     const app = createUserApp();
     app.use("*", async (c, next) => {
       c.set("workspaceContext", null);
@@ -484,7 +484,7 @@ describe("POST /tasks/{id}/links", () => {
       }),
     });
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
     expect(taskLinkCreateMock).not.toHaveBeenCalled();
   });
 
@@ -884,7 +884,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the active workspace is missing", async () => {
+  it("returns 403 when the active workspace is missing", async () => {
     const app = createUserApp();
     app.use("*", async (c, next) => {
       c.set("workspaceContext", null);
@@ -900,7 +900,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       }),
     });
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
     expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 

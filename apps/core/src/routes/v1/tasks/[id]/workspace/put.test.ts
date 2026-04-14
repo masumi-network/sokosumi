@@ -289,7 +289,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
   });
 
-  it("returns 404 when the target workspace is missing", async () => {
+  it("returns 403 when the target workspace is missing", async () => {
     findWorkspaceForContextMock.mockResolvedValueOnce(null);
 
     const app = createApp("org_current");
@@ -303,7 +303,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       }),
     });
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 

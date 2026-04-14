@@ -11,6 +11,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   patchTaskLinkRequestSchema,
   taskLinkSchema,
@@ -55,10 +56,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
-    const workspaceContext = c.var.workspaceContext;
-    if (!workspaceContext) {
-      throw notFound("Workspace not found");
-    }
+    const workspaceContext = requireWorkspaceContext(c);
     const { id, linkId } = c.req.valid("param");
     const { relation, note } = c.req.valid("json");
 

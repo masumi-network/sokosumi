@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
-import { badRequest, notFound } from "@/helpers/error";
+import { badRequest } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -23,6 +23,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { isCoworkerAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
 import { taskListInclude } from "@/types/task";
@@ -88,7 +89,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext, workspaceContext } = c.var;
+    const { authContext } = c.var;
     const queryParams = c.req.valid("query");
     const { q, status: statuses, coworkerId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
@@ -118,10 +119,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
+      const workspaceContext = requireWorkspaceContext(c);
       where = {
         archivedAt: null,
         userId: authContext.userId,
-        workspaceId: workspaceContext?.workspaceId,
+        workspaceId: workspaceContext.workspaceId,
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
         ...searchFilter,

@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -9,6 +8,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { createJobRequestSchema, jobSummarySchema } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
 
@@ -49,14 +49,12 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { workspaceContext, authContext } = c.var;
+    const { authContext } = c.var;
     const userAuthContext = requireUserAuthContext(authContext);
+    const workspaceContext = requireWorkspaceContext(c);
     const { id: agentId } = c.req.valid("param");
     const { maxCredits, inputData, inputSchema, name } = c.req.valid("json");
 
-    if (!workspaceContext) {
-      throw notFound("Workspace not found");
-    }
     const job = await createAgentJobForUser({
       owner: {
         userId: userAuthContext.userId,

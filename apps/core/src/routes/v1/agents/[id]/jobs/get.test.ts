@@ -41,12 +41,12 @@ describe("GET /agents/{id}/jobs", () => {
     vi.clearAllMocks();
   });
 
-  it("returns 404 when workspaceContext is missing", async () => {
+  it("returns 403 when workspaceContext is missing", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/agent_123/jobs");
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
     expect(getUserJobsMock).not.toHaveBeenCalled();
   });
 });

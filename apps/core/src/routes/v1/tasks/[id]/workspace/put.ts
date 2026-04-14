@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
@@ -101,7 +101,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tx,
         );
         if (!workspace) {
-          throw notFound("Workspace not found");
+          throw forbidden("Target workspace is missing");
         }
 
         const existingLink = await tx.taskLink.findFirst({
