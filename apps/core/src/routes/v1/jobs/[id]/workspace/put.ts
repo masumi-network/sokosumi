@@ -1,9 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobInclude, Prisma } from "@sokosumi/database";
-import {
-  mapJobWithStatus,
-  resolveWorkspaceForContext,
-} from "@sokosumi/database/helpers";
+import { mapJobWithStatus } from "@sokosumi/database/helpers";
+import { workspaceRepository } from "@sokosumi/database/repositories";
 
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -117,11 +115,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
 
-        const workspace = await resolveWorkspaceForContext(
+        const workspace = await workspaceRepository.findWorkspaceForContext(
           authContext.userId,
-          targetOrganizationId,
+          targetOrganizationId ?? null,
           tx,
         );
+        if (!workspace) {
+          throw notFound("Workspace not found");
+        }
 
         await tx.job.update({
           where: {

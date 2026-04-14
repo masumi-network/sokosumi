@@ -1,6 +1,4 @@
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import { createMiddleware } from "hono/factory";
-
 import prisma from "@/lib/db/prisma";
 import { type EnvVariables } from "@/lib/hono";
 import { type AuthVariables, isUserAuthContext } from "@/middleware/auth";
@@ -39,19 +37,29 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
       return await next();
     }
 
-    const workspace = await resolveWorkspaceForContext(
-      authContext.userId,
-      authContext.organizationId,
-      prisma,
-    );
+    const workspace = await prisma.workspace.findUnique({
+      where: {
+        ...(authContext.organizationId
+          ? { organizationId: authContext.organizationId }
+          : { userId: authContext.userId }),
+      },
+      select: {
+        id: true,
+        userId: true,
+        organizationId: true,
+      },
+    });
 
-    const workspaceContext: WorkspaceContext | null = workspace
-      ? {
-          workspaceId: workspace.id,
-          userId: workspace.userId,
-          organizationId: workspace.organizationId,
-        }
-      : null;
+    if (!workspace) {
+      c.set("workspaceContext", null);
+      return await next();
+    }
+
+    const workspaceContext: WorkspaceContext = {
+      workspaceId: workspace.id,
+      userId: workspace.userId,
+      organizationId: workspace.organizationId,
+    };
 
     c.set("workspaceContext", workspaceContext);
     return await next();

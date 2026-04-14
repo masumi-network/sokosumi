@@ -14,7 +14,7 @@ const {
   mapJobWithStatusMock,
   prismaTransactionMock,
   resolveMemberOrganizationByIdMock,
-  resolveWorkspaceForContextMock,
+  findWorkspaceForContextMock,
   serializeJobDetailsMock,
 } = vi.hoisted(() => ({
   jobFindFirstMock: vi.fn(),
@@ -23,7 +23,7 @@ const {
   mapJobWithStatusMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
+  findWorkspaceForContextMock: vi.fn(),
   serializeJobDetailsMock: vi.fn(),
 }));
 
@@ -33,7 +33,12 @@ vi.mock("@/helpers/organization", () => ({
 
 vi.mock("@sokosumi/database/helpers", () => ({
   mapJobWithStatus: mapJobWithStatusMock,
-  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+}));
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  workspaceRepository: {
+    findWorkspaceForContext: findWorkspaceForContextMock,
+  },
 }));
 
 vi.mock("@/types/job", () => ({
@@ -196,7 +201,7 @@ describe("PUT /jobs/{id}/workspace", () => {
       },
       role: "member",
     });
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
     });
     mapJobWithStatusMock.mockReturnValue(createJobApi());
@@ -237,6 +242,24 @@ describe("PUT /jobs/{id}/workspace", () => {
         workspaceId: "11111111-1111-4111-8111-111111111111",
       },
     });
+  });
+
+  it("returns 404 when the target workspace is missing", async () => {
+    findWorkspaceForContextMock.mockResolvedValueOnce(null);
+
+    const app = createApp(null);
+    const response = await app.request("http://localhost/job_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_target",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(jobUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 for task-attached jobs", async () => {

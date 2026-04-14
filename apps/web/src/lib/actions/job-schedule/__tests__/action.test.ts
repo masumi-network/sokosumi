@@ -20,21 +20,14 @@ vi.mock("@/middleware/auth-middleware", () => ({
 
 const createMock = vi.fn();
 const handleInputDataFileUploadsMock = vi.fn();
-const resolveWorkspaceForContextMock = vi.fn();
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
-  };
-});
+const findWorkspaceForContextMock = vi.fn();
 
 vi.mock("@sokosumi/database/repositories", () => ({
   jobScheduleRepository: {
     create: createMock,
+  },
+  workspaceRepository: {
+    findWorkspaceForContext: findWorkspaceForContextMock,
   },
 }));
 
@@ -60,7 +53,7 @@ describe("createSchedule", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
     createMock.mockResolvedValue({
@@ -105,7 +98,7 @@ describe("createSchedule", () => {
         scheduleId: "schedule_123",
       },
     });
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       {},
@@ -152,7 +145,7 @@ describe("createSchedule", () => {
       },
     });
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(findWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       null,
       {},

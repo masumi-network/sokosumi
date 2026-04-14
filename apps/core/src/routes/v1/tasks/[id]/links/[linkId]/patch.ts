@@ -4,7 +4,6 @@ import { requireUserTaskAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { buildCurrentUserTaskContextWhere } from "@/helpers/task-context";
 import {
   mapTaskLink,
   mapTaskLinkRelationToTypeForExistingDirection,
@@ -56,6 +55,10 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
+    const workspaceContext = c.var.workspaceContext;
+    if (!workspaceContext) {
+      throw notFound("Workspace not found");
+    }
     const { id, linkId } = c.req.valid("param");
     const { relation, note } = c.req.valid("json");
 
@@ -72,14 +75,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const peerTaskId =
         link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
-      const peerTaskContextWhere = await buildCurrentUserTaskContextWhere(
-        authContext,
-        tx,
-      );
       const peerTask = await tx.task.findFirst({
         where: {
           id: peerTaskId,
-          ...peerTaskContextWhere,
+          userId: authContext.userId,
+          workspaceId: workspaceContext.workspaceId,
         },
         select: taskLinkPeerTaskSelect,
       });

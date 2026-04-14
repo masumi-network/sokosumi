@@ -9,7 +9,6 @@ import {
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
-import { buildCurrentUserTaskContextWhere } from "@/helpers/task-context";
 import {
   assertTaskLinkAllowed,
   mapTaskLink,
@@ -59,6 +58,10 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
+    const workspaceContext = c.var.workspaceContext;
+    if (!workspaceContext) {
+      throw notFound("Workspace not found");
+    }
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
     const { toTaskId: peerTaskId, relation, note } = body;
@@ -75,15 +78,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               relation,
             );
 
-            const peerTaskContextWhere = await buildCurrentUserTaskContextWhere(
-              authContext,
-              tx,
-            );
-
             const peerTask = await tx.task.findFirst({
               where: {
                 id: peerTaskId,
-                ...peerTaskContextWhere,
+                userId: authContext.userId,
+                workspaceId: workspaceContext.workspaceId,
               },
               select: taskLinkPeerTaskSelect,
             });

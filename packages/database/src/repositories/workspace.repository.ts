@@ -5,55 +5,39 @@ import {
 } from "../types/workspace.js";
 
 export const workspaceRepository = {
-  async upsertPersonalWorkspace(
+  async findPersonalWorkspace(
     userId: string,
     tx: Prisma.TransactionClient,
-  ): Promise<WorkspaceWithRelations> {
-    return await tx.workspace.upsert({
+  ): Promise<WorkspaceWithRelations | null> {
+    return await tx.workspace.findUnique({
       where: {
         userId,
       },
-      update: {},
-      create: {
-        user: {
-          connect: {
-            id: userId,
-          },
-        },
-      },
       include: workspaceSummaryInclude,
     });
   },
 
-  async upsertOrganizationWorkspace(
+  async findOrganizationWorkspace(
     organizationId: string,
     tx: Prisma.TransactionClient,
-  ): Promise<WorkspaceWithRelations> {
-    return await tx.workspace.upsert({
+  ): Promise<WorkspaceWithRelations | null> {
+    return await tx.workspace.findUnique({
       where: {
         organizationId,
       },
-      update: {},
-      create: {
-        organization: {
-          connect: {
-            id: organizationId,
-          },
-        },
-      },
       include: workspaceSummaryInclude,
     });
   },
 
-  async upsertWorkspaceForContext(
+  async findWorkspaceForContext(
     userId: string,
     organizationId: string | null,
     tx: Prisma.TransactionClient,
-  ): Promise<WorkspaceWithRelations> {
+  ): Promise<WorkspaceWithRelations | null> {
     if (organizationId) {
-      return await this.upsertOrganizationWorkspace(organizationId, tx);
+      return await this.findOrganizationWorkspace(organizationId, tx);
     } else {
-      return await this.upsertPersonalWorkspace(userId, tx);
+      return await this.findPersonalWorkspace(userId, tx);
     }
   },
 };
