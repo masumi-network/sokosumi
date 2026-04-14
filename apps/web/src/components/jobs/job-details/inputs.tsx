@@ -73,6 +73,16 @@ function extractOptionValues(item: InputFieldSchemaType): string[] | undefined {
   return undefined;
 }
 
+function extractTextDefaultValue(
+  item: InputFieldSchemaType,
+): string | undefined {
+  if (item.type === InputType.TEXT || item.type === InputType.TEXTAREA) {
+    return item.data?.default ?? undefined;
+  }
+
+  return undefined;
+}
+
 function mapIndexToLabel(index: unknown, values: string[]): string {
   if (
     typeof index === "number" &&
@@ -182,7 +192,6 @@ function JobDetailsInputsInner({
   const inputContentRef = useRef<HTMLDivElement | null>(null);
 
   const input = rawInput ? JSON.parse(rawInput) : {};
-  const hasInputs = Object.keys(input).length > 0;
 
   const calculatedInputHash = useMemo(() => {
     if (!identifierFromPurchaser || !rawInput) return null;
@@ -191,7 +200,7 @@ function JobDetailsInputsInner({
 
   const inputsMap: Record<
     string,
-    { name: string; type: InputType; values?: string[] }
+    { name: string; type: InputType; values?: string[]; defaultValue?: string }
   > = useMemo(() => {
     if (!rawInputSchema) return {};
 
@@ -206,16 +215,23 @@ function JobDetailsInputsInner({
       return flatInputs.reduce(
         (acc, item) => {
           const values = extractOptionValues(item);
+          const defaultValue = extractTextDefaultValue(item);
           acc[item.id] = {
             name: item.name,
             type: item.type,
             ...(values && { values }),
+            ...(defaultValue !== undefined && { defaultValue }),
           };
           return acc;
         },
         {} as Record<
           string,
-          { name: string; type: InputType; values?: string[] }
+          {
+            name: string;
+            type: InputType;
+            values?: string[];
+            defaultValue?: string;
+          }
         >,
       );
     } catch (error) {
@@ -224,9 +240,32 @@ function JobDetailsInputsInner({
     }
   }, [rawInputSchema]);
 
+  const displayInputEntries = useMemo(() => {
+    const schemaKeys = new Set(Object.keys(inputsMap));
+    const schemaEntries = Object.entries(inputsMap).flatMap(
+      ([key, schemaEntry]) => {
+        const value = input[key];
+        if (value !== undefined) {
+          return [[key, value] as const];
+        }
+
+        if (schemaEntry.defaultValue !== undefined) {
+          return [[key, schemaEntry.defaultValue] as const];
+        }
+
+        return [];
+      },
+    );
+    const extraEntries = Object.entries(input).filter(
+      ([key]) => !schemaKeys.has(key),
+    );
+
+    return [...schemaEntries, ...extraEntries];
+  }, [input, inputsMap]);
+
   useEffect(() => {
     const element = inputContentRef.current;
-    if (!element || open || !hasInputs) {
+    if (!element || open || displayInputEntries.length === 0) {
       return;
     }
 
@@ -243,7 +282,9 @@ function JobDetailsInputsInner({
     return () => {
       observer.disconnect();
     };
-  }, [hasInputs, open, rawInput]);
+  }, [displayInputEntries.length, open, rawInput]);
+
+  const hasInputs = displayInputEntries.length > 0;
 
   const shouldFade = !open && isExpandable;
 
@@ -262,7 +303,7 @@ function JobDetailsInputsInner({
                     "mask-[linear-gradient(to_bottom,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]",
                 )}
               >
-                {Object.entries(input).map(([key, value]) => {
+                {displayInputEntries.map(([key, value]) => {
                   const schemaEntry = inputsMap[key];
                   const label = schemaEntry?.name ?? key;
                   const type = schemaEntry?.type ?? InputType.NONE;

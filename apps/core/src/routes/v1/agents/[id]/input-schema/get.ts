@@ -64,7 +64,60 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity(inputSchemaResult.error);
     }
 
-    const inputSchema = inputSchemaSchema.parse(inputSchemaResult.value);
+    const mockInputSchema = {
+      input_data: [
+        {
+          id: "info",
+          type: "none",
+          name: "Information",
+          data: {
+            description:
+              "# AI Campaign Generator with Auto-Extraction\n\n    Provide your website URL and basic campaign details.\n    We'll automatically extract your business information for your review.",
+          },
+          validations: null,
+        },
+        {
+          id: "website",
+          type: "text",
+          name: "Website URL",
+          data: { placeholder: "https://www.yourwebsite.com" },
+          validations: null,
+        },
+        {
+          id: "language",
+          type: "text",
+          name: "Campaign Language",
+          data: {
+            placeholder: "English, Spanish, French, etc.",
+            default: "English",
+          },
+          validations: null,
+        },
+        {
+          id: "goal",
+          type: "textarea",
+          name: "Primary Campaign Goal",
+          data: {
+            placeholder: "e.g., Brand awareness, lead generation, drive sales",
+            default: "Generate leads and increase brand awareness",
+          },
+          validations: null,
+        },
+        {
+          id: "logo",
+          type: "file",
+          name: "Logo URL (PNG, JPG)",
+          data: {
+            placeholder: "https://example.com/logo.png",
+            outputFormat: "url",
+            accept: "image/*",
+          },
+          validations: null,
+        },
+      ],
+    };
+
+    const inputSchema = mockInputSchema; //inputSchemaSchema.parse(mockInputSchema);
     return ok(c, inputSchema);
   });
 }

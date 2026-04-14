@@ -118,6 +118,44 @@ describe("JobDetailsInputs", () => {
     expect(markdownValues[2]).toHaveTextContent("Readonly with `inline code`");
   });
 
+  it("renders schema defaults for missing text and textarea values", () => {
+    const input = JSON.stringify({});
+
+    const inputSchema = JSON.stringify({
+      input_data: [
+        {
+          id: "language",
+          type: "text",
+          name: "Campaign Language",
+          data: {
+            default: "English",
+          },
+          validations: [],
+        },
+        {
+          id: "goal",
+          type: "textarea",
+          name: "Primary Campaign Goal",
+          data: {
+            default: "Generate leads and increase brand awareness",
+          },
+          validations: [],
+        },
+      ],
+    });
+
+    render(<JobDetailsInputs input={input} inputSchema={inputSchema} />);
+
+    expect(screen.getByText("Campaign Language")).toBeInTheDocument();
+    expect(screen.getByText("Primary Campaign Goal")).toBeInTheDocument();
+
+    const markdownValues = screen.getAllByTestId("markdown-mock");
+    expect(markdownValues[0]).toHaveTextContent("English");
+    expect(markdownValues[1]).toHaveTextContent(
+      "Generate leads and increase brand awareness",
+    );
+  });
+
   it("renders boolean values with humanized labels", () => {
     const input = JSON.stringify({
       acceptedTerms: true,
