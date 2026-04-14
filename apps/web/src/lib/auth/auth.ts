@@ -288,6 +288,9 @@ export const auth = betterAuth({
             data: {
               ...user,
               name: getStoredUserName(user.name, user.email),
+              workspace: {
+                create: {},
+              },
             },
           };
         },
@@ -540,6 +543,16 @@ export const auth = betterAuth({
     }),
     organization({
       organizationHooks: {
+        beforeCreateOrganization: async ({ organization }) => {
+          return {
+            data: {
+              ...organization,
+              workspace: {
+                create: {},
+              },
+            },
+          };
+        },
         afterCreateOrganization: async ({ organization }) => {
           void ensureStripeCustomerForCreatedOrganization(organization).catch(
             (error) => {
