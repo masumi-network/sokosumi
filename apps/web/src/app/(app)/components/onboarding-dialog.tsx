@@ -319,6 +319,7 @@ function OrchestrationVisual({
 function StepNavigation({
   step,
   totalSteps,
+  showBack,
   showSkip,
   labels,
   isLoading,
@@ -329,6 +330,7 @@ function StepNavigation({
 }: {
   step: number;
   totalSteps: number;
+  showBack: boolean;
   showSkip: boolean;
   labels: {
     skip: string;
@@ -371,14 +373,16 @@ function StepNavigation({
           <div />
         )}
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            onClick={onBack}
-            disabled={isFirst || isLoading}
-          >
-            <ArrowLeft className="size-4" />
-            {labels.back}
-          </Button>
+          {showBack ? (
+            <Button
+              variant="ghost"
+              onClick={onBack}
+              disabled={isFirst || isLoading}
+            >
+              <ArrowLeft className="size-4" />
+              {labels.back}
+            </Button>
+          ) : null}
           {isLast ? (
             <Button variant="primary" onClick={onFinish} disabled={isLoading}>
               {labels.finish}
@@ -399,6 +403,7 @@ function StepNavigation({
 
 interface OnboardingDialogProps {
   paidPlans: PaidSubscriptionPlanView[];
+  subscriptionOnly?: boolean;
 }
 
 function resolveInitialSelectedPlan(
@@ -412,14 +417,17 @@ function resolveInitialSelectedPlan(
   return preferredPlan?.name ?? selectablePlans[0]?.name ?? "starter";
 }
 
-export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
+export function OnboardingDialog({
+  paidPlans,
+  subscriptionOnly = false,
+}: OnboardingDialogProps) {
   const tMetadata = useTranslations("Onboarding.Metadata");
   const tDialog = useTranslations("Onboarding.Dialog");
   const tErrors = useTranslations("Onboarding.Actions.Errors");
   const tSubscriptions = useTranslations("App.Subscriptions");
   const router = useRouter();
   const [open, setOpen] = useState(true);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(subscriptionOnly ? INTRO_STEP_COUNT - 1 : 0);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PaidSubscriptionPlanName>(
     () => resolveInitialSelectedPlan(paidPlans),
@@ -527,6 +535,8 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
 
   const isWelcome = step === 0;
   const isPlanStep = step === INTRO_STEP_COUNT - 1;
+  const navigationStep = subscriptionOnly ? 0 : step;
+  const navigationTotalSteps = subscriptionOnly ? 1 : INTRO_STEP_COUNT;
   const hasSplitLayout = !isWelcome && !isPlanStep;
   const firstCoworkerName = coworkers[0]?.name ?? "";
   const firstCoworkerAvatarUrl =
@@ -677,8 +687,9 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
           {/* Fixed bottom navigation */}
           <div className="shrink-0 border-t px-6 pt-4 pb-6 md:px-10 md:pt-5 md:pb-8">
             <StepNavigation
-              step={step}
-              totalSteps={INTRO_STEP_COUNT}
+              step={navigationStep}
+              totalSteps={navigationTotalSteps}
+              showBack={!subscriptionOnly}
               showSkip
               labels={{
                 skip: tDialog("navigation.skip"),
@@ -689,8 +700,14 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
                   : tDialog("navigation.getStarted"),
               }}
               isLoading={isLoading}
-              onBack={() => setStep((currentStep) => currentStep - 1)}
-              onNext={() => setStep((currentStep) => currentStep + 1)}
+              onBack={() => {
+                if (subscriptionOnly) return;
+                setStep((currentStep) => currentStep - 1);
+              }}
+              onNext={() => {
+                if (subscriptionOnly) return;
+                setStep((currentStep) => currentStep + 1);
+              }}
               onSkip={() => void handleComplete("Onboarding skipped")}
               onFinish={() => void handleStartSubscription()}
             />

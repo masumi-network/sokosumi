@@ -225,7 +225,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               <Suspense fallback={null}>
                 <OnboardingSubscriptionReturnHandler />
               </Suspense>
-              <OnboardingDialog paidPlans={onboardingPlans} />
+              <OnboardingDialog
+                paidPlans={onboardingPlans}
+                subscriptionOnly={true}
+              />
             </>
           ) : null}
         </CoworkersProvider>
