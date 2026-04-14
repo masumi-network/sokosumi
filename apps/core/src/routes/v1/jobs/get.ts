@@ -114,7 +114,7 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
-    const workspaceContext = requireWorkspaceContext(c);
+    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
     const { agentId, status } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);

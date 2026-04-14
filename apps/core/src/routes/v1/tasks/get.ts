@@ -119,7 +119,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
-      const workspaceContext = requireWorkspaceContext(c);
+      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       where = {
         archivedAt: null,
         userId: authContext.userId,

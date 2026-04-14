@@ -1,4 +1,3 @@
-import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -16,12 +15,12 @@ export interface WorkspaceVariables {
 }
 
 export function requireWorkspaceContext(
-  c: Context<EnvVariables>,
+  workspaceContext: WorkspaceContext | null,
 ): WorkspaceContext {
-  if (!c.var.workspaceContext) {
+  if (!workspaceContext) {
     throw forbidden("Workspace is missing");
   }
-  return c.var.workspaceContext;
+  return workspaceContext;
 }
 
 /**

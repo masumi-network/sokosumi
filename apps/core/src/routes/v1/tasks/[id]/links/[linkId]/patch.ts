@@ -56,7 +56,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
-    const workspaceContext = requireWorkspaceContext(c);
+    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id, linkId } = c.req.valid("param");
     const { relation, note } = c.req.valid("json");
 

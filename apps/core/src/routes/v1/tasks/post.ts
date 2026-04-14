@@ -74,9 +74,8 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-    const userAuthContext = requireUserAuthContext(authContext);
-    const workspaceContext = requireWorkspaceContext(c);
+    const authContext = requireUserAuthContext(c.var.authContext);
+    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
@@ -91,8 +90,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return tx.task.create({
         data: {
-          userId: userAuthContext.userId,
-          organizationId: userAuthContext.organizationId,
+          userId: authContext.userId,
+          organizationId: authContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
           name: body.name,
           description: body.description ?? null,
@@ -103,7 +102,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               status: body.status,
               comment: null,
               origin: body.origin,
-              userId: userAuthContext.userId,
+              userId: authContext.userId,
               coworkerId: null,
             },
           },
