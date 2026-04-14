@@ -191,7 +191,13 @@ function JobDetailsInputsInner({
   const [isExpandable, setIsExpandable] = useState(false);
   const inputContentRef = useRef<HTMLDivElement | null>(null);
 
-  const input = rawInput ? JSON.parse(rawInput) : {};
+  const input = useMemo<Record<string, unknown>>(() => {
+    if (!rawInput) {
+      return {};
+    }
+
+    return JSON.parse(rawInput) as Record<string, unknown>;
+  }, [rawInput]);
 
   const calculatedInputHash = useMemo(() => {
     if (!identifierFromPurchaser || !rawInput) return null;

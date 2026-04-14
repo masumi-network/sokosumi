@@ -156,6 +156,52 @@ describe("JobDetailsInputs", () => {
     );
   });
 
+  it("does not reparse raw input on unrelated rerenders", () => {
+    const input = JSON.stringify({
+      title: "Persisted title",
+    });
+    const inputSchema = JSON.stringify({
+      input_data: [
+        {
+          id: "title",
+          type: "text",
+          name: "Title",
+          data: {},
+          validations: [],
+        },
+      ],
+    });
+    const originalParse = JSON.parse;
+    const parseSpy = vi
+      .spyOn(JSON, "parse")
+      .mockImplementation(((text, reviver) =>
+        originalParse(text, reviver)) as typeof JSON.parse);
+
+    try {
+      const { rerender } = render(
+        <JobDetailsInputs input={input} inputSchema={inputSchema} />,
+      );
+
+      expect(
+        parseSpy.mock.calls.filter(([value]) => value === input),
+      ).toHaveLength(1);
+
+      rerender(
+        <JobDetailsInputs
+          input={input}
+          inputSchema={inputSchema}
+          inputHash="updated-hash"
+        />,
+      );
+
+      expect(
+        parseSpy.mock.calls.filter(([value]) => value === input),
+      ).toHaveLength(1);
+    } finally {
+      parseSpy.mockRestore();
+    }
+  });
+
   it("renders boolean values with humanized labels", () => {
     const input = JSON.stringify({
       acceptedTerms: true,
