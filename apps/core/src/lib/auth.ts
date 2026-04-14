@@ -72,6 +72,9 @@ export const auth = betterAuth({
             data: {
               ...user,
               name: getStoredUserName(user.name, user.email),
+              workspace: {
+                create: {},
+              },
             },
           };
         },
@@ -185,6 +188,18 @@ export const auth = betterAuth({
     }),
     jwt({ disableSettingJwtHeader: true }),
     organization({
+      organizationHooks: {
+        beforeCreateOrganization: async ({ organization }) => {
+          return {
+            data: {
+              ...organization,
+              workspace: {
+                create: {},
+              },
+            },
+          };
+        },
+      },
       schema: {
         organization: {
           additionalFields: {

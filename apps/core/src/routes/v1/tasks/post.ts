@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -12,6 +11,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
@@ -75,6 +75,7 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
+    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
@@ -87,17 +88,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         await requireTaskAssignableCoworker(body.coworkerId, tx);
       }
 
-      const workspace = await resolveWorkspaceForContext(
-        authContext.userId,
-        authContext.organizationId,
-        tx,
-      );
-
       return tx.task.create({
         data: {
           userId: authContext.userId,
           organizationId: authContext.organizationId,
-          workspaceId: workspace.id,
+          workspaceId: workspaceContext.workspaceId,
           name: body.name,
           description: body.description ?? null,
           coworkerId: body.coworkerId ?? null,

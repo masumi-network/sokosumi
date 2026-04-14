@@ -3,29 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountPostAgentJob from "./post";
 
-const { createAgentJobForUserMock, flattenJobMock, resolveWorkspaceMock } =
-  vi.hoisted(() => ({
-    createAgentJobForUserMock: vi.fn(),
-    flattenJobMock: vi.fn(),
-    resolveWorkspaceMock: vi.fn(),
-  }));
+const { createAgentJobForUserMock, flattenJobMock } = vi.hoisted(() => ({
+  createAgentJobForUserMock: vi.fn(),
+  flattenJobMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/job", () => ({
   createAgentJobForUser: createAgentJobForUserMock,
 }));
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceMock,
-  };
-});
 
 vi.mock("@/types/job", () => ({
   flattenJob: flattenJobMock,
@@ -34,7 +23,7 @@ vi.mock("@/types/job", () => ({
 describe("POST /agents/{id}/jobs", () => {
   function createApp() {
     const app = new OpenAPIHono<{
-      Variables: AuthVariables;
+      Variables: AuthVariables & WorkspaceVariables;
     }>();
 
     app.use("*", async (c, next) => {
@@ -42,6 +31,11 @@ describe("POST /agents/{id}/jobs", () => {
       c.set("authContext", {
         actor: "user",
         userId: "user_123",
+        organizationId: "org_123",
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
         organizationId: "org_123",
       });
 
@@ -55,9 +49,6 @@ describe("POST /agents/{id}/jobs", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
     createAgentJobForUserMock.mockResolvedValue({
       id: "job_123",
     });
@@ -90,7 +81,7 @@ describe("POST /agents/{id}/jobs", () => {
     });
   });
 
-  it("resolves workspace placement for standalone job creation", async () => {
+  it("uses workspaceContext for standalone job creation", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/agent_123/jobs", {
@@ -116,11 +107,6 @@ describe("POST /agents/{id}/jobs", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(resolveWorkspaceMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_123",
-      expect.any(Object),
-    );
     expect(createAgentJobForUserMock).toHaveBeenCalledWith(
       expect.objectContaining({
         owner: {

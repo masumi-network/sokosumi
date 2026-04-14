@@ -1,8 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
+import { workspaceRepository } from "@sokosumi/database/repositories";
 
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
@@ -95,11 +95,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
 
-        const workspace = await resolveWorkspaceForContext(
+        const workspace = await workspaceRepository.findWorkspaceForContext(
           authContext.userId,
-          targetOrganizationId,
+          targetOrganizationId ?? null,
           tx,
         );
+        if (!workspace) {
+          throw forbidden("Target workspace is missing");
+        }
 
         const existingLink = await tx.taskLink.findFirst({
           where: {

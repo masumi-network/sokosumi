@@ -34,4 +34,3 @@ export * from "./credit.js";
 export * from "./job.js";
 export * from "./job-sync.js";
 export * from "./subscription.js";
-export * from "./workspace.js";

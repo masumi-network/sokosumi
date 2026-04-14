@@ -5,32 +5,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTasks from "./get";
 
 const {
   prismaTransactionMock,
   requireCoworkerCapabilityMock,
-  resolveWorkspaceForContextMock,
   taskCountMock,
   taskFindManyMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
   taskCountMock: vi.fn(),
   taskFindManyMock: vi.fn(),
 }));
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
-  };
-});
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
@@ -48,7 +37,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 function createApp(actor: "user" | "coworker" = "user") {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {
@@ -58,10 +47,16 @@ function createApp(actor: "user" | "coworker" = "user") {
         actor: "coworker",
         coworkerId: "cow_123",
       });
+      c.set("workspaceContext", null);
     } else {
       c.set("authContext", {
         actor: "user",
         userId: "user_123",
+        organizationId: "org_123",
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
         organizationId: "org_123",
       });
     }
@@ -102,9 +97,6 @@ describe("GET /tasks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
-    resolveWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
     prismaTransactionMock.mockImplementation(async (operations) => {
@@ -173,19 +165,6 @@ describe("GET /tasks", () => {
     const include = taskFindManyMock.mock.calls[0]?.[0]?.include;
     expect(include).not.toHaveProperty("linksFrom");
     expect(include).not.toHaveProperty("linksTo");
-  });
-
-  it("resolves the active workspace for user-scoped task lists", async () => {
-    const app = createApp();
-
-    const response = await app.request("http://localhost/");
-
-    expect(response.status).toBe(200);
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_123",
-      expect.any(Object),
-    );
   });
 
   it("returns task list items without links", async () => {

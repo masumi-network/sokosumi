@@ -10,7 +10,9 @@ import mountPutJobShareById from "./[id]/share/put.js";
 import mountPutJobWorkspaceById from "./[id]/workspace/put.js";
 import mountGetJobs from "./get.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({
+  includeWorkspaceContext: true,
+});
 
 mountGetJobs(app);
 mountGetJobById(app);

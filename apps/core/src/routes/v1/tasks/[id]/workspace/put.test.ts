@@ -13,7 +13,7 @@ const {
   jobUpdateManyMock,
   mapTaskMock,
   prismaTransactionMock,
-  resolveWorkspaceForContextMock,
+  findWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
   taskLinkFindFirstMock,
@@ -24,7 +24,7 @@ const {
   jobUpdateManyMock: vi.fn(),
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
+  findWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskLinkFindFirstMock: vi.fn(),
@@ -40,8 +40,10 @@ vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
 }));
 
-vi.mock("@sokosumi/database/helpers", () => ({
-  resolveWorkspaceForContext: resolveWorkspaceForContextMock,
+vi.mock("@sokosumi/database/repositories", () => ({
+  workspaceRepository: {
+    findWorkspaceForContext: findWorkspaceForContextMock,
+  },
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -194,7 +196,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       role: "member",
     });
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    findWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
     });
     jobFindFirstMock.mockResolvedValue(null);
@@ -285,6 +287,24 @@ describe("PUT /tasks/{id}/workspace", () => {
         workspaceId: "11111111-1111-4111-8111-111111111111",
       },
     });
+  });
+
+  it("returns 403 when the target workspace is missing", async () => {
+    findWorkspaceForContextMock.mockResolvedValueOnce(null);
+
+    const app = createApp("org_current");
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_target",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("moves an organization task back to the personal workspace", async () => {

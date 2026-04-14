@@ -1,6 +1,8 @@
 import type { ScheduleListItem } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
-import { jobScheduleRepository } from "@sokosumi/database/repositories";
+import {
+  jobScheduleRepository,
+  workspaceRepository,
+} from "@sokosumi/database/repositories";
 import { CalendarClock } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -26,11 +28,14 @@ export default async function SchedulesPage() {
   if (!session) {
     redirect("/login");
   }
-  const workspace = await resolveWorkspaceForContext(
+  const workspace = await workspaceRepository.findWorkspaceForContext(
     session.user.id,
     session.session.activeOrganizationId ?? null,
     prisma,
   );
+  if (!workspace) {
+    throw new Error("Workspace not found");
+  }
 
   const schedules = await jobScheduleRepository.getScheduleJobsByContext(
     session.user.id,

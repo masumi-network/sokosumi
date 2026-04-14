@@ -17,7 +17,9 @@ import mountPutTaskWorkspace from "./[id]/workspace/put.js";
 import mountGetTasks from "./get.js";
 import mountPostTask from "./post.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({
+  includeWorkspaceContext: true,
+});
 
 mountGetTasks(app);
 mountPostTask(app);

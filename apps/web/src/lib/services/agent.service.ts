@@ -11,13 +11,13 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import {
   agentListRepository,
   agentRatingRepository,
   agentRepository,
   creditCostRepository,
   jobRepository,
+  workspaceRepository,
 } from "@sokosumi/database/repositories";
 
 import { getSession } from "@/lib/auth/utils";
@@ -308,11 +308,14 @@ export const agentService = (() => {
       if (!session) {
         return [];
       }
-      const workspace = await resolveWorkspaceForContext(
+      const workspace = await workspaceRepository.findWorkspaceForContext(
         session.user.id,
         session.session.activeOrganizationId ?? null,
         prisma,
       );
+      if (!workspace) {
+        throw new Error("Workspace not found");
+      }
       const hiredAgentsWithJobs =
         await agentRepository.getHiredAgentsWithLatestJobByUserIdAndWorkspace(
           session.user.id,
