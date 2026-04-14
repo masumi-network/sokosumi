@@ -11,6 +11,7 @@ import {
 } from "@sokosumi/database";
 
 const findWorkspaceForContextMock = vi.fn();
+const upsertWorkspaceForContextMock = findWorkspaceForContextMock;
 
 const getShownAgentsWithRelationsByStatusMock = vi.fn();
 const getCreditCostsMock = vi.fn();
@@ -46,8 +47,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
     getAverageExecutionDurationByAgentId: vi.fn(),
   },
   workspaceRepository: {
-    findWorkspaceForContext: (...args: unknown[]) =>
-      findWorkspaceForContextMock(...args),
+    upsertWorkspaceForContext: (...args: unknown[]) =>
+      upsertWorkspaceForContextMock(...args),
   },
 }));
 

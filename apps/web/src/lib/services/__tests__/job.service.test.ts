@@ -9,6 +9,7 @@ const createDemoJobMock = vi.fn();
 const createJobMock = vi.fn();
 const createJobPurchaseMock = vi.fn();
 const findWorkspaceForContextMock = vi.fn();
+const upsertWorkspaceForContextMock = findWorkspaceForContextMock;
 const publishJobStatusDataMock = vi.fn();
 const startFreeAgentJobMock = vi.fn();
 const startPaidAgentJobMock = vi.fn();
@@ -68,8 +69,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
       getLatestJobByAgentIdUserIdAndWorkspaceMock(...args),
   },
   workspaceRepository: {
-    findWorkspaceForContext: (...args: unknown[]) =>
-      findWorkspaceForContextMock(...args),
+    upsertWorkspaceForContext: (...args: unknown[]) =>
+      upsertWorkspaceForContextMock(...args),
   },
 }));
 

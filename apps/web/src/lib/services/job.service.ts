@@ -154,7 +154,7 @@ export const jobService = (() => {
       throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
     }
 
-    const workspace = await workspaceRepository.findWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       userId,
       activeOrganizationId ?? null,
       prisma,
@@ -377,7 +377,7 @@ export const jobService = (() => {
     // Create job, transaction, and consume credits in a single transaction
     const job = await prisma.$transaction(
       async (tx) => {
-        const workspace = await workspaceRepository.findWorkspaceForContext(
+        const workspace = await workspaceRepository.upsertWorkspaceForContext(
           userId,
           organizationId ?? null,
           tx,
@@ -538,7 +538,7 @@ export const jobService = (() => {
     // Generate job name
     const generatedName = await generateJobNameForAgent(agent, inputData);
 
-    const workspace = await workspaceRepository.findWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       userId,
       organizationId ?? null,
       prisma,
@@ -767,7 +767,7 @@ export const jobService = (() => {
     }
     const userId = session.user.id;
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await workspaceRepository.findWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       userId,
       activeOrganizationId ?? null,
       tx,

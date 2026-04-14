@@ -21,13 +21,14 @@ vi.mock("@/middleware/auth-middleware", () => ({
 const createMock = vi.fn();
 const handleInputDataFileUploadsMock = vi.fn();
 const findWorkspaceForContextMock = vi.fn();
+const upsertWorkspaceForContextMock = findWorkspaceForContextMock;
 
 vi.mock("@sokosumi/database/repositories", () => ({
   jobScheduleRepository: {
     create: createMock,
   },
   workspaceRepository: {
-    findWorkspaceForContext: findWorkspaceForContextMock,
+    upsertWorkspaceForContext: upsertWorkspaceForContextMock,
   },
 }));
 

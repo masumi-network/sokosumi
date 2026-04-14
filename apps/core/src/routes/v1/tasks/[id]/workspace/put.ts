@@ -95,7 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
 
-        const workspace = await workspaceRepository.findWorkspaceForContext(
+        const workspace = await workspaceRepository.upsertWorkspaceForContext(
           authContext.userId,
           targetOrganizationId ?? null,
           tx,

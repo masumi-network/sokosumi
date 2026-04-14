@@ -101,7 +101,7 @@ export const userService = (() => {
     }
     const userId = session.user.id;
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await workspaceRepository.findWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       userId,
       activeOrganizationId ?? null,
       prisma,
@@ -134,7 +134,7 @@ export const userService = (() => {
       return { jobs: [], nextCursor: null };
     }
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await workspaceRepository.findWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       session.user.id,
       activeOrganizationId ?? null,
       prisma,

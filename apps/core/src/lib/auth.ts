@@ -76,9 +76,8 @@ export const auth = betterAuth({
           };
         },
         after: async (user, _ctx) => {
-          await workspaceRepository.createWorkspace({
+          workspaceRepository.upsertPersonalWorkspace({
             userId: user.id,
-            organizationId: null,
             tx: prisma,
           });
           stripeClient
@@ -192,8 +191,7 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
-          await workspaceRepository.createWorkspace({
-            userId: null,
+          workspaceRepository.upsertOrganizationWorkspace({
             organizationId: organization.id,
             tx: prisma,
           });

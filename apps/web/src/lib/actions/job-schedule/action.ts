@@ -125,7 +125,7 @@ export const createSchedule = withSession<
       };
     }
 
-    const workspace = await workspaceRepository.findWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       session.user.id,
       session.session.activeOrganizationId ?? null,
       prisma,

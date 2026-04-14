@@ -14,7 +14,7 @@ const {
   mapJobWithStatusMock,
   prismaTransactionMock,
   resolveMemberOrganizationByIdMock,
-  findWorkspaceForContextMock,
+  upsertWorkspaceForContextMock,
   serializeJobDetailsMock,
 } = vi.hoisted(() => ({
   jobFindFirstMock: vi.fn(),
@@ -23,7 +23,7 @@ const {
   mapJobWithStatusMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  findWorkspaceForContextMock: vi.fn(),
+  upsertWorkspaceForContextMock: vi.fn(),
   serializeJobDetailsMock: vi.fn(),
 }));
 
@@ -37,7 +37,7 @@ vi.mock("@sokosumi/database/helpers", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   workspaceRepository: {
-    findWorkspaceForContext: findWorkspaceForContextMock,
+    upsertWorkspaceForContext: upsertWorkspaceForContextMock,
   },
 }));
 
@@ -201,7 +201,7 @@ describe("PUT /jobs/{id}/workspace", () => {
       },
       role: "member",
     });
-    findWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
     });
     mapJobWithStatusMock.mockReturnValue(createJobApi());
@@ -245,7 +245,7 @@ describe("PUT /jobs/{id}/workspace", () => {
   });
 
   it("returns 403 when the target workspace is missing", async () => {
-    findWorkspaceForContextMock.mockResolvedValueOnce(null);
+    upsertWorkspaceForContextMock.mockResolvedValueOnce(null);
 
     const app = createApp(null);
     const response = await app.request("http://localhost/job_123/workspace", {

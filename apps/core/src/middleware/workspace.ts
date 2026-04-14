@@ -1,3 +1,4 @@
+import { workspaceRepository } from "@sokosumi/database/repositories";
 import { createMiddleware } from "hono/factory";
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -43,23 +44,11 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
       return await next();
     }
 
-    const workspace = await prisma.workspace.findUnique({
-      where: {
-        ...(authContext.organizationId
-          ? { organizationId: authContext.organizationId }
-          : { userId: authContext.userId }),
-      },
-      select: {
-        id: true,
-        userId: true,
-        organizationId: true,
-      },
-    });
-
-    if (!workspace) {
-      c.set("workspaceContext", null);
-      return await next();
-    }
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
+      authContext.userId,
+      authContext.organizationId ?? null,
+      prisma,
+    );
 
     const workspaceContext: WorkspaceContext = {
       workspaceId: workspace.id,

@@ -20,7 +20,7 @@ const {
   renderMagicLinkEmailMock,
   sentryCaptureExceptionMock,
   stripeCreateUserCustomerMock,
-  workspaceCreateMock,
+  workspaceUpsertMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
@@ -41,7 +41,7 @@ const {
   renderMagicLinkEmailMock: vi.fn(),
   sentryCaptureExceptionMock: vi.fn(),
   stripeCreateUserCustomerMock: vi.fn(),
-  workspaceCreateMock: vi.fn(),
+  workspaceUpsertMock: vi.fn(),
 }));
 
 function getDefaultEnv() {
@@ -93,7 +93,10 @@ vi.mock("@sentry/node", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   workspaceRepository: {
-    createWorkspace: (...args: unknown[]) => workspaceCreateMock(...args),
+    upsertOrganizationWorkspace: (...args: unknown[]) =>
+      workspaceUpsertMock(...args),
+    upsertPersonalWorkspace: (...args: unknown[]) =>
+      workspaceUpsertMock(...args),
   },
 }));
 
@@ -154,7 +157,7 @@ describe("core auth config", () => {
     });
     sentryCaptureExceptionMock.mockReset();
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
-    workspaceCreateMock.mockResolvedValue({ id: "workspace_123" });
+    workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
     getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
   });
@@ -475,8 +478,7 @@ describe("core auth config", () => {
 
     await config.databaseHooks.user.create.after(normalizedCreate.data);
 
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
-      organizationId: null,
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       tx: { __prisma: true },
       userId: "user_123",
     });
@@ -556,8 +558,7 @@ describe("core auth config", () => {
       name: "Andreas",
     });
 
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
-      organizationId: null,
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       tx: { __prisma: true },
       userId: "user_123",
     });
@@ -600,8 +601,7 @@ describe("core auth config", () => {
     });
     await Promise.resolve();
 
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
-      organizationId: null,
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       tx: { __prisma: true },
       userId: "user_123",
     });

@@ -9,6 +9,7 @@ const getJobsMock = vi.fn();
 const findManyMock = vi.fn();
 const findUniqueMock = vi.fn();
 const findWorkspaceForContextMock = vi.fn();
+const upsertWorkspaceForContextMock = findWorkspaceForContextMock;
 
 vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
@@ -45,8 +46,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
   organizationRepository: {},
   userRepository: {},
   workspaceRepository: {
-    findWorkspaceForContext: (...args: unknown[]) =>
-      findWorkspaceForContextMock(...args),
+    upsertWorkspaceForContext: (...args: unknown[]) =>
+      upsertWorkspaceForContextMock(...args),
   },
 }));
 
@@ -118,20 +119,5 @@ describe("user.service", () => {
       }),
     );
     expect(findUniqueMock).not.toHaveBeenCalled();
-  });
-
-  it("throws when the active context workspace is missing", async () => {
-    getSessionMock.mockResolvedValue({
-      user: { id: "user-1" },
-      session: { activeOrganizationId: "org-1" },
-    });
-    findWorkspaceForContextMock.mockResolvedValueOnce(null);
-
-    const { userService } = await import("../user.service");
-
-    await expect(userService.getMyJobs("agent-1")).rejects.toThrow(
-      "Workspace not found",
-    );
-    expect(getJobsMock).not.toHaveBeenCalled();
   });
 });

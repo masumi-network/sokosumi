@@ -41,7 +41,7 @@ const handleCustomerCreatedEventMock = vi.fn();
 const handleCustomerUpdatedEventMock = vi.fn();
 const handleInvoicePaidEventMock = vi.fn();
 const handleSubscriptionDeletedEventMock = vi.fn();
-const workspaceCreateMock = vi.fn();
+const workspaceUpsertMock = vi.fn();
 
 function getDefaultEnvSecrets() {
   return {
@@ -158,7 +158,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
     getMemberByUserIdAndOrganizationId: vi.fn(),
   },
   workspaceRepository: {
-    createWorkspace: (...args: unknown[]) => workspaceCreateMock(...args),
+    upsertOrganizationWorkspace: (...args: unknown[]) =>
+      workspaceUpsertMock(...args),
+    upsertPersonalWorkspace: (...args: unknown[]) =>
+      workspaceUpsertMock(...args),
   },
 }));
 
@@ -311,7 +314,7 @@ describe("web auth config", () => {
       id: "cus_org_1",
     });
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_user_1" });
-    workspaceCreateMock.mockResolvedValue({ id: "workspace_123" });
+    workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
     syncLocalFreeSeatsAndCreditsForCurrentMembersMock.mockResolvedValue(
       undefined,
     );
@@ -1003,8 +1006,7 @@ describe("web auth config", () => {
     await config.databaseHooks.user.create.after(normalizedUser);
     await config.databaseHooks.user.update.after(normalizedUser);
 
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
-      organizationId: null,
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       tx: expect.objectContaining({ __prisma: true }),
       userId: "user_123",
     });
@@ -1118,10 +1120,9 @@ describe("web auth config", () => {
       user: { id: "user-1" },
     });
 
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       organizationId: "org-1",
       tx: expect.objectContaining({ __prisma: true }),
-      userId: null,
     });
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
     expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
@@ -1180,8 +1181,7 @@ describe("web auth config", () => {
     await Promise.resolve();
 
     expect(settled).toBe(true);
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
-      organizationId: null,
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       tx: expect.objectContaining({ __prisma: true }),
       userId: "user_123",
     });
@@ -1255,10 +1255,9 @@ describe("web auth config", () => {
     await Promise.resolve();
 
     expect(settled).toBe(true);
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       organizationId: "org-1",
       tx: expect.objectContaining({ __prisma: true }),
-      userId: null,
     });
     expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
       "org-1",
