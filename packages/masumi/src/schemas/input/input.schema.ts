@@ -56,6 +56,7 @@ export const inputTextSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -80,6 +81,7 @@ export const inputTextareaSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -102,6 +104,7 @@ export const inputNumberSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.coerce.number().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -124,6 +127,7 @@ export const inputBooleanSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.boolean().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -139,6 +143,7 @@ export const inputEmailSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -184,6 +189,7 @@ export const inputTelSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -206,6 +212,7 @@ export const inputUrlSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -229,6 +236,7 @@ export const inputDateSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -248,6 +256,7 @@ export const inputDatetimeSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -267,6 +276,7 @@ export const inputTimeSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -286,6 +296,7 @@ export const inputMonthSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -305,6 +316,7 @@ export const inputWeekSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -394,6 +406,7 @@ export const inputSearchSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
+      default: z.string().nullish(),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -429,6 +442,7 @@ export const inputRadioGroupSchema = z.object({
   type: z.enum([InputType.RADIO_GROUP]),
   name: z.string().min(1),
   data: z.object({
+    default: z.string().nullish(),
     values: z
       .array(z.string())
       .min(1)
