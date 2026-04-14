@@ -94,7 +94,7 @@ describe("task coworker whitelist enforcement", () => {
       }),
     });
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
     expect(tx.task.create).not.toHaveBeenCalled();
   });
 
@@ -161,7 +161,7 @@ describe("task coworker whitelist enforcement", () => {
       }),
     });
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
     expect(tx.task.create).not.toHaveBeenCalled();
   });
 });
