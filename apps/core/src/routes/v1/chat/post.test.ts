@@ -40,6 +40,7 @@ const {
 
 vi.mock("ai", () => ({
   convertToModelMessages: convertToModelMessagesMock,
+  generateId: vi.fn(() => "generated-id-test"),
   streamText: streamTextMock,
   validateUIMessages: validateUIMessagesMock,
 }));
@@ -79,6 +80,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: coworkerFindFirstMock,
     },
   },
+}));
+
+vi.mock("@/lib/resumable-ui-stream-context", () => ({
+  isUiStreamResumptionConfigured: () => false,
+  getResumableUiStreamContext: vi.fn(),
 }));
 
 function createApp({
@@ -159,6 +165,7 @@ describe("POST /chat", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        id: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "550e8400-e29b-41d4-a716-446655440000",
         messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
       }),
@@ -180,6 +187,7 @@ describe("POST /chat", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        id: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "550e8400-e29b-41d4-a716-446655440000",
         messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
       }),
@@ -204,7 +212,7 @@ describe("POST /chat", () => {
 
     expect(response.status).toBe(200);
     expect(providerFactory).toHaveBeenCalledOnce();
-    expect(providerFactory.mock.calls[0]![0]).toBeNull();
+    expect(providerFactory.mock.calls[0]?.[0]).toBeNull();
   });
 
   it("calls streamText for OpenRouter-backed conversation", async () => {
@@ -220,6 +228,7 @@ describe("POST /chat", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        id: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "550e8400-e29b-41d4-a716-446655440000",
         messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
       }),
@@ -251,6 +260,7 @@ describe("POST /chat", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        id: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "550e8400-e29b-41d4-a716-446655440000",
         messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
       }),
@@ -299,6 +309,7 @@ describe("POST /chat", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        id: cid,
         conversationId: cid,
         trigger: "submit-message",
         message: { role: "user", parts: [{ type: "text", text: "Next" }] },
@@ -334,6 +345,7 @@ describe("POST /chat", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        id: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "550e8400-e29b-41d4-a716-446655440000",
         messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
       }),

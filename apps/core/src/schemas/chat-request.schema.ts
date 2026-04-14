@@ -24,11 +24,7 @@ export const chatRequestMessageSchema = z.object({
   id: z.string().optional(),
 });
 
-/**
- * Body for `POST /v1/chat` (AI SDK). Supports:
- * - Full `messages[]` (e.g. regenerate), or
- * - `message` + `conversationId` + `trigger: "submit-message"` to rebuild history from DB.
- */
+/** POST /v1/chat: messages[] or message + conversationId + trigger submit-message. */
 export const aiSdkChatRequestSchema = z
   .object({
     messages: z.array(chatRequestMessageSchema).optional(),
@@ -54,5 +50,22 @@ export const aiSdkChatRequestSchema = z
           "Provide non-empty messages, or conversationId with message and trigger submit-message.",
         path: ["messages"],
       });
+    }
+    if (data.conversationId) {
+      if (typeof data.id !== "string" || data.id.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "id is required when conversationId is set.",
+          path: ["id"],
+        });
+        return;
+      }
+      if (data.id !== data.conversationId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "id must match conversationId.",
+          path: ["id"],
+        });
+      }
     }
   });

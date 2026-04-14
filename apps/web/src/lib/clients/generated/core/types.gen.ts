@@ -261,6 +261,13 @@ export type ConversationItem = {
      * Unix timestamp in seconds
      */
     createdAt: number;
+    /**
+     * Wall-clock thought phase (ms since epoch), when persisted for coworker reasoning
+     */
+    thoughtTiming?: {
+        startedAtMs: number | null;
+        endedAtMs: number | null;
+    };
 };
 
 export type CreateConversationItemRequest = {
@@ -275,17 +282,6 @@ export type CreateConversationItemRequest = {
         type: string;
         text?: string;
     }>;
-};
-
-export type RecoverResponseResult = {
-    /**
-     * True if a completed response was fetched and saved
-     */
-    recovered: boolean;
-    /**
-     * When recovered is false
-     */
-    reason?: 'not_found' | 'in_progress' | 'terminal';
 };
 
 export type CreditCost = {
@@ -777,6 +773,32 @@ export type TaskLinkPeerTask = {
 
 export type TaskLinkDeleted = {
     deleted: true;
+};
+
+/**
+ * On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.
+ */
+export type MasumiPayment = {
+    blockchainIdentifier: string;
+    identifierFromPurchaser: string;
+    agentIdentifier: string;
+    sellerVkey: string;
+    submitResultTime: string;
+    payByTime: string;
+    unlockTime: string;
+    externalDisputeUnlockTime: string;
+    inputHash: string;
+    Amounts: Array<{
+        amount: string;
+        unit: string;
+    }>;
+    PaymentSource?: MasumiTaskPaymentSource;
+};
+
+export type MasumiTaskPaymentSource = {
+    network: 'Preprod' | 'Mainnet';
+    smartContractAddress: string;
+    policyId: string;
 };
 
 /**
@@ -3308,6 +3330,94 @@ export type PostChatResponses = {
 
 export type PostChatResponse = PostChatResponses[keyof PostChatResponses];
 
+export type GetChatStreamByConversationIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        /**
+         * Internal conversation id (same as useChat id)
+         */
+        conversationId: string;
+    };
+    query?: never;
+    url: '/chat/stream/{conversationId}';
+};
+
+export type GetChatStreamByConversationIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatStreamByConversationIdError = GetChatStreamByConversationIdErrors[keyof GetChatStreamByConversationIdErrors];
+
+export type GetChatStreamByConversationIdResponses = {
+    /**
+     * Resumable UI message stream (SSE)
+     */
+    200: string;
+    /**
+     * No active resumable stream for this conversation
+     */
+    204: void;
+};
+
+export type GetChatStreamByConversationIdResponse = GetChatStreamByConversationIdResponses[keyof GetChatStreamByConversationIdResponses];
+
 export type GetConversationsData = {
     body?: never;
     path?: never;
@@ -3790,7 +3900,7 @@ export type GetConversationsByIdMessagesError = GetConversationsByIdMessagesErro
 
 export type GetConversationsByIdMessagesResponses = {
     /**
-     * Conversation items retrieved successfully
+     * Conversation messages retrieved successfully
      */
     200: {
         data: Array<ConversationItem>;
@@ -3875,7 +3985,7 @@ export type PostConversationsByIdMessagesError = PostConversationsByIdMessagesEr
 
 export type PostConversationsByIdMessagesResponses = {
     /**
-     * Conversation item created successfully
+     * Conversation message created successfully
      */
     201: {
         data: ConversationItem;
@@ -3888,104 +3998,6 @@ export type PostConversationsByIdMessagesResponses = {
 };
 
 export type PostConversationsByIdMessagesResponse = PostConversationsByIdMessagesResponses[keyof PostConversationsByIdMessagesResponses];
-
-export type PostConversationsByIdRecoverResponseData = {
-    body?: never;
-    path: {
-        /**
-         * Conversation ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/conversations/{id}/recover-response';
-};
-
-export type PostConversationsByIdRecoverResponseErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostConversationsByIdRecoverResponseError = PostConversationsByIdRecoverResponseErrors[keyof PostConversationsByIdRecoverResponseErrors];
-
-export type PostConversationsByIdRecoverResponseResponses = {
-    /**
-     * Recovery result
-     */
-    200: {
-        data: RecoverResponseResult;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostConversationsByIdRecoverResponseResponse = PostConversationsByIdRecoverResponseResponses[keyof PostConversationsByIdRecoverResponseResponses];
 
 export type GetCreditCostsData = {
     body?: never;
@@ -8609,11 +8621,15 @@ export type PostTasksByIdEventsData = {
         status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
         comment?: string;
         authenticationUrl?: string;
+        /**
+         * Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.
+         */
         credits?: number | null;
         /**
          * The origin of the task event. Defaults to SOKOSUMI if undefined.
          */
         origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
+        masumiPayment?: MasumiPayment;
     };
     path: {
         id: string;
@@ -8692,6 +8708,19 @@ export type PostTasksByIdEventsErrors = {
      * Unprocessable Entity
      */
     422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
         error: string;
         message: string;
         meta: {

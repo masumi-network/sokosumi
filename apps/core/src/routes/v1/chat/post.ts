@@ -1,7 +1,16 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { convertToModelMessages, streamText, validateUIMessages } from "ai";
+import {
+  convertToModelMessages,
+  generateId,
+  streamText,
+  validateUIMessages,
+} from "ai";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
+import {
+  clearActiveUiStreamIdInMetadata,
+  setActiveUiStreamIdInMetadata,
+} from "@/helpers/active-ui-stream-metadata";
 import { conversationItemsToUiMessages } from "@/helpers/conversation-items-to-ui-messages";
 import {
   badRequest,
@@ -24,6 +33,10 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import {
+  getResumableUiStreamContext,
+  isUiStreamResumptionConfigured,
+} from "@/lib/resumable-ui-stream-context";
 import {
   getOpenRouterChatApiKeyForProvider,
   getSokosumiProvider,
@@ -317,6 +330,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         useCoworker && coworker && providerConversationId,
       );
 
+      if (internalConversationId && isUiStreamResumptionConfigured()) {
+        try {
+          await clearActiveUiStreamIdInMetadata({
+            conversationId: internalConversationId,
+            userId: authContext.userId,
+          });
+        } catch (error) {
+          console.error(
+            "Failed to clear active UI stream id before new chat stream:",
+            error,
+          );
+        }
+      }
+
       const modelMessages = await convertToModelMessages(
         uiMessages.map(({ id: _id, ...rest }) => rest),
       );
@@ -410,14 +437,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           if (!useCoworker) {
             return;
           }
+          const chunkType = chunk.type as string;
           if (
-            chunk.type === "reasoning-start" ||
-            chunk.type === "reasoning-delta"
+            chunkType === "reasoning-start" ||
+            chunkType === "reasoning-delta"
           ) {
             thoughtPhaseMs.sawReasoningChunk = true;
             thoughtPhaseMs.start = thoughtPhaseMs.start ?? Date.now();
           }
-          if (chunk.type === "reasoning-end") {
+          if (chunkType === "reasoning-end") {
             thoughtPhaseMs.end = Date.now();
           }
           if (
@@ -468,8 +496,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
+      const enableResumableUiStream =
+        Boolean(internalConversationId) && isUiStreamResumptionConfigured();
+
       return result.toUIMessageStreamResponse({
         originalMessages: uiMessages,
+        generateMessageId: generateId,
         headers: {
           "Cache-Control": "no-cache",
           Connection: "keep-alive",
@@ -477,6 +509,42 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ? { "x-sokosumi-conversation-id": internalConversationId }
             : {}),
         },
+        ...(enableResumableUiStream && internalConversationId
+          ? {
+              consumeSseStream: async ({ stream }) => {
+                const streamId = generateId();
+                const convId = internalConversationId;
+                const userId = authContext.userId;
+                try {
+                  const ctx = getResumableUiStreamContext();
+                  await ctx.createNewResumableStream(streamId, () => stream);
+                  await setActiveUiStreamIdInMetadata({
+                    conversationId: convId,
+                    userId,
+                    streamId,
+                  });
+                } catch (error) {
+                  console.error(
+                    "Failed to register resumable UI message stream:",
+                    error,
+                  );
+                }
+              },
+              onFinish: async () => {
+                try {
+                  await clearActiveUiStreamIdInMetadata({
+                    conversationId: internalConversationId,
+                    userId: authContext.userId,
+                  });
+                } catch (error) {
+                  console.error(
+                    "Failed to clear active UI stream id on stream finish:",
+                    error,
+                  );
+                }
+              },
+            }
+          : {}),
       });
     } catch (error) {
       if (

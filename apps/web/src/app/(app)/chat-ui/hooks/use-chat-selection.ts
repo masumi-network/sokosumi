@@ -27,7 +27,6 @@ interface UseChatSelectionProps {
   previousChatIdRef: React.MutableRefObject<string | null>;
   isUpdatingUrlRef: React.MutableRefObject<boolean>;
   pendingUrlConversationIdRef: React.MutableRefObject<string | null>;
-  stopStreaming: () => void;
   isConversationsLoading?: boolean;
   isSelectedChatStreaming?: boolean;
   isConversationLoading?: boolean;
@@ -72,7 +71,6 @@ export function useChatSelection({
   previousChatIdRef: _previousChatIdRef,
   isUpdatingUrlRef,
   pendingUrlConversationIdRef,
-  stopStreaming: _stopStreaming,
   isConversationsLoading = false,
   isSelectedChatStreaming = false,
   isConversationLoading: isConversationLoadingProp = false,

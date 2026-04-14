@@ -22,8 +22,6 @@ import WelcomeScreen from "@/app/chat/components/welcome-screen";
 import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
-import { usePendingResponsePolling } from "@/app/chat/hooks/use-pending-response-polling";
-import { useRecoverOnTabHide } from "@/app/chat/hooks/use-recover-on-tab-hide";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { useChatCreation } from "@/app/chat-ui/hooks/use-chat-creation";
 import { useChatSelection } from "@/app/chat-ui/hooks/use-chat-selection";
@@ -33,25 +31,24 @@ import {
   getPendingConversationStorageKey,
   isChatShellPathname,
 } from "@/app/chat-ui/utils/chat-route-base";
-import { fetchChatUiMessages } from "@/app/chat-ui/utils/fetch-chat-ui-messages";
 import {
-  deduplicateMessagesById,
   extractMessageContent,
   extractReasoningStepMessages,
   mergeAssistantThoughtMetadataFromDb,
 } from "@/app/chat-ui/utils/message-utils";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
-import {
-  type Conversation,
-  recoverConversationResponse,
-} from "@/lib/actions/conversation";
+import type { Conversation } from "@/lib/actions/conversation";
 
 import MessageList from "./message-list";
 
 const NUM_SLOTS = 3;
-const RECOVERY_POLL_INTERVAL_MS = 2500;
-const RECOVERY_POLL_TIMEOUT_MS = 90_000;
+
+const SLOT_PLACEHOLDER_CHAT_IDS: readonly [string, string, string] = [
+  "__sokosumi_empty_slot_0__",
+  "__sokosumi_empty_slot_1__",
+  "__sokosumi_empty_slot_2__",
+];
 
 interface SlotPayload {
   conversationId: string | null;
@@ -118,12 +115,6 @@ export default function ChatInterface({
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [input, setInput] = useState<string>("");
-  const [isRecovering, setIsRecovering] = useState(false);
-  const [isRecoveringPolling, setIsRecoveringPolling] = useState(false);
-  const [
-    recoveryNotFoundForConversationId,
-    setRecoveryNotFoundForConversationId,
-  ] = useState<string | null>(null);
   const [showSelectCoworkerModal, setShowSelectCoworkerModal] = useState(false);
   const [selectedModel, setSelectedModel] = useState<{
     id: string;
@@ -373,6 +364,8 @@ export default function ChatInterface({
         });
         const payload = slotPayloadRef.current[slotIndex];
         const cid = payload?.conversationId;
+        const chatIdForBody =
+          typeof cid === "string" && cid.length > 0 ? cid : options.id;
         let previousResponseIdForBody: string | undefined;
         if (typeof cid === "string" && cid.length > 0) {
           const override = resendPreviousResponseIdOverrideRef.current.get(cid);
@@ -399,7 +392,7 @@ export default function ChatInterface({
 
         const baseBody: Record<string, unknown> = {
           ...(options.body ?? {}),
-          id: options.id,
+          id: chatIdForBody,
           trigger: options.trigger,
           messageId: options.messageId,
           ...(typeof cid === "string" && cid.length > 0
@@ -434,6 +427,21 @@ export default function ChatInterface({
           },
         };
       },
+      prepareReconnectToStreamRequest({
+        id,
+        requestMetadata: _requestMetadata,
+        body: _body,
+        credentials: _credentials,
+        headers: _headers,
+        api: _api,
+      }) {
+        const slug = organizationSlugRef.current;
+        return {
+          api: `/api/chat/${id}/stream`,
+          credentials: "include" as RequestCredentials,
+          headers: slug ? { "x-organization-slug": slug } : undefined,
+        };
+      },
     });
   }
 
@@ -448,6 +456,32 @@ export default function ChatInterface({
   const transport2 = useMemo(
     () => makeSlotTransport(2, CHAT_API_PATH),
     [CHAT_API_PATH],
+  );
+
+  const slot0BoundId = slotToConversation.get(0) ?? null;
+  const slot1BoundId = slotToConversation.get(1) ?? null;
+  const slot2BoundId = slotToConversation.get(2) ?? null;
+
+  const slot0InitialMessages = useMemo(
+    () =>
+      (slot0BoundId
+        ? (cachedMessagesByConversation[slot0BoundId] ?? [])
+        : []) as UIMessage[],
+    [slot0BoundId, cachedMessagesByConversation],
+  );
+  const slot1InitialMessages = useMemo(
+    () =>
+      (slot1BoundId
+        ? (cachedMessagesByConversation[slot1BoundId] ?? [])
+        : []) as UIMessage[],
+    [slot1BoundId, cachedMessagesByConversation],
+  );
+  const slot2InitialMessages = useMemo(
+    () =>
+      (slot2BoundId
+        ? (cachedMessagesByConversation[slot2BoundId] ?? [])
+        : []) as UIMessage[],
+    [slot2BoundId, cachedMessagesByConversation],
   );
 
   const onDataForSlot = useCallback((slotIndex: number) => {
@@ -515,18 +549,27 @@ export default function ChatInterface({
   );
 
   const chat0 = useChat({
+    id: slot0BoundId ?? SLOT_PLACEHOLDER_CHAT_IDS[0],
+    messages: slot0InitialMessages,
+    resume: Boolean(slot0BoundId),
     transport: transport0,
     onData: onDataForSlot(0),
     onError: onErrorForSlot(0),
     onFinish: onFinishForSlot(0),
   });
   const chat1 = useChat({
+    id: slot1BoundId ?? SLOT_PLACEHOLDER_CHAT_IDS[1],
+    messages: slot1InitialMessages,
+    resume: Boolean(slot1BoundId),
     transport: transport1,
     onData: onDataForSlot(1),
     onError: onErrorForSlot(1),
     onFinish: onFinishForSlot(1),
   });
   const chat2 = useChat({
+    id: slot2BoundId ?? SLOT_PLACEHOLDER_CHAT_IDS[2],
+    messages: slot2InitialMessages,
+    resume: Boolean(slot2BoundId),
     transport: transport2,
     onData: onDataForSlot(2),
     onError: onErrorForSlot(2),
@@ -562,10 +605,6 @@ export default function ChatInterface({
   const sendMessageSlots = useMemo(
     () => [chat0.sendMessage, chat1.sendMessage, chat2.sendMessage],
     [chat0.sendMessage, chat1.sendMessage, chat2.sendMessage],
-  );
-  const stopSlots = useMemo(
-    () => [chat0.stop, chat1.stop, chat2.stop],
-    [chat0.stop, chat1.stop, chat2.stop],
   );
 
   const streamingConversationIdsRef = useRef<Set<string>>(new Set());
@@ -838,29 +877,44 @@ export default function ChatInterface({
     ],
   );
 
-  const stopSelectedChat = useCallback(() => {
-    if (!selectedChatId) return;
-    const slot = conversationToSlot.get(selectedChatId);
-    if (slot !== undefined) stopSlots[slot]();
-  }, [selectedChatId, conversationToSlot, stopSlots]);
-
   const isLoading = isSelectedChatLoading;
   const isConversationLoading =
     Boolean(selectedChatId) && selectedConversation?.id !== selectedChatId;
 
   const selectedChatReasoningMessages = useMemo(() => {
     if (!selectedChatId) return [];
-    for (let i = displayedMessages.length - 1; i >= 0; i--) {
-      const m = displayedMessages[i];
+    const slot = conversationToSlot.get(selectedChatId);
+    const slotSteps = slot !== undefined ? (reasoningBySlot[slot] ?? []) : [];
+
+    const messages = displayedMessages;
+    let lastUserIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if ((messages[i]?.role as string) === "user") {
+        lastUserIndex = i;
+        break;
+      }
+    }
+
+    if (lastUserIndex >= 0) {
+      for (let i = lastUserIndex + 1; i < messages.length; i++) {
+        const m = messages[i];
+        if ((m?.role as string) !== "assistant") continue;
+        const fromParts = extractReasoningStepMessages(m);
+        if (fromParts.length > 0) return fromParts;
+        return slotSteps;
+      }
+      return slotSteps;
+    }
+
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
       if (m?.role === "assistant") {
         const fromParts = extractReasoningStepMessages(m);
         if (fromParts.length > 0) return fromParts;
         break;
       }
     }
-    const slot = conversationToSlot.get(selectedChatId);
-    if (slot === undefined) return [];
-    return reasoningBySlot[slot] ?? [];
+    return slotSteps;
   }, [selectedChatId, displayedMessages, conversationToSlot, reasoningBySlot]);
 
   const selectedChatReasoningStartedAt = useMemo(() => {
@@ -888,25 +942,6 @@ export default function ChatInterface({
         Boolean(chats.find((c) => c.id === selectedChatId)?.coworker)),
   );
 
-  const conversationForRecovery =
-    selectedConversation?.id === selectedChatId
-      ? selectedConversation
-      : selectedChatId
-        ? (conversations.find((c) => c.id === selectedChatId) ?? null)
-        : null;
-  const hasPendingIdInMetadata = Boolean(
-    selectedChatId &&
-      conversationForRecovery &&
-      (() => {
-        const meta = (conversationForRecovery.metadata ?? {}) as Record<
-          string,
-          unknown
-        >;
-        const id = meta.pending_responses_api_response_id;
-        return typeof id === "string" && id.length > 0;
-      })(),
-  );
-
   useChatSelection({
     urlConversationId,
     pathname,
@@ -926,7 +961,6 @@ export default function ChatInterface({
     previousChatIdRef,
     isUpdatingUrlRef,
     pendingUrlConversationIdRef,
-    stopStreaming: stopSelectedChat,
     isConversationsLoading,
     enabled: isRouteDriven,
   });
@@ -941,530 +975,12 @@ export default function ChatInterface({
     useChatMessages({
       selectedChatId,
       selectedConversation,
-      skipLoadWhenPendingId: hasPendingIdInMetadata,
       setMessagesForConversation,
       previousChatIdRef,
       messagesChatIdRef,
       chatMessagesRef,
       streamingConversationIdsRef,
     });
-
-  const {
-    isPollingForPendingResponse,
-    pendingResponseFailed,
-    clearPendingResponseFailed,
-  } = usePendingResponsePolling({
-    selectedChatId,
-    displayedMessages,
-    isStreaming: isSelectedChatLoading,
-    hasPendingIdInMetadata,
-    setMessagesForConversation,
-    refreshConversations,
-  });
-
-  const recoveryAttemptedForRef = useRef<string | null>(null);
-  const recoveredProcessedForRef = useRef<string | null>(null);
-  const currentCidRef = useRef<string | null>(null);
-  const conversationRecoveryGenerationRef = useRef(0);
-  const mountedRef = useRef(true);
-
-  currentCidRef.current = urlConversationId ?? selectedChatId ?? null;
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  function convHasPendingId(conv: { metadata?: unknown } | null): boolean {
-    if (!conv) return false;
-    const meta = (conv.metadata ?? {}) as Record<string, unknown>;
-    const id = meta.pending_responses_api_response_id;
-    return typeof id === "string" && id.length > 0;
-  }
-
-  useEffect(() => {
-    const cid = urlConversationId ?? selectedChatId;
-    if (!cid || !isRouteDriven || !isChatPath) {
-      return;
-    }
-    if (conversationToSlot.get(cid) !== undefined) {
-      return;
-    }
-
-    const convForCid =
-      (conversationForRecovery?.id === cid ? conversationForRecovery : null) ??
-      conversations.find((c) => c.id === cid) ??
-      null;
-    const cidHasPendingId = convHasPendingId(convForCid);
-
-    if (recoveryAttemptedForRef.current === cid) {
-      if (
-        cidHasPendingId &&
-        mountedRef.current &&
-        recoveredProcessedForRef.current !== cid
-      ) {
-        setIsRecovering(true);
-        setIsRecoveringPolling(true);
-      }
-      return;
-    }
-    recoveryAttemptedForRef.current = cid;
-    const routeRecoveryGeneration = conversationRecoveryGenerationRef.current;
-    if (urlConversationId && selectedChatId !== urlConversationId) {
-      setSelectedChatId(urlConversationId);
-    }
-    if (cidHasPendingId) {
-      setIsRecovering(true);
-      setIsRecoveringPolling(true);
-    }
-    (async () => {
-      const isCancelled = () =>
-        routeRecoveryGeneration !== conversationRecoveryGenerationRef.current;
-      async function loadConversationItemsIntoCache(conversationId: string) {
-        const msgs = await fetchChatUiMessages(conversationId, CHAT_API_PATH);
-        if (isCancelled() || msgs === null) return;
-        const deduped = deduplicateMessagesById(msgs);
-        if (mountedRef.current) {
-          setMessagesForConversation(conversationId, deduped);
-          chatMessagesRef.current.set(conversationId, deduped);
-        }
-      }
-      function parseRecoverPayload(result: unknown) {
-        if (!result || typeof result !== "object") return undefined;
-        const data =
-          "ok" in result && result.ok && "data" in result
-            ? (
-                result as {
-                  data?: {
-                    recovered?: boolean;
-                    reason?: "not_found" | "in_progress" | "terminal";
-                  };
-                }
-              ).data
-            : "value" in result
-              ? (
-                  result as {
-                    value?: {
-                      recovered?: boolean;
-                      reason?: "not_found" | "in_progress" | "terminal";
-                    };
-                  }
-                ).value
-              : undefined;
-        return data;
-      }
-      try {
-        await loadConversationItemsIntoCache(cid);
-        if (isCancelled()) return;
-        const result = await recoverConversationResponse({
-          conversationId: cid,
-        });
-        if (isCancelled()) return;
-        const recoverPayload = parseRecoverPayload(result);
-        if (!recoverPayload?.recovered) {
-          if (
-            recoverPayload?.reason === "not_found" ||
-            recoverPayload?.reason === "terminal"
-          ) {
-            if (mountedRef.current) setRecoveryNotFoundForConversationId(cid);
-            return;
-          }
-          if (recoverPayload?.reason === "in_progress") {
-            if (mountedRef.current) {
-              setIsRecovering(true);
-              setIsRecoveringPolling(true);
-            }
-            const startTime = Date.now();
-            for (;;) {
-              await new Promise((r) =>
-                setTimeout(r, RECOVERY_POLL_INTERVAL_MS),
-              );
-              if (isCancelled()) break;
-              if (Date.now() - startTime > RECOVERY_POLL_TIMEOUT_MS) {
-                if (mountedRef.current) {
-                  setRecoveryNotFoundForConversationId(cid);
-                  setIsRecoveringPolling(false);
-                  setIsRecovering(false);
-                }
-                return;
-              }
-              const pollResult = await recoverConversationResponse({
-                conversationId: cid,
-              });
-              if (isCancelled()) return;
-              const pollPayload = parseRecoverPayload(pollResult);
-              if (pollPayload?.recovered) {
-                if (recoveredProcessedForRef.current !== cid) {
-                  recoveredProcessedForRef.current = cid;
-                  const loaded = await fetchChatUiMessages(cid, CHAT_API_PATH);
-                  if (isCancelled()) return;
-                  if (loaded !== null && mountedRef.current) {
-                    const newMessages = deduplicateMessagesById(loaded);
-                    setMessagesForConversation(cid, newMessages);
-                    chatMessagesRef.current.set(cid, newMessages);
-                    const slot = conversationToSlot.get(cid);
-                    if (
-                      typeof slot === "number" &&
-                      slot >= 0 &&
-                      slot < NUM_SLOTS &&
-                      setMessagesSlots[slot]
-                    ) {
-                      setMessagesSlots[slot](newMessages);
-                      setReasoningBySlot((prev) => {
-                        const next = { ...prev };
-                        delete next[slot];
-                        return next;
-                      });
-                      setReasoningEndedAtBySlot((prev) => {
-                        const next = { ...prev };
-                        delete next[slot];
-                        return next;
-                      });
-                      setReasoningStartedAtBySlot((prev) => {
-                        const next = { ...prev };
-                        delete next[slot];
-                        return next;
-                      });
-                    }
-                    if (mountedRef.current) {
-                      setIsRecoveringPolling(false);
-                      setIsRecovering(false);
-                    }
-                    await refreshConversations();
-                  }
-                }
-                if (mountedRef.current) {
-                  setIsRecoveringPolling(false);
-                  setIsRecovering(false);
-                }
-                return;
-              }
-              if (
-                pollPayload?.reason === "not_found" ||
-                pollPayload?.reason === "terminal"
-              ) {
-                if (mountedRef.current) {
-                  setRecoveryNotFoundForConversationId(cid);
-                  setIsRecoveringPolling(false);
-                  setIsRecovering(false);
-                }
-                return;
-              }
-            }
-            if (mountedRef.current) {
-              setIsRecoveringPolling(false);
-              setIsRecovering(false);
-            }
-            return;
-          }
-          if (mountedRef.current) setIsRecovering(false);
-          return;
-        }
-        if (recoveredProcessedForRef.current !== cid) {
-          recoveredProcessedForRef.current = cid;
-          const loaded = await fetchChatUiMessages(cid, CHAT_API_PATH);
-          if (isCancelled()) return;
-          if (loaded !== null && mountedRef.current) {
-            const newMessages = deduplicateMessagesById(loaded);
-            setMessagesForConversation(cid, newMessages);
-            chatMessagesRef.current.set(cid, newMessages);
-            const slot = conversationToSlot.get(cid);
-            if (
-              typeof slot === "number" &&
-              slot >= 0 &&
-              slot < NUM_SLOTS &&
-              setMessagesSlots[slot]
-            ) {
-              setMessagesSlots[slot](newMessages);
-              setReasoningBySlot((prev) => {
-                const next = { ...prev };
-                delete next[slot];
-                return next;
-              });
-              setReasoningEndedAtBySlot((prev) => {
-                const next = { ...prev };
-                delete next[slot];
-                return next;
-              });
-              setReasoningStartedAtBySlot((prev) => {
-                const next = { ...prev };
-                delete next[slot];
-                return next;
-              });
-            }
-            if (mountedRef.current) {
-              setIsRecoveringPolling(false);
-              setIsRecovering(false);
-            }
-            await refreshConversations();
-          }
-        }
-      } catch (_err) {
-        if (mountedRef.current && !isCancelled()) setIsRecovering(false);
-      } finally {
-        if (mountedRef.current && !isCancelled()) {
-          setIsRecoveringPolling(false);
-          setIsRecovering(false);
-        }
-      }
-    })();
-    return () => {
-      conversationRecoveryGenerationRef.current += 1;
-      setIsRecoveringPolling(false);
-      setIsRecovering(false);
-    };
-  }, [
-    urlConversationId,
-    selectedChatId,
-    isRouteDriven,
-    isChatPath,
-    conversationToSlot,
-    setMessagesForConversation,
-    setMessagesSlots,
-    refreshConversations,
-    conversationForRecovery,
-    conversations,
-  ]);
-
-  useEffect(() => {
-    const conv = conversationForRecovery;
-    const cid = selectedChatId;
-    if (!conv?.id || conv.id !== cid) return;
-    const meta = (conv.metadata as Record<string, unknown> | null) ?? null;
-    const isCoworker =
-      meta?.type === "coworker" ||
-      (typeof meta?.coworker_id === "string" && meta.coworker_id.length > 0) ||
-      (typeof meta?.coworker_slug === "string" &&
-        meta.coworker_slug.length > 0);
-    if (!isCoworker) return;
-
-    const pendingId = meta?.pending_responses_api_response_id;
-    if (typeof pendingId !== "string" || pendingId.length === 0) return;
-
-    if (recoveryAttemptedForRef.current === conv.id) {
-      if (mountedRef.current && recoveredProcessedForRef.current !== conv.id) {
-        setIsRecovering(true);
-        setIsRecoveringPolling(true);
-      }
-      return;
-    }
-
-    recoveryAttemptedForRef.current = conv.id;
-
-    const recoveryGeneration = conversationRecoveryGenerationRef.current;
-
-    setIsRecovering(true);
-    setIsRecoveringPolling(true);
-    let cancelled = false;
-    function isAborted() {
-      return (
-        cancelled ||
-        recoveryGeneration !== conversationRecoveryGenerationRef.current
-      );
-    }
-    (async () => {
-      async function loadConversationItemsIntoCache(conversationId: string) {
-        const msgs = await fetchChatUiMessages(conversationId, CHAT_API_PATH);
-        if (isAborted() || msgs === null) return;
-        const deduped = deduplicateMessagesById(msgs);
-        setMessagesForConversation(conversationId, deduped);
-        chatMessagesRef.current.set(conversationId, deduped);
-      }
-      function parseRecoverPayload(result: unknown) {
-        if (!result || typeof result !== "object") return undefined;
-        const data =
-          "ok" in result && result.ok && "data" in result
-            ? (
-                result as {
-                  data?: {
-                    recovered?: boolean;
-                    reason?: "not_found" | "in_progress" | "terminal";
-                  };
-                }
-              ).data
-            : "value" in result
-              ? (
-                  result as {
-                    value?: {
-                      recovered?: boolean;
-                      reason?: "not_found" | "in_progress" | "terminal";
-                    };
-                  }
-                ).value
-              : undefined;
-        return data;
-      }
-      try {
-        await loadConversationItemsIntoCache(conv.id);
-        if (isAborted()) return;
-        const result = await recoverConversationResponse({
-          conversationId: conv.id,
-        });
-        if (isAborted()) return;
-        const recoverPayload = parseRecoverPayload(result);
-        if (!recoverPayload?.recovered) {
-          if (
-            recoverPayload?.reason === "not_found" ||
-            recoverPayload?.reason === "terminal"
-          ) {
-            setRecoveryNotFoundForConversationId(conv.id);
-            setIsRecovering(false);
-            return;
-          }
-          if (recoverPayload?.reason === "in_progress") {
-            setIsRecovering(true);
-            setIsRecoveringPolling(true);
-            const startTime = Date.now();
-            for (;;) {
-              await new Promise((r) =>
-                setTimeout(r, RECOVERY_POLL_INTERVAL_MS),
-              );
-              if (isAborted()) break;
-              if (Date.now() - startTime > RECOVERY_POLL_TIMEOUT_MS) {
-                setRecoveryNotFoundForConversationId(conv.id);
-                setIsRecoveringPolling(false);
-                setIsRecovering(false);
-                return;
-              }
-              const pollResult = await recoverConversationResponse({
-                conversationId: conv.id,
-              });
-              if (isAborted()) return;
-              const pollPayload = parseRecoverPayload(pollResult);
-              if (pollPayload?.recovered) {
-                if (recoveredProcessedForRef.current !== conv.id) {
-                  recoveredProcessedForRef.current = conv.id;
-                  const loaded = await fetchChatUiMessages(
-                    conv.id,
-                    CHAT_API_PATH,
-                  );
-                  if (isAborted()) return;
-                  if (loaded !== null) {
-                    const newMessages = deduplicateMessagesById(loaded);
-                    setMessagesForConversation(conv.id, newMessages);
-                    chatMessagesRef.current.set(conv.id, newMessages);
-                    const slot = conversationToSlot.get(conv.id);
-                    if (
-                      typeof slot === "number" &&
-                      slot >= 0 &&
-                      slot < NUM_SLOTS &&
-                      setMessagesSlots[slot]
-                    ) {
-                      setMessagesSlots[slot](newMessages);
-                      setReasoningBySlot((prev) => {
-                        const next = { ...prev };
-                        delete next[slot];
-                        return next;
-                      });
-                      setReasoningEndedAtBySlot((prev) => {
-                        const next = { ...prev };
-                        delete next[slot];
-                        return next;
-                      });
-                      setReasoningStartedAtBySlot((prev) => {
-                        const next = { ...prev };
-                        delete next[slot];
-                        return next;
-                      });
-                    }
-                    setIsRecoveringPolling(false);
-                    setIsRecovering(false);
-                    await refreshConversations();
-                  }
-                }
-                setIsRecoveringPolling(false);
-                setIsRecovering(false);
-                return;
-              }
-              if (
-                pollPayload?.reason === "not_found" ||
-                pollPayload?.reason === "terminal"
-              ) {
-                setRecoveryNotFoundForConversationId(conv.id);
-                setIsRecoveringPolling(false);
-                setIsRecovering(false);
-                return;
-              }
-            }
-            setIsRecoveringPolling(false);
-            setIsRecovering(false);
-            return;
-          }
-          setIsRecovering(false);
-          return;
-        }
-        if (recoveredProcessedForRef.current !== conv.id) {
-          recoveredProcessedForRef.current = conv.id;
-          const loaded = await fetchChatUiMessages(conv.id, CHAT_API_PATH);
-          if (isAborted()) return;
-          if (loaded !== null) {
-            const newMessages = deduplicateMessagesById(loaded);
-            setMessagesForConversation(conv.id, newMessages);
-            chatMessagesRef.current.set(conv.id, newMessages);
-            const slot = conversationToSlot.get(conv.id);
-            if (
-              typeof slot === "number" &&
-              slot >= 0 &&
-              slot < NUM_SLOTS &&
-              setMessagesSlots[slot]
-            ) {
-              setMessagesSlots[slot](newMessages);
-              setReasoningBySlot((prev) => {
-                const next = { ...prev };
-                delete next[slot];
-                return next;
-              });
-              setReasoningEndedAtBySlot((prev) => {
-                const next = { ...prev };
-                delete next[slot];
-                return next;
-              });
-              setReasoningStartedAtBySlot((prev) => {
-                const next = { ...prev };
-                delete next[slot];
-                return next;
-              });
-            }
-            setIsRecoveringPolling(false);
-            setIsRecovering(false);
-            await refreshConversations();
-          }
-        }
-      } catch (_) {
-        if (!isAborted()) setIsRecovering(false);
-      } finally {
-        if (!isAborted()) {
-          setIsRecoveringPolling(false);
-          setIsRecovering(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-      conversationRecoveryGenerationRef.current += 1;
-      if (recoveryAttemptedForRef.current === conv.id) {
-        recoveryAttemptedForRef.current = null;
-      }
-      setIsRecoveringPolling(false);
-      setIsRecovering(false);
-    };
-  }, [
-    conversationForRecovery,
-    selectedChatId,
-    setMessagesForConversation,
-    refreshConversations,
-    conversationToSlot,
-    setMessagesSlots,
-  ]);
-
-  useRecoverOnTabHide({
-    selectedConversation,
-    selectedChatId,
-    setMessagesForConversation,
-    refreshConversations,
-  });
 
   const {
     createModelChat,
@@ -1656,10 +1172,6 @@ export default function ChatInterface({
   const handleResendLastMessage = useCallback(
     async (text: string) => {
       if (!selectedChatId || !text.trim()) return;
-      setRecoveryNotFoundForConversationId((prev) =>
-        prev === selectedChatId ? null : prev,
-      );
-      clearPendingResponseFailed();
       const list = await refreshConversations();
       const conv = list?.find((c) => c.id === selectedChatId);
       const pid = readPreviousResponseIdFromMetadata(
@@ -1670,17 +1182,8 @@ export default function ChatInterface({
       }
       sendInConversation(selectedChatId, text.trim());
     },
-    [
-      selectedChatId,
-      sendInConversation,
-      clearPendingResponseFailed,
-      refreshConversations,
-    ],
+    [selectedChatId, sendInConversation, refreshConversations],
   );
-
-  const handleStop = () => {
-    stopSelectedChat();
-  };
 
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const selectedChatCoworker = useMemo(() => {
@@ -1734,14 +1237,9 @@ export default function ChatInterface({
           <>
             {showMessagesAfterTransition && (
               <>
-                {(!isRecovering &&
-                  hasPendingIdInMetadata &&
-                  displayedMessages.length === 0 &&
-                  conversationToSlot.get(selectedChatId) === undefined) ||
-                (!isRecovering &&
-                  isConversationLoading &&
-                  displayedMessages.length === 0 &&
-                  conversationToSlot.get(selectedChatId) === undefined) ? (
+                {isConversationLoading &&
+                displayedMessages.length === 0 &&
+                conversationToSlot.get(selectedChatId) === undefined ? (
                   <div className="flex h-full min-h-[300px] flex-1 items-center justify-center">
                     <Loader2
                       className="text-muted-foreground size-8 animate-spin"
@@ -1761,21 +1259,10 @@ export default function ChatInterface({
                           }
                         : null
                     }
-                    hasPendingIdInMetadata={hasPendingIdInMetadata}
                     isLoading={isLoading}
                     isCoworker={isSelectedChatCoworker}
-                    isRecovering={isRecovering}
-                    isRecoveringPolling={isRecoveringPolling}
-                    isRecoveryNotFound={
-                      recoveryNotFoundForConversationId === selectedChatId
-                    }
-                    isPollingForPendingResponse={isPollingForPendingResponse}
                     messages={displayedMessages}
                     onResendLastMessage={handleResendLastMessage}
-                    pendingResponseFailed={
-                      pendingResponseFailed ||
-                      recoveryNotFoundForConversationId === selectedChatId
-                    }
                     reasoningMessages={selectedChatReasoningMessages}
                     reasoningStartedAt={
                       selectedChatReasoningStartedAt ?? undefined
@@ -1788,37 +1275,31 @@ export default function ChatInterface({
                 )}
               </>
             )}
-            {!isConversationLoading &&
-              !isRecovering &&
-              !(
-                hasPendingIdInMetadata &&
-                displayedMessages.length === 0 &&
-                conversationToSlot.get(selectedChatId) === undefined
-              ) && (
-                <>
-                  <div
-                    aria-hidden
-                    className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
-                  />
-                  <ChatInputContainer
-                    key={selectedChatId}
-                    mobileKeyboardOptimized={mobileKeyboardOptimized}
-                    selectedChatId={selectedChatId}
-                    input={input}
-                    setInput={setInput}
-                    status={selectedChatStatus}
-                    stop={handleStop}
-                    messages={displayedMessages}
-                    setMessages={setMessagesForInput}
-                    sendMessage={sendMessageForInput}
-                    onSendMessage={handleSendMessage}
-                    selectedModel={selectedModel}
-                    onSelectModel={handleModelSelected}
-                    selectedChatCoworker={selectedChatCoworker}
-                    coworkers={coworkers}
-                  />
-                </>
-              )}
+            {!isConversationLoading && (
+              <>
+                <div
+                  aria-hidden
+                  className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
+                />
+                <ChatInputContainer
+                  key={selectedChatId}
+                  mobileKeyboardOptimized={mobileKeyboardOptimized}
+                  selectedChatId={selectedChatId}
+                  input={input}
+                  setInput={setInput}
+                  status={selectedChatStatus}
+                  stop={() => {}}
+                  messages={displayedMessages}
+                  setMessages={setMessagesForInput}
+                  sendMessage={sendMessageForInput}
+                  onSendMessage={handleSendMessage}
+                  selectedModel={selectedModel}
+                  onSelectModel={handleModelSelected}
+                  selectedChatCoworker={selectedChatCoworker}
+                  coworkers={coworkers}
+                />
+              </>
+            )}
           </>
         ) : (
           <WelcomeScreen
@@ -1833,7 +1314,7 @@ export default function ChatInterface({
             setMessages={() => {}}
             sendMessage={sendMessageForInput}
             status="ready"
-            stop={handleStop}
+            stop={() => {}}
             coworkers={coworkers}
             initialCoworker={effectiveWelcomeCoworker ?? undefined}
             onCoworkerChange={handleWelcomeCoworkerChange}

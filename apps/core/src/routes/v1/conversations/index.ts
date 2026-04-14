@@ -5,7 +5,6 @@ import mountGetConversation from "./[id]/get.js";
 import mountGetConversationMessages from "./[id]/messages/get.js";
 import mountPostConversationMessage from "./[id]/messages/post.js";
 import mountPatchConversation from "./[id]/patch.js";
-import mountPostRecoverResponse from "./[id]/recover-response/post.js";
 import mountGetConversations from "./get.js";
 import mountPostConversation from "./post.js";
 
@@ -18,6 +17,5 @@ mountPatchConversation(app);
 mountArchiveConversation(app);
 mountGetConversationMessages(app);
 mountPostConversationMessage(app);
-mountPostRecoverResponse(app);
 
 export default app;

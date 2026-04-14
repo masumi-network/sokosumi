@@ -15,11 +15,13 @@ interface UseChatMessagesProps {
       role: string;
       content: Array<{ type: string; text?: string }> | string;
       createdAt: number;
-      thoughtTiming?: { startedAtMs: number; endedAtMs: number };
+      thoughtTiming?: {
+        startedAtMs: number | null;
+        endedAtMs: number | null;
+      };
     }>;
     metadata?: Record<string, unknown> | null;
   } | null;
-  skipLoadWhenPendingId?: boolean;
   setMessagesForConversation: (convId: string, messages: UIMessage[]) => void;
   previousChatIdRef: React.MutableRefObject<string | null>;
   messagesChatIdRef: React.MutableRefObject<string | null>;
@@ -33,7 +35,6 @@ interface UseChatMessagesProps {
 export function useChatMessages({
   selectedChatId,
   selectedConversation,
-  skipLoadWhenPendingId,
   setMessagesForConversation,
   previousChatIdRef,
   messagesChatIdRef,
@@ -46,18 +47,6 @@ export function useChatMessages({
     if (selectedChatId) {
       const currentSelectedChatId = selectedChatId;
       if (streamingConversationIdsRef?.current.has(currentSelectedChatId)) {
-        return;
-      }
-      const meta = (selectedConversation?.metadata ?? {}) as Record<
-        string,
-        unknown
-      >;
-      const hasPendingResponseId =
-        skipLoadWhenPendingId === true ||
-        (selectedConversation?.id === currentSelectedChatId &&
-          typeof meta.pending_responses_api_response_id === "string" &&
-          meta.pending_responses_api_response_id.length > 0);
-      if (hasPendingResponseId) {
         return;
       }
       const hasSyncItems =
@@ -107,7 +96,10 @@ export function useChatMessages({
                   role: string;
                   content: Array<{ type: string; text?: string }> | string;
                   createdAt: number;
-                  thoughtTiming?: { startedAtMs: number; endedAtMs: number };
+                  thoughtTiming?: {
+                    startedAtMs: number | null;
+                    endedAtMs: number | null;
+                  };
                 }>;
                 pagination: {
                   cursor: string | null;
@@ -143,7 +135,10 @@ export function useChatMessages({
             role: string;
             content: Array<{ type: string; text?: string }> | string;
             createdAt: number;
-            thoughtTiming?: { startedAtMs: number; endedAtMs: number };
+            thoughtTiming?: {
+              startedAtMs: number | null;
+              endedAtMs: number | null;
+            };
           }> | null = null;
 
           if (
@@ -168,7 +163,10 @@ export function useChatMessages({
                   role: string;
                   content: Array<{ type: string; text?: string }> | string;
                   createdAt: number;
-                  thoughtTiming?: { startedAtMs: number; endedAtMs: number };
+                  thoughtTiming?: {
+                    startedAtMs: number | null;
+                    endedAtMs: number | null;
+                  };
                 }>;
               };
               items = value.items;
@@ -199,7 +197,10 @@ export function useChatMessages({
                     role: string;
                     content: Array<{ type: string; text?: string }> | string;
                     createdAt: number;
-                    thoughtTiming?: { startedAtMs: number; endedAtMs: number };
+                    thoughtTiming?: {
+                      startedAtMs: number | null;
+                      endedAtMs: number | null;
+                    };
                   }> | null = null;
 
                   if (
@@ -227,8 +228,8 @@ export function useChatMessages({
                             | string;
                           createdAt: number;
                           thoughtTiming?: {
-                            startedAtMs: number;
-                            endedAtMs: number;
+                            startedAtMs: number | null;
+                            endedAtMs: number | null;
                           };
                         }>;
                       };
@@ -311,7 +312,6 @@ export function useChatMessages({
   }, [
     selectedChatId,
     selectedConversation,
-    skipLoadWhenPendingId,
     selectedConversation?.items,
     setMessagesForConversation,
     previousChatIdRef,

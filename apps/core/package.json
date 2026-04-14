@@ -54,9 +54,11 @@
     "cron-parser": "5.5.0",
     "dotenv": "17.4.2",
     "hono": "4.12.12",
+    "ioredis": "^5.10.1",
     "neverthrow": "8.2.0",
     "p-limit": "7.3.0",
     "postmark": "4.0.7",
+    "resumable-stream": "^2.2.12",
     "slugify": "1.6.9",
     "stripe": "20.4.1",
     "uuid": "13.0.0"

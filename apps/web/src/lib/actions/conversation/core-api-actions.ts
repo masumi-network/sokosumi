@@ -61,10 +61,6 @@ interface GetConversationMessagesParameters extends AuthenticatedRequest {
   cursor?: string | null;
 }
 
-interface RecoverConversationResponseParameters extends AuthenticatedRequest {
-  conversationId: string; // Internal database ID
-}
-
 /** API response may have optional title/metadata; we normalize to Conversation. */
 function toConversation(conversation: CoreConversation): Conversation {
   return {
@@ -148,59 +144,6 @@ export const getConversationMessages = withSession<
     },
   } as unknown as Result<
     { items: ConversationItem[]; pagination: CoreApiPagination | null },
-    ActionError
-  >;
-});
-
-/**
- * Recovers a pending coworker response after client disconnect via Core API.
- * Returns { recovered: true } if a response was persisted, { recovered: false, reason? } otherwise.
- * reason is "not_found" when the coworker API returned 404, "terminal" when the response ended without a recoverable completion.
- */
-export const recoverConversationResponse = withSession<
-  RecoverConversationResponseParameters,
-  Result<
-    {
-      recovered: boolean;
-      reason?: "not_found" | "in_progress" | "terminal";
-    },
-    ActionError
-  >
->(async ({ conversationId }) => {
-  const result = await makeCoreApiRequest(() =>
-    coreClient.postConversationsByIdRecoverResponse(conversationId),
-  );
-
-  if (result.isErr()) {
-    return {
-      ok: false,
-      error: result.error,
-    } as unknown as Result<
-      {
-        recovered: boolean;
-        reason?: "not_found" | "in_progress" | "terminal";
-      },
-      ActionError
-    >;
-  }
-
-  const value = result.value as
-    | {
-        recovered?: boolean;
-        reason?: "not_found" | "in_progress" | "terminal";
-      }
-    | undefined;
-  return {
-    ok: true,
-    data: {
-      recovered: value?.recovered ?? false,
-      reason: value?.reason,
-    },
-  } as unknown as Result<
-    {
-      recovered: boolean;
-      reason?: "not_found" | "in_progress" | "terminal";
-    },
     ActionError
   >;
 });
