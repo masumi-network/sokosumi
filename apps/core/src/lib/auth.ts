@@ -199,6 +199,18 @@ export const auth = betterAuth({
           });
         },
       },
+      schema: {
+        organization: {
+          additionalFields: {
+            stripeCustomerId: {
+              type: "string",
+              required: false,
+              defaultValue: null,
+              input: false,
+            },
+          },
+        },
+      },
     }),
     oauthProvider({
       loginPage: `${webAppBaseUrl}/signin`,
