@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 import { createMiddleware } from "hono/factory";
 import { forbidden } from "@/helpers/error";
@@ -44,18 +45,32 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
       return await next();
     }
 
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
-      authContext.userId,
-      authContext.organizationId ?? null,
-      prisma,
-    );
+    try {
+      const workspace = await workspaceRepository.upsertWorkspaceForContext(
+        authContext.userId,
+        authContext.organizationId ?? null,
+        prisma,
+      );
 
-    const workspaceContext: WorkspaceContext = {
-      workspaceId: workspace.id,
-      userId: workspace.userId,
-      organizationId: workspace.organizationId,
-    };
+      const workspaceContext: WorkspaceContext = {
+        workspaceId: workspace.id,
+        userId: workspace.userId,
+        organizationId: workspace.organizationId,
+      };
 
-    c.set("workspaceContext", workspaceContext);
+      c.set("workspaceContext", workspaceContext);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: {
+          context: "workspace_context_resolution",
+        },
+        extra: {
+          activeOrganizationId: authContext.organizationId ?? null,
+          userId: authContext.userId,
+        },
+      });
+      c.set("workspaceContext", null);
+    }
+
     return await next();
   });

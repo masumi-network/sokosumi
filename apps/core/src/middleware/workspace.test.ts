@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 const {
+  captureExceptionMock,
   verifyApiKeyMock,
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
@@ -10,6 +11,7 @@ const {
   upsertWorkspaceForContextMock,
   memberFindFirstMock,
 } = vi.hoisted(() => ({
+  captureExceptionMock: vi.fn(),
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
@@ -17,6 +19,15 @@ const {
   upsertWorkspaceForContextMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
 }));
+
+vi.mock("@sentry/node", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sentry/node")>();
+
+  return {
+    ...actual,
+    captureException: (...args: unknown[]) => captureExceptionMock(...args),
+  };
+});
 
 vi.mock("@/lib/auth", () => ({
   auth: {
@@ -193,6 +204,42 @@ describe("workspaceMiddleware", () => {
         workspaceId: "workspace_created",
         userId: null,
         organizationId: "org_existing",
+      },
+    });
+  });
+
+  it("captures workspace resolution failures and keeps workspaceContext null", async () => {
+    getSessionMock.mockResolvedValue({
+      session: {
+        activeOrganizationId: "org_existing",
+      },
+      user: {
+        id: "user_123",
+      },
+    });
+    upsertWorkspaceForContextMock.mockRejectedValueOnce(
+      new Error("workspace failed"),
+    );
+
+    const app = createApp(true);
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      authContext: {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_existing",
+      },
+      workspaceContext: null,
+    });
+    expect(captureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        activeOrganizationId: "org_existing",
+        userId: "user_123",
+      },
+      tags: {
+        context: "workspace_context_resolution",
       },
     });
   });
