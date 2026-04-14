@@ -1,9 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
-import { badRequest } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -89,7 +88,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const { authContext, workspaceContext } = c.var;
     const queryParams = c.req.valid("query");
     const { q, status: statuses, coworkerId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
@@ -119,16 +118,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
-      const workspace = await resolveWorkspaceForContext(
-        authContext.userId,
-        authContext.organizationId,
-        prisma,
-      );
-
       where = {
         archivedAt: null,
         userId: authContext.userId,
-        workspaceId: workspace.id,
+        workspaceId: workspaceContext?.workspaceId,
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
         ...searchFilter,
