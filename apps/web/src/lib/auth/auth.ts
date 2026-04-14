@@ -545,7 +545,11 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
-          await workspaceRepository.createWorkspace(null, organization.id, prisma);
+          await workspaceRepository.createWorkspace(
+            null,
+            organization.id,
+            prisma,
+          );
           void ensureStripeCustomerForCreatedOrganization(organization).catch(
             (error) => {
               Sentry.captureException(error, {
