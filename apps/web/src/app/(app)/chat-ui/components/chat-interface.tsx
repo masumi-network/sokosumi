@@ -50,6 +50,16 @@ const SLOT_PLACEHOLDER_CHAT_IDS: readonly [string, string, string] = [
   "__sokosumi_empty_slot_2__",
 ];
 
+/** Matches Postgres `uuid` / Prisma `@default(uuid())` ids (RFC 4122 shape). */
+const CONVERSATION_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isConversationUuid(value: string): boolean {
+  return CONVERSATION_UUID_RE.test(value.trim());
+}
+
+const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
+
 interface SlotPayload {
   conversationId: string | null;
   model: { id: string; name: string } | null;
@@ -314,12 +324,20 @@ export default function ChatInterface({
       model: null,
     })),
   );
+  const slotBoundConversationIdRef = useRef<(string | null)[]>([
+    null,
+    null,
+    null,
+  ]);
 
   useEffect(() => {
     selectedModelRef.current = selectedModel;
   }, [selectedModel]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    for (let s = 0; s < NUM_SLOTS; s++) {
+      slotBoundConversationIdRef.current[s] = slotToConversation.get(s) ?? null;
+    }
     slotToConversation.forEach((convId, slot) => {
       const current = slotPayloadRef.current[slot];
       if (current?.conversationId !== convId) {
@@ -436,14 +454,42 @@ export default function ChatInterface({
         api: _api,
       }) {
         const slug = organizationSlugRef.current;
+        const headers = slug
+          ? ({ "x-organization-slug": slug } as Record<string, string>)
+          : undefined;
+        const payload = slotPayloadRef.current[slotIndex];
+        const fromPayload = payload?.conversationId?.trim() ?? "";
+        const fromBound =
+          slotBoundConversationIdRef.current[slotIndex]?.trim() ?? "";
+        const streamConversationId =
+          (fromPayload.length > 0 && isConversationUuid(fromPayload)
+            ? fromPayload
+            : null) ??
+          (fromBound.length > 0 && isConversationUuid(fromBound)
+            ? fromBound
+            : null) ??
+          (typeof id === "string" && id.length > 0 && isConversationUuid(id)
+            ? id
+            : null);
+        if (streamConversationId == null) {
+          return {
+            api: CHAT_NO_RESUMABLE_STREAM_PATH,
+            credentials: "include" as RequestCredentials,
+            headers,
+          };
+        }
         return {
-          api: `/api/chat/${id}/stream`,
+          api: `/api/chat/${streamConversationId}/stream`,
           credentials: "include" as RequestCredentials,
-          headers: slug ? { "x-organization-slug": slug } : undefined,
+          headers,
         };
       },
     });
   }
+
+  const slot0BoundId = slotToConversation.get(0) ?? null;
+  const slot1BoundId = slotToConversation.get(1) ?? null;
+  const slot2BoundId = slotToConversation.get(2) ?? null;
 
   const transport0 = useMemo(
     () => makeSlotTransport(0, CHAT_API_PATH),
@@ -457,10 +503,6 @@ export default function ChatInterface({
     () => makeSlotTransport(2, CHAT_API_PATH),
     [CHAT_API_PATH],
   );
-
-  const slot0BoundId = slotToConversation.get(0) ?? null;
-  const slot1BoundId = slotToConversation.get(1) ?? null;
-  const slot2BoundId = slotToConversation.get(2) ?? null;
 
   const slot0InitialMessages = useMemo(
     () =>
@@ -549,7 +591,7 @@ export default function ChatInterface({
   );
 
   const chat0 = useChat({
-    id: slot0BoundId ?? SLOT_PLACEHOLDER_CHAT_IDS[0],
+    id: SLOT_PLACEHOLDER_CHAT_IDS[0],
     messages: slot0InitialMessages,
     resume: Boolean(slot0BoundId),
     transport: transport0,
@@ -558,7 +600,7 @@ export default function ChatInterface({
     onFinish: onFinishForSlot(0),
   });
   const chat1 = useChat({
-    id: slot1BoundId ?? SLOT_PLACEHOLDER_CHAT_IDS[1],
+    id: SLOT_PLACEHOLDER_CHAT_IDS[1],
     messages: slot1InitialMessages,
     resume: Boolean(slot1BoundId),
     transport: transport1,
@@ -567,7 +609,7 @@ export default function ChatInterface({
     onFinish: onFinishForSlot(1),
   });
   const chat2 = useChat({
-    id: slot2BoundId ?? SLOT_PLACEHOLDER_CHAT_IDS[2],
+    id: SLOT_PLACEHOLDER_CHAT_IDS[2],
     messages: slot2InitialMessages,
     resume: Boolean(slot2BoundId),
     transport: transport2,
@@ -770,6 +812,7 @@ export default function ChatInterface({
         return m;
       });
       slotPayloadRef.current[slot] = { conversationId: null, model: null };
+      slotBoundConversationIdRef.current[slot] = null;
     },
     [slotToConversation, slotMessages],
   );
@@ -841,6 +884,7 @@ export default function ChatInterface({
           conversationId,
           model: selectedModelRef.current,
         };
+        slotBoundConversationIdRef.current[slot] = conversationId;
         setConversationToSlot((prev) =>
           new Map(prev).set(conversationId, slot!),
         );
