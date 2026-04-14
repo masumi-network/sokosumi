@@ -3,22 +3,25 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
 import type { Prisma } from "../../generated/prisma/client.js";
-import { workspaceSummaryInclude } from "../../types/workspace.js";
 import { workspaceRepository } from "../workspace.repository.js";
 
 describe("workspaceRepository", () => {
-  it("upserts the personal workspace when resolving a personal context", async () => {
-    let upsertCall: unknown;
+  it("returns the existing personal workspace when resolving a personal context", async () => {
+    let findUniqueCall: unknown;
     const tx = {
       workspace: {
-        upsert: async (args: unknown) => {
-          upsertCall = args;
+        findUnique: async (args: unknown) => {
+          findUniqueCall = args;
           return {
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
             id: "workspace-user-1",
-            organization: null,
             organizationId: null,
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
             userId: "user-1",
           };
+        },
+        create: async () => {
+          throw new Error("create should not be called");
         },
       },
     } as unknown as Prisma.TransactionClient;
@@ -30,28 +33,27 @@ describe("workspaceRepository", () => {
     );
 
     assert.equal(workspace.id, "workspace-user-1");
-    assert.deepEqual(upsertCall, {
+    assert.deepEqual(findUniqueCall, {
       where: { userId: "user-1" },
-      update: {},
-      create: { userId: "user-1" },
-      include: workspaceSummaryInclude,
     });
   });
 
-  it("upserts the organization workspace when resolving an organization context", async () => {
-    let upsertCall: unknown;
+  it("creates the organization workspace when it is missing", async () => {
+    let findUniqueCall: unknown;
+    let createCall: unknown;
     const tx = {
       workspace: {
-        upsert: async (args: unknown) => {
-          upsertCall = args;
+        findUnique: async (args: unknown) => {
+          findUniqueCall = args;
+          return null;
+        },
+        create: async (args: unknown) => {
+          createCall = args;
           return {
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
             id: "workspace-org-1",
-            organization: {
-              id: "org-1",
-              name: "Org One",
-              slug: "org-one",
-            },
             organizationId: "org-1",
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
             userId: null,
           };
         },
@@ -65,11 +67,47 @@ describe("workspaceRepository", () => {
     );
 
     assert.equal(workspace.id, "workspace-org-1");
-    assert.deepEqual(upsertCall, {
+    assert.deepEqual(findUniqueCall, {
       where: { organizationId: "org-1" },
-      update: {},
-      create: { organizationId: "org-1" },
-      include: workspaceSummaryInclude,
     });
+    assert.deepEqual(createCall, {
+      data: { organizationId: "org-1" },
+    });
+  });
+
+  it("re-reads the personal workspace after a unique race on create", async () => {
+    let findUniqueCalls = 0;
+    const tx = {
+      workspace: {
+        findUnique: async () => {
+          findUniqueCalls += 1;
+          if (findUniqueCalls === 1) {
+            return null;
+          }
+
+          return {
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            id: "workspace-user-1",
+            organizationId: null,
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+            userId: "user-1",
+          };
+        },
+        create: async () => {
+          throw Object.assign(new Error("Unique constraint failed"), {
+            code: "P2002",
+          });
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
+      "user-1",
+      null,
+      tx,
+    );
+
+    assert.equal(workspace.id, "workspace-user-1");
+    assert.equal(findUniqueCalls, 2);
   });
 });
