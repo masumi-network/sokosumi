@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountPatchTask from "./[id]/patch";
 import mountPostTask from "./post";
@@ -41,13 +42,18 @@ vi.mock("@/helpers/task", () => ({
 
 function createApp() {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
+      userId: "user_123",
+      organizationId: null,
+    });
+    c.set("workspaceContext", {
+      workspaceId: "22222222-2222-7222-8222-222222222222",
       userId: "user_123",
       organizationId: null,
     });
@@ -94,7 +100,11 @@ describe("task coworker whitelist enforcement", () => {
       }),
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
+      "cow_123",
+      tx,
+    );
     expect(tx.task.create).not.toHaveBeenCalled();
   });
 
@@ -161,7 +171,11 @@ describe("task coworker whitelist enforcement", () => {
       }),
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
+      "cow_123",
+      tx,
+    );
     expect(tx.task.create).not.toHaveBeenCalled();
   });
 });
