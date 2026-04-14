@@ -215,6 +215,58 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("defaults scope to context for user requests", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/?scope=context");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+      }),
+    );
+  });
+
+  it("filters task lists to owned tasks when scope=owned", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/?scope=owned");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: "user_123",
+        },
+      }),
+    );
+  });
+
+  it("lets scope=owned override an explicit userId filter", async () => {
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/?scope=owned&userId=user_456",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: "user_123",
+        },
+      }),
+    );
+  });
+
   it("filters coworker task lists by userId", async () => {
     const app = createApp("coworker");
 
@@ -235,6 +287,16 @@ describe("GET /tasks", () => {
         },
       }),
     );
+  });
+
+  it("rejects scope=owned for coworker requests", async () => {
+    const app = createApp("coworker");
+
+    const response = await app.request("http://localhost/?scope=owned");
+
+    expect(response.status).toBe(400);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+    expect(taskCountMock).not.toHaveBeenCalled();
   });
 
   it("filters task lists by associated agentId", async () => {

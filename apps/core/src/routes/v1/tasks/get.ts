@@ -54,9 +54,20 @@ const taskNameQuerySchema = z
     example: "review",
   });
 
+const taskScopeQuerySchema = z
+  .enum(["context", "owned"])
+  .optional()
+  .default("context")
+  .openapi({
+    param: { name: "scope", in: "query" },
+    description: "Scope tasks to the active workspace or to the authenticated user's owned tasks",
+    example: "owned",
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
+    scope: taskScopeQuerySchema,
     status: taskStatusQuerySchema,
     userId: z
       .string()
@@ -106,7 +117,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { workspaceContext, authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { q, status: statuses, coworkerId, agentId, userId } = queryParams;
+    const { q, scope, status: statuses, coworkerId, agentId, userId } =
+      queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -120,6 +132,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
+
+      if (scope === "owned") {
+        throw badRequest("scope=owned is only supported for user requests.");
+      }
 
       if (statuses?.includes(TaskStatus.DRAFT)) {
         throw badRequest(
@@ -145,10 +161,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where = {
         archivedAt: null,
         workspaceId,
+        ...(scope === "owned"
+          ? { userId: authContext.userId }
+          : userId
+            ? { userId }
+            : {}),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
         ...(agentId ? { jobs: { some: { agentId } } } : {}),
-        ...(userId ? { userId } : {}),
         ...searchFilter,
       };
     }
