@@ -1177,6 +1177,7 @@ describe("web auth config", () => {
     });
 
     await Promise.resolve();
+    await Promise.resolve();
 
     expect(settled).toBe(true);
     expect(workspaceCreateMock).toHaveBeenCalledWith({
@@ -1250,6 +1251,7 @@ describe("web auth config", () => {
       settled = true;
     });
 
+    await Promise.resolve();
     await Promise.resolve();
 
     expect(settled).toBe(true);
