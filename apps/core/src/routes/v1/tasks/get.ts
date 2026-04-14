@@ -118,10 +118,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
+      const workspaceId = workspaceContext?.workspaceId;
+
+      if (!workspaceId) {
+        throw notFound("Workspace not found");
+      }
+
       where = {
         archivedAt: null,
         userId: authContext.userId,
-        workspaceId: workspaceContext?.workspaceId,
+        workspaceId,
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
         ...searchFilter,
