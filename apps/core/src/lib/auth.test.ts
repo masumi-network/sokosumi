@@ -569,6 +569,52 @@ describe("core auth config", () => {
     });
   });
 
+  it("reports workspace creation failures to Sentry without blocking user creation", async () => {
+    workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      email: "andreas@example.com",
+      id: "user_123",
+      name: "Andreas",
+    });
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        email: "andreas@example.com",
+        name: "Andreas",
+        userId: "user_123",
+      },
+      tags: {
+        context: "workspace_user_creation",
+      },
+    });
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
+      email: "andreas@example.com",
+      name: "Andreas",
+      userId: "user_123",
+    });
+  });
+
   it("reports Stripe customer creation failures to Sentry", async () => {
     stripeCreateUserCustomerMock.mockRejectedValueOnce(
       new Error("stripe failed"),
@@ -614,6 +660,44 @@ describe("core auth config", () => {
       },
       tags: {
         context: "stripe_user_customer_creation",
+      },
+    });
+  });
+
+  it("reports organization workspace creation failures to Sentry", async () => {
+    workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
+
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              organization: {
+                id: string;
+                name: string;
+              };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterCreateOrganization({
+      organization: {
+        id: "org_123",
+        name: "Org One",
+      },
+    });
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        organizationId: "org_123",
+        organizationName: "Org One",
+      },
+      tags: {
+        context: "workspace_organization_creation",
       },
     });
   });

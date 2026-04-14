@@ -85,6 +85,54 @@ const fromEmail = secrets.POSTMARK_FROM_EMAIL;
 const betterAuthApiKey = secrets.BETTER_AUTH_API_KEY;
 const betterAuthProductionUrl = getBetterAuthProductionUrl();
 
+async function ensureWorkspaceForCreatedUser(user: {
+  email: string;
+  id: string;
+  name: string;
+}): Promise<void> {
+  try {
+    await workspaceRepository.upsertPersonalWorkspace({
+      userId: user.id,
+      tx: prisma,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "workspace_user_creation",
+      },
+      extra: {
+        email: user.email,
+        name: user.name,
+        userId: user.id,
+      },
+    });
+  }
+}
+
+async function ensureWorkspaceForCreatedOrganization(organization: {
+  id: string;
+  name: string;
+  slug: string;
+}): Promise<void> {
+  try {
+    await workspaceRepository.upsertOrganizationWorkspace({
+      organizationId: organization.id,
+      tx: prisma,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "workspace_organization_creation",
+      },
+      extra: {
+        organizationId: organization.id,
+        organizationName: organization.name,
+        organizationSlug: organization.slug,
+      },
+    });
+  }
+}
+
 function getEmailLocaleCookieValue(
   cookieHeader?: null | string,
 ): null | string {
@@ -295,10 +343,7 @@ export const auth = betterAuth({
           };
         },
         after: async (user, _ctx) => {
-          workspaceRepository.upsertPersonalWorkspace({
-            userId: user.id,
-            tx: prisma,
-          });
+          await ensureWorkspaceForCreatedUser(user);
           void ensureStripeCustomerForCreatedUser(user).catch((error) => {
             Sentry.captureException(error, {
               tags: {
@@ -548,10 +593,7 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
-          workspaceRepository.upsertOrganizationWorkspace({
-            organizationId: organization.id,
-            tx: prisma,
-          });
+          await ensureWorkspaceForCreatedOrganization(organization);
           void ensureStripeCustomerForCreatedOrganization(organization).catch(
             (error) => {
               Sentry.captureException(error, {
