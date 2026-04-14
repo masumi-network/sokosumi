@@ -16,6 +16,7 @@ import {
   type InputHiddenSchemaType,
   type InputMonthSchemaType,
   type InputMultiselectSchemaType,
+  type InputNumberSchemaType,
   type InputPasswordSchemaType,
   type InputRadioGroupSchemaType,
   type InputRangeSchemaType,
@@ -248,6 +249,41 @@ describe("inputDataSchema", () => {
         ],
       });
       expect(result.success).toBe(true);
+    });
+
+    it("should treat blank string default as unset, not zero", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validNumberInput,
+            data: {
+              ...validNumberInput.data,
+              default: "",
+            },
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
+      const field = result.data!.input_data[0] as InputNumberSchemaType;
+      expect(field.data?.default).toBeUndefined();
+    });
+
+    it("should treat whitespace-only default as unset", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validNumberInput,
+            data: {
+              ...validNumberInput.data,
+              default: "   ",
+            },
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
+      const fieldWhitespace = result.data!
+        .input_data[0] as InputNumberSchemaType;
+      expect(fieldWhitespace.data?.default).toBeUndefined();
     });
 
     it("should fail with invalid validations", () => {
@@ -560,6 +596,25 @@ describe("inputDataSchema", () => {
         input_data: [validRange],
       });
       expect(result.success).toBe(true);
+    });
+
+    it("should treat blank string range default and step as unset", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validRange,
+            data: {
+              ...validRange.data,
+              default: "",
+              step: "",
+            },
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
+      const field = result.data!.input_data[0] as InputRangeSchemaType;
+      expect(field.data?.default).toBeUndefined();
+      expect(field.data?.step).toBeUndefined();
     });
   });
 

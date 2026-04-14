@@ -1,6 +1,7 @@
 import * as z from "zod";
 
 import { InputType, OutputFormat } from "../../types/input-types.js";
+import { preprocessBlankNumericInput } from "./blank-numeric-input.js";
 import {
   acceptValidationSchema,
   formatEmailValidationSchema,
@@ -104,7 +105,10 @@ export const inputNumberSchema = z.object({
   name: z.string().min(1),
   data: z
     .object({
-      default: z.coerce.number().nullish(),
+      default: z.preprocess(
+        preprocessBlankNumericInput,
+        z.coerce.number().nullish(),
+      ),
       placeholder: z.string().nullish(),
       description: z.string().nullish(),
     })
@@ -352,8 +356,14 @@ export const inputRangeSchema = z.object({
   data: z
     .object({
       description: z.string().nullish(),
-      step: z.coerce.number().min(0).nullish(),
-      default: z.coerce.number().nullish(),
+      step: z.preprocess(
+        preprocessBlankNumericInput,
+        z.coerce.number().min(0).nullish(),
+      ),
+      default: z.preprocess(
+        preprocessBlankNumericInput,
+        z.coerce.number().nullish(),
+      ),
     })
     .nullish(),
   validations: z
