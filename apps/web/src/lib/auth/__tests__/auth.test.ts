@@ -992,6 +992,9 @@ describe("web auth config", () => {
       data: {
         ...user,
         name: "magic",
+        workspace: {
+          create: {},
+        },
       },
     });
 
@@ -1001,10 +1004,16 @@ describe("web auth config", () => {
     expect(marketingOptInUserSchemaSafeParseMock).toHaveBeenNthCalledWith(1, {
       ...user,
       name: "magic",
+      workspace: {
+        create: {},
+      },
     });
     expect(marketingOptInUserSchemaSafeParseMock).toHaveBeenNthCalledWith(2, {
       ...user,
       name: "magic",
+      workspace: {
+        create: {},
+      },
     });
     expect(callUserCreatedWebHookMock).toHaveBeenCalledWith(
       "user_123",
@@ -1064,6 +1073,9 @@ describe("web auth config", () => {
         email: "@example.com",
         marketingOptIn: true,
         name: "@example.com",
+        workspace: {
+          create: {},
+        },
       },
     });
   });

@@ -461,6 +461,9 @@ describe("core auth config", () => {
         email: " magic@example.com ",
         id: "user_123",
         name: "magic",
+        workspace: {
+          create: {},
+        },
       },
     });
 
@@ -511,6 +514,9 @@ describe("core auth config", () => {
         email: "@example.com",
         id: "user_123",
         name: "@example.com",
+        workspace: {
+          create: {},
+        },
       },
     });
   });
