@@ -227,7 +227,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               </Suspense>
               <OnboardingDialog
                 paidPlans={onboardingPlans}
-                subscriptionOnly={true}
+                subscriptionOnly={false}
               />
             </>
           ) : null}
