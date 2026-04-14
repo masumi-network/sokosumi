@@ -19,15 +19,6 @@ const transactionMock = vi.fn();
 const getSessionMock = vi.fn();
 const getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock = vi.fn();
 
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-  };
-});
-
 vi.mock("@sokosumi/database/repositories", () => ({
   agentListRepository: {
     upsertAgentListForUserId: vi.fn(),

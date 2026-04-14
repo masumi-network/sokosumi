@@ -52,15 +52,6 @@ vi.mock("uuid", () => ({
   v4: () => "12345678-1234-4234-9234-1234567890ab",
 }));
 
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-  };
-});
-
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     getBalance: (...args: unknown[]) => getBalanceMock(...args),
