@@ -119,10 +119,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { agentId, status } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    if (!workspaceContext) {
-      throw notFound("Workspace not found");
-    }
-
     const { jobs, count, hasMore } = await getUserJobs(
       {
         authContext,

@@ -43,7 +43,7 @@ import { getCents } from "./user";
 
 export interface JobContext {
   authContext: UserAuthenticationContext;
-  workspaceContext: WorkspaceContext;
+  workspaceContext: WorkspaceContext | null;
 }
 
 /**
@@ -483,13 +483,12 @@ export async function getUserJobs(
 }> {
   const { agentId, status, cursor, take, skip, tx = prisma } = options;
   const { authContext, workspaceContext } = context;
-  const { workspaceId } = workspaceContext;
 
   const where: Prisma.JobWhereInput = {
     AND: [
       {
         userId: authContext.userId,
-        workspaceId,
+        workspaceId: workspaceContext?.workspaceId,
       },
       ...(agentId ? [{ agentId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
