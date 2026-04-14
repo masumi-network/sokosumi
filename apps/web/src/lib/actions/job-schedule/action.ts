@@ -130,9 +130,6 @@ export const createSchedule = withSession<
       session.session.activeOrganizationId ?? null,
       prisma,
     );
-    if (!workspace) {
-      throw new Error("Workspace not found");
-    }
 
     // Build Prisma input directly
     const prismaInput: Prisma.JobScheduleCreateInput = {

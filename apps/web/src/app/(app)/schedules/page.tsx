@@ -33,9 +33,6 @@ export default async function SchedulesPage() {
     session.session.activeOrganizationId ?? null,
     prisma,
   );
-  if (!workspace) {
-    throw new Error("Workspace not found");
-  }
 
   const schedules = await jobScheduleRepository.getScheduleJobsByContext(
     session.user.id,

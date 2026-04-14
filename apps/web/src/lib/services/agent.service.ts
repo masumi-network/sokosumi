@@ -313,9 +313,6 @@ export const agentService = (() => {
         session.session.activeOrganizationId ?? null,
         prisma,
       );
-      if (!workspace) {
-        throw new Error("Workspace not found");
-      }
       const hiredAgentsWithJobs =
         await agentRepository.getHiredAgentsWithLatestJobByUserIdAndWorkspace(
           session.user.id,

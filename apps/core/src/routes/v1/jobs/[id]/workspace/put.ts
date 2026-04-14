@@ -120,9 +120,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           targetOrganizationId ?? null,
           tx,
         );
-        if (!workspace) {
-          throw forbidden("Target workspace is missing");
-        }
 
         await tx.job.update({
           where: {

@@ -159,9 +159,6 @@ export const jobService = (() => {
       activeOrganizationId ?? null,
       prisma,
     );
-    if (!workspace) {
-      throw new Error("Workspace not found");
-    }
 
     const job = await jobRepository.createDemoJob(
       {
@@ -382,9 +379,6 @@ export const jobService = (() => {
           organizationId ?? null,
           tx,
         );
-        if (!workspace) {
-          throw new Error("Workspace not found");
-        }
 
         return await jobRepository.createJob(
           {
@@ -543,9 +537,6 @@ export const jobService = (() => {
       organizationId ?? null,
       prisma,
     );
-    if (!workspace) {
-      throw new Error("Workspace not found");
-    }
 
     // Create free job in database
     Sentry.addBreadcrumb({
@@ -772,9 +763,6 @@ export const jobService = (() => {
       activeOrganizationId ?? null,
       tx,
     );
-    if (!workspace) {
-      throw new Error("Workspace not found");
-    }
 
     return await Promise.all(
       agentIds.map(async (agentId) => {

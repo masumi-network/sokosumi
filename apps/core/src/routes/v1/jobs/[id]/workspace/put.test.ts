@@ -244,24 +244,6 @@ describe("PUT /jobs/{id}/workspace", () => {
     });
   });
 
-  it("returns 403 when the target workspace is missing", async () => {
-    upsertWorkspaceForContextMock.mockResolvedValueOnce(null);
-
-    const app = createApp(null);
-    const response = await app.request("http://localhost/job_123/workspace", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        organizationId: "org_target",
-      }),
-    });
-
-    expect(response.status).toBe(403);
-    expect(jobUpdateMock).not.toHaveBeenCalled();
-  });
-
   it("returns 409 for task-attached jobs", async () => {
     jobFindFirstMock.mockResolvedValue(
       createCurrentJobRecord({

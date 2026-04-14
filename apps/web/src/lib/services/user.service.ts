@@ -106,9 +106,6 @@ export const userService = (() => {
       activeOrganizationId ?? null,
       prisma,
     );
-    if (!workspace) {
-      throw new Error("Workspace not found");
-    }
 
     // Get owned jobs
     const ownedJobs = await jobRepository.getJobs(
@@ -139,9 +136,6 @@ export const userService = (() => {
       activeOrganizationId ?? null,
       prisma,
     );
-    if (!workspace) {
-      throw new Error("Workspace not found");
-    }
 
     const baseWhere: Prisma.JobWhereInput = {
       OR: [
