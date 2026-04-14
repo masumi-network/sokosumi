@@ -16,6 +16,7 @@ import {
   type InputHiddenSchemaType,
   type InputMonthSchemaType,
   type InputMultiselectSchemaType,
+  type InputNumberSchemaType,
   type InputPasswordSchemaType,
   type InputRadioGroupSchemaType,
   type InputRangeSchemaType,
@@ -263,8 +264,8 @@ describe("inputDataSchema", () => {
         ],
       });
       expect(result.success).toBe(true);
-      const field = result.data?.input_data[0];
-      expect(field?.data?.default).toBeUndefined();
+      const field = result.data!.input_data[0] as InputNumberSchemaType;
+      expect(field.data?.default).toBeUndefined();
     });
 
     it("should treat whitespace-only default as unset", () => {
@@ -280,7 +281,9 @@ describe("inputDataSchema", () => {
         ],
       });
       expect(result.success).toBe(true);
-      expect(result.data?.input_data[0]?.data?.default).toBeUndefined();
+      const fieldWhitespace = result.data!
+        .input_data[0] as InputNumberSchemaType;
+      expect(fieldWhitespace.data?.default).toBeUndefined();
     });
 
     it("should fail with invalid validations", () => {
@@ -609,9 +612,9 @@ describe("inputDataSchema", () => {
         ],
       });
       expect(result.success).toBe(true);
-      const field = result.data?.input_data[0];
-      expect(field?.data?.default).toBeUndefined();
-      expect(field?.data?.step).toBeUndefined();
+      const field = result.data!.input_data[0] as InputRangeSchemaType;
+      expect(field.data?.default).toBeUndefined();
+      expect(field.data?.step).toBeUndefined();
     });
   });
 
