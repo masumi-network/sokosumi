@@ -41,6 +41,7 @@ const handleCustomerCreatedEventMock = vi.fn();
 const handleCustomerUpdatedEventMock = vi.fn();
 const handleInvoicePaidEventMock = vi.fn();
 const handleSubscriptionDeletedEventMock = vi.fn();
+const workspaceCreateMock = vi.fn();
 
 function getDefaultEnvSecrets() {
   return {
@@ -155,6 +156,9 @@ vi.mock("@sokosumi/database/repositories", () => ({
     getMembersByOrganizationId: (...args: unknown[]) =>
       getMembersByOrganizationIdMock(...args),
     getMemberByUserIdAndOrganizationId: vi.fn(),
+  },
+  workspaceRepository: {
+    createWorkspace: (...args: unknown[]) => workspaceCreateMock(...args),
   },
 }));
 
@@ -307,6 +311,7 @@ describe("web auth config", () => {
       id: "cus_org_1",
     });
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_user_1" });
+    workspaceCreateMock.mockResolvedValue({ id: "workspace_123" });
     syncLocalFreeSeatsAndCreditsForCurrentMembersMock.mockResolvedValue(
       undefined,
     );
@@ -992,28 +997,24 @@ describe("web auth config", () => {
       data: {
         ...user,
         name: "magic",
-        workspace: {
-          create: {},
-        },
       },
     });
 
     await config.databaseHooks.user.create.after(normalizedUser);
     await config.databaseHooks.user.update.after(normalizedUser);
 
+    expect(workspaceCreateMock).toHaveBeenCalledWith({
+      organizationId: null,
+      tx: expect.objectContaining({ __prisma: true }),
+      userId: "user_123",
+    });
     expect(marketingOptInUserSchemaSafeParseMock).toHaveBeenNthCalledWith(1, {
       ...user,
       name: "magic",
-      workspace: {
-        create: {},
-      },
     });
     expect(marketingOptInUserSchemaSafeParseMock).toHaveBeenNthCalledWith(2, {
       ...user,
       name: "magic",
-      workspace: {
-        create: {},
-      },
     });
     expect(callUserCreatedWebHookMock).toHaveBeenCalledWith(
       "user_123",
@@ -1073,9 +1074,6 @@ describe("web auth config", () => {
         email: "@example.com",
         marketingOptIn: true,
         name: "@example.com",
-        workspace: {
-          create: {},
-        },
       },
     });
   });
@@ -1120,6 +1118,11 @@ describe("web auth config", () => {
       user: { id: "user-1" },
     });
 
+    expect(workspaceCreateMock).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      tx: expect.objectContaining({ __prisma: true }),
+      userId: null,
+    });
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
     expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
       "org-1",
@@ -1176,6 +1179,11 @@ describe("web auth config", () => {
     await Promise.resolve();
 
     expect(settled).toBe(true);
+    expect(workspaceCreateMock).toHaveBeenCalledWith({
+      organizationId: null,
+      tx: expect.objectContaining({ __prisma: true }),
+      userId: "user_123",
+    });
     expect(callUserCreatedWebHookMock).toHaveBeenCalledWith(
       "user_123",
       "magic@example.com",
@@ -1245,6 +1253,11 @@ describe("web auth config", () => {
     await Promise.resolve();
 
     expect(settled).toBe(true);
+    expect(workspaceCreateMock).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      tx: expect.objectContaining({ __prisma: true }),
+      userId: null,
+    });
     expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
       "org-1",
       "org-one",

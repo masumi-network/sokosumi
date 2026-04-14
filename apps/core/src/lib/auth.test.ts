@@ -20,6 +20,7 @@ const {
   renderMagicLinkEmailMock,
   sentryCaptureExceptionMock,
   stripeCreateUserCustomerMock,
+  workspaceCreateMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
@@ -40,6 +41,7 @@ const {
   renderMagicLinkEmailMock: vi.fn(),
   sentryCaptureExceptionMock: vi.fn(),
   stripeCreateUserCustomerMock: vi.fn(),
+  workspaceCreateMock: vi.fn(),
 }));
 
 function getDefaultEnv() {
@@ -87,6 +89,12 @@ vi.mock("@better-auth/i18n", () => ({
 
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
+}));
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  workspaceRepository: {
+    createWorkspace: (...args: unknown[]) => workspaceCreateMock(...args),
+  },
 }));
 
 vi.mock("@/clients/postmark.client", () => ({
@@ -146,6 +154,7 @@ describe("core auth config", () => {
     });
     sentryCaptureExceptionMock.mockReset();
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
+    workspaceCreateMock.mockResolvedValue({ id: "workspace_123" });
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
     getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
   });
@@ -461,14 +470,16 @@ describe("core auth config", () => {
         email: " magic@example.com ",
         id: "user_123",
         name: "magic",
-        workspace: {
-          create: {},
-        },
       },
     });
 
     await config.databaseHooks.user.create.after(normalizedCreate.data);
 
+    expect(workspaceCreateMock).toHaveBeenCalledWith({
+      organizationId: null,
+      tx: { __prisma: true },
+      userId: "user_123",
+    });
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: " magic@example.com ",
       name: "magic",
@@ -514,9 +525,6 @@ describe("core auth config", () => {
         email: "@example.com",
         id: "user_123",
         name: "@example.com",
-        workspace: {
-          create: {},
-        },
       },
     });
   });
@@ -548,6 +556,11 @@ describe("core auth config", () => {
       name: "Andreas",
     });
 
+    expect(workspaceCreateMock).toHaveBeenCalledWith({
+      organizationId: null,
+      tx: { __prisma: true },
+      userId: "user_123",
+    });
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: "andreas@example.com",
       name: "Andreas",
@@ -587,6 +600,11 @@ describe("core auth config", () => {
     });
     await Promise.resolve();
 
+    expect(workspaceCreateMock).toHaveBeenCalledWith({
+      organizationId: null,
+      tx: { __prisma: true },
+      userId: "user_123",
+    });
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
       extra: {
