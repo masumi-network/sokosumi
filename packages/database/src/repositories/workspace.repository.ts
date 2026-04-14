@@ -1,4 +1,4 @@
-import type { Prisma } from "../generated/prisma/client.js";
+import type { Prisma, Workspace } from "../generated/prisma/client.js";
 import {
   type WorkspaceWithRelations,
   workspaceSummaryInclude,
@@ -39,5 +39,18 @@ export const workspaceRepository = {
     } else {
       return await this.findPersonalWorkspace(userId, tx);
     }
+  },
+
+  async createWorkspace(
+    userId: string | null,
+    organizationId: string | null,
+    tx: Prisma.TransactionClient,
+  ): Promise<Workspace> {
+    return await tx.workspace.create({
+      data: {
+        ...(userId && { userId }),
+        ...(organizationId && { organizationId }),
+      },
+    });
   },
 };

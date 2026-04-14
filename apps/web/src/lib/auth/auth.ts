@@ -8,7 +8,10 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { MemberRole, type User } from "@sokosumi/database";
-import { memberRepository } from "@sokosumi/database/repositories";
+import {
+  memberRepository,
+  workspaceRepository,
+} from "@sokosumi/database/repositories";
 import {
   renderMagicLinkEmail,
   renderOrganizationInvitationEmail,
@@ -288,13 +291,11 @@ export const auth = betterAuth({
             data: {
               ...user,
               name: getStoredUserName(user.name, user.email),
-              workspace: {
-                create: {},
-              },
             },
           };
         },
         after: async (user, _ctx) => {
+          await workspaceRepository.createWorkspace(user.id, null, prisma);
           void ensureStripeCustomerForCreatedUser(user).catch((error) => {
             Sentry.captureException(error, {
               tags: {
@@ -543,17 +544,8 @@ export const auth = betterAuth({
     }),
     organization({
       organizationHooks: {
-        beforeCreateOrganization: async ({ organization }) => {
-          return {
-            data: {
-              ...organization,
-              workspace: {
-                create: {},
-              },
-            },
-          };
-        },
         afterCreateOrganization: async ({ organization }) => {
+          await workspaceRepository.createWorkspace(null, organization.id, prisma);
           void ensureStripeCustomerForCreatedOrganization(organization).catch(
             (error) => {
               Sentry.captureException(error, {
