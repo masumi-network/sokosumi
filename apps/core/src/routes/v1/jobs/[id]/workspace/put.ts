@@ -115,14 +115,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
 
-        const workspace = await workspaceRepository.findWorkspaceForContext(
+        const workspace = await workspaceRepository.upsertWorkspaceForContext(
           authContext.userId,
           targetOrganizationId ?? null,
           tx,
         );
-        if (!workspace) {
-          throw forbidden("Target workspace is missing");
-        }
 
         await tx.job.update({
           where: {

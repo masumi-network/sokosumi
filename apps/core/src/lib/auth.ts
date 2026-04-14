@@ -39,6 +39,52 @@ const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
   vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
 });
 
+async function ensureWorkspaceForCreatedUser(user: {
+  email: string;
+  id: string;
+  name: string;
+}): Promise<void> {
+  try {
+    await workspaceRepository.upsertPersonalWorkspace({
+      userId: user.id,
+      tx: prisma,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "workspace_user_creation",
+      },
+      extra: {
+        email: user.email,
+        name: user.name,
+        userId: user.id,
+      },
+    });
+  }
+}
+
+async function ensureWorkspaceForCreatedOrganization(organization: {
+  id: string;
+  name: string;
+}): Promise<void> {
+  try {
+    await workspaceRepository.upsertOrganizationWorkspace({
+      organizationId: organization.id,
+      tx: prisma,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "workspace_organization_creation",
+      },
+      extra: {
+        organizationId: organization.id,
+        organizationName: organization.name,
+      },
+    });
+  }
+}
+
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   advanced: {
@@ -76,11 +122,7 @@ export const auth = betterAuth({
           };
         },
         after: async (user, _ctx) => {
-          await workspaceRepository.createWorkspace({
-            userId: user.id,
-            organizationId: null,
-            tx: prisma,
-          });
+          await ensureWorkspaceForCreatedUser(user);
           stripeClient
             .createUserCustomer({
               email: user.email,
@@ -192,11 +234,7 @@ export const auth = betterAuth({
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
-          await workspaceRepository.createWorkspace({
-            userId: null,
-            organizationId: organization.id,
-            tx: prisma,
-          });
+          await ensureWorkspaceForCreatedOrganization(organization);
         },
       },
       schema: {

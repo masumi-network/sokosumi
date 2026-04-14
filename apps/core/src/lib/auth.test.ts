@@ -20,7 +20,7 @@ const {
   renderMagicLinkEmailMock,
   sentryCaptureExceptionMock,
   stripeCreateUserCustomerMock,
-  workspaceCreateMock,
+  workspaceUpsertMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
@@ -41,7 +41,7 @@ const {
   renderMagicLinkEmailMock: vi.fn(),
   sentryCaptureExceptionMock: vi.fn(),
   stripeCreateUserCustomerMock: vi.fn(),
-  workspaceCreateMock: vi.fn(),
+  workspaceUpsertMock: vi.fn(),
 }));
 
 function getDefaultEnv() {
@@ -93,7 +93,10 @@ vi.mock("@sentry/node", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   workspaceRepository: {
-    createWorkspace: (...args: unknown[]) => workspaceCreateMock(...args),
+    upsertOrganizationWorkspace: (...args: unknown[]) =>
+      workspaceUpsertMock(...args),
+    upsertPersonalWorkspace: (...args: unknown[]) =>
+      workspaceUpsertMock(...args),
   },
 }));
 
@@ -154,7 +157,7 @@ describe("core auth config", () => {
     });
     sentryCaptureExceptionMock.mockReset();
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
-    workspaceCreateMock.mockResolvedValue({ id: "workspace_123" });
+    workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
     getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
   });
@@ -475,8 +478,7 @@ describe("core auth config", () => {
 
     await config.databaseHooks.user.create.after(normalizedCreate.data);
 
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
-      organizationId: null,
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       tx: { __prisma: true },
       userId: "user_123",
     });
@@ -556,10 +558,55 @@ describe("core auth config", () => {
       name: "Andreas",
     });
 
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
-      organizationId: null,
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       tx: { __prisma: true },
       userId: "user_123",
+    });
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
+      email: "andreas@example.com",
+      name: "Andreas",
+      userId: "user_123",
+    });
+  });
+
+  it("reports workspace creation failures to Sentry without blocking user creation", async () => {
+    workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      email: "andreas@example.com",
+      id: "user_123",
+      name: "Andreas",
+    });
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        email: "andreas@example.com",
+        name: "Andreas",
+        userId: "user_123",
+      },
+      tags: {
+        context: "workspace_user_creation",
+      },
     });
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: "andreas@example.com",
@@ -600,8 +647,7 @@ describe("core auth config", () => {
     });
     await Promise.resolve();
 
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
-      organizationId: null,
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       tx: { __prisma: true },
       userId: "user_123",
     });
@@ -614,6 +660,44 @@ describe("core auth config", () => {
       },
       tags: {
         context: "stripe_user_customer_creation",
+      },
+    });
+  });
+
+  it("reports organization workspace creation failures to Sentry", async () => {
+    workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
+
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              organization: {
+                id: string;
+                name: string;
+              };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterCreateOrganization({
+      organization: {
+        id: "org_123",
+        name: "Org One",
+      },
+    });
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        organizationId: "org_123",
+        organizationName: "Org One",
+      },
+      tags: {
+        context: "workspace_organization_creation",
       },
     });
   });

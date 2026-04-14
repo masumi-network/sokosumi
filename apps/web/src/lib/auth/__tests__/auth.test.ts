@@ -37,11 +37,12 @@ const stripePluginMock = vi.fn();
 const stripeSdkMock = vi.fn(function MockStripe() {
   return { __stripe: true };
 });
+const sentryCaptureExceptionMock = vi.fn();
 const handleCustomerCreatedEventMock = vi.fn();
 const handleCustomerUpdatedEventMock = vi.fn();
 const handleInvoicePaidEventMock = vi.fn();
 const handleSubscriptionDeletedEventMock = vi.fn();
-const workspaceCreateMock = vi.fn();
+const workspaceUpsertMock = vi.fn();
 
 function getDefaultEnvSecrets() {
   return {
@@ -73,7 +74,7 @@ function getDefaultEnvSecrets() {
 vi.mock("server-only", () => ({}));
 
 vi.mock("@sentry/nextjs", () => ({
-  captureException: vi.fn(),
+  captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
 }));
 
 vi.mock("@better-auth/api-key", () => ({
@@ -158,7 +159,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
     getMemberByUserIdAndOrganizationId: vi.fn(),
   },
   workspaceRepository: {
-    createWorkspace: (...args: unknown[]) => workspaceCreateMock(...args),
+    upsertOrganizationWorkspace: (...args: unknown[]) =>
+      workspaceUpsertMock(...args),
+    upsertPersonalWorkspace: (...args: unknown[]) =>
+      workspaceUpsertMock(...args),
   },
 }));
 
@@ -311,7 +315,7 @@ describe("web auth config", () => {
       id: "cus_org_1",
     });
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_user_1" });
-    workspaceCreateMock.mockResolvedValue({ id: "workspace_123" });
+    workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
     syncLocalFreeSeatsAndCreditsForCurrentMembersMock.mockResolvedValue(
       undefined,
     );
@@ -339,6 +343,7 @@ describe("web auth config", () => {
     handleCustomerUpdatedEventMock.mockResolvedValue(undefined);
     handleInvoicePaidEventMock.mockResolvedValue(undefined);
     handleSubscriptionDeletedEventMock.mockResolvedValue(undefined);
+    sentryCaptureExceptionMock.mockReset();
   });
 
   it("uses the canonical production URL for the OAuth proxy", async () => {
@@ -1003,8 +1008,7 @@ describe("web auth config", () => {
     await config.databaseHooks.user.create.after(normalizedUser);
     await config.databaseHooks.user.update.after(normalizedUser);
 
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
-      organizationId: null,
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       tx: expect.objectContaining({ __prisma: true }),
       userId: "user_123",
     });
@@ -1118,10 +1122,9 @@ describe("web auth config", () => {
       user: { id: "user-1" },
     });
 
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       organizationId: "org-1",
       tx: expect.objectContaining({ __prisma: true }),
-      userId: null,
     });
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
     expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
@@ -1129,6 +1132,60 @@ describe("web auth config", () => {
       "org-one",
       "Org One",
       null,
+    );
+  });
+
+  it("reports workspace creation failures to Sentry without blocking user creation", async () => {
+    workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  marketingOptIn: boolean;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      email: "magic@example.com",
+      id: "user_123",
+      marketingOptIn: true,
+      name: "magic",
+    });
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        email: "magic@example.com",
+        name: "magic",
+        userId: "user_123",
+      },
+      tags: {
+        context: "workspace_user_creation",
+      },
+    });
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith(
+      "user_123",
+      "magic",
+      "magic@example.com",
+    );
+    expect(callUserCreatedWebHookMock).toHaveBeenCalledWith(
+      "user_123",
+      "magic@example.com",
+      "magic",
+      true,
     );
   });
 
@@ -1176,12 +1233,10 @@ describe("web auth config", () => {
       settled = true;
     });
 
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(settled).toBe(true);
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
-      organizationId: null,
+    await vi.waitFor(() => {
+      expect(settled).toBe(true);
+    });
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       tx: expect.objectContaining({ __prisma: true }),
       userId: "user_123",
     });
@@ -1251,14 +1306,12 @@ describe("web auth config", () => {
       settled = true;
     });
 
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(settled).toBe(true);
-    expect(workspaceCreateMock).toHaveBeenCalledWith({
+    await vi.waitFor(() => {
+      expect(settled).toBe(true);
+    });
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
       organizationId: "org-1",
       tx: expect.objectContaining({ __prisma: true }),
-      userId: null,
     });
     expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
       "org-1",
@@ -1273,6 +1326,61 @@ describe("web auth config", () => {
       resolvePendingOrganizationStripeCustomer({ id: "cus_org_pending" });
     }
     await afterPromise;
+  });
+
+  it("reports organization workspace creation failures to Sentry without blocking organization creation", async () => {
+    workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
+
+    await import("../auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              member: { userId: string };
+              organization: {
+                createdAt?: Date;
+                id: string;
+                metadata?: string | null;
+                name: string;
+                slug: string;
+              };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterCreateOrganization({
+      member: { userId: "user-1" },
+      organization: {
+        createdAt: new Date("2026-04-08T00:00:00.000Z"),
+        id: "org-1",
+        metadata: null,
+        name: "Org One",
+        slug: "org-one",
+      },
+      user: { id: "user-1" },
+    });
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        organizationId: "org-1",
+        organizationName: "Org One",
+        organizationSlug: "org-one",
+      },
+      tags: {
+        context: "workspace_organization_creation",
+      },
+    });
+    expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
+      "org-1",
+      "org-one",
+      "Org One",
+      null,
+    );
   });
 
   it("syncs local free organization seats and credits after accepting an invitation", async () => {
