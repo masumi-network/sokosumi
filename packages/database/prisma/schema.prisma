@@ -63,8 +63,8 @@ model User {
   onboardingCompleted Boolean @default(false)
 
   // Coworkers
-  coworkers  Coworker[]
-  workspaces Workspace[]
+  coworkers Coworker[]
+  workspace Workspace?
 
   tasks          Task[]
   taskEvents     TaskEvent[]
@@ -190,7 +190,7 @@ model Organization {
 
   members        Member[]
   invitations    Invitation[]
-  workspaces     Workspace[]
+  workspace      Workspace?
   jobs           Job[]
   tasks          Task[]
   jobSchedules   JobSchedule[]
