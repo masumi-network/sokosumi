@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
+import { notFound } from "@/helpers/error";
 import { getUserJobs } from "@/helpers/job";
 import {
   jsonErrorResponse,
@@ -113,17 +114,28 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
+    const workspaceContext = c.var.workspaceContext;
     const queryParams = c.req.valid("query");
     const { agentId, status } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    const { jobs, count, hasMore } = await getUserJobs(authContext, {
-      agentId,
-      status,
-      cursor,
-      take,
-      skip,
-    });
+    if (!workspaceContext) {
+      throw notFound("Workspace not found");
+    }
+
+    const { jobs, count, hasMore } = await getUserJobs(
+      {
+        authContext,
+        workspaceContext,
+      },
+      {
+        agentId,
+        status,
+        cursor,
+        take,
+        skip,
+      },
+    );
 
     const paginationMeta = createPaginationMeta(
       jobs,

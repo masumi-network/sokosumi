@@ -5,7 +5,6 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobPurchaseRepository,
@@ -32,6 +31,7 @@ import {
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 import type { UserAuthenticationContext } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace";
 import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
 import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
@@ -40,6 +40,11 @@ import type { AgentCost } from "./agent";
 import { badRequest, notFound, unprocessableEntity } from "./error";
 import { transformPurchaseToJobUpdate } from "./purchase";
 import { getCents } from "./user";
+
+export interface JobContext {
+  authContext: UserAuthenticationContext;
+  workspaceContext: WorkspaceContext;
+}
 
 /**
  * Validates that user or organization has sufficient credit balance
@@ -218,7 +223,7 @@ async function createFreeJob(
 }
 
 interface CreateAgentJobInput {
-  owner: CreateAgentJobOwner;
+  owner: JobOwnerContext;
   agentInput: {
     agentId: string;
     inputData: InputSchemaType;
@@ -235,7 +240,7 @@ interface CreateAgentJobInput {
   };
 }
 
-export interface CreateAgentJobOwner {
+export interface JobOwnerContext {
   userId: string;
   organizationId: string | null;
   workspaceId: string;
@@ -431,7 +436,7 @@ export async function createAgentJobForUser(
  * Retrieves paginated jobs for the authenticated user, optionally filtered by agent ID.
  * Includes all job relations (events, credit transactions, purchases) and returns both jobs and count.
  *
- * @param authContext - The authenticated user context
+ * @param context - The authenticated user and workspace context
  * @param options - Query options
  * @param options.agentId - Optional agent ID to filter jobs by
  * @param options.cursor - Optional cursor for pagination
@@ -442,11 +447,19 @@ export async function createAgentJobForUser(
  *
  * @example
  * // Get paginated jobs for the user
- * const { jobs, count } = await getUserJobs(authContext, { take: 20 });
+ * const { jobs, count } = await getUserJobs({
+ *   authContext,
+ *   workspaceContext,
+ * }, {
+ *   take: 20,
+ * });
  *
  * @example
  * // Get paginated jobs for a specific agent with cursor
- * const { jobs, count } = await getUserJobs(authContext, {
+ * const { jobs, count } = await getUserJobs({
+ *   authContext,
+ *   workspaceContext,
+ * }, {
  *   agentId: "agent_123",
  *   cursor: "last_job_id",
  *   take: 20,
@@ -454,7 +467,7 @@ export async function createAgentJobForUser(
  * });
  */
 export async function getUserJobs(
-  authContext: UserAuthenticationContext,
+  context: JobContext,
   options: {
     agentId?: string;
     status?: AgentJobStatus;
@@ -469,18 +482,14 @@ export async function getUserJobs(
   hasMore: boolean;
 }> {
   const { agentId, status, cursor, take, skip, tx = prisma } = options;
-
-  const workspace = await resolveWorkspaceForContext(
-    authContext.userId,
-    authContext.organizationId,
-    tx,
-  );
+  const { authContext, workspaceContext } = context;
+  const { workspaceId } = workspaceContext;
 
   const where: Prisma.JobWhereInput = {
     AND: [
       {
         userId: authContext.userId,
-        workspaceId: workspace.id,
+        workspaceId,
       },
       ...(agentId ? [{ agentId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),

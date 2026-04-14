@@ -4,7 +4,6 @@ import { requireCoworkerTaskAccess } from "@/helpers/access-control";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
 import { jobSummarySchema } from "@/schemas/job.schema";
@@ -47,32 +46,31 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireCoworkerAuthContext(c.var.authContext);
+
     const { id: taskId } = c.req.valid("param");
+    const task = await requireCoworkerTaskAccess(authContext, taskId);
+
     const { agentId, inputData, inputSchema, maxCredits, name } =
       c.req.valid("json");
 
-    const job = await prisma.$transaction(async (tx) => {
-      const task = await requireCoworkerTaskAccess(authContext, taskId, tx);
-      const job = await createAgentJobForUser({
-        owner: {
-          userId: task.userId,
-          organizationId: task.organizationId,
-          workspaceId: task.workspaceId,
-        },
-        agentInput: {
-          agentId,
-          inputData,
-          inputSchema,
-          maxCredits,
-          name,
-        },
-        taskContext: {
-          taskId,
-        },
-      });
-
-      return job;
+    const job = await createAgentJobForUser({
+      owner: {
+        userId: task.userId,
+        organizationId: task.organizationId,
+        workspaceId: task.workspaceId,
+      },
+      agentInput: {
+        agentId,
+        inputData,
+        inputSchema,
+        maxCredits,
+        name,
+      },
+      taskContext: {
+        taskId,
+      },
     });
+
     return created(c, jobSummarySchema.parse(flattenJob(job)));
   });
 }
