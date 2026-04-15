@@ -325,12 +325,10 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
     const createdPersonalSubscription =
       createSubscriptionMock.mock.calls[0]?.[0].data;
-    assert.equal(typeof createdPersonalSubscription.id, "string");
     assert.deepEqual(createdPersonalSubscription, {
       billingInterval: "month",
       cancelAtPeriodEnd: false,
       createdAt: new Date("2026-04-01T10:00:00.000Z"),
-      id: createdPersonalSubscription.id,
       periodEnd: new Date("2026-05-01T10:00:00.000Z"),
       periodStart: new Date("2026-04-01T10:00:00.000Z"),
       plan: "free",
@@ -397,12 +395,10 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
     const createdOrganizationSubscription =
       createSubscriptionMock.mock.calls[0]?.[0].data;
-    assert.equal(typeof createdOrganizationSubscription.id, "string");
     assert.deepEqual(createdOrganizationSubscription, {
       billingInterval: "month",
       cancelAtPeriodEnd: false,
       createdAt: new Date("2026-04-01T10:00:00.000Z"),
-      id: createdOrganizationSubscription.id,
       periodEnd: new Date("2026-05-01T10:00:00.000Z"),
       periodStart: new Date("2026-04-01T10:00:00.000Z"),
       plan: "free",

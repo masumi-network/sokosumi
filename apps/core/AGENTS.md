@@ -188,6 +188,10 @@ Environment variables are accessed via `process.env`, validated at startup with 
 
 Cross-origin calls from the web app require the web deployment to use a hostname that satisfies both checks (e.g. `*.sokosumi.com` in hosted environments).
 
+### Better Auth ID generation
+
+- `src/lib/auth.ts` sets `advanced.database.generateId: "uuid"` so Better Auth–managed rows get UUID-shaped primary keys, consistent with `@sokosumi/database` Prisma models. Do not remove this without aligning the shared schema and any database migrations.
+
 ### Authentication Context
 
 Routes using `HonoWithAuth` or `OpenAPIHonoWithAuth` have access to `AuthContext`:
