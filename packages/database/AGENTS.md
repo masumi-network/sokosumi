@@ -137,6 +137,13 @@ export const userRepository = {
 - Define custom types in `src/types/` for complex relationships
 - Export types from the main entry point for browser safety
 
+### Primary keys and UUIDs
+
+- **`@default(uuid(7))`**: Primary keys on `String` ids use Prisma’s UUID v7 default for new rows when no `id` is provided. Do not switch back to `cuid()` or plain `uuid()` without an explicit migration and product decision.
+- **`@db.Uuid`**: `Workspace.id` and `Job.workspaceId`, `JobSchedule.workspaceId`, and `Task.workspaceId` use native PostgreSQL `UUID` where the database has been migrated. Do not drop `@db.Uuid` (or change those columns to untyped `text`) without a coordinated SQL migration.
+- **Better Auth**: Web and Core Better Auth configs set `advanced.database.generateId: "uuid"` so adapter inserts use UUID-shaped ids compatible with these columns. Keep Prisma defaults and Better Auth `generateId` aligned when changing either.
+- **Legacy data**: Bulk rekey or type-change migrations are separate from schema defaults; see migration history and team runbooks before altering id strategy for existing rows.
+
 ### Migrations
 
 - Create migrations with `pnpm prisma:migrate:dev`
