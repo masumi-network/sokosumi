@@ -9,6 +9,13 @@ import { getTranslations } from "next-intl/server";
 
 import { OrganizationLogo } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 import OrganizationCopyableId from "./organization-copyable-id";
 import OrganizationEditButton from "./organization-edit-button";
@@ -54,18 +61,20 @@ export default async function OrganizationInformation({
   ].filter((card) => card !== null);
 
   return (
-    <section className="rounded-3xl border border-border/60 bg-card/30 p-6 shadow-sm sm:p-8">
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+    <Card className="shadow-none">
+      <CardHeader className="gap-6">
         <div className="flex items-center gap-4 sm:gap-5">
           <Avatar className="bg-muted size-16 items-center justify-center rounded-2xl">
             <OrganizationLogo organization={organization} size={28} />
           </Avatar>
           <div className="min-w-0 space-y-2">
             <div className="space-y-1">
-              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                {organization.name}
-              </h1>
-              <div className="flex flex-wrap items-center gap-2 text-sm">
+              <CardTitle>
+                <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+                  {organization.name}
+                </h1>
+              </CardTitle>
+              <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-muted-foreground">{t("slugLabel")}</span>
                 <OrganizationCopyableId
                   value={organization.slug}
@@ -78,34 +87,38 @@ export default async function OrganizationInformation({
           </div>
         </div>
         {isOwnerOrAdmin && (
-          <div className="flex items-center gap-1.5 self-start">
-            <OrganizationEditButton
-              organization={organization}
-              className="h-7 gap-1.5 px-2 text-xs"
-            />
-            <OrganizationRemoveButton
-              organization={organization}
-              className="h-7 gap-1.5 px-2 text-xs"
-            />
-          </div>
+          <CardAction>
+            <div className="flex items-center gap-1.5">
+              <OrganizationEditButton
+                organization={organization}
+                className="h-7 gap-1.5 px-2 text-xs"
+              />
+              <OrganizationRemoveButton
+                organization={organization}
+                className="h-7 gap-1.5 px-2 text-xs"
+              />
+            </div>
+          </CardAction>
         )}
-      </div>
+      </CardHeader>
 
       {detailCards.length > 0 ? (
-        <dl className="mt-6 grid gap-3 sm:grid-cols-2">
-          {detailCards.map((card) => (
-            <div
-              key={card.label}
-              className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3"
-            >
-              <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                {card.label}
-              </dt>
-              <dd className="mt-2 text-sm">{card.value}</dd>
-            </div>
-          ))}
-        </dl>
+        <CardContent>
+          <dl className="grid gap-3 sm:grid-cols-2">
+            {detailCards.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-2xl border border-border/60 bg-background/80 px-4 py-4"
+              >
+                <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                  {card.label}
+                </dt>
+                <dd className="mt-3 text-sm">{card.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </CardContent>
       ) : null}
-    </section>
+    </Card>
   );
 }
