@@ -5,11 +5,16 @@ export {};
 vi.mock("server-only", () => ({}));
 
 const headersMock = vi.fn(async () => new Headers());
+const cookieDeleteMock = vi.fn();
+const cookiesMock = vi.fn(async () => ({
+  delete: cookieDeleteMock,
+}));
 const upgradeSubscriptionMock = vi.fn();
 const createBillingPortalMock = vi.fn();
 const updateOrganizationSeatsImmediatelyMock = vi.fn();
 
 vi.mock("next/headers", () => ({
+  cookies: cookiesMock,
   headers: headersMock,
 }));
 
@@ -264,14 +269,14 @@ describe("subscription actions", () => {
 
     expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
       body: {
-        cancelUrl: "/organizations/acme",
+        cancelUrl: "/organizations/acme?status=cancel",
         customerType: "organization",
         disableRedirect: true,
         plan: "pro",
         referenceId: "org-1",
         returnUrl: "/organizations/acme",
         seats: 7,
-        successUrl: "/organizations/acme",
+        successUrl: "/organizations/acme?status=success",
       },
       headers: new Headers(),
     });

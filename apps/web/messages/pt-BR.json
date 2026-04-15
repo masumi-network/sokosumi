@@ -2235,12 +2235,10 @@
           }
         },
         "Subscription": {
-          "title": "Assinatura da organização",
-          "description": "Gerencie o plano e os assentos da sua organização.",
           "currentPlanLabel": "Plano atual",
           "currentSeatsLabel": "Assentos atuais",
           "membersLabel": "Membros ativos",
-          "seatsInputLabel": "Assentos desejados",
+          "seatsInputLabel": "Assentos da organização",
           "seatsInputHint": "O mínimo de assentos é {minimum} para cobrir todos os membros ativos.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Sem créditos por assento} =1 {# crédito por assento} other {# créditos por assento}}",
           "noActivePlan": "Nenhum plano ativo",
