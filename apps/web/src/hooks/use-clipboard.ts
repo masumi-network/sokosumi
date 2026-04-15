@@ -4,15 +4,30 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { UseClipboardReturn } from "@/app/connections/components/api-keys/types";
-import { COPY_SUCCESS_TIMEOUT } from "@/app/connections/components/api-keys/utils";
+export interface UseClipboardOptions {
+  copySuccessMessage?: string;
+  copyErrorMessage?: string;
+}
+
+export interface UseClipboardReturn {
+  copied: boolean;
+  copy: (text: string) => Promise<void>;
+  reset: () => void;
+}
+
+export const COPY_SUCCESS_TIMEOUT = 2000;
 
 /**
  * Custom hook for clipboard operations
  * Handles copying text to clipboard with visual feedback and timeout management
  */
-export function useClipboard(): UseClipboardReturn {
+export function useClipboard(
+  options?: UseClipboardOptions,
+): UseClipboardReturn {
   const t = useTranslations("App.Account.ApiKeys");
+  const successMessage =
+    options?.copySuccessMessage ?? t("Messages.copySuccess");
+  const errorMessage = options?.copyErrorMessage ?? t("Messages.copyError");
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -23,7 +38,7 @@ export function useClipboard(): UseClipboardReturn {
     async (text: string): Promise<void> => {
       try {
         await navigator.clipboard.writeText(text);
-        toast.success(t("Messages.copySuccess"));
+        toast.success(successMessage);
         setCopied(true);
 
         // Clear any existing timeout
@@ -37,10 +52,10 @@ export function useClipboard(): UseClipboardReturn {
           timeoutRef.current = null;
         }, COPY_SUCCESS_TIMEOUT);
       } catch {
-        toast.error(t("Messages.copyError"));
+        toast.error(errorMessage);
       }
     },
-    [t],
+    [errorMessage, successMessage],
   );
 
   /**

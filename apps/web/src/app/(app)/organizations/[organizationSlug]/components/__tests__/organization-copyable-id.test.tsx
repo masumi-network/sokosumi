@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { COPY_SUCCESS_TIMEOUT } from "@/hooks/use-clipboard";
 
 import OrganizationCopyableId from "../organization-copyable-id";
 
@@ -63,7 +64,7 @@ describe("OrganizationCopyableId", () => {
     expect(screen.getByTestId("check-icon")).toBeInTheDocument();
 
     await act(async () => {
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(COPY_SUCCESS_TIMEOUT);
     });
 
     expect(screen.getByTestId("copy-icon")).toBeInTheDocument();
