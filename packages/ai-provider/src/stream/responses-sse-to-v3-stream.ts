@@ -34,7 +34,7 @@ export function finishStop(): LanguageModelV3FinishReason {
 export interface ResponsesSseToV3Options {
   warnings: SharedV3Warning[];
   onResponseStarted?: (responseId: string) => void;
-  onResponseCompleted?: (responseId: string) => void;
+  onResponseCompleted?: (responseId: string) => void | Promise<void>;
 }
 
 type SseChunk = {
@@ -137,7 +137,7 @@ export function createResponsesSseToV3Stream(
         });
       }
 
-      function processDataLine(data: string): boolean {
+      async function processDataLine(data: string): Promise<boolean> {
         if (data === SSE_DONE_MARKER) {
           closeWithFinish();
           return true;
@@ -236,7 +236,7 @@ export function createResponsesSseToV3Stream(
           typeof responseId === "string";
 
         if (isCompleted) {
-          onResponseCompleted?.(responseId);
+          await Promise.resolve(onResponseCompleted?.(responseId));
           closeWithFinish();
           return true;
         }
@@ -269,7 +269,7 @@ export function createResponsesSseToV3Stream(
           }
           if (line.startsWith(SSE_DATA_PREFIX)) {
             const data = line.slice(SSE_DATA_PREFIX.length);
-            const stop = processDataLine(data);
+            const stop = await processDataLine(data);
             lastEventLine = null;
             if (stop) {
               return;
@@ -293,7 +293,7 @@ export function createResponsesSseToV3Stream(
                 emitTextDelta(text);
               }
               if (typeof parsed.id === "string") {
-                onResponseCompleted?.(parsed.id);
+                await Promise.resolve(onResponseCompleted?.(parsed.id));
               }
             }
           } catch {}

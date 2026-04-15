@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createResponsesSseToV3Stream } from "./responses-sse-to-v3-stream.js";
 
@@ -110,5 +110,59 @@ describe("createResponsesSseToV3Stream", () => {
     expect(rsStartIdx).toBeGreaterThanOrEqual(0);
     expect(rsEndIdx).toBeGreaterThan(rsStartIdx);
     expect(rsStartIdx).toBeGreaterThan(textStartIdx);
+  });
+
+  it("awaits async onResponseCompleted before emitting finish", async () => {
+    const order: string[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_gate"}}',
+      'data: {"type":"response.output_text.delta","delta":"Hi"}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_gate"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, {
+      warnings: [],
+      onResponseCompleted: async (id) => {
+        expect(id).toBe("resp_gate");
+        order.push("cb-start");
+        await gate;
+        order.push("cb-end");
+      },
+    });
+
+    const reader = stream.getReader();
+    const consumer = (async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (
+          value &&
+          typeof value === "object" &&
+          "type" in value &&
+          (value as { type: string }).type === "finish"
+        ) {
+          order.push("finish");
+          break;
+        }
+      }
+    })();
+
+    await vi.waitFor(() => {
+      expect(order).toContain("cb-start");
+    });
+    expect(order).not.toContain("finish");
+
+    release();
+    await consumer;
+
+    expect(order).toEqual(["cb-start", "cb-end", "finish"]);
   });
 });

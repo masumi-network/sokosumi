@@ -282,9 +282,48 @@ describe("POST /chat", () => {
     expect(args.providerOptions?.sokosumi?.providerConversationId).toBe(
       "conv_remote_1",
     );
-    expect(args.providerOptions?.sokosumi?.previousResponseId).toBeNull();
+    expect(args.providerOptions?.sokosumi?.previousResponseId).toBe(
+      "resp_stale",
+    );
     expect(args.providerOptions?.sokosumi?.onInvalidPreviousResponseId).toBe(
       undefined,
+    );
+  });
+
+  it("prefers request body previousResponseId over metadata for coworker", async () => {
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        metadata: {
+          coworker_slug: "ops-agent",
+          previous_response_id: "resp_from_meta",
+        },
+        providerConversationId: "conv_remote_1",
+      })
+      .mockResolvedValueOnce({ _count: { messages: 1 } });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+
+    const app = createApp({ organizationId: "org_1" });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        conversationId: "550e8400-e29b-41d4-a716-446655440000",
+        previousResponseId: "resp_from_body",
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(streamTextMock).toHaveBeenCalledOnce();
+    const args = streamTextMock.mock.calls[0]![0] as {
+      providerOptions?: {
+        sokosumi?: { previousResponseId?: string | null };
+      };
+    };
+    expect(args.providerOptions?.sokosumi?.previousResponseId).toBe(
+      "resp_from_body",
     );
   });
 

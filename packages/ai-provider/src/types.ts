@@ -7,7 +7,7 @@ export interface SokosumiProviderCallOptions {
   previousResponseId?: string | null;
   providerConversationId?: string | null;
   onResponseStarted?: (responseId: string) => void;
-  onResponseCompleted?: (responseId: string) => void;
+  onResponseCompleted?: (responseId: string) => void | Promise<void>;
   onInvalidPreviousResponseId?: () => void | Promise<void>;
   onInvalidProviderConversationId?: () => void | Promise<void>;
 }

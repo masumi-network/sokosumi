@@ -44,7 +44,7 @@ export function parseSokosumiProviderOptions(
       : undefined;
   const onResponseCompleted =
     typeof raw.onResponseCompleted === "function"
-      ? (raw.onResponseCompleted as (id: string) => void)
+      ? (raw.onResponseCompleted as (id: string) => void | Promise<void>)
       : undefined;
   const onInvalidPreviousResponseId =
     typeof raw.onInvalidPreviousResponseId === "function"

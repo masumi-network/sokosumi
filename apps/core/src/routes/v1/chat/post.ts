@@ -95,6 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         conversationId,
         model,
         trigger,
+        previousResponseId: previousResponseIdFromRequest,
       } = c.req.valid("json");
 
       const useServerMergedHistory =
@@ -385,13 +386,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
       }
 
+      const resolvedCoworkerPreviousResponseId = (() => {
+        if (!useCoworker) {
+          return null;
+        }
+        const fromRequest = previousResponseIdFromRequest?.trim();
+        if (fromRequest) {
+          return fromRequest;
+        }
+        const fromMeta = metadata?.previous_response_id;
+        if (typeof fromMeta === "string" && fromMeta.trim()) {
+          return fromMeta.trim();
+        }
+        return null;
+      })();
+
       const sokosumiProviderOptions: SokosumiProviderCallOptions = {
         mode: useCoworker ? "coworker" : "openrouter",
         coworkerBaseUrl: coworker?.baseURL ?? null,
         coworkerSlug: coworker?.slug ?? null,
         sokosumiUserId: authContext.userId,
         sokosumiOrganizationId: authContext.organizationId ?? null,
-        previousResponseId: null,
+        previousResponseId: resolvedCoworkerPreviousResponseId,
         providerConversationId: coworkerConversationsMode
           ? providerConversationId
           : null,
