@@ -38,11 +38,34 @@ describe("getUserJobs", () => {
     vi.clearAllMocks();
   });
 
-  it("filters jobs by active workspace and owner", async () => {
+  it("filters jobs by active workspace by default", async () => {
     const tx = createTransactionClient();
 
     await getUserJobs(orgJobContext, {
       take: 20,
+      tx,
+    });
+
+    expect(tx.job.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              workspaceId: orgWorkspaceContext.workspaceId,
+            },
+          ],
+        },
+        include: jobSummaryInclude,
+      }),
+    );
+  });
+
+  it("adds the authenticated user when scope=owned", async () => {
+    const tx = createTransactionClient();
+
+    await getUserJobs(orgJobContext, {
+      take: 20,
+      scope: "owned",
       tx,
     });
 
@@ -56,12 +79,11 @@ describe("getUserJobs", () => {
             },
           ],
         },
-        include: jobSummaryInclude,
       }),
     );
   });
 
-  it("uses personal context when organization is missing", async () => {
+  it("uses personal workspace context when organization is missing", async () => {
     const tx = createTransactionClient();
     const personalContext: UserAuthenticationContext = {
       actor: "user",
@@ -90,7 +112,6 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              userId: "user_123",
               workspaceId: personalWorkspaceContext.workspaceId,
             },
           ],
@@ -113,7 +134,6 @@ describe("getUserJobs", () => {
         where: {
           AND: [
             {
-              userId: "user_123",
               workspaceId: orgWorkspaceContext.workspaceId,
             },
             {

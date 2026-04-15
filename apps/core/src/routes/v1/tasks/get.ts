@@ -55,10 +55,21 @@ const taskNameQuerySchema = z
     example: "review",
   });
 
+const taskScopeQuerySchema = z
+  .enum(["workspace", "owned"])
+  .default("workspace")
+  .openapi({
+    param: { name: "scope", in: "query" },
+    description:
+      "workspace visibility scope. Defaults to 'workspace'. Use 'owned' to limit results to the authenticated user's tasks.",
+    example: "owned",
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
     status: taskStatusQuerySchema,
+    scope: taskScopeQuerySchema,
     coworkerId: z
       .string()
       .optional()
@@ -74,7 +85,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
-    description: "List all tasks for the current user (paginated)",
+    description: "List tasks in the active workspace (paginated)",
     tags: ["Tasks"],
     request: {
       query,
@@ -92,7 +103,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { q, status: statuses, coworkerId } = queryParams;
+    const { coworkerId, q, scope, status: statuses } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -123,8 +134,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       where = {
         archivedAt: null,
-        userId: authContext.userId,
         workspaceId: workspaceContext.workspaceId,
+        ...(scope === "owned" ? { userId: authContext.userId } : {}),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
         ...searchFilter,

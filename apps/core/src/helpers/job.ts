@@ -471,6 +471,7 @@ export async function getUserJobs(
   options: {
     agentId?: string;
     status?: AgentJobStatus;
+    scope?: "workspace" | "owned";
     cursor?: string;
     take: number;
     skip?: number;
@@ -481,14 +482,22 @@ export async function getUserJobs(
   count: number;
   hasMore: boolean;
 }> {
-  const { agentId, status, cursor, take, skip, tx = prisma } = options;
+  const {
+    agentId,
+    status,
+    scope = "workspace",
+    cursor,
+    take,
+    skip,
+    tx = prisma,
+  } = options;
   const { authContext, workspaceContext } = context;
 
   const where: Prisma.JobWhereInput = {
     AND: [
       {
-        userId: authContext.userId,
         workspaceId: workspaceContext.workspaceId,
+        ...(scope === "owned" ? { userId: authContext.userId } : {}),
       },
       ...(agentId ? [{ agentId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),

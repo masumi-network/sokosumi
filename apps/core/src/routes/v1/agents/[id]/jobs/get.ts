@@ -28,13 +28,24 @@ const params = z.object({
   }),
 });
 
-const query = z.object(cursorPaginationQuerySchema.shape);
+const query = z.object({
+  ...cursorPaginationQuerySchema.shape,
+  scope: z
+    .enum(["workspace", "owned"])
+    .default("workspace")
+    .openapi({
+      param: { name: "scope", in: "query" },
+      description:
+        "workspace visibility scope. Defaults to 'workspace'. Use 'owned' to limit results to the authenticated user's jobs.",
+      example: "owned",
+    }),
+});
 
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/jobs",
-    description: "List all jobs for a specific agent (paginated)",
+    description: "List jobs for a specific agent in the active workspace (paginated)",
     tags: ["Agents"],
     request: {
       params,
@@ -108,6 +119,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { id } = c.req.valid("param");
     const queryParams = c.req.valid("query");
+    const { scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const { jobs, count, hasMore } = await getUserJobs(
@@ -117,6 +129,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
       {
         agentId: id,
+        scope,
         cursor,
         take,
         skip,

@@ -39,6 +39,11 @@ function createApp() {
 describe("GET /agents/{id}/jobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getUserJobsMock.mockResolvedValue({
+      jobs: [],
+      count: 0,
+      hasMore: false,
+    });
   });
 
   it("returns 403 when workspaceContext is missing", async () => {
@@ -48,5 +53,84 @@ describe("GET /agents/{id}/jobs", () => {
 
     expect(response.status).toBe(403);
     expect(getUserJobsMock).not.toHaveBeenCalled();
+  });
+
+  it("defaults to workspace scope for agent job lists", async () => {
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables & WorkspaceVariables;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountGetAgentJobs(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/agent_123/jobs");
+
+    expect(response.status).toBe(200);
+    expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authContext: {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+      }),
+      {
+        agentId: "agent_123",
+        scope: "workspace",
+        cursor: undefined,
+        take: 20,
+        skip: undefined,
+      },
+    );
+  });
+
+  it("passes scope=owned for agent job lists", async () => {
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables & WorkspaceVariables;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountGetAgentJobs(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/agent_123/jobs?scope=owned");
+
+    expect(response.status).toBe(200);
+    expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        agentId: "agent_123",
+        scope: "owned",
+      }),
+    );
   });
 });

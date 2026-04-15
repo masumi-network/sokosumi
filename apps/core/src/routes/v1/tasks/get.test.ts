@@ -115,7 +115,6 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          userId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           status: {
             in: [TaskStatus.COMPLETED, TaskStatus.FAILED],
@@ -134,12 +133,27 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
-          userId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           name: {
             contains: "review",
             mode: "insensitive",
           },
+        },
+      }),
+    );
+  });
+
+  it("adds the authenticated user filter when scope=owned is provided", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?scope=owned");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          userId: "user_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
         },
       }),
     );

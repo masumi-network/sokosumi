@@ -1914,6 +1914,10 @@ export type GetAgentsByIdJobsData = {
     };
     query?: {
         /**
+         * Workspace visibility scope. Defaults to 'workspace'. Use 'owned' to limit results to the authenticated user's jobs.
+         */
+        scope?: 'workspace' | 'owned';
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -5439,6 +5443,10 @@ export type GetJobsData = {
          */
         status?: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
         /**
+         * Workspace visibility scope. Defaults to 'workspace'. Use 'owned' to limit results to the authenticated user's jobs.
+         */
+        scope?: 'workspace' | 'owned';
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -7410,6 +7418,10 @@ export type GetTasksData = {
          * Comma-separated status filters
          */
         status?: Array<'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
+        /**
+         * Workspace visibility scope. Defaults to 'workspace'. Use 'owned' to limit results to the authenticated user's tasks.
+         */
+        scope?: 'workspace' | 'owned';
         /**
          * Filter tasks by coworker ID
          */
