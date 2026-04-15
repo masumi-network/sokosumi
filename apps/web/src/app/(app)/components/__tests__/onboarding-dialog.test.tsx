@@ -136,12 +136,12 @@ describe("OnboardingDialog organization subscription", () => {
     render(
       <OnboardingDialog
         organizationSubscription={{
-          currentPlan: "starter",
           currentSeats: 5,
           memberCount: 3,
           organizationId: "org-1",
         }}
         paidPlans={createPaidPlans()}
+        subscriptionCheckoutMode="organization"
         subscriptionOnly
       />,
     );
@@ -155,12 +155,12 @@ describe("OnboardingDialog organization subscription", () => {
     render(
       <OnboardingDialog
         organizationSubscription={{
-          currentPlan: "starter",
           currentSeats: 5,
           memberCount: 3,
           organizationId: "org-1",
         }}
         paidPlans={createPaidPlans()}
+        subscriptionCheckoutMode="organization"
         subscriptionOnly
       />,
     );
@@ -186,12 +186,12 @@ describe("OnboardingDialog organization subscription", () => {
     render(
       <OnboardingDialog
         organizationSubscription={{
-          currentPlan: "starter",
           currentSeats: 4,
           memberCount: 4,
           organizationId: "org-1",
         }}
         paidPlans={createPaidPlans()}
+        subscriptionCheckoutMode="organization"
         subscriptionOnly
       />,
     );
@@ -214,6 +214,7 @@ describe("OnboardingDialog organization subscription", () => {
       <OnboardingDialog
         loginId="session-1"
         paidPlans={createPaidPlans()}
+        subscriptionCheckoutMode="personal"
         subscriptionOnly
       />,
     );
@@ -241,6 +242,7 @@ describe("OnboardingDialog organization subscription", () => {
       <OnboardingDialog
         loginId="session-1"
         paidPlans={createPaidPlans()}
+        subscriptionCheckoutMode="personal"
         subscriptionOnly
       />,
     );
@@ -253,5 +255,28 @@ describe("OnboardingDialog organization subscription", () => {
         markSubscriptionOnboardingGateSessionSeenMock,
       ).toHaveBeenCalledWith("session-1");
     });
+  });
+
+  it("keeps restricted organization gates closed and marks the session as seen", async () => {
+    render(
+      <OnboardingDialog
+        loginId="session-1"
+        paidPlans={createPaidPlans()}
+        subscriptionCheckoutMode="restricted"
+        subscriptionOnly
+      />,
+    );
+
+    expect(screen.queryByTestId("plan-grid")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        markSubscriptionOnboardingGateSessionSeenMock,
+      ).toHaveBeenCalledWith("session-1");
+    });
+    expect(completeOnboardingMock).not.toHaveBeenCalled();
+    expect(upgradePersonalSubscriptionMock).not.toHaveBeenCalled();
+    expect(upgradeOrganizationSubscriptionMock).not.toHaveBeenCalled();
   });
 });

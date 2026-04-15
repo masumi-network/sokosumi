@@ -19,7 +19,10 @@ import {
   type SubscriptionPlanName,
 } from "@/lib/stripe/subscription-catalog";
 
-import { OnboardingDialog } from "./onboarding-dialog";
+import {
+  OnboardingDialog,
+  type OnboardingSubscriptionCheckoutMode,
+} from "./onboarding-dialog";
 import { OnboardingSubscriptionReturnHandler } from "./onboarding-subscription-return-handler";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -66,8 +69,9 @@ export async function OnboardingDialogLoader({
   const organizationCurrentPlan = parsePlanName(
     latestOrganizationSubscription?.plan,
   );
-  const personalCurrentPlan = canManageOrganizationSubscription
-    ? "free"
+  const hasActiveOrganization = activeOrganization !== null;
+  const personalCurrentPlan = hasActiveOrganization
+    ? null
     : (resolveCurrentPlanName(
         (await auth.api.listActiveSubscriptions({
           headers: await headers(),
@@ -76,10 +80,15 @@ export async function OnboardingDialogLoader({
           },
         })) as ActiveSubscription[],
       ) ?? "free");
-  const currentPlan =
-    activeOrganization && canManageOrganizationSubscription
-      ? (organizationCurrentPlan ?? "free")
-      : personalCurrentPlan;
+  const subscriptionCheckoutMode: OnboardingSubscriptionCheckoutMode =
+    hasActiveOrganization
+      ? canManageOrganizationSubscription
+        ? "organization"
+        : "restricted"
+      : "personal";
+  const currentPlan = hasActiveOrganization
+    ? (organizationCurrentPlan ?? "free")
+    : (personalCurrentPlan ?? "free");
 
   const onboardingPlans: PaidSubscriptionPlanView[] = PLAN_ORDER.flatMap(
     (planName) => {
@@ -101,7 +110,7 @@ export async function OnboardingDialogLoader({
   );
 
   const organizationSubscription =
-    activeOrganization && canManageOrganizationSubscription
+    activeOrganization && subscriptionCheckoutMode === "organization"
       ? {
           currentSeats: Math.max(
             latestOrganizationSubscription?.seats ?? 1,
@@ -121,6 +130,7 @@ export async function OnboardingDialogLoader({
         loginId={loginId}
         organizationSubscription={organizationSubscription}
         paidPlans={onboardingPlans}
+        subscriptionCheckoutMode={subscriptionCheckoutMode}
         subscriptionOnly={subscriptionOnly}
       />
     </>

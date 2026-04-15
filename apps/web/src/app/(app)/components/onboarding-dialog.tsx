@@ -46,6 +46,11 @@ const DEFAULT_SELECTED_PLAN: PaidSubscriptionPlanName = "standard";
 const SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY =
   "sokosumi.onboarding.subscription.lastLoginId";
 
+export type OnboardingSubscriptionCheckoutMode =
+  | "organization"
+  | "personal"
+  | "restricted";
+
 function readLastSubscriptionOnboardingLoginId(): null | string {
   if (typeof window === "undefined") {
     return null;
@@ -462,6 +467,7 @@ interface OnboardingDialogProps {
     organizationId: string;
   };
   paidPlans: PaidSubscriptionPlanView[];
+  subscriptionCheckoutMode: OnboardingSubscriptionCheckoutMode;
   subscriptionOnly?: boolean;
 }
 
@@ -480,6 +486,7 @@ export function OnboardingDialog({
   loginId,
   organizationSubscription,
   paidPlans,
+  subscriptionCheckoutMode,
   subscriptionOnly = false,
 }: OnboardingDialogProps) {
   const tMetadata = useTranslations("Onboarding.Metadata");
@@ -505,10 +512,20 @@ export function OnboardingDialog({
       : 1,
   );
   const { coworkers: apiCoworkers } = useCoworkersContext();
+  const isRestrictedOrganizationGate =
+    subscriptionOnly && subscriptionCheckoutMode === "restricted";
 
   useEffect(() => {
     if (!subscriptionOnly) {
       setOpen(true);
+      return;
+    }
+
+    if (isRestrictedOrganizationGate) {
+      setOpen(false);
+      if (loginId) {
+        void markSubscriptionOnboardingGateSessionSeen(loginId);
+      }
       return;
     }
 
@@ -528,7 +545,7 @@ export function OnboardingDialog({
     }
 
     setOpen(true);
-  }, [loginId, subscriptionOnly]);
+  }, [isRestrictedOrganizationGate, loginId, subscriptionOnly]);
 
   if (!open) return null;
 
