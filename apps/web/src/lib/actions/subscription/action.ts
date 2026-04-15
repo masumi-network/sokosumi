@@ -138,12 +138,12 @@ export const upgradePersonalSubscription = withSession<
       },
     });
 
+    await clearSubscriptionOnboardingGateSessionCookie();
+
     if (!result.url) {
-      await clearSubscriptionOnboardingGateSessionCookie();
       return Ok({ mode: "complete" });
     }
 
-    await clearSubscriptionOnboardingGateSessionCookie();
     return Ok({ mode: "redirect", url: result.url });
   } catch (error) {
     return Err(parseBetterAuthActionError(error));
@@ -234,12 +234,12 @@ export const upgradeOrganizationSubscription = withSession<
       },
     });
 
+    await clearSubscriptionOnboardingGateSessionCookie();
+
     if (!result.url) {
-      await clearSubscriptionOnboardingGateSessionCookie();
       return Ok({ mode: "complete" });
     }
 
-    await clearSubscriptionOnboardingGateSessionCookie();
     return Ok({ mode: "redirect", url: result.url });
   } catch (error) {
     return Err(parseBetterAuthActionError(error));
