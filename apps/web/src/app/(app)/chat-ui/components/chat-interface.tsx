@@ -22,6 +22,7 @@ import WelcomeScreen from "@/app/chat/components/welcome-screen";
 import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
+import { useCoworkerPostRefreshAssistantPoll } from "@/app/chat/hooks/use-coworker-post-refresh-assistant-poll";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { useChatCreation } from "@/app/chat-ui/hooks/use-chat-creation";
 import { useChatSelection } from "@/app/chat-ui/hooks/use-chat-selection";
@@ -1026,6 +1027,21 @@ export default function ChatInterface({
       streamingConversationIdsRef,
     });
 
+  const { userTailRecoveryLoading, userTailRecoveryFailed } =
+    useCoworkerPostRefreshAssistantPoll({
+      conversationId: selectedChatId,
+      isCoworkerThread: isSelectedChatCoworker,
+      isChatStreaming: isSelectedChatLoading,
+      conversationMetadata:
+        selectedConversation?.id === selectedChatId
+          ? (selectedConversation.metadata as Record<string, unknown> | null)
+          : undefined,
+      messagesChatIdRef,
+      displayedMessages,
+      setMessagesForConversation,
+      refreshConversations,
+    });
+
   const {
     createModelChat,
     createCoworkerChat,
@@ -1303,10 +1319,11 @@ export default function ChatInterface({
                           }
                         : null
                     }
-                    isLoading={isLoading}
+                    isLoading={isLoading || userTailRecoveryLoading}
                     isCoworker={isSelectedChatCoworker}
                     messages={displayedMessages}
                     onResendLastMessage={handleResendLastMessage}
+                    userTailRecoveryFailed={userTailRecoveryFailed}
                     reasoningMessages={selectedChatReasoningMessages}
                     reasoningStartedAt={
                       selectedChatReasoningStartedAt ?? undefined

@@ -73,6 +73,7 @@ interface MessageListProps {
   reasoningEndedAt?: number;
   isCoworker?: boolean;
   onResendLastMessage?: (lastUserMessageText: string) => void;
+  userTailRecoveryFailed?: boolean;
 }
 
 const MessageList = forwardRef<MessageListHandle, MessageListProps>(
@@ -91,6 +92,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       reasoningEndedAt,
       isCoworker = false,
       onResendLastMessage,
+      userTailRecoveryFailed = false,
     },
     ref,
   ) {
@@ -194,12 +196,18 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       return "";
     })();
 
-    const canResend = Boolean(
-      showPendingError && onResendLastMessage && lastUserMessageText,
+    const showUserTailRecoveryError =
+      userTailRecoveryFailed &&
+      lastMessage?.role === "user" &&
+      Boolean(lastUserMessageText);
+    const showPendingOrTailError =
+      showPendingError || showUserTailRecoveryError;
+    const canResendPendingOrTail = Boolean(
+      showPendingOrTailError && onResendLastMessage && lastUserMessageText,
     );
 
     const pendingErrorMessage = t("pendingResponseFailed");
-    const pendingErrorBlock = showPendingError && (
+    const pendingOrTailErrorBlock = showPendingOrTailError && (
       <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
         <Avatar
           className={cn(
@@ -217,7 +225,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         </Avatar>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <p className="text-muted-foreground text-sm">{pendingErrorMessage}</p>
-          {canResend && (
+          {canResendPendingOrTail && (
             <Button
               className="bg-foreground text-background hover:bg-foreground/90 w-fit"
               onClick={() => onResendLastMessage?.(lastUserMessageText)}
@@ -392,7 +400,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                   {showLoadingIndicator && (
                     <LoadingIndicator label={loadingIndicatorLabel} />
                   )}
-                  {pendingErrorBlock}
+                  {pendingOrTailErrorBlock}
                   <div
                     className="min-h-[160px] shrink-0"
                     aria-hidden
@@ -440,7 +448,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                         {showLoadingIndicator && (
                           <LoadingIndicator label={loadingIndicatorLabel} />
                         )}
-                        {pendingErrorBlock}
+                        {pendingOrTailErrorBlock}
                         {showLoadingArea && (
                           <div
                             className="min-h-[160px] shrink-0"

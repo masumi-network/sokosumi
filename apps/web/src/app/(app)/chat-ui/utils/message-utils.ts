@@ -234,7 +234,10 @@ export function convertItemsToMessages(
     role: string;
     content: Array<{ type: string; text?: string }> | string;
     createdAt: number;
-    thoughtTiming?: { startedAtMs: number; endedAtMs: number };
+    thoughtTiming?: {
+      startedAtMs: number | null;
+      endedAtMs: number | null;
+    };
   }>,
 ): UIMessage[] {
   return items.map((item) => {
@@ -248,17 +251,21 @@ export function convertItemsToMessages(
         ? (item.role as "assistant" | "user" | "system")
         : "user";
 
+    const timing = item.thoughtTiming;
+    const hasCompleteThoughtTiming =
+      timing != null && timing.startedAtMs != null && timing.endedAtMs != null;
+
     return {
       id: item.id,
       role: validRole,
       parts,
       content: visibleText,
       createdAt: new Date(item.createdAt * 1000),
-      ...(item.thoughtTiming != null
+      ...(hasCompleteThoughtTiming
         ? {
             metadata: {
-              thoughtStartedAtMs: item.thoughtTiming.startedAtMs,
-              thoughtEndedAtMs: item.thoughtTiming.endedAtMs,
+              thoughtStartedAtMs: timing.startedAtMs,
+              thoughtEndedAtMs: timing.endedAtMs,
             },
           }
         : {}),
