@@ -1683,6 +1683,7 @@
       "balanceDescriptionPersonal": "Deine aktuellen Credits im persönlichen Account.",
       "balanceDescriptionOrganization": "Aktuelle Credits für {organization}. {members, plural, =1 {# Mitglied} other {# Mitglieder}}, {seats, plural, =1 {# Seat} other {# Seats}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Keine Credits} =1 {# Credit} other {# Credits}}",
+      "stripeCustomerIdLabel": "Stripe-Kunden-ID",
       "tabs": {
         "subscription": "Abonnement",
         "credits": "Credits",
@@ -2146,6 +2147,8 @@
           "description": "Deine Organisation verwalten"
         },
         "roleIndicator": "Ansicht als:",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe-Kunden-ID",
         "websiteLabel": "Webseite",
         "edit": "Bearbeiten",
         "delete": "Löschen",

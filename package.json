@@ -81,6 +81,6 @@
   "devDependencies": {
     "chrome-launcher": "1.2.1",
     "lighthouse": "13.1.0",
-    "@biomejs/biome": "2.4.11"
+    "@biomejs/biome": "2.4.12"
   }
 }

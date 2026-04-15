@@ -101,14 +101,11 @@ export const userService = (() => {
     }
     const userId = session.user.id;
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await workspaceRepository.findWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       userId,
       activeOrganizationId ?? null,
       prisma,
     );
-    if (!workspace) {
-      throw new Error("Workspace not found");
-    }
 
     // Get owned jobs
     const ownedJobs = await jobRepository.getJobs(
@@ -134,14 +131,11 @@ export const userService = (() => {
       return { jobs: [], nextCursor: null };
     }
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await workspaceRepository.findWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       session.user.id,
       activeOrganizationId ?? null,
       prisma,
     );
-    if (!workspace) {
-      throw new Error("Workspace not found");
-    }
 
     const baseWhere: Prisma.JobWhereInput = {
       OR: [
