@@ -10,7 +10,7 @@ import {
   PricingType,
 } from "@sokosumi/database";
 
-const resolveWorkspaceForContextMock = vi.fn();
+const upsertWorkspaceForContextMock = vi.fn();
 
 const getShownAgentsWithRelationsByStatusMock = vi.fn();
 const getCreditCostsMock = vi.fn();
@@ -18,17 +18,6 @@ const getCreditCostByUnitMock = vi.fn();
 const transactionMock = vi.fn();
 const getSessionMock = vi.fn();
 const getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock = vi.fn();
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    resolveWorkspaceForContext: (...args: unknown[]) =>
-      resolveWorkspaceForContextMock(...args),
-  };
-});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   agentListRepository: {
@@ -55,6 +44,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
   jobRepository: {
     doesUserHaveFinishedJobWithAgent: vi.fn(),
     getAverageExecutionDurationByAgentId: vi.fn(),
+  },
+  workspaceRepository: {
+    upsertWorkspaceForContext: (...args: unknown[]) =>
+      upsertWorkspaceForContextMock(...args),
   },
 }));
 
@@ -117,7 +110,7 @@ describe("agent.service", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
     transactionMock.mockImplementation(
@@ -265,7 +258,7 @@ describe("agent.service", () => {
 
     await agentService.getHiredAgents();
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       expect.any(Object),

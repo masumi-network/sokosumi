@@ -4,7 +4,6 @@ import { requireUserTaskAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { buildCurrentUserTaskContextWhere } from "@/helpers/task-context";
 import {
   mapTaskLink,
   mapTaskLinkRelationToTypeForExistingDirection,
@@ -12,6 +11,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   patchTaskLinkRequestSchema,
   taskLinkSchema,
@@ -56,6 +56,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
+    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id, linkId } = c.req.valid("param");
     const { relation, note } = c.req.valid("json");
 
@@ -72,14 +73,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const peerTaskId =
         link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
-      const peerTaskContextWhere = await buildCurrentUserTaskContextWhere(
-        authContext,
-        tx,
-      );
       const peerTask = await tx.task.findFirst({
         where: {
           id: peerTaskId,
-          ...peerTaskContextWhere,
+          userId: authContext.userId,
+          workspaceId: workspaceContext.workspaceId,
         },
         select: taskLinkPeerTaskSelect,
       });

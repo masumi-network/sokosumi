@@ -1745,6 +1745,7 @@
       "balanceDescriptionPersonal": "I crediti attuali nel tuo account personale.",
       "balanceDescriptionOrganization": "Crediti attuali per {organization}. {members, plural, =1 {# membro} other {# membri}}, {seats, plural, =1 {# postazione} other {# postazioni}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Nessun credito} =1 {# credito} other {# crediti}}",
+      "stripeCustomerIdLabel": "ID cliente Stripe",
       "tabs": {
         "subscription": "Abbonamento",
         "credits": "Crediti",
@@ -1777,6 +1778,7 @@
       "paidSubscriptionRequiredHint": "Scegli un piano a pagamento nella scheda Abbonamento per sbloccare le ricariche di crediti.",
       "couponExpiryPolicyNotice": "I crediti promozionali possono scadere; le condizioni dipendono dal coupon o dall'offerta.",
       "costPerCredit": "{cost} per credito",
+      "youSaveLabel": "Risparmia {amount}",
       "creditAmount": "{count, plural, one {# credito} other {# crediti}}",
       "creditsLabel": "Numero di crediti",
       "creditsPlaceholder": "Inserisci l’importo",
@@ -2207,6 +2209,8 @@
           "description": "Gestisci la tua organizzazione"
         },
         "roleIndicator": "Visualizza come:",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe customer ID",
         "websiteLabel": "Sito web",
         "edit": "Modifica",
         "delete": "Elimina",

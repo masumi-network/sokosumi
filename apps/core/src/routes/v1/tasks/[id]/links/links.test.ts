@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountDeleteTaskLink from "./[linkId]/delete";
 import mountPatchTaskLink from "./[linkId]/patch";
@@ -15,7 +16,6 @@ const {
   prismaTransactionMock,
   requireTaskReadAccessMock,
   requireUserTaskAccessMock,
-  resolveWorkspaceForContextMock,
   taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
@@ -26,7 +26,6 @@ const {
   prismaTransactionMock: vi.fn(),
   requireTaskReadAccessMock: vi.fn(),
   requireUserTaskAccessMock: vi.fn(),
-  resolveWorkspaceForContextMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
@@ -40,16 +39,6 @@ vi.mock("@/helpers/access-control", () => ({
   requireUserTaskAccess: requireUserTaskAccessMock,
 }));
 
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    resolveWorkspaceForContext: resolveWorkspaceForContextMock,
-  };
-});
-
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
@@ -58,7 +47,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 function createUserApp() {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {
@@ -66,6 +55,11 @@ function createUserApp() {
     c.set("authContext", {
       actor: "user",
       userId: "user_123",
+      organizationId: "org_123",
+    });
+    c.set("workspaceContext", {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: null,
       organizationId: "org_123",
     });
     return await next();
@@ -76,7 +70,7 @@ function createUserApp() {
 
 function createCoworkerApp() {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {
@@ -85,6 +79,7 @@ function createCoworkerApp() {
       actor: "coworker",
       coworkerId: "cow_123",
     } satisfies AuthenticationContext);
+    c.set("workspaceContext", null);
     return await next();
   });
 
@@ -346,9 +341,6 @@ describe("GET /tasks/{id}/links", () => {
 describe("POST /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
     requireUserTaskAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
@@ -472,6 +464,27 @@ describe("POST /tasks/{id}/links", () => {
     });
 
     expect(response.status).toBe(404);
+    expect(taskLinkCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when the active workspace is missing", async () => {
+    const app = createUserApp();
+    app.use("*", async (c, next) => {
+      c.set("workspaceContext", null);
+      return await next();
+    });
+    mountPostTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toTaskId: "tsk_b",
+        relation: "related",
+      }),
+    });
+
+    expect(response.status).toBe(403);
     expect(taskLinkCreateMock).not.toHaveBeenCalled();
   });
 
@@ -868,6 +881,26 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     });
 
     expect(response.status).toBe(404);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when the active workspace is missing", async () => {
+    const app = createUserApp();
+    app.use("*", async (c, next) => {
+      c.set("workspaceContext", null);
+      return await next();
+    });
+    mountPatchTaskLink(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        relation: "parent",
+      }),
+    });
+
+    expect(response.status).toBe(403);
     expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 

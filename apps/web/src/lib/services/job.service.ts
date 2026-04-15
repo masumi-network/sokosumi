@@ -12,16 +12,14 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import {
-  isPaidJob,
-  resolveWorkspaceForContext,
-} from "@sokosumi/database/helpers";
+import { isPaidJob } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobEventRepository,
   jobInputRepository,
   jobPurchaseRepository,
   jobRepository,
+  workspaceRepository,
 } from "@sokosumi/database/repositories";
 import type { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics/server";
@@ -156,9 +154,9 @@ export const jobService = (() => {
       throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
     }
 
-    const workspace = await resolveWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       userId,
-      activeOrganizationId,
+      activeOrganizationId ?? null,
       prisma,
     );
 
@@ -376,9 +374,9 @@ export const jobService = (() => {
     // Create job, transaction, and consume credits in a single transaction
     const job = await prisma.$transaction(
       async (tx) => {
-        const workspace = await resolveWorkspaceForContext(
+        const workspace = await workspaceRepository.upsertWorkspaceForContext(
           userId,
-          organizationId,
+          organizationId ?? null,
           tx,
         );
 
@@ -534,9 +532,9 @@ export const jobService = (() => {
     // Generate job name
     const generatedName = await generateJobNameForAgent(agent, inputData);
 
-    const workspace = await resolveWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       userId,
-      organizationId,
+      organizationId ?? null,
       prisma,
     );
 
@@ -760,9 +758,9 @@ export const jobService = (() => {
     }
     const userId = session.user.id;
     const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await resolveWorkspaceForContext(
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
       userId,
-      activeOrganizationId,
+      activeOrganizationId ?? null,
       tx,
     );
 

@@ -17,6 +17,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
@@ -27,13 +28,25 @@ const params = z.object({
   }),
 });
 
-const query = z.object(cursorPaginationQuerySchema.shape);
+const query = z.object({
+  ...cursorPaginationQuerySchema.shape,
+  scope: z
+    .enum(["workspace", "owned"])
+    .default("owned")
+    .openapi({
+      param: { name: "scope", in: "query" },
+      description:
+        "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.",
+      example: "workspace",
+    }),
+});
 
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/jobs",
-    description: "List all jobs for a specific agent (paginated)",
+    description:
+      "List jobs for a specific agent in the active workspace (paginated)",
     tags: ["Agents"],
     request: {
       params,
@@ -103,16 +116,26 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
+    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
+
     const { id } = c.req.valid("param");
     const queryParams = c.req.valid("query");
+    const { scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    const { jobs, count, hasMore } = await getUserJobs(authContext, {
-      agentId: id,
-      cursor,
-      take,
-      skip,
-    });
+    const { jobs, count, hasMore } = await getUserJobs(
+      {
+        authContext,
+        workspaceContext,
+      },
+      {
+        agentId: id,
+        scope,
+        cursor,
+        take,
+        skip,
+      },
+    );
 
     const paginationMeta = createPaginationMeta(
       jobs,

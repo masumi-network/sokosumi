@@ -1744,6 +1744,7 @@
       "balanceDescriptionPersonal": "您个人账户的当前积分。",
       "balanceDescriptionOrganization": "{organization} 的当前积分。{members, plural, =1 {# 名成员} other {# 名成员}}, {seats, plural, =1 {# 个席位} other {# 个席位}}。",
       "balanceCreditsLabel": "{credits, plural, =0 {无积分} =1 {# 积分} other {# 积分}}",
+      "stripeCustomerIdLabel": "Stripe 客户 ID",
       "tabs": {
         "subscription": "订阅",
         "credits": "积分",
@@ -1776,6 +1777,7 @@
       "paidSubscriptionRequiredHint": "请在“订阅”标签页选择付费套餐以解锁积分充值。",
       "couponExpiryPolicyNotice": "促销积分可能会过期，具体条款因优惠券或活动而异。",
       "costPerCredit": "{cost} / 积分",
+      "youSaveLabel": "立省 {amount}",
       "creditAmount": "{count, plural, one {# 积分} other {# 积分}}",
       "creditsLabel": "积分数量",
       "creditsPlaceholder": "输入数量",
@@ -2206,6 +2208,8 @@
           "description": "管理您的组织"
         },
         "roleIndicator": "查看身份：",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe customer ID",
         "websiteLabel": "网站",
         "edit": "编辑",
         "delete": "删除",

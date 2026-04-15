@@ -1,0 +1,141 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthVariables } from "@/middleware/auth";
+import type { WorkspaceVariables } from "@/middleware/workspace";
+
+import mountGetJobs from "./get";
+
+const { getUserJobsMock } = vi.hoisted(() => ({
+  getUserJobsMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/job", () => ({
+  getUserJobs: getUserJobsMock,
+}));
+
+function createApp() {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & WorkspaceVariables;
+  }>();
+
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "user",
+      userId: "user_123",
+      organizationId: "org_123",
+    });
+    c.set("workspaceContext", null);
+
+    return await next();
+  });
+
+  mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+  return app;
+}
+
+describe("GET /jobs", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getUserJobsMock.mockResolvedValue({
+      jobs: [],
+      count: 0,
+      hasMore: false,
+    });
+  });
+
+  it("returns 403 when workspaceContext is missing", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(403);
+    expect(getUserJobsMock).not.toHaveBeenCalled();
+  });
+
+  it("defaults to owned scope when the query parameter is omitted", async () => {
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables & WorkspaceVariables;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/?status=COMPLETED");
+
+    expect(response.status).toBe(200);
+    expect(getUserJobsMock).toHaveBeenCalledWith(
+      {
+        authContext: {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        workspaceContext: {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: null,
+          organizationId: "org_123",
+        },
+      },
+      {
+        agentId: undefined,
+        status: "COMPLETED",
+        scope: "owned",
+        cursor: undefined,
+        take: 20,
+        skip: undefined,
+      },
+    );
+  });
+
+  it("passes scope=workspace through to the job helper", async () => {
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables & WorkspaceVariables;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/?scope=workspace");
+
+    expect(response.status).toBe(200);
+    expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        scope: "workspace",
+      }),
+    );
+  });
+});

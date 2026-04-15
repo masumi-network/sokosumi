@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
+import { workspaceRepository } from "@sokosumi/database/repositories";
 
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -95,9 +95,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
 
-        const workspace = await resolveWorkspaceForContext(
+        const workspace = await workspaceRepository.upsertWorkspaceForContext(
           authContext.userId,
-          targetOrganizationId,
+          targetOrganizationId ?? null,
           tx,
         );
 

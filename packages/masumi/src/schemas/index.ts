@@ -6,5 +6,6 @@ export * from "./agent/start_job.schema.js";
 export * from "./agent/status.schema.js";
 
 // Input schemas
+export * from "./input/blank-numeric-input.js";
 export * from "./input/input.schema.js";
 export * from "./input/validation.schema.js";

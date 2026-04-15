@@ -1744,6 +1744,7 @@
       "balanceDescriptionPersonal": "Vos crédits actuels sur votre compte personnel.",
       "balanceDescriptionOrganization": "Crédits actuels pour {organization}. {members, plural, =1 {# membre} other {# membres}}, {seats, plural, =1 {# siège} other {# sièges}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Aucun crédit} =1 {# crédit} other {# crédits}}",
+      "stripeCustomerIdLabel": "ID client Stripe",
       "tabs": {
         "subscription": "Abonnement",
         "credits": "Crédits",
@@ -1776,6 +1777,7 @@
       "paidSubscriptionRequiredHint": "Choisissez une offre payante dans l’onglet Abonnement pour débloquer les recharges de crédits.",
       "couponExpiryPolicyNotice": "Les crédits promotionnels peuvent expirer ; les conditions varient selon le bon ou l'offre.",
       "costPerCredit": "{cost} par crédit",
+      "youSaveLabel": "Économisez {amount}",
       "creditAmount": "{count, plural, one {# crédit} other {# crédits}}",
       "creditsLabel": "Nombre de crédits",
       "creditsPlaceholder": "Saisissez un montant",
@@ -2206,6 +2208,8 @@
           "description": "Gérez votre organisation"
         },
         "roleIndicator": "Voir en tant que :",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe customer ID",
         "websiteLabel": "Site web",
         "edit": "Modifier",
         "delete": "Supprimer",

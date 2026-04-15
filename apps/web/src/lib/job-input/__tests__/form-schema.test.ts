@@ -1,8 +1,10 @@
 import {
   InputDateSchemaType,
   InputDatetimeSchemaType,
+  InputNumberSchemaType,
   InputOptionSchemaType,
   InputRadioGroupSchemaType,
+  InputRangeSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { InputType, InputValidation } from "@sokosumi/masumi/types";
 import { describe, expect, it } from "vitest";
@@ -280,6 +282,64 @@ describe("jobInputsFormSchema date and datetime-local validation", () => {
 
       expect(schema.safeParse({ requiredOption: [] }).success).toBe(false);
       expect(schema.safeParse({ requiredOption: [0] }).success).toBe(true);
+    });
+  });
+
+  describe("NUMBER and RANGE", () => {
+    it("treats empty string as unset for optional number fields", () => {
+      const numberField: InputNumberSchemaType = {
+        id: "count",
+        type: InputType.NUMBER,
+        name: "Count",
+        validations: [{ validation: InputValidation.OPTIONAL, value: "true" }],
+      };
+      const schema = jobInputsFormSchema([numberField]);
+      const result = schema.safeParse({ count: "" });
+      expect(result.success).toBe(true);
+      expect(result.data?.count).toBeUndefined();
+    });
+
+    it("rejects empty string for required number fields", () => {
+      const numberField: InputNumberSchemaType = {
+        id: "count",
+        type: InputType.NUMBER,
+        name: "Count",
+      };
+      const schema = jobInputsFormSchema([numberField]);
+      expect(schema.safeParse({ count: "" }).success).toBe(false);
+    });
+
+    it("treats empty string as unset for optional range fields", () => {
+      const rangeField: InputRangeSchemaType = {
+        id: "volume",
+        type: InputType.RANGE,
+        name: "Volume",
+        data: { step: 1 },
+        validations: [
+          { validation: InputValidation.MIN, value: "0" },
+          { validation: InputValidation.MAX, value: "10" },
+          { validation: InputValidation.OPTIONAL, value: "true" },
+        ],
+      };
+      const schema = jobInputsFormSchema([rangeField]);
+      const result = schema.safeParse({ volume: "" });
+      expect(result.success).toBe(true);
+      expect(result.data?.volume).toBeUndefined();
+    });
+
+    it("rejects empty string for required range fields", () => {
+      const rangeField: InputRangeSchemaType = {
+        id: "volume",
+        type: InputType.RANGE,
+        name: "Volume",
+        data: { step: 1 },
+        validations: [
+          { validation: InputValidation.MIN, value: "0" },
+          { validation: InputValidation.MAX, value: "10" },
+        ],
+      };
+      const schema = jobInputsFormSchema([rangeField]);
+      expect(schema.safeParse({ volume: "" }).success).toBe(false);
     });
   });
 

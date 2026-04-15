@@ -26,14 +26,6 @@ vi.mock("@/types/job", () => ({
   flattenJob: flattenJobMock,
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    $transaction: async (callback: (tx: object) => unknown) => {
-      return await callback({});
-    },
-  },
-}));
-
 describe("POST /tasks/{id}/jobs", () => {
   function createApp() {
     const app = new OpenAPIHono<{

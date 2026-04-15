@@ -69,6 +69,9 @@ vi.mock("@/lib/gtm-events", () => ({
   },
 }));
 
+/** Footer summary uses `text-sm`; quick-pick cards use `text-xs`. */
+const customAmountPerCreditSelector = "p.text-muted-foreground.text-sm";
+
 const priceCatalog: CreditTopUpPriceCatalog = {
   credit_0_margin: {
     id: "price_0",
@@ -101,7 +104,7 @@ describe("CreditsForm", () => {
     const user = userEvent.setup();
     render(<CreditsForm priceCatalog={priceCatalog} organization={null} />);
 
-    expect(screen.getByText("usd:0.0120 per credit")).toBeInTheDocument();
+    expect(screen.getByText("USD:0.0120 per credit")).toBeInTheDocument();
 
     const creditsInput = screen.getByRole("spinbutton", {
       name: "creditsLabel",
@@ -109,11 +112,15 @@ describe("CreditsForm", () => {
 
     await user.clear(creditsInput);
     await user.type(creditsInput, "10000");
-    expect(screen.getByText("usd:0.0115 per credit")).toBeInTheDocument();
+    expect(
+      screen.getByText("USD:0.0115 per credit", {
+        selector: customAmountPerCreditSelector,
+      }),
+    ).toBeInTheDocument();
 
     await user.clear(creditsInput);
     await user.type(creditsInput, "100000");
-    expect(screen.getByText("usd:0.0110 per credit")).toBeInTheDocument();
+    expect(screen.getByText("USD:0.0110 per credit")).toBeInTheDocument();
     expect(
       screen.queryByText("Credits expire after 180 days."),
     ).not.toBeInTheDocument();
@@ -129,7 +136,7 @@ describe("CreditsForm", () => {
       />,
     );
 
-    expect(screen.getByText("usd:0.0100 per credit")).toBeInTheDocument();
+    expect(screen.getAllByText("USD:0.0100 per credit")).toHaveLength(4);
 
     const creditsInput = screen.getByRole("spinbutton", {
       name: "creditsLabel",
@@ -137,11 +144,19 @@ describe("CreditsForm", () => {
 
     await user.clear(creditsInput);
     await user.type(creditsInput, "10000");
-    expect(screen.getByText("usd:0.0100 per credit")).toBeInTheDocument();
+    expect(
+      screen.getByText("USD:0.0100 per credit", {
+        selector: customAmountPerCreditSelector,
+      }),
+    ).toBeInTheDocument();
 
     await user.clear(creditsInput);
     await user.type(creditsInput, "250000");
-    expect(screen.getByText("usd:0.0100 per credit")).toBeInTheDocument();
+    expect(
+      screen.getByText("USD:0.0100 per credit", {
+        selector: customAmountPerCreditSelector,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("allows single-credit granularity without a hard max", () => {

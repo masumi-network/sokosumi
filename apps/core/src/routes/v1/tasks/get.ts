@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
-import { resolveWorkspaceForContext } from "@sokosumi/database/helpers";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
@@ -24,6 +23,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { isCoworkerAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
 import { taskListInclude } from "@/types/task";
@@ -55,10 +55,21 @@ const taskNameQuerySchema = z
     example: "review",
   });
 
+const taskScopeQuerySchema = z
+  .enum(["workspace", "owned"])
+  .default("owned")
+  .openapi({
+    param: { name: "scope", in: "query" },
+    description:
+      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.",
+    example: "workspace",
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
     status: taskStatusQuerySchema,
+    scope: taskScopeQuerySchema,
     coworkerId: z
       .string()
       .optional()
@@ -74,7 +85,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
-    description: "List all tasks for the current user (paginated)",
+    description: "List tasks in the active workspace (paginated)",
     tags: ["Tasks"],
     request: {
       query,
@@ -82,6 +93,7 @@ const route = withGlobalHeaderParameters(
     responses: {
       200: jsonPaginatedSuccessResponse(taskListSchema, "Retrieve all tasks"),
       401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -91,7 +103,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { q, status: statuses, coworkerId } = queryParams;
+    const { coworkerId, q, scope, status: statuses } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -119,16 +131,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
-      const workspace = await resolveWorkspaceForContext(
-        authContext.userId,
-        authContext.organizationId,
-        prisma,
-      );
-
+      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       where = {
         archivedAt: null,
-        userId: authContext.userId,
-        workspaceId: workspace.id,
+        workspaceId: workspaceContext.workspaceId,
+        ...(scope === "owned" ? { userId: authContext.userId } : {}),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
         ...searchFilter,

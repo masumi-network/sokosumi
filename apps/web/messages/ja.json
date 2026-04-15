@@ -1745,6 +1745,7 @@
       "balanceDescriptionPersonal": "個人アカウントの現在のクレジットです。",
       "balanceDescriptionOrganization": "{organization} の現在のクレジットです。{members, plural, =1 {# メンバー} other {# メンバー}}、{seats, plural, =1 {# シート} other {# シート}}。",
       "balanceCreditsLabel": "{credits, plural, =0 {クレジットなし} =1 {# クレジット} other {# クレジット}}",
+      "stripeCustomerIdLabel": "Stripe 顧客 ID",
       "tabs": {
         "subscription": "サブスクリプション",
         "credits": "クレジット",
@@ -1777,6 +1778,7 @@
       "paidSubscriptionRequiredHint": "クレジットの追加購入を利用するには、サブスクリプションタブで有料プランを選択してください。",
       "couponExpiryPolicyNotice": "プロモーションクレジットには有効期限がある場合があります。条件はクーポンやオファーによって異なります。",
       "costPerCredit": "1クレジットあたり{cost}",
+      "youSaveLabel": "{amount}お得",
       "creditAmount": "{count, plural, one {# クレジット} other {# クレジット}}",
       "creditsLabel": "クレジット数",
       "creditsPlaceholder": "数量を入力",
@@ -2207,6 +2209,8 @@
           "description": "組織を管理します"
         },
         "roleIndicator": "表示形式:",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe customer ID",
         "websiteLabel": "ウェブサイト",
         "edit": "編集",
         "delete": "削除",

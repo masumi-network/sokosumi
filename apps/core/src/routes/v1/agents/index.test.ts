@@ -46,7 +46,7 @@ function getQueryParamFromGetOperation(
 }
 
 describe("agents routes OpenAPI scope contract", () => {
-  it("does not expose scope query parameter for the agent jobs list endpoint", () => {
+  it("exposes scope query parameter for the agent jobs list endpoint", () => {
     const doc = agentsRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -55,7 +55,9 @@ describe("agents routes OpenAPI scope contract", () => {
       },
     });
 
-    expect(getScopeDescriptionFromGetOperation(doc, "/{id}/jobs")).toBe("");
+    expect(getScopeDescriptionFromGetOperation(doc, "/{id}/jobs")).toContain(
+      "workspace visibility scope",
+    );
   });
 
   it("exposes category query parameter for list agents endpoint", () => {

@@ -53,5 +53,4 @@ export const DEFAULT_DELETE_FORM_VALUES = {
   confirmName: "",
 } as const;
 
-export const COPY_SUCCESS_TIMEOUT = 3000;
 export const DIALOG_CLEANUP_TIMEOUT = 300;

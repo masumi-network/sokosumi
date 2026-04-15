@@ -8,7 +8,7 @@ const getBalanceMock = vi.fn();
 const createDemoJobMock = vi.fn();
 const createJobMock = vi.fn();
 const createJobPurchaseMock = vi.fn();
-const resolveWorkspaceForContextMock = vi.fn();
+const upsertWorkspaceForContextMock = vi.fn();
 const publishJobStatusDataMock = vi.fn();
 const startFreeAgentJobMock = vi.fn();
 const startPaidAgentJobMock = vi.fn();
@@ -52,17 +52,6 @@ vi.mock("uuid", () => ({
   v4: () => "12345678-1234-4234-9234-1234567890ab",
 }));
 
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-
-  return {
-    ...actual,
-    resolveWorkspaceForContext: (...args: unknown[]) =>
-      resolveWorkspaceForContextMock(...args),
-  };
-});
-
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     getBalance: (...args: unknown[]) => getBalanceMock(...args),
@@ -77,6 +66,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
     createJob: (...args: unknown[]) => createJobMock(...args),
     getLatestJobByAgentIdUserIdAndWorkspace: (...args: unknown[]) =>
       getLatestJobByAgentIdUserIdAndWorkspaceMock(...args),
+  },
+  workspaceRepository: {
+    upsertWorkspaceForContext: (...args: unknown[]) =>
+      upsertWorkspaceForContextMock(...args),
   },
 }));
 
@@ -255,7 +248,7 @@ function buildStartInput(overrides: Record<string, unknown> = {}) {
 describe("job.service workspace persistence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveWorkspaceForContextMock.mockResolvedValue({
+    upsertWorkspaceForContextMock.mockResolvedValue({
       id: "11111111-1111-7111-8111-111111111111",
     });
     getSessionMock.mockResolvedValue({
@@ -295,7 +288,7 @@ describe("job.service workspace persistence", () => {
       result: "demo result",
     } as never);
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       null,
       expect.any(Object),
@@ -321,7 +314,7 @@ describe("job.service workspace persistence", () => {
 
     await jobService.startJob(buildStartInput());
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       expect.any(Object),
@@ -370,7 +363,7 @@ describe("job.service workspace persistence", () => {
 
     await jobService.startJob(buildStartInput());
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       { tx: "transaction" },
@@ -416,7 +409,7 @@ describe("job.service workspace persistence", () => {
 
     const result = await jobService.getJobStatusesDataForAgents(["agent_123"]);
 
-    expect(resolveWorkspaceForContextMock).toHaveBeenCalledWith(
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
       expect.any(Object),
