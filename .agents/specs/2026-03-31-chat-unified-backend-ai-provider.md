@@ -135,8 +135,8 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 
 **Acceptance scenarios**:
 
-1. **Given** `conversationId` is set and the last message is user/system, **when** the request is handled, **then** the user/system message is persisted via `conversationItem.create` with formatted content.
-2. **Given** `internalConversationId` is set, **when** either coworker or OpenRouter stream completes, **then** assistant output is persisted via `streamWithAssistantPersistence`.
+1. **Given** `conversationId` is set and the last message is user/system, **when** the request is handled, **then** the user/system message is persisted via `conversationMessage.create` with formatted content.
+2. **Given** a bound conversation id for persistence, **when** either coworker or OpenRouter stream completes, **then** assistant output is persisted via `persistAssistantFromAiSdk` (AI SDK `onFinish`).
 
 ---
 
@@ -383,7 +383,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 |----|------|
 | **R1** | Chat HTTP endpoints require an authenticated user; cross-user conversation access returns not found or forbidden (consistent behavior across BFF and Core). |
 | **R2** | Successful runs return **SSE**; client can read incrementally. |
-| **R3** | For a bound `conversationId`, last user/system turn is written before the model runs; assistant turn persisted from stream completion (wrapped stream). |
+| **R3** | For a bound `conversationId`, last user/system turn is written before the model runs; assistant turn persisted on stream completion (e.g. AI SDK `onFinish` / `persistAssistantFromAiSdk`). |
 | **R4** | Coworker with chat → Responses API stream to `baseURL`; else OpenRouter with `model` from request or `metadata.model_id`. |
 | **R5** | `previous_response_id`: body overrides metadata; invalid → strip metadata, retry without id, message list input. |
 | **R6** | Pending Responses id in metadata; client defers reload, polls/recovers; Core sets/clears pending and commits `previous_response_id` on completion. |
@@ -393,7 +393,7 @@ Each story keeps a stable **US-CHAT-xx** id for traceability. **Priority**: P1 =
 ## Appendix B — Architecture (canonical stack)
 
 - **Web**: Next.js App Router; chat UI under **`/chat/...`** (bucket + `conversation/:id`); BFF **`apps/web/src/app/api/chat/route.ts`** exposes **`POST`** and **`GET`** and forwards to Core **`POST /v1/chat`** and **`GET /v1/chat`** (Vercel AI SDK + `@sokosumi/ai-provider`). Client disconnect **drain** behavior lives in the BFF route handler.
-- **Core**: **`apps/core/src/routes/v1/chat/post.ts`** (streaming chat) and **`get.ts`** (as implemented) validate input, resolve the conversation and **metadata** (`model_id`, `coworker_slug` / `coworker_id`, `previous_response_id`, pending fields); normalize messages to **plain text** per turn; branch **coworker Responses API** stream vs **OpenRouter**; wrap streams with **assistant persistence** as implemented.
+- **Core**: **`apps/core/src/routes/v1/chat/post.ts`** (streaming chat) and **`get.ts`** (as implemented) validate input, resolve the conversation and **metadata** (`model_id`, `coworker_slug` / `coworker_id`, `previous_response_id`, pending fields); normalize messages to **plain text** per turn; branch **coworker Responses API** stream vs **OpenRouter**; persist assistant output on completion via **`persistAssistantFromAiSdk`** (AI SDK **`onFinish`**) as implemented.
 
 ---
 
