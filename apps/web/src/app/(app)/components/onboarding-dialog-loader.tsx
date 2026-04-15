@@ -44,7 +44,22 @@ export async function OnboardingDialogLoader({
   loginId,
   subscriptionOnly = false,
 }: OnboardingDialogLoaderProps) {
-  const subscriptionCatalog = await getSubscriptionCatalog(stripeInstance);
+  let subscriptionCatalog: Awaited<
+    ReturnType<typeof getSubscriptionCatalog>
+  > | null = null;
+  try {
+    subscriptionCatalog = await getSubscriptionCatalog(stripeInstance);
+  } catch (error) {
+    console.error("Failed to load subscription catalog for onboarding", error);
+  }
+
+  if (!subscriptionCatalog) {
+    return (
+      <Suspense fallback={null}>
+        <OnboardingSubscriptionReturnHandler />
+      </Suspense>
+    );
+  }
 
   const organizationMemberPromise = activeOrganization
     ? userService.getMyMemberInOrganization(activeOrganization.id)

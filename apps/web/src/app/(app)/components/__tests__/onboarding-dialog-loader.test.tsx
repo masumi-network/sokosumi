@@ -1,7 +1,7 @@
 import { MemberRole } from "@sokosumi/database";
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMyMemberInOrganizationMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
@@ -97,6 +97,10 @@ describe("OnboardingDialogLoader", () => {
     ]);
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("keeps org-scoped subscription gates restricted for non-admin members", async () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.MEMBER,
@@ -134,5 +138,39 @@ describe("OnboardingDialogLoader", () => {
       props.paidPlans.find((plan) => plan.name === "starter")?.isCurrent,
     ).toBe(true);
     expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
+  });
+
+  it("skips the onboarding dialog when the subscription catalog cannot be loaded", async () => {
+    getSubscriptionCatalogMock.mockRejectedValue(new Error("Stripe outage"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const { OnboardingDialogLoader } = await import(
+      "../onboarding-dialog-loader"
+    );
+
+    const { getByTestId, queryByTestId } = render(
+      (await OnboardingDialogLoader({
+        activeOrganization: {
+          _count: { members: 3 },
+          id: "org-1",
+          name: "Org One",
+        } as never,
+        loginId: "session-1",
+        subscriptionOnly: true,
+      })) as ReactNode,
+    );
+
+    expect(getByTestId("return-handler")).toBeTruthy();
+    expect(queryByTestId("onboarding-dialog")).toBeNull();
+    expect(onboardingDialogMock).not.toHaveBeenCalled();
+    expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
+    expect(getLatestActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Failed to load subscription catalog for onboarding",
+      expect.any(Error),
+    );
   });
 });
