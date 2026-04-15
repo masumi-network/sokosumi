@@ -523,9 +523,9 @@ export function OnboardingDialog({
 
     if (isRestrictedOrganizationGate) {
       setOpen(false);
-      if (loginId) {
-        void markSubscriptionOnboardingGateSessionSeen(loginId);
-      }
+      // Do not mark the session cookie: the user never saw a checkout-capable
+      // gate. Marking would make AppLayout skip the loader for this session
+      // everywhere (e.g. personal workspace) until the session changes.
       return;
     }
 

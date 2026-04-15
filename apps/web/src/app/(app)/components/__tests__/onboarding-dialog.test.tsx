@@ -257,7 +257,7 @@ describe("OnboardingDialog organization subscription", () => {
     });
   });
 
-  it("keeps restricted organization gates closed and marks the session as seen", async () => {
+  it("keeps restricted organization gates closed without marking the session seen", async () => {
     render(
       <OnboardingDialog
         loginId="session-1"
@@ -273,7 +273,7 @@ describe("OnboardingDialog organization subscription", () => {
     await waitFor(() => {
       expect(
         markSubscriptionOnboardingGateSessionSeenMock,
-      ).toHaveBeenCalledWith("session-1");
+      ).not.toHaveBeenCalled();
     });
     expect(completeOnboardingMock).not.toHaveBeenCalled();
     expect(upgradePersonalSubscriptionMock).not.toHaveBeenCalled();

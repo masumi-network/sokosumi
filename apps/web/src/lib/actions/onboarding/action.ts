@@ -29,8 +29,10 @@ async function setSubscriptionOnboardingGateCookieForSessionId(
 
 /**
  * Persists that the subscription-only onboarding gate was shown (or suppressed
- * via client localStorage) for the current auth session so the server layout
- * can skip the subscription onboarding loader on subsequent requests.
+ * via client localStorage after the user already saw the gate) for the current
+ * auth session so the server layout can skip the subscription onboarding loader
+ * on subsequent requests. Do not call for restricted org members who never saw
+ * checkout — the cookie is session-global and would hide the gate elsewhere.
  */
 export async function markSubscriptionOnboardingGateSessionSeen(
   loginId: string,
