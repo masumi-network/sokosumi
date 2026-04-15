@@ -6,7 +6,7 @@ import {
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-
+import { CopyableValue } from "@/components/copyable-value";
 import { OrganizationLogo } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
 import {
@@ -16,8 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-import OrganizationCopyableId from "./organization-copyable-id";
 import OrganizationEditButton from "./organization-edit-button";
 import OrganizationRemoveButton from "./organization-remove-button";
 
@@ -54,7 +52,11 @@ export default async function OrganizationInformation({
       ? {
           label: t("stripeCustomerIdLabel"),
           value: (
-            <OrganizationCopyableId value={organization.stripeCustomerId} />
+            <CopyableValue
+              value={organization.stripeCustomerId}
+              copiedFeedback
+              presentation="inline-code"
+            />
           ),
         }
       : null,
@@ -76,9 +78,11 @@ export default async function OrganizationInformation({
               </CardTitle>
               <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-muted-foreground">{t("slugLabel")}</span>
-                <OrganizationCopyableId
+                <CopyableValue
                   value={organization.slug}
-                  truncate={false}
+                  copiedFeedback
+                  presentation="inline-code"
+                  truncateInline={false}
                   codeClassName="bg-muted rounded-md px-2 py-1"
                   buttonClassName="size-7"
                 />

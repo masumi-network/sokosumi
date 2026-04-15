@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { COPY_SUCCESS_TIMEOUT } from "@/hooks/use-clipboard";
 
-import OrganizationCopyableId from "../organization-copyable-id";
+import { CopyableValue } from "../copyable-value";
 
 const clipboardWriteTextMock = vi.fn();
 
@@ -30,7 +30,7 @@ vi.mock("lucide-react", () => ({
   Copy: () => <span data-testid="copy-icon" />,
 }));
 
-describe("OrganizationCopyableId", () => {
+describe("CopyableValue", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     clipboardWriteTextMock.mockReset();
@@ -46,10 +46,16 @@ describe("OrganizationCopyableId", () => {
     vi.useRealTimers();
   });
 
-  it("shows a checkmark after copying", async () => {
+  it("shows a checkmark after copying when copiedFeedback is enabled", async () => {
     clipboardWriteTextMock.mockResolvedValue(undefined);
 
-    render(<OrganizationCopyableId value="org-slug" />);
+    render(
+      <CopyableValue
+        value="org-slug"
+        copiedFeedback
+        presentation="inline-code"
+      />,
+    );
 
     const button = screen.getByRole("button", { name: "Copy" });
     expect(screen.getByTestId("copy-icon")).toBeInTheDocument();

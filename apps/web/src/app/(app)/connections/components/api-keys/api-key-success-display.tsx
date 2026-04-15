@@ -19,7 +19,10 @@ export function ApiKeySuccessDisplay({
   onClose,
 }: ApiKeySuccessDisplayProps) {
   const t = useTranslations("App.Account.ApiKeys");
-  const { copied, copy } = useClipboard();
+  const { copied, copy } = useClipboard({
+    copySuccessMessage: t("Messages.copySuccess"),
+    copyErrorMessage: t("Messages.copyError"),
+  });
 
   const handleCopy = async () => {
     await copy(apiKey);

@@ -47,9 +47,8 @@ vi.mock("@/components/organizations", () => ({
   OrganizationLogo: () => <span aria-hidden="true">Logo</span>,
 }));
 
-vi.mock("../organization-copyable-id", () => ({
-  __esModule: true,
-  default: ({ value }: { value: string }) => (
+vi.mock("@/components/copyable-value", () => ({
+  CopyableValue: ({ value }: { value: string }) => (
     <div>
       <span>{value}</span>
       <button type="button" aria-label="Copy">
