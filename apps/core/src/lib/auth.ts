@@ -90,7 +90,6 @@ export const auth = betterAuth({
   advanced: {
     cookiePrefix: betterAuthCookiePrefix,
     database: {
-      // Our auth tables now use native UUID columns (@db.Uuid), so Better Auth must generate UUID ids.
       generateId: "uuid",
     },
     ...(env.BETTER_AUTH_COOKIE_DOMAIN

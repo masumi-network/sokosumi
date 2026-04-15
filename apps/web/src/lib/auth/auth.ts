@@ -248,7 +248,6 @@ export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   baseURL: betterAuthBaseUrl,
   advanced: {
-    // Our auth tables now use native UUID columns (@db.Uuid), so Better Auth must generate UUID ids.
     database: {
       generateId: "uuid",
     },
