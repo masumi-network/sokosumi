@@ -168,6 +168,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             creditsLabel={t("balanceCreditsLabel", {
               credits: displayCredits,
             })}
+            stripeCustomerId={activeOrganization.stripeCustomerId}
+            stripeCustomerLabel={t("stripeCustomerIdLabel")}
           />
 
           <BillingTabs
@@ -276,6 +278,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           creditsLabel={t("balanceCreditsLabel", {
             credits: displayCredits,
           })}
+          stripeCustomerId={user?.stripeCustomerId ?? null}
+          stripeCustomerLabel={t("stripeCustomerIdLabel")}
         />
 
         <BillingTabs

@@ -1,3 +1,4 @@
+import { BalanceStripeCustomerRow } from "@/components/billing/balance-stripe-customer-row";
 import {
   Card,
   CardContent,
@@ -9,12 +10,16 @@ import {
 interface BalanceSectionProps {
   creditsLabel: string;
   description: string;
+  stripeCustomerId?: null | string;
+  stripeCustomerLabel?: string;
   title: string;
 }
 
 export function BalanceSection({
   creditsLabel,
   description,
+  stripeCustomerId,
+  stripeCustomerLabel,
   title,
 }: BalanceSectionProps) {
   return (
@@ -23,7 +28,14 @@ export function BalanceSection({
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {stripeCustomerId && stripeCustomerLabel ? (
+          <BalanceStripeCustomerRow
+            key={stripeCustomerId}
+            label={stripeCustomerLabel}
+            stripeCustomerId={stripeCustomerId}
+          />
+        ) : null}
         <p className="text-2xl font-semibold">{creditsLabel}</p>
       </CardContent>
     </Card>
