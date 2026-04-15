@@ -122,7 +122,9 @@ describe("GET /agents/{id}/jobs", () => {
 
     mountGetAgentJobs(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request("http://localhost/agent_123/jobs?scope=workspace");
+    const response = await app.request(
+      "http://localhost/agent_123/jobs?scope=workspace",
+    );
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(

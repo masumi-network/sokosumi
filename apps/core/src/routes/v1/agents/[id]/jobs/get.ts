@@ -45,7 +45,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/jobs",
-    description: "List jobs for a specific agent in the active workspace (paginated)",
+    description:
+      "List jobs for a specific agent in the active workspace (paginated)",
     tags: ["Agents"],
     request: {
       params,
