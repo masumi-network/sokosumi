@@ -25,7 +25,7 @@ function getScopeDescriptionFromGetOperation(
 }
 
 describe("jobs routes OpenAPI scope contract", () => {
-  it("does not expose scope query parameter on job read endpoints", () => {
+  it("exposes scope on the top-level job list and not on single-job reads", () => {
     const doc = jobsRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -34,7 +34,9 @@ describe("jobs routes OpenAPI scope contract", () => {
       },
     });
 
-    expect(getScopeDescriptionFromGetOperation(doc, "/")).toBe("");
+    expect(getScopeDescriptionFromGetOperation(doc, "/")).toContain(
+      "workspace visibility scope",
+    );
     expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toBe("");
   });
 
