@@ -216,7 +216,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           where: { conversationId: internalConversationId },
           orderBy: { createdAt: "asc" },
           take: 200,
-          select: { id: true, role: true, contentText: true },
+          select: { id: true, role: true, contentText: true, metadata: true },
         });
         const historyUi = conversationItemsToUiMessages(itemsBeforeUserTurn);
         const tailUi = mapChatRequestToUiMessages([singleMessage]);
