@@ -245,7 +245,7 @@ const betterAuthCookiePrefixParams = {
 };
 
 export const auth = betterAuth({
-  appName: "Sokosumi", // Define the name of your application
+  appName: "Sokosumi",
   baseURL: betterAuthBaseUrl,
   advanced: {
     cookiePrefix: resolveBetterAuthCookiePrefix(betterAuthCookiePrefixParams),
