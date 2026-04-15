@@ -1,5 +1,4 @@
 import { convertCreditsToCents } from "@sokosumi/utils";
-import { v4 as uuidv4 } from "uuid";
 import {
   CreditBucketReferenceType,
   type Prisma,
@@ -398,7 +397,6 @@ export async function ensureLocalFreeSubscriptionPeriod(
         billingInterval: MONTHLY_BILLING_INTERVAL,
         cancelAtPeriodEnd: false,
         createdAt: params.billingAnchorDate,
-        id: uuidv4(),
         periodEnd: params.periodEnd,
         periodStart: params.periodStart,
         plan: FREE_SUBSCRIPTION_PLAN,
