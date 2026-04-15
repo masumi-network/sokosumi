@@ -85,25 +85,27 @@ export async function OnboardingDialogLoader({
     latestOrganizationSubscription?.plan,
   );
   const hasActiveOrganization = activeOrganization !== null;
-  const personalCurrentPlan = hasActiveOrganization
-    ? null
-    : (resolveCurrentPlanName(
-        (await auth.api.listActiveSubscriptions({
-          headers: await headers(),
-          query: {
-            customerType: "user",
-          },
-        })) as ActiveSubscription[],
-      ) ?? "free");
   const subscriptionCheckoutMode: OnboardingSubscriptionCheckoutMode =
     hasActiveOrganization
       ? canManageOrganizationSubscription
         ? "organization"
         : "restricted"
       : "personal";
-  const currentPlan = hasActiveOrganization
-    ? (organizationCurrentPlan ?? "free")
-    : (personalCurrentPlan ?? "free");
+  const personalCurrentPlan =
+    subscriptionCheckoutMode === "organization"
+      ? null
+      : (resolveCurrentPlanName(
+          (await auth.api.listActiveSubscriptions({
+            headers: await headers(),
+            query: {
+              customerType: "user",
+            },
+          })) as ActiveSubscription[],
+        ) ?? "free");
+  const currentPlan =
+    subscriptionCheckoutMode === "organization"
+      ? (organizationCurrentPlan ?? "free")
+      : (personalCurrentPlan ?? "free");
 
   const onboardingPlans: PaidSubscriptionPlanView[] = PLAN_ORDER.flatMap(
     (planName) => {

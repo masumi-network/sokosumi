@@ -101,6 +101,46 @@ describe("OnboardingDialogLoader", () => {
     vi.restoreAllMocks();
   });
 
+  it("uses the personal current plan for restricted full onboarding", async () => {
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.MEMBER,
+    });
+
+    const { OnboardingDialogLoader } = await import(
+      "../onboarding-dialog-loader"
+    );
+
+    render(
+      (await OnboardingDialogLoader({
+        activeOrganization: {
+          _count: { members: 3 },
+          id: "org-1",
+          name: "Org One",
+        } as never,
+        loginId: "session-1",
+        subscriptionOnly: false,
+      })) as ReactNode,
+    );
+
+    const props = onboardingDialogMock.mock.calls[0]?.[0] as {
+      organizationSubscription?: unknown;
+      paidPlans: Array<{ isCurrent: boolean; name: string }>;
+      subscriptionCheckoutMode: string;
+      subscriptionOnly?: boolean;
+    };
+
+    expect(props.subscriptionCheckoutMode).toBe("restricted");
+    expect(props.organizationSubscription).toBeUndefined();
+    expect(props.subscriptionOnly).toBe(false);
+    expect(props.paidPlans.find((plan) => plan.name === "pro")?.isCurrent).toBe(
+      true,
+    );
+    expect(
+      props.paidPlans.find((plan) => plan.name === "starter")?.isCurrent,
+    ).toBe(false);
+    expect(listActiveSubscriptionsMock).toHaveBeenCalledOnce();
+  });
+
   it("keeps org-scoped subscription gates restricted for non-admin members", async () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.MEMBER,
@@ -134,10 +174,13 @@ describe("OnboardingDialogLoader", () => {
     expect(props.organizationSubscription).toBeUndefined();
     expect(props.loginId).toBe("session-1");
     expect(props.subscriptionOnly).toBe(true);
+    expect(props.paidPlans.find((plan) => plan.name === "pro")?.isCurrent).toBe(
+      true,
+    );
     expect(
       props.paidPlans.find((plan) => plan.name === "starter")?.isCurrent,
-    ).toBe(true);
-    expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
+    ).toBe(false);
+    expect(listActiveSubscriptionsMock).toHaveBeenCalledOnce();
   });
 
   it("skips the onboarding dialog when the subscription catalog cannot be loaded", async () => {
