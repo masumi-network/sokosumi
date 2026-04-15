@@ -34,11 +34,13 @@ const PLAN_ORDER: SubscriptionPlanName[] = [
 
 interface OnboardingDialogLoaderProps {
   activeOrganization: OrganizationWithRelations | null;
+  loginId?: null | string;
   subscriptionOnly?: boolean;
 }
 
 export async function OnboardingDialogLoader({
   activeOrganization,
+  loginId,
   subscriptionOnly = false,
 }: OnboardingDialogLoaderProps) {
   const subscriptionCatalog = await getSubscriptionCatalog(stripeInstance);
@@ -118,6 +120,7 @@ export async function OnboardingDialogLoader({
         <OnboardingSubscriptionReturnHandler />
       </Suspense>
       <OnboardingDialog
+        loginId={loginId}
         organizationSubscription={organizationSubscription}
         paidPlans={onboardingPlans}
         subscriptionOnly={subscriptionOnly}

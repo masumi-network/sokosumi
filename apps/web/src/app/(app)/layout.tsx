@@ -84,12 +84,15 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       default: "404",
     });
   const creditsData = creditsResult?.data.credits ?? null;
+  const currentPlan = creditsData?.subscription?.plan ?? "free";
+  const shouldShowFreeSubscriptionGate =
+    !shouldShowOnboarding && currentPlan === "free";
   const currentTimestampMs = creditsResult?.meta?.timestamp
     ? new Date(creditsResult.meta.timestamp).getTime()
     : 0;
   const topNotice = resolveAppTopNotice({
     credits: creditsData?.total ?? null,
-    currentPlan: creditsData?.subscription?.plan ?? "free",
+    currentPlan,
     email: session.user.email,
     emailVerified: session.user.emailVerified,
     threshold: getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD,
@@ -166,7 +169,14 @@ export default async function AppLayout({ children }: AppLayoutProps) {
           {shouldShowOnboarding ? (
             <OnboardingDialogLoader
               activeOrganization={activeOrganization}
+              loginId={session.session.id}
               subscriptionOnly={false}
+            />
+          ) : shouldShowFreeSubscriptionGate ? (
+            <OnboardingDialogLoader
+              activeOrganization={activeOrganization}
+              loginId={session.session.id}
+              subscriptionOnly
             />
           ) : null}
         </CoworkersProvider>

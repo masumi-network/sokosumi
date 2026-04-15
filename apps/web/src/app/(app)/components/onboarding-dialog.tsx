@@ -40,6 +40,48 @@ import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog
 
 const INTRO_STEP_COUNT = 5;
 const DEFAULT_SELECTED_PLAN: PaidSubscriptionPlanName = "standard";
+const SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY =
+  "sokosumi.onboarding.subscription.lastLoginId";
+
+function readLastSubscriptionOnboardingLoginId(): null | string {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const loginId = window.localStorage.getItem(
+      SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY,
+    );
+    return loginId ? loginId : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLastSubscriptionOnboardingLoginId(loginId: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY,
+      loginId,
+    );
+  } catch {
+    // Ignore localStorage write errors (quota, privacy mode, etc.).
+  }
+}
+
+function shouldOpenSubscriptionOnlyOnboarding(
+  loginId?: null | string,
+): boolean {
+  if (!loginId) {
+    return true;
+  }
+
+  return readLastSubscriptionOnboardingLoginId() !== loginId;
+}
 
 /* ─── Animated visuals ─── */
 
@@ -410,6 +452,7 @@ function StepNavigation({
 /* ─── Main dialog ─── */
 
 interface OnboardingDialogProps {
+  loginId?: null | string;
   organizationSubscription?: {
     currentSeats: number;
     memberCount: number;
@@ -431,6 +474,7 @@ function resolveInitialSelectedPlan(
 }
 
 export function OnboardingDialog({
+  loginId,
   organizationSubscription,
   paidPlans,
   subscriptionOnly = false,
@@ -443,7 +487,7 @@ export function OnboardingDialog({
   );
   const tSubscriptions = useTranslations("App.Subscriptions");
   const router = useRouter();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(() => !subscriptionOnly);
   const [step, setStep] = useState(subscriptionOnly ? INTRO_STEP_COUNT - 1 : 0);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PaidSubscriptionPlanName>(
@@ -458,6 +502,24 @@ export function OnboardingDialog({
       : 1,
   );
   const { coworkers: apiCoworkers } = useCoworkersContext();
+
+  useEffect(() => {
+    if (!subscriptionOnly) {
+      setOpen(true);
+      return;
+    }
+
+    if (!shouldOpenSubscriptionOnlyOnboarding(loginId)) {
+      setOpen(false);
+      return;
+    }
+
+    if (loginId) {
+      writeLastSubscriptionOnboardingLoginId(loginId);
+    }
+
+    setOpen(true);
+  }, [loginId, subscriptionOnly]);
 
   if (!open) return null;
 

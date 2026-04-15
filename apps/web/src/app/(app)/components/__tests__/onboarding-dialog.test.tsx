@@ -88,6 +88,9 @@ vi.mock("@/lib/actions/subscription", () => ({
 
 import { OnboardingDialog } from "../onboarding-dialog";
 
+const SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY =
+  "sokosumi.onboarding.subscription.lastLoginId";
+
 function createPaidPlans() {
   return [
     {
@@ -110,6 +113,7 @@ function createPaidPlans() {
 describe("OnboardingDialog organization subscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     completeOnboardingMock.mockResolvedValue({
       data: { redirectUrl: "/tasks" },
       ok: true,
@@ -138,9 +142,8 @@ describe("OnboardingDialog organization subscription", () => {
       />,
     );
 
-    expect(screen.getByText("currentSeatsLabel")).toBeInTheDocument();
-    expect(screen.getByText("membersLabel")).toBeInTheDocument();
     expect(screen.getByLabelText("seatsInputLabel")).toHaveValue(5);
+    expect(screen.getAllByText('seatsInputHint:{"minimum":3}')).toHaveLength(2);
     expect(screen.getByTestId("plan-grid")).toBeInTheDocument();
   });
 
@@ -200,5 +203,43 @@ describe("OnboardingDialog organization subscription", () => {
       expect(toast.error).toHaveBeenCalledWith("Errors.badInput");
     });
     expect(upgradeOrganizationSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("opens once for a new subscription-only login and stores the login id", async () => {
+    render(
+      <OnboardingDialog
+        loginId="session-1"
+        paidPlans={createPaidPlans()}
+        subscriptionOnly
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "navigation.subscribe" }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      window.localStorage.getItem(SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY),
+    ).toBe("session-1");
+  });
+
+  it("keeps the subscription-only dialog closed for the same login id", () => {
+    window.localStorage.setItem(
+      SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY,
+      "session-1",
+    );
+
+    render(
+      <OnboardingDialog
+        loginId="session-1"
+        paidPlans={createPaidPlans()}
+        subscriptionOnly
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "navigation.subscribe" }),
+    ).not.toBeInTheDocument();
   });
 });
