@@ -145,6 +145,21 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("omits the authenticated user filter when scope=workspace is provided", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?scope=workspace");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+      }),
+    );
+  });
+
   it("does not include task links for user-scoped task list reads", async () => {
     const app = createApp();
 

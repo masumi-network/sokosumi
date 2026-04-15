@@ -1045,6 +1045,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'text';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1072,6 +1073,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'textarea';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1093,6 +1095,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'number';
                 name: string;
                 data?: {
+                    default?: number | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1114,6 +1117,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'boolean';
                 name: string;
                 data?: {
+                    default?: boolean | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1126,6 +1130,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'email';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1171,6 +1176,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'tel';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1192,6 +1198,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'url';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1216,6 +1223,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'date';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1234,6 +1242,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'datetime-local';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1252,6 +1261,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'time';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1270,6 +1280,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'month';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1288,6 +1299,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'week';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1370,6 +1382,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'search';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -1404,6 +1417,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                 type: 'radio';
                 name: string;
                 data: {
+                    default?: string | null;
                     values: Array<string>;
                     description?: string | null;
                 };
@@ -1500,6 +1514,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'text';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1527,6 +1542,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'textarea';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1548,6 +1564,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'number';
                     name: string;
                     data?: {
+                        default?: number | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1569,6 +1586,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'boolean';
                     name: string;
                     data?: {
+                        default?: boolean | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1581,6 +1599,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'email';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1626,6 +1645,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'tel';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1647,6 +1667,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'url';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1671,6 +1692,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'date';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1689,6 +1711,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'datetime-local';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1707,6 +1730,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'time';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1725,6 +1749,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'month';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1743,6 +1768,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'week';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1825,6 +1851,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'search';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -1859,6 +1886,7 @@ export type GetAgentsByIdInputSchemaResponses = {
                     type: 'radio';
                     name: string;
                     data: {
+                        default?: string | null;
                         values: Array<string>;
                         description?: string | null;
                     };
@@ -1943,6 +1971,10 @@ export type GetAgentsByIdJobsData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        /**
+         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.
+         */
+        scope?: 'workspace' | 'owned';
     };
     url: '/agents/{id}/jobs';
 };
@@ -2062,6 +2094,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'text';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2089,6 +2122,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'textarea';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2110,6 +2144,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'number';
                 name: string;
                 data?: {
+                    default?: number | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2131,6 +2166,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'boolean';
                 name: string;
                 data?: {
+                    default?: boolean | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2143,6 +2179,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'email';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2188,6 +2225,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'tel';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2209,6 +2247,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'url';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2233,6 +2272,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'date';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2251,6 +2291,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'datetime-local';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2269,6 +2310,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'time';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2287,6 +2329,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'month';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2305,6 +2348,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'week';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2387,6 +2431,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'search';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -2421,6 +2466,7 @@ export type PostAgentsByIdJobsData = {
                 type: 'radio';
                 name: string;
                 data: {
+                    default?: string | null;
                     values: Array<string>;
                     description?: string | null;
                 };
@@ -2517,6 +2563,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'text';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2544,6 +2591,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'textarea';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2565,6 +2613,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'number';
                     name: string;
                     data?: {
+                        default?: number | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2586,6 +2635,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'boolean';
                     name: string;
                     data?: {
+                        default?: boolean | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2598,6 +2648,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'email';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2643,6 +2694,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'tel';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2664,6 +2716,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'url';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2688,6 +2741,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'date';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2706,6 +2760,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'datetime-local';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2724,6 +2779,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'time';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2742,6 +2798,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'month';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2760,6 +2817,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'week';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2842,6 +2900,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'search';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -2876,6 +2935,7 @@ export type PostAgentsByIdJobsData = {
                     type: 'radio';
                     name: string;
                     data: {
+                        default?: string | null;
                         values: Array<string>;
                         description?: string | null;
                     };
@@ -5683,6 +5743,10 @@ export type GetJobsData = {
          */
         status?: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
         /**
+         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.
+         */
+        scope?: 'workspace' | 'owned';
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -7655,6 +7719,10 @@ export type GetTasksData = {
          */
         status?: Array<'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
         /**
+         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
+         */
+        scope?: 'workspace' | 'owned';
+        /**
          * Filter tasks by coworker ID
          */
         coworkerId?: string;
@@ -7675,6 +7743,19 @@ export type GetTasksErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -8848,6 +8929,7 @@ export type PostTasksByIdJobsData = {
                 type: 'text';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -8875,6 +8957,7 @@ export type PostTasksByIdJobsData = {
                 type: 'textarea';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -8896,6 +8979,7 @@ export type PostTasksByIdJobsData = {
                 type: 'number';
                 name: string;
                 data?: {
+                    default?: number | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -8917,6 +9001,7 @@ export type PostTasksByIdJobsData = {
                 type: 'boolean';
                 name: string;
                 data?: {
+                    default?: boolean | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -8929,6 +9014,7 @@ export type PostTasksByIdJobsData = {
                 type: 'email';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -8974,6 +9060,7 @@ export type PostTasksByIdJobsData = {
                 type: 'tel';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -8995,6 +9082,7 @@ export type PostTasksByIdJobsData = {
                 type: 'url';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -9019,6 +9107,7 @@ export type PostTasksByIdJobsData = {
                 type: 'date';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -9037,6 +9126,7 @@ export type PostTasksByIdJobsData = {
                 type: 'datetime-local';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -9055,6 +9145,7 @@ export type PostTasksByIdJobsData = {
                 type: 'time';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -9073,6 +9164,7 @@ export type PostTasksByIdJobsData = {
                 type: 'month';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -9091,6 +9183,7 @@ export type PostTasksByIdJobsData = {
                 type: 'week';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -9173,6 +9266,7 @@ export type PostTasksByIdJobsData = {
                 type: 'search';
                 name: string;
                 data?: {
+                    default?: string | null;
                     placeholder?: string | null;
                     description?: string | null;
                 } | null;
@@ -9207,6 +9301,7 @@ export type PostTasksByIdJobsData = {
                 type: 'radio';
                 name: string;
                 data: {
+                    default?: string | null;
                     values: Array<string>;
                     description?: string | null;
                 };
@@ -9303,6 +9398,7 @@ export type PostTasksByIdJobsData = {
                     type: 'text';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9330,6 +9426,7 @@ export type PostTasksByIdJobsData = {
                     type: 'textarea';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9351,6 +9448,7 @@ export type PostTasksByIdJobsData = {
                     type: 'number';
                     name: string;
                     data?: {
+                        default?: number | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9372,6 +9470,7 @@ export type PostTasksByIdJobsData = {
                     type: 'boolean';
                     name: string;
                     data?: {
+                        default?: boolean | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9384,6 +9483,7 @@ export type PostTasksByIdJobsData = {
                     type: 'email';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9429,6 +9529,7 @@ export type PostTasksByIdJobsData = {
                     type: 'tel';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9450,6 +9551,7 @@ export type PostTasksByIdJobsData = {
                     type: 'url';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9474,6 +9576,7 @@ export type PostTasksByIdJobsData = {
                     type: 'date';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9492,6 +9595,7 @@ export type PostTasksByIdJobsData = {
                     type: 'datetime-local';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9510,6 +9614,7 @@ export type PostTasksByIdJobsData = {
                     type: 'time';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9528,6 +9633,7 @@ export type PostTasksByIdJobsData = {
                     type: 'month';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9546,6 +9652,7 @@ export type PostTasksByIdJobsData = {
                     type: 'week';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9628,6 +9735,7 @@ export type PostTasksByIdJobsData = {
                     type: 'search';
                     name: string;
                     data?: {
+                        default?: string | null;
                         placeholder?: string | null;
                         description?: string | null;
                     } | null;
@@ -9662,6 +9770,7 @@ export type PostTasksByIdJobsData = {
                     type: 'radio';
                     name: string;
                     data: {
+                        default?: string | null;
                         values: Array<string>;
                         description?: string | null;
                     };

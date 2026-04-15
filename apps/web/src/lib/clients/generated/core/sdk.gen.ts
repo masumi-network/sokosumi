@@ -50,7 +50,7 @@ export const getAgentsByIdInputSchema = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * List all jobs for a specific agent (paginated)
+ * List jobs for a specific agent in the active workspace (paginated)
  */
 export const getAgentsByIdJobs = <ThrowOnError extends boolean = false>(options: Options<GetAgentsByIdJobsData, ThrowOnError>) => (options.client ?? client).get<GetAgentsByIdJobsResponses, GetAgentsByIdJobsErrors, ThrowOnError>({
     responseTransformer: getAgentsByIdJobsResponseTransformer,
@@ -429,7 +429,7 @@ export const getOrganizationsById = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * List all jobs for the current user (paginated)
+ * List jobs in the active workspace (paginated)
  */
 export const getJobs = <ThrowOnError extends boolean = false>(options?: Options<GetJobsData, ThrowOnError>) => (options?.client ?? client).get<GetJobsResponses, GetJobsErrors, ThrowOnError>({
     responseTransformer: getJobsResponseTransformer,
@@ -703,7 +703,7 @@ export const patchCoworkersByIdWhitelist = <ThrowOnError extends boolean = false
 });
 
 /**
- * List all tasks for the current user (paginated)
+ * List tasks in the active workspace (paginated)
  */
 export const getTasks = <ThrowOnError extends boolean = false>(options?: Options<GetTasksData, ThrowOnError>) => (options?.client ?? client).get<GetTasksResponses, GetTasksErrors, ThrowOnError>({
     responseTransformer: getTasksResponseTransformer,

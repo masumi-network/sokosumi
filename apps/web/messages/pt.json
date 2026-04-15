@@ -1745,6 +1745,7 @@
       "balanceDescriptionPersonal": "Os seus créditos atuais na conta pessoal.",
       "balanceDescriptionOrganization": "Créditos atuais para {organization}. {members, plural, =1 {# membro} other {# membros}}, {seats, plural, =1 {# lugar} other {# lugares}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Sem créditos} =1 {# crédito} other {# créditos}}",
+      "stripeCustomerIdLabel": "ID de cliente Stripe",
       "tabs": {
         "subscription": "Subscrição",
         "credits": "Créditos",

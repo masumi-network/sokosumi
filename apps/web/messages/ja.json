@@ -1745,6 +1745,7 @@
       "balanceDescriptionPersonal": "個人アカウントの現在のクレジットです。",
       "balanceDescriptionOrganization": "{organization} の現在のクレジットです。{members, plural, =1 {# メンバー} other {# メンバー}}、{seats, plural, =1 {# シート} other {# シート}}。",
       "balanceCreditsLabel": "{credits, plural, =0 {クレジットなし} =1 {# クレジット} other {# クレジット}}",
+      "stripeCustomerIdLabel": "Stripe 顧客 ID",
       "tabs": {
         "subscription": "サブスクリプション",
         "credits": "クレジット",
