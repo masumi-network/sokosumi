@@ -1,5 +1,3 @@
-"use server";
-
 import { MemberRole, type OrganizationWithRelations } from "@sokosumi/database";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
 import { headers } from "next/headers";
