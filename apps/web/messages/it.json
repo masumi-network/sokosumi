@@ -2233,12 +2233,10 @@
           }
         },
         "Subscription": {
-          "title": "Abbonamento dell’organizzazione",
-          "description": "Gestisci piano e postazioni per la tua organizzazione.",
           "currentPlanLabel": "Piano attuale",
           "currentSeatsLabel": "Postazioni attuali",
           "membersLabel": "Membri attivi",
-          "seatsInputLabel": "Postazioni desiderate",
+          "seatsInputLabel": "Postazioni dell’organizzazione",
           "seatsInputHint": "Il numero minimo di postazioni è {minimum} per coprire tutti i membri attivi.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Nessun credito per postazione} =1 {# credito per postazione} other {# crediti per postazione}}",
           "noActivePlan": "Nessun piano attivo",

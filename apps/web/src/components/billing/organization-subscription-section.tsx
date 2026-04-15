@@ -5,14 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import {
   updateOrganizationSubscriptionSeats,
@@ -22,11 +15,14 @@ import type {
   PaidSubscriptionPlanName,
   SubscriptionPlanName,
 } from "@/lib/stripe/subscription-catalog";
-
+import {
+  OrganizationSeatSettingsFields,
+  resolveMinimumOrganizationSeats,
+  resolveTargetOrganizationSeats,
+} from "./organization-seat-settings-fields";
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
 import {
-  getPlanTranslationKey,
   type SubscriptionPlanView,
   splitSubscriptionPlans,
 } from "./subscription-plan-utils";
@@ -63,17 +59,20 @@ export function OrganizationSubscriptionSection({
     [plans],
   );
 
-  const minimumSeats = useMemo(() => Math.max(memberCount, 1), [memberCount]);
+  const minimumSeats = useMemo(
+    () => resolveMinimumOrganizationSeats(memberCount),
+    [memberCount],
+  );
   const [targetSeats, setTargetSeats] = useState(
-    Math.max(currentSeats, minimumSeats),
+    resolveTargetOrganizationSeats(currentSeats, memberCount),
   );
   const [pendingPlan, setPendingPlan] = useState<SubscriptionPlanName | null>(
     null,
   );
 
   useEffect(() => {
-    setTargetSeats(Math.max(currentSeats, minimumSeats));
-  }, [currentSeats, minimumSeats]);
+    setTargetSeats(resolveTargetOrganizationSeats(currentSeats, memberCount));
+  }, [currentSeats, memberCount]);
 
   const cancellationDate = useMemo(() => {
     if (!cancelAtPeriodEnd || !currentPeriodEnd) {
@@ -234,51 +233,13 @@ export function OrganizationSubscriptionSection({
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
-        </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-3 text-sm md:grid-cols-3">
-            <div>
-              <p className="text-muted-foreground">{t("currentPlanLabel")}</p>
-              <p className="font-medium">
-                {currentPlan
-                  ? tSubscriptions(
-                      `Plans.${getPlanTranslationKey(currentPlan)}.name`,
-                    )
-                  : t("noActivePlan")}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">{t("currentSeatsLabel")}</p>
-              <p className="font-medium">{currentSeats}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">{t("membersLabel")}</p>
-              <p className="font-medium">{memberCount}</p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="organization-seats" className="text-sm font-medium">
-              {t("seatsInputLabel")}
-            </label>
-            <Input
-              id="organization-seats"
-              type="number"
-              min={minimumSeats}
-              value={targetSeats}
-              onChange={(event) => {
-                const parsedValue = Number.parseInt(event.target.value, 10);
-                if (Number.isNaN(parsedValue)) return;
-                setTargetSeats(parsedValue);
-              }}
-            />
-            <p className="text-muted-foreground text-xs">
-              {t("seatsInputHint", { minimum: minimumSeats })}
-            </p>
-          </div>
+          <OrganizationSeatSettingsFields
+            inputId="organization-seats"
+            memberCount={memberCount}
+            onTargetSeatsChange={setTargetSeats}
+            targetSeats={targetSeats}
+          />
         </CardContent>
       </Card>
       <div className="space-y-4">

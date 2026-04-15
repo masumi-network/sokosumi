@@ -2232,12 +2232,10 @@
           }
         },
         "Subscription": {
-          "title": "Organization Subscription",
-          "description": "Manage plan and seats for your organization.",
           "currentPlanLabel": "Current plan",
           "currentSeatsLabel": "Current seats",
           "membersLabel": "Active members",
-          "seatsInputLabel": "Target seats",
+          "seatsInputLabel": "Organization seats",
           "seatsInputHint": "Minimum seats is {minimum} to cover all active members.",
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",

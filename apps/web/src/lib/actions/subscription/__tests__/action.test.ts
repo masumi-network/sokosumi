@@ -264,14 +264,14 @@ describe("subscription actions", () => {
 
     expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
       body: {
-        cancelUrl: "/organizations/acme",
+        cancelUrl: "/organizations/acme?status=cancel",
         customerType: "organization",
         disableRedirect: true,
         plan: "pro",
         referenceId: "org-1",
         returnUrl: "/organizations/acme",
         seats: 7,
-        successUrl: "/organizations/acme",
+        successUrl: "/organizations/acme?status=success",
       },
       headers: new Headers(),
     });

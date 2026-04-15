@@ -218,8 +218,14 @@ export const upgradeOrganizationSubscription = withSession<
         customerType: "organization",
         referenceId: parsed.data.organizationId,
         seats: parsed.data.seats,
-        successUrl: parsed.data.returnPath,
-        cancelUrl: parsed.data.returnPath,
+        successUrl: buildSubscriptionStatusPath(
+          parsed.data.returnPath,
+          "success",
+        ),
+        cancelUrl: buildSubscriptionStatusPath(
+          parsed.data.returnPath,
+          "cancel",
+        ),
         returnUrl: parsed.data.returnPath,
         disableRedirect: true,
       },

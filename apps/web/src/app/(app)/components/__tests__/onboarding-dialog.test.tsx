@@ -1,0 +1,204 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ImgHTMLAttributes, ReactNode } from "react";
+import { toast } from "sonner";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const pushMock = vi.fn();
+const trackMock = vi.fn();
+const completeOnboardingMock = vi.fn();
+const upgradeOrganizationSubscriptionMock = vi.fn();
+const upgradePersonalSubscriptionMock = vi.fn();
+
+vi.mock("@vercel/analytics", () => ({
+  track: (...args: unknown[]) => trackMock(...args),
+}));
+
+vi.mock("next/image", () => ({
+  default: (props: ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: pushMock,
+  }),
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}:${JSON.stringify(values)}` : key,
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}));
+
+vi.mock("@/contexts/coworkers-context", () => ({
+  useCoworkersContext: () => ({
+    coworkers: [],
+  }),
+}));
+
+vi.mock("@/lib/actions", () => ({
+  CommonErrorCode: {
+    BAD_INPUT: "BAD_INPUT",
+    INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR",
+    UNAUTHENTICATED: "UNAUTHENTICATED",
+    UNAUTHORIZED: "UNAUTHORIZED",
+  },
+}));
+
+vi.mock("@/components/onboarding/onboarding-plan-radio-grid", () => ({
+  OnboardingPlanRadioGrid: () => <div data-testid="plan-grid" />,
+}));
+
+vi.mock("@/components/masumi-logos", () => ({
+  SokosumiIcon: () => <div data-testid="sokosumi-icon" />,
+}));
+
+vi.mock("@/components/ui/dialog", () => ({
+  Dialog: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogDescription: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/components/ui/tooltip", () => ({
+  Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/lib/actions/onboarding", () => ({
+  completeOnboarding: (...args: unknown[]) => completeOnboardingMock(...args),
+}));
+
+vi.mock("@/lib/actions/subscription", () => ({
+  upgradeOrganizationSubscription: (...args: unknown[]) =>
+    upgradeOrganizationSubscriptionMock(...args),
+  upgradePersonalSubscription: (...args: unknown[]) =>
+    upgradePersonalSubscriptionMock(...args),
+}));
+
+import { OnboardingDialog } from "../onboarding-dialog";
+
+function createPaidPlans() {
+  return [
+    {
+      credits: 1000,
+      currency: "eur",
+      isCurrent: true,
+      monthlyAmount: 1000,
+      name: "starter" as const,
+    },
+    {
+      credits: 2000,
+      currency: "eur",
+      isCurrent: false,
+      monthlyAmount: 2000,
+      name: "standard" as const,
+    },
+  ];
+}
+
+describe("OnboardingDialog organization subscription", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    completeOnboardingMock.mockResolvedValue({
+      data: { redirectUrl: "/tasks" },
+      ok: true,
+    });
+    upgradeOrganizationSubscriptionMock.mockResolvedValue({
+      data: { mode: "complete" },
+      ok: true,
+    });
+    upgradePersonalSubscriptionMock.mockResolvedValue({
+      data: { mode: "complete" },
+      ok: true,
+    });
+  });
+
+  it("renders organization seat settings above the plan grid", () => {
+    render(
+      <OnboardingDialog
+        organizationSubscription={{
+          currentPlan: "starter",
+          currentSeats: 5,
+          memberCount: 3,
+          organizationId: "org-1",
+        }}
+        paidPlans={createPaidPlans()}
+        subscriptionOnly
+      />,
+    );
+
+    expect(screen.getByText("currentSeatsLabel")).toBeInTheDocument();
+    expect(screen.getByText("membersLabel")).toBeInTheDocument();
+    expect(screen.getByLabelText("seatsInputLabel")).toHaveValue(5);
+    expect(screen.getByTestId("plan-grid")).toBeInTheDocument();
+  });
+
+  it("submits organization checkout with the selected seat count", async () => {
+    render(
+      <OnboardingDialog
+        organizationSubscription={{
+          currentPlan: "starter",
+          currentSeats: 5,
+          memberCount: 3,
+          organizationId: "org-1",
+        }}
+        paidPlans={createPaidPlans()}
+        subscriptionOnly
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("seatsInputLabel"), {
+      target: { value: "6" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "navigation.subscribe" }),
+    );
+
+    await waitFor(() => {
+      expect(upgradeOrganizationSubscriptionMock).toHaveBeenCalledWith({
+        organizationId: "org-1",
+        plan: "standard",
+        returnPath: "/tasks?onboarding_subscription=1",
+        seats: 6,
+      });
+    });
+  });
+
+  it("blocks seat counts below the minimum member count", async () => {
+    render(
+      <OnboardingDialog
+        organizationSubscription={{
+          currentPlan: "starter",
+          currentSeats: 4,
+          memberCount: 4,
+          organizationId: "org-1",
+        }}
+        paidPlans={createPaidPlans()}
+        subscriptionOnly
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("seatsInputLabel"), {
+      target: { value: "2" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "navigation.subscribe" }),
+    );
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Errors.badInput");
+    });
+    expect(upgradeOrganizationSubscriptionMock).not.toHaveBeenCalled();
+  });
+});

@@ -2232,12 +2232,10 @@
           }
         },
         "Subscription": {
-          "title": "组织订阅",
-          "description": "管理您组织的套餐和席位。",
           "currentPlanLabel": "当前套餐",
           "currentSeatsLabel": "当前席位",
           "membersLabel": "活跃成员",
-          "seatsInputLabel": "目标席位",
+          "seatsInputLabel": "组织席位",
           "seatsInputHint": "最少席位数为 {minimum}，以覆盖所有活跃成员。",
           "includedCreditsPerSeat": "{credits, plural, =0 {每席位无积分} =1 {每席位 # 积分} other {每席位 # 积分}}",
           "noActivePlan": "无有效套餐",
