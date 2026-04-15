@@ -55,7 +55,7 @@ describe("GET /jobs", () => {
     expect(getUserJobsMock).not.toHaveBeenCalled();
   });
 
-  it("defaults to workspace scope when the query parameter is omitted", async () => {
+  it("defaults to owned scope when the query parameter is omitted", async () => {
     const app = new OpenAPIHono<{
       Variables: AuthVariables & WorkspaceVariables;
     }>();
@@ -97,7 +97,7 @@ describe("GET /jobs", () => {
       {
         agentId: undefined,
         status: "COMPLETED",
-        scope: "workspace",
+        scope: "owned",
         cursor: undefined,
         take: 20,
         skip: undefined,
@@ -105,7 +105,7 @@ describe("GET /jobs", () => {
     );
   });
 
-  it("passes scope=owned through to the job helper", async () => {
+  it("passes scope=workspace through to the job helper", async () => {
     const app = new OpenAPIHono<{
       Variables: AuthVariables & WorkspaceVariables;
     }>();
@@ -128,13 +128,13 @@ describe("GET /jobs", () => {
 
     mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request("http://localhost/?scope=owned");
+    const response = await app.request("http://localhost/?scope=workspace");
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
-        scope: "owned",
+        scope: "workspace",
       }),
     );
   });

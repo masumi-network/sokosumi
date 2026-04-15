@@ -55,7 +55,7 @@ describe("GET /agents/{id}/jobs", () => {
     expect(getUserJobsMock).not.toHaveBeenCalled();
   });
 
-  it("defaults to workspace scope for agent job lists", async () => {
+  it("defaults to owned scope for agent job lists", async () => {
     const app = new OpenAPIHono<{
       Variables: AuthVariables & WorkspaceVariables;
     }>();
@@ -91,7 +91,7 @@ describe("GET /agents/{id}/jobs", () => {
       }),
       {
         agentId: "agent_123",
-        scope: "workspace",
+        scope: "owned",
         cursor: undefined,
         take: 20,
         skip: undefined,
@@ -99,7 +99,7 @@ describe("GET /agents/{id}/jobs", () => {
     );
   });
 
-  it("passes scope=owned for agent job lists", async () => {
+  it("passes scope=workspace for agent job lists", async () => {
     const app = new OpenAPIHono<{
       Variables: AuthVariables & WorkspaceVariables;
     }>();
@@ -122,14 +122,14 @@ describe("GET /agents/{id}/jobs", () => {
 
     mountGetAgentJobs(app as unknown as OpenAPIHonoWithAuth);
 
-    const response = await app.request("http://localhost/agent_123/jobs?scope=owned");
+    const response = await app.request("http://localhost/agent_123/jobs?scope=workspace");
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
         agentId: "agent_123",
-        scope: "owned",
+        scope: "workspace",
       }),
     );
   });

@@ -485,7 +485,7 @@ export async function getUserJobs(
   const {
     agentId,
     status,
-    scope = "workspace",
+    scope = "owned",
     cursor,
     take,
     skip,

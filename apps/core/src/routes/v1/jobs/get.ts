@@ -23,12 +23,12 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 const jobsScopeQuerySchema = z
   .enum(["workspace", "owned"])
-  .default("workspace")
+  .default("owned")
   .openapi({
     param: { name: "scope", in: "query" },
     description:
-      "workspace visibility scope. Defaults to 'workspace'. Use 'owned' to limit results to the authenticated user's jobs.",
-    example: "owned",
+      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.",
+    example: "workspace",
   });
 
 const query = z

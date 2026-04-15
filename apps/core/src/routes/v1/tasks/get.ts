@@ -57,12 +57,12 @@ const taskNameQuerySchema = z
 
 const taskScopeQuerySchema = z
   .enum(["workspace", "owned"])
-  .default("workspace")
+  .default("owned")
   .openapi({
     param: { name: "scope", in: "query" },
     description:
-      "workspace visibility scope. Defaults to 'workspace'. Use 'owned' to limit results to the authenticated user's tasks.",
-    example: "owned",
+      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.",
+    example: "workspace",
   });
 
 const query = z
