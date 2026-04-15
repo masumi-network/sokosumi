@@ -1,5 +1,4 @@
-import { randomUUID } from "node:crypto";
-
+import { v7 as uuidv7 } from "uuid";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
@@ -21,7 +20,7 @@ export const syncLockService = {
       const lockExpirationThreshold = new Date(
         lockAcquiredAt.getTime() - getEnv().LOCK_TIMEOUT,
       );
-      const ownerToken = `${getEnv().INSTANCE_ID}:${randomUUID()}`;
+      const ownerToken = `${getEnv().INSTANCE_ID}:${uuidv7()}`;
 
       const acquireResult = await tx.lock.updateMany({
         where: {
