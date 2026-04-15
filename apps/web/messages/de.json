@@ -2146,6 +2146,8 @@
           "description": "Deine Organisation verwalten"
         },
         "roleIndicator": "Ansicht als:",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe-Kunden-ID",
         "websiteLabel": "Webseite",
         "edit": "Bearbeiten",
         "delete": "Löschen",

@@ -10,6 +10,7 @@ import { getTranslations } from "next-intl/server";
 import { OrganizationLogo } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
 
+import OrganizationCopyableId from "./organization-copyable-id";
 import OrganizationEditButton from "./organization-edit-button";
 import OrganizationRemoveButton from "./organization-remove-button";
 
@@ -26,15 +27,56 @@ export default async function OrganizationInformation({
   const { role } = member;
   const isOwnerOrAdmin = role === MemberRole.OWNER || role === MemberRole.ADMIN;
   const { url: websiteUrl } = getOrganizationMetadata(organization.metadata);
-  const hasWebsite = Boolean(websiteUrl);
+  const detailCards = [
+    websiteUrl
+      ? {
+          label: t("websiteLabel"),
+          value: (
+            <Link
+              href={websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary break-all underline-offset-4 hover:underline"
+            >
+              {websiteUrl}
+            </Link>
+          ),
+        }
+      : null,
+    organization.stripeCustomerId
+      ? {
+          label: t("stripeCustomerIdLabel"),
+          value: (
+            <OrganizationCopyableId value={organization.stripeCustomerId} />
+          ),
+        }
+      : null,
+  ].filter((card) => card !== null);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-8 lg:gap-12">
-        <Avatar className="bg-muted size-14 items-center justify-center">
-          <OrganizationLogo organization={organization} size={24} />
-        </Avatar>
-        <div className="flex-1" />
+    <section className="rounded-3xl border border-border/60 bg-card/30 p-6 shadow-sm sm:p-8">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center gap-4 sm:gap-5">
+          <Avatar className="bg-muted size-16 items-center justify-center rounded-2xl">
+            <OrganizationLogo organization={organization} size={28} />
+          </Avatar>
+          <div className="min-w-0 space-y-2">
+            <div className="space-y-1">
+              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+                {organization.name}
+              </h1>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-muted-foreground">{t("slugLabel")}</span>
+                <OrganizationCopyableId
+                  value={organization.slug}
+                  truncate={false}
+                  codeClassName="bg-muted rounded-md px-2 py-1"
+                  buttonClassName="size-7"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
         {isOwnerOrAdmin && (
           <div className="flex items-center gap-1.5 self-start">
             <OrganizationEditButton
@@ -48,21 +90,22 @@ export default async function OrganizationInformation({
           </div>
         )}
       </div>
-      {hasWebsite && (
-        <div className="text-sm">
-          <span className="text-muted-foreground mr-2">
-            {t("websiteLabel")}:
-          </span>
-          <Link
-            href={websiteUrl as string}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary underline-offset-4 hover:underline"
-          >
-            {websiteUrl}
-          </Link>
-        </div>
-      )}
-    </div>
+
+      {detailCards.length > 0 ? (
+        <dl className="mt-6 grid gap-3 sm:grid-cols-2">
+          {detailCards.map((card) => (
+            <div
+              key={card.label}
+              className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3"
+            >
+              <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                {card.label}
+              </dt>
+              <dd className="mt-2 text-sm">{card.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+    </section>
   );
 }
