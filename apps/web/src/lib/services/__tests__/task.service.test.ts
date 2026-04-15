@@ -125,6 +125,35 @@ describe("task.service", () => {
     });
   });
 
+  it("forwards scope when provided", async () => {
+    coreClientMock.getTasks.mockResolvedValue({
+      data: [buildTask()],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 20,
+          total: 1,
+          nextCursor: null,
+        },
+      },
+    });
+
+    const { taskService } = await import("../task.service");
+    await taskService.listTasks({
+      scope: "owned",
+      limit: 20,
+    });
+
+    expect(coreClientMock.getTasks).toHaveBeenCalledWith({
+      status: undefined,
+      coworkerId: undefined,
+      q: undefined,
+      scope: "owned",
+      cursor: undefined,
+      limit: 20,
+    });
+  });
+
   it("returns null when getTaskById fails", async () => {
     coreClientMock.getTaskById.mockRejectedValue(new Error("not found"));
 

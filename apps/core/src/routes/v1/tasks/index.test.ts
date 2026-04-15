@@ -87,7 +87,7 @@ function getJsonResponseSchema(
 }
 
 describe("tasks routes OpenAPI query contract", () => {
-  it("does not expose scope query parameter on task read endpoints", () => {
+  it("exposes scope on the top-level task list and keeps nested task reads unchanged", () => {
     const doc = tasksRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -96,7 +96,9 @@ describe("tasks routes OpenAPI query contract", () => {
       },
     });
 
-    expect(getQueryDescriptionFromGetOperation(doc, "/", "scope")).toBe("");
+    expect(getQueryDescriptionFromGetOperation(doc, "/", "scope")).toContain(
+      "workspace visibility scope",
+    );
     expect(getQueryDescriptionFromGetOperation(doc, "/{id}", "scope")).toBe("");
     expect(
       getQueryDescriptionFromGetOperation(doc, "/{id}/jobs", "scope"),

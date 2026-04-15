@@ -3212,3 +3212,123 @@ export const TaskLinkDeletedSchema = {
         'deleted'
     ]
 } as const;
+
+export const MasumiPaymentSchema = {
+    type: 'object',
+    properties: {
+        blockchainIdentifier: {
+            type: 'string',
+            minLength: 1,
+            example: '0b00e04c0860a60c61066056281180462d0b12'
+        },
+        identifierFromPurchaser: {
+            type: 'string',
+            minLength: 1,
+            example: '1234567890'
+        },
+        agentIdentifier: {
+            type: 'string',
+            minLength: 1,
+            example: '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77'
+        },
+        sellerVkey: {
+            type: 'string',
+            minLength: 1,
+            example: '0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd'
+        },
+        submitResultTime: {
+            type: 'string',
+            minLength: 1,
+            example: '1775681853000'
+        },
+        payByTime: {
+            type: 'string',
+            minLength: 1,
+            example: '1775737949000'
+        },
+        unlockTime: {
+            type: 'string',
+            minLength: 1,
+            example: '1775763149000'
+        },
+        externalDisputeUnlockTime: {
+            type: 'string',
+            minLength: 1,
+            example: '1775784749000'
+        },
+        inputHash: {
+            type: 'string',
+            minLength: 1,
+            example: '3b2d456a720bf5b3e2cc2cebaea9f9a937cd8b4d64267da3271bca937cb56af1'
+        },
+        Amounts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    amount: {
+                        type: 'string',
+                        minLength: 1,
+                        example: '470000000000'
+                    },
+                    unit: {
+                        type: 'string',
+                        minLength: 1,
+                        example: '16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde'
+                    }
+                },
+                required: [
+                    'amount',
+                    'unit'
+                ]
+            },
+            minItems: 1,
+            example: []
+        },
+        PaymentSource: {
+            $ref: '#/components/schemas/MasumiTaskPaymentSource'
+        }
+    },
+    required: [
+        'blockchainIdentifier',
+        'identifierFromPurchaser',
+        'agentIdentifier',
+        'sellerVkey',
+        'submitResultTime',
+        'payByTime',
+        'unlockTime',
+        'externalDisputeUnlockTime',
+        'inputHash',
+        'Amounts'
+    ],
+    description: 'On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.'
+} as const;
+
+export const MasumiTaskPaymentSourceSchema = {
+    type: 'object',
+    properties: {
+        network: {
+            type: 'string',
+            enum: [
+                'Preprod',
+                'Mainnet'
+            ],
+            example: 'Preprod'
+        },
+        smartContractAddress: {
+            type: 'string',
+            minLength: 1,
+            example: 'addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm'
+        },
+        policyId: {
+            type: 'string',
+            minLength: 1,
+            example: '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77'
+        }
+    },
+    required: [
+        'network',
+        'smartContractAddress',
+        'policyId'
+    ]
+} as const;

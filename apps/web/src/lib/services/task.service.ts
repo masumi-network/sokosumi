@@ -15,6 +15,7 @@ interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
   coworkerId?: string;
   q?: string;
+  scope?: "workspace" | "owned";
   cursor?: string | null;
   limit?: number;
 }
@@ -53,6 +54,7 @@ export const taskService = (() => {
           : undefined,
       coworkerId: params.coworkerId,
       q: params.q,
+      scope: params.scope,
       cursor: params.cursor ?? undefined,
       limit: params.limit,
     });
