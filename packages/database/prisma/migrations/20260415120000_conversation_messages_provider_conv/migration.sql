@@ -8,8 +8,8 @@ ALTER TABLE "conversation" ADD COLUMN "providerConversationId" TEXT;
 CREATE UNIQUE INDEX "conversation_providerConversationId_key" ON "conversation"("providerConversationId");
 
 -- CreateTable
-CREATE TABLE "messages" (
-    "id" TEXT NOT NULL,
+CREATE TABLE "conversationMessage" (
+    "id" UUID NOT NULL,
     "conversationId" TEXT NOT NULL,
     "role" TEXT NOT NULL,
     "contentType" TEXT,
@@ -18,24 +18,24 @@ CREATE TABLE "messages" (
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "messages_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "conversationMessage_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "messages_conversationId_responsesApiResponseId_key" ON "messages"("conversationId", "responsesApiResponseId");
+CREATE UNIQUE INDEX "conversationMessage_conversationId_responsesApiResponseId_key" ON "conversationMessage"("conversationId", "responsesApiResponseId");
 
 -- CreateIndex
-CREATE INDEX "messages_conversationId_idx" ON "messages"("conversationId");
+CREATE INDEX "conversationMessage_conversationId_idx" ON "conversationMessage"("conversationId");
 
 -- CreateIndex
-CREATE INDEX "messages_conversationId_createdAt_idx" ON "messages"("conversationId", "createdAt");
+CREATE INDEX "conversationMessage_conversationId_createdAt_idx" ON "conversationMessage"("conversationId", "createdAt");
 
 -- AddForeignKey
-ALTER TABLE "messages" ADD CONSTRAINT "messages_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "conversationMessage" ADD CONSTRAINT "conversationMessage_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- DataMigration
-INSERT INTO "messages" ("id", "conversationId", "role", "contentType", "contentText", "responsesApiResponseId", "metadata", "createdAt")
-SELECT "id", "conversationId", "role", "contentType", "contentText", "responsesApiResponseId", NULL, "createdAt"
+INSERT INTO "conversationMessage" ("id", "conversationId", "role", "contentType", "contentText", "responsesApiResponseId", "metadata", "createdAt")
+SELECT "id"::uuid, "conversationId", "role", "contentType", "contentText", "responsesApiResponseId", NULL, "createdAt"
 FROM "conversationItem";
 
 -- conversationItem is retained until post-release validation; drop in a follow-up migration.

@@ -1,4 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
+import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
   generateId,
@@ -6,6 +8,7 @@ import {
   validateUIMessages,
 } from "ai";
 import { openrouterClient } from "@/clients/openrouter.client";
+import { LIMITS } from "@/config/constants";
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
 import {
   clearActiveUiStreamIdInMetadata,
@@ -215,7 +218,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const itemsBeforeUserTurn = await prisma.conversationMessage.findMany({
           where: { conversationId: internalConversationId },
           orderBy: { createdAt: "asc" },
-          take: 200,
+          take: LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT,
           select: { id: true, role: true, contentText: true, metadata: true },
         });
         const historyUi = conversationItemsToUiMessages(itemsBeforeUserTurn);
@@ -266,19 +269,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
           });
           if (isFirstUserMessage) {
-            void openrouterClient
-              .generateChatTitle(extractedText)
-              .then((generatedTitle) => {
-                if (generatedTitle) {
-                  return prisma.conversation.update({
-                    where: { id: conversationIdForPersistedTurn },
-                    data: { title: generatedTitle },
-                  });
+            waitUntil(
+              (async () => {
+                try {
+                  const generatedTitle =
+                    await openrouterClient.generateChatTitle(extractedText);
+                  if (generatedTitle) {
+                    await prisma.conversation.update({
+                      where: { id: conversationIdForPersistedTurn },
+                      data: { title: generatedTitle },
+                    });
+                  }
+                } catch (err) {
+                  console.error("Failed to generate/update title:", err);
                 }
-              })
-              .catch((err) => {
-                console.error("Failed to generate/update title:", err);
-              });
+              })(),
+            );
           }
         }
       }
@@ -379,8 +385,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
       }
 
-      const sokosumiProviderOptions = {
-        mode: useCoworker ? ("coworker" as const) : ("openrouter" as const),
+      const sokosumiProviderOptions: SokosumiProviderCallOptions = {
+        mode: useCoworker ? "coworker" : "openrouter",
         coworkerBaseUrl: coworker?.baseURL ?? null,
         coworkerSlug: coworker?.slug ?? null,
         sokosumiUserId: authContext.userId,
@@ -430,9 +436,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         maxRetries: 0,
         providerOptions: {
           sokosumi: sokosumiProviderOptions,
-        } as unknown as NonNullable<
-          Parameters<typeof streamText>[0]["providerOptions"]
-        >,
+        } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
         onChunk: ({ chunk }) => {
           if (!useCoworker) {
             return;

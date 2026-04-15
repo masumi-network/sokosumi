@@ -86,10 +86,25 @@ describe("chat route", () => {
         }),
       );
       fetchMock.mockResolvedValue(
-        new Response(JSON.stringify({ messages: [] }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
+        new Response(
+          JSON.stringify({
+            data: { messages: [] },
+            meta: {
+              timestamp: "2025-01-21T12:00:00.000Z",
+              requestId: "req-1",
+              pagination: {
+                cursor: null,
+                limit: 200,
+                total: 0,
+                nextCursor: null,
+              },
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
       );
 
       const convId = "550e8400-e29b-41d4-a716-446655440000";

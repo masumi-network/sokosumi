@@ -10,10 +10,12 @@ import mountGetChat from "./get";
 const {
   conversationFindFirstMock,
   conversationMessageFindManyMock,
+  conversationMessageCountMock,
   validateUIMessagesMock,
 } = vi.hoisted(() => ({
   conversationFindFirstMock: vi.fn(),
   conversationMessageFindManyMock: vi.fn(),
+  conversationMessageCountMock: vi.fn(),
   validateUIMessagesMock: vi.fn(),
 }));
 
@@ -28,6 +30,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     conversationMessage: {
       findMany: conversationMessageFindManyMock,
+      count: conversationMessageCountMock,
     },
   },
 }));
@@ -58,6 +61,7 @@ describe("GET /chat", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    conversationMessageCountMock.mockResolvedValue(0);
     validateUIMessagesMock.mockImplementation(
       async ({ messages }: { messages: unknown[] }) => messages,
     );
@@ -77,6 +81,7 @@ describe("GET /chat", () => {
 
   it("returns UIMessages from persisted items", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
+    conversationMessageCountMock.mockResolvedValueOnce(2);
     conversationMessageFindManyMock.mockResolvedValueOnce([
       { id: "m1", role: "user", contentText: "Hi" },
       { id: "m2", role: "assistant", contentText: "Hello" },
@@ -89,15 +94,19 @@ describe("GET /chat", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
-      messages: Array<{ id: string; role: string; parts: unknown[] }>;
+      data: { messages: Array<{ id: string; role: string; parts: unknown[] }> };
+      meta: { pagination: { total: number; nextCursor: string | null } };
     };
-    expect(body.messages).toHaveLength(2);
-    expect(body.messages[0]?.id).toBe("m1");
-    expect(body.messages[1]?.role).toBe("assistant");
+    expect(body.data.messages).toHaveLength(2);
+    expect(body.data.messages[0]?.id).toBe("m1");
+    expect(body.data.messages[1]?.role).toBe("assistant");
+    expect(body.meta.pagination.total).toBe(2);
+    expect(body.meta.pagination.nextCursor).toBeNull();
   });
 
   it("includes stored reasoning parts before assistant text", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
+    conversationMessageCountMock.mockResolvedValueOnce(1);
     conversationMessageFindManyMock.mockResolvedValueOnce([
       {
         id: "m2",
@@ -114,16 +123,44 @@ describe("GET /chat", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
-      messages: Array<{ parts: Array<{ type: string; text: string }> }>;
+      data: {
+        messages: Array<{ parts: Array<{ type: string; text: string }> }>;
+      };
     };
-    expect(body.messages[0]?.parts).toEqual([
+    expect(body.data.messages[0]?.parts).toEqual([
       { type: "reasoning", text: "Step A" },
       { type: "text", text: "Done" },
     ]);
   });
 
+  it("returns pagination nextCursor when more than one page exists", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
+    conversationMessageCountMock.mockResolvedValueOnce(201);
+    const rows = Array.from({ length: 201 }, (_, i) => ({
+      id: `m${String(i).padStart(3, "0")}`,
+      role: "user",
+      contentText: `t${i}`,
+    }));
+    conversationMessageFindManyMock.mockResolvedValueOnce(rows);
+
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/?conversationId=${cid}&limit=200`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: { messages: Array<{ id: string }> };
+      meta: { pagination: { nextCursor: string | null; total: number } };
+    };
+    expect(body.data.messages).toHaveLength(200);
+    expect(body.meta.pagination.total).toBe(201);
+    expect(body.meta.pagination.nextCursor).toBe("m199");
+  });
+
   it("coalesces null contentText to empty string so validation is not tripped", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
+    conversationMessageCountMock.mockResolvedValueOnce(1);
     conversationMessageFindManyMock.mockResolvedValueOnce([
       { id: "m1", role: "user", contentText: null },
     ]);
@@ -135,11 +172,13 @@ describe("GET /chat", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
-      messages: Array<{
-        parts: Array<{ type: string; text: string }>;
-      }>;
+      data: {
+        messages: Array<{
+          parts: Array<{ type: string; text: string }>;
+        }>;
+      };
     };
-    expect(body.messages[0]?.parts[0]?.text).toBe("");
+    expect(body.data.messages[0]?.parts[0]?.text).toBe("");
     expect(validateUIMessagesMock).toHaveBeenCalledWith({
       messages: expect.arrayContaining([
         expect.objectContaining({

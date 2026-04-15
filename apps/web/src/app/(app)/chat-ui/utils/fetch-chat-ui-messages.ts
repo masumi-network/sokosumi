@@ -15,9 +15,13 @@ export async function fetchChatUiMessages(
   if (!response.ok) {
     return null;
   }
-  const data = (await response.json()) as { messages?: unknown };
-  if (!Array.isArray(data.messages)) {
+  const payload = (await response.json()) as {
+    data?: { messages?: unknown };
+    messages?: unknown;
+  };
+  const messages = payload.data?.messages ?? payload.messages;
+  if (!Array.isArray(messages)) {
     return null;
   }
-  return data.messages as UIMessage[];
+  return messages as UIMessage[];
 }

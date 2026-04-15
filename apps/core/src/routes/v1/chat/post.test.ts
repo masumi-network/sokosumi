@@ -212,7 +212,7 @@ describe("POST /chat", () => {
 
     expect(response.status).toBe(200);
     expect(providerFactory).toHaveBeenCalledOnce();
-    expect(providerFactory.mock.calls[0]?.[0]).toBeNull();
+    expect(providerFactory).toHaveBeenCalledWith(null);
   });
 
   it("calls streamText for OpenRouter-backed conversation", async () => {

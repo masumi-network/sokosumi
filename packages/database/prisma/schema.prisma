@@ -1317,7 +1317,7 @@ model CoworkerUsage {
 }
 
 model Conversation {
-  id         String    @id @default(uuid())
+  id         String    @id @default(uuid(7))
   openaiId   String    @unique
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1339,7 +1339,7 @@ model Conversation {
 }
 
 model ConversationMessage {
-  id                     String       @id @default(uuid())
+  id                     String       @id @default(uuid(7)) @db.Uuid
   conversationId         String
   conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role                   String // "user" | "assistant" | "system"
@@ -1352,7 +1352,7 @@ model ConversationMessage {
   @@unique([conversationId, responsesApiResponseId])
   @@index([conversationId])
   @@index([conversationId, createdAt])
-  @@map("messages")
+  @@map("conversationMessage")
 }
 
 model ConversationItem {

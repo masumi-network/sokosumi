@@ -51,6 +51,15 @@ export const LIMITS = {
   /** Maximum pagination limit */
   MAX_PAGINATION_LIMIT: 100,
 
+  /**
+   * GET /v1/chat (AI SDK UI history): default page size until the chat UI adds cursor navigation.
+   * Same cap is used when merging server-side history on POST /v1/chat.
+   */
+  CHAT_UI_MESSAGES_DEFAULT_LIMIT: 200,
+
+  /** Maximum messages returned in one GET /v1/chat page (matches current UI expectation). */
+  CHAT_UI_MESSAGES_MAX_LIMIT: 200,
+
   /** Maximum upload size for direct user file uploads (1GB) */
   USER_UPLOAD_MAX_SIZE_BYTES: 1024 * 1024 * 1024,
 

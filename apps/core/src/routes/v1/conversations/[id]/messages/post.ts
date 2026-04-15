@@ -5,63 +5,68 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import { type OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   conversationItemSchema,
   createConversationItemRequestSchema,
 } from "@/schemas/conversation-item.schema";
 
-const route = createRoute({
-  method: "post",
-  path: "/{id}/messages",
-  description: "Add a message to a conversation",
-  tags: ["Conversations"],
-  request: {
-    params: z.object({
-      id: z
-        .string()
-        .uuid()
-        .openapi({
-          param: {
-            name: "id",
-            in: "path",
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/{id}/messages",
+    description: "Add a message to a conversation",
+    tags: ["Conversations"],
+    request: {
+      params: z.object({
+        id: z
+          .string()
+          .uuid()
+          .openapi({
+            param: {
+              name: "id",
+              in: "path",
+            },
+            description: "Internal database ID",
+            example: "550e8400-e29b-41d4-a716-446655440000",
+          }),
+      }),
+      body: {
+        content: {
+          "application/json": {
+            schema: createConversationItemRequestSchema,
           },
-          description: "Internal database ID",
-          example: "550e8400-e29b-41d4-a716-446655440000",
-        }),
-    }),
-    body: {
-      content: {
-        "application/json": {
-          schema: createConversationItemRequestSchema,
         },
       },
     },
-  },
-  responses: {
-    201: jsonSuccessResponse(
-      conversationItemSchema,
-      "Conversation message created successfully",
-      {
-        data: {
-          id: "550e8400-e29b-41d4-a716-446655440000",
-          role: "user",
-          content: "Hello!",
-          createdAt: 1706284800,
+    responses: {
+      201: jsonSuccessResponse(
+        conversationItemSchema,
+        "Conversation message created successfully",
+        {
+          data: {
+            id: "550e8400-e29b-41d4-a716-446655440000",
+            role: "user",
+            content: "Hello!",
+            createdAt: 1706284800,
+          },
+          meta: {
+            timestamp: "2025-01-21T12:00:00.000Z",
+            requestId: "550e8400-e29b-41d4-a716-446655440000",
+          },
         },
-        meta: {
-          timestamp: "2025-01-21T12:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-        },
-      },
-    ),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Conversation not found"),
-    500: jsonErrorResponse("Internal Server Error"),
-  },
-});
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Conversation not found"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

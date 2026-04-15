@@ -51,9 +51,9 @@ const SLOT_PLACEHOLDER_CHAT_IDS: readonly [string, string, string] = [
   "__sokosumi_empty_slot_2__",
 ];
 
-/** Matches Postgres `uuid` / Prisma `@default(uuid())` ids (RFC 4122 shape). */
+/** Matches Postgres `uuid` / Prisma `@default(uuid(7))` etc. (RFC 4122 / RFC 9562 shape). */
 const CONVERSATION_UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isConversationUuid(value: string): boolean {
   return CONVERSATION_UUID_RE.test(value.trim());

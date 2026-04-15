@@ -173,6 +173,29 @@ export type WorkspaceSummary = {
     } | null;
 };
 
+export type GetChatUiMessagesResponseData = {
+    messages: Array<ChatUiMessage>;
+};
+
+export type ChatUiMessage = {
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    parts: Array<{
+        type: 'reasoning';
+        text: string;
+    } | {
+        type: 'text';
+        text: string;
+    } | {
+        type: string;
+        text?: string;
+    }>;
+    metadata?: {
+        thoughtStartedAtMs: number;
+        thoughtEndedAtMs: number;
+    };
+};
+
 export type ConversationList = Array<Conversation>;
 
 export type Conversation = {
@@ -3168,7 +3191,18 @@ export type GetChatData = {
     };
     path?: never;
     query: {
+        /**
+         * Internal conversation id
+         */
         conversationId: string;
+        /**
+         * Cursor for pagination (id of the last message from the previous page).
+         */
+        cursor?: string;
+        /**
+         * Page size (max 200). Cursor pagination metadata is always returned for forward compatibility.
+         */
+        limit?: number;
     };
     url: '/chat';
 };
@@ -3214,6 +3248,19 @@ export type GetChatErrors = {
         };
     };
     /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -3232,10 +3279,15 @@ export type GetChatError = GetChatErrors[keyof GetChatErrors];
 
 export type GetChatResponses = {
     /**
-     * UIMessages for the conversation
+     * UIMessages for the conversation (standard data + meta envelope; messages in data.messages)
      */
     200: {
-        messages: Array<unknown>;
+        data: GetChatUiMessagesResponseData;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
     };
 };
 
@@ -3400,7 +3452,7 @@ export type GetChatStreamByConversationIdData = {
     };
     path: {
         /**
-         * Internal conversation id (same as useChat id)
+         * Internal conversation id
          */
         conversationId: string;
     };
@@ -3480,6 +3532,12 @@ export type GetChatStreamByConversationIdResponse = GetChatStreamByConversationI
 
 export type GetConversationsData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path?: never;
     query?: never;
     url: '/conversations';
@@ -3547,6 +3605,12 @@ export type GetConversationsResponse = GetConversationsResponses[keyof GetConver
 
 export type PostConversationsData = {
     body?: CreateConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path?: never;
     query?: never;
     url: '/conversations';
@@ -3627,6 +3691,12 @@ export type PostConversationsResponse = PostConversationsResponses[keyof PostCon
 
 export type GetConversationsByIdData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3712,6 +3782,12 @@ export type GetConversationsByIdResponse = GetConversationsByIdResponses[keyof G
 
 export type PatchConversationsByIdData = {
     body?: UpdateConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3797,6 +3873,12 @@ export type PatchConversationsByIdResponse = PatchConversationsByIdResponses[key
 
 export type PatchConversationsByIdArchiveData = {
     body?: ArchiveConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3882,6 +3964,12 @@ export type PatchConversationsByIdArchiveResponse = PatchConversationsByIdArchiv
 
 export type GetConversationsByIdMessagesData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3976,6 +4064,12 @@ export type GetConversationsByIdMessagesResponse = GetConversationsByIdMessagesR
 
 export type PostConversationsByIdMessagesData = {
     body?: CreateConversationItemRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path: {
         /**
          * Internal database ID

@@ -15,63 +15,68 @@ import {
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import { type OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { conversationItemSchema } from "@/schemas/conversation-item.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
-const route = createRoute({
-  method: "get",
-  path: "/{id}/messages",
-  description: "Get messages for a conversation (paginated)",
-  tags: ["Conversations"],
-  request: {
-    params: z.object({
-      id: z
-        .string()
-        .uuid()
-        .openapi({
-          param: {
-            name: "id",
-            in: "path",
-          },
-          description: "Internal database ID",
-          example: "550e8400-e29b-41d4-a716-446655440000",
-        }),
-    }),
-    query: cursorPaginationQuerySchema,
-  },
-  responses: {
-    200: jsonPaginatedSuccessResponse(
-      z.array(conversationItemSchema),
-      "Conversation messages retrieved successfully",
-      {
-        data: [
-          {
-            id: "550e8400-e29b-41d4-a716-446655440000",
-            role: "user",
-            content: "Hello!",
-            createdAt: 1706284800,
-          },
-        ],
-        meta: {
-          timestamp: "2025-01-21T12:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-          pagination: {
-            cursor: null,
-            limit: 20,
-            total: 100,
-            nextCursor: "550e8400-e29b-41d4-a716-446655440001",
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/{id}/messages",
+    description: "Get messages for a conversation (paginated)",
+    tags: ["Conversations"],
+    request: {
+      params: z.object({
+        id: z
+          .string()
+          .uuid()
+          .openapi({
+            param: {
+              name: "id",
+              in: "path",
+            },
+            description: "Internal database ID",
+            example: "550e8400-e29b-41d4-a716-446655440000",
+          }),
+      }),
+      query: cursorPaginationQuerySchema,
+    },
+    responses: {
+      200: jsonPaginatedSuccessResponse(
+        z.array(conversationItemSchema),
+        "Conversation messages retrieved successfully",
+        {
+          data: [
+            {
+              id: "550e8400-e29b-41d4-a716-446655440000",
+              role: "user",
+              content: "Hello!",
+              createdAt: 1706284800,
+            },
+          ],
+          meta: {
+            timestamp: "2025-01-21T12:00:00.000Z",
+            requestId: "550e8400-e29b-41d4-a716-446655440000",
+            pagination: {
+              cursor: null,
+              limit: 20,
+              total: 100,
+              nextCursor: "550e8400-e29b-41d4-a716-446655440001",
+            },
           },
         },
-      },
-    ),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Conversation not found"),
-    500: jsonErrorResponse("Internal Server Error"),
-  },
-});
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Conversation not found"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

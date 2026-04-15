@@ -29,7 +29,11 @@ export async function GET(req: NextRequest) {
     const requestHeaders = new Headers(await headers());
     requestHeaders.delete("Content-Length");
 
-    const coreUrl = `${getCoreApiBaseUrl()}/${CORE_CHAT_PATH}?${new URLSearchParams({ conversationId })}`;
+    const incoming = new URL(req.url);
+    const coreSearch = new URLSearchParams(incoming.search);
+    coreSearch.set("conversationId", conversationId);
+
+    const coreUrl = `${getCoreApiBaseUrl()}/${CORE_CHAT_PATH}?${coreSearch.toString()}`;
 
     const response = await fetch(coreUrl, {
       method: "GET",

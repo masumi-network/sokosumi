@@ -694,6 +694,116 @@ export const WorkspaceSummarySchema = {
     ]
 } as const;
 
+export const GetChatUiMessagesResponseDataSchema = {
+    type: 'object',
+    properties: {
+        messages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatUiMessage'
+            }
+        }
+    },
+    required: [
+        'messages'
+    ]
+} as const;
+
+export const ChatUiMessageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'user',
+                'assistant',
+                'system'
+            ]
+        },
+        parts: {
+            type: 'array',
+            items: {
+                anyOf: [
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                enum: [
+                                    'reasoning'
+                                ]
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type',
+                            'text'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                enum: [
+                                    'text'
+                                ]
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type',
+                            'text'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string'
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type'
+                        ],
+                        description: 'Other or future UI message part shapes.'
+                    }
+                ]
+            }
+        },
+        metadata: {
+            type: 'object',
+            properties: {
+                thoughtStartedAtMs: {
+                    type: 'number'
+                },
+                thoughtEndedAtMs: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'thoughtStartedAtMs',
+                'thoughtEndedAtMs'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'role',
+        'parts'
+    ]
+} as const;
+
 export const ConversationListSchema = {
     type: 'array',
     items: {
