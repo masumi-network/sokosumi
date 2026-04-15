@@ -2209,6 +2209,8 @@
           "description": "Gira a sua organização"
         },
         "roleIndicator": "Ver como:",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe customer ID",
         "websiteLabel": "Site",
         "edit": "Editar",
         "delete": "Eliminar",

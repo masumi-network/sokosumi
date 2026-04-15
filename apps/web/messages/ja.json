@@ -2209,6 +2209,8 @@
           "description": "組織を管理します"
         },
         "roleIndicator": "表示形式:",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe customer ID",
         "websiteLabel": "ウェブサイト",
         "edit": "編集",
         "delete": "削除",

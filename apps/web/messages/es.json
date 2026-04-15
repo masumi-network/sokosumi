@@ -2147,6 +2147,8 @@
           "description": "Gestiona tu organización"
         },
         "roleIndicator": "Vista como:",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe customer ID",
         "websiteLabel": "Sitio web",
         "edit": "Editar",
         "delete": "Eliminar",
