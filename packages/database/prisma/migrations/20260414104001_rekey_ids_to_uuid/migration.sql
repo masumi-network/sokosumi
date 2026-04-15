@@ -1,7 +1,8 @@
 -- Rekey all TEXT primary keys / foreign keys to UUID.
 --
 -- Existing ids are mostly CUIDs, so we cannot cast them to UUID. Instead we:
--- 1) generate a new UUID per row (temp `_new_id` column)
+-- 1) assign `_new_id`: keep values that already parse as UUID (e.g. UUIDv7 from
+--    Prisma); only generate `gen_random_uuid()` for non-UUID text (e.g. CUIDs)
 -- 2) rewrite FK columns to point at the new UUIDs (as text)
 -- 3) rewrite PK `id` columns to the new UUIDs (as text)
 -- 4) convert columns to native UUID type
@@ -11,6 +12,20 @@
 -- This preserves existing relationships while changing the identifier values.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Map legacy text PKs: valid UUID strings keep their value; CUIDs etc. get a new UUID.
+CREATE OR REPLACE FUNCTION migration_rekey_text_pk_to_uuid(p TEXT)
+RETURNS UUID
+LANGUAGE plpgsql
+VOLATILE
+AS $$
+BEGIN
+  RETURN p::uuid;
+EXCEPTION
+  WHEN invalid_text_representation THEN
+    RETURN gen_random_uuid();
+END;
+$$;
 
 -- `task_link_task_pair_key` uses LEAST/GREATEST on (fromTaskId, toTaskId).
 -- During this migration we temporarily have mixed column types (TEXT -> UUID),
@@ -150,56 +165,56 @@ ALTER TABLE "coworker_usage" ADD COLUMN "_new_id" UUID;
 ALTER TABLE "conversation" ADD COLUMN "_new_id" UUID;
 ALTER TABLE "conversationItem" ADD COLUMN "_new_id" UUID;
 
-UPDATE "user" SET "_new_id" = gen_random_uuid();
-UPDATE "session" SET "_new_id" = gen_random_uuid();
-UPDATE "account" SET "_new_id" = gen_random_uuid();
-UPDATE "verification" SET "_new_id" = gen_random_uuid();
-UPDATE "passkey" SET "_new_id" = gen_random_uuid();
-UPDATE "subscription" SET "_new_id" = gen_random_uuid();
-UPDATE "organization" SET "_new_id" = gen_random_uuid();
-UPDATE "member" SET "_new_id" = gen_random_uuid();
-UPDATE "invitation" SET "_new_id" = gen_random_uuid();
-UPDATE "utmAttribution" SET "_new_id" = gen_random_uuid();
-UPDATE "notice" SET "_new_id" = gen_random_uuid();
-UPDATE "noticeAcknowledgment" SET "_new_id" = gen_random_uuid();
-UPDATE "rateLimit" SET "_new_id" = gen_random_uuid();
-UPDATE "UnitValue" SET "_new_id" = gen_random_uuid();
-UPDATE "AgentPricing" SET "_new_id" = gen_random_uuid();
-UPDATE "AgentFixedPricing" SET "_new_id" = gen_random_uuid();
-UPDATE "ExampleOutput" SET "_new_id" = gen_random_uuid();
-UPDATE "UserAgentRating" SET "_new_id" = gen_random_uuid();
-UPDATE "Agent" SET "_new_id" = gen_random_uuid();
-UPDATE "Category" SET "_new_id" = gen_random_uuid();
-UPDATE "Lock" SET "_new_id" = gen_random_uuid();
-UPDATE "Tag" SET "_new_id" = gen_random_uuid();
-UPDATE "sync_metadata" SET "_new_id" = gen_random_uuid();
-UPDATE "AgentList" SET "_new_id" = gen_random_uuid();
-UPDATE "Transaction" SET "_new_id" = gen_random_uuid();
-UPDATE "credit_bucket" SET "_new_id" = gen_random_uuid();
-UPDATE "credit_consumption" SET "_new_id" = gen_random_uuid();
-UPDATE "Job" SET "_new_id" = gen_random_uuid();
-UPDATE "jobPurchase" SET "_new_id" = gen_random_uuid();
-UPDATE "jobEvent" SET "_new_id" = gen_random_uuid();
-UPDATE "jobInput" SET "_new_id" = gen_random_uuid();
-UPDATE "CreditCost" SET "_new_id" = gen_random_uuid();
-UPDATE "apikey" SET "_new_id" = gen_random_uuid();
-UPDATE "blob" SET "_new_id" = gen_random_uuid();
-UPDATE "link" SET "_new_id" = gen_random_uuid();
-UPDATE "jobShare" SET "_new_id" = gen_random_uuid();
-UPDATE "jobSchedule" SET "_new_id" = gen_random_uuid();
-UPDATE "oauthClient" SET "_new_id" = gen_random_uuid();
-UPDATE "oauthAccessToken" SET "_new_id" = gen_random_uuid();
-UPDATE "oauthRefreshToken" SET "_new_id" = gen_random_uuid();
-UPDATE "oauthConsent" SET "_new_id" = gen_random_uuid();
-UPDATE "jwks" SET "_new_id" = gen_random_uuid();
-UPDATE "coworker" SET "_new_id" = gen_random_uuid();
-UPDATE "coworker_api_key" SET "_new_id" = gen_random_uuid();
-UPDATE "task" SET "_new_id" = gen_random_uuid();
-UPDATE "task_link" SET "_new_id" = gen_random_uuid();
-UPDATE "taskEvent" SET "_new_id" = gen_random_uuid();
-UPDATE "coworker_usage" SET "_new_id" = gen_random_uuid();
-UPDATE "conversation" SET "_new_id" = gen_random_uuid();
-UPDATE "conversationItem" SET "_new_id" = gen_random_uuid();
+UPDATE "user" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "session" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "account" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "verification" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "passkey" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "subscription" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "organization" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "member" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "invitation" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "utmAttribution" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "notice" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "noticeAcknowledgment" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "rateLimit" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "UnitValue" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "AgentPricing" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "AgentFixedPricing" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "ExampleOutput" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "UserAgentRating" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "Agent" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "Category" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "Lock" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "Tag" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "sync_metadata" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "AgentList" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "Transaction" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "credit_bucket" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "credit_consumption" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "Job" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "jobPurchase" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "jobEvent" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "jobInput" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "CreditCost" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "apikey" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "blob" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "link" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "jobShare" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "jobSchedule" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "oauthClient" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "oauthAccessToken" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "oauthRefreshToken" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "oauthConsent" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "jwks" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "coworker" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "coworker_api_key" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "task" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "task_link" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "taskEvent" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "coworker_usage" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "conversation" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
+UPDATE "conversationItem" SET "_new_id" = migration_rekey_text_pk_to_uuid("id");
 
 -- Rewrite FK values to the new ids (as TEXT for now).
 UPDATE "session" s SET "userId" = u."_new_id"::text FROM "user" u WHERE s."userId" = u."id";
@@ -632,3 +647,5 @@ CREATE UNIQUE INDEX "task_link_task_pair_key" ON "task_link" (
   LEAST("fromTaskId", "toTaskId"),
   GREATEST("fromTaskId", "toTaskId")
 );
+
+DROP FUNCTION IF EXISTS migration_rekey_text_pk_to_uuid(TEXT);
