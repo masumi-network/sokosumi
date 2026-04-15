@@ -1,52 +1,28 @@
 "use client";
 
-import { Copy } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { toast } from "sonner";
-
-import { MiddleTruncate } from "@/components/middle-truncate";
-import { Button } from "@/components/ui/button";
+import { CopyableValue } from "@/components/copyable-value";
 
 export interface BalanceStripeCustomerRowProps {
-  label: string;
+  /** Shown only to assistive tech; there is no visible label. */
+  ariaLabel: string;
   stripeCustomerId: string;
 }
 
 export function BalanceStripeCustomerRow({
-  label,
+  ariaLabel,
   stripeCustomerId,
 }: BalanceStripeCustomerRowProps) {
-  const t = useTranslations("Components.HashValue");
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(stripeCustomerId);
-      toast.success(t("copySuccess"));
-    } catch {
-      toast.error(t("copyError"));
-    }
-  }
-
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-sm">
-      <span className="shrink-0">{label}</span>
-      <div className="flex min-w-0 max-w-full flex-1 items-center gap-1">
-        <MiddleTruncate
-          className="min-w-0 font-mono text-xs"
-          text={stripeCustomerId}
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          type="button"
-          onClick={() => void handleCopy()}
-          className="text-muted-foreground shrink-0"
-          title={t("copy")}
-          aria-label={t("copy")}
-        >
-          <Copy className="size-4" />
-        </Button>
-      </div>
+    <div className="inline-flex max-w-full min-w-0 items-center justify-end text-right">
+      <span className="sr-only">{ariaLabel}: </span>
+      <CopyableValue
+        copiedFeedback
+        presentation="inline-code"
+        value={stripeCustomerId}
+        buttonClassName="size-7"
+        codeClassName="text-muted-foreground text-xs"
+        containerClassName="min-w-0 justify-end gap-1"
+      />
     </div>
   );
 }
