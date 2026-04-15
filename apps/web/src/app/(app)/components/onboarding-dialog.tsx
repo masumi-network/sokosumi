@@ -9,6 +9,11 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import {
+  OrganizationSeatSettingsFields,
+  resolveMinimumOrganizationSeats,
+  resolveTargetOrganizationSeats,
+} from "@/components/billing/organization-seat-settings-fields";
 import type { PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import { OnboardingPlanRadioGrid } from "@/components/onboarding/onboarding-plan-radio-grid";
@@ -26,12 +31,65 @@ import {
 } from "@/components/ui/tooltip";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import { CommonErrorCode } from "@/lib/actions";
-import { completeOnboarding } from "@/lib/actions/onboarding";
-import { upgradePersonalSubscription } from "@/lib/actions/subscription";
+import {
+  completeOnboarding,
+  markSubscriptionOnboardingGateSessionSeen,
+} from "@/lib/actions/onboarding";
+import {
+  upgradeOrganizationSubscription,
+  upgradePersonalSubscription,
+} from "@/lib/actions/subscription";
 import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
 const INTRO_STEP_COUNT = 5;
 const DEFAULT_SELECTED_PLAN: PaidSubscriptionPlanName = "standard";
+const SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY =
+  "sokosumi.onboarding.subscription.lastLoginId";
+
+export type OnboardingSubscriptionCheckoutMode =
+  | "organization"
+  | "personal"
+  | "restricted";
+
+function readLastSubscriptionOnboardingLoginId(): null | string {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const loginId = window.localStorage.getItem(
+      SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY,
+    );
+    return loginId ? loginId : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLastSubscriptionOnboardingLoginId(loginId: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY,
+      loginId,
+    );
+  } catch {
+    // Ignore localStorage write errors (quota, privacy mode, etc.).
+  }
+}
+
+function shouldOpenSubscriptionOnlyOnboarding(
+  loginId?: null | string,
+): boolean {
+  if (!loginId) {
+    return true;
+  }
+
+  return readLastSubscriptionOnboardingLoginId() !== loginId;
+}
 
 /* ─── Animated visuals ─── */
 
@@ -319,6 +377,7 @@ function OrchestrationVisual({
 function StepNavigation({
   step,
   totalSteps,
+  showBack,
   showSkip,
   labels,
   isLoading,
@@ -329,6 +388,7 @@ function StepNavigation({
 }: {
   step: number;
   totalSteps: number;
+  showBack: boolean;
   showSkip: boolean;
   labels: {
     skip: string;
@@ -371,14 +431,16 @@ function StepNavigation({
           <div />
         )}
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            onClick={onBack}
-            disabled={isFirst || isLoading}
-          >
-            <ArrowLeft className="size-4" />
-            {labels.back}
-          </Button>
+          {showBack ? (
+            <Button
+              variant="ghost"
+              onClick={onBack}
+              disabled={isFirst || isLoading}
+            >
+              <ArrowLeft className="size-4" />
+              {labels.back}
+            </Button>
+          ) : null}
           {isLast ? (
             <Button variant="primary" onClick={onFinish} disabled={isLoading}>
               {labels.finish}
@@ -398,7 +460,15 @@ function StepNavigation({
 /* ─── Main dialog ─── */
 
 interface OnboardingDialogProps {
+  loginId?: null | string;
+  organizationSubscription?: {
+    currentSeats: number;
+    memberCount: number;
+    organizationId: string;
+  };
   paidPlans: PaidSubscriptionPlanView[];
+  subscriptionCheckoutMode: OnboardingSubscriptionCheckoutMode;
+  subscriptionOnly?: boolean;
 }
 
 function resolveInitialSelectedPlan(
@@ -412,19 +482,70 @@ function resolveInitialSelectedPlan(
   return preferredPlan?.name ?? selectablePlans[0]?.name ?? "starter";
 }
 
-export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
+export function OnboardingDialog({
+  loginId,
+  organizationSubscription,
+  paidPlans,
+  subscriptionCheckoutMode,
+  subscriptionOnly = false,
+}: OnboardingDialogProps) {
   const tMetadata = useTranslations("Onboarding.Metadata");
   const tDialog = useTranslations("Onboarding.Dialog");
   const tErrors = useTranslations("Onboarding.Actions.Errors");
+  const tOrganizationSubscriptions = useTranslations(
+    "App.Organizations.OrganizationDetail.Subscription",
+  );
   const tSubscriptions = useTranslations("App.Subscriptions");
   const router = useRouter();
-  const [open, setOpen] = useState(true);
-  const [step, setStep] = useState(0);
+  const [open, setOpen] = useState(() => !subscriptionOnly);
+  const [step, setStep] = useState(subscriptionOnly ? INTRO_STEP_COUNT - 1 : 0);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PaidSubscriptionPlanName>(
     () => resolveInitialSelectedPlan(paidPlans),
   );
+  const [targetSeats, setTargetSeats] = useState(() =>
+    organizationSubscription
+      ? resolveTargetOrganizationSeats(
+          organizationSubscription.currentSeats,
+          organizationSubscription.memberCount,
+        )
+      : 1,
+  );
   const { coworkers: apiCoworkers } = useCoworkersContext();
+  const isRestrictedOrganizationGate =
+    subscriptionOnly && subscriptionCheckoutMode === "restricted";
+
+  useEffect(() => {
+    if (!subscriptionOnly) {
+      setOpen(true);
+      return;
+    }
+
+    if (isRestrictedOrganizationGate) {
+      setOpen(false);
+      // Do not mark the session cookie: the user never saw a checkout-capable
+      // gate. Marking would make AppLayout skip the loader for this session
+      // everywhere (e.g. personal workspace) until the session changes.
+      return;
+    }
+
+    if (!shouldOpenSubscriptionOnlyOnboarding(loginId)) {
+      setOpen(false);
+      if (loginId) {
+        void markSubscriptionOnboardingGateSessionSeen(loginId);
+      }
+      return;
+    }
+
+    // Skip cookie only after localStorage suppresses the gate — setting it on
+    // first open refreshes RSC and unmounts this dialog.
+
+    if (loginId) {
+      writeLastSubscriptionOnboardingLoginId(loginId);
+    }
+
+    setOpen(true);
+  }, [isRestrictedOrganizationGate, loginId, subscriptionOnly]);
 
   if (!open) return null;
 
@@ -479,35 +600,108 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
     }
   };
 
+  function handleSubscriptionActionError(
+    error: { code: string; message?: string | null },
+    options: {
+      badInputMessage: string;
+      generalMessage: string;
+      unauthenticatedActionLabel: string;
+      unauthenticatedMessage: string;
+      unauthorizedMessage?: string;
+    },
+  ) {
+    if (error.code === CommonErrorCode.UNAUTHENTICATED) {
+      toast.error(options.unauthenticatedMessage, {
+        action: {
+          label: options.unauthenticatedActionLabel,
+          onClick: () => {
+            router.push("/login");
+          },
+        },
+      });
+      return;
+    }
+
+    if (error.message) {
+      toast.error(error.message);
+      return;
+    }
+
+    switch (error.code) {
+      case CommonErrorCode.BAD_INPUT:
+        toast.error(options.badInputMessage);
+        break;
+      case CommonErrorCode.UNAUTHORIZED:
+        toast.error(options.unauthorizedMessage ?? options.generalMessage);
+        break;
+      default:
+        toast.error(options.generalMessage);
+        break;
+    }
+  }
+
   const handleStartSubscription = async () => {
-    track("Onboarding plan checkout started", { plan: selectedPlan });
+    const organizationId = organizationSubscription?.organizationId;
+    const minimumSeats = organizationSubscription
+      ? resolveMinimumOrganizationSeats(organizationSubscription.memberCount)
+      : 1;
+
+    if (
+      organizationSubscription &&
+      (!Number.isInteger(targetSeats) || targetSeats < minimumSeats)
+    ) {
+      toast.error(tOrganizationSubscriptions("Errors.badInput"));
+      return;
+    }
+
+    track("Onboarding plan checkout started", {
+      customerType: organizationId ? "organization" : "user",
+      plan: selectedPlan,
+      ...(organizationId ? { seats: targetSeats } : {}),
+    });
     setIsLoading(true);
 
     try {
-      const result = await upgradePersonalSubscription({
-        plan: selectedPlan,
-        returnPath: "/tasks?onboarding_subscription=1",
-      });
+      const result = organizationId
+        ? await upgradeOrganizationSubscription({
+            organizationId,
+            plan: selectedPlan,
+            returnPath: "/tasks?onboarding_subscription=1",
+            seats: targetSeats,
+          })
+        : await upgradePersonalSubscription({
+            plan: selectedPlan,
+            returnPath: "/tasks?onboarding_subscription=1",
+          });
 
       if (!result.ok) {
-        switch (result.error.code) {
-          case CommonErrorCode.UNAUTHENTICATED:
-            toast.error(tSubscriptions("Errors.unauthenticated"), {
-              action: {
-                label: tSubscriptions("Errors.unauthenticatedAction"),
-                onClick: () => {
-                  router.push("/login");
-                },
+        handleSubscriptionActionError(
+          result.error,
+          organizationId
+            ? {
+                badInputMessage: tOrganizationSubscriptions("Errors.badInput"),
+                generalMessage: tOrganizationSubscriptions("Errors.general"),
+                unauthenticatedActionLabel: tOrganizationSubscriptions(
+                  "Errors.unauthenticatedAction",
+                ),
+                unauthenticatedMessage: tOrganizationSubscriptions(
+                  "Errors.unauthenticated",
+                ),
+                unauthorizedMessage: tOrganizationSubscriptions(
+                  "Errors.unauthorized",
+                ),
+              }
+            : {
+                badInputMessage: tSubscriptions("Errors.badInput"),
+                generalMessage: tSubscriptions("Errors.general"),
+                unauthenticatedActionLabel: tSubscriptions(
+                  "Errors.unauthenticatedAction",
+                ),
+                unauthenticatedMessage: tSubscriptions(
+                  "Errors.unauthenticated",
+                ),
               },
-            });
-            break;
-          case CommonErrorCode.BAD_INPUT:
-            toast.error(tSubscriptions("Errors.badInput"));
-            break;
-          default:
-            toast.error(tSubscriptions("Errors.general"));
-            break;
-        }
+        );
         return;
       }
 
@@ -527,6 +721,8 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
 
   const isWelcome = step === 0;
   const isPlanStep = step === INTRO_STEP_COUNT - 1;
+  const navigationStep = subscriptionOnly ? 0 : step;
+  const navigationTotalSteps = subscriptionOnly ? 1 : INTRO_STEP_COUNT;
   const hasSplitLayout = !isWelcome && !isPlanStep;
   const firstCoworkerName = coworkers[0]?.name ?? "";
   const firstCoworkerAvatarUrl =
@@ -664,6 +860,16 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
                       {introSteps[step].description}
                     </p>
                   </div>
+                  {organizationSubscription ? (
+                    <div className="rounded-xl border p-4 md:p-6">
+                      <OrganizationSeatSettingsFields
+                        inputId="onboarding-organization-seats"
+                        memberCount={organizationSubscription.memberCount}
+                        onTargetSeatsChange={setTargetSeats}
+                        targetSeats={targetSeats}
+                      />
+                    </div>
+                  ) : null}
                   <OnboardingPlanRadioGrid
                     plans={paidPlans}
                     value={selectedPlan}
@@ -677,8 +883,9 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
           {/* Fixed bottom navigation */}
           <div className="shrink-0 border-t px-6 pt-4 pb-6 md:px-10 md:pt-5 md:pb-8">
             <StepNavigation
-              step={step}
-              totalSteps={INTRO_STEP_COUNT}
+              step={navigationStep}
+              totalSteps={navigationTotalSteps}
+              showBack={!subscriptionOnly}
               showSkip
               labels={{
                 skip: tDialog("navigation.skip"),
@@ -689,8 +896,14 @@ export function OnboardingDialog({ paidPlans }: OnboardingDialogProps) {
                   : tDialog("navigation.getStarted"),
               }}
               isLoading={isLoading}
-              onBack={() => setStep((currentStep) => currentStep - 1)}
-              onNext={() => setStep((currentStep) => currentStep + 1)}
+              onBack={() => {
+                if (subscriptionOnly) return;
+                setStep((currentStep) => currentStep - 1);
+              }}
+              onNext={() => {
+                if (subscriptionOnly) return;
+                setStep((currentStep) => currentStep + 1);
+              }}
               onSkip={() => void handleComplete("Onboarding skipped")}
               onFinish={() => void handleStartSubscription()}
             />

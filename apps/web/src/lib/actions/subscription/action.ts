@@ -8,6 +8,7 @@ import {
   betterAuthApiErrorSchema,
   CommonErrorCode,
 } from "@/lib/actions/errors";
+import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
 import { auth } from "@/lib/auth/auth";
 import { organizationSubscriptionService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
@@ -137,6 +138,8 @@ export const upgradePersonalSubscription = withSession<
       },
     });
 
+    await clearSubscriptionOnboardingGateSessionCookie();
+
     if (!result.url) {
       return Ok({ mode: "complete" });
     }
@@ -218,12 +221,20 @@ export const upgradeOrganizationSubscription = withSession<
         customerType: "organization",
         referenceId: parsed.data.organizationId,
         seats: parsed.data.seats,
-        successUrl: parsed.data.returnPath,
-        cancelUrl: parsed.data.returnPath,
+        successUrl: buildSubscriptionStatusPath(
+          parsed.data.returnPath,
+          "success",
+        ),
+        cancelUrl: buildSubscriptionStatusPath(
+          parsed.data.returnPath,
+          "cancel",
+        ),
         returnUrl: parsed.data.returnPath,
         disableRedirect: true,
       },
     });
+
+    await clearSubscriptionOnboardingGateSessionCookie();
 
     if (!result.url) {
       return Ok({ mode: "complete" });
