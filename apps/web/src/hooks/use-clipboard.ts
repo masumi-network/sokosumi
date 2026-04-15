@@ -15,7 +15,7 @@ export interface UseClipboardReturn {
   reset: () => void;
 }
 
-export const COPY_SUCCESS_TIMEOUT = 2000;
+export const COPY_SUCCESS_TIMEOUT = 3000;
 
 /**
  * Custom hook for clipboard operations
