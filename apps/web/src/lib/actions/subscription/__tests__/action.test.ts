@@ -5,11 +5,16 @@ export {};
 vi.mock("server-only", () => ({}));
 
 const headersMock = vi.fn(async () => new Headers());
+const cookieDeleteMock = vi.fn();
+const cookiesMock = vi.fn(async () => ({
+  delete: cookieDeleteMock,
+}));
 const upgradeSubscriptionMock = vi.fn();
 const createBillingPortalMock = vi.fn();
 const updateOrganizationSeatsImmediatelyMock = vi.fn();
 
 vi.mock("next/headers", () => ({
+  cookies: cookiesMock,
   headers: headersMock,
 }));
 

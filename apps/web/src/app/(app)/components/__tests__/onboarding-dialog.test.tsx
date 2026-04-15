@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const pushMock = vi.fn();
 const trackMock = vi.fn();
 const completeOnboardingMock = vi.fn();
+const markSubscriptionOnboardingGateSessionSeenMock = vi.fn();
 const upgradeOrganizationSubscriptionMock = vi.fn();
 const upgradePersonalSubscriptionMock = vi.fn();
 
@@ -77,6 +78,8 @@ vi.mock("@/components/ui/tooltip", () => ({
 
 vi.mock("@/lib/actions/onboarding", () => ({
   completeOnboarding: (...args: unknown[]) => completeOnboardingMock(...args),
+  markSubscriptionOnboardingGateSessionSeen: (...args: unknown[]) =>
+    markSubscriptionOnboardingGateSessionSeenMock(...args),
 }));
 
 vi.mock("@/lib/actions/subscription", () => ({
@@ -113,6 +116,7 @@ function createPaidPlans() {
 describe("OnboardingDialog organization subscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    markSubscriptionOnboardingGateSessionSeenMock.mockResolvedValue(undefined);
     window.localStorage.clear();
     completeOnboardingMock.mockResolvedValue({
       data: { redirectUrl: "/tasks" },
@@ -222,9 +226,12 @@ describe("OnboardingDialog organization subscription", () => {
     expect(
       window.localStorage.getItem(SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY),
     ).toBe("session-1");
+    expect(
+      markSubscriptionOnboardingGateSessionSeenMock,
+    ).not.toHaveBeenCalled();
   });
 
-  it("keeps the subscription-only dialog closed for the same login id", () => {
+  it("keeps the subscription-only dialog closed for the same login id", async () => {
     window.localStorage.setItem(
       SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY,
       "session-1",
@@ -241,5 +248,10 @@ describe("OnboardingDialog organization subscription", () => {
     expect(
       screen.queryByRole("button", { name: "navigation.subscribe" }),
     ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        markSubscriptionOnboardingGateSessionSeenMock,
+      ).toHaveBeenCalledWith("session-1");
+    });
   });
 });

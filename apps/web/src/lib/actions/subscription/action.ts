@@ -8,6 +8,7 @@ import {
   betterAuthApiErrorSchema,
   CommonErrorCode,
 } from "@/lib/actions/errors";
+import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
 import { auth } from "@/lib/auth/auth";
 import { organizationSubscriptionService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
@@ -138,9 +139,11 @@ export const upgradePersonalSubscription = withSession<
     });
 
     if (!result.url) {
+      await clearSubscriptionOnboardingGateSessionCookie();
       return Ok({ mode: "complete" });
     }
 
+    await clearSubscriptionOnboardingGateSessionCookie();
     return Ok({ mode: "redirect", url: result.url });
   } catch (error) {
     return Err(parseBetterAuthActionError(error));
@@ -232,9 +235,11 @@ export const upgradeOrganizationSubscription = withSession<
     });
 
     if (!result.url) {
+      await clearSubscriptionOnboardingGateSessionCookie();
       return Ok({ mode: "complete" });
     }
 
+    await clearSubscriptionOnboardingGateSessionCookie();
     return Ok({ mode: "redirect", url: result.url });
   } catch (error) {
     return Err(parseBetterAuthActionError(error));

@@ -31,7 +31,10 @@ import {
 } from "@/components/ui/tooltip";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import { CommonErrorCode } from "@/lib/actions";
-import { completeOnboarding } from "@/lib/actions/onboarding";
+import {
+  completeOnboarding,
+  markSubscriptionOnboardingGateSessionSeen,
+} from "@/lib/actions/onboarding";
 import {
   upgradeOrganizationSubscription,
   upgradePersonalSubscription,
@@ -511,8 +514,14 @@ export function OnboardingDialog({
 
     if (!shouldOpenSubscriptionOnlyOnboarding(loginId)) {
       setOpen(false);
+      if (loginId) {
+        void markSubscriptionOnboardingGateSessionSeen(loginId);
+      }
       return;
     }
+
+    // Skip cookie only after localStorage suppresses the gate — setting it on
+    // first open refreshes RSC and unmounts this dialog.
 
     if (loginId) {
       writeLastSubscriptionOnboardingLoginId(loginId);

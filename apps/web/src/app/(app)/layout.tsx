@@ -18,6 +18,10 @@ import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import {
+  hasSubscriptionOnboardingGateBeenServedForSession,
+  SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
+} from "@/lib/subscription-onboarding-gate-cookie";
 
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
@@ -84,9 +88,21 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       default: "404",
     });
   const creditsData = creditsResult?.data.credits ?? null;
-  const currentPlan = creditsData?.subscription?.plan ?? "free";
+  // Do not default to "free" when credits failed to load — that would show the
+  // subscription-only onboarding gate (and Stripe/org work) for paid users.
+  const currentPlan =
+    creditsData != null ? (creditsData.subscription?.plan ?? "free") : null;
   const shouldShowFreeSubscriptionGate =
     !shouldShowOnboarding && currentPlan === "free";
+  const subscriptionOnboardingGateCookie = cookieStore.get(
+    SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
+  )?.value;
+  const shouldLoadSubscriptionOnboarding =
+    shouldShowFreeSubscriptionGate &&
+    !hasSubscriptionOnboardingGateBeenServedForSession(
+      subscriptionOnboardingGateCookie,
+      session.session.id,
+    );
   const currentTimestampMs = creditsResult?.meta?.timestamp
     ? new Date(creditsResult.meta.timestamp).getTime()
     : 0;
@@ -172,7 +188,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               loginId={session.session.id}
               subscriptionOnly={false}
             />
-          ) : shouldShowFreeSubscriptionGate ? (
+          ) : shouldLoadSubscriptionOnboarding ? (
             <OnboardingDialogLoader
               activeOrganization={activeOrganization}
               loginId={session.session.id}
