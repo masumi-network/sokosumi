@@ -2,7 +2,7 @@ import "server-only";
 
 import { APIError } from "better-auth/api";
 import { NextResponse } from "next/server";
-import { v4 as uuidv4 } from "uuid";
+import { v7 as uuidv7 } from "uuid";
 import * as z from "zod";
 
 import {
@@ -43,7 +43,7 @@ export function handleApiError(
     requestId?: string;
   } = {},
 ): NextResponse {
-  const requestId = options.requestId ?? uuidv4();
+  const requestId = options.requestId ?? uuidv7();
 
   console.error(`[${requestId}] Error in ${operation}:`, error);
 

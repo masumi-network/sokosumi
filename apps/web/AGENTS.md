@@ -172,6 +172,10 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Never access Prisma directly from components
 - Use server actions for mutations
 
+### Better Auth ID generation
+
+- `src/lib/auth/auth.ts` sets `advanced.database.generateId: "uuid"` so Better Auth–managed rows get UUID-shaped primary keys, consistent with `@sokosumi/database` Prisma models. Do not remove this without aligning the shared schema and any database migrations.
+
 ### Stripe: Sandbox (test) vs production
 
 Stripe **test mode** and **live mode** are separate environments. The app does not switch modes in code; it uses whatever `STRIPE_*` env vars are set.

@@ -88,6 +88,9 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
 export const auth = betterAuth({
   appName: "Sokosumi",
   advanced: {
+    database: {
+      generateId: "uuid",
+    },
     cookiePrefix: betterAuthCookiePrefix,
     ...(env.BETTER_AUTH_COOKIE_DOMAIN
       ? {

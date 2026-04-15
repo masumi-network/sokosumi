@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { randomUUID } from "crypto";
+import { v4 as uuidv4 } from "uuid";
 
 import { conflict, internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -60,7 +60,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       // Database is the source of truth - create conversation directly in DB
       // Use provided openaiId or generate a new one
-      const openaiId = body.openaiId || randomUUID();
+      const openaiId = body.openaiId || uuidv4();
 
       const conversation = await prisma.$transaction(async (tx) => {
         // Check if conversation with this ID already exists (shouldn't happen with UUID, but safety check)
