@@ -141,7 +141,7 @@ describe("OnboardingDialogLoader", () => {
     expect(listActiveSubscriptionsMock).toHaveBeenCalledOnce();
   });
 
-  it("keeps org-scoped subscription gates restricted for non-admin members", async () => {
+  it("short-circuits subscription-only org gates for non-admin members without billing fetches", async () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.MEMBER,
     });
@@ -150,7 +150,7 @@ describe("OnboardingDialogLoader", () => {
       "../onboarding-dialog-loader"
     );
 
-    render(
+    const { getByTestId, queryByTestId } = render(
       (await OnboardingDialogLoader({
         activeOrganization: {
           _count: { members: 3 },
@@ -162,28 +162,19 @@ describe("OnboardingDialogLoader", () => {
       })) as ReactNode,
     );
 
-    const props = onboardingDialogMock.mock.calls[0]?.[0] as {
-      loginId?: string;
-      organizationSubscription?: unknown;
-      paidPlans: Array<{ isCurrent: boolean; name: string }>;
-      subscriptionCheckoutMode: string;
-      subscriptionOnly?: boolean;
-    };
-
-    expect(props.subscriptionCheckoutMode).toBe("restricted");
-    expect(props.organizationSubscription).toBeUndefined();
-    expect(props.loginId).toBe("session-1");
-    expect(props.subscriptionOnly).toBe(true);
-    expect(props.paidPlans.find((plan) => plan.name === "pro")?.isCurrent).toBe(
-      true,
-    );
-    expect(
-      props.paidPlans.find((plan) => plan.name === "starter")?.isCurrent,
-    ).toBe(false);
-    expect(listActiveSubscriptionsMock).toHaveBeenCalledOnce();
+    expect(getByTestId("return-handler")).toBeTruthy();
+    expect(queryByTestId("onboarding-dialog")).toBeNull();
+    expect(onboardingDialogMock).not.toHaveBeenCalled();
+    expect(getMyMemberInOrganizationMock).toHaveBeenCalledOnce();
+    expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
+    expect(getLatestActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
   });
 
   it("skips the onboarding dialog when the subscription catalog cannot be loaded", async () => {
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
     getSubscriptionCatalogMock.mockRejectedValue(new Error("Stripe outage"));
     const consoleErrorSpy = vi
       .spyOn(console, "error")
@@ -208,11 +199,41 @@ describe("OnboardingDialogLoader", () => {
     expect(getByTestId("return-handler")).toBeTruthy();
     expect(queryByTestId("onboarding-dialog")).toBeNull();
     expect(onboardingDialogMock).not.toHaveBeenCalled();
-    expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
+    expect(getMyMemberInOrganizationMock).toHaveBeenCalledOnce();
     expect(getLatestActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
     expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "Failed to load subscription catalog for onboarding",
+      expect.any(Error),
+    );
+  });
+
+  it("defaults personal plan to free when active subscriptions cannot be loaded", async () => {
+    listActiveSubscriptionsMock.mockRejectedValue(new Error("Auth outage"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const { OnboardingDialogLoader } = await import(
+      "../onboarding-dialog-loader"
+    );
+
+    const { getByTestId } = render(
+      (await OnboardingDialogLoader({
+        activeOrganization: null,
+        loginId: "session-1",
+        subscriptionOnly: true,
+      })) as ReactNode,
+    );
+
+    expect(getByTestId("onboarding-dialog")).toBeTruthy();
+    const props = onboardingDialogMock.mock.calls[0]?.[0] as {
+      paidPlans: Array<{ isCurrent: boolean; name: string }>;
+    };
+    expect(props.paidPlans.every((plan) => !plan.isCurrent)).toBe(true);
+    expect(listActiveSubscriptionsMock).toHaveBeenCalledOnce();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Failed to load active subscriptions for onboarding",
       expect.any(Error),
     );
   });

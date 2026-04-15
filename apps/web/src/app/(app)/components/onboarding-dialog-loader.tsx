@@ -44,6 +44,31 @@ export async function OnboardingDialogLoader({
   loginId,
   subscriptionOnly = false,
 }: OnboardingDialogLoaderProps) {
+  let prefetchedOrganizationMember:
+    | Awaited<ReturnType<typeof userService.getMyMemberInOrganization>>
+    | undefined;
+
+  if (subscriptionOnly && activeOrganization) {
+    prefetchedOrganizationMember = await userService.getMyMemberInOrganization(
+      activeOrganization.id,
+    );
+    const canManageOrganizationSubscription =
+      prefetchedOrganizationMember?.role === MemberRole.OWNER ||
+      prefetchedOrganizationMember?.role === MemberRole.ADMIN;
+    if (!canManageOrganizationSubscription) {
+      // Subscription-only gate is intentionally hidden for non-admin members.
+      // Do not touch Stripe, org billing, or personal subscription APIs here —
+      // the client dialog would render null anyway, and the session cookie is
+      // intentionally not set so switching to a personal workspace can still
+      // show the gate.
+      return (
+        <Suspense fallback={null}>
+          <OnboardingSubscriptionReturnHandler />
+        </Suspense>
+      );
+    }
+  }
+
   let subscriptionCatalog: Awaited<
     ReturnType<typeof getSubscriptionCatalog>
   > | null = null;
@@ -61,9 +86,12 @@ export async function OnboardingDialogLoader({
     );
   }
 
-  const organizationMemberPromise = activeOrganization
-    ? userService.getMyMemberInOrganization(activeOrganization.id)
-    : Promise.resolve(null);
+  const organizationMemberPromise =
+    prefetchedOrganizationMember !== undefined
+      ? Promise.resolve(prefetchedOrganizationMember)
+      : activeOrganization
+        ? userService.getMyMemberInOrganization(activeOrganization.id)
+        : Promise.resolve(null);
   const latestOrganizationSubscriptionPromise = activeOrganization
     ? subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
         activeOrganization.id,
@@ -91,17 +119,29 @@ export async function OnboardingDialogLoader({
         ? "organization"
         : "restricted"
       : "personal";
-  const personalCurrentPlan =
-    subscriptionCheckoutMode === "organization"
-      ? null
-      : (resolveCurrentPlanName(
-          (await auth.api.listActiveSubscriptions({
-            headers: await headers(),
-            query: {
-              customerType: "user",
-            },
-          })) as ActiveSubscription[],
-        ) ?? "free");
+
+  let personalCurrentPlan: ReturnType<typeof resolveCurrentPlanName> | null =
+    null;
+  if (subscriptionCheckoutMode !== "organization") {
+    let personalActiveSubscriptions: ActiveSubscription[] = [];
+    try {
+      personalActiveSubscriptions = (await auth.api.listActiveSubscriptions({
+        headers: await headers(),
+        query: {
+          customerType: "user",
+        },
+      })) as ActiveSubscription[];
+    } catch (error) {
+      console.error(
+        "Failed to load active subscriptions for onboarding",
+        error,
+      );
+    }
+
+    personalCurrentPlan =
+      resolveCurrentPlanName(personalActiveSubscriptions) ?? "free";
+  }
+
   const currentPlan =
     subscriptionCheckoutMode === "organization"
       ? (organizationCurrentPlan ?? "free")
