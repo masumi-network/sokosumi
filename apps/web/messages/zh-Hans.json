@@ -2207,6 +2207,8 @@
           "description": "管理您的组织"
         },
         "roleIndicator": "查看身份：",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe customer ID",
         "websiteLabel": "网站",
         "edit": "编辑",
         "delete": "删除",

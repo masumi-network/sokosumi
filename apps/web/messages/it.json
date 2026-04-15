@@ -2208,6 +2208,8 @@
           "description": "Gestisci la tua organizzazione"
         },
         "roleIndicator": "Visualizza come:",
+        "slugLabel": "Slug",
+        "stripeCustomerIdLabel": "Stripe customer ID",
         "websiteLabel": "Sito web",
         "edit": "Modifica",
         "delete": "Elimina",

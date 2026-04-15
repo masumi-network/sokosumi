@@ -48,12 +48,6 @@ export interface UseApiKeysReturn {
   delete: (data: DeleteApiKeyRequest) => Promise<boolean>;
 }
 
-export interface UseClipboardReturn {
-  copied: boolean;
-  copy: (text: string) => Promise<void>;
-  reset: () => void;
-}
-
 export interface DialogState {
   createDialog: {
     open: boolean;
