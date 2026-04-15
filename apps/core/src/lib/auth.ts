@@ -86,7 +86,7 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
 }
 
 export const auth = betterAuth({
-  appName: "Sokosumi", // Define the name of your application
+  appName: "Sokosumi",
   advanced: {
     cookiePrefix: betterAuthCookiePrefix,
     ...(env.BETTER_AUTH_COOKIE_DOMAIN
