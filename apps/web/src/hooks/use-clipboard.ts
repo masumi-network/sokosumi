@@ -1,51 +1,52 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { UseClipboardReturn } from "@/app/connections/components/api-keys/types";
-import { COPY_SUCCESS_TIMEOUT } from "@/app/connections/components/api-keys/utils";
+export interface UseClipboardOptions {
+  copySuccessMessage: string;
+  copyErrorMessage: string;
+}
+
+export interface UseClipboardReturn {
+  copied: boolean;
+  copy: (text: string) => Promise<void>;
+  reset: () => void;
+}
+
+export const COPY_SUCCESS_TIMEOUT = 3000;
 
 /**
- * Custom hook for clipboard operations
- * Handles copying text to clipboard with visual feedback and timeout management
+ * Clipboard copy with toast feedback and optional visual "copied" state timing.
+ * Callers supply messages so this hook stays free of any specific i18n namespace.
  */
-export function useClipboard(): UseClipboardReturn {
-  const t = useTranslations("App.Account.ApiKeys");
+export function useClipboard(options: UseClipboardOptions): UseClipboardReturn {
+  const { copySuccessMessage, copyErrorMessage } = options;
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  /**
-   * Copies text to clipboard and shows success feedback
-   */
   const copy = useCallback(
     async (text: string): Promise<void> => {
       try {
         await navigator.clipboard.writeText(text);
-        toast.success(t("Messages.copySuccess"));
+        toast.success(copySuccessMessage);
         setCopied(true);
 
-        // Clear any existing timeout
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
         }
 
-        // Set new timeout to reset copied state
         timeoutRef.current = setTimeout(() => {
           setCopied(false);
           timeoutRef.current = null;
         }, COPY_SUCCESS_TIMEOUT);
       } catch {
-        toast.error(t("Messages.copyError"));
+        toast.error(copyErrorMessage);
       }
     },
-    [t],
+    [copyErrorMessage, copySuccessMessage],
   );
 
-  /**
-   * Manually reset the copied state
-   */
   const reset = useCallback(() => {
     setCopied(false);
     if (timeoutRef.current) {
@@ -54,8 +55,6 @@ export function useClipboard(): UseClipboardReturn {
     }
   }, []);
 
-  // Effect is necessary: Cleanup to prevent memory leaks
-  // Clears timeout when component unmounts to avoid setState on unmounted component
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
