@@ -8,15 +8,12 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountDeleteTask from "./delete";
 
-const {
-  prismaTransactionMock,
-  requireTaskOwnershipMock,
-  mapTaskMock,
-} = vi.hoisted(() => ({
-  prismaTransactionMock: vi.fn(),
-  requireTaskOwnershipMock: vi.fn(),
-  mapTaskMock: vi.fn((task: unknown) => task),
-}));
+const { prismaTransactionMock, requireTaskOwnershipMock, mapTaskMock } =
+  vi.hoisted(() => ({
+    prismaTransactionMock: vi.fn(),
+    requireTaskOwnershipMock: vi.fn(),
+    mapTaskMock: vi.fn((task: unknown) => task),
+  }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskOwnership: requireTaskOwnershipMock,
