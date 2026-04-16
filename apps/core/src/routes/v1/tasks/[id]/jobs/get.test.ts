@@ -8,15 +8,18 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTaskJobs from "./get";
 
-const { jobFindManyMock, prismaTransactionMock, requireTaskReadAccessMock } =
-  vi.hoisted(() => ({
-    jobFindManyMock: vi.fn(),
-    prismaTransactionMock: vi.fn(),
-    requireTaskReadAccessMock: vi.fn(),
-  }));
+const {
+  jobFindManyMock,
+  prismaTransactionMock,
+  requireTaskReadAccessForRouteVarsMock,
+} = vi.hoisted(() => ({
+  jobFindManyMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+  requireTaskReadAccessForRouteVarsMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccess: requireTaskReadAccessMock,
+  requireTaskReadAccessForRouteVars: requireTaskReadAccessForRouteVarsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -56,7 +59,7 @@ function createApp() {
 describe("GET /tasks/{id}/jobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessMock.mockResolvedValue(undefined);
+    requireTaskReadAccessForRouteVarsMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         job: {
@@ -73,17 +76,20 @@ describe("GET /tasks/{id}/jobs", () => {
     const response = await app.request("http://localhost/tsk_123/jobs");
 
     expect(response.status).toBe(200);
-    expect(requireTaskReadAccessMock).toHaveBeenCalledWith(
-      {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-      },
-      {
-        workspaceId: testWorkspaceId,
-        userId: null,
-        organizationId: "org_123",
-      },
+    expect(requireTaskReadAccessForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        workspaceContext: {
+          workspaceId: testWorkspaceId,
+          userId: null,
+          organizationId: "org_123",
+        },
+      }),
       "tsk_123",
       expect.any(Object),
     );

@@ -8,15 +8,18 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTaskById from "./get";
 
-const { prismaTransactionMock, requireTaskReadAccessMock, taskFindUniqueMock } =
-  vi.hoisted(() => ({
-    prismaTransactionMock: vi.fn(),
-    requireTaskReadAccessMock: vi.fn(),
-    taskFindUniqueMock: vi.fn(),
-  }));
+const {
+  prismaTransactionMock,
+  requireTaskReadAccessForRouteVarsMock,
+  taskFindUniqueMock,
+} = vi.hoisted(() => ({
+  prismaTransactionMock: vi.fn(),
+  requireTaskReadAccessForRouteVarsMock: vi.fn(),
+  taskFindUniqueMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccess: requireTaskReadAccessMock,
+  requireTaskReadAccessForRouteVars: requireTaskReadAccessForRouteVarsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -99,7 +102,7 @@ function createTask(
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessMock.mockResolvedValue(undefined);
+    requireTaskReadAccessForRouteVarsMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb({
@@ -119,17 +122,20 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(requireTaskReadAccessMock).toHaveBeenCalledWith(
-      {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-      },
-      {
-        workspaceId: testWorkspaceId,
-        userId: null,
-        organizationId: "org_123",
-      },
+    expect(requireTaskReadAccessForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        workspaceContext: {
+          workspaceId: testWorkspaceId,
+          userId: null,
+          organizationId: "org_123",
+        },
+      }),
       "tsk_a",
       expect.any(Object),
     );
@@ -204,12 +210,15 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(requireTaskReadAccessMock).toHaveBeenCalledWith(
-      {
-        actor: "coworker",
-        coworkerId: "cow_123",
-      },
-      null,
+    expect(requireTaskReadAccessForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "coworker",
+          coworkerId: "cow_123",
+        },
+        workspaceContext: null,
+      }),
       "tsk_a",
       expect.any(Object),
     );

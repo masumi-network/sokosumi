@@ -18,7 +18,8 @@ const {
   getCreditCostsOrThrowMock,
   prismaTransactionMock,
   publishTaskEventDataMock,
-  requireTaskAccessMock,
+  requireCoworkerTaskAccessMock,
+  requireTaskOwnershipMock,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
   createPurchaseFromMasumiTaskPaymentMock: vi.fn(),
@@ -26,11 +27,13 @@ const {
   getCreditCostsOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
-  requireTaskAccessMock: vi.fn(),
+  requireCoworkerTaskAccessMock: vi.fn(),
+  requireTaskOwnershipMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskAccess: requireTaskAccessMock,
+  requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
+  requireTaskOwnership: requireTaskOwnershipMock,
 }));
 
 vi.mock("@/helpers/task-credits", () => ({
@@ -190,6 +193,8 @@ describe("POST /{id}/events", () => {
     createPurchaseFromMasumiTaskPaymentMock.mockResolvedValue(
       ok({ id: "pur_task_1" } as { id: string }),
     );
+    requireTaskOwnershipMock.mockResolvedValue(createTask());
+    requireCoworkerTaskAccessMock.mockResolvedValue(createTask());
   });
 
   it("allows coworkers to create OUT_OF_CREDITS events", async () => {
@@ -207,7 +212,6 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "coworker",
@@ -256,7 +260,6 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "user",
@@ -290,7 +293,6 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
     createTaskEventTransactionMock.mockRejectedValue(
       new HTTPException(422, {
         message: "Insufficient balance",
@@ -334,7 +336,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(
+    requireCoworkerTaskAccessMock.mockResolvedValue(
       createTask({
         status: TaskStatus.READY,
       }),
@@ -369,7 +371,6 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "coworker",
@@ -409,7 +410,6 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
     createTaskEventTransactionMock.mockResolvedValue("txn_masumi");
 
     const app = createApp({
@@ -475,7 +475,6 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
     createTaskEventTransactionMock.mockResolvedValue("txn_fail");
 
     const app = createApp({
@@ -507,7 +506,6 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "coworker",
@@ -537,7 +535,6 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
       actor: "user",

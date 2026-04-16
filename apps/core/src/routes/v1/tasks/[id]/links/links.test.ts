@@ -14,8 +14,8 @@ import mountPostTaskLink from "./post";
 
 const {
   prismaTransactionMock,
-  requireTaskReadAccessMock,
   requireTaskOwnershipMock,
+  requireTaskReadAccessForRouteVarsMock,
   taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
@@ -24,8 +24,8 @@ const {
   taskLinkUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireTaskReadAccessMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
+  requireTaskReadAccessForRouteVarsMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
@@ -35,8 +35,8 @@ const {
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccess: requireTaskReadAccessMock,
   requireTaskOwnership: requireTaskOwnershipMock,
+  requireTaskReadAccessForRouteVars: requireTaskReadAccessForRouteVarsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -104,7 +104,7 @@ function mockTx() {
 describe("GET /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessMock.mockResolvedValue(undefined);
+    requireTaskReadAccessForRouteVarsMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb(mockTx());
@@ -126,6 +126,23 @@ describe("GET /tasks/{id}/links", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown[] };
     expect(body.data).toEqual([]);
+    expect(requireTaskReadAccessForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        workspaceContext: {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: null,
+          organizationId: "org_123",
+        },
+      }),
+      "tsk_a",
+      expect.any(Object),
+    );
   });
 
   it("returns nested peerTask summaries for visible links", async () => {
@@ -178,6 +195,23 @@ describe("GET /tasks/{id}/links", () => {
         archivedAt: null,
       },
     });
+    expect(requireTaskReadAccessForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        workspaceContext: {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: null,
+          organizationId: "org_123",
+        },
+      }),
+      "tsk_a",
+      expect.any(Object),
+    );
   });
 
   it("filters linked peer tasks to those visible to the coworker", async () => {
@@ -187,6 +221,18 @@ describe("GET /tasks/{id}/links", () => {
     const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(200);
+    expect(requireTaskReadAccessForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "coworker",
+          coworkerId: "cow_123",
+        },
+        workspaceContext: null,
+      }),
+      "tsk_a",
+      expect.any(Object),
+    );
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       select: {

@@ -1,6 +1,7 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
+import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
   UserAuthenticationContext,
@@ -10,12 +11,13 @@ import type { WorkspaceContext } from "@/middleware/workspace";
 import {
   requireCoworkerCapability,
   requireCoworkerChatCapability,
+  requireCoworkerTaskAccess,
   requireJobOwnership,
   requireJobReadAccess,
-  requireTaskAccess,
   requireTaskAssignableCoworker,
   requireTaskOwnership,
   requireTaskReadAccess,
+  requireTaskReadAccessForRouteVars,
 } from "./access-control";
 
 function createTransactionClient() {
@@ -73,12 +75,7 @@ describe("requireTaskReadAccess", () => {
       id: "tsk_123",
     } as never);
 
-    await requireTaskReadAccess(
-      userAuthContext,
-      jobReadWorkspaceContext,
-      "tsk_123",
-      tx,
-    );
+    await requireTaskReadAccess(jobReadWorkspaceContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -89,23 +86,12 @@ describe("requireTaskReadAccess", () => {
     });
   });
 
-  it("rejects user reads when workspace context is missing", async () => {
-    const tx = createTransactionClient();
-
-    await expect(
-      requireTaskReadAccess(userAuthContext, null, "tsk_123", tx),
-    ).rejects.toThrow("Workspace is missing");
-
-    expect(tx.task.findFirst).not.toHaveBeenCalled();
-  });
-
   it("returns not found when workspace id is empty and no task matches", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
 
     await expect(
       requireTaskReadAccess(
-        userAuthContext,
         { workspaceId: "", userId: null, organizationId: null },
         "tsk_123",
         tx,
@@ -120,8 +106,49 @@ describe("requireTaskReadAccess", () => {
       },
     });
   });
+});
 
-  it("keeps coworker task reads unchanged", async () => {
+describe("requireTaskReadAccessForRouteVars", () => {
+  it("delegates to workspace read for users", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: userAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskReadAccessForRouteVars(vars, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId,
+      },
+    });
+  });
+
+  it("rejects user reads when workspace context is missing", async () => {
+    const tx = createTransactionClient();
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: userAuthContext,
+      workspaceContext: null,
+    };
+
+    await expect(
+      requireTaskReadAccessForRouteVars(vars, "tsk_123", tx),
+    ).rejects.toThrow("Workspace is missing");
+
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("delegates to coworker read for coworkers", async () => {
     const tx = createTransactionClient();
     const coworkerContext: CoworkerAuthenticationContext = {
       actor: "coworker",
@@ -139,7 +166,13 @@ describe("requireTaskReadAccess", () => {
       status: TaskStatus.READY,
     } as never);
 
-    await requireTaskReadAccess(coworkerContext, null, "tsk_123", tx);
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: null,
+    };
+
+    await requireTaskReadAccessForRouteVars(vars, "tsk_123", tx);
 
     expect(tx.task.findUnique).toHaveBeenCalledWith({
       where: {
@@ -151,25 +184,8 @@ describe("requireTaskReadAccess", () => {
   });
 });
 
-describe("requireTaskAccess", () => {
-  it("uses ownership for user path", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-    } as never);
-
-    await requireTaskAccess(userAuthContext, "tsk_123", tx);
-
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        userId: "user_123",
-        archivedAt: null,
-      },
-    });
-  });
-
-  it("keeps coworker access path unchanged", async () => {
+describe("requireCoworkerTaskAccess", () => {
+  it("loads non-draft tasks assigned to the coworker", async () => {
     const tx = createTransactionClient();
     const coworkerContext: CoworkerAuthenticationContext = {
       actor: "coworker",
@@ -187,7 +203,7 @@ describe("requireTaskAccess", () => {
       status: TaskStatus.READY,
     } as never);
 
-    await requireTaskAccess(coworkerContext, "tsk_123", tx);
+    await requireCoworkerTaskAccess(coworkerContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).not.toHaveBeenCalled();
     expect(tx.task.findUnique).toHaveBeenCalledWith({
@@ -199,7 +215,7 @@ describe("requireTaskAccess", () => {
     });
   });
 
-  it("rejects coworker task access when tasks capability is unavailable", async () => {
+  it("rejects when tasks capability is unavailable", async () => {
     const tx = createTransactionClient();
     const coworkerContext: CoworkerAuthenticationContext = {
       actor: "coworker",
@@ -209,7 +225,7 @@ describe("requireTaskAccess", () => {
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireTaskAccess(coworkerContext, "tsk_123", tx),
+      requireCoworkerTaskAccess(coworkerContext, "tsk_123", tx),
     ).rejects.toThrow("Coworker is not allowed to use tasks");
 
     expect(tx.task.findUnique).not.toHaveBeenCalled();

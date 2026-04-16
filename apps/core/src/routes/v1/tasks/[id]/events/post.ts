@@ -7,7 +7,10 @@ import { waitUntil } from "@vercel/functions";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import { requireTaskAccess } from "@/helpers/access-control";
+import {
+  requireCoworkerTaskAccess,
+  requireTaskOwnership,
+} from "@/helpers/access-control";
 import {
   calculateCentsFromMasumiAmountStrings,
   getCreditCostsOrThrow,
@@ -28,6 +31,9 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
+  isUserAuthContext,
+  requireCoworkerAuthContext,
+  requireUserAuthContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
@@ -93,7 +99,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { event, userId, masumiPayment } = await prisma.$transaction(
       async (tx) => {
-        const task = await requireTaskAccess(authContext, taskId, tx);
+        const task = isUserAuthContext(authContext)
+          ? await requireTaskOwnership(
+              requireUserAuthContext(authContext),
+              taskId,
+              tx,
+            )
+          : await requireCoworkerTaskAccess(
+              requireCoworkerAuthContext(authContext),
+              taskId,
+              tx,
+            );
         const {
           status,
           comment,
