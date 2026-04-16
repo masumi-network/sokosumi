@@ -320,12 +320,6 @@ export const postJobsByIdRefundResponseTransformer = async (data: any): Promise<
     return data;
 };
 
-export const postJobsByIdRefundResponseTransformer = async (data: any): Promise<PostJobsByIdRefundResponse> => {
-    data.data = jobSchemaResponseTransformer(data.data);
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 export const getJobsByIdFilesResponseTransformer = async (data: any): Promise<GetJobsByIdFilesResponse> => {
     data.data = data.data.map((item: any) => fileSchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
