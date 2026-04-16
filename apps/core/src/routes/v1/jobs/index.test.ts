@@ -40,7 +40,7 @@ describe("jobs routes OpenAPI scope contract", () => {
     expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toBe("");
   });
 
-  it("documents dedicated share mutation routes", () => {
+  it("documents share, workspace, job patch, and refund routes", () => {
     const doc = jobsRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -54,6 +54,8 @@ describe("jobs routes OpenAPI scope contract", () => {
     expect(doc.paths?.["/{id}/workspace"]?.put?.responses).toHaveProperty(
       "409",
     );
+    expect(doc.paths?.["/{id}"]?.patch?.responses).toHaveProperty("200");
+    expect(doc.paths?.["/{id}/refund"]?.post?.responses).toHaveProperty("200");
   });
 
   it("uses summary schema for lists and details schema for single-job reads", () => {

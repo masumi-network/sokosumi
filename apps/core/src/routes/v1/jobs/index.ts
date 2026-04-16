@@ -5,6 +5,8 @@ import mountGetJobById from "./[id]/get.js";
 import mountGetInputRequestByJobId from "./[id]/input-request/get.js";
 import mountPostInputsByJobId from "./[id]/inputs/post.js";
 import mountGetLinksByJobId from "./[id]/links/get.js";
+import mountPatchJobById from "./[id]/patch.js";
+import mountPostJobRefundById from "./[id]/refund/post.js";
 import mountDeleteJobShareById from "./[id]/share/delete.js";
 import mountPutJobShareById from "./[id]/share/put.js";
 import mountPutJobWorkspaceById from "./[id]/workspace/put.js";
@@ -16,6 +18,8 @@ const app = new OpenAPIHonoWithAuth({
 
 mountGetJobs(app);
 mountGetJobById(app);
+mountPatchJobById(app);
+mountPostJobRefundById(app);
 mountGetFilesByJobId(app);
 mountGetLinksByJobId(app);
 mountGetInputRequestByJobId(app);
