@@ -264,17 +264,17 @@ export type ArchiveConversationRequest = {
     archived: boolean;
 };
 
-export type ConversationItem = {
+export type ConversationMessage = {
     /**
-     * Conversation item ID
+     * Conversation message ID
      */
     id: string;
     /**
-     * Item role
+     * Message role
      */
     role: 'user' | 'assistant' | 'system';
     /**
-     * Item content - string for simple text, array for structured content with type
+     * Message content — string for plain text, or array of typed parts
      */
     content: string | Array<{
         type: string;
@@ -293,13 +293,13 @@ export type ConversationItem = {
     };
 };
 
-export type CreateConversationItemRequest = {
+export type CreateConversationMessageRequest = {
     /**
-     * Item role
+     * Message role
      */
     role: 'user' | 'assistant' | 'system';
     /**
-     * Item content - string for simple text, array for structured content with type
+     * Message content — string for plain text, or array of typed parts
      */
     content: string | Array<{
         type: string;
@@ -4051,7 +4051,7 @@ export type GetConversationsByIdMessagesResponses = {
      * Conversation messages retrieved successfully
      */
     200: {
-        data: Array<ConversationItem>;
+        data: Array<ConversationMessage>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -4063,7 +4063,7 @@ export type GetConversationsByIdMessagesResponses = {
 export type GetConversationsByIdMessagesResponse = GetConversationsByIdMessagesResponses[keyof GetConversationsByIdMessagesResponses];
 
 export type PostConversationsByIdMessagesData = {
-    body?: CreateConversationItemRequest;
+    body?: CreateConversationMessageRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -4142,7 +4142,7 @@ export type PostConversationsByIdMessagesResponses = {
      * Conversation message created successfully
      */
     201: {
-        data: ConversationItem;
+        data: ConversationMessage;
         meta: {
             timestamp: Date;
             requestId: string;

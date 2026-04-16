@@ -41,11 +41,11 @@ function isLastMessageUserWithText(messages: UIMessage[]): boolean {
   return extractMessageContent(last).trim().length > 0;
 }
 
-type SerializedItemsResult =
+type SerializedMessagesResult =
   | {
       ok: true;
       data: {
-        items: Array<{
+        messages: Array<{
           id: string;
           role: string;
           content: Array<{ type: string; text?: string }> | string;
@@ -60,15 +60,15 @@ type SerializedItemsResult =
   | { ok: false; error: unknown }
   | { isOk: () => boolean; value?: unknown };
 
-type SerializedConversationItems = Extract<
-  SerializedItemsResult,
+type SerializedConversationMessages = Extract<
+  SerializedMessagesResult,
   { ok: true }
->["data"]["items"];
+>["data"]["messages"];
 
-function extractItemsFromGetConversationMessagesResult(
+function extractMessagesFromGetConversationMessagesResult(
   raw: unknown,
-): SerializedConversationItems | null {
-  const resultAny = raw as SerializedItemsResult;
+): SerializedConversationMessages | null {
+  const resultAny = raw as SerializedMessagesResult;
   if (
     resultAny &&
     "ok" in resultAny &&
@@ -76,9 +76,9 @@ function extractItemsFromGetConversationMessagesResult(
     "data" in resultAny &&
     resultAny.data &&
     typeof resultAny.data === "object" &&
-    "items" in resultAny.data
+    "messages" in resultAny.data
   ) {
-    return resultAny.data.items;
+    return resultAny.data.messages;
   }
   if (
     resultAny &&
@@ -86,8 +86,10 @@ function extractItemsFromGetConversationMessagesResult(
     typeof resultAny.isOk === "function"
   ) {
     if (resultAny.isOk() && "value" in resultAny) {
-      const value = resultAny.value as { items: SerializedConversationItems };
-      return value.items;
+      const value = resultAny.value as {
+        messages: SerializedConversationMessages;
+      };
+      return value.messages;
     }
   }
   return null;
@@ -212,9 +214,10 @@ export function useCoworkerPostRefreshAssistantPoll({
           return;
         }
 
-        const items = extractItemsFromGetConversationMessagesResult(raw);
-        if (items && items.length > 0) {
-          const dbMessages = convertItemsToMessages(items);
+        const conversationMessages =
+          extractMessagesFromGetConversationMessagesResult(raw);
+        if (conversationMessages && conversationMessages.length > 0) {
+          const dbMessages = convertItemsToMessages(conversationMessages);
           if (hasNonEmptyAssistantTail(dbMessages)) {
             setMessagesForConversation(conversationId, dbMessages);
             void refreshConversations();

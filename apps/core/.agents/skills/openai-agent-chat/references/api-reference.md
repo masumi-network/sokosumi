@@ -224,7 +224,7 @@ const page = await openai.conversations.items.list("conv_abc123", {
   after: "msg_cursor_id",           // cursor-based pagination
   before: "msg_cursor_id",
 });
-// page.data: ConversationItem[]
+// page.data: ConversationMessage[] (Core API shape)
 // page.has_more: boolean
 // page.first_id, page.last_id: cursor values
 ```

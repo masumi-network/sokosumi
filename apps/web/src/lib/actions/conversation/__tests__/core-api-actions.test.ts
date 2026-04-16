@@ -131,7 +131,7 @@ describe("core conversation api actions", () => {
     expect(result).toEqual({
       ok: true,
       data: {
-        items: [
+        messages: [
           {
             id: "item-1",
             role: "user",
@@ -149,7 +149,7 @@ describe("core conversation api actions", () => {
     });
   });
 
-  it("returns conversation without items when item loading fails", async () => {
+  it("returns conversation without messages when message loading fails", async () => {
     coreClientMock.getConversation.mockResolvedValue({
       data: {
         id: "conv-1",
@@ -161,7 +161,7 @@ describe("core conversation api actions", () => {
       },
     });
     coreClientMock.getConversationMessages.mockRejectedValue(
-      new Error("items failed"),
+      new Error("messages failed"),
     );
 
     const { getConversation } = await import("../core-api-actions");
@@ -179,7 +179,7 @@ describe("core conversation api actions", () => {
         metadata: null,
         createdAt: "2026-02-19T10:00:00.000Z",
         updatedAt: "2026-02-19T11:00:00.000Z",
-        items: [],
+        messages: [],
       },
     });
   });

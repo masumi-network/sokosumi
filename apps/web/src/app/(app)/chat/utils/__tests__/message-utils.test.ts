@@ -22,7 +22,6 @@ describe("convertItemsToMessages", () => {
       { type: "reasoning", text: "Think" },
       { type: "text", text: "Hi" },
     ]);
-    expect(messages[0]?.content).toBe("Hi");
   });
 });
 

@@ -193,7 +193,6 @@ describe("convertItemsToMessages", () => {
       { type: "reasoning", text: "Think" },
       { type: "text", text: "Hi" },
     ]);
-    expect(messages[0]?.content).toBe("Hi");
   });
 
   it("attaches thought timing metadata when the API item includes thoughtTiming", () => {

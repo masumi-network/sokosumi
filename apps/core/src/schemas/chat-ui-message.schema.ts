@@ -18,7 +18,7 @@ export const responsesApiInputTextPartSchema = z
   });
 
 /**
- * AI SDK / UI message parts persisted for chat (reasoning then text in `conversationItemsToUiMessages`).
+ * AI SDK / UI message parts persisted for chat (reasoning then text in `conversationMessagesToUiMessages`).
  */
 export const chatUiReasoningPartSchema = z.object({
   type: z.literal("reasoning"),

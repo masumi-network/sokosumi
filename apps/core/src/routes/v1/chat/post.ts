@@ -15,7 +15,7 @@ import {
   clearActiveUiStreamIdInMetadata,
   setActiveUiStreamIdInMetadata,
 } from "@/helpers/active-ui-stream-metadata";
-import { conversationItemsToUiMessages } from "@/helpers/conversation-items-to-ui-messages";
+import { conversationMessagesToUiMessages } from "@/helpers/conversation-messages-to-ui-messages";
 import {
   badRequest,
   internalServerError,
@@ -316,7 +316,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           take: LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT,
           select: { id: true, role: true, contentText: true, metadata: true },
         });
-        uiMessages = conversationItemsToUiMessages(persistedItems);
+        uiMessages = conversationMessagesToUiMessages(persistedItems);
 
         if (
           incomingLast != null &&

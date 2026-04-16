@@ -11,9 +11,9 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
-  conversationItemSchema,
-  createConversationItemRequestSchema,
-} from "@/schemas/conversation-item.schema";
+  conversationMessageSchema,
+  createConversationMessageRequestSchema,
+} from "@/schemas/conversation-message.schema";
 
 const route = withGlobalHeaderParameters(
   createRoute({
@@ -38,14 +38,14 @@ const route = withGlobalHeaderParameters(
       body: {
         content: {
           "application/json": {
-            schema: createConversationItemRequestSchema,
+            schema: createConversationMessageRequestSchema,
           },
         },
       },
     },
     responses: {
       201: jsonSuccessResponse(
-        conversationItemSchema,
+        conversationMessageSchema,
         "Conversation message created successfully",
         {
           data: {
@@ -148,6 +148,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       createdAt: Math.floor(item.createdAt.getTime() / 1000),
     };
 
-    return created(c, conversationItemSchema.parse(response));
+    return created(c, conversationMessageSchema.parse(response));
   });
 }

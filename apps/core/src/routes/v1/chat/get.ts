@@ -2,7 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { validateUIMessages } from "ai";
 
 import { LIMITS } from "@/config/constants";
-import { conversationItemsToUiMessages } from "@/helpers/conversation-items-to-ui-messages";
+import { conversationMessagesToUiMessages } from "@/helpers/conversation-messages-to-ui-messages";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
@@ -112,7 +112,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const hasMore = items.length === takePlusOne;
       const pagedItems = items.slice(0, take);
 
-      const messages = conversationItemsToUiMessages(pagedItems);
+      const messages = conversationMessagesToUiMessages(pagedItems);
       try {
         await validateUIMessages({ messages });
       } catch (error) {

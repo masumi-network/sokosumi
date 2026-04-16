@@ -150,7 +150,7 @@ export function getThoughtTimingMsFromMessage(message: unknown): {
 }
 
 /**
- * Convert ConversationItem[] to UIMessage format
+ * Convert Core conversation messages to UIMessage format
  */
 function partsFromApiItemContent(
   content: Array<{ type: string; text?: string }> | string,
@@ -180,7 +180,7 @@ function visibleTextFromParts(parts: UIMessage["parts"]): string {
 }
 
 export function convertItemsToMessages(
-  items: Array<{
+  conversationMessages: Array<{
     id: string;
     role: string;
     content: Array<{ type: string; text?: string }> | string;
@@ -191,27 +191,27 @@ export function convertItemsToMessages(
     };
   }>,
 ): UIMessage[] {
-  return items.map((item) => {
-    const parts = partsFromApiItemContent(item.content);
+  return conversationMessages.map((message) => {
+    const parts = partsFromApiItemContent(message.content);
     const visibleText = visibleTextFromParts(parts);
 
     const validRole: "assistant" | "user" | "system" =
-      item.role === "assistant" ||
-      item.role === "user" ||
-      item.role === "system"
-        ? (item.role as "assistant" | "user" | "system")
+      message.role === "assistant" ||
+      message.role === "user" ||
+      message.role === "system"
+        ? (message.role as "assistant" | "user" | "system")
         : "user";
 
-    const timing = item.thoughtTiming;
+    const timing = message.thoughtTiming;
     const hasCompleteThoughtTiming =
       timing != null && timing.startedAtMs != null && timing.endedAtMs != null;
 
     return {
-      id: item.id,
+      id: message.id,
       role: validRole,
       parts,
       content: visibleText,
-      createdAt: new Date(item.createdAt * 1000),
+      createdAt: new Date(message.createdAt * 1000),
       ...(hasCompleteThoughtTiming
         ? {
             metadata: {

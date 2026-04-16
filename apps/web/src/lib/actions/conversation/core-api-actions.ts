@@ -9,7 +9,7 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import type {
-  ConversationItem,
+  ConversationMessage,
   Conversation as CoreConversation,
 } from "@/lib/clients/generated/core/types.gen";
 import {
@@ -23,9 +23,9 @@ export type Conversation = Omit<CoreConversation, "createdAt" | "updatedAt"> & {
   updatedAt: string;
 };
 
-/** Conversation with optional items (e.g. from getConversation). */
-export interface ConversationWithItems extends Conversation {
-  items?: ConversationItem[];
+/** Conversation with optional loaded messages (e.g. from getConversation). */
+export interface ConversationWithMessages extends Conversation {
+  messages?: ConversationMessage[];
 }
 
 interface CreateConversationParameters extends AuthenticatedRequest {
@@ -110,12 +110,15 @@ export const listConversations = withSession<
 /**
  * Gets conversation messages by conversation ID via Core API
  * CRITICAL: Validates ownership before returning.
- * Returns items and pagination metadata for cursor-based pagination.
+ * Returns messages and pagination metadata for cursor-based pagination.
  */
 export const getConversationMessages = withSession<
   GetConversationMessagesParameters,
   Result<
-    { items: ConversationItem[]; pagination: CoreApiPagination | null },
+    {
+      messages: ConversationMessage[];
+      pagination: CoreApiPagination | null;
+    },
     ActionError
   >
 >(async ({ conversationId, limit, cursor }) => {
@@ -131,7 +134,10 @@ export const getConversationMessages = withSession<
       ok: false,
       error: result.error,
     } as unknown as Result<
-      { items: ConversationItem[]; pagination: CoreApiPagination | null },
+      {
+        messages: ConversationMessage[];
+        pagination: CoreApiPagination | null;
+      },
       ActionError
     >;
   }
@@ -139,11 +145,14 @@ export const getConversationMessages = withSession<
   return {
     ok: true,
     data: {
-      items: (result.value.data ?? []) as ConversationItem[],
+      messages: (result.value.data ?? []) as ConversationMessage[],
       pagination: result.value.meta?.pagination ?? null,
     },
   } as unknown as Result<
-    { items: ConversationItem[]; pagination: CoreApiPagination | null },
+    {
+      messages: ConversationMessage[];
+      pagination: CoreApiPagination | null;
+    },
     ActionError
   >;
 });
@@ -151,11 +160,11 @@ export const getConversationMessages = withSession<
 /**
  * Gets a conversation by internal database ID via Core API
  * CRITICAL: Validates ownership before returning.
- * Fetches conversation items from the database.
+ * Fetches conversation messages from the database.
  */
 export const getConversation = withSession<
   GetConversationParameters,
-  Result<ConversationWithItems, ActionError>
+  Result<ConversationWithMessages, ActionError>
 >(async ({ id }) => {
   // Fetch conversation metadata
   const conversationResult = await makeCoreApiRequest(() =>
@@ -166,52 +175,52 @@ export const getConversation = withSession<
     return {
       ok: false,
       error: conversationResult.error,
-    } as unknown as Result<ConversationWithItems, ActionError>;
+    } as unknown as Result<ConversationWithMessages, ActionError>;
   }
 
   // Fetch conversation messages from database (limit 100 so list/conversation view has full history)
-  const itemsResult = await getConversationMessages({
+  const messagesResult = await getConversationMessages({
     conversationId: id,
     limit: 100,
   });
 
   // Handle serialized Result format from getConversationMessages
   if (
-    itemsResult &&
-    typeof itemsResult === "object" &&
-    "ok" in itemsResult &&
-    itemsResult.ok === false
+    messagesResult &&
+    typeof messagesResult === "object" &&
+    "ok" in messagesResult &&
+    messagesResult.ok === false
   ) {
-    // If items fetch fails, return conversation without items
+    // If message fetch fails, return conversation without messages
     return {
       ok: true,
       data: {
         ...toConversation(conversationResult.value.data),
-        items: [],
+        messages: [],
       },
-    } as unknown as Result<ConversationWithItems, ActionError>;
+    } as unknown as Result<ConversationWithMessages, ActionError>;
   }
 
-  // Extract items from serialized Result format
-  const items =
-    itemsResult &&
-    typeof itemsResult === "object" &&
-    "ok" in itemsResult &&
-    itemsResult.ok === true &&
-    "data" in itemsResult &&
-    itemsResult.data &&
-    typeof itemsResult.data === "object" &&
-    "items" in itemsResult.data
-      ? (itemsResult.data.items as ConversationItem[])
+  // Extract messages from serialized Result format
+  const messages =
+    messagesResult &&
+    typeof messagesResult === "object" &&
+    "ok" in messagesResult &&
+    messagesResult.ok === true &&
+    "data" in messagesResult &&
+    messagesResult.data &&
+    typeof messagesResult.data === "object" &&
+    "messages" in messagesResult.data
+      ? (messagesResult.data.messages as ConversationMessage[])
       : [];
 
   return {
     ok: true,
     data: {
       ...toConversation(conversationResult.value.data),
-      items,
+      messages,
     },
-  } as unknown as Result<ConversationWithItems, ActionError>;
+  } as unknown as Result<ConversationWithMessages, ActionError>;
 });
 
 /**
@@ -341,7 +350,7 @@ export const addConversationMessage = withSession<
     } as unknown as Result<{ id: string }, ActionError>;
   }
 
-  const item = result.value.data as ConversationItem | undefined;
+  const item = result.value.data as ConversationMessage | undefined;
   if (!item?.id) {
     return {
       ok: false,

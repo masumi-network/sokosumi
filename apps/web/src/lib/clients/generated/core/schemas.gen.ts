@@ -928,13 +928,13 @@ export const ArchiveConversationRequestSchema = {
     ]
 } as const;
 
-export const ConversationItemSchema = {
+export const ConversationMessageSchema = {
     type: 'object',
     properties: {
         id: {
             type: 'string',
             format: 'uuid',
-            description: 'Conversation item ID',
+            description: 'Conversation message ID',
             example: '550e8400-e29b-41d4-a716-446655440000'
         },
         role: {
@@ -944,7 +944,7 @@ export const ConversationItemSchema = {
                 'assistant',
                 'system'
             ],
-            description: 'Item role',
+            description: 'Message role',
             example: 'user'
         },
         content: {
@@ -970,7 +970,7 @@ export const ConversationItemSchema = {
                     }
                 }
             ],
-            description: 'Item content - string for simple text, array for structured content with type',
+            description: 'Message content — string for plain text, or array of typed parts',
             example: 'Hello!'
         },
         createdAt: {
@@ -1009,7 +1009,7 @@ export const ConversationItemSchema = {
     ]
 } as const;
 
-export const CreateConversationItemRequestSchema = {
+export const CreateConversationMessageRequestSchema = {
     type: 'object',
     properties: {
         role: {
@@ -1019,7 +1019,7 @@ export const CreateConversationItemRequestSchema = {
                 'assistant',
                 'system'
             ],
-            description: 'Item role',
+            description: 'Message role',
             example: 'user'
         },
         content: {
@@ -1045,7 +1045,7 @@ export const CreateConversationItemRequestSchema = {
                     }
                 }
             ],
-            description: 'Item content - string for simple text, array for structured content with type',
+            description: 'Message content — string for plain text, or array of typed parts',
             example: 'Hello!'
         }
     },

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import {
   type Conversation,
-  type ConversationWithItems,
+  type ConversationWithMessages,
   createConversation,
   deleteConversation,
   getConversation,
@@ -61,14 +61,14 @@ async function withRetry<T>(
 
 interface UseConversationsReturn {
   conversations: Conversation[];
-  selectedConversation: ConversationWithItems | null;
+  selectedConversation: ConversationWithMessages | null;
   isLoading: boolean;
   error: ActionError | null;
   createNewConversation: (
     metadata?: Record<string, unknown>,
     title?: string,
   ) => Promise<Conversation | null>;
-  selectConversation: (id: string) => Promise<ConversationWithItems | null>;
+  selectConversation: (id: string) => Promise<ConversationWithMessages | null>;
   updateSelectedConversation: (
     metadata?: Record<string, unknown>,
     title?: string,
@@ -86,7 +86,7 @@ export function useConversations(): UseConversationsReturn {
   const t = useTranslations("App.Chat.Chat");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] =
-    useState<ConversationWithItems | null>(null);
+    useState<ConversationWithMessages | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
   const networkErrorToastMessage = t("networkErrorAfterRetry");
@@ -271,7 +271,7 @@ export function useConversations(): UseConversationsReturn {
 
         const newConversation = result.value;
         setConversations((prev) => [newConversation, ...prev]);
-        setSelectedConversation({ ...newConversation, items: [] }); // Select new conversation
+        setSelectedConversation({ ...newConversation, messages: [] }); // Select new conversation
 
         // Refresh conversations list to ensure deleted conversations are excluded
         // This ensures we have the latest state from DB after creating a new conversation
@@ -310,7 +310,7 @@ export function useConversations(): UseConversationsReturn {
    * Selects and loads a conversation by internal database ID
    */
   const selectConversation = useCallback(
-    async (id: string): Promise<ConversationWithItems | null> => {
+    async (id: string): Promise<ConversationWithMessages | null> => {
       setIsLoading(true);
       setError(null);
 
@@ -320,7 +320,7 @@ export function useConversations(): UseConversationsReturn {
           delayMs: CONVERSATION_RETRY_DELAY_MS,
         });
         const result = parseServerActionResult<
-          ConversationWithItems,
+          ConversationWithMessages,
           ActionError
         >(rawResult);
 

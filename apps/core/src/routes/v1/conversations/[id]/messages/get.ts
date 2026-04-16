@@ -20,7 +20,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { conversationItemSchema } from "@/schemas/conversation-item.schema";
+import { conversationMessageSchema } from "@/schemas/conversation-message.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 const route = withGlobalHeaderParameters(
@@ -47,7 +47,7 @@ const route = withGlobalHeaderParameters(
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(conversationItemSchema),
+        z.array(conversationMessageSchema),
         "Conversation messages retrieved successfully",
         {
           data: [
@@ -147,7 +147,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return ok(
         c,
-        z.array(conversationItemSchema).parse(response),
+        z.array(conversationMessageSchema).parse(response),
         paginationMeta,
       );
     } catch (error) {

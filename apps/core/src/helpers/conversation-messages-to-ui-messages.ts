@@ -2,25 +2,25 @@ import type { UIMessage } from "ai";
 
 import { thoughtTimingFromMessageMetadata } from "@/helpers/conversation-message-api-content";
 
-/** Maps persisted conversation items to AI SDK `UIMessage` (text + optional reasoning parts). */
-export function conversationItemsToUiMessages(
-  items: Array<{
+/** Maps persisted conversation messages to AI SDK `UIMessage` (text + optional reasoning parts). */
+export function conversationMessagesToUiMessages(
+  messages: Array<{
     id: string;
     role: string;
     contentText: string | null | undefined;
     metadata?: unknown;
   }>,
 ): UIMessage[] {
-  return items.map((item) => {
+  return messages.map((message) => {
     const validRole: "assistant" | "user" | "system" =
-      item.role === "assistant" ||
-      item.role === "user" ||
-      item.role === "system"
-        ? item.role
+      message.role === "assistant" ||
+      message.role === "user" ||
+      message.role === "system"
+        ? message.role
         : "user";
 
-    const text = item.contentText ?? "";
-    const meta = item.metadata as {
+    const text = message.contentText ?? "";
+    const meta = message.metadata as {
       reasoning?: Array<{ type?: string; text?: string }>;
     } | null;
     const reasoningBlocks = (meta?.reasoning ?? []).filter(
@@ -35,10 +35,10 @@ export function conversationItemsToUiMessages(
       { type: "text" as const, text },
     ];
 
-    const timing = thoughtTimingFromMessageMetadata(item.metadata);
+    const timing = thoughtTimingFromMessageMetadata(message.metadata);
 
     return {
-      id: item.id,
+      id: message.id,
       role: validRole,
       parts,
       ...(timing != null

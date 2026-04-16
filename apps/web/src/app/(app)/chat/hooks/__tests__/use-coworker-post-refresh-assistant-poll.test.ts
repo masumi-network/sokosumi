@@ -25,11 +25,11 @@ const pendingMetadataFixture = {
   pending_responses_api_response_id: "resp_pending",
 };
 
-function userOnlyItemsResponse() {
+function userOnlyMessagesResponse() {
   return {
     ok: true as const,
     data: {
-      items: [
+      messages: [
         {
           id: "u1",
           role: "user",
@@ -41,11 +41,11 @@ function userOnlyItemsResponse() {
   };
 }
 
-function userAndAssistantItemsResponse() {
+function userAndAssistantMessagesResponse() {
   return {
     ok: true as const,
     data: {
-      items: [
+      messages: [
         {
           id: "u1",
           role: "user",
@@ -97,7 +97,7 @@ describe("useCoworkerPostRefreshAssistantPoll", () => {
 
   it("fetches messages and stops when an assistant turn appears", async () => {
     getConversationMessagesMock.mockResolvedValue(
-      userAndAssistantItemsResponse(),
+      userAndAssistantMessagesResponse(),
     );
     const setMessages = vi.fn();
     const refresh = vi.fn().mockResolvedValue(undefined);
@@ -129,7 +129,7 @@ describe("useCoworkerPostRefreshAssistantPoll", () => {
     (
       globalThis as { __SOKOSUMI_TEST_POLL_TIMEOUT_MS?: number }
     ).__SOKOSUMI_TEST_POLL_TIMEOUT_MS = 250;
-    getConversationMessagesMock.mockResolvedValue(userOnlyItemsResponse());
+    getConversationMessagesMock.mockResolvedValue(userOnlyMessagesResponse());
     const messagesChatIdRef = { current: CONV_ID };
     const setMessagesForConversation = vi.fn();
     const refreshConversations = vi.fn();
@@ -167,7 +167,7 @@ describe("useCoworkerPostRefreshAssistantPoll", () => {
     getConversationMessagesMock.mockImplementation(
       () =>
         new Promise((resolve) => {
-          setTimeout(() => resolve(userOnlyItemsResponse()), 50);
+          setTimeout(() => resolve(userOnlyMessagesResponse()), 50);
         }),
     );
     const messagesChatIdRef = { current: CONV_ID };

@@ -10,7 +10,7 @@ interface UseChatMessagesProps {
   selectedChatId: string | null;
   selectedConversation: {
     id: string;
-    items?: Array<{
+    messages?: Array<{
       id: string;
       role: string;
       content: Array<{ type: string; text?: string }> | string;
@@ -49,9 +49,9 @@ export function useChatMessages({
       if (streamingConversationIdsRef?.current.has(currentSelectedChatId)) {
         return;
       }
-      const hasSyncItems =
+      const hasSyncMessages =
         selectedConversation?.id === currentSelectedChatId &&
-        Array.isArray(selectedConversation.items);
+        Array.isArray(selectedConversation.messages);
 
       // Clear any existing retry timeout from previous effect run
       if (retryTimeoutRef.current !== null) {
@@ -59,11 +59,11 @@ export function useChatMessages({
         retryTimeoutRef.current = null;
       }
 
-      if (hasSyncItems && selectedConversation.items) {
-        const items = selectedConversation.items;
+      if (hasSyncMessages && selectedConversation.messages) {
+        const conversationMessages = selectedConversation.messages;
         previousChatIdRef.current = currentSelectedChatId;
-        if (items.length > 0) {
-          const dbMessages = convertItemsToMessages(items);
+        if (conversationMessages.length > 0) {
+          const dbMessages = convertItemsToMessages(conversationMessages);
           messagesChatIdRef.current = currentSelectedChatId;
           setMessagesForConversation(currentSelectedChatId, dbMessages);
           chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
@@ -91,7 +91,7 @@ export function useChatMessages({
           | {
               ok: true;
               data: {
-                items: Array<{
+                messages: Array<{
                   id: string;
                   role: string;
                   content: Array<{ type: string; text?: string }> | string;
@@ -130,7 +130,7 @@ export function useChatMessages({
           });
 
           const resultAny = rawItemsResult as SerializedResult;
-          let items: Array<{
+          let conversationMessages: Array<{
             id: string;
             role: string;
             content: Array<{ type: string; text?: string }> | string;
@@ -148,9 +148,9 @@ export function useChatMessages({
             "data" in resultAny &&
             resultAny.data &&
             typeof resultAny.data === "object" &&
-            "items" in resultAny.data
+            "messages" in resultAny.data
           ) {
-            items = resultAny.data.items;
+            conversationMessages = resultAny.data.messages;
           } else if (
             resultAny &&
             "isOk" in resultAny &&
@@ -158,7 +158,7 @@ export function useChatMessages({
           ) {
             if (resultAny.isOk() && "value" in resultAny) {
               const value = resultAny.value as {
-                items: Array<{
+                messages: Array<{
                   id: string;
                   role: string;
                   content: Array<{ type: string; text?: string }> | string;
@@ -169,12 +169,12 @@ export function useChatMessages({
                   };
                 }>;
               };
-              items = value.items;
+              conversationMessages = value.messages;
             }
           }
 
-          if (items && items.length > 0) {
-            const dbMessages = convertItemsToMessages(items);
+          if (conversationMessages && conversationMessages.length > 0) {
+            const dbMessages = convertItemsToMessages(conversationMessages);
             messagesChatIdRef.current = currentSelectedChatId;
             setMessagesForConversation(currentSelectedChatId, dbMessages);
             chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
@@ -210,9 +210,9 @@ export function useChatMessages({
                     "data" in retryResultAny &&
                     retryResultAny.data &&
                     typeof retryResultAny.data === "object" &&
-                    "items" in retryResultAny.data
+                    "messages" in retryResultAny.data
                   ) {
-                    retryItems = retryResultAny.data.items;
+                    retryItems = retryResultAny.data.messages;
                   } else if (
                     retryResultAny &&
                     "isOk" in retryResultAny &&
@@ -220,7 +220,7 @@ export function useChatMessages({
                   ) {
                     if (retryResultAny.isOk() && "value" in retryResultAny) {
                       const value = retryResultAny.value as {
-                        items: Array<{
+                        messages: Array<{
                           id: string;
                           role: string;
                           content:
@@ -233,7 +233,7 @@ export function useChatMessages({
                           };
                         }>;
                       };
-                      retryItems = value.items;
+                      retryItems = value.messages;
                     }
                   }
 
@@ -312,7 +312,7 @@ export function useChatMessages({
   }, [
     selectedChatId,
     selectedConversation,
-    selectedConversation?.items,
+    selectedConversation?.messages,
     setMessagesForConversation,
     previousChatIdRef,
     messagesChatIdRef,
@@ -325,8 +325,8 @@ export function useChatMessages({
     if (
       selectedChatId &&
       selectedConversation?.id === selectedChatId &&
-      Array.isArray(selectedConversation.items) &&
-      selectedConversation.items.length > 0
+      Array.isArray(selectedConversation.messages) &&
+      selectedConversation.messages.length > 0
     ) {
       if (streamingConversationIdsRef?.current.has(selectedChatId)) {
         return;
@@ -336,7 +336,7 @@ export function useChatMessages({
         return;
       }
 
-      const dbMessages = convertItemsToMessages(selectedConversation.items);
+      const dbMessages = convertItemsToMessages(selectedConversation.messages);
       messagesChatIdRef.current = selectedChatId;
       setMessagesForConversation(selectedChatId, dbMessages);
       chatMessagesRef.current.set(selectedChatId, dbMessages);
