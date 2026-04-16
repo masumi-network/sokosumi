@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus } from "@sokosumi/database";
 import { createAgentClient } from "@sokosumi/masumi";
 
-import { requireJobAccess } from "@/helpers/access-control.js";
+import { requireJobOwnership } from "@/helpers/access-control.js";
 import {
   badRequest,
   conflict,
@@ -103,7 +103,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const jobEvent = await prisma.$transaction(async (tx) => {
-      await requireJobAccess(authContext, jobId, tx);
+      await requireJobOwnership(authContext, jobId, tx);
       const jobEvent = await tx.jobEvent.findFirst({
         where: {
           id: eventId,

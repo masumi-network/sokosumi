@@ -44,11 +44,14 @@ export const taskInclude = {
   ...taskLinksInclude,
 } as const;
 
-export function buildTaskIncludeForViewer(authContext: AuthenticationContext) {
+export function buildTaskIncludeForViewer(
+  authContext: AuthenticationContext,
+  workspaceId?: string | null,
+) {
   return {
     ...taskBaseInclude,
     share: true,
-    ...buildVisibleTaskLinksInclude(authContext),
+    ...buildVisibleTaskLinksInclude(authContext, workspaceId),
   } satisfies Prisma.TaskInclude;
 }
 

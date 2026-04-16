@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireCoworkerTaskAccess } from "@/helpers/access-control";
+import { requireCoworkerTaskCollaboration } from "@/helpers/access-control";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -48,7 +48,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const authContext = requireCoworkerAuthContext(c.var.authContext);
 
     const { id: taskId } = c.req.valid("param");
-    const task = await requireCoworkerTaskAccess(authContext, taskId);
+    const task = await requireCoworkerTaskCollaboration(authContext, taskId);
 
     const { agentId, inputData, inputSchema, maxCredits, name } =
       c.req.valid("json");

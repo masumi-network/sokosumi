@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 
-import { requireUserTaskAccess } from "@/helpers/access-control";
+import { requireTaskOwnership } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
@@ -68,7 +68,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       try {
         return await prisma.$transaction(
           async (tx) => {
-            await requireUserTaskAccess(authContext, id, tx);
+            await requireTaskOwnership(authContext, id, tx);
             assertTaskLinkAllowed(id, peerTaskId);
             const linkData = mapTaskLinkRelationToWriteData(
               id,

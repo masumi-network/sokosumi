@@ -5,7 +5,7 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetJobById from "./get";
 
-const { authContextState, prismaTransactionMock, jobFindUniqueMock } =
+const { authContextState, prismaTransactionMock, jobFindFirstMock } =
   vi.hoisted(() => ({
     authContextState: {
       current: {
@@ -19,7 +19,7 @@ const { authContextState, prismaTransactionMock, jobFindUniqueMock } =
       } | null,
     },
     prismaTransactionMock: vi.fn(),
-    jobFindUniqueMock: vi.fn(),
+    jobFindFirstMock: vi.fn(),
   }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -54,9 +54,18 @@ vi.mock("@/middleware/auth", () => ({
   requireUserAuthContext: (authContext: unknown) => authContext,
 }));
 
-vi.mock("@/helpers/access-control.js", () => ({
-  requireJobReadAccess: vi.fn(async () => undefined),
-}));
+vi.mock("@/middleware/workspace", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/middleware/workspace")>();
+  return {
+    ...actual,
+    requireWorkspaceContext: () => ({
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: null,
+      organizationId: "org_123",
+    }),
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -70,15 +79,25 @@ function createApp() {
   return app;
 }
 
-function createJob() {
+function createJob(
+  overrides: Partial<{
+    userId: string;
+    organizationId: string | null;
+    user: {
+      id: string;
+      name: string;
+      image: string | null;
+    };
+  }> = {},
+) {
   return {
     id: "job_123",
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
     updatedAt: new Date("2026-03-26T10:05:00.000Z"),
     completedAt: new Date("2026-03-26T10:10:00.000Z"),
     agentId: "agent_123",
-    userId: "user_123",
-    organizationId: "org_123",
+    userId: overrides.userId ?? "user_123",
+    organizationId: overrides.organizationId ?? "org_123",
     taskId: null,
     name: "Shared Job",
     jobType: JobType.PAID,
@@ -93,8 +112,8 @@ function createJob() {
     refundedTransaction: null,
     refundedTransactionId: null,
     share: null,
-    user: {
-      id: "user_123",
+    user: overrides.user ?? {
+      id: overrides.userId ?? "user_123",
       name: "Ada Lovelace",
       image: null,
     },
@@ -186,11 +205,11 @@ describe("GET /jobs/{id}", () => {
       async (callback: (tx: unknown) => Promise<unknown>) =>
         await callback({
           job: {
-            findUnique: jobFindUniqueMock,
+            findFirst: jobFindFirstMock,
           },
         }),
     );
-    jobFindUniqueMock.mockResolvedValue(createJob());
+    jobFindFirstMock.mockResolvedValue(createJob());
   });
 
   it("returns a rich job details payload", async () => {
@@ -200,8 +219,11 @@ describe("GET /jobs/{id}", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(jobFindUniqueMock).toHaveBeenCalledWith({
-      where: { id: "job_123" },
+    expect(jobFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "job_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
       include: expect.any(Object),
     });
     expect(body.data.agentId).toBe("agent_123");
@@ -223,8 +245,52 @@ describe("GET /jobs/{id}", () => {
     expect(body.data).not.toHaveProperty("purchase");
   });
 
+  it("returns full job details to a same-workspace collaborator", async () => {
+    authContextState.current = {
+      actor: "user",
+      userId: "user_456",
+      organizationId: "org_123",
+    };
+    jobFindFirstMock.mockResolvedValue(
+      createJob({
+        userId: "user_123",
+        user: {
+          id: "user_123",
+          name: "Ada Lovelace",
+          image: null,
+        },
+      }),
+    );
+
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(jobFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "job_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+      }),
+    );
+    expect(body.data).toMatchObject({
+      userId: "user_123",
+      result: "# Result",
+      input: '{"prompt":"hello"}',
+      agentJobId: "agent_job_123",
+      user: {
+        id: "user_123",
+        name: "Ada Lovelace",
+      },
+    });
+    expect(body.data.events).toHaveLength(2);
+  });
+
   it("returns 404 when the job does not exist", async () => {
-    jobFindUniqueMock.mockResolvedValue(null);
+    jobFindFirstMock.mockResolvedValue(null);
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123");

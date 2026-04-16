@@ -51,7 +51,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { authContext } = c.var;
+    const userAuthContext = requireUserAuthContext(authContext);
     const { id } = c.req.valid("param");
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
@@ -60,10 +61,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const task = await tx.task.findFirst({
           where: {
             id,
-            userId: authContext.userId,
+            userId: userAuthContext.userId,
             archivedAt: null,
           },
           select: {
+            workspaceId: true,
             workspace: {
               select: {
                 organizationId: true,
@@ -82,7 +84,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!workspaceChanged) {
           return await tx.task.findUniqueOrThrow({
             where: { id },
-            include: buildTaskIncludeForViewer(authContext),
+            include: buildTaskIncludeForViewer(
+              userAuthContext,
+              task.workspaceId,
+            ),
           });
         }
 
@@ -90,13 +95,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (targetOrganizationId !== null) {
           await resolveMemberOrganizationById({
             id: targetOrganizationId,
-            userId: authContext.userId,
+            userId: userAuthContext.userId,
             tx,
           });
         }
 
         const workspace = await workspaceRepository.upsertWorkspaceForContext(
-          authContext.userId,
+          userAuthContext.userId,
           targetOrganizationId ?? null,
           tx,
         );
@@ -134,7 +139,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         return await tx.task.findUniqueOrThrow({
           where: { id },
-          include: buildTaskIncludeForViewer(authContext),
+          include: buildTaskIncludeForViewer(userAuthContext, workspace.id),
         });
       },
       {
