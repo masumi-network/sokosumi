@@ -17,8 +17,8 @@ import {
   requireTaskAssignableCoworker,
   requireTaskCollaboration,
   requireTaskOwnership,
-  requireTaskRead,
   requireTaskReadForRouteVars,
+  requireTaskReadForWorkspace,
 } from "./access-control";
 
 function createTransactionClient() {
@@ -133,14 +133,14 @@ describe("requireTaskCollaboration", () => {
   });
 });
 
-describe("requireTaskRead", () => {
+describe("requireTaskReadForWorkspace", () => {
   it("uses workspace-scoped user reads", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
     } as never);
 
-    await requireTaskRead(jobReadWorkspaceContext, "tsk_123", tx);
+    await requireTaskReadForWorkspace(jobReadWorkspaceContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -156,7 +156,7 @@ describe("requireTaskRead", () => {
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireTaskRead(
+      requireTaskReadForWorkspace(
         { workspaceId: "", userId: null, organizationId: null },
         "tsk_123",
         tx,
