@@ -68,7 +68,10 @@ export function buildVisibleTaskLinksInclude(
   authContext: AuthenticationContext,
   workspaceContext?: WorkspaceContext | null,
 ) {
-  const peerTaskWhere = buildVisiblePeerTaskWhere(authContext, workspaceContext);
+  const peerTaskWhere = buildVisiblePeerTaskWhere(
+    authContext,
+    workspaceContext,
+  );
 
   return {
     linksFrom: {
