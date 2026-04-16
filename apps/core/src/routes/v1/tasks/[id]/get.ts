@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
-
+import { requireCoworkerTaskCollaboration } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -63,13 +62,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const coworkerAuthContext = requireCoworkerAuthContext(authContext);
+      await requireCoworkerTaskCollaboration(coworkerAuthContext, id, tx);
 
       return tx.task.findFirst({
         where: {
           id,
-          archivedAt: null,
-          status: { not: TaskStatus.DRAFT },
-          coworkerId: coworkerAuthContext.coworkerId,
         },
         include: buildTaskIncludeForViewer(coworkerAuthContext),
       });
