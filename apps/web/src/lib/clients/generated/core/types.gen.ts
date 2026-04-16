@@ -5791,6 +5791,107 @@ export type PatchJobsByIdResponses = {
 
 export type PatchJobsByIdResponse = PatchJobsByIdResponses[keyof PatchJobsByIdResponses];
 
+export type PostJobsByIdRefundData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/jobs/{id}/refund';
+};
+
+export type PostJobsByIdRefundErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostJobsByIdRefundError = PostJobsByIdRefundErrors[keyof PostJobsByIdRefundErrors];
+
+export type PostJobsByIdRefundResponses = {
+    /**
+     * Refund requested
+     */
+    200: {
+        data: Job;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostJobsByIdRefundResponse = PostJobsByIdRefundResponses[keyof PostJobsByIdRefundResponses];
+
 export type GetJobsByIdFilesData = {
     body?: never;
     headers?: {
