@@ -15,7 +15,7 @@ import mountPostTaskLink from "./post";
 const {
   prismaTransactionMock,
   requireTaskReadAccessMock,
-  requireUserTaskAccessMock,
+  requireTaskOwnershipMock,
   taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
@@ -25,7 +25,7 @@ const {
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskReadAccessMock: vi.fn(),
-  requireUserTaskAccessMock: vi.fn(),
+  requireTaskOwnershipMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
@@ -36,7 +36,7 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskReadAccess: requireTaskReadAccessMock,
-  requireUserTaskAccess: requireUserTaskAccessMock,
+  requireTaskOwnership: requireTaskOwnershipMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -341,7 +341,7 @@ describe("GET /tasks/{id}/links", () => {
 describe("POST /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
@@ -592,7 +592,7 @@ describe("POST /tasks/{id}/links", () => {
 describe("DELETE /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
@@ -634,7 +634,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
   });
 
   it("returns 200 when the peer task is archived but still owned by the user", async () => {
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -664,12 +664,12 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
+    expect(requireTaskOwnershipMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 when the peer task is outside the user's current workspace", async () => {
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -699,7 +699,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
+    expect(requireTaskOwnershipMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
@@ -739,7 +739,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 describe("PATCH /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",

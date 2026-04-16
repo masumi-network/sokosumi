@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireUserTaskAccess } from "@/helpers/access-control";
+import { requireTaskOwnership } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -40,7 +40,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      const currentTask = await requireUserTaskAccess(authContext, id, tx);
+      const currentTask = await requireTaskOwnership(authContext, id, tx);
 
       if (!isTaskArchivableStatus(currentTask.status)) {
         throw forbidden(

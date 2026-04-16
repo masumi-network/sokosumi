@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTaskJobs from "./get";
 
@@ -24,9 +25,11 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
+
 function createApp() {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {
@@ -34,6 +37,11 @@ function createApp() {
     c.set("authContext", {
       actor: "user",
       userId: "user_123",
+      organizationId: "org_123",
+    });
+    c.set("workspaceContext", {
+      workspaceId: testWorkspaceId,
+      userId: null,
       organizationId: "org_123",
     });
 
@@ -69,6 +77,11 @@ describe("GET /tasks/{id}/jobs", () => {
       {
         actor: "user",
         userId: "user_123",
+        organizationId: "org_123",
+      },
+      {
+        workspaceId: testWorkspaceId,
+        userId: null,
         organizationId: "org_123",
       },
       "tsk_123",

@@ -6,6 +6,8 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { isUserAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
 
@@ -36,8 +38,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
+    const workspaceContext = isUserAuthContext(authContext)
+      ? requireWorkspaceContext(c.var.workspaceContext)
+      : null;
+
     const jobs = await prisma.$transaction(async (tx) => {
-      await requireTaskReadAccess(authContext, id, tx);
+      await requireTaskReadAccess(authContext, workspaceContext, id, tx);
 
       const jobsList = await tx.job.findMany({
         where: { taskId: id },

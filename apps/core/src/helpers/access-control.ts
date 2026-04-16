@@ -3,7 +3,6 @@ import {
   type Prisma,
   type Task,
   TaskStatus,
-  type User,
 } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
@@ -14,40 +13,25 @@ import {
   type UserAuthenticationContext,
 } from "@/middleware/auth";
 
+import type { WorkspaceContext } from "@/middleware/workspace";
+
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 
 /**
- * Validates job access and returns the job if valid
- * Checks direct ownership only
- * Throws 404 if job doesn't exist, 403 if user doesn't have access
+ * Validates that the job exists and is owned by the authenticated user.
  *
- * @param authContext - The authenticated user context
- * @param jobId - The job ID to fetch and validate
- * @param tx - Optional Prisma transaction client for transaction support
- * @returns The validated job with all relations
- * @throws {notFound} If job doesn't exist
- * @throws {forbidden} If user doesn't have access to the job
- *
- * @example
- * // In a route handler
- * const job = await requireJobAccess(user.id, user.organizationId, jobId);
- *
- * @example
- * // With transaction
- * await prisma.$transaction(async (tx) => {
- *   const job = await requireJobAccess(user.id, user.organizationId, jobId, tx);
- *   // ... other operations within transaction
- * });
+ * @throws {forbidden} If the job is not owned by the user
  */
-export async function requireJobAccess(
+export async function requireJobOwnership(
   authContext: UserAuthenticationContext,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
   const job = await tx.job.findFirst({
     where: {
-      OR: [{ id: jobId, userId: authContext.userId }],
+      id: jobId,
+      userId: authContext.userId,
     },
   });
 
@@ -58,68 +42,11 @@ export async function requireJobAccess(
 }
 
 /**
- * Validates user access and fetches the user record
- * Throws 403 if trying to access another user, 404 if user doesn't exist
+ * Validates that the task exists, is not archived, and is owned by the authenticated user.
  *
- * @param authenticatedUserId - The authenticated user's ID
- * @param requestedUserId - The requested user ID from the path parameter
- * @param tx - Optional Prisma transaction client for transaction support
- * @returns The user record
- * @throws {forbidden} If user IDs don't match
- * @throws {notFound} If user doesn't exist
- *
- * @example
- * // In a route handler
- * const userRecord = await requireUserAccess(user.id, id);
- *
- * @example
- * // With transaction
- * await prisma.$transaction(async (tx) => {
- *   const userRecord = await requireUserAccess(user.id, id, tx);
- *   // ... other operations within transaction
- * });
+ * @throws {notFound} If the task does not exist or is not owned by the user
  */
-export async function requireUserAccess(
-  authenticatedUserId: string,
-  requestedUserId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<User> {
-  if (authenticatedUserId !== requestedUserId) {
-    throw forbidden("You can only access your own user data");
-  }
-
-  const user = await tx.user.findUnique({
-    where: { id: requestedUserId },
-  });
-
-  if (!user) {
-    throw notFound("User not found");
-  }
-
-  return user;
-}
-
-/**
- * Validates access to a task based on user ownership and fetches the task record.
- * Throws 403 if the authenticated user does not have access to the task.
- *
- * @param authContext - The authenticated user context
- * @param taskId - The task ID to fetch and validate
- * @param tx - Optional Prisma transaction client for transaction support
- * @returns The validated task if access is permitted
- * @throws {notFound} If the task does not exist
- * @throws {forbidden} If user does not have access to the task
- *
- * @example
- * const task = await requireUserTaskAccess(authContext, taskId);
- *
- * @example
- * await prisma.$transaction(async (tx) => {
- *   const task = await requireUserTaskAccess(authContext, taskId, tx);
- *   // ... additional operations
- * });
- */
-export async function requireUserTaskAccess(
+export async function requireTaskOwnership(
   authContext: UserAuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -290,11 +217,16 @@ export async function requireTaskAccess(
   if (isCoworkerAuthContext(authContext)) {
     return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
-  return await requireUserTaskAccess(authContext, taskId, tx);
+  return await requireTaskOwnership(authContext, taskId, tx);
 }
 
+/**
+ * Read access: task must belong to the active workspace (user) or assigned coworker (coworker).
+ * For user requests, pass the context from `requireWorkspaceContext`. For coworkers, pass `null`.
+ */
 export async function requireTaskReadAccess(
   authContext: AuthenticationContext,
+  workspaceContext: WorkspaceContext | null,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
@@ -302,11 +234,17 @@ export async function requireTaskReadAccess(
     return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
 
+  if (!workspaceContext) {
+    throw forbidden("Workspace is missing");
+  }
+
+  const { workspaceId } = workspaceContext;
+
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
       archivedAt: null,
-      userId: authContext.userId,
+      workspaceId,
     },
   });
 
@@ -317,20 +255,26 @@ export async function requireTaskReadAccess(
   return task;
 }
 
+/**
+ * Read access: job must belong to the active workspace.
+ * Pass the context from `requireWorkspaceContext` (workspace middleware).
+ */
 export async function requireJobReadAccess(
-  authContext: UserAuthenticationContext,
+  workspaceContext: WorkspaceContext,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
+  const { workspaceId } = workspaceContext;
+
   const job = await tx.job.findFirst({
     where: {
       id: jobId,
-      userId: authContext.userId,
+      workspaceId,
     },
   });
 
   if (!job) {
-    throw forbidden("You can only access your own jobs");
+    throw notFound("Job not found");
   }
 
   return job;

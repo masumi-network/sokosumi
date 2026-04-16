@@ -5,16 +5,17 @@ import type {
   CoworkerAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
+import type { WorkspaceContext } from "@/middleware/workspace";
 
 import {
   requireCoworkerCapability,
   requireCoworkerChatCapability,
-  requireJobAccess,
+  requireJobOwnership,
   requireJobReadAccess,
   requireTaskAccess,
   requireTaskAssignableCoworker,
+  requireTaskOwnership,
   requireTaskReadAccess,
-  requireUserTaskAccess,
 } from "./access-control";
 
 function createTransactionClient() {
@@ -38,14 +39,22 @@ const userAuthContext: UserAuthenticationContext = {
   organizationId: "org_123",
 };
 
-describe("requireUserTaskAccess", () => {
+const workspaceId = "11111111-1111-7111-8111-111111111111";
+
+const jobReadWorkspaceContext: WorkspaceContext = {
+  workspaceId,
+  userId: null,
+  organizationId: "org_123",
+};
+
+describe("requireTaskOwnership", () => {
   it("uses owner-only task access", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
     } as never);
 
-    await requireUserTaskAccess(userAuthContext, "tsk_123", tx);
+    await requireTaskOwnership(userAuthContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -58,19 +67,56 @@ describe("requireUserTaskAccess", () => {
 });
 
 describe("requireTaskReadAccess", () => {
-  it("uses owner-only user reads", async () => {
+  it("uses workspace-scoped user reads", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
     } as never);
 
-    await requireTaskReadAccess(userAuthContext, "tsk_123", tx);
+    await requireTaskReadAccess(
+      userAuthContext,
+      jobReadWorkspaceContext,
+      "tsk_123",
+      tx,
+    );
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
         archivedAt: null,
-        userId: "user_123",
+        workspaceId,
+      },
+    });
+  });
+
+  it("rejects user reads when workspace context is missing", async () => {
+    const tx = createTransactionClient();
+
+    await expect(
+      requireTaskReadAccess(userAuthContext, null, "tsk_123", tx),
+    ).rejects.toThrow("Workspace is missing");
+
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("returns not found when workspace id is empty and no task matches", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireTaskReadAccess(
+        userAuthContext,
+        { workspaceId: "", userId: null, organizationId: null },
+        "tsk_123",
+        tx,
+      ),
+    ).rejects.toThrow("Task not found");
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId: "",
       },
     });
   });
@@ -93,7 +139,7 @@ describe("requireTaskReadAccess", () => {
       status: TaskStatus.READY,
     } as never);
 
-    await requireTaskReadAccess(coworkerContext, "tsk_123", tx);
+    await requireTaskReadAccess(coworkerContext, null, "tsk_123", tx);
 
     expect(tx.task.findUnique).toHaveBeenCalledWith({
       where: {
@@ -106,6 +152,23 @@ describe("requireTaskReadAccess", () => {
 });
 
 describe("requireTaskAccess", () => {
+  it("uses ownership for user path", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+    } as never);
+
+    await requireTaskAccess(userAuthContext, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        userId: "user_123",
+        archivedAt: null,
+      },
+    });
+  });
+
   it("keeps coworker access path unchanged", async () => {
     const tx = createTransactionClient();
     const coworkerContext: CoworkerAuthenticationContext = {
@@ -241,13 +304,57 @@ describe("requireCoworkerChatCapability", () => {
 });
 
 describe("requireJobReadAccess", () => {
-  it("uses owner-only job reads", async () => {
+  it("uses workspace-scoped job reads", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
     } as never);
 
-    await requireJobReadAccess(userAuthContext, "job_123", tx);
+    await requireJobReadAccess(jobReadWorkspaceContext, "job_123", tx);
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "job_123",
+        workspaceId,
+      },
+    });
+  });
+
+  it("returns not found when workspace id is empty and no job matches", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireJobReadAccess(
+        { workspaceId: "", userId: null, organizationId: null },
+        "job_123",
+        tx,
+      ),
+    ).rejects.toThrow("Job not found");
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: { id: "job_123", workspaceId: "" },
+    });
+  });
+
+  it("returns not found when job is not in the workspace", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireJobReadAccess(jobReadWorkspaceContext, "job_123", tx),
+    ).rejects.toThrow("Job not found");
+  });
+});
+
+describe("requireJobOwnership", () => {
+  it("allows only owned jobs", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+    } as never);
+
+    await requireJobOwnership(userAuthContext, "job_123", tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -257,38 +364,12 @@ describe("requireJobReadAccess", () => {
     });
   });
 
-  it("rejects when the requested job is not owned by the user", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
-
-    await expect(
-      requireJobReadAccess(userAuthContext, "job_123", tx),
-    ).rejects.toThrow("You can only access your own jobs");
-  });
-});
-
-describe("requireJobAccess", () => {
-  it("allows only owned jobs", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
-      id: "job_123",
-    } as never);
-
-    await requireJobAccess(userAuthContext, "job_123", tx);
-
-    expect(tx.job.findFirst).toHaveBeenCalledWith({
-      where: {
-        OR: [{ id: "job_123", userId: "user_123" }],
-      },
-    });
-  });
-
   it("rejects jobs that are not owned by the current user", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireJobAccess(userAuthContext, "job_123", tx),
+      requireJobOwnership(userAuthContext, "job_123", tx),
     ).rejects.toThrow("You can only access your own jobs");
   });
 });

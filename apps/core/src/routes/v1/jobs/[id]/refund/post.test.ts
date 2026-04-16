@@ -2,6 +2,7 @@ import { AgentJobStatus, JobType, NextJobAction } from "@sokosumi/database";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostJobRefund from "./post";
@@ -11,7 +12,9 @@ const {
   prismaTransactionMock,
   jobFindUniqueMock,
   updateJobPurchaseByExternalIdMock,
+  requireJobOwnershipMock,
 } = vi.hoisted(() => ({
+  requireJobOwnershipMock: vi.fn(async () => undefined),
   authContextState: {
     current: {
       actor: "user",
@@ -73,7 +76,7 @@ vi.mock("@/middleware/auth", () => ({
 }));
 
 vi.mock("@/helpers/access-control.js", () => ({
-  requireJobReadAccess: vi.fn(async () => undefined),
+  requireJobOwnership: requireJobOwnershipMock,
 }));
 
 const requestRefundMock = vi.fn();
@@ -187,6 +190,9 @@ function createFullJobForSecondFetch() {
 describe("POST /jobs/{id}/refund", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    jobFindUniqueMock.mockReset();
+    requireJobOwnershipMock.mockReset();
+    requireJobOwnershipMock.mockResolvedValue(undefined);
     authContextState.current = {
       actor: "user",
       userId: "user_123",
@@ -244,22 +250,8 @@ describe("POST /jobs/{id}/refund", () => {
   });
 
   it("returns 403 when the job belongs to another user", async () => {
-    prismaTransactionMock.mockImplementationOnce(
-      async (
-        callback: (tx: {
-          job: { findUnique: typeof jobFindUniqueMock };
-        }) => Promise<unknown>,
-      ) => {
-        jobFindUniqueMock.mockResolvedValueOnce({
-          userId: "user_other",
-          jobType: JobType.PAID,
-          blockchainIdentifier: "purchase_bc_1",
-          purchase: { externalId: "purchase_ext_1" },
-        });
-        return await callback({
-          job: { findUnique: jobFindUniqueMock },
-        });
-      },
+    requireJobOwnershipMock.mockRejectedValueOnce(
+      forbidden("You can only access your own jobs"),
     );
 
     const app = createApp();
@@ -273,14 +265,13 @@ describe("POST /jobs/{id}/refund", () => {
   });
 
   it("returns 422 when the job is not paid", async () => {
-    prismaTransactionMock.mockImplementationOnce(
+    prismaTransactionMock.mockImplementation(
       async (
         callback: (tx: {
           job: { findUnique: typeof jobFindUniqueMock };
         }) => Promise<unknown>,
       ) => {
-        jobFindUniqueMock.mockResolvedValueOnce({
-          userId: "user_123",
+        jobFindUniqueMock.mockResolvedValue({
           jobType: JobType.FREE,
           blockchainIdentifier: null,
           purchase: null,

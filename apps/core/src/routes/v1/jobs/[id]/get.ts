@@ -13,6 +13,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSchema } from "@/schemas/job.schema.js";
 import { serializeJobDetails } from "@/types/job";
 
@@ -99,11 +100,12 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
+    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
     const job = await prisma.$transaction(async (tx) => {
-      await requireJobReadAccess(authContext, id, tx);
+      await requireJobReadAccess(workspaceContext, id, tx);
       const job = await tx.job.findUnique({
         where: { id },
         include: jobInclude,
