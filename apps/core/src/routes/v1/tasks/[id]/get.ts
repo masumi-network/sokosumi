@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { requireCoworkerTaskCollaboration } from "@/helpers/access-control";
+import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -42,6 +42,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext, workspaceContext } = c.var;
 
     const task = await prisma.$transaction(async (tx) => {
+      await requireTaskReadForRouteVars(c.var, id, tx);
+
       if (isUserAuthContext(authContext)) {
         const requiredWorkspaceContext =
           requireWorkspaceContext(workspaceContext);
@@ -62,7 +64,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const coworkerAuthContext = requireCoworkerAuthContext(authContext);
-      await requireCoworkerTaskCollaboration(coworkerAuthContext, id, tx);
 
       return tx.task.findFirst({
         where: {
