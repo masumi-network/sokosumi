@@ -143,6 +143,86 @@ describe("task coworker whitelist enforcement", () => {
     expect(tx.task.update).not.toHaveBeenCalled();
   });
 
+  it("uses workspace-scoped link visibility in the patch response", async () => {
+    const updateMock = vi.fn().mockResolvedValue({
+      id: "tsk_123",
+      createdAt: "2026-03-25T10:00:00.000Z",
+      updatedAt: "2026-03-25T10:00:00.000Z",
+      userId: "user_123",
+      organizationId: null,
+      status: TaskStatus.READY,
+      coworkerId: null,
+      name: "Updated title",
+      description: null,
+      credits: 0,
+      events: [],
+      jobs: [],
+      workspace: {
+        id: "22222222-2222-7222-8222-222222222222",
+        organizationId: null,
+        organization: null,
+      },
+      share: null,
+      links: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const tx = {
+      task: {
+        update: updateMock,
+      },
+    };
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback(tx);
+    });
+
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.READY,
+      coworkerId: null,
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Updated title",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          linksFrom: expect.objectContaining({
+            where: {
+              toTask: {
+                is: {
+                  workspaceId: "22222222-2222-7222-8222-222222222222",
+                  archivedAt: null,
+                },
+              },
+            },
+          }),
+          linksTo: expect.objectContaining({
+            where: {
+              fromTask: {
+                is: {
+                  workspaceId: "22222222-2222-7222-8222-222222222222",
+                  archivedAt: null,
+                },
+              },
+            },
+          }),
+        }),
+      }),
+    );
+  });
+
   it("rejects task creation when coworker lacks tasks capability", async () => {
     const tx = {
       task: {

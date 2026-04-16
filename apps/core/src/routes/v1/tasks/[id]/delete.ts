@@ -36,11 +36,12 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { authContext, workspaceContext } = c.var;
+    const userAuthContext = requireUserAuthContext(authContext);
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      const currentTask = await requireTaskOwnership(authContext, id, tx);
+      const currentTask = await requireTaskOwnership(userAuthContext, id, tx);
 
       if (!isTaskArchivableStatus(currentTask.status)) {
         throw forbidden(
@@ -51,14 +52,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return tx.task.update({
         where: {
           id,
-          userId: authContext.userId,
+          userId: userAuthContext.userId,
           archivedAt: null,
           status: currentTask.status,
         },
         data: {
           archivedAt: new Date(),
         },
-        include: buildTaskIncludeForViewer(authContext),
+        include: buildTaskIncludeForViewer(userAuthContext, workspaceContext),
       });
     });
 

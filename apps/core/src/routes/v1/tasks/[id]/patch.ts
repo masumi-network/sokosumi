@@ -69,12 +69,13 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { authContext, workspaceContext } = c.var;
+    const userAuthContext = requireUserAuthContext(authContext);
     const { id } = c.req.valid("param");
     const { name, description, coworkerId } = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
-      const task = await requireTaskOwnership(authContext, id, tx);
+      const task = await requireTaskOwnership(userAuthContext, id, tx);
 
       const canUpdateTask =
         task.status === TaskStatus.DRAFT || task.status === TaskStatus.READY;
@@ -98,7 +99,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return tx.task.update({
         where: {
           id,
-          userId: authContext.userId,
+          userId: userAuthContext.userId,
           status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
         },
         data: {
@@ -106,7 +107,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description,
           coworkerId,
         },
-        include: buildTaskIncludeForViewer(authContext),
+        include: buildTaskIncludeForViewer(userAuthContext, workspaceContext),
       });
     });
 
