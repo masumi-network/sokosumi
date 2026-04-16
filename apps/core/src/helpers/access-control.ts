@@ -191,10 +191,10 @@ export async function requireTaskAssignableCoworker(
 }
 
 /**
- * Read access for authenticated users: task must belong to the active workspace.
+ * Workspace-scoped task read: task must belong to the active workspace.
  * Call from handlers after `requireWorkspaceContext` (coworker reads use `requireCoworkerTaskAccess` instead).
  */
-export async function requireTaskReadAccess(
+export async function requireTaskRead(
   workspaceContext: WorkspaceContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -218,9 +218,9 @@ export async function requireTaskReadAccess(
 
 /**
  * Task read for a workspace-scoped user or an assigned coworker with the tasks capability.
- * Pass the route `Variables` object (e.g. `c.var` from `OpenAPIHonoWithAuth`).
+ * Pass the route `Variables` object (e.g. `c.var` from `OpenAPIHonoWithAuth`). Delegates to `requireTaskRead` or `requireCoworkerTaskAccess`.
  */
-export async function requireTaskReadAccessForRouteVars(
+export async function requireTaskReadForRouteVars(
   vars: EnvVariables["Variables"],
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -228,7 +228,7 @@ export async function requireTaskReadAccessForRouteVars(
   const { authContext, workspaceContext } = vars;
 
   if (isUserAuthContext(authContext)) {
-    return await requireTaskReadAccess(
+    return await requireTaskRead(
       requireWorkspaceContext(workspaceContext),
       taskId,
       tx,
@@ -243,10 +243,10 @@ export async function requireTaskReadAccessForRouteVars(
 }
 
 /**
- * Read access: job must belong to the active workspace.
+ * Workspace-scoped job read: job must belong to the active workspace.
  * Pass the context from `requireWorkspaceContext` (workspace middleware).
  */
-export async function requireJobReadAccess(
+export async function requireJobRead(
   workspaceContext: WorkspaceContext,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,

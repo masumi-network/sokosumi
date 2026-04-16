@@ -54,8 +54,8 @@ vi.mock("@/middleware/auth", () => ({
   requireUserAuthContext: (authContext: unknown) => authContext,
 }));
 
-const { requireJobReadAccessMock } = vi.hoisted(() => ({
-  requireJobReadAccessMock: vi.fn(async () => undefined),
+const { requireJobReadMock } = vi.hoisted(() => ({
+  requireJobReadMock: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/middleware/workspace", async (importOriginal) => {
@@ -72,7 +72,7 @@ vi.mock("@/middleware/workspace", async (importOriginal) => {
 });
 
 vi.mock("@/helpers/access-control.js", () => ({
-  requireJobReadAccess: requireJobReadAccessMock,
+  requireJobRead: requireJobReadMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -217,7 +217,7 @@ describe("GET /jobs/{id}", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(requireJobReadAccessMock).toHaveBeenCalledWith(
+    expect(requireJobReadMock).toHaveBeenCalledWith(
       {
         workspaceId: "11111111-1111-7111-8111-111111111111",
         userId: null,

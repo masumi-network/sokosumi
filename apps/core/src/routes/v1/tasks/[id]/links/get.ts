@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireTaskReadAccessForRouteVars } from "@/helpers/access-control";
+import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -38,7 +38,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const row = await prisma.$transaction(async (tx) => {
-      await requireTaskReadAccessForRouteVars(c.var, id, tx);
+      await requireTaskReadForRouteVars(c.var, id, tx);
       return tx.task.findUnique({
         where: { id, archivedAt: null },
         select: {

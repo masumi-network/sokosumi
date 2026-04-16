@@ -13,11 +13,11 @@ import {
   requireCoworkerChatCapability,
   requireCoworkerTaskAccess,
   requireJobOwnership,
-  requireJobReadAccess,
+  requireJobRead,
   requireTaskAssignableCoworker,
   requireTaskOwnership,
-  requireTaskReadAccess,
-  requireTaskReadAccessForRouteVars,
+  requireTaskRead,
+  requireTaskReadForRouteVars,
 } from "./access-control";
 
 function createTransactionClient() {
@@ -68,14 +68,14 @@ describe("requireTaskOwnership", () => {
   });
 });
 
-describe("requireTaskReadAccess", () => {
+describe("requireTaskRead", () => {
   it("uses workspace-scoped user reads", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
     } as never);
 
-    await requireTaskReadAccess(jobReadWorkspaceContext, "tsk_123", tx);
+    await requireTaskRead(jobReadWorkspaceContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -91,7 +91,7 @@ describe("requireTaskReadAccess", () => {
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireTaskReadAccess(
+      requireTaskRead(
         { workspaceId: "", userId: null, organizationId: null },
         "tsk_123",
         tx,
@@ -108,7 +108,7 @@ describe("requireTaskReadAccess", () => {
   });
 });
 
-describe("requireTaskReadAccessForRouteVars", () => {
+describe("requireTaskReadForRouteVars", () => {
   it("delegates to workspace read for users", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
@@ -121,7 +121,7 @@ describe("requireTaskReadAccessForRouteVars", () => {
       workspaceContext: jobReadWorkspaceContext,
     };
 
-    await requireTaskReadAccessForRouteVars(vars, "tsk_123", tx);
+    await requireTaskReadForRouteVars(vars, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -142,7 +142,7 @@ describe("requireTaskReadAccessForRouteVars", () => {
     };
 
     await expect(
-      requireTaskReadAccessForRouteVars(vars, "tsk_123", tx),
+      requireTaskReadForRouteVars(vars, "tsk_123", tx),
     ).rejects.toThrow("Workspace is missing");
 
     expect(tx.task.findFirst).not.toHaveBeenCalled();
@@ -172,7 +172,7 @@ describe("requireTaskReadAccessForRouteVars", () => {
       workspaceContext: null,
     };
 
-    await requireTaskReadAccessForRouteVars(vars, "tsk_123", tx);
+    await requireTaskReadForRouteVars(vars, "tsk_123", tx);
 
     expect(tx.task.findUnique).toHaveBeenCalledWith({
       where: {
@@ -319,14 +319,14 @@ describe("requireCoworkerChatCapability", () => {
   });
 });
 
-describe("requireJobReadAccess", () => {
+describe("requireJobRead", () => {
   it("uses workspace-scoped job reads", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
     } as never);
 
-    await requireJobReadAccess(jobReadWorkspaceContext, "job_123", tx);
+    await requireJobRead(jobReadWorkspaceContext, "job_123", tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -341,7 +341,7 @@ describe("requireJobReadAccess", () => {
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireJobReadAccess(
+      requireJobRead(
         { workspaceId: "", userId: null, organizationId: null },
         "job_123",
         tx,
@@ -358,7 +358,7 @@ describe("requireJobReadAccess", () => {
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireJobReadAccess(jobReadWorkspaceContext, "job_123", tx),
+      requireJobRead(jobReadWorkspaceContext, "job_123", tx),
     ).rejects.toThrow("Job not found");
   });
 });

@@ -15,7 +15,7 @@ import mountPostTaskLink from "./post";
 const {
   prismaTransactionMock,
   requireTaskOwnershipMock,
-  requireTaskReadAccessForRouteVarsMock,
+  requireTaskReadForRouteVarsMock,
   taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
@@ -25,7 +25,7 @@ const {
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
-  requireTaskReadAccessForRouteVarsMock: vi.fn(),
+  requireTaskReadForRouteVarsMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
@@ -36,7 +36,7 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskOwnership: requireTaskOwnershipMock,
-  requireTaskReadAccessForRouteVars: requireTaskReadAccessForRouteVarsMock,
+  requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -104,7 +104,7 @@ function mockTx() {
 describe("GET /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessForRouteVarsMock.mockResolvedValue(undefined);
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb(mockTx());
@@ -126,7 +126,7 @@ describe("GET /tasks/{id}/links", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown[] };
     expect(body.data).toEqual([]);
-    expect(requireTaskReadAccessForRouteVarsMock).toHaveBeenCalledWith(
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         isAuthenticated: true,
         authContext: {
@@ -195,7 +195,7 @@ describe("GET /tasks/{id}/links", () => {
         archivedAt: null,
       },
     });
-    expect(requireTaskReadAccessForRouteVarsMock).toHaveBeenCalledWith(
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         isAuthenticated: true,
         authContext: {
@@ -221,7 +221,7 @@ describe("GET /tasks/{id}/links", () => {
     const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(200);
-    expect(requireTaskReadAccessForRouteVarsMock).toHaveBeenCalledWith(
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         isAuthenticated: true,
         authContext: {

@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobSummaryInclude } from "@sokosumi/database/types/job";
 
-import { requireTaskReadAccessForRouteVars } from "@/helpers/access-control";
+import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -36,7 +36,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const jobs = await prisma.$transaction(async (tx) => {
-      await requireTaskReadAccessForRouteVars(c.var, id, tx);
+      await requireTaskReadForRouteVars(c.var, id, tx);
 
       const jobsList = await tx.job.findMany({
         where: { taskId: id },

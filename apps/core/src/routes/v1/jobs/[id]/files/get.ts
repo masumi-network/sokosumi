@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { BlobStatus } from "@sokosumi/database";
 
-import { requireJobReadAccess } from "@/helpers/access-control.js";
+import { requireJobRead } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -65,7 +65,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const blobs = await prisma.$transaction(async (tx) => {
-      await requireJobReadAccess(workspaceContext, id, tx);
+      await requireJobRead(workspaceContext, id, tx);
       const blobs = await tx.blob.findMany({
         where: {
           event: { jobId: id },

@@ -11,15 +11,15 @@ import mountGetTaskJobs from "./get";
 const {
   jobFindManyMock,
   prismaTransactionMock,
-  requireTaskReadAccessForRouteVarsMock,
+  requireTaskReadForRouteVarsMock,
 } = vi.hoisted(() => ({
   jobFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  requireTaskReadAccessForRouteVarsMock: vi.fn(),
+  requireTaskReadForRouteVarsMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccessForRouteVars: requireTaskReadAccessForRouteVarsMock,
+  requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -59,7 +59,7 @@ function createApp() {
 describe("GET /tasks/{id}/jobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessForRouteVarsMock.mockResolvedValue(undefined);
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         job: {
@@ -76,7 +76,7 @@ describe("GET /tasks/{id}/jobs", () => {
     const response = await app.request("http://localhost/tsk_123/jobs");
 
     expect(response.status).toBe(200);
-    expect(requireTaskReadAccessForRouteVarsMock).toHaveBeenCalledWith(
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         isAuthenticated: true,
         authContext: {

@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireTaskReadAccessForRouteVars } from "@/helpers/access-control";
+import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTaskEvent } from "@/helpers/task";
@@ -35,7 +35,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const events = await prisma.$transaction(async (tx) => {
-      await requireTaskReadAccessForRouteVars(c.var, id, tx);
+      await requireTaskReadForRouteVars(c.var, id, tx);
 
       return tx.taskEvent.findMany({
         where: { taskId: id },
