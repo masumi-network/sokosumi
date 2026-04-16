@@ -379,6 +379,21 @@ UPDATE "coworker_usage" SET "id" = "_new_id"::text;
 UPDATE "conversation" SET "id" = "_new_id"::text;
 UPDATE "conversationItem" SET "id" = "_new_id"::text;
 
+-- Soft org references (no FK): JOIN rewrites above only run when the org row
+-- still exists. Deleted-org CUIDs would remain here and break ::uuid casts.
+UPDATE "user" u
+SET "preferredOrganizationId" = NULL
+WHERE u."preferredOrganizationId" IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM "organization" o WHERE o."id" = u."preferredOrganizationId"
+  );
+UPDATE "session" s
+SET "activeOrganizationId" = NULL
+WHERE s."activeOrganizationId" IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM "organization" o WHERE o."id" = s."activeOrganizationId"
+  );
+
 -- Convert columns from TEXT to UUID (now safe since values are UUID strings).
 ALTER TABLE "user" ALTER COLUMN "id" TYPE UUID USING "id"::uuid;
 ALTER TABLE "user" ALTER COLUMN "preferredOrganizationId" TYPE UUID USING "preferredOrganizationId"::uuid;
