@@ -474,6 +474,16 @@ export const postJobsByIdRefund = <ThrowOnError extends boolean = false>(options
 });
 
 /**
+ * Request a refund for a paid job via Masumi. Updates local purchase state so job sync can reconcile.
+ */
+export const postJobsByIdRefund = <ThrowOnError extends boolean = false>(options: Options<PostJobsByIdRefundData, ThrowOnError>) => (options.client ?? client).post<PostJobsByIdRefundResponses, PostJobsByIdRefundErrors, ThrowOnError>({
+    responseTransformer: postJobsByIdRefundResponseTransformer,
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/jobs/{id}/refund',
+    ...options
+});
+
+/**
  * Get files associated with a job
  */
 export const getJobsByIdFiles = <ThrowOnError extends boolean = false>(options: Options<GetJobsByIdFilesData, ThrowOnError>) => (options.client ?? client).get<GetJobsByIdFilesResponses, GetJobsByIdFilesErrors, ThrowOnError>({
