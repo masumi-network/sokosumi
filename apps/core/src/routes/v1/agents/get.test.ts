@@ -112,6 +112,7 @@ describe("GET /agents", () => {
         image: null,
         icon: null,
         summary: "A short summary",
+        riskClassification: "MINIMAL",
         _count: { jobs: 2 },
         categories: [
           {
@@ -195,6 +196,7 @@ describe("GET /agents", () => {
         },
       },
     });
+    expect(body.data[0]).not.toHaveProperty("riskClassification");
   });
 
   it("parses repeated and comma-separated category filters", async () => {

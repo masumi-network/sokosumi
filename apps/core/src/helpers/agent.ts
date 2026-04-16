@@ -9,7 +9,11 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
-import { type RatingMetrics } from "@/schemas/agent.schema";
+import {
+  type AgentReview,
+  type RatingDistribution,
+  type RatingMetrics,
+} from "@/schemas/agent.schema";
 import type { AgentWithPricing } from "@/types/agent";
 
 import { internalServerError, unprocessableEntity } from "./error";
@@ -386,4 +390,75 @@ export const calculateAgentRatings = async (
     }
   }
   return ratingsMap;
+};
+
+export const getAgentRatingDistribution = async (
+  agentId: string,
+  tx: Prisma.TransactionClient,
+): Promise<RatingDistribution> => {
+  const ratings = await tx.userAgentRating.groupBy({
+    by: ["rating"],
+    where: {
+      agentId,
+      isHidden: false,
+    },
+    _count: { rating: true },
+  });
+
+  const distribution: RatingDistribution = {
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 0,
+    "5": 0,
+  };
+
+  ratings.forEach((rating) => {
+    const key = String(rating.rating) as keyof RatingDistribution;
+    distribution[key] = rating._count.rating;
+  });
+
+  return distribution;
+};
+
+export const getRecentAgentReviews = async (
+  agentId: string,
+  limit: number,
+  tx: Prisma.TransactionClient,
+): Promise<AgentReview[]> => {
+  const ratings = await tx.userAgentRating.findMany({
+    where: {
+      agentId,
+      isHidden: false,
+      comment: {
+        not: null,
+      },
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+
+  return ratings.map((rating) => ({
+    id: rating.id,
+    rating: rating.rating,
+    comment: rating.comment,
+    createdAt: rating.createdAt,
+    updatedAt: rating.updatedAt,
+    user: {
+      id: rating.user.id,
+      name: rating.user.name,
+      image: rating.user.image
+        ? resolveIpfsOrHttpUrl(rating.user.image)
+        : rating.user.image,
+    },
+  }));
 };

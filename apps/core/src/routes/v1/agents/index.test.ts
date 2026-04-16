@@ -90,15 +90,64 @@ describe("agents routes OpenAPI scope contract", () => {
     expect(listGet).toBeDefined();
     expect(listGet?.responses?.["200"]).toBeDefined();
     const components = doc.components?.schemas;
-    const agentSchema =
-      components && typeof components === "object" && "Agent" in components
-        ? (components as { Agent?: { properties?: unknown } }).Agent
+    const agentSummarySchema =
+      components &&
+      typeof components === "object" &&
+      "AgentSummary" in components
+        ? (components as { AgentSummary?: { properties?: unknown } })
+            .AgentSummary
         : null;
-    expect(agentSchema?.properties).toBeDefined();
-    const props = agentSchema?.properties as
+    expect(agentSummarySchema?.properties).toBeDefined();
+    const props = agentSummarySchema?.properties as
       | { categories?: unknown }
       | undefined;
     expect(props?.categories).toBeDefined();
+  });
+
+  it("documents agent detail-only fields separately from the list schema", () => {
+    const doc = agentsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Agents API",
+        version: "1.0.0",
+      },
+    });
+
+    const components = doc.components?.schemas as
+      | Record<string, { properties?: Record<string, unknown> }>
+      | undefined;
+
+    expect(
+      components?.AgentSummary?.properties?.riskClassification,
+    ).toBeFalsy();
+    expect(components?.AgentSummary?.properties?.tags).toBeFalsy();
+    expect(components?.AgentSummary?.properties?.exampleOutputs).toBeFalsy();
+
+    expect(
+      components?.AgentDetail?.properties?.riskClassification,
+    ).toBeDefined();
+    expect(components?.AgentDetail?.properties?.tags).toBeDefined();
+    expect(components?.AgentDetail?.properties?.exampleOutputs).toBeDefined();
+  });
+
+  it("documents the agent reviews endpoint", () => {
+    const doc = agentsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Agents API",
+        version: "1.0.0",
+      },
+    });
+
+    expect(doc.paths?.["/{id}/reviews"]?.get).toBeDefined();
+
+    const components = doc.components?.schemas as
+      | Record<string, { properties?: Record<string, unknown> }>
+      | undefined;
+    expect(components?.AgentReviews?.properties?.distribution).toBeDefined();
+    expect(
+      components?.AgentReviews?.properties?.ratingsWithComments,
+    ).toBeDefined();
   });
 
   it("documents category styles as a structured object schema", () => {
