@@ -310,13 +310,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
 
-        const persistedItems = await prisma.conversationMessage.findMany({
-          where: { conversationId: internalConversationId },
-          orderBy: { createdAt: "asc" },
-          take: LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT,
-          select: { id: true, role: true, contentText: true, metadata: true },
-        });
-        uiMessages = conversationMessagesToUiMessages(persistedItems);
+        const persistedMessagesNewestFirst =
+          await prisma.conversationMessage.findMany({
+            where: { conversationId: internalConversationId },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT,
+            select: { id: true, role: true, contentText: true, metadata: true },
+          });
+        const persistedMessages = [...persistedMessagesNewestFirst].reverse();
+        uiMessages = conversationMessagesToUiMessages(persistedMessages);
 
         if (
           incomingLast != null &&

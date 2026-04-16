@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { LIMITS } from "@/config/constants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
@@ -437,18 +437,21 @@ describe("POST /chat", () => {
       id: cid,
       metadata: { model_id: "claude-opus-4-6" },
     });
-    conversationMessageFindManyMock.mockResolvedValueOnce([
+    const persistedMessagesNewestFirst = [
       {
-        id: "item-1",
-        role: "user",
-        contentText: "Earlier",
-      },
-      {
-        id: "item-2",
+        id: "message-2",
         role: "user",
         contentText: "Next",
       },
-    ]);
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Earlier",
+      },
+    ];
+    conversationMessageFindManyMock.mockResolvedValueOnce(
+      persistedMessagesNewestFirst,
+    );
 
     const app = createApp();
     const response = await app.request("http://localhost/", {
@@ -465,6 +468,13 @@ describe("POST /chat", () => {
     expect(response.status).toBe(200);
     expect(conversationMessageCreateMock).toHaveBeenCalledOnce();
     expect(conversationMessageFindManyMock).toHaveBeenCalledOnce();
+    expect(conversationMessageFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { conversationId: cid },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT,
+      }),
+    );
     expect(convertToModelMessagesMock).toHaveBeenCalledOnce();
     const uiArg = convertToModelMessagesMock.mock.calls[0]![0] as Array<{
       role: string;

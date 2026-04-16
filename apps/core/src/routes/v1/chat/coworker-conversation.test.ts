@@ -9,6 +9,7 @@ const DEFAULT_BASE_URL = "https://api.coworker.example.com/v1";
 describe("coworker-conversation", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockClear();
   });
 
   afterEach(() => {
@@ -55,16 +56,20 @@ describe("coworker-conversation", () => {
           "X-Coworker-Slug": "ops-agent",
           "X-Sokosumi-Organization-Id": "org_1",
         }),
-        body: JSON.stringify({
-          metadata: {
-            sokosumi_user_id: "user_1",
-            sokosumi_organization_id: "org_1",
-            coworker_slug: "ops-agent",
-            sokosumi_conversation_id: "conv-local-1",
-          },
-        }),
       }),
     );
+    const [, initWithOrg] = fetchMock.mock.calls[0] as [
+      string,
+      { body: string },
+    ];
+    expect(JSON.parse(initWithOrg.body)).toEqual({
+      metadata: {
+        sokosumi_user_id: "user_1",
+        sokosumi_organization_id: "org_1",
+        coworker_slug: "ops-agent",
+        sokosumi_conversation_id: "conv-local-1",
+      },
+    });
   });
 
   it("accepts id nested under data in JSON body", async () => {
@@ -83,5 +88,18 @@ describe("coworker-conversation", () => {
     });
 
     expect(result).toEqual({ id: "conv_nested" });
+
+    const [, init] = fetchMock.mock.calls[0] as [
+      string,
+      { headers: Record<string, string>; body: string },
+    ];
+    expect(init.headers["X-Sokosumi-Organization-Id"]).toBeUndefined();
+    expect(JSON.parse(init.body)).toEqual({
+      metadata: {
+        sokosumi_user_id: "user_1",
+        coworker_slug: "ops-agent",
+        sokosumi_conversation_id: "conv-local-1",
+      },
+    });
   });
 });

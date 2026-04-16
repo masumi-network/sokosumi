@@ -31,17 +31,19 @@ export async function createCoworkerConversation(
       options.sokosumiOrganizationId;
   }
 
+  const metadata: Record<string, string> = {
+    sokosumi_user_id: options.sokosumiUserId,
+    coworker_slug: options.coworkerSlug,
+    sokosumi_conversation_id: options.sokosumiConversationId,
+  };
+  if (options.sokosumiOrganizationId) {
+    metadata.sokosumi_organization_id = options.sokosumiOrganizationId;
+  }
+
   const response = await fetch(url, {
     method: "POST",
     headers: requestHeaders,
-    body: JSON.stringify({
-      metadata: {
-        sokosumi_user_id: options.sokosumiUserId,
-        sokosumi_organization_id: options.sokosumiOrganizationId,
-        coworker_slug: options.coworkerSlug,
-        sokosumi_conversation_id: options.sokosumiConversationId,
-      },
-    }),
+    body: JSON.stringify({ metadata }),
     signal: AbortSignal.timeout(CREATE_CONVERSATION_TIMEOUT_MS),
   });
 
