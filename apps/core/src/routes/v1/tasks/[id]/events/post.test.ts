@@ -18,8 +18,7 @@ const {
   getCreditCostsOrThrowMock,
   prismaTransactionMock,
   publishTaskEventDataMock,
-  requireCoworkerTaskAccessMock,
-  requireTaskOwnershipMock,
+  requireTaskCollaborationMock,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
   createPurchaseFromMasumiTaskPaymentMock: vi.fn(),
@@ -27,13 +26,11 @@ const {
   getCreditCostsOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
-  requireCoworkerTaskAccessMock: vi.fn(),
-  requireTaskOwnershipMock: vi.fn(),
+  requireTaskCollaborationMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireCoworkerTaskAccess: requireCoworkerTaskAccessMock,
-  requireTaskOwnership: requireTaskOwnershipMock,
+  requireTaskCollaboration: requireTaskCollaborationMock,
 }));
 
 vi.mock("@/helpers/task-credits", () => ({
@@ -193,8 +190,7 @@ describe("POST /{id}/events", () => {
     createPurchaseFromMasumiTaskPaymentMock.mockResolvedValue(
       ok({ id: "pur_task_1" } as { id: string }),
     );
-    requireTaskOwnershipMock.mockResolvedValue(createTask());
-    requireCoworkerTaskAccessMock.mockResolvedValue(createTask());
+    requireTaskCollaborationMock.mockResolvedValue(createTask());
   });
 
   it("allows coworkers to create OUT_OF_CREDITS events", async () => {
@@ -336,7 +332,7 @@ describe("POST /{id}/events", () => {
     };
 
     mockTransaction(tx);
-    requireCoworkerTaskAccessMock.mockResolvedValue(
+    requireTaskCollaborationMock.mockResolvedValue(
       createTask({
         status: TaskStatus.READY,
       }),

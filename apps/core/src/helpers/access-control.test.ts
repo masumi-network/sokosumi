@@ -15,6 +15,7 @@ import {
   requireJobOwnership,
   requireJobRead,
   requireTaskAssignableCoworker,
+  requireTaskCollaboration,
   requireTaskOwnership,
   requireTaskRead,
   requireTaskReadForRouteVars,
@@ -65,6 +66,70 @@ describe("requireTaskOwnership", () => {
         archivedAt: null,
       },
     });
+  });
+});
+
+describe("requireTaskCollaboration", () => {
+  it("uses ownership for users", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+    } as never);
+
+    await requireTaskCollaboration(userAuthContext, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        userId: "user_123",
+        archivedAt: null,
+      },
+    });
+  });
+
+  it("uses coworker task access for coworkers", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findUnique).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId: "cow_123",
+      status: TaskStatus.READY,
+    } as never);
+
+    await requireTaskCollaboration(coworkerContext, "tsk_123", tx);
+
+    expect(tx.task.findUnique).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        status: { not: TaskStatus.DRAFT },
+        archivedAt: null,
+      },
+    });
+  });
+
+  it("rejects coworkers without tasks capability before loading the task", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireTaskCollaboration(coworkerContext, "tsk_123", tx),
+    ).rejects.toThrow("Coworker is not allowed to use tasks");
+
+    expect(tx.task.findUnique).not.toHaveBeenCalled();
   });
 });
 

@@ -8,6 +8,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import {
+  type AuthenticationContext,
   type CoworkerAuthenticationContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
@@ -68,6 +69,25 @@ export async function requireTaskOwnership(
   }
 
   return task;
+}
+
+/**
+ * Collaboration access: the authenticated user must own the task, or the authenticated coworker must be allowed on the task (tasks capability + assignment).
+ */
+export async function requireTaskCollaboration(
+  authContext: AuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  if (isUserAuthContext(authContext)) {
+    return await requireTaskOwnership(authContext, taskId, tx);
+  }
+
+  return await requireCoworkerTaskAccess(
+    requireCoworkerAuthContext(authContext),
+    taskId,
+    tx,
+  );
 }
 
 /**
