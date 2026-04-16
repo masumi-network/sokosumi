@@ -8,9 +8,16 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTaskById from "./get";
 
-const { prismaTransactionMock, taskFindFirstMock } = vi.hoisted(() => ({
+const {
+  prismaTransactionMock,
+  taskFindFirstMock,
+  taskFindUniqueMock,
+  coworkerFindFirstMock,
+} = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
+  taskFindUniqueMock: vi.fn(),
+  coworkerFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -105,19 +112,40 @@ function createTask(
   };
 }
 
+/** Payload returned for the viewer query (`findFirst` with `include`). Access checks use a separate call. */
+let viewerTaskIncludeResult = createTask();
+
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    viewerTaskIncludeResult = createTask();
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb({
+          coworker: {
+            findFirst: coworkerFindFirstMock,
+          },
           task: {
             findFirst: taskFindFirstMock,
+            findUnique: taskFindUniqueMock,
           },
         });
       },
     );
-    taskFindFirstMock.mockResolvedValue(createTask());
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_123",
+      slug: "cow",
+      baseURL: "http://coworker.test",
+    });
+    taskFindUniqueMock.mockResolvedValue(createTask());
+    taskFindFirstMock.mockImplementation(
+      async (args: { include?: unknown }) => {
+        if (args.include !== undefined) {
+          return viewerTaskIncludeResult;
+        }
+        return createTask();
+      },
+    );
   });
 
   it("filters archived peer links from user task reads", async () => {
@@ -198,28 +226,26 @@ describe("GET /tasks/{id}", () => {
   });
 
   it("keeps same-workspace peer links visible for a workspace collaborator", async () => {
-    taskFindFirstMock.mockResolvedValueOnce(
-      createTask({
-        userId: "user_123",
-        linksFrom: [
-          {
-            id: "tl_1",
-            createdAt: new Date("2026-03-25T10:00:00.000Z"),
-            updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-            fromTaskId: "tsk_a",
-            toTaskId: "tsk_b",
-            type: TaskLinkType.RELATES,
-            note: null,
-            toTask: {
-              id: "tsk_b",
-              name: "Task B",
-              status: TaskStatus.RUNNING,
-              archivedAt: null,
-            },
+    viewerTaskIncludeResult = createTask({
+      userId: "user_123",
+      linksFrom: [
+        {
+          id: "tl_1",
+          createdAt: new Date("2026-03-25T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+          fromTaskId: "tsk_a",
+          toTaskId: "tsk_b",
+          type: TaskLinkType.RELATES,
+          note: null,
+          toTask: {
+            id: "tsk_b",
+            name: "Task B",
+            status: TaskStatus.RUNNING,
+            archivedAt: null,
           },
-        ],
-      }),
-    );
+        },
+      ],
+    });
 
     const app = createApp({ userId: "user_456" });
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
@@ -286,9 +312,6 @@ describe("GET /tasks/{id}", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_a",
-        archivedAt: null,
-        status: { not: TaskStatus.DRAFT },
-        coworkerId: "cow_123",
       },
       include: expect.objectContaining({
         share: true,
@@ -357,19 +380,17 @@ describe("GET /tasks/{id}", () => {
   });
 
   it("returns an existing share token to a workspace collaborator", async () => {
-    taskFindFirstMock.mockResolvedValueOnce(
-      createTask({
-        userId: "user_123",
-        share: {
-          id: "share_123",
-          token: "public-share-token",
-          taskId: "tsk_a",
-          allowSearchIndexing: true,
-          createdAt: new Date("2026-03-25T10:00:00.000Z"),
-          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-        },
-      }),
-    );
+    viewerTaskIncludeResult = createTask({
+      userId: "user_123",
+      share: {
+        id: "share_123",
+        token: "public-share-token",
+        taskId: "tsk_a",
+        allowSearchIndexing: true,
+        createdAt: new Date("2026-03-25T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+      },
+    });
 
     const app = createApp({ userId: "user_456" });
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
@@ -409,27 +430,25 @@ describe("GET /tasks/{id}", () => {
   });
 
   it("returns nested peerTask summaries on task detail links", async () => {
-    taskFindFirstMock.mockResolvedValue(
-      createTask({
-        linksFrom: [
-          {
-            id: "tl_1",
-            createdAt: new Date("2026-03-25T10:00:00.000Z"),
-            updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-            fromTaskId: "tsk_a",
-            toTaskId: "tsk_b",
-            type: TaskLinkType.RELATES,
-            note: null,
-            toTask: {
-              id: "tsk_b",
-              name: "Task B",
-              status: TaskStatus.RUNNING,
-              archivedAt: null,
-            },
+    viewerTaskIncludeResult = createTask({
+      linksFrom: [
+        {
+          id: "tl_1",
+          createdAt: new Date("2026-03-25T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+          fromTaskId: "tsk_a",
+          toTaskId: "tsk_b",
+          type: TaskLinkType.RELATES,
+          note: null,
+          toTask: {
+            id: "tsk_b",
+            name: "Task B",
+            status: TaskStatus.RUNNING,
+            archivedAt: null,
           },
-        ],
-      }),
-    );
+        },
+      ],
+    });
 
     const app = createApp();
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
