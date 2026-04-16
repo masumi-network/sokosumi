@@ -68,10 +68,10 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const body = c.req.valid("json");
-    let authContext = requireUserAuthContext(c.var.authContext);
+    let userAuthContext = requireUserAuthContext(c.var.authContext);
 
     if (body.priority !== undefined) {
-      authContext = await requireAdminAuthContext(c.var.authContext);
+      userAuthContext = await requireAdminAuthContext(c.var.authContext);
     }
 
     const metadata = normalizeCoworkerMetadata(body.metadata);
@@ -106,7 +106,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       try {
         return await tx.coworker.create({
           data: {
-            userId: authContext.userId,
+            userId: userAuthContext.userId,
             slug,
             name: body.name,
             caption: body.caption ?? null,

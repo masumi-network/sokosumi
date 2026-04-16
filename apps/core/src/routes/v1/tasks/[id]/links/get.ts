@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireTaskReadAccess } from "@/helpers/access-control";
+import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -34,16 +34,18 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
     const row = await prisma.$transaction(async (tx) => {
-      await requireTaskReadAccess(authContext, id, tx);
+      await requireTaskReadForRouteVars(c.var, id, tx);
       return tx.task.findUnique({
         where: { id, archivedAt: null },
         select: {
           id: true,
-          ...buildVisibleTaskLinksInclude(authContext),
+          ...buildVisibleTaskLinksInclude(
+            c.var.authContext,
+            c.var.workspaceContext?.workspaceId,
+          ),
         },
       });
     });

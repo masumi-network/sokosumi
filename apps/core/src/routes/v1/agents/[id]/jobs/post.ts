@@ -49,15 +49,15 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userAuthContext = requireUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: agentId } = c.req.valid("param");
     const { maxCredits, inputData, inputSchema, name } = c.req.valid("json");
 
     const job = await createAgentJobForUser({
       owner: {
-        userId: authContext.userId,
-        organizationId: authContext.organizationId,
+        userId: userAuthContext.userId,
+        organizationId: userAuthContext.organizationId,
         workspaceId: workspaceContext.workspaceId,
       },
       agentInput: {
