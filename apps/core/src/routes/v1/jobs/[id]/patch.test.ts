@@ -1,0 +1,288 @@
+import { AgentJobStatus, JobType } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { patchJobRequestSchema } from "@/schemas/job.schema";
+
+import mountPatchJobById from "./patch";
+
+const {
+  authContextState,
+  prismaTransactionMock,
+  jobFindUniqueMock,
+  jobUpdateMock,
+  mapJobWithStatusMock,
+  serializeJobDetailsMock,
+} = vi.hoisted(() => ({
+  authContextState: {
+    current: {
+      actor: "user",
+      userId: "user_123",
+      organizationId: "org_123",
+    } as {
+      actor: "user";
+      userId: string;
+      organizationId: string | null;
+    } | null,
+  },
+  prismaTransactionMock: vi.fn(),
+  jobFindUniqueMock: vi.fn(),
+  jobUpdateMock: vi.fn(),
+  mapJobWithStatusMock: vi.fn(),
+  serializeJobDetailsMock: vi.fn(),
+}));
+
+vi.mock("@/middleware/auth", () => ({
+  authMiddleware: async (
+    c: {
+      json: (body: unknown, status: number) => unknown;
+      req: { path: string; method: string };
+      set: (key: string, value: unknown) => void;
+    },
+    next: () => Promise<unknown>,
+  ) => {
+    if (!authContextState.current) {
+      return c.json(
+        {
+          error: "Unauthorized",
+          message: "Unauthorized",
+          meta: {
+            timestamp: new Date().toISOString(),
+            requestId: "req_123",
+            path: c.req.path,
+            method: c.req.method,
+          },
+        },
+        401,
+      );
+    }
+
+    c.set("isAuthenticated", true);
+    c.set("authContext", authContextState.current);
+    return await next();
+  },
+  requireUserAuthContext: (authContext: unknown) => authContext,
+}));
+
+vi.mock("@sokosumi/database/helpers", () => ({
+  mapJobWithStatus: (...args: unknown[]) => mapJobWithStatusMock(...args),
+}));
+
+vi.mock("@/types/job", () => ({
+  serializeJobDetails: (...args: unknown[]) => serializeJobDetailsMock(...args),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+  },
+}));
+
+function createSerializedJob(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "job_123",
+    createdAt: "2026-03-26T10:00:00.000Z",
+    updatedAt: "2026-03-26T10:05:00.000Z",
+    completedAt: null,
+    agentId: "agent_123",
+    userId: "user_123",
+    organizationId: "org_123",
+    taskId: null,
+    name: "Renamed job",
+    jobType: JobType.PAID,
+    status: SokosumiJobStatus.PROCESSING,
+    credits: 5,
+    onChainStatus: null,
+    onChainTransactionHash: null,
+    result: null,
+    resultHash: null,
+    input: "{}",
+    inputHash: null,
+    inputSchema: null,
+    agentJobId: "agent_job_123",
+    identifierFromPurchaser: null,
+    workspace: {
+      id: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_123",
+      organization: {
+        id: "org_123",
+        name: "Acme Labs",
+        slug: "acme-labs",
+      },
+    },
+    user: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: null,
+    },
+    organization: {
+      id: "org_123",
+      name: "Acme Labs",
+      slug: "acme-labs",
+    },
+    agent: {
+      id: "agent_123",
+      name: "Research Agent",
+      overrideName: null,
+      icon: null,
+      image: null,
+      overrideImage: null,
+      legalPrivacyPolicy: null,
+      overrideLegalPrivacyPolicy: null,
+      legalTerms: null,
+      overrideLegalTerms: null,
+      legalDpa: null,
+      overrideLegalDpa: null,
+      legalOther: null,
+      overrideLegalOther: null,
+    },
+    events: [
+      {
+        id: "event_1",
+        createdAt: "2026-03-26T10:00:00.000Z",
+        updatedAt: "2026-03-26T10:00:00.000Z",
+        status: AgentJobStatus.INITIATED,
+        inputSchema: null,
+        input: null,
+        result: null,
+        blobs: [],
+        links: [],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function createApp() {
+  const app = new OpenAPIHonoWithAuth({ includeOrganizationHeader: false });
+  mountPatchJobById(app);
+  return app;
+}
+
+describe("patchJobRequestSchema", () => {
+  it("trims string names before length checks", () => {
+    const result = patchJobRequestSchema.parse({ name: "  My job  " });
+    expect(result.name).toBe("My job");
+  });
+
+  it("rejects whitespace-only strings (use null to clear the name)", () => {
+    expect(() => patchJobRequestSchema.parse({ name: "   " })).toThrow();
+  });
+
+  it("accepts null to clear the name", () => {
+    const result = patchJobRequestSchema.parse({ name: null });
+    expect(result.name).toBeNull();
+  });
+
+  it("rejects unknown keys", () => {
+    expect(() =>
+      patchJobRequestSchema.parse({ name: "ok", extra: 1 }),
+    ).toThrow();
+  });
+});
+
+describe("PATCH /jobs/{id}", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authContextState.current = {
+      actor: "user",
+      userId: "user_123",
+      organizationId: "org_123",
+    };
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        await callback({
+          job: {
+            findUnique: jobFindUniqueMock,
+            update: jobUpdateMock,
+          },
+        }),
+    );
+    jobFindUniqueMock
+      .mockResolvedValueOnce({
+        id: "job_123",
+        userId: "user_123",
+      })
+      .mockResolvedValueOnce({ id: "job_123" });
+    jobUpdateMock.mockResolvedValue({ id: "job_123" });
+    mapJobWithStatusMock.mockReturnValue({});
+    serializeJobDetailsMock.mockReturnValue(createSerializedJob());
+  });
+
+  it("updates the name of an owned job", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: "Renamed job" }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(jobUpdateMock).toHaveBeenCalledWith({
+      where: { id: "job_123" },
+      data: { name: "Renamed job" },
+    });
+    expect(body.data).toMatchObject({
+      id: "job_123",
+      name: "Renamed job",
+    });
+  });
+
+  it("returns 401 for unauthenticated requests", async () => {
+    authContextState.current = null;
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: "Renamed job" }),
+    });
+
+    expect(response.status).toBe(401);
+    expect(jobUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when the job is owned by another user", async () => {
+    jobFindUniqueMock.mockReset();
+    jobFindUniqueMock.mockResolvedValueOnce({
+      id: "job_123",
+      userId: "other_user",
+    });
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: "Renamed job" }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(jobUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the job does not exist", async () => {
+    jobFindUniqueMock.mockReset();
+    jobFindUniqueMock.mockResolvedValueOnce(null);
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: "Renamed job" }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(jobUpdateMock).not.toHaveBeenCalled();
+  });
+});
