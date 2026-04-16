@@ -112,7 +112,7 @@ function createTask(
   };
 }
 
-/** Payload returned for the viewer query (`findFirst` with `include`). Access checks use a separate call. */
+/** Payload returned for the viewer query (`findUnique` with `include`). Access checks use `findFirst` (user) or `findUnique` (coworker) without include. */
 let viewerTaskIncludeResult = createTask();
 
 describe("GET /tasks/{id}", () => {
@@ -137,8 +137,8 @@ describe("GET /tasks/{id}", () => {
       slug: "cow",
       baseURL: "http://coworker.test",
     });
-    taskFindUniqueMock.mockResolvedValue(createTask());
-    taskFindFirstMock.mockImplementation(
+    taskFindFirstMock.mockResolvedValue(createTask());
+    taskFindUniqueMock.mockImplementation(
       async (args: { include?: unknown }) => {
         if (args.include !== undefined) {
           return viewerTaskIncludeResult;
@@ -155,7 +155,7 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(taskFindFirstMock).toHaveBeenCalledWith({
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_a",
         archivedAt: null,
@@ -267,7 +267,7 @@ describe("GET /tasks/{id}", () => {
       };
     };
     expect(body.data.links).toHaveLength(1);
-    expect(taskFindFirstMock).toHaveBeenCalledWith({
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_a",
         archivedAt: null,
@@ -309,9 +309,12 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(taskFindFirstMock).toHaveBeenCalledWith({
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_a",
+        archivedAt: null,
+        status: { not: TaskStatus.DRAFT },
+        coworkerId: "cow_123",
       },
       include: expect.objectContaining({
         share: true,

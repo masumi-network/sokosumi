@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/database";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -48,7 +49,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const requiredWorkspaceContext =
           requireWorkspaceContext(workspaceContext);
 
-        return tx.task.findFirst({
+        return tx.task.findUnique({
           where: {
             id,
             archivedAt: null,
@@ -65,9 +66,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const coworkerAuthContext = requireCoworkerAuthContext(authContext);
 
-      return tx.task.findFirst({
+      return tx.task.findUnique({
         where: {
           id,
+          archivedAt: null,
+          status: { not: TaskStatus.DRAFT },
+          coworkerId: coworkerAuthContext.coworkerId,
         },
         include: buildTaskIncludeForViewer(coworkerAuthContext),
       });
