@@ -1,5 +1,9 @@
 import { z } from "@hono/zod-openapi";
 
+/** Used by Zod and POST /v1/chat (defense in depth) when `messages` is missing or empty. */
+export const AI_SDK_CHAT_MESSAGES_REQUIREMENT =
+  "Provide non-empty messages, or conversationId with message and trigger submit-message.";
+
 export const chatRequestMessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
   parts: z
@@ -46,8 +50,7 @@ export const aiSdkChatRequestSchema = z
     if (!useServerHistory && !hasMessages) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message:
-          "Provide non-empty messages, or conversationId with message and trigger submit-message.",
+        message: AI_SDK_CHAT_MESSAGES_REQUIREMENT,
         path: ["messages"],
       });
     }

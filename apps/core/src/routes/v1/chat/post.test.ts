@@ -9,6 +9,7 @@ import type { AuthVariables } from "@/middleware/auth";
 import mountPostChat from "./post";
 
 const {
+  clearActiveUiStreamIdInMetadataMock,
   conversationFindFirstMock,
   conversationMessageCreateMock,
   conversationMessageFindManyMock,
@@ -17,15 +18,20 @@ const {
   convertToModelMessagesMock,
   coworkerFindFirstMock,
   createCoworkerConversationMock,
+  createNewResumableStreamMock,
   generateChatTitleMock,
   getOpenRouterChatApiKeyForProviderMock,
   getSokosumiProviderMock,
+  isUiStreamResumptionConfiguredMock,
   prismaTransactionMock,
   requireCoworkerChatCapabilityMock,
+  setActiveUiStreamIdInMetadataMock,
   streamTextMock,
+  toUIMessageStreamResponseMock,
   validateUIMessagesMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
+  clearActiveUiStreamIdInMetadataMock: vi.fn(),
   conversationFindFirstMock: vi.fn(),
   conversationMessageCreateMock: vi.fn(),
   conversationMessageFindManyMock: vi.fn(),
@@ -34,12 +40,16 @@ const {
   convertToModelMessagesMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   createCoworkerConversationMock: vi.fn(),
+  createNewResumableStreamMock: vi.fn(),
   generateChatTitleMock: vi.fn(),
   getOpenRouterChatApiKeyForProviderMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
+  isUiStreamResumptionConfiguredMock: vi.fn(() => false),
   prismaTransactionMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
+  setActiveUiStreamIdInMetadataMock: vi.fn(),
   streamTextMock: vi.fn(),
+  toUIMessageStreamResponseMock: vi.fn(),
   validateUIMessagesMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
@@ -95,9 +105,17 @@ vi.mock("@vercel/functions", () => ({
   },
 }));
 
+vi.mock("@/helpers/active-ui-stream-metadata", () => ({
+  ACTIVE_UI_STREAM_ID_METADATA_KEY: "active_ui_stream_id",
+  clearActiveUiStreamIdInMetadata: clearActiveUiStreamIdInMetadataMock,
+  setActiveUiStreamIdInMetadata: setActiveUiStreamIdInMetadataMock,
+}));
+
 vi.mock("@/lib/resumable-ui-stream-context", () => ({
-  isUiStreamResumptionConfigured: () => false,
-  getResumableUiStreamContext: vi.fn(),
+  isUiStreamResumptionConfigured: () => isUiStreamResumptionConfiguredMock(),
+  getResumableUiStreamContext: vi.fn(() => ({
+    createNewResumableStream: createNewResumableStreamMock,
+  })),
 }));
 
 function createApp({
@@ -161,13 +179,24 @@ describe("POST /chat", () => {
       async ({ messages }: { messages: unknown[] }) => messages,
     );
     generateChatTitleMock.mockResolvedValue(null);
+    isUiStreamResumptionConfiguredMock.mockReturnValue(false);
+    createNewResumableStreamMock.mockResolvedValue(
+      new ReadableStream<string>({
+        start(controller) {
+          controller.close();
+        },
+      }),
+    );
+    setActiveUiStreamIdInMetadataMock.mockResolvedValue(undefined);
+    clearActiveUiStreamIdInMetadataMock.mockResolvedValue(undefined);
+    toUIMessageStreamResponseMock.mockReturnValue(
+      new Response(null, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }),
+    );
     streamTextMock.mockReturnValue({
-      toUIMessageStreamResponse: vi.fn().mockReturnValue(
-        new Response(null, {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        }),
-      ),
+      toUIMessageStreamResponse: toUIMessageStreamResponseMock,
     });
     requireCoworkerChatCapabilityMock.mockResolvedValue({
       id: "cow_123",
@@ -183,6 +212,46 @@ describe("POST /chat", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: "not-an-array",
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 when messages are missing and server-history mode is not used", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(response.status).toBe(422);
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 when messages is an empty array", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: [] }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 when conversationId and message are set without submit-message trigger", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        conversationId: "550e8400-e29b-41d4-a716-446655440000",
+        message: { role: "user", parts: [{ type: "text", text: "Hi" }] },
       }),
     });
 
@@ -474,5 +543,90 @@ describe("POST /chat", () => {
     expect(waitUntilCapturedPromises).toHaveLength(1);
     await waitUntilCapturedPromises[0]!;
     expect(generateChatTitleMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not clear active UI stream metadata on UI onFinish when resumable registration fails", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    isUiStreamResumptionConfiguredMock.mockReturnValue(true);
+    createNewResumableStreamMock.mockRejectedValue(
+      new Error("resumable stream unavailable"),
+    );
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { model_id: "claude-opus-4-6" },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(toUIMessageStreamResponseMock).toHaveBeenCalledOnce();
+    expect(clearActiveUiStreamIdInMetadataMock).toHaveBeenCalledTimes(1);
+
+    const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
+      consumeSseStream?: (args: {
+        stream: ReadableStream<string>;
+      }) => Promise<void>;
+      onFinish?: () => Promise<void>;
+    };
+    expect(init.consumeSseStream).toEqual(expect.any(Function));
+    expect(init.onFinish).toEqual(expect.any(Function));
+
+    const sseCopy = new ReadableStream<string>({
+      start(controller) {
+        controller.close();
+      },
+    });
+    await init.consumeSseStream!({ stream: sseCopy });
+    await init.onFinish!();
+
+    expect(clearActiveUiStreamIdInMetadataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears active UI stream metadata on UI onFinish after successful resumable registration", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    isUiStreamResumptionConfiguredMock.mockReturnValue(true);
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { model_id: "claude-opus-4-6" },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(clearActiveUiStreamIdInMetadataMock).toHaveBeenCalledTimes(1);
+
+    const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
+      consumeSseStream?: (args: {
+        stream: ReadableStream<string>;
+      }) => Promise<void>;
+      onFinish?: () => Promise<void>;
+    };
+    const sseCopy = new ReadableStream<string>({
+      start(controller) {
+        controller.close();
+      },
+    });
+    await init.consumeSseStream!({ stream: sseCopy });
+    await init.onFinish!();
+
+    expect(clearActiveUiStreamIdInMetadataMock).toHaveBeenCalledTimes(2);
   });
 });

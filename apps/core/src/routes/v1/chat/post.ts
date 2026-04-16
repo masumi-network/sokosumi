@@ -21,6 +21,7 @@ import {
   internalServerError,
   notFound,
   serviceUnavailable,
+  unprocessableEntity,
 } from "@/helpers/error";
 import {
   extractMessageText,
@@ -46,7 +47,10 @@ import {
   getSokosumiProvider,
 } from "@/lib/sokosumi-ai-provider";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { aiSdkChatRequestSchema } from "@/schemas/chat-request.schema.js";
+import {
+  AI_SDK_CHAT_MESSAGES_REQUIREMENT,
+  aiSdkChatRequestSchema,
+} from "@/schemas/chat-request.schema.js";
 import { createCoworkerConversation } from "./coworker-conversation";
 
 import { mapChatRequestToUiMessages } from "./map-chat-request-to-ui-messages.js";
@@ -327,7 +331,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         await validateUiMessagesOrBadRequest(uiMessages);
       } else {
-        uiMessages = mapChatRequestToUiMessages(messages!);
+        if (!Array.isArray(messages) || messages.length === 0) {
+          throw unprocessableEntity(AI_SDK_CHAT_MESSAGES_REQUIREMENT);
+        }
+        uiMessages = mapChatRequestToUiMessages(messages);
 
         await validateUiMessagesOrBadRequest(uiMessages);
 
@@ -415,6 +422,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         end: null as number | null,
         sawReasoningChunk: false,
       };
+
+      let uiStreamResumptionRegistered = false;
+      let uiStreamResumptionRegistration: Promise<void> | undefined;
 
       let onInvalidProviderConversationId: (() => Promise<void>) | undefined;
       if (useCoworker && internalConversationId) {
@@ -588,22 +598,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 const streamId = generateId();
                 const convId = internalConversationId;
                 const userId = authContext.userId;
-                try {
-                  const ctx = getResumableUiStreamContext();
-                  await ctx.createNewResumableStream(streamId, () => stream);
-                  await setActiveUiStreamIdInMetadata({
-                    conversationId: convId,
-                    userId,
-                    streamId,
-                  });
-                } catch (error) {
-                  console.error(
-                    "Failed to register resumable UI message stream:",
-                    error,
-                  );
-                }
+                const registration = (async () => {
+                  try {
+                    const ctx = getResumableUiStreamContext();
+                    await ctx.createNewResumableStream(streamId, () => stream);
+                    await setActiveUiStreamIdInMetadata({
+                      conversationId: convId,
+                      userId,
+                      streamId,
+                    });
+                    uiStreamResumptionRegistered = true;
+                  } catch (error) {
+                    console.error(
+                      "Failed to register resumable UI message stream:",
+                      error,
+                    );
+                  }
+                })();
+                uiStreamResumptionRegistration = registration;
+                await registration;
               },
               onFinish: async () => {
+                if (uiStreamResumptionRegistration) {
+                  await uiStreamResumptionRegistration;
+                }
+                if (!uiStreamResumptionRegistered) {
+                  return;
+                }
                 const clearParams = {
                   conversationId: internalConversationId,
                   userId: authContext.userId,
