@@ -208,6 +208,13 @@ export const jobSchema = z
   })
   .openapi("Job");
 
+/** Body for `PATCH /jobs/{id}`. Add optional fields here as more attributes become editable. */
+export const patchJobRequestSchema = z
+  .object({
+    name: z.union([z.string().trim().min(1).max(80), z.null()]),
+  })
+  .strict();
+
 export const createJobRequestSchema = z.object({
   inputSchema: inputSchemaSchema,
   inputData: z.record(
