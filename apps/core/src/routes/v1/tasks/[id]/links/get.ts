@@ -44,7 +44,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           id: true,
           ...buildVisibleTaskLinksInclude(
             c.var.authContext,
-            c.var.workspaceContext,
+            c.var.workspaceContext?.workspaceId,
           ),
         },
       });

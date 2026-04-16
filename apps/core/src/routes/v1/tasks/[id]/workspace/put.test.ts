@@ -659,7 +659,28 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(response.status).toBe(200);
     expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith({
       where: { id: "tsk_123" },
-      include: expect.any(Object),
+      include: expect.objectContaining({
+        linksFrom: expect.objectContaining({
+          where: {
+            toTask: {
+              is: {
+                workspaceId: "11111111-1111-4111-8111-111111111111",
+                archivedAt: null,
+              },
+            },
+          },
+        }),
+        linksTo: expect.objectContaining({
+          where: {
+            fromTask: {
+              is: {
+                workspaceId: "11111111-1111-4111-8111-111111111111",
+                archivedAt: null,
+              },
+            },
+          },
+        }),
+      }),
     });
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });

@@ -44,7 +44,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // Share creation and deletion remain owner-only in the dedicated share routes.
         include: buildTaskIncludeForViewer(
           c.var.authContext,
-          c.var.workspaceContext,
+          c.var.workspaceContext?.workspaceId,
         ),
       });
     });

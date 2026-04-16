@@ -36,7 +36,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext, workspaceContext } = c.var;
+    const { authContext } = c.var;
     const userAuthContext = requireUserAuthContext(authContext);
     const { id } = c.req.valid("param");
 
@@ -59,7 +59,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           archivedAt: new Date(),
         },
-        include: buildTaskIncludeForViewer(userAuthContext, workspaceContext),
+        include: buildTaskIncludeForViewer(
+          userAuthContext,
+          currentTask.workspaceId,
+        ),
       });
     });
 

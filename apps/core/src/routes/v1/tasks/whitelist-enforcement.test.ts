@@ -40,7 +40,7 @@ vi.mock("@/helpers/task", () => ({
   validateTaskCoworkerAssignment: validateTaskCoworkerAssignmentMock,
 }));
 
-function createApp() {
+function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
@@ -53,7 +53,7 @@ function createApp() {
       organizationId: null,
     });
     c.set("workspaceContext", {
-      workspaceId: "22222222-2222-7222-8222-222222222222",
+      workspaceId: activeWorkspaceId,
       userId: "user_123",
       organizationId: null,
     });
@@ -123,6 +123,7 @@ describe("task coworker whitelist enforcement", () => {
       id: "tsk_123",
       status: TaskStatus.READY,
       coworkerId: null,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
     });
     requireTaskAssignableCoworkerMock.mockRejectedValue(
       new HTTPException(404, { message: "Coworker not found" }),
@@ -181,6 +182,7 @@ describe("task coworker whitelist enforcement", () => {
       id: "tsk_123",
       status: TaskStatus.READY,
       coworkerId: null,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
     });
 
     const app = createApp();
