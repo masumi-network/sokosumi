@@ -120,12 +120,11 @@ function createJob(
     refundedTransaction: null,
     refundedTransactionId: null,
     share: null,
-    user:
-      overrides.user ?? {
-        id: overrides.userId ?? "user_123",
-        name: "Ada Lovelace",
-        image: null,
-      },
+    user: overrides.user ?? {
+      id: overrides.userId ?? "user_123",
+      name: "Ada Lovelace",
+      image: null,
+    },
     agent: {
       id: "agent_123",
       name: "Research Agent",
