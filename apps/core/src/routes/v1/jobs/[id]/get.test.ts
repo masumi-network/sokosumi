@@ -295,7 +295,7 @@ describe("GET /jobs/{id}", () => {
     expect(body.data).toMatchObject({
       userId: "user_123",
       result: "# Result",
-      input: "{\"prompt\":\"hello\"}",
+      input: '{"prompt":"hello"}',
       agentJobId: "agent_job_123",
       user: {
         id: "user_123",
