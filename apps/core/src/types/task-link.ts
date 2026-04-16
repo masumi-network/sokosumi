@@ -56,6 +56,7 @@ function buildVisiblePeerTaskWhere(
   if (workspaceContext) {
     return {
       workspaceId: workspaceContext.workspaceId,
+      archivedAt: null,
     };
   }
 

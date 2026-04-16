@@ -306,7 +306,7 @@ describe("GET /tasks/{id}/links", () => {
     });
   });
 
-  it("keeps archived peer links visible for user-owned link reads", async () => {
+  it("filters archived peer links from user link reads", async () => {
     const app = createUserApp();
     mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
 
@@ -322,6 +322,7 @@ describe("GET /tasks/{id}/links", () => {
             toTask: {
               is: {
                 workspaceId: "11111111-1111-7111-8111-111111111111",
+                archivedAt: null,
               },
             },
           },
@@ -350,6 +351,7 @@ describe("GET /tasks/{id}/links", () => {
             fromTask: {
               is: {
                 workspaceId: "11111111-1111-7111-8111-111111111111",
+                archivedAt: null,
               },
             },
           },
@@ -427,6 +429,7 @@ describe("GET /tasks/{id}/links", () => {
             toTask: {
               is: {
                 workspaceId: "11111111-1111-7111-8111-111111111111",
+                archivedAt: null,
               },
             },
           },
@@ -455,6 +458,7 @@ describe("GET /tasks/{id}/links", () => {
             fromTask: {
               is: {
                 workspaceId: "11111111-1111-7111-8111-111111111111",
+                archivedAt: null,
               },
             },
           },

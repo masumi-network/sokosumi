@@ -130,7 +130,7 @@ describe("GET /tasks/{id}", () => {
     taskFindUniqueMock.mockResolvedValue(createTask());
   });
 
-  it("keeps archived peer links visible for user-owned task reads", async () => {
+  it("filters archived peer links from user task reads", async () => {
     const app = createApp();
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
 
@@ -163,6 +163,7 @@ describe("GET /tasks/{id}", () => {
             toTask: {
               is: {
                 workspaceId: testWorkspaceId,
+                archivedAt: null,
               },
             },
           },
@@ -191,6 +192,7 @@ describe("GET /tasks/{id}", () => {
             fromTask: {
               is: {
                 workspaceId: testWorkspaceId,
+                archivedAt: null,
               },
             },
           },
@@ -270,6 +272,7 @@ describe("GET /tasks/{id}", () => {
             toTask: {
               is: {
                 workspaceId: testWorkspaceId,
+                archivedAt: null,
               },
             },
           },
@@ -281,6 +284,7 @@ describe("GET /tasks/{id}", () => {
             fromTask: {
               is: {
                 workspaceId: testWorkspaceId,
+                archivedAt: null,
               },
             },
           },
