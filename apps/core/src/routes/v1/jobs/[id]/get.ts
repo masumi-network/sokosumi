@@ -105,6 +105,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const job = await prisma.$transaction(async (tx) => {
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
+      // Workspace collaborators may read full job details here.
       await requireJobRead(workspaceContext, id, tx);
       const job = await tx.job.findUnique({
         where: { id },

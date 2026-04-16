@@ -87,15 +87,25 @@ function createApp() {
   return app;
 }
 
-function createJob() {
+function createJob(
+  overrides: Partial<{
+    userId: string;
+    organizationId: string | null;
+    user: {
+      id: string;
+      name: string;
+      image: string | null;
+    };
+  }> = {},
+) {
   return {
     id: "job_123",
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
     updatedAt: new Date("2026-03-26T10:05:00.000Z"),
     completedAt: new Date("2026-03-26T10:10:00.000Z"),
     agentId: "agent_123",
-    userId: "user_123",
-    organizationId: "org_123",
+    userId: overrides.userId ?? "user_123",
+    organizationId: overrides.organizationId ?? "org_123",
     taskId: null,
     name: "Shared Job",
     jobType: JobType.PAID,
@@ -110,11 +120,12 @@ function createJob() {
     refundedTransaction: null,
     refundedTransactionId: null,
     share: null,
-    user: {
-      id: "user_123",
-      name: "Ada Lovelace",
-      image: null,
-    },
+    user:
+      overrides.user ?? {
+        id: overrides.userId ?? "user_123",
+        name: "Ada Lovelace",
+        image: null,
+      },
     agent: {
       id: "agent_123",
       name: "Research Agent",
@@ -247,6 +258,51 @@ describe("GET /jobs/{id}", () => {
     expect(body.data.events).toHaveLength(2);
     expect(body.data).not.toHaveProperty("transaction");
     expect(body.data).not.toHaveProperty("purchase");
+  });
+
+  it("returns full job details to a same-workspace collaborator", async () => {
+    authContextState.current = {
+      actor: "user",
+      userId: "user_456",
+      organizationId: "org_123",
+    };
+    jobFindUniqueMock.mockResolvedValue(
+      createJob({
+        userId: "user_123",
+        user: {
+          id: "user_123",
+          name: "Ada Lovelace",
+          image: null,
+        },
+      }),
+    );
+
+    const app = createApp();
+
+    const response = await app.request("http://localhost/job_123");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(requireJobReadMock).toHaveBeenCalledWith(
+      {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      },
+      "job_123",
+      expect.any(Object),
+    );
+    expect(body.data).toMatchObject({
+      userId: "user_123",
+      result: "# Result",
+      input: "{\"prompt\":\"hello\"}",
+      agentJobId: "agent_job_123",
+      user: {
+        id: "user_123",
+        name: "Ada Lovelace",
+      },
+    });
+    expect(body.data.events).toHaveLength(2);
   });
 
   it("returns 404 when the job does not exist", async () => {
