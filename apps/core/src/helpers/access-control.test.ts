@@ -11,7 +11,7 @@ import type { WorkspaceContext } from "@/middleware/workspace";
 import {
   requireCoworkerCapability,
   requireCoworkerChatCapability,
-  requireCoworkerTaskAccess,
+  requireCoworkerTaskCollaboration,
   requireJobOwnership,
   requireJobRead,
   requireTaskAssignableCoworker,
@@ -249,7 +249,7 @@ describe("requireTaskReadForRouteVars", () => {
   });
 });
 
-describe("requireCoworkerTaskAccess", () => {
+describe("requireCoworkerTaskCollaboration", () => {
   it("loads non-draft tasks assigned to the coworker", async () => {
     const tx = createTransactionClient();
     const coworkerContext: CoworkerAuthenticationContext = {
@@ -268,7 +268,7 @@ describe("requireCoworkerTaskAccess", () => {
       status: TaskStatus.READY,
     } as never);
 
-    await requireCoworkerTaskAccess(coworkerContext, "tsk_123", tx);
+    await requireCoworkerTaskCollaboration(coworkerContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).not.toHaveBeenCalled();
     expect(tx.task.findUnique).toHaveBeenCalledWith({
@@ -290,7 +290,7 @@ describe("requireCoworkerTaskAccess", () => {
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireCoworkerTaskAccess(coworkerContext, "tsk_123", tx),
+      requireCoworkerTaskCollaboration(coworkerContext, "tsk_123", tx),
     ).rejects.toThrow("Coworker is not allowed to use tasks");
 
     expect(tx.task.findUnique).not.toHaveBeenCalled();

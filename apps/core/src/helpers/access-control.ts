@@ -23,6 +23,10 @@ import {
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 
+// -----------------------------------------------------------------------------
+// User ownership (resource belongs to the authenticated user)
+// -----------------------------------------------------------------------------
+
 /**
  * Validates that the job exists and is owned by the authenticated user.
  *
@@ -71,67 +75,9 @@ export async function requireTaskOwnership(
   return task;
 }
 
-/**
- * Collaboration access: the authenticated user must own the task, or the authenticated coworker must be allowed on the task (tasks capability + assignment).
- */
-export async function requireTaskCollaboration(
-  authContext: AuthenticationContext,
-  taskId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  if (isUserAuthContext(authContext)) {
-    return await requireTaskOwnership(authContext, taskId, tx);
-  }
-
-  return await requireCoworkerTaskAccess(
-    requireCoworkerAuthContext(authContext),
-    taskId,
-    tx,
-  );
-}
-
-/**
- * Validates access to a task based on coworker ownership and fetches the task record.
- * Throws 403 if the authenticated coworker does not have access to the task.
- *
- * @param authContext - The authenticated coworker context
- * @param taskId - The task ID to fetch and validate
- * @param tx - Optional Prisma transaction client for transaction support
- * @returns The validated task if access is permitted
- * @throws {notFound} If the task does not exist
- * @throws {forbidden} If coworker does not have access to the task
- *
- * @example
- * const task = await requireCoworkerTaskAccess(authContext, taskId);
- *
- * @example
- * await prisma.$transaction(async (tx) => {
- *   const task = await requireCoworkerTaskAccess(authContext, taskId, tx);
- *   // ... additional operations
- * });
- */
-export async function requireCoworkerTaskAccess(
-  authContext: CoworkerAuthenticationContext,
-  taskId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
-
-  const task = await tx.task.findUnique({
-    where: {
-      id: taskId,
-      status: { not: TaskStatus.DRAFT },
-      archivedAt: null,
-    },
-  });
-  if (!task) {
-    throw notFound("Task not found");
-  }
-  if (task.coworkerId !== authContext.coworkerId) {
-    throw forbidden("You can only access tasks assigned to your coworker");
-  }
-  return task;
-}
+// -----------------------------------------------------------------------------
+// Coworker capability (usable coworker + capability / assignment readiness)
+// -----------------------------------------------------------------------------
 
 async function findUsableCoworkerByCapability(
   coworkerId: string,
@@ -210,6 +156,75 @@ export async function requireTaskAssignableCoworker(
   }
 }
 
+// -----------------------------------------------------------------------------
+// Task collaboration (user ownership or coworker on assigned task)
+// -----------------------------------------------------------------------------
+
+/**
+ * Coworker branch of task collaboration: tasks capability, task exists (non-draft), and assignment to this coworker.
+ *
+ * @param authContext - The authenticated coworker context
+ * @param taskId - The task ID to fetch and validate
+ * @param tx - Optional Prisma transaction client for transaction support
+ * @returns The validated task when collaboration is permitted
+ * @throws {notFound} If the task does not exist
+ * @throws {forbidden} If the coworker lacks capability or is not assigned to the task
+ *
+ * @example
+ * const task = await requireCoworkerTaskCollaboration(authContext, taskId);
+ *
+ * @example
+ * await prisma.$transaction(async (tx) => {
+ *   const task = await requireCoworkerTaskCollaboration(authContext, taskId, tx);
+ *   // ... additional operations
+ * });
+ */
+export async function requireCoworkerTaskCollaboration(
+  authContext: CoworkerAuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
+
+  const task = await tx.task.findUnique({
+    where: {
+      id: taskId,
+      status: { not: TaskStatus.DRAFT },
+      archivedAt: null,
+    },
+  });
+  if (!task) {
+    throw notFound("Task not found");
+  }
+  if (task.coworkerId !== authContext.coworkerId) {
+    throw forbidden("You can only access tasks assigned to your coworker");
+  }
+  return task;
+}
+
+/**
+ * Collaboration access: the authenticated user must own the task, or the authenticated coworker must be allowed on the task (tasks capability + assignment).
+ */
+export async function requireTaskCollaboration(
+  authContext: AuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  if (isUserAuthContext(authContext)) {
+    return await requireTaskOwnership(authContext, taskId, tx);
+  }
+
+  return await requireCoworkerTaskCollaboration(
+    requireCoworkerAuthContext(authContext),
+    taskId,
+    tx,
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Workspace-scoped reads (task/job in the active workspace)
+// -----------------------------------------------------------------------------
+
 /**
  * Workspace-scoped task read: task must belong to the active workspace.
  * Call from handlers after `requireWorkspaceContext`. For user or coworker reads from route vars, use `requireTaskReadForRouteVars`.
@@ -238,7 +253,7 @@ export async function requireTaskReadForWorkspace(
 
 /**
  * Task read for a workspace-scoped user or an assigned coworker with the tasks capability.
- * Pass the route `Variables` object (e.g. `c.var` from `OpenAPIHonoWithAuth`). Delegates to `requireTaskReadForWorkspace` or `requireCoworkerTaskAccess`.
+ * Pass the route `Variables` object (e.g. `c.var` from `OpenAPIHonoWithAuth`). Delegates to `requireTaskReadForWorkspace` or `requireCoworkerTaskCollaboration`.
  */
 export async function requireTaskReadForRouteVars(
   vars: EnvVariables["Variables"],
@@ -255,7 +270,7 @@ export async function requireTaskReadForRouteVars(
     );
   }
 
-  return await requireCoworkerTaskAccess(
+  return await requireCoworkerTaskCollaboration(
     requireCoworkerAuthContext(authContext),
     taskId,
     tx,
