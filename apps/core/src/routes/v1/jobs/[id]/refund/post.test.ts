@@ -203,6 +203,7 @@ describe("POST /jobs/{id}/refund", () => {
       ) => {
         if (transactionPhase === "preflight") {
           jobFindUniqueMock.mockResolvedValueOnce({
+            userId: "user_123",
             jobType: JobType.PAID,
             blockchainIdentifier: "purchase_bc_1",
             purchase: { externalId: "purchase_ext_1" },
@@ -242,6 +243,35 @@ describe("POST /jobs/{id}/refund", () => {
     expect(body.data.id).toBe("job_123");
   });
 
+  it("returns 403 when the job belongs to another user", async () => {
+    prismaTransactionMock.mockImplementationOnce(
+      async (
+        callback: (tx: {
+          job: { findUnique: typeof jobFindUniqueMock };
+        }) => Promise<unknown>,
+      ) => {
+        jobFindUniqueMock.mockResolvedValueOnce({
+          userId: "user_other",
+          jobType: JobType.PAID,
+          blockchainIdentifier: "purchase_bc_1",
+          purchase: { externalId: "purchase_ext_1" },
+        });
+        return await callback({
+          job: { findUnique: jobFindUniqueMock },
+        });
+      },
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/job_123/refund", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(403);
+    expect(requestRefundMock).not.toHaveBeenCalled();
+    expect(updateJobPurchaseByExternalIdMock).not.toHaveBeenCalled();
+  });
+
   it("returns 422 when the job is not paid", async () => {
     prismaTransactionMock.mockImplementationOnce(
       async (
@@ -250,6 +280,7 @@ describe("POST /jobs/{id}/refund", () => {
         }) => Promise<unknown>,
       ) => {
         jobFindUniqueMock.mockResolvedValueOnce({
+          userId: "user_123",
           jobType: JobType.FREE,
           blockchainIdentifier: null,
           purchase: null,
