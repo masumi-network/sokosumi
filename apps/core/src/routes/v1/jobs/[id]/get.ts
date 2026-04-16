@@ -101,10 +101,10 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireUserAuthContext(c.var.authContext);
-    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
     const job = await prisma.$transaction(async (tx) => {
+      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       await requireJobRead(workspaceContext, id, tx);
       const job = await tx.job.findUnique({
         where: { id },
