@@ -5,7 +5,7 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetJobById from "./get";
 
-const { authContextState, prismaTransactionMock, jobFindUniqueMock } =
+const { authContextState, prismaTransactionMock, jobFindFirstMock } =
   vi.hoisted(() => ({
     authContextState: {
       current: {
@@ -19,7 +19,7 @@ const { authContextState, prismaTransactionMock, jobFindUniqueMock } =
       } | null,
     },
     prismaTransactionMock: vi.fn(),
-    jobFindUniqueMock: vi.fn(),
+    jobFindFirstMock: vi.fn(),
   }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -54,10 +54,6 @@ vi.mock("@/middleware/auth", () => ({
   requireUserAuthContext: (authContext: unknown) => authContext,
 }));
 
-const { requireJobReadMock } = vi.hoisted(() => ({
-  requireJobReadMock: vi.fn(async () => undefined),
-}));
-
 vi.mock("@/middleware/workspace", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/middleware/workspace")>();
@@ -70,10 +66,6 @@ vi.mock("@/middleware/workspace", async (importOriginal) => {
     }),
   };
 });
-
-vi.mock("@/helpers/access-control.js", () => ({
-  requireJobRead: requireJobReadMock,
-}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -213,11 +205,11 @@ describe("GET /jobs/{id}", () => {
       async (callback: (tx: unknown) => Promise<unknown>) =>
         await callback({
           job: {
-            findUnique: jobFindUniqueMock,
+            findFirst: jobFindFirstMock,
           },
         }),
     );
-    jobFindUniqueMock.mockResolvedValue(createJob());
+    jobFindFirstMock.mockResolvedValue(createJob());
   });
 
   it("returns a rich job details payload", async () => {
@@ -227,17 +219,11 @@ describe("GET /jobs/{id}", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(requireJobReadMock).toHaveBeenCalledWith(
-      {
+    expect(jobFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "job_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
-        userId: null,
-        organizationId: "org_123",
       },
-      "job_123",
-      expect.any(Object),
-    );
-    expect(jobFindUniqueMock).toHaveBeenCalledWith({
-      where: { id: "job_123" },
       include: expect.any(Object),
     });
     expect(body.data.agentId).toBe("agent_123");
@@ -265,7 +251,7 @@ describe("GET /jobs/{id}", () => {
       userId: "user_456",
       organizationId: "org_123",
     };
-    jobFindUniqueMock.mockResolvedValue(
+    jobFindFirstMock.mockResolvedValue(
       createJob({
         userId: "user_123",
         user: {
@@ -282,14 +268,13 @@ describe("GET /jobs/{id}", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(requireJobReadMock).toHaveBeenCalledWith(
-      {
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-        userId: null,
-        organizationId: "org_123",
-      },
-      "job_123",
-      expect.any(Object),
+    expect(jobFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "job_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+      }),
     );
     expect(body.data).toMatchObject({
       userId: "user_123",
@@ -305,7 +290,7 @@ describe("GET /jobs/{id}", () => {
   });
 
   it("returns 404 when the job does not exist", async () => {
-    jobFindUniqueMock.mockResolvedValue(null);
+    jobFindFirstMock.mockResolvedValue(null);
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123");

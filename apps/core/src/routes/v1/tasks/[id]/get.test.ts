@@ -8,18 +8,9 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTaskById from "./get";
 
-const {
-  prismaTransactionMock,
-  requireTaskReadForRouteVarsMock,
-  taskFindUniqueMock,
-} = vi.hoisted(() => ({
+const { prismaTransactionMock, taskFindFirstMock } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireTaskReadForRouteVarsMock: vi.fn(),
-  taskFindUniqueMock: vi.fn(),
-}));
-
-vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
+  taskFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -117,17 +108,16 @@ function createTask(
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb({
           task: {
-            findUnique: taskFindUniqueMock,
+            findFirst: taskFindFirstMock,
           },
         });
       },
     );
-    taskFindUniqueMock.mockResolvedValue(createTask());
+    taskFindFirstMock.mockResolvedValue(createTask());
   });
 
   it("filters archived peer links from user task reads", async () => {
@@ -137,25 +127,12 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        isAuthenticated: true,
-        authContext: {
-          actor: "user",
-          userId: "user_123",
-          organizationId: "org_123",
-        },
-        workspaceContext: {
-          workspaceId: testWorkspaceId,
-          userId: null,
-          organizationId: "org_123",
-        },
-      }),
-      "tsk_a",
-      expect.any(Object),
-    );
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
-      where: { id: "tsk_a", archivedAt: null },
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        workspaceId: testWorkspaceId,
+      },
       include: expect.objectContaining({
         share: true,
         linksFrom: {
@@ -221,7 +198,7 @@ describe("GET /tasks/{id}", () => {
   });
 
   it("keeps same-workspace peer links visible for a workspace collaborator", async () => {
-    taskFindUniqueMock.mockResolvedValueOnce(
+    taskFindFirstMock.mockResolvedValueOnce(
       createTask({
         userId: "user_123",
         linksFrom: [
@@ -264,8 +241,12 @@ describe("GET /tasks/{id}", () => {
       };
     };
     expect(body.data.links).toHaveLength(1);
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
-      where: { id: "tsk_a", archivedAt: null },
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        workspaceId: testWorkspaceId,
+      },
       include: expect.objectContaining({
         linksFrom: {
           where: {
@@ -302,20 +283,13 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        isAuthenticated: true,
-        authContext: {
-          actor: "coworker",
-          coworkerId: "cow_123",
-        },
-        workspaceContext: null,
-      }),
-      "tsk_a",
-      expect.any(Object),
-    );
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
-      where: { id: "tsk_a", archivedAt: null },
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        status: { not: TaskStatus.DRAFT },
+        coworkerId: "cow_123",
+      },
       include: expect.objectContaining({
         share: true,
         linksFrom: {
@@ -383,7 +357,7 @@ describe("GET /tasks/{id}", () => {
   });
 
   it("returns an existing share token to a workspace collaborator", async () => {
-    taskFindUniqueMock.mockResolvedValueOnce(
+    taskFindFirstMock.mockResolvedValueOnce(
       createTask({
         userId: "user_123",
         share: {
@@ -423,27 +397,19 @@ describe("GET /tasks/{id}", () => {
         allowSearchIndexing: true,
       },
     });
-    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+    expect(taskFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        isAuthenticated: true,
-        authContext: {
-          actor: "user",
-          userId: "user_456",
-          organizationId: "org_123",
-        },
-        workspaceContext: {
+        where: {
+          id: "tsk_a",
+          archivedAt: null,
           workspaceId: testWorkspaceId,
-          userId: null,
-          organizationId: "org_123",
         },
       }),
-      "tsk_a",
-      expect.any(Object),
     );
   });
 
   it("returns nested peerTask summaries on task detail links", async () => {
-    taskFindUniqueMock.mockResolvedValue(
+    taskFindFirstMock.mockResolvedValue(
       createTask({
         linksFrom: [
           {
