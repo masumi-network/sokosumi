@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobWithEvents } from "@sokosumi/database/types/job";
 
-import { requireJobRead } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -77,13 +76,15 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireUserAuthContext(c.var.authContext);
+    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
     const events = await prisma.$transaction(async (tx) => {
-      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-      await requireJobRead(workspaceContext, id, tx);
-      const job = await prisma.job.findUnique({
-        where: { id },
+      const job = await tx.job.findFirst({
+        where: {
+          id,
+          workspaceId: workspaceContext.workspaceId,
+        },
         include: {
           ...jobWithEvents,
         },
