@@ -6000,6 +6000,109 @@ export type GetJobsByIdResponses = {
 
 export type GetJobsByIdResponse = GetJobsByIdResponses[keyof GetJobsByIdResponses];
 
+export type PatchJobsByIdData = {
+    body?: {
+        name: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/jobs/{id}';
+};
+
+export type PatchJobsByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchJobsByIdError = PatchJobsByIdErrors[keyof PatchJobsByIdErrors];
+
+export type PatchJobsByIdResponses = {
+    /**
+     * Job updated
+     */
+    200: {
+        data: Job;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchJobsByIdResponse = PatchJobsByIdResponses[keyof PatchJobsByIdResponses];
+
 export type GetJobsByIdFilesData = {
     body?: never;
     headers?: {
