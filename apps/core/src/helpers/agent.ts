@@ -11,6 +11,7 @@ import { TIME } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
 import {
   type AgentReview,
+  agentReviewSchema,
   type RatingDistribution,
   type RatingMetrics,
 } from "@/schemas/agent.schema";
@@ -430,9 +431,7 @@ export const getRecentAgentReviews = async (
     where: {
       agentId,
       isHidden: false,
-      comment: {
-        not: null,
-      },
+      AND: [{ comment: { not: null } }, { comment: { not: "" } }],
     },
     include: {
       user: {
@@ -447,18 +446,20 @@ export const getRecentAgentReviews = async (
     take: limit,
   });
 
-  return ratings.map((rating) => ({
-    id: rating.id,
-    rating: rating.rating,
-    comment: rating.comment,
-    createdAt: rating.createdAt,
-    updatedAt: rating.updatedAt,
-    user: {
-      id: rating.user.id,
-      name: rating.user.name,
-      image: rating.user.image
-        ? resolveIpfsOrHttpUrl(rating.user.image)
-        : rating.user.image,
-    },
-  }));
+  return ratings.map((rating) =>
+    agentReviewSchema.parse({
+      id: rating.id,
+      rating: rating.rating,
+      comment: rating.comment,
+      createdAt: rating.createdAt,
+      updatedAt: rating.updatedAt,
+      user: {
+        id: rating.user.id,
+        name: rating.user.name,
+        image: rating.user.image
+          ? resolveIpfsOrHttpUrl(rating.user.image)
+          : rating.user.image,
+      },
+    }),
+  );
 };
