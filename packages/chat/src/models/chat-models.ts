@@ -31,10 +31,10 @@ export const CHAT_MODELS = [
     openRouterId: "deepseek/deepseek-v3.2",
   },
   {
-    id: "claude-opus-4-6",
-    name: "Claude Opus 4.6",
+    id: "claude-opus-4-7",
+    name: "Claude Opus 4.7",
     iconProvider: "anthropic",
-    openRouterId: "anthropic/claude-opus-4.6",
+    openRouterId: "anthropic/claude-opus-4.7",
   },
   {
     id: "grok-4-1-fast",
@@ -56,6 +56,8 @@ export const DEFAULT_CHAT_MODEL_ID: ChatModelId = "gpt-5-2";
 
 const CHAT_MODEL_MAP = new Map<string, string>([
   ...CHAT_MODELS.map((model) => [model.id, model.openRouterId] as const),
+  // Keep persisted Opus 4.6 selections working after the model upgrade.
+  ["claude-opus-4-6", "anthropic/claude-opus-4.7"],
   ["gpt4o", "openai/gpt-4o"],
   ["gpt-4o", "openai/gpt-4o"],
   ["gpt-4o-mini", "openai/gpt-4o-mini"],
