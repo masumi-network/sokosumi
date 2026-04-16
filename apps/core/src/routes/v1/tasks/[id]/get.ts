@@ -41,6 +41,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireTaskReadForRouteVars(c.var, id, tx);
       return tx.task.findUnique({
         where: { id, archivedAt: null },
+        // Workspace collaborators may read an existing share token here.
+        // Share creation and deletion remain owner-only in the dedicated share routes.
         include: buildTaskIncludeForViewer(authContext),
       });
     });

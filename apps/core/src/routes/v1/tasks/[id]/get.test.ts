@@ -30,7 +30,13 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
 
-function createApp(actor: "user" | "coworker" = "user") {
+interface CreateAppOptions {
+  actor?: "user" | "coworker";
+  userId?: string;
+}
+
+function createApp(options: CreateAppOptions = {}) {
+  const { actor = "user", userId = "user_123" } = options;
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
@@ -46,7 +52,7 @@ function createApp(actor: "user" | "coworker" = "user") {
           } satisfies AuthenticationContext)
         : {
             actor: "user",
-            userId: "user_123",
+            userId,
             organizationId: "org_123",
           },
     );
@@ -68,6 +74,15 @@ function createApp(actor: "user" | "coworker" = "user") {
 
 function createTask(
   overrides?: Partial<{
+    userId: string;
+    share: {
+      id: string;
+      token: string;
+      taskId: string;
+      allowSearchIndexing: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null;
     linksFrom: unknown[];
     linksTo: unknown[];
   }>,
@@ -76,7 +91,7 @@ function createTask(
     id: "tsk_a",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
     updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-    userId: "user_123",
+    userId: overrides?.userId ?? "user_123",
     organizationId: "org_123",
     coworkerId: "cow_123",
     name: "Task A",
@@ -93,7 +108,7 @@ function createTask(
         slug: "acme-labs",
       },
     },
-    share: null,
+    share: overrides?.share ?? null,
     linksFrom: overrides?.linksFrom ?? [],
     linksTo: overrides?.linksTo ?? [],
   };
@@ -204,7 +219,7 @@ describe("GET /tasks/{id}", () => {
   });
 
   it("filters included links to peer tasks visible to the coworker", async () => {
-    const app = createApp("coworker");
+    const app = createApp({ actor: "coworker" });
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
 
     const response = await app.request("http://localhost/tsk_a");
@@ -288,6 +303,66 @@ describe("GET /tasks/{id}", () => {
         },
       }),
     });
+  });
+
+  it("returns an existing share token to a workspace collaborator", async () => {
+    taskFindUniqueMock.mockResolvedValueOnce(
+      createTask({
+        userId: "user_123",
+        share: {
+          id: "share_123",
+          token: "public-share-token",
+          taskId: "tsk_a",
+          allowSearchIndexing: true,
+          createdAt: new Date("2026-03-25T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+        },
+      }),
+    );
+
+    const app = createApp({ userId: "user_456" });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: {
+        userId: string;
+        share: {
+          id: string;
+          token: string;
+          taskId: string;
+          allowSearchIndexing: boolean;
+        } | null;
+      };
+    };
+    expect(body.data).toMatchObject({
+      userId: "user_123",
+      share: {
+        id: "share_123",
+        token: "public-share-token",
+        taskId: "tsk_a",
+        allowSearchIndexing: true,
+      },
+    });
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "user",
+          userId: "user_456",
+          organizationId: "org_123",
+        },
+        workspaceContext: {
+          workspaceId: testWorkspaceId,
+          userId: null,
+          organizationId: "org_123",
+        },
+      }),
+      "tsk_a",
+      expect.any(Object),
+    );
   });
 
   it("returns nested peerTask summaries on task detail links", async () => {
