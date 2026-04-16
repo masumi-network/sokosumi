@@ -5,7 +5,7 @@ import { jobPurchaseRepository } from "@sokosumi/database/repositories";
 
 import { paymentClient } from "@/clients/masumi-payment.client.js";
 import { requireJobReadAccess } from "@/helpers/access-control.js";
-import { notFound, unprocessableEntity } from "@/helpers/error";
+import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -112,6 +112,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const job = await tx.job.findUnique({
           where: { id },
           select: {
+            userId: true,
             jobType: true,
             blockchainIdentifier: true,
             purchase: { select: { externalId: true } },
@@ -120,6 +121,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (!job) {
           throw notFound("Job not found");
+        }
+
+        // Refunds must stay owner-scoped even when requireJobReadAccess is
+        // relaxed to workspace-level visibility.
+        if (job.userId !== authContext.userId) {
+          throw forbidden("You can only request a refund for your own jobs");
         }
 
         if (job.jobType !== JobType.PAID) {
