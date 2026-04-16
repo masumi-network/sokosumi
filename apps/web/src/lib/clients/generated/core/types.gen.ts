@@ -33,6 +33,10 @@ export type Agent = {
              * Average execution time in seconds
              */
             averageTime: number | null;
+            /**
+             * Average job duration in seconds from INITIATED to COMPLETED (non-demo jobs, last 90 days). Null when there is no qualifying data.
+             */
+            averageExecutionDurationSeconds: number | null;
         };
         /**
          * Rating metrics

@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
+import { jobRepository } from "@sokosumi/database/repositories";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
@@ -192,10 +193,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const agentIds = agentsWithCredits.map((agent) => agent.id);
 
-      const averageExecutionTimes = await calculateAverageExecutionTimes(
-        agentIds,
-        tx,
-      );
+      const [averageExecutionTimes, averageExecutionDurations] =
+        await Promise.all([
+          calculateAverageExecutionTimes(agentIds, tx),
+          jobRepository.getAverageExecutionDurationByAgentIds(agentIds, tx),
+        ]);
 
       const ratingsMap = await calculateAgentRatings(agentIds, tx);
 
@@ -207,6 +209,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             executions: {
               count: agent._count.jobs,
               averageTime: averageExecutionTimes.get(agent.id) ?? null,
+              averageExecutionDurationSeconds:
+                averageExecutionDurations.get(agent.id) ?? null,
             },
             ratings: {
               total: ratingMetrics?.total ?? 0,

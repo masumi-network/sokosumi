@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { jobRepository } from "@sokosumi/database/repositories";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
@@ -93,10 +94,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         categories: (agent.categories ?? []).map(mapCategoryForApi),
       };
 
-      const averageExecutionTime = await calculateAverageExecutionTime(id, tx);
+      const [averageExecutionTime, averageExecutionDurationSeconds] =
+        await Promise.all([
+          calculateAverageExecutionTime(id, tx),
+          jobRepository.getAverageExecutionDurationByAgentId(id, tx),
+        ]);
       const executionMetrics = {
         count: agent._count.jobs,
         averageTime: averageExecutionTime ?? null,
+        averageExecutionDurationSeconds,
       };
 
       const ratingMetrics = await calculateAgentRating(id, tx);

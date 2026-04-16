@@ -117,6 +117,56 @@ export const jobRepository = {
   },
 
   /**
+   * Batch variant of `getAverageExecutionDurationByAgentId` for many agents in one query.
+   */
+  async getAverageExecutionDurationByAgentIds(
+    agentIds: string[],
+    tx: Prisma.TransactionClient,
+  ): Promise<Map<string, number | null>> {
+    const result = new Map<string, number | null>();
+    if (agentIds.length === 0) {
+      return result;
+    }
+    for (const id of agentIds) {
+      result.set(id, null);
+    }
+
+    const rows = await tx.$queryRawUnsafe<
+      Array<{
+        agent_id: string;
+        avg_duration_seconds: Prisma.Decimal | null;
+      }>
+    >(
+      `
+    SELECT 
+      j."agentId" as agent_id,
+      COALESCE(AVG(EXTRACT(EPOCH FROM (completed."createdAt" - initiated."createdAt"))), 0) as avg_duration_seconds
+    FROM "Job" j
+    INNER JOIN "jobEvent" initiated ON initiated."jobId" = j.id
+      AND initiated."status" = 'INITIATED'::"AgentJobStatus"
+    INNER JOIN "jobEvent" completed ON completed."jobId" = j.id
+      AND completed."status" = 'COMPLETED'::"AgentJobStatus"
+    WHERE j."agentId" = ANY($1::text[])
+    AND j."jobType" != 'DEMO'
+    AND j."createdAt" >= NOW() - INTERVAL '90 days'
+    GROUP BY j."agentId"
+  `,
+      agentIds,
+    );
+
+    for (const row of rows) {
+      const averageDurationSeconds = row.avg_duration_seconds;
+      if (!averageDurationSeconds) {
+        result.set(row.agent_id, null);
+        continue;
+      }
+      result.set(row.agent_id, averageDurationSeconds.toNumber());
+    }
+
+    return result;
+  },
+
+  /**
    * Retrieves the number of executed jobs for a specific agent (not demo jobs)
    * @param agentId - The unique identifier of the agent
    * @returns Promise containing the number of executed jobs

@@ -14,6 +14,11 @@ export const executionMetricsSchema = z
       example: 100000,
       description: "Average execution time in seconds",
     }),
+    averageExecutionDurationSeconds: z.number().nullable().openapi({
+      example: 42.5,
+      description:
+        "Average job duration in seconds from INITIATED to COMPLETED (non-demo jobs, last 90 days). Null when there is no qualifying data.",
+    }),
   })
   .openapi({
     description: "Execution metrics",

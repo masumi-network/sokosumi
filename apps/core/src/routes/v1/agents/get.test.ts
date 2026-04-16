@@ -19,6 +19,7 @@ const {
   getAgentIconMock,
   getAgentImageMock,
   getAgentNameMock,
+  getAverageExecutionDurationByAgentIdsMock,
   getCreditCostsOrThrowMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
@@ -33,6 +34,7 @@ const {
   getAgentIconMock: vi.fn(),
   getAgentImageMock: vi.fn(),
   getAgentNameMock: vi.fn(),
+  getAverageExecutionDurationByAgentIdsMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
@@ -53,6 +55,13 @@ vi.mock("@/helpers/agent", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+  },
+}));
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  jobRepository: {
+    getAverageExecutionDurationByAgentIds:
+      getAverageExecutionDurationByAgentIdsMock,
   },
 }));
 
@@ -102,6 +111,7 @@ describe("GET /agents", () => {
     calculateAgentRatingsMock.mockResolvedValue(
       new Map([["agent_123", { total: 3, average: 4.5 }]]),
     );
+    getAverageExecutionDurationByAgentIdsMock.mockResolvedValue(new Map());
     agentFindManyMock.mockResolvedValue([
       {
         id: "agent_123",
