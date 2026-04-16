@@ -12,6 +12,7 @@ const {
   conversationFindFirstMock,
   conversationMessageCreateMock,
   conversationMessageFindManyMock,
+  conversationUpdateMock,
   conversationUpdateManyMock,
   convertToModelMessagesMock,
   coworkerFindFirstMock,
@@ -28,6 +29,7 @@ const {
   conversationFindFirstMock: vi.fn(),
   conversationMessageCreateMock: vi.fn(),
   conversationMessageFindManyMock: vi.fn(),
+  conversationUpdateMock: vi.fn(),
   conversationUpdateManyMock: vi.fn(),
   convertToModelMessagesMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
@@ -74,7 +76,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
     conversation: {
       findFirst: conversationFindFirstMock,
-      update: vi.fn(),
+      update: conversationUpdateMock,
       updateMany: conversationUpdateManyMock,
     },
     conversationMessage: {
@@ -134,6 +136,7 @@ describe("POST /chat", () => {
     convertToModelMessagesMock.mockResolvedValue([]);
     conversationMessageCreateMock.mockResolvedValue(undefined);
     conversationMessageFindManyMock.mockResolvedValue([]);
+    conversationUpdateMock.mockResolvedValue(undefined);
     conversationUpdateManyMock.mockResolvedValue({ count: 1 });
     prismaTransactionMock.mockImplementation(
       async (
@@ -270,7 +273,7 @@ describe("POST /chat", () => {
     expect(call.providerOptions?.sokosumi?.mode).toBe("openrouter");
   });
 
-  it("uses Conversations mode for coworker (no onInvalidPreviousResponseId)", async () => {
+  it("wires onInvalidProviderConversationId for coworker Conversations mode", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({
       id: "550e8400-e29b-41d4-a716-446655440000",
       metadata: {
@@ -298,7 +301,7 @@ describe("POST /chat", () => {
       providerOptions?: {
         sokosumi?: {
           mode?: string;
-          onInvalidPreviousResponseId?: unknown;
+          onInvalidProviderConversationId?: () => Promise<void>;
           previousResponseId?: string | null;
           providerConversationId?: string | null;
         };
@@ -311,9 +314,17 @@ describe("POST /chat", () => {
     expect(args.providerOptions?.sokosumi?.previousResponseId).toBe(
       "resp_stale",
     );
-    expect(args.providerOptions?.sokosumi?.onInvalidPreviousResponseId).toBe(
-      undefined,
-    );
+    const onInvalidProviderConversationId =
+      args.providerOptions?.sokosumi?.onInvalidProviderConversationId;
+    expect(onInvalidProviderConversationId).toEqual(expect.any(Function));
+    await onInvalidProviderConversationId?.();
+    expect(conversationUpdateMock).toHaveBeenCalledWith({
+      where: {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        userId: "user_123",
+      },
+      data: { providerConversationId: null },
+    });
   });
 
   it("prefers request body previousResponseId over metadata for coworker", async () => {
