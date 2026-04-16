@@ -199,12 +199,10 @@ describe("PATCH /jobs/{id}", () => {
           },
         }),
     );
-    jobFindUniqueMock
-      .mockResolvedValueOnce({
-        id: "job_123",
-        userId: "user_123",
-      })
-      .mockResolvedValueOnce({ id: "job_123" });
+    jobFindUniqueMock.mockResolvedValueOnce({
+      id: "job_123",
+      userId: "user_123",
+    });
     jobUpdateMock.mockResolvedValue({ id: "job_123" });
     mapJobWithStatusMock.mockReturnValue({});
     serializeJobDetailsMock.mockReturnValue(createSerializedJob());
@@ -223,10 +221,13 @@ describe("PATCH /jobs/{id}", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(jobUpdateMock).toHaveBeenCalledWith({
-      where: { id: "job_123" },
-      data: { name: "Renamed job" },
-    });
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "job_123" },
+        data: { name: "Renamed job" },
+        include: expect.any(Object),
+      }),
+    );
     expect(body.data).toMatchObject({
       id: "job_123",
       name: "Renamed job",
