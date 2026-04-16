@@ -165,4 +165,99 @@ describe("createResponsesSseToV3Stream", () => {
 
     expect(order).toEqual(["cb-start", "cb-end", "finish"]);
   });
+
+  it("awaits async onResponseStarted before processing response.completed", async () => {
+    const order: string[] = [];
+    let releaseStart!: () => void;
+    const startGate = new Promise<void>((resolve) => {
+      releaseStart = resolve;
+    });
+
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_start_gate"}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_start_gate"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, {
+      warnings: [],
+      onResponseStarted: async () => {
+        order.push("started-begin");
+        await startGate;
+        order.push("started-end");
+      },
+      onResponseCompleted: async () => {
+        order.push("completed");
+      },
+    });
+
+    const reader = stream.getReader();
+    const consumer = (async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (
+          value &&
+          typeof value === "object" &&
+          "type" in value &&
+          (value as { type: string }).type === "finish"
+        ) {
+          order.push("finish");
+          break;
+        }
+      }
+    })();
+
+    await vi.waitFor(() => {
+      expect(order).toContain("started-begin");
+    });
+    expect(order).not.toContain("completed");
+
+    releaseStart();
+    await consumer;
+
+    expect(order).toEqual([
+      "started-begin",
+      "started-end",
+      "completed",
+      "finish",
+    ]);
+  });
+
+  it("invokes onResponseCompleted with last response id when completion payload omits id", async () => {
+    const completedIds: string[] = [];
+
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_tail_id"}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed"}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, {
+      warnings: [],
+      onResponseCompleted: async (id) => {
+        completedIds.push(id);
+      },
+    });
+
+    const reader = stream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "finish"
+      ) {
+        break;
+      }
+    }
+
+    expect(completedIds).toEqual(["resp_tail_id"]);
+  });
 });

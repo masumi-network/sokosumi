@@ -19,9 +19,11 @@ const {
   generateChatTitleMock,
   getOpenRouterChatApiKeyForProviderMock,
   getSokosumiProviderMock,
+  prismaTransactionMock,
   requireCoworkerChatCapabilityMock,
   streamTextMock,
   validateUIMessagesMock,
+  waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   conversationFindFirstMock: vi.fn(),
   conversationMessageCreateMock: vi.fn(),
@@ -33,9 +35,11 @@ const {
   generateChatTitleMock: vi.fn(),
   getOpenRouterChatApiKeyForProviderMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
   streamTextMock: vi.fn(),
   validateUIMessagesMock: vi.fn(),
+  waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
 vi.mock("ai", () => ({
@@ -67,6 +71,7 @@ vi.mock("@/clients/openrouter.client", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: prismaTransactionMock,
     conversation: {
       findFirst: conversationFindFirstMock,
       update: vi.fn(),
@@ -79,6 +84,12 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: {
       findFirst: coworkerFindFirstMock,
     },
+  },
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    waitUntilCapturedPromises.push(promise);
   },
 }));
 
@@ -115,6 +126,7 @@ function createApp({
 describe("POST /chat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    waitUntilCapturedPromises.length = 0;
     getOpenRouterChatApiKeyForProviderMock.mockReturnValue(
       "sk-or-v1-test-0000000000000000000000000000000000000000",
     );
@@ -123,6 +135,24 @@ describe("POST /chat", () => {
     conversationMessageCreateMock.mockResolvedValue(undefined);
     conversationMessageFindManyMock.mockResolvedValue([]);
     conversationUpdateManyMock.mockResolvedValue({ count: 1 });
+    prismaTransactionMock.mockImplementation(
+      async (
+        callback: (tx: {
+          $queryRaw: ReturnType<typeof vi.fn>;
+          conversationMessage: {
+            count: ReturnType<typeof vi.fn>;
+            create: typeof conversationMessageCreateMock;
+          };
+        }) => Promise<boolean>,
+      ) =>
+        await callback({
+          $queryRaw: vi.fn().mockResolvedValue([{ id: "conv" }]),
+          conversationMessage: {
+            count: vi.fn().mockResolvedValue(1),
+            create: conversationMessageCreateMock,
+          },
+        }),
+    );
     createCoworkerConversationMock.mockResolvedValue({ id: "conv_test_1" });
     validateUIMessagesMock.mockImplementation(
       async ({ messages }: { messages: unknown[] }) => messages,
@@ -216,12 +246,10 @@ describe("POST /chat", () => {
   });
 
   it("calls streamText for OpenRouter-backed conversation", async () => {
-    conversationFindFirstMock
-      .mockResolvedValueOnce({
-        id: "550e8400-e29b-41d4-a716-446655440000",
-        metadata: { model_id: "claude-opus-4-6" },
-      })
-      .mockResolvedValueOnce({ _count: { messages: 1 } });
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      metadata: { model_id: "claude-opus-4-6" },
+    });
 
     const app = createApp();
     const response = await app.request("http://localhost/", {
@@ -243,16 +271,14 @@ describe("POST /chat", () => {
   });
 
   it("uses Conversations mode for coworker (no onInvalidPreviousResponseId)", async () => {
-    conversationFindFirstMock
-      .mockResolvedValueOnce({
-        id: "550e8400-e29b-41d4-a716-446655440000",
-        metadata: {
-          coworker_slug: "ops-agent",
-          previous_response_id: "resp_stale",
-        },
-        providerConversationId: "conv_remote_1",
-      })
-      .mockResolvedValueOnce({ _count: { messages: 1 } });
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      metadata: {
+        coworker_slug: "ops-agent",
+        previous_response_id: "resp_stale",
+      },
+      providerConversationId: "conv_remote_1",
+    });
     coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
 
     const app = createApp({ organizationId: "org_1" });
@@ -291,16 +317,14 @@ describe("POST /chat", () => {
   });
 
   it("prefers request body previousResponseId over metadata for coworker", async () => {
-    conversationFindFirstMock
-      .mockResolvedValueOnce({
-        id: "550e8400-e29b-41d4-a716-446655440000",
-        metadata: {
-          coworker_slug: "ops-agent",
-          previous_response_id: "resp_from_meta",
-        },
-        providerConversationId: "conv_remote_1",
-      })
-      .mockResolvedValueOnce({ _count: { messages: 1 } });
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      metadata: {
+        coworker_slug: "ops-agent",
+        previous_response_id: "resp_from_meta",
+      },
+      providerConversationId: "conv_remote_1",
+    });
     coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
 
     const app = createApp({ organizationId: "org_1" });
@@ -329,17 +353,20 @@ describe("POST /chat", () => {
 
   it("merges DB history when the client sends only the new message (submit-message)", async () => {
     const cid = "550e8400-e29b-41d4-a716-446655440000";
-    conversationFindFirstMock
-      .mockResolvedValueOnce({
-        id: cid,
-        metadata: { model_id: "claude-opus-4-6" },
-      })
-      .mockResolvedValueOnce({ _count: { messages: 1 } });
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { model_id: "claude-opus-4-6" },
+    });
     conversationMessageFindManyMock.mockResolvedValueOnce([
       {
         id: "item-1",
         role: "user",
         contentText: "Earlier",
+      },
+      {
+        id: "item-2",
+        role: "user",
+        contentText: "Next",
       },
     ]);
 
@@ -356,6 +383,7 @@ describe("POST /chat", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(conversationMessageCreateMock).toHaveBeenCalledOnce();
     expect(conversationMessageFindManyMock).toHaveBeenCalledOnce();
     expect(convertToModelMessagesMock).toHaveBeenCalledOnce();
     const uiArg = convertToModelMessagesMock.mock.calls[0]![0] as Array<{
@@ -392,5 +420,48 @@ describe("POST /chat", () => {
 
     expect(response.status).toBe(403);
     expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
+  it("schedules OpenRouter title generation when persisting the first user message", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    prismaTransactionMock.mockImplementationOnce(
+      async (
+        callback: (tx: {
+          $queryRaw: ReturnType<typeof vi.fn>;
+          conversationMessage: {
+            count: ReturnType<typeof vi.fn>;
+            create: typeof conversationMessageCreateMock;
+          };
+        }) => Promise<boolean>,
+      ) =>
+        await callback({
+          $queryRaw: vi.fn().mockResolvedValue([{ id: cid }]),
+          conversationMessage: {
+            count: vi.fn().mockResolvedValue(0),
+            create: conversationMessageCreateMock,
+          },
+        }),
+    );
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { model_id: "claude-opus-4-6" },
+    });
+    generateChatTitleMock.mockResolvedValueOnce("Generated");
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(waitUntilCapturedPromises).toHaveLength(1);
+    await waitUntilCapturedPromises[0]!;
+    expect(generateChatTitleMock).toHaveBeenCalledOnce();
   });
 });

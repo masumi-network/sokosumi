@@ -40,7 +40,7 @@ export function parseSokosumiProviderOptions(
 
   const onResponseStarted =
     typeof raw.onResponseStarted === "function"
-      ? (raw.onResponseStarted as (id: string) => void)
+      ? (raw.onResponseStarted as (id: string) => void | Promise<void>)
       : undefined;
   const onResponseCompleted =
     typeof raw.onResponseCompleted === "function"

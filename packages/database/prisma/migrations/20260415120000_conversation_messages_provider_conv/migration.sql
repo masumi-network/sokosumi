@@ -38,4 +38,4 @@ INSERT INTO "conversationMessage" ("id", "conversationId", "role", "contentType"
 SELECT "id"::uuid, "conversationId", "role", "contentType", "contentText", "responsesApiResponseId", NULL, "createdAt"
 FROM "conversationItem";
 
--- conversationItem is retained until post-release validation; drop in a follow-up migration.
+DROP TABLE "conversationItem";

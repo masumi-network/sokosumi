@@ -1329,8 +1329,7 @@ model Conversation {
 
   providerConversationId String? @unique
 
-  messages          ConversationMessage[]
-  conversationItems ConversationItem[]
+  messages ConversationMessage[]
 
   @@index([userId])
   @@index([openaiId])
@@ -1353,20 +1352,4 @@ model ConversationMessage {
   @@index([conversationId])
   @@index([conversationId, createdAt])
   @@map("conversationMessage")
-}
-
-model ConversationItem {
-  id                     String       @id @default(uuid())
-  conversationId         String
-  conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role                   String
-  contentType            String?
-  contentText            String
-  responsesApiResponseId String?
-  createdAt              DateTime     @default(now())
-
-  @@unique([conversationId, responsesApiResponseId])
-  @@index([conversationId])
-  @@index([conversationId, createdAt])
-  @@map("conversationItem")
 }

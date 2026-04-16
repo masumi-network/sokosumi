@@ -5,6 +5,7 @@ import {
   convertToModelMessages,
   generateId,
   streamText,
+  type UIMessage,
   validateUIMessages,
 } from "ai";
 import { openrouterClient } from "@/clients/openrouter.client";
@@ -49,6 +50,83 @@ import { aiSdkChatRequestSchema } from "@/schemas/chat-request.schema.js";
 import { createCoworkerConversation } from "./coworker-conversation";
 
 import { mapChatRequestToUiMessages } from "./map-chat-request-to-ui-messages.js";
+
+async function persistUserOrSystemTurnForConversation(params: {
+  conversationId: string;
+  userId: string;
+  lastMessage: { role: string };
+  extractedText: string;
+}): Promise<void> {
+  const { conversationId, userId, lastMessage, extractedText } = params;
+  if (lastMessage.role !== "user" && lastMessage.role !== "system") {
+    return;
+  }
+
+  const formattedContent = formatMessageContentForConversation(extractedText);
+
+  const scheduleTitleGeneration = await prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "conversation"
+      WHERE "id" = ${conversationId} AND "userId" = ${userId} AND "archivedAt" IS NULL
+      FOR UPDATE
+    `;
+    if (rows.length === 0) {
+      throw notFound("Conversation not found");
+    }
+
+    const itemCountBefore = await tx.conversationMessage.count({
+      where: { conversationId },
+    });
+    const isFirstUserMessage =
+      itemCountBefore === 0 &&
+      lastMessage.role === "user" &&
+      extractedText.trim().length > 0;
+
+    await tx.conversationMessage.create({
+      data: {
+        conversationId,
+        role: lastMessage.role,
+        contentType: formattedContent[0]?.type || null,
+        contentText: extractedText,
+      },
+    });
+
+    return isFirstUserMessage;
+  });
+
+  if (scheduleTitleGeneration) {
+    waitUntil(
+      (async () => {
+        try {
+          const generatedTitle =
+            await openrouterClient.generateChatTitle(extractedText);
+          if (generatedTitle) {
+            await prisma.conversation.update({
+              where: { id: conversationId },
+              data: { title: generatedTitle },
+            });
+          }
+        } catch (err) {
+          console.error("Failed to generate/update title:", err);
+        }
+      })(),
+    );
+  }
+}
+
+async function validateUiMessagesOrBadRequest(
+  messages: UIMessage[],
+): Promise<void> {
+  try {
+    await validateUIMessages({ messages });
+  } catch (error) {
+    throw badRequest(
+      error instanceof Error
+        ? error.message
+        : "Invalid chat messages for AI SDK.",
+    );
+  }
+}
 
 const route = createRoute({
   method: "post",
@@ -216,77 +294,50 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         internalConversationId &&
         singleMessage !== undefined
       ) {
-        const itemsBeforeUserTurn = await prisma.conversationMessage.findMany({
+        const tailUiForValidation = mapChatRequestToUiMessages([singleMessage]);
+        await validateUiMessagesOrBadRequest(tailUiForValidation);
+
+        if (internalConversationId && incomingLast) {
+          await persistUserOrSystemTurnForConversation({
+            conversationId: internalConversationId,
+            userId: authContext.userId,
+            lastMessage: incomingLast,
+            extractedText: lastUserMessageText ?? "",
+          });
+        }
+
+        const persistedItems = await prisma.conversationMessage.findMany({
           where: { conversationId: internalConversationId },
           orderBy: { createdAt: "asc" },
           take: LIMITS.CHAT_UI_MESSAGES_MAX_LIMIT,
           select: { id: true, role: true, contentText: true, metadata: true },
         });
-        const historyUi = conversationItemsToUiMessages(itemsBeforeUserTurn);
-        const tailUi = mapChatRequestToUiMessages([singleMessage]);
-        uiMessages = [...historyUi, ...tailUi];
+        uiMessages = conversationItemsToUiMessages(persistedItems);
+
+        if (
+          incomingLast != null &&
+          incomingLast.role !== "user" &&
+          incomingLast.role !== "system"
+        ) {
+          uiMessages = [
+            ...uiMessages,
+            ...mapChatRequestToUiMessages([singleMessage]),
+          ];
+        }
+
+        await validateUiMessagesOrBadRequest(uiMessages);
       } else {
         uiMessages = mapChatRequestToUiMessages(messages!);
-      }
 
-      try {
-        await validateUIMessages({ messages: uiMessages });
-      } catch (error) {
-        throw badRequest(
-          error instanceof Error
-            ? error.message
-            : "Invalid chat messages for AI SDK.",
-        );
-      }
+        await validateUiMessagesOrBadRequest(uiMessages);
 
-      if (internalConversationId && incomingLast) {
-        const conversationIdForPersistedTurn = internalConversationId;
-        const lastMessage = incomingLast;
-        if (lastMessage.role === "user" || lastMessage.role === "system") {
-          const extractedText = lastUserMessageText ?? "";
-          const formattedContent =
-            formatMessageContentForConversation(extractedText);
-
-          const convWithCount = await prisma.conversation.findFirst({
-            where: {
-              id: conversationIdForPersistedTurn,
-              userId: authContext.userId,
-              archivedAt: null,
-            },
-            select: { _count: { select: { messages: true } } },
+        if (internalConversationId && incomingLast) {
+          await persistUserOrSystemTurnForConversation({
+            conversationId: internalConversationId,
+            userId: authContext.userId,
+            lastMessage: incomingLast,
+            extractedText: lastUserMessageText ?? "",
           });
-          const itemCountBefore = convWithCount?._count.messages ?? 0;
-          const isFirstUserMessage =
-            itemCountBefore === 0 &&
-            lastMessage.role === "user" &&
-            extractedText.trim().length > 0;
-
-          await prisma.conversationMessage.create({
-            data: {
-              conversationId: conversationIdForPersistedTurn,
-              role: lastMessage.role,
-              contentType: formattedContent[0]?.type || null,
-              contentText: extractedText,
-            },
-          });
-          if (isFirstUserMessage) {
-            waitUntil(
-              (async () => {
-                try {
-                  const generatedTitle =
-                    await openrouterClient.generateChatTitle(extractedText);
-                  if (generatedTitle) {
-                    await prisma.conversation.update({
-                      where: { id: conversationIdForPersistedTurn },
-                      data: { title: generatedTitle },
-                    });
-                  }
-                } catch (err) {
-                  console.error("Failed to generate/update title:", err);
-                }
-              })(),
-            );
-          }
         }
       }
 
@@ -411,20 +462,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         providerConversationId: coworkerConversationsMode
           ? providerConversationId
           : null,
-        onResponseStarted: (responseId: string) => {
+        onResponseStarted: async (responseId: string) => {
           responsesApiResponseIdRef.current = responseId;
           if (!internalConversationId || !coworker) {
             return;
           }
-          void persistPendingResponseId({
-            conversationId: internalConversationId,
-            userId: authContext.userId,
-            responseId,
-            coworkerSlug: coworker.slug,
-            coworkerId: coworker.id,
-          }).catch((error) => {
+          try {
+            await persistPendingResponseId({
+              conversationId: internalConversationId,
+              userId: authContext.userId,
+              responseId,
+              coworkerSlug: coworker.slug,
+              coworkerId: coworker.id,
+            });
+          } catch (error) {
             console.error("Failed to persist pending response id:", error);
-          });
+          }
         },
         onResponseCompleted: async (responseId: string) => {
           if (!internalConversationId) {
@@ -551,16 +604,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 }
               },
               onFinish: async () => {
+                const clearParams = {
+                  conversationId: internalConversationId,
+                  userId: authContext.userId,
+                };
                 try {
-                  await clearActiveUiStreamIdInMetadata({
-                    conversationId: internalConversationId,
-                    userId: authContext.userId,
-                  });
+                  await clearActiveUiStreamIdInMetadata(clearParams);
                 } catch (error) {
                   console.error(
                     "Failed to clear active UI stream id on stream finish:",
                     error,
                   );
+                  try {
+                    await clearActiveUiStreamIdInMetadata(clearParams);
+                  } catch (retryError) {
+                    console.error(
+                      "Retry failed to clear active UI stream id on stream finish:",
+                      retryError,
+                    );
+                  }
                 }
               },
             }

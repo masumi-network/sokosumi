@@ -33,7 +33,7 @@ export function finishStop(): LanguageModelV3FinishReason {
 
 export interface ResponsesSseToV3Options {
   warnings: SharedV3Warning[];
-  onResponseStarted?: (responseId: string) => void;
+  onResponseStarted?: (responseId: string) => void | Promise<void>;
   onResponseCompleted?: (responseId: string) => void | Promise<void>;
 }
 
@@ -67,6 +67,8 @@ export function createResponsesSseToV3Stream(
       let textStarted = false;
       let streamClosed = false;
       let responseStartedCalled = false;
+      let lastKnownResponseId: string | null = null;
+      let onResponseCompletedEmitted = false;
       const reasoningAccumulator: Record<string, string> = {};
       const reasoningStarted = new Set<string>();
       let needNewlineBeforeNextDelta = false;
@@ -166,7 +168,8 @@ export function createResponsesSseToV3Stream(
           isResponseCreated
         ) {
           responseStartedCalled = true;
-          onResponseStarted?.(responseId);
+          lastKnownResponseId = responseId;
+          await Promise.resolve(onResponseStarted?.(responseId));
           controller.enqueue({ type: "response-metadata", id: responseId });
         }
 
@@ -229,14 +232,20 @@ export function createResponsesSseToV3Stream(
           return false;
         }
 
+        const isCompletionSignal =
+          chunk.type === "response.completed" ||
+          chunk.status === "completed" ||
+          lastEventLine === "response.completed";
+        const completionId =
+          typeof responseId === "string" ? responseId : lastKnownResponseId;
         const isCompleted =
-          (chunk.type === "response.completed" ||
-            chunk.status === "completed" ||
-            lastEventLine === "response.completed") &&
-          typeof responseId === "string";
+          isCompletionSignal &&
+          typeof completionId === "string" &&
+          !onResponseCompletedEmitted;
 
         if (isCompleted) {
-          await Promise.resolve(onResponseCompleted?.(responseId));
+          onResponseCompletedEmitted = true;
+          await Promise.resolve(onResponseCompleted?.(completionId));
           closeWithFinish();
           return true;
         }
@@ -292,8 +301,14 @@ export function createResponsesSseToV3Stream(
                 ensureTextStart();
                 emitTextDelta(text);
               }
-              if (typeof parsed.id === "string") {
-                await Promise.resolve(onResponseCompleted?.(parsed.id));
+              const tailCompletionId =
+                typeof parsed.id === "string" ? parsed.id : lastKnownResponseId;
+              if (
+                typeof tailCompletionId === "string" &&
+                !onResponseCompletedEmitted
+              ) {
+                onResponseCompletedEmitted = true;
+                await Promise.resolve(onResponseCompleted?.(tailCompletionId));
               }
             }
           } catch {}
