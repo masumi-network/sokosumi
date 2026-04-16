@@ -2235,12 +2235,10 @@
           }
         },
         "Subscription": {
-          "title": "Abonnement de l’organisation",
-          "description": "Gérez le forfait et les sièges de votre organisation.",
           "currentPlanLabel": "Forfait actuel",
           "currentSeatsLabel": "Sièges actuels",
           "membersLabel": "Membres actifs",
-          "seatsInputLabel": "Nombre de sièges cible",
+          "seatsInputLabel": "Sièges de l’organisation",
           "seatsInputHint": "Le minimum de sièges est {minimum} pour couvrir tous les membres actifs.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Aucun crédit par siège} =1 {# crédit par siège} other {# crédits par siège}}",
           "noActivePlan": "Aucun forfait actif",

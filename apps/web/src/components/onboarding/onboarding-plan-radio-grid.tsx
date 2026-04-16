@@ -52,7 +52,7 @@ export function OnboardingPlanRadioGrid({
 
   return (
     <RadioGroup
-      className="grid gap-4 md:grid-cols-3 pt-0 md:pt-10"
+      className="grid gap-4 md:grid-cols-3"
       value={value}
       onValueChange={handleValueChange}
     >

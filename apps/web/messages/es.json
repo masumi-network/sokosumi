@@ -2174,12 +2174,10 @@
           }
         },
         "Subscription": {
-          "title": "Suscripción de organización",
-          "description": "Gestiona el plan y los Seats de tu organización.",
           "currentPlanLabel": "Plan actual",
           "currentSeatsLabel": "Seats actuales",
           "membersLabel": "Miembros activos",
-          "seatsInputLabel": "Seats deseados",
+          "seatsInputLabel": "Seats de la organización",
           "seatsInputHint": "El número mínimo de Seats es {minimum} para cubrir a todos los miembros activos.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Sin Credits por Seat} =1 {# Credit por Seat} other {# Credits por Seat}}",
           "noActivePlan": "Sin plan activo",

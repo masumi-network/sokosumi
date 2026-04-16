@@ -2236,12 +2236,10 @@
           }
         },
         "Subscription": {
-          "title": "Subscrição da organização",
-          "description": "Gira o plano e os lugares da sua organização.",
           "currentPlanLabel": "Plano atual",
           "currentSeatsLabel": "Lugares atuais",
           "membersLabel": "Membros ativos",
-          "seatsInputLabel": "Lugares pretendidos",
+          "seatsInputLabel": "Lugares da organização",
           "seatsInputHint": "O mínimo de lugares é {minimum} para cobrir todos os membros ativos.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Sem créditos por lugar} =1 {# crédito por lugar} other {# créditos por lugar}}",
           "noActivePlan": "Sem plano ativo",

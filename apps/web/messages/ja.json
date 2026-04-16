@@ -2236,12 +2236,10 @@
           }
         },
         "Subscription": {
-          "title": "組織のサブスクリプション",
-          "description": "組織のプランとシート数を管理します。",
           "currentPlanLabel": "現在のプラン",
           "currentSeatsLabel": "現在のシート数",
           "membersLabel": "アクティブなメンバー",
-          "seatsInputLabel": "目標シート数",
+          "seatsInputLabel": "組織のシート数",
           "seatsInputHint": "アクティブなメンバー全員をカバーするため、最小シート数は{minimum}です。",
           "includedCreditsPerSeat": "{credits, plural, =0 {シートあたりクレジットなし} =1 {シートあたり# クレジット} other {シートあたり# クレジット}}",
           "noActivePlan": "有効なプランがありません",
