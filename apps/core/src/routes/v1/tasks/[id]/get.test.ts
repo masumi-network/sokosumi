@@ -162,7 +162,7 @@ describe("GET /tasks/{id}", () => {
           where: {
             toTask: {
               is: {
-                userId: "user_123",
+                workspaceId: testWorkspaceId,
               },
             },
           },
@@ -190,7 +190,7 @@ describe("GET /tasks/{id}", () => {
           where: {
             fromTask: {
               is: {
-                userId: "user_123",
+                workspaceId: testWorkspaceId,
               },
             },
           },
@@ -212,6 +212,79 @@ describe("GET /tasks/{id}", () => {
               },
             },
           },
+          orderBy: { createdAt: "asc" },
+        },
+      }),
+    });
+  });
+
+  it("keeps same-workspace peer links visible for a workspace collaborator", async () => {
+    taskFindUniqueMock.mockResolvedValueOnce(
+      createTask({
+        userId: "user_123",
+        linksFrom: [
+          {
+            id: "tl_1",
+            createdAt: new Date("2026-03-25T10:00:00.000Z"),
+            updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+            fromTaskId: "tsk_a",
+            toTaskId: "tsk_b",
+            type: TaskLinkType.RELATES,
+            note: null,
+            toTask: {
+              id: "tsk_b",
+              name: "Task B",
+              status: TaskStatus.RUNNING,
+              archivedAt: null,
+            },
+          },
+        ],
+      }),
+    );
+
+    const app = createApp({ userId: "user_456" });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: {
+        links: Array<{
+          relation: string;
+          peerTask: {
+            id: string;
+            name: string;
+            status: TaskStatus;
+            archivedAt: string | null;
+          };
+        }>;
+      };
+    };
+    expect(body.data.links).toHaveLength(1);
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "tsk_a", archivedAt: null },
+      include: expect.objectContaining({
+        linksFrom: {
+          where: {
+            toTask: {
+              is: {
+                workspaceId: testWorkspaceId,
+              },
+            },
+          },
+          include: expect.any(Object),
+          orderBy: { createdAt: "asc" },
+        },
+        linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                workspaceId: testWorkspaceId,
+              },
+            },
+          },
+          include: expect.any(Object),
           orderBy: { createdAt: "asc" },
         },
       }),

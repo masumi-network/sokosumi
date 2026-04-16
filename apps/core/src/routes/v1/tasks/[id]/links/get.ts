@@ -34,7 +34,6 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
     const row = await prisma.$transaction(async (tx) => {
@@ -43,7 +42,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { id, archivedAt: null },
         select: {
           id: true,
-          ...buildVisibleTaskLinksInclude(authContext),
+          ...buildVisibleTaskLinksInclude(
+            c.var.authContext,
+            c.var.workspaceContext,
+          ),
         },
       });
     });

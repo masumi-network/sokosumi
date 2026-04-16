@@ -34,7 +34,6 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
@@ -43,7 +42,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { id, archivedAt: null },
         // Workspace collaborators may read an existing share token here.
         // Share creation and deletion remain owner-only in the dedicated share routes.
-        include: buildTaskIncludeForViewer(authContext),
+        include: buildTaskIncludeForViewer(
+          c.var.authContext,
+          c.var.workspaceContext,
+        ),
       });
     });
 

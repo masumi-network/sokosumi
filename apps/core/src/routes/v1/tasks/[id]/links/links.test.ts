@@ -45,7 +45,12 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createUserApp() {
+interface CreateUserAppOptions {
+  userId?: string;
+}
+
+function createUserApp(options: CreateUserAppOptions = {}) {
+  const { userId = "user_123" } = options;
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
@@ -54,7 +59,7 @@ function createUserApp() {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
-      userId: "user_123",
+      userId,
       organizationId: "org_123",
     });
     c.set("workspaceContext", {
@@ -316,7 +321,7 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             toTask: {
               is: {
-                userId: "user_123",
+                workspaceId: "11111111-1111-7111-8111-111111111111",
               },
             },
           },
@@ -344,7 +349,112 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             fromTask: {
               is: {
-                userId: "user_123",
+                workspaceId: "11111111-1111-7111-8111-111111111111",
+              },
+            },
+          },
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+  });
+
+  it("returns same-workspace peer links for a collaborator", async () => {
+    taskFindUniqueMock.mockResolvedValueOnce({
+      id: "tsk_a",
+      linksFrom: [
+        {
+          id: "tl_1",
+          createdAt: new Date("2026-03-25T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+          fromTaskId: "tsk_a",
+          toTaskId: "tsk_b",
+          type: TaskLinkType.RELATES,
+          note: null,
+          toTask: {
+            id: "tsk_b",
+            name: "Task B",
+            status: TaskStatus.RUNNING,
+            archivedAt: null,
+          },
+        },
+      ],
+      linksTo: [],
+    });
+
+    const app = createUserApp({ userId: "user_456" });
+    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: Array<{
+        relation: string;
+        peerTask: {
+          id: string;
+          name: string;
+          status: TaskStatus;
+          archivedAt: string | null;
+        };
+      }>;
+    };
+    expect(body.data).toHaveLength(1);
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "tsk_a", archivedAt: null },
+      select: {
+        id: true,
+        linksFrom: {
+          where: {
+            toTask: {
+              is: {
+                workspaceId: "11111111-1111-7111-8111-111111111111",
+              },
+            },
+          },
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+        linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                workspaceId: "11111111-1111-7111-8111-111111111111",
               },
             },
           },
