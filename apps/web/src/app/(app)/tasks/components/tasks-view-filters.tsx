@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import {
   buildTasksFiltersSearchParams,
+  getTasksFiltersFromSearchParams,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
 import {
@@ -15,7 +16,6 @@ import {
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 interface TasksViewFiltersProps {
-  filters: TasksFilters;
   activeOrganizationId: string | null;
   coworkerOptions: CoworkerOption[];
   labels: {
@@ -33,7 +33,6 @@ interface TasksViewFiltersProps {
 }
 
 export function TasksViewFilters({
-  filters,
   activeOrganizationId,
   coworkerOptions,
   labels,
@@ -42,10 +41,31 @@ export function TasksViewFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const handleFilterChange = useCallback(
-    (nextFilters: TasksFilters) => {
-      const nextSearchParams = buildTasksFiltersSearchParams(
+  const filters = useMemo(
+    () =>
+      getTasksFiltersFromSearchParams(
         searchParams,
+        activeOrganizationId,
+        coworkerOptions,
+      ),
+    [activeOrganizationId, coworkerOptions, searchParams],
+  );
+
+  const handleFilterChange = useCallback(
+    (patch: Partial<TasksFilters>) => {
+      const paramsForMerge = new URLSearchParams(
+        typeof window !== "undefined"
+          ? window.location.search
+          : searchParams.toString(),
+      );
+      const current = getTasksFiltersFromSearchParams(
+        paramsForMerge,
+        activeOrganizationId,
+        coworkerOptions,
+      );
+      const nextFilters: TasksFilters = { ...current, ...patch };
+      const nextSearchParams = buildTasksFiltersSearchParams(
+        paramsForMerge,
         nextFilters,
         activeOrganizationId,
       );
@@ -53,7 +73,7 @@ export function TasksViewFilters({
 
       router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     },
-    [activeOrganizationId, pathname, router, searchParams],
+    [activeOrganizationId, coworkerOptions, pathname, router, searchParams],
   );
 
   const sections = useMemo<FilterDropdownMenuSection[]>(() => {
@@ -67,7 +87,6 @@ export function TasksViewFilters({
         value: filters.scope,
         onChange: (scope) =>
           handleFilterChange({
-            ...filters,
             scope: (scope as TasksFilters["scope"]) ?? "workspace",
           }),
         options: [
@@ -91,7 +110,6 @@ export function TasksViewFilters({
       allLabel: labels.all,
       onChange: (coworkerId) =>
         handleFilterChange({
-          ...filters,
           coworkerId,
         }),
       options: coworkerOptions.map((coworker) => ({
@@ -111,7 +129,6 @@ export function TasksViewFilters({
       allLabel: labels.all,
       onChange: (status) =>
         handleFilterChange({
-          ...filters,
           status: (status as TaskStatus | null) ?? null,
         }),
       options: Object.values(TaskStatus).map((status) => ({

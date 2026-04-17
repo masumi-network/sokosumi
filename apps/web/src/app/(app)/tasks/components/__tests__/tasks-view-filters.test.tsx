@@ -52,11 +52,6 @@ const labels = {
 function renderTasksViewFilters(activeOrganizationId: string | null) {
   render(
     <TasksViewFilters
-      filters={{
-        scope: activeOrganizationId ? "workspace" : "owned",
-        coworkerId: null,
-        status: null,
-      }}
       activeOrganizationId={activeOrganizationId}
       coworkerOptions={[
         {

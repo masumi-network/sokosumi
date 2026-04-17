@@ -43,6 +43,34 @@ export function getDefaultTasksScope(
   return activeOrganizationId ? "workspace" : "owned";
 }
 
+export function getTasksFiltersFromSearchParams(
+  searchParams: URLSearchParams,
+  activeOrganizationId: string | null,
+  coworkerOptions: ReadonlyArray<{ id: string }>,
+): TasksFilters {
+  const parsed = parseTasksFilters(
+    {
+      scope: searchParams.get(TASKS_FILTER_PARAM_KEYS.scope) ?? undefined,
+      coworkerId:
+        searchParams.get(TASKS_FILTER_PARAM_KEYS.coworkerId) ?? undefined,
+      status: searchParams.get(TASKS_FILTER_PARAM_KEYS.status) ?? undefined,
+    },
+    activeOrganizationId,
+  );
+  const validCoworkerIds = new Set(
+    coworkerOptions.map((coworker) => coworker.id),
+  );
+  const coworkerId =
+    parsed.coworkerId && validCoworkerIds.has(parsed.coworkerId)
+      ? parsed.coworkerId
+      : null;
+
+  return {
+    ...parsed,
+    coworkerId,
+  };
+}
+
 export function parseTasksFilters(
   searchParams: TasksFiltersSearchParams,
   activeOrganizationId: string | null,

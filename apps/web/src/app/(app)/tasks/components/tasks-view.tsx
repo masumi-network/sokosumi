@@ -12,7 +12,7 @@ import {
 import { SokosumiJobStatus, TaskStatus } from "@sokosumi/database";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -28,6 +28,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import {
+  getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
   isTaskOwnerEditable,
   type TasksFilters,
@@ -281,6 +282,16 @@ export function TasksView({
   labels,
 }: TasksViewProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const routeFilters = useMemo(
+    () =>
+      getTasksFiltersFromSearchParams(
+        searchParams,
+        activeOrganizationId,
+        coworkerOptions,
+      ),
+    [activeOrganizationId, coworkerOptions, searchParams],
+  );
   const [viewMode, setViewMode] = useState<TasksViewMode>(
     defaultViewMode ?? "board",
   );
@@ -586,9 +597,9 @@ export function TasksView({
         const result = await loadMoreTasksColumn({
           columnId,
           cursor,
-          scope: initialFilters.scope,
-          coworkerId: initialFilters.coworkerId,
-          status: initialFilters.status,
+          scope: routeFilters.scope,
+          coworkerId: routeFilters.coworkerId,
+          status: routeFilters.status,
         });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
@@ -618,10 +629,10 @@ export function TasksView({
       }
     },
     [
-      initialFilters.coworkerId,
-      initialFilters.scope,
-      initialFilters.status,
       labels.loadMoreError,
+      routeFilters.coworkerId,
+      routeFilters.scope,
+      routeFilters.status,
     ],
   );
 
@@ -809,7 +820,6 @@ export function TasksView({
           ) : null}
           {activeTab === "tasks" ? (
             <TasksViewFilters
-              filters={initialFilters}
               activeOrganizationId={activeOrganizationId}
               coworkerOptions={coworkerOptions}
               labels={labels.filters}
@@ -868,7 +878,7 @@ export function TasksView({
                       isTaskOwnerEditable(
                         task,
                         userId,
-                        initialFilters,
+                        routeFilters,
                         activeOrganizationId,
                       )
                     }
@@ -887,7 +897,7 @@ export function TasksView({
                       isTaskOwnerEditable(
                         task,
                         userId,
-                        initialFilters,
+                        routeFilters,
                         activeOrganizationId,
                       )
                     }

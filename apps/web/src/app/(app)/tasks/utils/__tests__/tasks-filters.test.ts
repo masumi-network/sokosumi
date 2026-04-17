@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildTasksFiltersSearchParams,
   getDefaultTasksScope,
+  getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
   isTaskOwnerEditable,
   parseTasksFilters,
@@ -33,6 +34,30 @@ describe("tasks-filters", () => {
       scope: "owned",
       coworkerId: null,
       status: null,
+    });
+  });
+
+  it("maps URL search params to filters with coworker allowlist", () => {
+    const params = new URLSearchParams({
+      scope: "owned",
+      coworkerId: "coworker-1",
+      status: TaskStatus.READY,
+    });
+
+    expect(
+      getTasksFiltersFromSearchParams(params, "org-1", [{ id: "coworker-1" }]),
+    ).toEqual({
+      scope: "owned",
+      coworkerId: "coworker-1",
+      status: TaskStatus.READY,
+    });
+
+    expect(
+      getTasksFiltersFromSearchParams(params, "org-1", [{ id: "other" }]),
+    ).toEqual({
+      scope: "owned",
+      coworkerId: null,
+      status: TaskStatus.READY,
     });
   });
 
