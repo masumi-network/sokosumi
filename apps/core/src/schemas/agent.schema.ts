@@ -171,7 +171,7 @@ const agentBaseSchema = z.object({
   }),
 });
 
-export const agentSummarySchema = agentBaseSchema.openapi("AgentSummary");
+export const agentSummarySchema = agentBaseSchema.openapi("Agent");
 
 export const agentDetailSchema = agentBaseSchema
   .extend({
