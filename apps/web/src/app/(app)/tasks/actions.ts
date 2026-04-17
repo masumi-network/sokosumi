@@ -4,7 +4,7 @@ import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import {
   sanitizeTasksScopeInput,
   sanitizeTasksStatusInput,
-  type TasksScope,
+  TasksScope,
 } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/utils";
@@ -14,14 +14,14 @@ import { userService } from "@/lib/services/user.service";
 import type { KanbanColumnId } from "@/lib/types/task";
 
 import { getTasksColumnPage } from "./utils/tasks-column-page";
+import { TaskStatus } from "./components/task-detail-api-types";
 
 interface LoadMoreTasksColumnParams {
   columnId: KanbanColumnId;
   cursor: string | null;
-  scope: TasksScope;
+  scope: TasksScope | null;
   coworkerId: string | null;
-  /** Untrusted client input; normalized before use. */
-  status: unknown;
+  status: TaskStatus | null;
 }
 
 export async function loadMoreTasksColumn({

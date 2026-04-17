@@ -105,22 +105,15 @@ function FilterDropdownMenuSectionItem({
   );
   const optionItems = useMemo(() => {
     if (!section.allLabel) {
-      return section.options.map((option) => ({
-        ...option,
-        itemValue: option.label,
-      }));
+      return section.options;
     }
 
     return [
       {
         value: ALL_FILTER_VALUE,
         label: section.allLabel,
-        itemValue: section.allLabel,
       },
-      ...section.options.map((option) => ({
-        ...option,
-        itemValue: option.label,
-      })),
+      ...section.options,
     ];
   }, [section.allLabel, section.options]);
 
@@ -153,12 +146,16 @@ function FilterDropdownMenuSectionItem({
               const isSelected = isAllOption
                 ? section.value === null
                 : option.value === section.value;
+              const filterKeywords = [
+                option.label,
+                ...(option.searchKeywords ?? []),
+              ];
 
               return (
                 <CommandItem
                   key={option.value}
-                  value={option.itemValue}
-                  keywords={option.searchKeywords}
+                  value={option.value}
+                  keywords={filterKeywords}
                   onSelect={() => {
                     section.onChange(isAllOption ? null : option.value);
                     onSelect();
