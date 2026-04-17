@@ -22,6 +22,7 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
     <div
       className={cn(
         "group",
+        dragHandleProps && "cursor-grab",
         dragHandleProps?.isDragging && "scale-[1.02] opacity-60",
       )}
       {...handleProps}

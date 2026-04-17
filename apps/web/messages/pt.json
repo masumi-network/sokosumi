@@ -1340,6 +1340,31 @@
       "List": {
         "placeholder": "Sem tarefas"
       },
+      "Filters": {
+        "title": "Filtros",
+        "searchPlaceholder": "Filtrar…",
+        "emptyResults": "Nenhum resultado encontrado.",
+        "all": "Todas",
+        "scopeLabel": "Âmbito",
+        "scopeOwned": "As minhas tarefas",
+        "scopeWorkspace": "Espaço de trabalho",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "Estado",
+        "statusOptions": {
+          "DRAFT": "Rascunho",
+          "READY": "Pronto",
+          "INPUT_REQUIRED": "Entrada necessária",
+          "AUTHENTICATION_REQUIRED": "Autenticação necessária",
+          "OUT_OF_CREDITS": "Sem créditos",
+          "CREDITS_TOPPED_UP": "Créditos recarregados",
+          "RUNNING": "Em execução",
+          "AWAITING_EXTERNAL": "À espera de externo",
+          "COMPLETED": "Concluído",
+          "FAILED": "Falhou",
+          "CANCEL_REQUESTED": "Cancelamento pedido",
+          "CANCELED": "Cancelado"
+        }
+      },
       "Jobs": {
         "filterButton": "Estado",
         "filterHideFailed": "Ocultar falhados",

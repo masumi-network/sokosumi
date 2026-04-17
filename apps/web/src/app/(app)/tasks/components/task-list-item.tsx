@@ -27,6 +27,7 @@ export function TaskListItem({
     <div
       className={cn(
         "group",
+        dragHandleProps && "cursor-grab",
         (dragHandleProps?.isDragging || isOverlay) && "opacity-60",
       )}
       {...handleProps}

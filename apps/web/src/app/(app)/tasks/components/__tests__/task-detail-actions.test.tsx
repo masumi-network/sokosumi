@@ -549,6 +549,7 @@ function renderActions(
       labels={labels}
       organizations={sampleOrganizations}
       personalWorkspaceLabel={personalWorkspaceLabel}
+      isReadOnly={false}
       {...props}
     />,
   );
@@ -579,6 +580,19 @@ describe("TaskDetailActions", () => {
       screen.queryByRole("button", { name: actionsMenuLabel }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: labels.share })).toBeVisible();
+  });
+
+  it("hides share and overflow actions in read-only workspace mode", () => {
+    renderActions({
+      isReadOnly: true,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: labels.share }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: actionsMenuLabel }),
+    ).not.toBeInTheDocument();
   });
 
   it("disables the actions trigger while a status update is pending", async () => {

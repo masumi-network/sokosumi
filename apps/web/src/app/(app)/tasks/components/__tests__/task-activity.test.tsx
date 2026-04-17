@@ -163,6 +163,7 @@ const baseProps = {
     name: "User",
     image: null,
   },
+  canComment: true,
 };
 
 describe("TaskActivitySection", () => {
@@ -189,6 +190,17 @@ describe("TaskActivitySection", () => {
 
     return render(renderToast("task-upload-toast"));
   }
+
+  it("hides the composer in read-only mode", () => {
+    render(<TaskActivitySection {...baseProps} canComment={false} />);
+
+    expect(
+      screen.queryByPlaceholderText("Write a comment..."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Submit" }),
+    ).not.toBeInTheDocument();
+  });
 
   it("does not show auth button when latest status is not AUTHENTICATION_REQUIRED", () => {
     const events: TaskEvent[] = [
