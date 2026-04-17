@@ -3,8 +3,12 @@
 import type { TaskStatus } from "@sokosumi/database";
 
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
-import type { TasksScope } from "@/app/tasks/utils/tasks-filters";
+import {
+  sanitizeTasksScopeInput,
+  type TasksScope,
+} from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
+import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { userService } from "@/lib/services/user.service";
@@ -27,10 +31,14 @@ export async function loadMoreTasksColumn({
   coworkerId,
   status,
 }: LoadMoreTasksColumnParams) {
-  const [coworkers, agents] = await Promise.all([
+  const [session, coworkers, agents] = await Promise.all([
+    getSession(),
     coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
+
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const sanitizedScope = sanitizeTasksScopeInput(scope, activeOrganizationId);
 
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
@@ -42,7 +50,7 @@ export async function loadMoreTasksColumn({
     columnId,
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
-    scope,
+    scope: sanitizedScope,
     coworkerId: sanitizedCoworkerId,
     status,
     coworkersById,

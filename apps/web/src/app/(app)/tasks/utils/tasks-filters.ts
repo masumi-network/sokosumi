@@ -57,6 +57,31 @@ export function getDefaultTasksScope(
   return activeOrganizationId ? "workspace" : "owned";
 }
 
+/**
+ * Validates `scope` from untrusted input (e.g. server-action JSON). Mirrors
+ * {@link parseTasksFilters} so URL state and load-more stay aligned.
+ */
+export function sanitizeTasksScopeInput(
+  raw: unknown,
+  activeOrganizationId: string | null,
+): TasksScope {
+  const defaultScope = getDefaultTasksScope(activeOrganizationId);
+  if (typeof raw !== "string") {
+    return defaultScope;
+  }
+  const requestedScope = raw.trim();
+  if (
+    !requestedScope ||
+    !TASKS_SCOPE_VALUES.includes(requestedScope as TasksScope)
+  ) {
+    return defaultScope;
+  }
+  if (requestedScope === "workspace" && !activeOrganizationId) {
+    return defaultScope;
+  }
+  return requestedScope as TasksScope;
+}
+
 export function getTasksFiltersFromSearchParams(
   searchParams: URLSearchParams,
   activeOrganizationId: string | null,
@@ -89,14 +114,10 @@ export function parseTasksFilters(
   searchParams: TasksFiltersSearchParams,
   activeOrganizationId: string | null,
 ): TasksFilters {
-  const defaultScope = getDefaultTasksScope(activeOrganizationId);
-  const requestedScope = firstQueryString(searchParams.scope);
-  const scope =
-    requestedScope &&
-    TASKS_SCOPE_VALUES.includes(requestedScope as TasksScope) &&
-    (requestedScope !== "workspace" || activeOrganizationId)
-      ? (requestedScope as TasksScope)
-      : defaultScope;
+  const scope = sanitizeTasksScopeInput(
+    firstQueryString(searchParams.scope),
+    activeOrganizationId,
+  );
   const coworkerId = normalizeOptionalString(searchParams.coworkerId);
   const rawStatus = normalizeOptionalString(searchParams.status);
   const status = isTaskStatusValue(rawStatus) ? rawStatus : null;

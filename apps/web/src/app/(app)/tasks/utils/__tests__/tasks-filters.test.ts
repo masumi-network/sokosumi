@@ -8,6 +8,7 @@ import {
   getTasksFiltersResetKey,
   isTaskOwnerEditable,
   parseTasksFilters,
+  sanitizeTasksScopeInput,
 } from "@/app/tasks/utils/tasks-filters";
 
 describe("tasks-filters", () => {
@@ -34,6 +35,20 @@ describe("tasks-filters", () => {
       scope: "owned",
       coworkerId: null,
       status: null,
+    });
+  });
+
+  describe("sanitizeTasksScopeInput", () => {
+    it("returns default scope for non-strings and unknown labels", () => {
+      expect(sanitizeTasksScopeInput(undefined, "org-1")).toBe("workspace");
+      expect(sanitizeTasksScopeInput(123, "org-1")).toBe("workspace");
+      expect(sanitizeTasksScopeInput("not-a-scope", "org-1")).toBe("workspace");
+      expect(sanitizeTasksScopeInput("", "org-1")).toBe("workspace");
+    });
+
+    it("allows workspace only when an organization is active", () => {
+      expect(sanitizeTasksScopeInput("workspace", "org-1")).toBe("workspace");
+      expect(sanitizeTasksScopeInput("workspace", null)).toBe("owned");
     });
   });
 

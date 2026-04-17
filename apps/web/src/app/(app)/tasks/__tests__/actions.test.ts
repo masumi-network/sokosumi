@@ -27,11 +27,20 @@ vi.mock("../utils/tasks-column-page", () => ({
   getTasksColumnPage: (...args: unknown[]) => getTasksColumnPageMock(...args),
 }));
 
+const getSessionMock = vi.fn();
+
+vi.mock("@/lib/auth/utils", () => ({
+  getSession: (...args: unknown[]) => getSessionMock(...args),
+}));
+
 import { loadMoreTasksColumn } from "../actions";
 
 describe("loadMoreTasksColumn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+    });
   });
 
   it("loads one column page and returns mapped cursor result", async () => {
@@ -99,6 +108,51 @@ describe("loadMoreTasksColumn", () => {
     expect(getTasksColumnPageMock).toHaveBeenCalledTimes(1);
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
       coworkerId: null,
+    });
+  });
+
+  it("falls back to default scope when scope is not a valid TasksScope value", async () => {
+    listCoworkersMock.mockResolvedValue([]);
+    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
+    getTasksColumnPageMock.mockResolvedValue({
+      tasks: [],
+      nextCursor: null,
+    });
+
+    await loadMoreTasksColumn({
+      columnId: "todo",
+      cursor: null,
+      scope: "malicious" as never,
+      coworkerId: null,
+      status: null,
+    });
+
+    expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
+      scope: "workspace",
+    });
+  });
+
+  it("rejects workspace scope when there is no active organization", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: null },
+    });
+    listCoworkersMock.mockResolvedValue([]);
+    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
+    getTasksColumnPageMock.mockResolvedValue({
+      tasks: [],
+      nextCursor: null,
+    });
+
+    await loadMoreTasksColumn({
+      columnId: "todo",
+      cursor: null,
+      scope: "workspace",
+      coworkerId: null,
+      status: null,
+    });
+
+    expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
+      scope: "owned",
     });
   });
 });
