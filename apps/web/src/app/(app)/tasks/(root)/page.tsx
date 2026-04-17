@@ -27,9 +27,9 @@ interface TasksPageProps {
   searchParams: Promise<{
     create?: string;
     coworker?: string;
-    scope?: string;
-    coworkerId?: string;
-    status?: string;
+    scope?: string | string[];
+    coworkerId?: string | string[];
+    status?: string | string[];
   }>;
 }
 

@@ -12,10 +12,13 @@ export interface TasksFilters {
   status: TaskStatus | null;
 }
 
+/** App Router `searchParams` values can be `string | string[]` when a key is repeated. */
+export type TasksFilterQueryParam = string | string[] | undefined;
+
 export interface TasksFiltersSearchParams {
-  scope?: string;
-  coworkerId?: string;
-  status?: string;
+  scope?: TasksFilterQueryParam;
+  coworkerId?: TasksFilterQueryParam;
+  status?: TasksFilterQueryParam;
 }
 
 export const TASKS_FILTER_PARAM_KEYS = {
@@ -26,8 +29,19 @@ export const TASKS_FILTER_PARAM_KEYS = {
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
 
-function normalizeOptionalString(value: string | undefined): string | null {
-  const normalized = value?.trim();
+/** Matches `URLSearchParams#get`: first value wins when the key is repeated. */
+function firstQueryString(value: TasksFilterQueryParam): string | undefined {
+  if (value === undefined) return undefined;
+  if (Array.isArray(value)) {
+    const first = value.find((entry) => typeof entry === "string");
+    return first;
+  }
+  return value;
+}
+
+function normalizeOptionalString(value: TasksFilterQueryParam): string | null {
+  const raw = firstQueryString(value);
+  const normalized = raw?.trim();
   return normalized ? normalized : null;
 }
 
@@ -76,7 +90,7 @@ export function parseTasksFilters(
   activeOrganizationId: string | null,
 ): TasksFilters {
   const defaultScope = getDefaultTasksScope(activeOrganizationId);
-  const requestedScope = searchParams.scope;
+  const requestedScope = firstQueryString(searchParams.scope);
   const scope =
     requestedScope &&
     TASKS_SCOPE_VALUES.includes(requestedScope as TasksScope) &&

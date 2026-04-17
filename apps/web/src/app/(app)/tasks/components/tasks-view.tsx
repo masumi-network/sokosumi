@@ -364,11 +364,16 @@ export function TasksView({
     () => router.refresh(),
     TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
   );
-  const filtersResetKey = getTasksFiltersResetKey(
-    initialFilters,
-    activeOrganizationId,
+  const serverFiltersResetKey = useMemo(
+    () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
+    [activeOrganizationId, initialFilters],
   );
-  const previousFiltersResetKeyRef = useRef(filtersResetKey);
+  const routeFiltersResetKey = useMemo(
+    () => getTasksFiltersResetKey(routeFilters, activeOrganizationId),
+    [activeOrganizationId, routeFilters],
+  );
+  const isTaskPaginationInSync = routeFiltersResetKey === serverFiltersResetKey;
+  const previousFiltersResetKeyRef = useRef(serverFiltersResetKey);
   const handleEventUpdate = (_data: TaskEventData) => {
     refreshRoute();
   };
@@ -407,9 +412,9 @@ export function TasksView({
   }, [jobsFailedFilterMode]);
 
   useEffect(() => {
-    if (previousFiltersResetKeyRef.current === filtersResetKey) return;
+    if (previousFiltersResetKeyRef.current === serverFiltersResetKey) return;
 
-    previousFiltersResetKeyRef.current = filtersResetKey;
+    previousFiltersResetKeyRef.current = serverFiltersResetKey;
     moveVersionRef.current = 0;
     pendingMoveVersionByTaskIdRef.current.clear();
     isRefetchingJobsRef.current = false;
@@ -432,7 +437,7 @@ export function TasksView({
     initialColumnNextCursorById,
     initialJobsNextCursor,
     jobs,
-    filtersResetKey,
+    serverFiltersResetKey,
     tasks,
   ]);
 
@@ -585,6 +590,8 @@ export function TasksView({
 
   const handleLoadMoreColumn = useCallback(
     async (columnId: KanbanColumnId) => {
+      if (!isTaskPaginationInSync) return;
+
       const cursor = columnCursorByIdRef.current[columnId] ?? null;
       if (cursor === null || loadingColumnIdsRef.current.has(columnId)) return;
 
@@ -629,6 +636,7 @@ export function TasksView({
       }
     },
     [
+      isTaskPaginationInSync,
       labels.loadMoreError,
       routeFilters.coworkerId,
       routeFilters.scope,
@@ -749,7 +757,7 @@ export function TasksView({
             className="text-muted-foreground hover:text-foreground w-full text-xs"
             variant="outline"
             onClick={() => void handleLoadMoreColumn(column.id)}
-            disabled={isLoading}
+            disabled={isLoading || !isTaskPaginationInSync}
           >
             {isLoading ? labels.loading : labels.loadMore}
           </Button>
@@ -762,6 +770,7 @@ export function TasksView({
     columnCursorById,
     columns,
     handleLoadMoreColumn,
+    isTaskPaginationInSync,
     labels.loadMore,
     labels.loading,
     loadingColumnIds,

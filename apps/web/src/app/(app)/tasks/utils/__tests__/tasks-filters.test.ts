@@ -78,6 +78,23 @@ describe("tasks-filters", () => {
     });
   });
 
+  it("uses the first value when a filter key is repeated (App Router searchParams)", () => {
+    expect(
+      parseTasksFilters(
+        {
+          scope: ["workspace", "owned"],
+          coworkerId: ["coworker-1", "coworker-2"],
+          status: [TaskStatus.READY, TaskStatus.FAILED],
+        },
+        "org-1",
+      ),
+    ).toEqual({
+      scope: "workspace",
+      coworkerId: "coworker-1",
+      status: TaskStatus.READY,
+    });
+  });
+
   it("builds URL params without losing unrelated query state", () => {
     const currentSearchParams = new URLSearchParams({
       create: "true",
