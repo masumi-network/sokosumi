@@ -90,15 +90,12 @@ describe("agents routes OpenAPI scope contract", () => {
     expect(listGet).toBeDefined();
     expect(listGet?.responses?.["200"]).toBeDefined();
     const components = doc.components?.schemas;
-    const agentSummarySchema =
-      components &&
-      typeof components === "object" &&
-      "AgentSummary" in components
-        ? (components as { AgentSummary?: { properties?: unknown } })
-            .AgentSummary
+    const agentSchema =
+      components && typeof components === "object" && "Agent" in components
+        ? (components as { Agent?: { properties?: unknown } }).Agent
         : null;
-    expect(agentSummarySchema?.properties).toBeDefined();
-    const props = agentSummarySchema?.properties as
+    expect(agentSchema?.properties).toBeDefined();
+    const props = agentSchema?.properties as
       | { categories?: unknown }
       | undefined;
     expect(props?.categories).toBeDefined();
@@ -117,11 +114,9 @@ describe("agents routes OpenAPI scope contract", () => {
       | Record<string, { properties?: Record<string, unknown> }>
       | undefined;
 
-    expect(
-      components?.AgentSummary?.properties?.riskClassification,
-    ).toBeFalsy();
-    expect(components?.AgentSummary?.properties?.tags).toBeFalsy();
-    expect(components?.AgentSummary?.properties?.exampleOutputs).toBeFalsy();
+    expect(components?.Agent?.properties?.riskClassification).toBeFalsy();
+    expect(components?.Agent?.properties?.tags).toBeFalsy();
+    expect(components?.Agent?.properties?.exampleOutputs).toBeFalsy();
 
     expect(
       components?.AgentDetail?.properties?.riskClassification,

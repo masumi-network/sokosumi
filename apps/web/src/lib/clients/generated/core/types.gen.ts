@@ -4,7 +4,7 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}/v1` | (string & {});
 };
 
-export type AgentSummary = {
+export type Agent = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
@@ -984,7 +984,7 @@ export type GetAgentsResponses = {
      * Retrieve all agents
      */
     200: {
-        data: Array<AgentSummary>;
+        data: Array<Agent>;
         meta: {
             timestamp: Date;
             requestId: string;

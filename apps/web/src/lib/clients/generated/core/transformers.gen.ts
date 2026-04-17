@@ -2,14 +2,14 @@
 
 import type { DeleteCoworkersByIdApiKeysByKeyIdResponse, DeleteCoworkersByIdResponse, DeleteCreditCostsByIdResponse, DeleteJobsByIdShareResponse, DeleteTasksByIdLinksByLinkIdResponse, DeleteTasksByIdResponse, DeleteTasksByIdShareResponse, GetAgentsByIdInputSchemaResponse, GetAgentsByIdJobsResponse, GetAgentsByIdResponse, GetAgentsByIdReviewsResponse, GetAgentsResponse, GetCategoriesResponse, GetConversationsByIdItemsResponse, GetConversationsByIdResponse, GetConversationsResponse, GetCoworkersByIdApiKeysResponse, GetCoworkersByIdResponse, GetCoworkersMeEventsResponse, GetCoworkersMeResponse, GetCoworkersResponse, GetCreditCostsByIdResponse, GetCreditCostsResponse, GetJobsByIdEventsResponse, GetJobsByIdFilesResponse, GetJobsByIdInputRequestResponse, GetJobsByIdLinksResponse, GetJobsByIdResponse, GetJobsResponse, GetOrganizationsByIdResponse, GetShareByTokenResponse, GetTasksByIdEventsResponse, GetTasksByIdJobsResponse, GetTasksByIdLinksResponse, GetTasksByIdResponse, GetTasksResponse, GetUsersMeCreditsResponse, GetUsersMeNoticesPendingResponse, GetUsersMeOnboardingResponse, GetUsersMeOrganizationsByIdCreditsResponse, GetUsersMeOrganizationsResponse, GetUsersMePreferencesResponse, GetUsersMeResponse, GetUsersMeUploadsResponse, GetUsersRegisteredResponse, PatchConversationsByIdArchiveResponse, PatchConversationsByIdResponse, PatchCoworkersByIdApiKeysByKeyIdResponse, PatchCoworkersByIdResponse, PatchCoworkersByIdWhitelistResponse, PatchCreditCostsByIdResponse, PatchJobsByIdResponse, PatchTasksByIdLinksByLinkIdResponse, PatchTasksByIdResponse, PatchUsersMePreferencesResponse, PostAgentsByIdJobsResponse, PostConversationsByIdItemsResponse, PostConversationsByIdRecoverResponseResponse, PostConversationsResponse, PostCoworkersByIdApiKeysResponse, PostCoworkersResponse, PostCreditCostsResponse, PostJobsByIdInputsResponse, PostJobsByIdRefundResponse, PostTasksByIdEventsResponse, PostTasksByIdJobsResponse, PostTasksByIdLinksResponse, PostTasksResponse, PostUsersMagicLinkResponse, PostUsersMeNoticesByIdAcknowledgeResponse, PostUsersMeOnboardingResponse, PostUsersMeUploadsResponse, PutJobsByIdShareResponse, PutJobsByIdWorkspaceResponse, PutTasksByIdShareResponse, PutTasksByIdWorkspaceResponse } from './types.gen';
 
-const agentSummarySchemaResponseTransformer = (data: any) => {
+const agentSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
     return data;
 };
 
 export const getAgentsResponseTransformer = async (data: any): Promise<GetAgentsResponse> => {
-    data.data = data.data.map((item: any) => agentSummarySchemaResponseTransformer(item));
+    data.data = data.data.map((item: any) => agentSchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
