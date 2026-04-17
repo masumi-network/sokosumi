@@ -13,8 +13,8 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { userService } from "@/lib/services/user.service";
 import type { KanbanColumnId } from "@/lib/types/task";
 
-import { getTasksColumnPage } from "./utils/tasks-column-page";
 import { TaskStatus } from "./components/task-detail-api-types";
+import { getTasksColumnPage } from "./utils/tasks-column-page";
 
 interface LoadMoreTasksColumnParams {
   columnId: KanbanColumnId;
