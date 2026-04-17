@@ -13,6 +13,7 @@ import type {
   GetShareByTokenError,
   GetTasksData,
   PaginationMetadata,
+  PatchJobsByIdData,
   PostTasksByIdLinksData,
   PostUsersMeUploadsData,
   PutJobsByIdShareError,
@@ -40,6 +41,7 @@ import {
   getUsersMeOrganizations as coreGetUsersMeOrganizations,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
+  patchJobsById as corePatchJobsById,
   patchTasksById as corePatchTasksById,
   postConversations as corePostConversations,
   postConversationsByIdItems as corePostConversationsByIdItems,
@@ -389,6 +391,22 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch job",
+    );
+  }
+
+  async function patchJob(
+    id: string,
+    body: NonNullable<PatchJobsByIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchJobsById({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to update job",
     );
   }
 
@@ -857,6 +875,7 @@ export function createCoreClient(getClient: GetClient) {
     getSharedResourceByToken,
     moveJobToWorkspace,
     moveTaskToWorkspace,
+    patchJob,
     getTaskById,
     getTaskLinks,
     getTasks,
