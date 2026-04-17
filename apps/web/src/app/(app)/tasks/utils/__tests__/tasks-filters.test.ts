@@ -5,7 +5,6 @@ import {
   buildTasksFiltersSearchParams,
   getDefaultTasksScope,
   getTasksFiltersResetKey,
-  hasActiveTasksFilters,
   isTaskOwnerEditable,
   parseTasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
@@ -92,29 +91,6 @@ describe("tasks-filters", () => {
     );
 
     expect(nextSearchParams.toString()).toBe("");
-  });
-
-  it("tracks active filters against the default scope", () => {
-    expect(
-      hasActiveTasksFilters(
-        {
-          scope: "workspace",
-          coworkerId: null,
-          status: null,
-        },
-        "org-1",
-      ),
-    ).toBe(false);
-    expect(
-      hasActiveTasksFilters(
-        {
-          scope: "owned",
-          coworkerId: null,
-          status: null,
-        },
-        "org-1",
-      ),
-    ).toBe(true);
   });
 
   it("derives stable reset keys", () => {

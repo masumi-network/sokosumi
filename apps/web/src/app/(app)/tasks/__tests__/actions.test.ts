@@ -78,4 +78,27 @@ describe("loadMoreTasksColumn", () => {
       nextCursor: "next-column-cursor",
     });
   });
+
+  it("ignores coworkerId that is not in the current tasks coworker list", async () => {
+    const coworker = { id: "coworker-1", name: "Coworker" };
+    listCoworkersMock.mockResolvedValue([coworker]);
+    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
+    getTasksColumnPageMock.mockResolvedValue({
+      tasks: [],
+      nextCursor: null,
+    });
+
+    await loadMoreTasksColumn({
+      columnId: "todo",
+      cursor: null,
+      scope: "owned",
+      coworkerId: "removed-coworker",
+      status: null,
+    });
+
+    expect(getTasksColumnPageMock).toHaveBeenCalledTimes(1);
+    expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
+      coworkerId: null,
+    });
+  });
 });

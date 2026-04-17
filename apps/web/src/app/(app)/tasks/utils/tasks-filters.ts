@@ -66,17 +66,6 @@ export function parseTasksFilters(
   };
 }
 
-export function hasActiveTasksFilters(
-  filters: TasksFilters,
-  activeOrganizationId: string | null,
-): boolean {
-  return (
-    filters.scope !== getDefaultTasksScope(activeOrganizationId) ||
-    filters.coworkerId !== null ||
-    filters.status !== null
-  );
-}
-
 export function buildTasksFiltersSearchParams(
   currentSearchParams: URLSearchParams | SearchParamsLike,
   filters: TasksFilters,

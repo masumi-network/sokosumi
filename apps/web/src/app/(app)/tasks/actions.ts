@@ -36,12 +36,14 @@ export async function loadMoreTasksColumn({
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
+  const sanitizedCoworkerId =
+    coworkerId && coworkersById.has(coworkerId) ? coworkerId : null;
   const page = await getTasksColumnPage({
     columnId,
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope,
-    coworkerId,
+    coworkerId: sanitizedCoworkerId,
     status,
     coworkersById,
     agentsById,
