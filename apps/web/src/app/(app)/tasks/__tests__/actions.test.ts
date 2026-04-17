@@ -1,3 +1,4 @@
+import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listCoworkersMock = vi.fn();
@@ -153,6 +154,48 @@ describe("loadMoreTasksColumn", () => {
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
       scope: "owned",
+    });
+  });
+
+  it("ignores status that is not a valid TaskStatus value", async () => {
+    listCoworkersMock.mockResolvedValue([]);
+    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
+    getTasksColumnPageMock.mockResolvedValue({
+      tasks: [],
+      nextCursor: null,
+    });
+
+    await loadMoreTasksColumn({
+      columnId: "todo",
+      cursor: null,
+      scope: "owned",
+      coworkerId: null,
+      status: "malicious" as never,
+    });
+
+    expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
+      status: null,
+    });
+  });
+
+  it("passes through a valid TaskStatus string", async () => {
+    listCoworkersMock.mockResolvedValue([]);
+    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
+    getTasksColumnPageMock.mockResolvedValue({
+      tasks: [],
+      nextCursor: null,
+    });
+
+    await loadMoreTasksColumn({
+      columnId: "todo",
+      cursor: null,
+      scope: "owned",
+      coworkerId: null,
+      status: TaskStatus.READY,
+    });
+
+    expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
+      status: TaskStatus.READY,
     });
   });
 });

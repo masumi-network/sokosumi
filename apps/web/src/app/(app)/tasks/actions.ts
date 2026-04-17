@@ -1,10 +1,9 @@
 "use server";
 
-import type { TaskStatus } from "@sokosumi/database";
-
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import {
   sanitizeTasksScopeInput,
+  sanitizeTasksStatusInput,
   type TasksScope,
 } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
@@ -21,7 +20,8 @@ interface LoadMoreTasksColumnParams {
   cursor: string | null;
   scope: TasksScope;
   coworkerId: string | null;
-  status: TaskStatus | null;
+  /** Untrusted client input; normalized before use. */
+  status: unknown;
 }
 
 export async function loadMoreTasksColumn({
@@ -46,13 +46,14 @@ export async function loadMoreTasksColumn({
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const sanitizedCoworkerId =
     coworkerId && coworkersById.has(coworkerId) ? coworkerId : null;
+  const sanitizedStatus = sanitizeTasksStatusInput(status);
   const page = await getTasksColumnPage({
     columnId,
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
     coworkerId: sanitizedCoworkerId,
-    status,
+    status: sanitizedStatus,
     coworkersById,
     agentsById,
   });

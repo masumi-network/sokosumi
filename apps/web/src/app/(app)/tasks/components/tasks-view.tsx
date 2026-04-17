@@ -16,6 +16,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -30,7 +31,7 @@ import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
-  isTaskOwnerEditable,
+  isTaskDraggableForViewFilters,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
@@ -411,7 +412,7 @@ export function TasksView({
     }
   }, [jobsFailedFilterMode]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (previousFiltersResetKeyRef.current === serverFiltersResetKey) return;
 
     previousFiltersResetKeyRef.current = serverFiltersResetKey;
@@ -531,6 +532,20 @@ export function TasksView({
     const activeId = event.active.id;
     const overId = event.over?.id;
     if (typeof activeId !== "string" || typeof overId !== "string") return;
+
+    const draggedTask = itemsRef.current.find((task) => task.id === activeId);
+    if (
+      !draggedTask ||
+      !isTaskDraggableForViewFilters(
+        draggedTask,
+        userId,
+        routeFilters,
+        initialFilters,
+        activeOrganizationId,
+      )
+    ) {
+      return;
+    }
 
     const toColumn = overId as KanbanColumnId;
     if (!isDnDColumn(toColumn)) return;
@@ -884,10 +899,11 @@ export function TasksView({
                     columns={columns}
                     columnFooterById={columnFooterById}
                     canDragTask={(task) =>
-                      isTaskOwnerEditable(
+                      isTaskDraggableForViewFilters(
                         task,
                         userId,
                         routeFilters,
+                        initialFilters,
                         activeOrganizationId,
                       )
                     }
@@ -903,10 +919,11 @@ export function TasksView({
                     columns={columns}
                     sectionFooterById={columnFooterById}
                     canDragTask={(task) =>
-                      isTaskOwnerEditable(
+                      isTaskDraggableForViewFilters(
                         task,
                         userId,
                         routeFilters,
+                        initialFilters,
                         activeOrganizationId,
                       )
                     }

@@ -6,9 +6,11 @@ import {
   getDefaultTasksScope,
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
+  isTaskDraggableForViewFilters,
   isTaskOwnerEditable,
   parseTasksFilters,
   sanitizeTasksScopeInput,
+  sanitizeTasksStatusInput,
 } from "@/app/tasks/utils/tasks-filters";
 
 describe("tasks-filters", () => {
@@ -49,6 +51,25 @@ describe("tasks-filters", () => {
     it("allows workspace only when an organization is active", () => {
       expect(sanitizeTasksScopeInput("workspace", "org-1")).toBe("workspace");
       expect(sanitizeTasksScopeInput("workspace", null)).toBe("owned");
+    });
+  });
+
+  describe("sanitizeTasksStatusInput", () => {
+    it("returns null for non-strings and unknown labels", () => {
+      expect(sanitizeTasksStatusInput(undefined)).toBeNull();
+      expect(sanitizeTasksStatusInput(null)).toBeNull();
+      expect(sanitizeTasksStatusInput(123)).toBeNull();
+      expect(sanitizeTasksStatusInput({})).toBeNull();
+      expect(sanitizeTasksStatusInput("not-a-status")).toBeNull();
+      expect(sanitizeTasksStatusInput("")).toBeNull();
+      expect(sanitizeTasksStatusInput("   ")).toBeNull();
+    });
+
+    it("accepts valid TaskStatus string values", () => {
+      expect(sanitizeTasksStatusInput(TaskStatus.READY)).toBe(TaskStatus.READY);
+      expect(sanitizeTasksStatusInput(` ${TaskStatus.DRAFT} `)).toBe(
+        TaskStatus.DRAFT,
+      );
     });
   });
 
@@ -202,5 +223,46 @@ describe("tasks-filters", () => {
         null,
       ),
     ).toBe(true);
+  });
+
+  describe("isTaskDraggableForViewFilters", () => {
+    const workspaceFilters = {
+      scope: "workspace" as const,
+      coworkerId: null,
+      status: null,
+    };
+    const ownedFilters = {
+      scope: "owned" as const,
+      coworkerId: null,
+      status: null,
+    };
+
+    it("disallows drag when the URL implies owned but the server list was still workspace (coworker task)", () => {
+      const coworkerTask = { userId: "user-2" };
+
+      expect(
+        isTaskDraggableForViewFilters(
+          coworkerTask,
+          "user-1",
+          ownedFilters,
+          workspaceFilters,
+          "org-1",
+        ),
+      ).toBe(false);
+    });
+
+    it("allows drag when route and initial filters agree for the viewer's task", () => {
+      const myTask = { userId: "user-1" };
+
+      expect(
+        isTaskDraggableForViewFilters(
+          myTask,
+          "user-1",
+          ownedFilters,
+          ownedFilters,
+          "org-1",
+        ),
+      ).toBe(true);
+    });
   });
 });

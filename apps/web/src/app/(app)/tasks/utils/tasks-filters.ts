@@ -51,6 +51,24 @@ function isTaskStatusValue(value: string | null): value is TaskStatus {
   );
 }
 
+/**
+ * Validates `status` from untrusted input (e.g. server-action JSON). Mirrors
+ * {@link parseTasksFilters} so URL state and load-more stay aligned.
+ */
+export function sanitizeTasksStatusInput(raw: unknown): TaskStatus | null {
+  if (raw === null || raw === undefined) {
+    return null;
+  }
+  if (typeof raw !== "string") {
+    return null;
+  }
+  const normalized = raw.trim();
+  if (!normalized) {
+    return null;
+  }
+  return isTaskStatusValue(normalized) ? normalized : null;
+}
+
 export function getDefaultTasksScope(
   activeOrganizationId: string | null,
 ): TasksScope {
@@ -120,7 +138,7 @@ export function parseTasksFilters(
   );
   const coworkerId = normalizeOptionalString(searchParams.coworkerId);
   const rawStatus = normalizeOptionalString(searchParams.status);
-  const status = isTaskStatusValue(rawStatus) ? rawStatus : null;
+  const status = sanitizeTasksStatusInput(rawStatus);
 
   return {
     scope,
@@ -182,4 +200,23 @@ export function isTaskOwnerEditable(
   }
 
   return userId != null && task.userId === userId;
+}
+
+/**
+ * Drag permissions must stay consistent with both the URL (route) and the last
+ * server render (initial). When those disagree during a filter transition,
+ * `isTaskOwnerEditable` can be wrong for stale list rows (e.g. workspace rows
+ * while the URL already says owned). Require both to allow drag.
+ */
+export function isTaskDraggableForViewFilters(
+  task: Pick<TaskWithCoworker, "userId">,
+  userId: string | null | undefined,
+  routeFilters: TasksFilters,
+  initialFilters: TasksFilters,
+  activeOrganizationId: string | null,
+): boolean {
+  return (
+    isTaskOwnerEditable(task, userId, routeFilters, activeOrganizationId) &&
+    isTaskOwnerEditable(task, userId, initialFilters, activeOrganizationId)
+  );
 }
