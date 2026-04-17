@@ -1,6 +1,9 @@
 "use server";
 
+import type { TaskStatus } from "@sokosumi/database";
+
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
+import type { TasksScope } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -12,14 +15,20 @@ import { getTasksColumnPage } from "./utils/tasks-column-page";
 interface LoadMoreTasksColumnParams {
   columnId: KanbanColumnId;
   cursor: string | null;
+  scope: TasksScope;
+  coworkerId: string | null;
+  status: TaskStatus | null;
 }
 
 export async function loadMoreTasksColumn({
   columnId,
   cursor,
+  scope,
+  coworkerId,
+  status,
 }: LoadMoreTasksColumnParams) {
   const [coworkers, agents] = await Promise.all([
-    coworkerService.listCoworkers(),
+    coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
 
@@ -31,6 +40,9 @@ export async function loadMoreTasksColumn({
     columnId,
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
+    scope,
+    coworkerId,
+    status,
     coworkersById,
     agentsById,
   });

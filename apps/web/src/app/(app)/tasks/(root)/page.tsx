@@ -1,3 +1,4 @@
+import { TaskStatus } from "@sokosumi/database";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
@@ -9,6 +10,7 @@ import {
 } from "@/app/tasks/utils/coworker-options";
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
+import { parseTasksFilters } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
@@ -22,7 +24,13 @@ import {
 } from "@/lib/ui-preferences/tasks-view-mode";
 
 interface TasksPageProps {
-  searchParams: Promise<{ create?: string; coworker?: string }>;
+  searchParams: Promise<{
+    create?: string;
+    coworker?: string;
+    scope?: string;
+    coworkerId?: string;
+    status?: string;
+  }>;
 }
 
 export const metadata = {
@@ -30,7 +38,13 @@ export const metadata = {
 };
 
 export default async function TasksPage({ searchParams }: TasksPageProps) {
-  const { create, coworker: coworkerSlugParam } = await searchParams;
+  const {
+    create,
+    coworker: coworkerSlugParam,
+    scope,
+    coworkerId,
+    status,
+  } = await searchParams;
   const [t, tColumns, cookieStore, session] = await Promise.all([
     getTranslations("App.Tasks"),
     getTranslations("App.Tasks.Columns"),
@@ -40,6 +54,11 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const defaultViewMode =
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const filters = parseTasksFilters(
+    { scope, coworkerId, status },
+    activeOrganizationId,
+  );
 
   const [taskCoworkers, agents, jobsPage] = await Promise.all([
     coworkerService.listCoworkers("tasks"),
@@ -47,19 +66,30 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     userService.listMyJobsForActiveContextPaginated({ limit: 20, session }),
   ]);
 
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-
   const coworkersById = new Map(
     taskCoworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const agentNameById = buildAgentNameById(agents);
+  const validCoworkerIds = new Set(
+    taskCoworkers.map((coworker) => coworker.id),
+  );
+  const activeFilters = {
+    ...filters,
+    coworkerId:
+      filters.coworkerId && validCoworkerIds.has(filters.coworkerId)
+        ? filters.coworkerId
+        : null,
+  };
   const columnPages = await Promise.all(
     KANBAN_COLUMNS.map(async (column) => {
       const page = await getTasksColumnPage({
         columnId: column.id,
         cursor: null,
         limit: TASKS_COLUMN_PAGE_LIMIT,
+        scope: activeFilters.scope,
+        coworkerId: activeFilters.coworkerId,
+        status: activeFilters.status,
         coworkersById,
         agentsById,
       });
@@ -114,6 +144,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         agentNameById={agentNameById}
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}
+        initialFilters={activeFilters}
         defaultViewMode={defaultViewMode}
         initialCreateTaskOpen={initialCreateTaskOpen}
         initialCoworkerId={initialCoworkerId}
@@ -122,6 +153,43 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
           tabs: {
             tasks: t("Tabs.tasks"),
             jobs: t("Tabs.jobs"),
+          },
+          filters: {
+            title: t("Filters.title"),
+            searchPlaceholder: t("Filters.searchPlaceholder"),
+            emptyResults: t("Filters.emptyResults"),
+            all: t("Filters.all"),
+            scopeLabel: t("Filters.scopeLabel"),
+            scopeOwned: t("Filters.scopeOwned"),
+            scopeWorkspace: t("Filters.scopeWorkspace"),
+            coworkerLabel: t("Filters.coworkerLabel"),
+            statusLabel: t("Filters.statusLabel"),
+            statusOptions: {
+              [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
+              [TaskStatus.READY]: t("Filters.statusOptions.READY"),
+              [TaskStatus.INPUT_REQUIRED]: t(
+                "Filters.statusOptions.INPUT_REQUIRED",
+              ),
+              [TaskStatus.AUTHENTICATION_REQUIRED]: t(
+                "Filters.statusOptions.AUTHENTICATION_REQUIRED",
+              ),
+              [TaskStatus.OUT_OF_CREDITS]: t(
+                "Filters.statusOptions.OUT_OF_CREDITS",
+              ),
+              [TaskStatus.CREDITS_TOPPED_UP]: t(
+                "Filters.statusOptions.CREDITS_TOPPED_UP",
+              ),
+              [TaskStatus.RUNNING]: t("Filters.statusOptions.RUNNING"),
+              [TaskStatus.AWAITING_EXTERNAL]: t(
+                "Filters.statusOptions.AWAITING_EXTERNAL",
+              ),
+              [TaskStatus.COMPLETED]: t("Filters.statusOptions.COMPLETED"),
+              [TaskStatus.FAILED]: t("Filters.statusOptions.FAILED"),
+              [TaskStatus.CANCEL_REQUESTED]: t(
+                "Filters.statusOptions.CANCEL_REQUESTED",
+              ),
+              [TaskStatus.CANCELED]: t("Filters.statusOptions.CANCELED"),
+            },
           },
           columns: columnLabels,
           add: t("Actions.add"),

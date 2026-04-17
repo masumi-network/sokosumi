@@ -1309,6 +1309,31 @@
       "List": {
         "placeholder": "Sin Tasks"
       },
+      "Filters": {
+        "title": "Filtros",
+        "searchPlaceholder": "Filtrar…",
+        "emptyResults": "No se encontraron resultados.",
+        "all": "Todas",
+        "scopeLabel": "Ámbito",
+        "scopeOwned": "Mis tareas",
+        "scopeWorkspace": "Espacio de trabajo",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "Estado",
+        "statusOptions": {
+          "DRAFT": "Borrador",
+          "READY": "Listo",
+          "INPUT_REQUIRED": "Entrada requerida",
+          "AUTHENTICATION_REQUIRED": "Autenticación requerida",
+          "OUT_OF_CREDITS": "Sin créditos",
+          "CREDITS_TOPPED_UP": "Créditos recargados",
+          "RUNNING": "En ejecución",
+          "AWAITING_EXTERNAL": "Esperando externo",
+          "COMPLETED": "Completado",
+          "FAILED": "Fallido",
+          "CANCEL_REQUESTED": "Cancelación solicitada",
+          "CANCELED": "Cancelado"
+        }
+      },
       "Jobs": {
         "filterButton": "Estado",
         "filterHideFailed": "Ocultar fallidos",

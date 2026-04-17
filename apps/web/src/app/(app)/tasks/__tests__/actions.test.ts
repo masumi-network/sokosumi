@@ -54,6 +54,9 @@ describe("loadMoreTasksColumn", () => {
     const result = await loadMoreTasksColumn({
       columnId: "todo",
       cursor: "current-column-cursor",
+      scope: "workspace",
+      coworkerId: "coworker-1",
+      status: null,
     });
 
     expect(getTasksColumnPageMock).toHaveBeenCalledTimes(1);
@@ -62,6 +65,9 @@ describe("loadMoreTasksColumn", () => {
       columnId: "todo",
       cursor: "current-column-cursor",
       limit: 20,
+      scope: "workspace",
+      coworkerId: "coworker-1",
+      status: null,
     });
     expect(callArg.coworkersById).toBeInstanceOf(Map);
     expect(callArg.agentsById).toBeInstanceOf(Map);

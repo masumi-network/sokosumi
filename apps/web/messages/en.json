@@ -1340,6 +1340,31 @@
       "List": {
         "placeholder": "No tasks"
       },
+      "Filters": {
+        "title": "Filters",
+        "searchPlaceholder": "Filter...",
+        "emptyResults": "No results found.",
+        "all": "All",
+        "scopeLabel": "Scope",
+        "scopeOwned": "My tasks",
+        "scopeWorkspace": "Workspace",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "Status",
+        "statusOptions": {
+          "DRAFT": "Draft",
+          "READY": "Ready",
+          "INPUT_REQUIRED": "Input required",
+          "AUTHENTICATION_REQUIRED": "Authentication required",
+          "OUT_OF_CREDITS": "Out of credits",
+          "CREDITS_TOPPED_UP": "Credits topped up",
+          "RUNNING": "Running",
+          "AWAITING_EXTERNAL": "Awaiting external",
+          "COMPLETED": "Completed",
+          "FAILED": "Failed",
+          "CANCEL_REQUESTED": "Cancel requested",
+          "CANCELED": "Canceled"
+        }
+      },
       "Jobs": {
         "filterButton": "Status",
         "filterHideFailed": "Hide failed",

@@ -1340,6 +1340,31 @@
       "List": {
         "placeholder": "暂无任务"
       },
+      "Filters": {
+        "title": "筛选",
+        "searchPlaceholder": "筛选…",
+        "emptyResults": "未找到结果。",
+        "all": "全部",
+        "scopeLabel": "范围",
+        "scopeOwned": "我的任务",
+        "scopeWorkspace": "工作区",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "状态",
+        "statusOptions": {
+          "DRAFT": "草稿",
+          "READY": "就绪",
+          "INPUT_REQUIRED": "需要输入",
+          "AUTHENTICATION_REQUIRED": "需要认证",
+          "OUT_OF_CREDITS": "积分不足",
+          "CREDITS_TOPPED_UP": "积分已充值",
+          "RUNNING": "运行中",
+          "AWAITING_EXTERNAL": "等待外部",
+          "COMPLETED": "已完成",
+          "FAILED": "失败",
+          "CANCEL_REQUESTED": "已请求取消",
+          "CANCELED": "已取消"
+        }
+      },
       "Jobs": {
         "filterButton": "状态",
         "filterHideFailed": "隐藏失败",

@@ -99,7 +99,10 @@ export function CreateTaskModal({
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.has("create") || params.has("coworker")) {
-      router.replace(pathname);
+      params.delete("create");
+      params.delete("coworker");
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     }
   }, [pathname, router]);
 

@@ -1,0 +1,104 @@
+import { TaskStatus } from "@sokosumi/database";
+import { render } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const filterDropdownMenuMock = vi.fn();
+
+vi.mock("@/components/common/filter-dropdown-menu", () => ({
+  FilterDropdownMenu: (props: unknown) => {
+    filterDropdownMenuMock(props);
+    return <div data-testid="filter-dropdown-menu" />;
+  },
+}));
+
+import { TasksViewFilters } from "../tasks-view-filters";
+
+const replaceMock = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/tasks",
+  useRouter: () => ({
+    replace: replaceMock,
+  }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+const labels = {
+  title: "Filters",
+  searchPlaceholder: "Filter...",
+  emptyResults: "No results found.",
+  all: "All",
+  scopeLabel: "Scope",
+  scopeOwned: "My tasks",
+  scopeWorkspace: "Workspace",
+  coworkerLabel: "Coworker",
+  statusLabel: "Status",
+  statusOptions: {
+    [TaskStatus.DRAFT]: "Draft",
+    [TaskStatus.READY]: "Ready",
+    [TaskStatus.INPUT_REQUIRED]: "Input required",
+    [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
+    [TaskStatus.OUT_OF_CREDITS]: "Out of credits",
+    [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",
+    [TaskStatus.RUNNING]: "Running",
+    [TaskStatus.AWAITING_EXTERNAL]: "Awaiting external",
+    [TaskStatus.COMPLETED]: "Completed",
+    [TaskStatus.FAILED]: "Failed",
+    [TaskStatus.CANCEL_REQUESTED]: "Cancel requested",
+    [TaskStatus.CANCELED]: "Canceled",
+  },
+} as const;
+
+function renderTasksViewFilters(activeOrganizationId: string | null) {
+  render(
+    <TasksViewFilters
+      filters={{
+        scope: activeOrganizationId ? "workspace" : "owned",
+        coworkerId: null,
+        status: null,
+      }}
+      activeOrganizationId={activeOrganizationId}
+      coworkerOptions={[
+        {
+          id: "coworker-1",
+          slug: "elena",
+          name: "Elena",
+          image: "elena.png",
+        },
+      ]}
+      labels={labels}
+    />,
+  );
+
+  return filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
+    buttonLabel: string;
+    sections: Array<{ id: string; label: string }>;
+  };
+}
+
+describe("TasksViewFilters", () => {
+  beforeEach(() => {
+    filterDropdownMenuMock.mockClear();
+    replaceMock.mockClear();
+  });
+
+  it("shows scope and coworker sections in workspace context", () => {
+    const props = renderTasksViewFilters("org-1");
+
+    expect(props.buttonLabel).toBe("Filters");
+    expect(props.sections.map((section) => section.id)).toEqual([
+      "scope",
+      "coworker",
+      "status",
+    ]);
+  });
+
+  it("only shows coworker and status sections in personal context", () => {
+    const props = renderTasksViewFilters(null);
+
+    expect(props.sections.map((section) => section.id)).toEqual([
+      "coworker",
+      "status",
+    ]);
+  });
+});

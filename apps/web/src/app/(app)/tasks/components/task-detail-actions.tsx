@@ -106,6 +106,7 @@ interface TaskDetailActionsProps {
   currentOrganizationId?: string | null;
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel: string;
+  isReadOnly?: boolean;
 }
 
 export function TaskDetailActions({
@@ -122,6 +123,7 @@ export function TaskDetailActions({
   currentOrganizationId,
   organizations,
   personalWorkspaceLabel,
+  isReadOnly = false,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -161,17 +163,19 @@ export function TaskDetailActions({
     null,
   );
 
-  const statusActions = getTaskStatusActions(status, labels);
+  const statusActions = isReadOnly ? [] : getTaskStatusActions(status, labels);
 
   const canEditOrDelete =
-    status === TASK_STATUS.DRAFT || status === TASK_STATUS.READY;
+    !isReadOnly &&
+    (status === TASK_STATUS.DRAFT || status === TASK_STATUS.READY);
   const isFinalized =
     status === TASK_STATUS.COMPLETED ||
     status === TASK_STATUS.FAILED ||
     status === TASK_STATUS.CANCELED ||
     status === TASK_STATUS.CANCEL_REQUESTED;
-  const canManageRelations = !isFinalized;
+  const canManageRelations = !isReadOnly && !isFinalized;
   const canMove =
+    !isReadOnly &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
   const parentLinks = useMemo(
@@ -366,13 +370,15 @@ export function TaskDetailActions({
 
   return (
     <div className="flex items-center gap-2">
-      <TaskShareButton
-        task={{ id: taskId, share }}
-        label={labels.share}
-        variant="ghost"
-        size="icon"
-        className="size-7"
-      />
+      {!isReadOnly ? (
+        <TaskShareButton
+          task={{ id: taskId, share }}
+          label={labels.share}
+          variant="ghost"
+          size="icon"
+          className="size-7"
+        />
+      ) : null}
       {hasOverflowMenuActions ? (
         <DropdownMenu
           open={isDropdownOpen}

@@ -9,7 +9,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SokosumiJobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/database";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -27,6 +27,11 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
+import {
+  getTasksFiltersResetKey,
+  isTaskOwnerEditable,
+  type TasksFilters,
+} from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
@@ -50,7 +55,6 @@ import {
   type TasksViewMode,
 } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
-
 import {
   CreateTaskModal,
   CreateTaskModalProvider,
@@ -68,6 +72,7 @@ import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
 import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
 import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
+import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch } from "./view-mode-switch";
 
 function HeaderAddButton({ label }: { label: string }) {
@@ -190,6 +195,7 @@ interface TasksViewProps {
   agentNameById: Map<string, string>;
   userId?: string | null;
   activeOrganizationId: string | null;
+  initialFilters: TasksFilters;
   defaultViewMode?: TasksViewMode;
   initialCreateTaskOpen?: boolean;
   initialCoworkerId?: string | null;
@@ -198,6 +204,18 @@ interface TasksViewProps {
     tabs: {
       tasks: string;
       jobs: string;
+    };
+    filters: {
+      title: string;
+      searchPlaceholder: string;
+      emptyResults: string;
+      all: string;
+      scopeLabel: string;
+      scopeOwned: string;
+      scopeWorkspace: string;
+      coworkerLabel: string;
+      statusLabel: string;
+      statusOptions: Record<TaskStatus, string>;
     };
     columns: Record<KanbanColumnId, string>;
     add: string;
@@ -255,6 +273,7 @@ export function TasksView({
   agentNameById,
   userId,
   activeOrganizationId,
+  initialFilters,
   defaultViewMode,
   initialCreateTaskOpen = false,
   initialCoworkerId = null,
@@ -334,8 +353,11 @@ export function TasksView({
     () => router.refresh(),
     TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
   );
-  const scopeKey = activeOrganizationId ?? "personal";
-  const previousScopeKeyRef = useRef(scopeKey);
+  const filtersResetKey = getTasksFiltersResetKey(
+    initialFilters,
+    activeOrganizationId,
+  );
+  const previousFiltersResetKeyRef = useRef(filtersResetKey);
   const handleEventUpdate = (_data: TaskEventData) => {
     refreshRoute();
   };
@@ -374,9 +396,9 @@ export function TasksView({
   }, [jobsFailedFilterMode]);
 
   useEffect(() => {
-    if (previousScopeKeyRef.current === scopeKey) return;
+    if (previousFiltersResetKeyRef.current === filtersResetKey) return;
 
-    previousScopeKeyRef.current = scopeKey;
+    previousFiltersResetKeyRef.current = filtersResetKey;
     moveVersionRef.current = 0;
     pendingMoveVersionByTaskIdRef.current.clear();
     isRefetchingJobsRef.current = false;
@@ -399,7 +421,7 @@ export function TasksView({
     initialColumnNextCursorById,
     initialJobsNextCursor,
     jobs,
-    scopeKey,
+    filtersResetKey,
     tasks,
   ]);
 
@@ -561,7 +583,13 @@ export function TasksView({
       setLoadingColumnIds(nextLoading);
 
       try {
-        const result = await loadMoreTasksColumn({ columnId, cursor });
+        const result = await loadMoreTasksColumn({
+          columnId,
+          cursor,
+          scope: initialFilters.scope,
+          coworkerId: initialFilters.coworkerId,
+          status: initialFilters.status,
+        });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
         setColumnCursorById((prev) => ({
@@ -589,7 +617,12 @@ export function TasksView({
         setLoadingColumnIds(afterLoading);
       }
     },
-    [labels.loadMoreError],
+    [
+      initialFilters.coworkerId,
+      initialFilters.scope,
+      initialFilters.status,
+      labels.loadMoreError,
+    ],
   );
 
   const handleViewModeChange = (next: TasksViewMode) => {
@@ -775,6 +808,14 @@ export function TasksView({
             </Button>
           ) : null}
           {activeTab === "tasks" ? (
+            <TasksViewFilters
+              filters={initialFilters}
+              activeOrganizationId={activeOrganizationId}
+              coworkerOptions={coworkerOptions}
+              labels={labels.filters}
+            />
+          ) : null}
+          {activeTab === "tasks" ? (
             <ViewModeSwitch
               value={viewMode}
               onChange={handleViewModeChange}
@@ -823,6 +864,14 @@ export function TasksView({
                     tasks={items}
                     columns={columns}
                     columnFooterById={columnFooterById}
+                    canDragTask={(task) =>
+                      isTaskOwnerEditable(
+                        task,
+                        userId,
+                        initialFilters,
+                        activeOrganizationId,
+                      )
+                    }
                     labels={{
                       columns: labels.columns,
                       addTask: labels.addTask,
@@ -834,6 +883,14 @@ export function TasksView({
                     tasks={items}
                     columns={columns}
                     sectionFooterById={columnFooterById}
+                    canDragTask={(task) =>
+                      isTaskOwnerEditable(
+                        task,
+                        userId,
+                        initialFilters,
+                        activeOrganizationId,
+                      )
+                    }
                     labels={{
                       columns: labels.columns,
                       emptyList: labels.listPlaceholder,
