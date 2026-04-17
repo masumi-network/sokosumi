@@ -8,12 +8,12 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/utils";
+import type { Task } from "@/lib/clients/generated/core";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { userService } from "@/lib/services/user.service";
 import type { KanbanColumnId } from "@/lib/types/task";
 
-import { TaskStatus } from "./components/task-detail-api-types";
 import { getTasksColumnPage } from "./utils/tasks-column-page";
 
 interface LoadMoreTasksColumnParams {
@@ -21,7 +21,7 @@ interface LoadMoreTasksColumnParams {
   cursor: string | null;
   scope: TasksScope | null;
   coworkerId: string | null;
-  status: TaskStatus | null;
+  status: Task["status"] | null;
 }
 
 export async function loadMoreTasksColumn({
