@@ -32,7 +32,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import {
-  agentsSchema,
+  agentsSummarySchema,
   getAgentLegalFromAgent,
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
@@ -118,19 +118,23 @@ const route = withGlobalHeaderParameters(
       query: agentsListQuerySchema,
     },
     responses: {
-      200: jsonPaginatedSuccessResponse(agentsSchema, "Retrieve all agents", {
-        data: [],
-        meta: {
-          timestamp: "2025-01-15T12:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-          pagination: {
-            cursor: null,
-            limit: 20,
-            total: 100,
-            nextCursor: "cmaeygqwa000e8i0s9s7wif8i",
+      200: jsonPaginatedSuccessResponse(
+        agentsSummarySchema,
+        "Retrieve all agents",
+        {
+          data: [],
+          meta: {
+            timestamp: "2025-01-15T12:00:00.000Z",
+            requestId: "550e8400-e29b-41d4-a716-446655440000",
+            pagination: {
+              cursor: null,
+              limit: 20,
+              total: 100,
+              nextCursor: "cmaeygqwa000e8i0s9s7wif8i",
+            },
           },
         },
-      }),
+      ),
       401: jsonErrorResponse("Unauthorized"),
       422: jsonErrorResponse("Unprocessable Entity"),
     },
@@ -231,6 +235,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursor,
     );
 
-    return ok(c, agentsSchema.parse(result.agents), paginationMeta);
+    return ok(c, agentsSummarySchema.parse(result.agents), paginationMeta);
   });
 }
