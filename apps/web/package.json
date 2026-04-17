@@ -31,7 +31,7 @@
     "@better-auth/api-key": "1.6.4",
     "@better-auth/i18n": "1.6.4",
     "@better-auth/infra": "0.2.3",
-    "@better-auth/oauth-provider": "1.6.4",
+    "@better-auth/oauth-provider": "1.6.5",
     "@better-auth/passkey": "1.6.4",
     "@better-auth/prisma-adapter": "1.6.4",
     "@better-auth/stripe": "1.6.4",
