@@ -8,7 +8,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
-import { requireCoworkerManagementAccess } from "../admin-guard";
+import { requireCoworkerManagementAccess } from "../coworker-management-access";
 import { normalizeCoworkerMetadata } from "../metadata";
 import { patchCoworkerRequestSchema } from "../schema";
 import { paramsSchema } from "./schema";

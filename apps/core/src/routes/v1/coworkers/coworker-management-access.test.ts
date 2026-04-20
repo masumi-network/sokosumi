@@ -1,7 +1,7 @@
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { requireCoworkerManagementAccess } from "./admin-guard";
+import { requireCoworkerManagementAccess } from "./coworker-management-access";
 
 const { coworkerFindFirstMock } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
