@@ -1348,6 +1348,7 @@
       },
       "Detail": {
         "back": "Zurück zu Tasks",
+        "nextTask": "Nächste Aufgabe",
         "parentTask": "Übergeordnet:",
         "properties": "Eigenschaften",
         "status": "Status",

@@ -78,6 +78,8 @@ export default async function TaskDetailPage({
         <TaskDetailHeader
           taskName={task.name}
           backLabel={t("back")}
+          nextLabel={t("nextTask")}
+          currentTaskId={taskId}
           actions={
             <Suspense fallback={<TaskDetailActionsFallback />}>
               <TaskDetailActionsSlot

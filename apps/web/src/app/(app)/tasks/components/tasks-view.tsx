@@ -28,6 +28,7 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
+import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
@@ -72,6 +73,7 @@ import { TaskCard } from "./task-card";
 import { isDnDColumn, statusForColumn } from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
+import { storeTaskOrder } from "./task-navigation";
 import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
 import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
 import { TasksViewFilters } from "./tasks-view-filters";
@@ -494,6 +496,16 @@ export function TasksView({
       ...agentPreviewById,
     }));
   }, [agentPreviewById]);
+
+  useEffect(() => {
+    const orderedIds = columns.flatMap((column) =>
+      items
+        .filter((task) => task.columnId === column.id)
+        .sort(compareTasksDesc)
+        .map((task) => task.id),
+    );
+    storeTaskOrder(orderedIds);
+  }, [items, columns]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

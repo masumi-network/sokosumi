@@ -1379,6 +1379,7 @@
       },
       "Detail": {
         "back": "Back to tasks",
+        "nextTask": "Next task",
         "properties": "Properties",
         "status": "Status",
         "coworker": "Coworker",
