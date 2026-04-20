@@ -6,23 +6,15 @@ import type { AuthVariables } from "@/middleware/auth";
 
 import mountPatchCoworkerWhitelistById from "./patch";
 
-const {
-  userFindUniqueMock,
-  prismaTransactionMock,
-  coworkerUpdateManyMock,
-  coworkerFindFirstMock,
-} = vi.hoisted(() => ({
-  userFindUniqueMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
-  coworkerUpdateManyMock: vi.fn(),
-  coworkerFindFirstMock: vi.fn(),
-}));
+const { prismaTransactionMock, coworkerUpdateManyMock, coworkerFindFirstMock } =
+  vi.hoisted(() => ({
+    prismaTransactionMock: vi.fn(),
+    coworkerUpdateManyMock: vi.fn(),
+    coworkerFindFirstMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    user: {
-      findUnique: userFindUniqueMock,
-    },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -45,7 +37,7 @@ function createApp() {
       actor: "user",
       userId: "admin_123",
       organizationId: null,
-      role: "user",
+      role: "admin",
     });
 
     return await next();
@@ -88,9 +80,6 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
 describe("PATCH /coworkers/{id}/whitelist", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    userFindUniqueMock.mockResolvedValue({
-      role: "admin",
-    });
   });
 
   it("updates whitelist status to true", async () => {
