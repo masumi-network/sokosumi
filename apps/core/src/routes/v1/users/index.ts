@@ -1,15 +1,35 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import usersByIdRouter from "./[id]/index.js";
-import usersMagicLinkRouter from "./magic-link/index.js";
-import usersMeRouter from "./me/index.js";
-import usersRegisteredRouter from "./registered/index.js";
+import mountGetUserCredits from "./[id]/credits/get.js";
+import mountGetMeCredits from "./me/credits/get.js";
+import mountGetMe from "./me/get.js";
+import mountPostNoticeAcknowledge from "./me/notices/[id]/acknowledge/post.js";
+import mountGetPendingNotices from "./me/notices/pending/get.js";
+import mountGetMeOnboarding from "./me/onboarding/get.js";
+import mountPostMeOnboarding from "./me/onboarding/post.js";
+import mountGetMeOrganizationCredits from "./me/organizations/[id]/credits/get.js";
+import mountGetMeOrganizations from "./me/organizations/get.js";
+import mountGetMePreferences from "./me/preferences/get.js";
+import mountPatchMePreferences from "./me/preferences/patch.js";
+import mountGetMeUploads from "./me/uploads/get.js";
+import mountPostMeUploads from "./me/uploads/post.js";
+import mountGetUserRegistered from "./registered/get.js";
 
-const app = new OpenAPIHono();
+const app = new OpenAPIHonoWithAuth();
 
-app.route("/magic-link", usersMagicLinkRouter);
-app.route("/me", usersMeRouter);
-app.route("/registered", usersRegisteredRouter);
-app.route("/", usersByIdRouter);
+mountGetMe(app);
+mountGetMeOrganizations(app);
+mountGetMeOrganizationCredits(app);
+mountGetMeCredits(app);
+mountGetMePreferences(app);
+mountPatchMePreferences(app);
+mountGetMeOnboarding(app);
+mountPostMeOnboarding(app);
+mountGetPendingNotices(app);
+mountPostNoticeAcknowledge(app);
+mountGetMeUploads(app);
+mountPostMeUploads(app);
+mountGetUserRegistered(app);
+mountGetUserCredits(app);
 
 export default app;

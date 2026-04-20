@@ -124,7 +124,7 @@ describe("POST /notices/{id}/acknowledge", () => {
 
     const app = createApp();
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },
@@ -172,7 +172,7 @@ describe("POST /notices/{id}/acknowledge", () => {
 
     const app = createApp();
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },
@@ -212,7 +212,7 @@ describe("POST /notices/{id}/acknowledge", () => {
 
     const app = createApp();
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },
@@ -258,7 +258,7 @@ describe("POST /notices/{id}/acknowledge", () => {
 
     const app = createApp();
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },
@@ -288,7 +288,7 @@ describe("POST /notices/{id}/acknowledge", () => {
 
     const app = createApp();
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },
@@ -301,7 +301,7 @@ describe("POST /notices/{id}/acknowledge", () => {
   it("returns 403 for coworker-authenticated requests", async () => {
     const app = createApp("coworker");
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },

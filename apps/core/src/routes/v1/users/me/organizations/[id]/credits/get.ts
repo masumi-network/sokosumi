@@ -19,7 +19,7 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/organizations/{id}/credits",
+  path: "/me/organizations/{id}/credits",
   description: "Get organization-context credits for the current member by ID",
   tags: ["Users"],
   request: {

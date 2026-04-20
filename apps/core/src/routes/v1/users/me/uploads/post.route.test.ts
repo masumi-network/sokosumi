@@ -100,7 +100,7 @@ describe("POST /uploads route", () => {
   it("creates a direct upload session", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "report.pdf",
@@ -128,7 +128,7 @@ describe("POST /uploads route", () => {
   it("resolves application/octet-stream from the filename when the browser omits a specific MIME type", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "report.pdf",
@@ -156,7 +156,7 @@ describe("POST /uploads route", () => {
   it("returns 422 for oversized uploads", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "video.mp4",
@@ -175,7 +175,7 @@ describe("POST /uploads route", () => {
   it("returns 422 for invalid metadata", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "",
@@ -194,7 +194,7 @@ describe("POST /uploads route", () => {
   it("returns 422 when contentType is unsupported without a custom allowlist", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "logo.bin",
@@ -220,7 +220,7 @@ describe("POST /uploads route", () => {
       maxSizeBytes: 2_097_152,
     });
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "logo.png",
@@ -251,7 +251,7 @@ describe("POST /uploads route", () => {
   it("returns 422 when size exceeds a custom maxSizeBytes", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "logo.png",
@@ -272,7 +272,7 @@ describe("POST /uploads route", () => {
   it("returns 422 when contentType is not included in allowedContentTypes", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "logo.pdf",
@@ -292,7 +292,7 @@ describe("POST /uploads route", () => {
   it("returns 422 when allowedContentTypes contains unsupported values", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "logo.bin",

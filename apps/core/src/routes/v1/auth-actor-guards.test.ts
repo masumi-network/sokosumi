@@ -39,7 +39,7 @@ describe("route actor guards", () => {
 
   it("returns 403 for coworker auth on users/me routes", async () => {
     const app = createCoworkerContextApp(mountGetMeCredits);
-    const response = await app.request("http://localhost/credits");
+    const response = await app.request("http://localhost/me/credits");
 
     expect(response.status).toBe(403);
   });

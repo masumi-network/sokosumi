@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import usersByIdRouter from "../index";
+import usersRouter from "../../index";
 
 describe("users/{id}/credits OpenAPI contract", () => {
   it("documents admin or coworker credits lookup (no extra coworker capability gate)", () => {
-    const doc = usersByIdRouter.getOpenAPI31Document({
+    const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
         title: "Users by ID API",

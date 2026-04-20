@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import usersMeRouter from "../index";
+import usersRouter from "../../index";
 
 describe("users/me notices routes OpenAPI contract", () => {
   it("exposes pending and acknowledge notice routes with expected responses", () => {
-    const doc = usersMeRouter.getOpenAPI31Document({
+    const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
         title: "Users Me API",
@@ -12,9 +12,9 @@ describe("users/me notices routes OpenAPI contract", () => {
       },
     });
 
-    const pendingResponses = doc.paths?.["/notices/pending"]?.get?.responses;
+    const pendingResponses = doc.paths?.["/me/notices/pending"]?.get?.responses;
     const acknowledgeResponses =
-      doc.paths?.["/notices/{id}/acknowledge"]?.post?.responses;
+      doc.paths?.["/me/notices/{id}/acknowledge"]?.post?.responses;
 
     expect(pendingResponses).toBeDefined();
     expect(pendingResponses).toHaveProperty("200");

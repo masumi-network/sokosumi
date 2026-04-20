@@ -11,7 +11,7 @@ import { blobFilesSchema } from "@/schemas/blob-file.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/uploads",
+  path: "/me/uploads",
   description: "Get uploads for the current user",
   tags: ["Users"],
   responses: {

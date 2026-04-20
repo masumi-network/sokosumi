@@ -101,7 +101,7 @@ const requestSchema = createUserFileUploadRequestSchema
 
 const route = createRoute({
   method: "post",
-  path: "/uploads",
+  path: "/me/uploads",
   description: [
     "Create a direct upload session for a user file.",
     "",

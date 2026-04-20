@@ -10,7 +10,7 @@ import { pendingNoticesResponseSchema } from "@/schemas/notice.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/notices/pending",
+  path: "/me/notices/pending",
   description: "Get pending notices for the current user",
   tags: ["Users"],
   responses: {

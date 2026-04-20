@@ -14,7 +14,7 @@ import { creditsResponseSchema } from "@/schemas/user.schema";
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
-    path: "/credits",
+    path: "/me/credits",
     description:
       "Get current user's credit balance or, in organization context, shared non-subscription credits plus the member's subscription wallet",
     tags: ["Users"],

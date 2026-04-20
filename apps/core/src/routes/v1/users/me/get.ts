@@ -10,7 +10,7 @@ import { type User, userSchema } from "@/schemas/user.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/",
+  path: "/me",
   description: "Get current authenticated user",
   tags: ["Users"],
   responses: {

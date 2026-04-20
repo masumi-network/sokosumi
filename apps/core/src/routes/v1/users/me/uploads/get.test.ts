@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import usersMeRouter from "../index";
+import usersRouter from "../../index";
 
 describe("users/me uploads routes OpenAPI contract", () => {
   it("documents GET /uploads without query pagination and removes legacy /files paths", () => {
-    const doc = usersMeRouter.getOpenAPI31Document({
+    const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
         title: "Users Me API",
@@ -12,7 +12,7 @@ describe("users/me uploads routes OpenAPI contract", () => {
       },
     });
 
-    const uploadsPath = doc.paths?.["/uploads"];
+    const uploadsPath = doc.paths?.["/me/uploads"];
     const operation = uploadsPath?.get;
     const parameters = operation?.parameters ?? [];
     const queryParameters = parameters.filter((parameter) => {

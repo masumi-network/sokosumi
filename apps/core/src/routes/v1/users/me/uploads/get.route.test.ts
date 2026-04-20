@@ -102,7 +102,7 @@ describe("GET /uploads route", () => {
   it("lists uploads for the authenticated user", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads");
+    const response = await app.request("http://localhost/me/uploads");
     const payload = await response.json();
 
     expect(response.status).toBe(200);

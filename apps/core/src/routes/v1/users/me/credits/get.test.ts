@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import usersMeRouter from "../index";
+import usersRouter from "../../index";
 
 describe("users/me credits routes OpenAPI contract", () => {
   it("exposes credits routes with nested subscription, buffer, and total payload", () => {
-    const doc = usersMeRouter.getOpenAPI31Document({
+    const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
         title: "Users Me API",
@@ -12,9 +12,9 @@ describe("users/me credits routes OpenAPI contract", () => {
       },
     });
 
-    const meCreditsResponses = doc.paths?.["/credits"]?.get?.responses;
+    const meCreditsResponses = doc.paths?.["/me/credits"]?.get?.responses;
     const organizationCreditsResponses =
-      doc.paths?.["/organizations/{id}/credits"]?.get?.responses;
+      doc.paths?.["/me/organizations/{id}/credits"]?.get?.responses;
 
     expect(meCreditsResponses).toBeDefined();
     expect(meCreditsResponses).toHaveProperty("200");

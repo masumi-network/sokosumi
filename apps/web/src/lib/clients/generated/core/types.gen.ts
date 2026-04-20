@@ -4343,154 +4343,6 @@ export type PatchCreditCostsByIdResponses = {
 
 export type PatchCreditCostsByIdResponse = PatchCreditCostsByIdResponses[keyof PatchCreditCostsByIdResponses];
 
-export type PostUsersMagicLinkData = {
-    body?: {
-        /**
-         * Email address to send the magic link to
-         */
-        email: string;
-        /**
-         * Optional display name for first-time signup
-         */
-        name?: string;
-        /**
-         * Optional OAuth2 authorize request to start after magic-link verification
-         */
-        oauth?: {
-            /**
-             * OAuth2 authorize response type
-             */
-            response_type: 'code';
-            /**
-             * OAuth2 client ID
-             */
-            client_id: string;
-            /**
-             * OAuth2 redirect URI
-             */
-            redirect_uri?: string;
-            /**
-             * OAuth2 scopes (space-separated)
-             */
-            scope?: string;
-            /**
-             * OAuth2 state parameter
-             */
-            state?: string;
-            /**
-             * PKCE code challenge
-             */
-            code_challenge?: string;
-            /**
-             * PKCE code challenge method
-             */
-            code_challenge_method?: 'S256';
-            /**
-             * OpenID Connect nonce
-             */
-            nonce?: string;
-            /**
-             * OAuth2 prompt parameter
-             */
-            prompt?: string;
-        };
-    };
-    path?: never;
-    query?: never;
-    url: '/users/magic-link';
-};
-
-export type PostUsersMagicLinkErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersMagicLinkError = PostUsersMagicLinkErrors[keyof PostUsersMagicLinkErrors];
-
-export type PostUsersMagicLinkResponses = {
-    /**
-     * Magic link invite sent
-     */
-    200: {
-        data: {
-            /**
-             * Whether the magic link request was accepted
-             */
-            status: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersMagicLinkResponse = PostUsersMagicLinkResponses[keyof PostUsersMagicLinkResponses];
-
 export type GetUsersMeData = {
     body?: never;
     path?: never;
@@ -5594,6 +5446,147 @@ export type GetUsersRegisteredResponses = {
 };
 
 export type GetUsersRegisteredResponse = GetUsersRegisteredResponses[keyof GetUsersRegisteredResponses];
+
+export type GetUsersByIdCreditsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        /**
+         * User ID whose credits are being retrieved
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * When set, returns credits for this user in the given organization context (the user must be a member). Omit for personal (non-organization) credits.
+         */
+        organizationId?: string;
+    };
+    url: '/users/{id}/credits';
+};
+
+export type GetUsersByIdCreditsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdCreditsError = GetUsersByIdCreditsErrors[keyof GetUsersByIdCreditsErrors];
+
+export type GetUsersByIdCreditsResponses = {
+    /**
+     * Retrieve the user's credits for personal or organization context
+     */
+    200: {
+        data: {
+            credits: {
+                subscription: {
+                    plan: string;
+                    status: string;
+                    periodStart?: Date | null;
+                    periodEnd?: Date | null;
+                    cancelAtPeriodEnd?: boolean | null;
+                    credits: {
+                        /**
+                         * Total subscription-period credits granted this period
+                         */
+                        total: number;
+                        /**
+                         * Remaining subscription-period credits this period
+                         */
+                        remaining: number;
+                        /**
+                         * Used subscription-period credits consumed during this period
+                         */
+                        used: number;
+                    } | null;
+                } | null;
+                /**
+                 * Current available non-subscription credit balance
+                 */
+                buffer: number;
+                /**
+                 * Current available total credit balance (buffer plus remaining subscription credits)
+                 */
+                total: number;
+            };
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdCreditsResponse = GetUsersByIdCreditsResponses[keyof GetUsersByIdCreditsResponses];
 
 export type GetOrganizationsByIdData = {
     body?: never;

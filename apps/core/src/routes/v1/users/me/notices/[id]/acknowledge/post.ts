@@ -21,7 +21,7 @@ const requestParamsSchema = z.object({
 
 const route = createRoute({
   method: "post",
-  path: "/notices/{id}/acknowledge",
+  path: "/me/notices/{id}/acknowledge",
   description: "Acknowledge a notice for the current user",
   tags: ["Users"],
   request: {
