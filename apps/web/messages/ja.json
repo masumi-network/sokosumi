@@ -1697,7 +1697,7 @@
       "statusCancellationScheduled": "サブスクリプションの解約を予約しました。",
       "billingPortalTitle": "請求ポータル",
       "billingPortalDescription": "Stripe の請求ポータルを開いて、サブスクリプションと請求書を管理します。",
-      "billingPortalDescriptionWithPlan": "現在のプランは{plan}です。Stripe で請求情報と請求書を管理してください。",
+      "billingPortalDescriptionWithPlan": "現在のプランは{plan}です。Stripe でサブスクリプション、請求情報、請求書を管理してください。",
       "openingBillingPortal": "開いています...",
       "billingPortalCta": "請求ポータルを開く",
       "freePrice": "無料",
@@ -1777,7 +1777,7 @@
         "coupon": "クーポン"
       },
       "billingPortalTitle": "請求ポータル",
-      "billingPortalDescription": "Stripe の請求ポータルを開いて、請求情報と請求書を管理します。",
+      "billingPortalDescription": "Stripe の請求ポータルを開いて、サブスクリプション、請求情報、請求書を管理します。",
       "openingBillingPortal": "開いています...",
       "billingPortalCta": "請求ポータルを開く",
       "orgAccessRestrictedTitle": "請求へのアクセスが制限されています",
