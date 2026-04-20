@@ -44,7 +44,8 @@
     "@sokosumi/database": "workspace:*",
     "@sokosumi/email": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
-    "@sokosumi/utils": "wo
+    "@sokosumi/utils": "workspace:*",
+
     "@vercel/blob": "2.3.3",
     "@vercel/functions": "3.4.3",
     "@vercel/related-projects": "1.0.1",
