@@ -6,7 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 
 const deletedSchema = z
   .object({
@@ -43,7 +43,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { id, linkId } = c.req.valid("param");
 
     await prisma.$transaction(async (tx) => {
@@ -55,7 +55,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Task link not found");
       }
 
-      await requireTaskOwnership(authContext, id, tx);
+      await requireTaskOwnership(userContext, id, tx);
 
       await tx.taskLink.delete({
         where: { id: linkId },

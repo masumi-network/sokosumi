@@ -85,7 +85,8 @@ describe("GET /jobs", () => {
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
       {
-        authContext: {
+        userContext: {
+          source: "session",
           actor: "user",
           userId: "user_123",
           organizationId: "org_123",

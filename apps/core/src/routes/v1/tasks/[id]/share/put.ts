@@ -6,7 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import {
   putTaskShareRequestSchema,
   taskShareSchema,
@@ -44,7 +44,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { allowSearchIndexing } = c.req.valid("json");
 
@@ -61,7 +61,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Task not found");
       }
 
-      if (task.userId !== authContext.userId) {
+      if (task.userId !== userContext.userId) {
         throw forbidden("You can only manage sharing for your own tasks");
       }
 

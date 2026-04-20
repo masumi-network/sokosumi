@@ -43,6 +43,8 @@ const userAuthContext: UserAuthenticationContext = {
   role: "user",
 };
 
+const sessionUserContext = { source: "session" as const, ...userAuthContext };
+
 const workspaceId = "11111111-1111-7111-8111-111111111111";
 
 const jobReadWorkspaceContext: WorkspaceContext = {
@@ -58,7 +60,7 @@ describe("requireTaskOwnership", () => {
       id: "tsk_123",
     } as never);
 
-    await requireTaskOwnership(userAuthContext, "tsk_123", tx);
+    await requireTaskOwnership(sessionUserContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -436,7 +438,7 @@ describe("requireJobOwnership", () => {
       id: "job_123",
     } as never);
 
-    await requireJobOwnership(userAuthContext, "job_123", tx);
+    await requireJobOwnership(sessionUserContext, "job_123", tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -451,7 +453,7 @@ describe("requireJobOwnership", () => {
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireJobOwnership(userAuthContext, "job_123", tx),
+      requireJobOwnership(sessionUserContext, "job_123", tx),
     ).rejects.toThrow("You can only access your own jobs");
   });
 });

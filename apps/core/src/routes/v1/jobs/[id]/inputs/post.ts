@@ -16,7 +16,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { jobInputSchema } from "@/schemas/job.schema";
 
 const params = z.object({
@@ -94,7 +94,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const authContext = requireUserContext(c.var.authContext);
     const { id: jobId } = c.req.valid("param");
     const { eventId, inputData } = c.req.valid("json");
 

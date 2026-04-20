@@ -30,7 +30,7 @@ import {
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
-import type { UserAuthenticationContext } from "@/middleware/auth";
+import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
 import { agentPricingInclude } from "@/types/agent";
@@ -42,7 +42,7 @@ import { transformPurchaseToJobUpdate } from "./purchase";
 import { getCents } from "./user";
 
 export interface JobContext {
-  authContext: UserAuthenticationContext;
+  userContext: UserContext;
   workspaceContext: WorkspaceContext;
 }
 
@@ -448,7 +448,7 @@ export async function createAgentJobForUser(
  * @example
  * // Get paginated jobs for the user
  * const { jobs, count } = await getUserJobs({
- *   authContext,
+ *   userContext,
  *   workspaceContext,
  * }, {
  *   take: 20,
@@ -457,7 +457,7 @@ export async function createAgentJobForUser(
  * @example
  * // Get paginated jobs for a specific agent with cursor
  * const { jobs, count } = await getUserJobs({
- *   authContext,
+ *   userContext,
  *   workspaceContext,
  * }, {
  *   agentId: "agent_123",
@@ -491,13 +491,13 @@ export async function getUserJobs(
     skip,
     tx = prisma,
   } = options;
-  const { authContext, workspaceContext } = context;
+  const { userContext, workspaceContext } = context;
 
   const where: Prisma.JobWhereInput = {
     AND: [
       {
         workspaceId: workspaceContext.workspaceId,
-        ...(scope === "owned" ? { userId: authContext.userId } : {}),
+        ...(scope === "owned" ? { userId: userContext.userId } : {}),
       },
       ...(agentId ? [{ agentId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),

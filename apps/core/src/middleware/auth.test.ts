@@ -402,6 +402,8 @@ describe("requireAdminAuthContext", () => {
         actor: "coworker",
         coworkerId: "cow_123",
       }),
-    ).toThrowError("User authentication required");
+    ).toThrowError(
+      "Delegation headers (X-Delegation-User-Id) are required for this resource",
+    );
   });
 });

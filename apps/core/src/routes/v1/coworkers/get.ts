@@ -9,7 +9,6 @@ import {
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
 const capabilityQuerySchema = z
@@ -59,14 +58,12 @@ const route = createRoute({
       },
     }),
     401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserAuthContext(c.var.authContext);
     const { scope, capability } = c.req.valid("query");
 
     const baseScope =

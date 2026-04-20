@@ -11,7 +11,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 
 const recoverResponseResultSchema = z
   .object({
@@ -60,13 +60,13 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const authContext = requireUserAuthContext(c.var.authContext);
+      const userContext = requireUserContext(c.var.authContext);
       const { id: conversationId } = c.req.valid("param");
 
       const conversation = await prisma.conversation.findFirst({
         where: {
           id: conversationId,
-          userId: authContext.userId,
+          userId: userContext.userId,
           archivedAt: null,
         },
         select: { id: true, metadata: true },
@@ -109,8 +109,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const result = await getResponseById(pendingResponseId, {
         responsesApiBaseUrl: coworker.baseURL.trim(),
-        sokosumiUserId: authContext.userId,
-        sokosumiOrganizationId: authContext.organizationId ?? null,
+        sokosumiUserId: userContext.userId,
+        sokosumiOrganizationId: userContext.organizationId ?? null,
         coworkerSlug: coworker.slug,
       });
 
@@ -126,7 +126,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             UPDATE conversation
             SET metadata = metadata - 'pending_responses_api_response_id'
             WHERE id = ${conversationId}
-              AND "userId" = ${authContext.userId}
+              AND "userId" = ${userContext.userId}
               AND "archivedAt" IS NULL
               AND (metadata->>'pending_responses_api_response_id') = ${pendingResponseId}
           `;
