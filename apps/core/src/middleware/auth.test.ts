@@ -402,8 +402,19 @@ describe("requireAdminAuthContext", () => {
         actor: "coworker",
         coworkerId: "cow_123",
       }),
-    ).toThrowError(
-      "Delegation headers (X-Delegation-User-Id) are required for this resource",
-    );
+    ).toThrowError("User authentication required");
+  });
+
+  it("rejects delegated coworker actor", () => {
+    expect(() =>
+      requireAdminAuthContext({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        delegation: {
+          userId: "user_456",
+          organizationId: "org_1",
+        },
+      }),
+    ).toThrowError("User authentication required");
   });
 });

@@ -171,22 +171,13 @@ export function hasAdminRole(role: string | null | undefined): boolean {
 export function requireAdminAuthContext(
   authContext: AuthenticationContext,
 ): UserAuthenticationContext {
-  const userContext = requireUserContext(authContext);
+  const userAuthContext = requireUserAuthContext(authContext);
 
-  if (userContext.source !== "session") {
+  if (!hasAdminRole(userAuthContext.role)) {
     throw forbidden("Admin access required");
   }
 
-  if (!hasAdminRole(userContext.role)) {
-    throw forbidden("Admin access required");
-  }
-
-  return {
-    actor: "user",
-    userId: userContext.userId,
-    organizationId: userContext.organizationId,
-    role: userContext.role,
-  };
+  return userAuthContext;
 }
 
 /**
