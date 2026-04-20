@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
 import { getEnv } from "@/config/env";
 import { serviceUnavailable } from "@/helpers/error";
@@ -6,14 +6,23 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { listUserUploads } from "@/lib/blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  resolveUsersPathUserId,
+  usersRoutePathUserIdSchema,
+} from "@/routes/v1/users/user-path-access";
 import { blobFilesSchema } from "@/schemas/blob-file.schema";
+
+const params = z.object({
+  id: usersRoutePathUserIdSchema,
+});
 
 const route = createRoute({
   method: "get",
-  path: "/me/uploads",
-  description: "Get uploads for the current user",
+  path: "/{id}/uploads",
+  description:
+    "Get uploads: path `me` for the session user, or a user id when the caller may access that user's data.",
   tags: ["Users"],
+  request: { params },
   responses: {
     200: jsonSuccessResponse(blobFilesSchema, "Retrieve user uploads", {
       data: [
@@ -44,14 +53,18 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { id: pathUser } = c.req.valid("param");
+    const { targetUserId } = resolveUsersPathUserId(
+      c.var.authContext,
+      pathUser,
+    );
 
     const token = getEnv().BLOB_READ_WRITE_TOKEN;
     if (!token) {
       throw serviceUnavailable("Blob storage is not configured");
     }
 
-    const uploads = await listUserUploads(authContext.userId, token);
+    const uploads = await listUserUploads(targetUserId, token);
 
     return ok(c, blobFilesSchema.parse(uploads));
   });

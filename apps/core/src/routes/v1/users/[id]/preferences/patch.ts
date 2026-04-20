@@ -1,11 +1,17 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  resolveUsersPathUserId,
+  usersRoutePathUserIdSchema,
+} from "@/routes/v1/users/user-path-access";
 import { userPreferencesResponseSchema } from "@/schemas/user.schema";
+
+const params = z.object({
+  id: usersRoutePathUserIdSchema,
+});
 
 const requestBodySchema = z
   .object({
@@ -33,10 +39,12 @@ const requestBodySchema = z
 
 const route = createRoute({
   method: "patch",
-  path: "/me/preferences",
-  description: "Update current user's preferences",
+  path: "/{id}/preferences",
+  description:
+    "Update preferences: path `me` for the session user, or a user id when the caller may access that user's data.",
   tags: ["Users"],
   request: {
+    params,
     body: {
       content: {
         "application/json": {
@@ -48,7 +56,7 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(
       userPreferencesResponseSchema,
-      "Update the current user's preferences",
+      "Update the user's preferences",
       {
         data: {
           marketingOptIn: true,
@@ -68,12 +76,16 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { id: pathUser } = c.req.valid("param");
+    const { targetUserId } = resolveUsersPathUserId(
+      c.var.authContext,
+      pathUser,
+    );
     const body = c.req.valid("json");
 
     const preferences = await prisma.$transaction(async (tx) => {
       const updatedUser = await tx.user.update({
-        where: { id: authContext.userId },
+        where: { id: targetUserId },
         data: {
           ...(body.marketingOptIn !== undefined && {
             marketingOptIn: body.marketingOptIn,

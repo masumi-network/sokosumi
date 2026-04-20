@@ -7,7 +7,7 @@ import type { AuthVariables } from "@/middleware/auth";
 import mountGetAgentJobs from "./agents/[id]/jobs/get";
 import mountGetConversations from "./conversations/get";
 import mountGetJobs from "./jobs/get";
-import mountGetMeCredits from "./users/me/credits/get";
+import mountGetUserCredits from "./users/[id]/credits/get";
 
 function createCoworkerContextApp(
   mount: (app: OpenAPIHonoWithAuth) => void,
@@ -38,7 +38,7 @@ describe("route actor guards", () => {
   });
 
   it("returns 403 for coworker auth on users/me routes", async () => {
-    const app = createCoworkerContextApp(mountGetMeCredits);
+    const app = createCoworkerContextApp(mountGetUserCredits);
     const response = await app.request("http://localhost/me/credits");
 
     expect(response.status).toBe(403);

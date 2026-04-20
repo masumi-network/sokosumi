@@ -1,22 +1,31 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
 import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  resolveUsersPathUserId,
+  usersRoutePathUserIdSchema,
+} from "@/routes/v1/users/user-path-access";
 import { pendingNoticesResponseSchema } from "@/schemas/notice.schema";
+
+const params = z.object({
+  id: usersRoutePathUserIdSchema,
+});
 
 const route = createRoute({
   method: "get",
-  path: "/me/notices/pending",
-  description: "Get pending notices for the current user",
+  path: "/{id}/notices/pending",
+  description:
+    "Get pending notices: path `me` for the session user, or a user id when the caller may access that user's data.",
   tags: ["Users"],
+  request: { params },
   responses: {
     200: jsonSuccessResponse(
       pendingNoticesResponseSchema,
-      "Retrieve pending notices for the current user",
+      "Retrieve pending notices for the user",
       {
         data: {
           pendingNotices: [
@@ -45,12 +54,16 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { id: pathUser } = c.req.valid("param");
+    const { targetUserId } = resolveUsersPathUserId(
+      c.var.authContext,
+      pathUser,
+    );
 
     const now = new Date();
     const pendingNotices = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
-        where: { id: authContext.userId },
+        where: { id: targetUserId },
         select: { id: true, createdAt: true },
       });
       if (!user) {
@@ -61,12 +74,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           isActive: true,
           effectiveAt: {
-            lte: now, // Only show notices that are active and effective at the current time
-            gt: user.createdAt, // Only show notices that are effective after the user was created
+            lte: now,
+            gt: user.createdAt,
           },
           acknowledgments: {
             none: {
-              // Only show notices that have not been acknowledged
               userId: user.id,
             },
           },

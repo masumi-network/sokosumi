@@ -1,35 +1,34 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetUserCredits from "./[id]/credits/get.js";
-import mountGetMeCredits from "./me/credits/get.js";
-import mountGetMe from "./me/get.js";
-import mountPostNoticeAcknowledge from "./me/notices/[id]/acknowledge/post.js";
-import mountGetPendingNotices from "./me/notices/pending/get.js";
-import mountGetMeOnboarding from "./me/onboarding/get.js";
-import mountPostMeOnboarding from "./me/onboarding/post.js";
-import mountGetMeOrganizationCredits from "./me/organizations/[id]/credits/get.js";
-import mountGetMeOrganizations from "./me/organizations/get.js";
-import mountGetMePreferences from "./me/preferences/get.js";
-import mountPatchMePreferences from "./me/preferences/patch.js";
-import mountGetMeUploads from "./me/uploads/get.js";
-import mountPostMeUploads from "./me/uploads/post.js";
+import mountGetUserById from "./[id]/get.js";
+import mountPostUserNoticeAcknowledge from "./[id]/notices/[noticeId]/acknowledge/post.js";
+import mountGetUserPendingNotices from "./[id]/notices/pending/get.js";
+import mountGetUserOnboarding from "./[id]/onboarding/get.js";
+import mountPostUserOnboarding from "./[id]/onboarding/post.js";
+import mountGetUserOrganizationCredits from "./[id]/organizations/[organizationId]/credits/get.js";
+import mountGetUserOrganizations from "./[id]/organizations/get.js";
+import mountGetUserPreferences from "./[id]/preferences/get.js";
+import mountPatchUserPreferences from "./[id]/preferences/patch.js";
+import mountGetUserUploads from "./[id]/uploads/get.js";
+import mountPostUserUploads from "./[id]/uploads/post.js";
 import mountGetUserRegistered from "./registered/get.js";
 
 const app = new OpenAPIHonoWithAuth();
 
-mountGetMe(app);
-mountGetMeOrganizations(app);
-mountGetMeOrganizationCredits(app);
-mountGetMeCredits(app);
-mountGetMePreferences(app);
-mountPatchMePreferences(app);
-mountGetMeOnboarding(app);
-mountPostMeOnboarding(app);
-mountGetPendingNotices(app);
-mountPostNoticeAcknowledge(app);
-mountGetMeUploads(app);
-mountPostMeUploads(app);
 mountGetUserRegistered(app);
+
 mountGetUserCredits(app);
+mountGetUserOrganizations(app);
+mountGetUserOrganizationCredits(app);
+mountGetUserPreferences(app);
+mountPatchUserPreferences(app);
+mountGetUserOnboarding(app);
+mountPostUserOnboarding(app);
+mountGetUserPendingNotices(app);
+mountPostUserNoticeAcknowledge(app);
+mountGetUserUploads(app);
+mountPostUserUploads(app);
+mountGetUserById(app);
 
 export default app;

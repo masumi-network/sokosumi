@@ -75,7 +75,7 @@ function createApp(
 }
 
 beforeAll(async () => {
-  const module = await import("./get");
+  const module = await import("../../[id]/uploads/get");
   mountGetUserUploads = module.default;
 });
 

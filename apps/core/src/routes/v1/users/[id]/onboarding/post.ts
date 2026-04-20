@@ -1,22 +1,29 @@
-import { createRoute } from "@hono/zod-openapi";
-
-import { internalServerError } from "@/helpers/error";
+import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  resolveUsersPathUserId,
+  usersRoutePathUserIdSchema,
+} from "@/routes/v1/users/user-path-access";
 import { userOnboardingResponseSchema } from "@/schemas/user.schema";
 
+const params = z.object({
+  id: usersRoutePathUserIdSchema,
+});
+
 const route = createRoute({
-  method: "get",
-  path: "/me/onboarding",
-  description: "Get current user's onboarding status",
+  method: "post",
+  path: "/{id}/onboarding",
+  description:
+    "Complete onboarding: path `me` for the session user, or a user id when the caller may access that user's data.",
   tags: ["Users"],
+  request: { params },
   responses: {
     200: jsonSuccessResponse(
       userOnboardingResponseSchema,
-      "Retrieve the current user's onboarding status",
+      "Complete onboarding for the user",
       {
         data: {
           completed: true,
@@ -27,30 +34,33 @@ const route = createRoute({
         },
       },
     ),
+    400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
-    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { id: pathUser } = c.req.valid("param");
+    const { targetUserId } = resolveUsersPathUserId(
+      c.var.authContext,
+      pathUser,
+    );
 
     const onboarding = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: authContext.userId },
+      const updatedUser = await tx.user.update({
+        where: { id: targetUserId },
+        data: {
+          onboardingCompleted: true,
+        },
         select: {
           onboardingCompleted: true,
         },
       });
 
-      if (!user) {
-        throw internalServerError("Failed to retrieve user");
-      }
-
       return {
-        completed: user.onboardingCompleted,
+        completed: updatedUser.onboardingCompleted,
       };
     });
 

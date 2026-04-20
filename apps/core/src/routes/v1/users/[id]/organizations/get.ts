@@ -1,22 +1,30 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { parseOrganizationMetadata } from "@sokosumi/utils";
-
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  resolveUsersPathUserId,
+  usersRoutePathUserIdSchema,
+} from "@/routes/v1/users/user-path-access";
 import { organizationsSchema } from "@/schemas/organization.schema";
+
+const params = z.object({
+  id: usersRoutePathUserIdSchema,
+});
 
 const route = createRoute({
   method: "get",
-  path: "/me/organizations",
-  description: "Get all organizations for the current user",
+  path: "/{id}/organizations",
+  description:
+    "Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data.",
   tags: ["Users"],
+  request: { params },
   responses: {
     200: jsonSuccessResponse(
       organizationsSchema,
-      "Retrieve organizations for current user",
+      "Retrieve organizations for the user",
       {
         data: [
           {
@@ -46,11 +54,15 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { id: pathUser } = c.req.valid("param");
+    const { targetUserId } = resolveUsersPathUserId(
+      c.var.authContext,
+      pathUser,
+    );
 
     const organizations = await prisma.$transaction(async (tx) => {
       const members = await tx.member.findMany({
-        where: { userId: authContext.userId },
+        where: { userId: targetUserId },
         include: { organization: true },
       });
 

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountPostNoticeAcknowledge from "./[id]/acknowledge/post";
+import mountPostNoticeAcknowledge from "../../[id]/notices/[noticeId]/acknowledge/post";
 
 const { prismaTransactionMock } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),

@@ -5,15 +5,16 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  resolveUsersPathUserId,
+  usersRoutePathUserIdSchema,
+} from "@/routes/v1/users/user-path-access";
 import { noticeAcknowledgmentResponseSchema } from "@/schemas/notice.schema";
 
 const requestParamsSchema = z.object({
-  id: z.string().openapi({
-    param: {
-      name: "id",
-      in: "path",
-    },
+  id: usersRoutePathUserIdSchema,
+  noticeId: z.string().openapi({
+    param: { name: "noticeId", in: "path" },
     description: "Notice ID",
     example: "notice_123",
   }),
@@ -21,8 +22,9 @@ const requestParamsSchema = z.object({
 
 const route = createRoute({
   method: "post",
-  path: "/me/notices/{id}/acknowledge",
-  description: "Acknowledge a notice for the current user",
+  path: "/{id}/notices/{noticeId}/acknowledge",
+  description:
+    "Acknowledge a notice: first path segment is `me` or a user id; second is the notice id.",
   tags: ["Users"],
   request: {
     params: requestParamsSchema,
@@ -53,14 +55,17 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
-    const { id: noticeId } = c.req.valid("param");
+    const { id: pathUser, noticeId } = c.req.valid("param");
+    const { targetUserId } = resolveUsersPathUserId(
+      c.var.authContext,
+      pathUser,
+    );
 
     const now = new Date();
 
     const acknowledgment = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
-        where: { id: authContext.userId },
+        where: { id: targetUserId },
         select: { createdAt: true },
       });
       if (!user) {
@@ -70,7 +75,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const existingAcknowledgment = await tx.noticeAcknowledgment.findUnique({
         where: {
           userId_noticeId: {
-            userId: authContext.userId,
+            userId: targetUserId,
             noticeId,
           },
         },
@@ -113,7 +118,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const createResult = await tx.noticeAcknowledgment.createMany({
         data: [
           {
-            userId: authContext.userId,
+            userId: targetUserId,
             noticeId,
             acknowledgedAt: now,
           },
@@ -132,7 +137,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const acknowledgedAfterRace = await tx.noticeAcknowledgment.findUnique({
         where: {
           userId_noticeId: {
-            userId: authContext.userId,
+            userId: targetUserId,
             noticeId,
           },
         },

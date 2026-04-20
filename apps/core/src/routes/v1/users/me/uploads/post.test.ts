@@ -12,8 +12,8 @@ describe("users/me uploads routes OpenAPI contract", () => {
       },
     });
 
-    const requestBody = doc.paths?.["/me/uploads"]?.post?.requestBody;
-    const description = doc.paths?.["/me/uploads"]?.post?.description;
+    const requestBody = doc.paths?.["/{id}/uploads"]?.post?.requestBody;
+    const description = doc.paths?.["/{id}/uploads"]?.post?.description;
     const requestBodyJson = JSON.stringify(requestBody);
     const requestSchema = doc.components?.schemas?.CreateUserFileUploadRequest;
     const requestSchemaJson = JSON.stringify(requestSchema);

@@ -12,7 +12,7 @@ describe("users/me uploads routes OpenAPI contract", () => {
       },
     });
 
-    const uploadsPath = doc.paths?.["/me/uploads"];
+    const uploadsPath = doc.paths?.["/{id}/uploads"];
     const operation = uploadsPath?.get;
     const parameters = operation?.parameters ?? [];
     const queryParameters = parameters.filter((parameter) => {

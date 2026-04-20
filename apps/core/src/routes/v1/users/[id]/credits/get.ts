@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { badRequest, forbidden, notFound } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -9,15 +9,14 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { hasAdminRole, isUserAuthContext } from "@/middleware/auth";
+import {
+  resolveUsersPathUserId,
+  usersRoutePathUserIdSchema,
+} from "@/routes/v1/users/user-path-access";
 import { creditsResponseSchema } from "@/schemas/user.schema";
 
 const params = z.object({
-  id: z.string().openapi({
-    param: { name: "id", in: "path" },
-    description: "User ID whose credits are being retrieved",
-    example: "usr_123",
-  }),
+  id: usersRoutePathUserIdSchema,
 });
 
 const query = z.object({
@@ -27,7 +26,7 @@ const query = z.object({
     .openapi({
       param: { name: "organizationId", in: "query" },
       description:
-        "When set, returns credits for this user in the given organization context (the user must be a member). Omit for personal (non-organization) credits.",
+        "When set, returns credits for this user in the given organization context (the user must be a member). When omitted, returns credits for the active organization from request headers when the caller is that user (or their delegated coworker), or personal credits when an admin requests another user's balance without an organization.",
       example: "org_123",
     }),
 });
@@ -37,7 +36,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/{id}/credits",
     description:
-      "Get credit balance for a user by ID. Restricted to admin users or authenticated coworkers.",
+      "Get credit balance: path `me` for the session user (same as organization headers on `/me`), or a user id when the effective user matches, a delegated coworker acts for that user, or a session admin requests any user.",
     tags: ["Users"],
     request: {
       params,
@@ -83,13 +82,13 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-    const { id: targetUserId } = c.req.valid("param");
-    const { organizationId } = c.req.valid("query");
+    const { id: pathUser } = c.req.valid("param");
+    const { organizationId: queryOrganizationId } = c.req.valid("query");
 
-    if (isUserAuthContext(authContext) && !hasAdminRole(authContext.role)) {
-      forbidden("Admin access required");
-    }
+    const { targetUserId, userContext } = resolveUsersPathUserId(
+      c.var.authContext,
+      pathUser,
+    );
 
     const user = await prisma.user.findUnique({
       where: { id: targetUserId },
@@ -97,37 +96,43 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     if (!user) {
-      notFound("User not found");
+      throw notFound("User not found");
     }
 
     const credits = await prisma.$transaction(async (tx) => {
-      if (organizationId) {
+      if (queryOrganizationId) {
         const member = await tx.member.findUnique({
           where: {
             userId_organizationId: {
               userId: targetUserId,
-              organizationId,
+              organizationId: queryOrganizationId,
             },
           },
           select: { userId: true },
         });
 
         if (!member) {
-          badRequest("User is not a member of the specified organization");
+          throw badRequest(
+            "User is not a member of the specified organization",
+          );
         }
 
         return await buildCreditsPayload({
           userId: targetUserId,
-          organizationId,
-          referenceId: organizationId,
+          organizationId: queryOrganizationId,
+          referenceId: queryOrganizationId,
           tx,
         });
       }
 
+      const organizationId =
+        userContext.userId === targetUserId ? userContext.organizationId : null;
+      const referenceId = organizationId ?? targetUserId;
+
       return await buildCreditsPayload({
         userId: targetUserId,
-        organizationId: null,
-        referenceId: targetUserId,
+        organizationId,
+        referenceId,
         tx,
       });
     });

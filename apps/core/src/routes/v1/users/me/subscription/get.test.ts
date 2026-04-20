@@ -13,9 +13,10 @@ describe("users/me subscription routes OpenAPI contract", () => {
     });
 
     const meSubscriptionResponses =
-      doc.paths?.["/me/subscription"]?.get?.responses;
+      doc.paths?.["/{id}/subscription"]?.get?.responses;
     const organizationSubscriptionResponses =
-      doc.paths?.["/me/organizations/{id}/subscription"]?.get?.responses;
+      doc.paths?.["/{id}/organizations/{organizationId}/subscription"]?.get
+        ?.responses;
 
     expect(meSubscriptionResponses).toBeUndefined();
     expect(organizationSubscriptionResponses).toBeUndefined();

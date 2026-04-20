@@ -1,20 +1,29 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
 import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  resolveUsersPathUserId,
+  usersRoutePathUserIdSchema,
+} from "@/routes/v1/users/user-path-access";
 import { type User, userSchema } from "@/schemas/user.schema";
+
+const params = z.object({
+  id: usersRoutePathUserIdSchema,
+});
 
 const route = createRoute({
   method: "get",
-  path: "/me",
-  description: "Get current authenticated user",
+  path: "/{id}",
+  description:
+    "Get a user: use path `me` for the authenticated session user, or a user id when the effective user matches that id, a delegated coworker acts for that user, or a session admin requests any user.",
   tags: ["Users"],
+  request: { params },
   responses: {
-    200: jsonSuccessResponse(userSchema, "Retrieve the current user", {
+    200: jsonSuccessResponse(userSchema, "Retrieve the user", {
       data: {
         id: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj",
         createdAt: "2025-01-01T00:00:00.000Z",
@@ -38,11 +47,15 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { id: pathUser } = c.req.valid("param");
+    const { targetUserId } = resolveUsersPathUserId(
+      c.var.authContext,
+      pathUser,
+    );
 
     const user: User = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
-        where: { id: authContext.userId },
+        where: { id: targetUserId },
       });
       if (!user) {
         throw internalServerError("Failed to retrieve user");

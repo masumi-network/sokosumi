@@ -11,7 +11,10 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { createUserFileUploadSession } from "@/lib/blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  resolveUsersPathUserId,
+  usersRoutePathUserIdSchema,
+} from "@/routes/v1/users/user-path-access";
 import {
   createUserFileUploadRequestSchema,
   userFileUploadSessionSchema,
@@ -24,6 +27,10 @@ function normalizeContentType(contentType: string): string {
 function formatUnsupportedContentTypes(contentTypes: string[]): string {
   return contentTypes.map((contentType) => `"${contentType}"`).join(", ");
 }
+
+const pathParams = z.object({
+  id: usersRoutePathUserIdSchema,
+});
 
 const requestSchema = createUserFileUploadRequestSchema
   .extend({
@@ -101,9 +108,9 @@ const requestSchema = createUserFileUploadRequestSchema
 
 const route = createRoute({
   method: "post",
-  path: "/me/uploads",
+  path: "/{id}/uploads",
   description: [
-    "Create a direct upload session for a user file.",
+    "Create a direct upload session: path `me` for the session user, or a user id when the caller may access that user's data.",
     "",
     "Next steps:",
     "1. Call this endpoint with the original `filename`, `contentType`, and `size`.",
@@ -115,6 +122,7 @@ const route = createRoute({
   ].join("\n"),
   tags: ["Users"],
   request: {
+    params: pathParams,
     body: {
       required: true,
       content: {
@@ -153,7 +161,11 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { id: pathUser } = c.req.valid("param");
+    const { targetUserId } = resolveUsersPathUserId(
+      c.var.authContext,
+      pathUser,
+    );
 
     const token = getEnv().BLOB_READ_WRITE_TOKEN;
     if (!token) {
@@ -182,7 +194,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const uploadSession = await createUserFileUploadSession(
-      authContext.userId,
+      targetUserId,
       sessionInput,
       token,
     );

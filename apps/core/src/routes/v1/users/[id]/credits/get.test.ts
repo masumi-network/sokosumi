@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import usersRouter from "../../index";
 
 describe("users/{id}/credits OpenAPI contract", () => {
-  it("documents admin or coworker credits lookup (no extra coworker capability gate)", () => {
+  it("documents credits lookup with shared response contract", () => {
     const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {

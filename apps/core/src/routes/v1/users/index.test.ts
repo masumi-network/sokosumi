@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import usersRouter from "./index";
 
 describe("users routes OpenAPI contract", () => {
-  it("does not expose the organization details endpoint under /users/me", () => {
+  it("does not expose a bare organization-by-id details endpoint (only list and org credits)", () => {
     const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -12,7 +12,12 @@ describe("users routes OpenAPI contract", () => {
       },
     });
 
-    expect(doc.paths?.["/me/organizations"]?.get).toBeDefined();
-    expect(doc.paths?.["/me/organizations/{id}"]?.get).toBeUndefined();
+    expect(doc.paths?.["/{id}/organizations"]?.get).toBeDefined();
+    expect(
+      doc.paths?.["/{id}/organizations/{organizationId}"]?.get,
+    ).toBeUndefined();
+    expect(
+      doc.paths?.["/{id}/organizations/{organizationId}/credits"]?.get,
+    ).toBeDefined();
   });
 });

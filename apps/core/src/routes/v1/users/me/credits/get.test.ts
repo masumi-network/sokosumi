@@ -12,9 +12,10 @@ describe("users/me credits routes OpenAPI contract", () => {
       },
     });
 
-    const meCreditsResponses = doc.paths?.["/me/credits"]?.get?.responses;
+    const meCreditsResponses = doc.paths?.["/{id}/credits"]?.get?.responses;
     const organizationCreditsResponses =
-      doc.paths?.["/me/organizations/{id}/credits"]?.get?.responses;
+      doc.paths?.["/{id}/organizations/{organizationId}/credits"]?.get
+        ?.responses;
 
     expect(meCreditsResponses).toBeDefined();
     expect(meCreditsResponses).toHaveProperty("200");

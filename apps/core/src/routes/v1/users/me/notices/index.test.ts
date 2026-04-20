@@ -12,9 +12,10 @@ describe("users/me notices routes OpenAPI contract", () => {
       },
     });
 
-    const pendingResponses = doc.paths?.["/me/notices/pending"]?.get?.responses;
+    const pendingResponses =
+      doc.paths?.["/{id}/notices/pending"]?.get?.responses;
     const acknowledgeResponses =
-      doc.paths?.["/me/notices/{id}/acknowledge"]?.post?.responses;
+      doc.paths?.["/{id}/notices/{noticeId}/acknowledge"]?.post?.responses;
 
     expect(pendingResponses).toBeDefined();
     expect(pendingResponses).toHaveProperty("200");
