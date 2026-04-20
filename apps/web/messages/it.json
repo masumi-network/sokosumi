@@ -1425,6 +1425,7 @@
           "signal": "Signal",
           "discord": "Discord",
           "chat": "Chat",
+          "messenger": "Messenger",
           "unknown": "Sconosciuto"
         },
         "actionCommented": "ha commentato",
