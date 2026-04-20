@@ -7,7 +7,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { coworkerApiKeySchema } from "@/schemas/coworker-api-key.schema";
 
-import { requireCoworkerManagementAccess } from "../../admin-guard";
+import { requireCoworkerManagementAccess } from "../../coworker-management-access";
 import { apiKeyParamsSchema } from "../schema";
 
 const route = createRoute({

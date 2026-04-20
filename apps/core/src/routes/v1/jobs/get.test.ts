@@ -26,6 +26,7 @@ function createApp() {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     });
     c.set("workspaceContext", null);
 
@@ -66,6 +67,7 @@ describe("GET /jobs", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       });
       c.set("workspaceContext", {
         workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -87,6 +89,7 @@ describe("GET /jobs", () => {
           actor: "user",
           userId: "user_123",
           organizationId: "org_123",
+          role: "user",
         },
         workspaceContext: {
           workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -116,6 +119,7 @@ describe("GET /jobs", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       });
       c.set("workspaceContext", {
         workspaceId: "11111111-1111-7111-8111-111111111111",

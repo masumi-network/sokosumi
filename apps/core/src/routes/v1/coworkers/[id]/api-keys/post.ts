@@ -15,7 +15,7 @@ import {
   createCoworkerApiKeyResponseSchema,
 } from "@/schemas/coworker-api-key.schema";
 
-import { requireCoworkerManagementAccess } from "../../admin-guard";
+import { requireCoworkerManagementAccess } from "../../coworker-management-access";
 import { paramsSchema } from "../schema";
 
 const route = createRoute({

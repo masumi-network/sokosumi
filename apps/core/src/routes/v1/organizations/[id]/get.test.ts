@@ -31,6 +31,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: null,
+  role: "user",
 };
 
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {

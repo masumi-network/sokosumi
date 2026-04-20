@@ -36,6 +36,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: null,
+  role: "user",
 };
 
 let mountGetUserUploads: (app: OpenAPIHonoWithAuth) => void;
