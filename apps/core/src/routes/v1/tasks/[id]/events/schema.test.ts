@@ -50,15 +50,15 @@ describe("createTaskEventRequestSchema", () => {
     }
   });
 
-  it("accepts MASUMI_AGENT_MESSENGER origin", () => {
+  it("accepts MESSENGER origin", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
-      origin: TaskEventOrigin.MASUMI_AGENT_MESSENGER,
+      origin: TaskEventOrigin.MESSENGER,
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.MASUMI_AGENT_MESSENGER);
+      expect(result.data.origin).toBe(TaskEventOrigin.MESSENGER);
     }
   });
 

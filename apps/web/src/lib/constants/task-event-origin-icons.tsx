@@ -49,7 +49,7 @@ export const ORIGIN_ICON_MAP: Record<
   [TaskEventOrigin.SIGNAL]: SiSignal,
   [TaskEventOrigin.DISCORD]: SiDiscord,
   [TaskEventOrigin.CHAT]: MessageSquare,
-  [TaskEventOrigin.MASUMI_AGENT_MESSENGER]: MessageSquare,
+  [TaskEventOrigin.MESSENGER]: MessageSquare,
   [TaskEventOrigin.SOKOSUMI]: SokosumiOriginIcon,
   [TaskEventOrigin.UNKNOWN]: CircleHelp,
 };
@@ -65,7 +65,7 @@ export const ORIGIN_APP_NAME_KEY_MAP: Record<TaskEventOrigin, string> = {
   [TaskEventOrigin.SIGNAL]: "signal",
   [TaskEventOrigin.DISCORD]: "discord",
   [TaskEventOrigin.CHAT]: "chat",
-  [TaskEventOrigin.MASUMI_AGENT_MESSENGER]: "masumiAgentMessenger",
+  [TaskEventOrigin.MESSENGER]: "messenger",
   [TaskEventOrigin.SOKOSUMI]: "sokosumi",
   [TaskEventOrigin.UNKNOWN]: "unknown",
 };

@@ -2714,7 +2714,7 @@ export const PublicSharedTaskMilestoneSchema = {
                 'SIGNAL',
                 'DISCORD',
                 'CHAT',
-                'MASUMI_AGENT_MESSENGER',
+                'MESSENGER',
                 'SOKOSUMI',
                 'UNKNOWN'
             ],
@@ -3048,7 +3048,7 @@ export const TaskEventSchema = {
                 'SIGNAL',
                 'DISCORD',
                 'CHAT',
-                'MASUMI_AGENT_MESSENGER',
+                'MESSENGER',
                 'SOKOSUMI',
                 'UNKNOWN'
             ],
