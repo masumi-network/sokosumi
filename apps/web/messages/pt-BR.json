@@ -1340,6 +1340,31 @@
       "List": {
         "placeholder": "Sem tarefas"
       },
+      "Filters": {
+        "title": "Filtros",
+        "searchPlaceholder": "Filtrar…",
+        "emptyResults": "Nenhum resultado encontrado.",
+        "all": "Todas",
+        "scopeLabel": "Escopo",
+        "scopeOwned": "Minhas tarefas",
+        "scopeWorkspace": "Espaço de trabalho",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "Status",
+        "statusOptions": {
+          "DRAFT": "Rascunho",
+          "READY": "Pronto",
+          "INPUT_REQUIRED": "Entrada necessária",
+          "AUTHENTICATION_REQUIRED": "Autenticação necessária",
+          "OUT_OF_CREDITS": "Sem créditos",
+          "CREDITS_TOPPED_UP": "Créditos recarregados",
+          "RUNNING": "Em execução",
+          "AWAITING_EXTERNAL": "Aguardando externo",
+          "COMPLETED": "Concluído",
+          "FAILED": "Falhou",
+          "CANCEL_REQUESTED": "Cancelamento solicitado",
+          "CANCELED": "Cancelado"
+        }
+      },
       "Jobs": {
         "filterButton": "Status",
         "filterHideFailed": "Ocultar falhados",
@@ -1670,8 +1695,8 @@
       "cancelsOnDate": "Cancela em {date}",
       "statusCancellationScheduled": "O cancelamento da assinatura foi agendado.",
       "billingPortalTitle": "Portal de cobrança",
-      "billingPortalDescription": "Abra o Portal de Cobrança da Stripe para gerenciar sua assinatura e suas faturas.",
-      "billingPortalDescriptionWithPlan": "Você está no plano {plan}. Gerencie a cobrança e as faturas na Stripe.",
+      "billingPortalDescription": "Abra o Portal de Cobrança da Stripe para gerenciar suas assinaturas e suas faturas.",
+      "billingPortalDescriptionWithPlan": "Você está no plano {plan}. Gerencie suas assinaturas, dados de cobrança e faturas na Stripe.",
       "openingBillingPortal": "Abrindo...",
       "billingPortalCta": "Abrir portal de cobrança",
       "freePrice": "Grátis",
@@ -1751,7 +1776,7 @@
         "coupon": "Cupom"
       },
       "billingPortalTitle": "Portal de cobrança",
-      "billingPortalDescription": "Abra o Portal de Cobrança da Stripe para gerenciar seus dados de cobrança e suas faturas.",
+      "billingPortalDescription": "Abra o Portal de Cobrança da Stripe para gerenciar suas assinaturas, dados de cobrança e faturas.",
       "openingBillingPortal": "Abrindo...",
       "billingPortalCta": "Abrir portal de cobrança",
       "orgAccessRestrictedTitle": "Acesso à cobrança restrito",

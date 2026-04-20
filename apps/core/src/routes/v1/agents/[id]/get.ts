@@ -21,16 +21,14 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import {
-  agentSchema,
+  agentDetailSchema,
+  getAgentExampleOutputsFromAgent,
   getAgentLegalFromAgent,
+  getAgentTagsFromAgent,
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
 import { mapCategoryForApi } from "@/schemas/category.schema";
-import {
-  agentCategoriesInclude,
-  agentJobsCountInclude,
-  agentPricingInclude,
-} from "@/types/agent";
+import { agentDetailInclude } from "@/types/agent";
 
 const params = z.object({
   id: z.string().openapi({
@@ -49,7 +47,7 @@ const route = withGlobalHeaderParameters(
       params,
     },
     responses: {
-      200: jsonSuccessResponse(agentSchema, "Retrieve the agent by ID"),
+      200: jsonSuccessResponse(agentDetailSchema, "Retrieve the agent by ID"),
       401: jsonErrorResponse("Unauthorized"),
       404: jsonErrorResponse("Not Found"),
     },
@@ -68,11 +66,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           id,
           ...buildAvailableAgentWhereClause(creditCosts),
         },
-        include: {
-          ...agentPricingInclude,
-          ...agentJobsCountInclude,
-          ...agentCategoriesInclude,
-        },
+        include: agentDetailInclude,
       });
 
       if (!agent) {
@@ -91,6 +85,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         author: getAuthorFromAgent(agent),
         legal: getAgentLegalFromAgent(agent),
         categories: (agent.categories ?? []).map(mapCategoryForApi),
+        riskClassification: agent.riskClassification,
+        tags: getAgentTagsFromAgent(agent),
+        exampleOutputs: getAgentExampleOutputsFromAgent(agent),
       };
 
       const averageExecutionTime = await calculateAverageExecutionTime(id, tx);
@@ -109,6 +106,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       };
     });
-    return ok(c, agentSchema.parse(agent));
+    return ok(c, agentDetailSchema.parse(agent));
   });
 }

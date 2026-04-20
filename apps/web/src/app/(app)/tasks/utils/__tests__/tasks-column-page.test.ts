@@ -63,6 +63,9 @@ describe("getTasksColumnPage", () => {
       columnId: "done",
       cursor: null,
       limit: 2,
+      scope: "workspace",
+      coworkerId: "coworker-1",
+      status: null,
       coworkersById: new Map(),
       agentsById: new Map(),
     });
@@ -72,6 +75,8 @@ describe("getTasksColumnPage", () => {
     expect(listTasksMock).toHaveBeenCalledTimes(1);
     expect(listTasksMock).toHaveBeenCalledWith({
       status: [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELED],
+      scope: "workspace",
+      coworkerId: "coworker-1",
       cursor: null,
       limit: 2,
     });
@@ -93,6 +98,9 @@ describe("getTasksColumnPage", () => {
       columnId: "backlog",
       cursor: "cursor-1",
       limit: 1,
+      scope: "owned",
+      coworkerId: null,
+      status: null,
       coworkersById: new Map(),
       agentsById: new Map(),
     });
@@ -101,6 +109,8 @@ describe("getTasksColumnPage", () => {
     expect(page.nextCursor).toBeNull();
     expect(listTasksMock).toHaveBeenCalledWith({
       status: [TaskStatus.DRAFT],
+      scope: "owned",
+      coworkerId: undefined,
       cursor: "cursor-1",
       limit: 1,
     });
@@ -122,10 +132,32 @@ describe("getTasksColumnPage", () => {
       columnId: "todo",
       cursor: null,
       limit: 10,
+      scope: "owned",
+      coworkerId: null,
+      status: null,
       coworkersById: new Map(),
       agentsById: new Map(),
     });
 
     expect(page.nextCursor).toBeNull();
+  });
+
+  it("returns an empty page when the selected status is outside the column", async () => {
+    const page = await getTasksColumnPage({
+      columnId: "backlog",
+      cursor: null,
+      limit: 10,
+      scope: "workspace",
+      coworkerId: null,
+      status: TaskStatus.COMPLETED,
+      coworkersById: new Map(),
+      agentsById: new Map(),
+    });
+
+    expect(page).toEqual({
+      tasks: [],
+      nextCursor: null,
+    });
+    expect(listTasksMock).not.toHaveBeenCalled();
   });
 });

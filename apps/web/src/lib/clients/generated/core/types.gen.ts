@@ -143,6 +143,118 @@ export type PaginationMetadata = {
     nextCursor: string | null;
 };
 
+export type AgentDetail = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    name: string;
+    image: string | null;
+    icon: string | null;
+    /**
+     * Price in credits
+     */
+    credits: number;
+    summary: string | null;
+    description: string;
+    /**
+     * Execution and rating metrics
+     */
+    metrics: {
+        /**
+         * Execution metrics
+         */
+        executions: {
+            /**
+             * Number of executions
+             */
+            count: number;
+            /**
+             * Average execution time in seconds
+             */
+            averageTime: number | null;
+        };
+        /**
+         * Rating metrics
+         */
+        ratings: {
+            /**
+             * Total number of ratings
+             */
+            total: number;
+            /**
+             * Average rating (out of 5 stars). Null if there are no ratings.
+             */
+            average: number | null;
+        };
+    };
+    author: {
+        name: string | null;
+        image: string | null;
+        organization: string | null;
+        email?: string | null;
+        other: string | null;
+    };
+    legal: {
+        privacyPolicy: string | null;
+        terms: string | null;
+        dpa: string | null;
+        other: string | null;
+    };
+    /**
+     * Categories this agent belongs to
+     */
+    categories: Array<Category>;
+    /**
+     * The agent's risk classification
+     */
+    riskClassification: 'MINIMAL' | 'LIMITED' | 'HIGH' | 'UNACCEPTABLE';
+    /**
+     * Resolved tags for the agent, using override tags when present
+     */
+    tags: Array<string>;
+    /**
+     * Resolved example outputs for the agent, using overrides when present
+     */
+    exampleOutputs: Array<AgentExampleOutput>;
+};
+
+export type AgentExampleOutput = {
+    name: string;
+    mimeType: string;
+    url: string;
+};
+
+export type AgentReviews = {
+    distribution: AgentRatingDistribution;
+    /**
+     * Recent visible ratings that include comments
+     */
+    ratingsWithComments: Array<AgentReview>;
+};
+
+export type AgentRatingDistribution = {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+};
+
+export type AgentReview = {
+    id: string;
+    rating: number;
+    comment: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    user: AgentReviewAuthor;
+};
+
+export type AgentReviewAuthor = {
+    id: string;
+    name: string;
+    image: string | null;
+};
+
 export type JobSummary = {
     id: string;
     createdAt: Date;
@@ -953,7 +1065,7 @@ export type GetAgentsByIdResponses = {
      * Retrieve the agent by ID
      */
     200: {
-        data: Agent;
+        data: AgentDetail;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -963,6 +1075,68 @@ export type GetAgentsByIdResponses = {
 };
 
 export type GetAgentsByIdResponse = GetAgentsByIdResponses[keyof GetAgentsByIdResponses];
+
+export type GetAgentsByIdReviewsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/agents/{id}/reviews';
+};
+
+export type GetAgentsByIdReviewsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAgentsByIdReviewsError = GetAgentsByIdReviewsErrors[keyof GetAgentsByIdReviewsErrors];
+
+export type GetAgentsByIdReviewsResponses = {
+    /**
+     * Retrieve public reviews for the agent by ID
+     */
+    200: {
+        data: AgentReviews;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAgentsByIdReviewsResponse = GetAgentsByIdReviewsResponses[keyof GetAgentsByIdReviewsResponses];
 
 export type GetAgentsByIdInputSchemaData = {
     body?: never;

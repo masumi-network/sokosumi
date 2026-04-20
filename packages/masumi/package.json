@@ -69,7 +69,7 @@
   "devDependencies": {
     "@hey-api/openapi-ts": "0.96.0",
     "@types/node": "24.12.2",
-    "typescript": "6.0.2",
+    "typescript": "6.0.3",
     "vitest": "4.1.4"
   }
 }

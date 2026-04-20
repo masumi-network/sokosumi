@@ -108,6 +108,7 @@ describe("GET /agents/{id}", () => {
       image: null,
       icon: null,
       summary: "A short summary",
+      riskClassification: "HIGH",
       _count: { jobs: 2 },
       categories: [
         {
@@ -145,6 +146,28 @@ describe("GET /agents/{id}", () => {
       legalDpa: null,
       overrideLegalOther: null,
       legalOther: null,
+      tags: [
+        {
+          id: "tag_123",
+          createdAt: new Date("2026-03-17T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-17T10:00:00.000Z"),
+          name: "research",
+        },
+      ],
+      overrideTags: [],
+      exampleOutput: [
+        {
+          id: "example_123",
+          createdAt: new Date("2026-03-17T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-17T10:00:00.000Z"),
+          name: "Generated summary",
+          mimeType: "image/png",
+          url: "https://example.com/output.png",
+          agentId: "agent_123",
+          agentIdOverride: null,
+        },
+      ],
+      overrideExampleOutput: [],
     });
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
@@ -170,5 +193,14 @@ describe("GET /agents/{id}", () => {
         },
       },
     });
+    expect(body.data.riskClassification).toBe("HIGH");
+    expect(body.data.tags).toEqual(["research"]);
+    expect(body.data.exampleOutputs).toEqual([
+      {
+        name: "Generated summary",
+        mimeType: "image/png",
+        url: "https://example.com/output.png",
+      },
+    ]);
   });
 });

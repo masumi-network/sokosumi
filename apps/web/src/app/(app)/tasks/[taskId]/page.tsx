@@ -267,6 +267,8 @@ async function TaskDetailActionsSlot({
     agentNameById,
     coworkerOptions,
   } = buildTaskDetailContext(task, coworkers, agents);
+  const isReadOnlyWorkspaceView =
+    task.workspace.organizationId !== null && session?.user.id !== task.userId;
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
     session?.user?.email?.trim() ||
@@ -285,6 +287,7 @@ async function TaskDetailActionsSlot({
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
+      isReadOnly={isReadOnlyWorkspaceView}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),
@@ -357,6 +360,8 @@ async function TaskActivitySectionContent({
   ]);
   const { agentNameById } = buildTaskDetailContext(task, coworkers, agents);
   const isFreePlan = currentPlan === "free";
+  const isReadOnlyWorkspaceView =
+    task.workspace.organizationId !== null && session?.user.id !== task.userId;
   const currentUser = session?.user
     ? {
         id: session.user.id,
@@ -395,6 +400,7 @@ async function TaskActivitySectionContent({
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
       isFreePlan={isFreePlan}
+      canComment={!isReadOnlyWorkspaceView}
     />
   );
 }

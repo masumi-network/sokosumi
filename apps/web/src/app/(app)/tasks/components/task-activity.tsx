@@ -84,6 +84,7 @@ interface TaskActivityProps {
   expandLabel?: string;
   collapseLabel?: string;
   isFreePlan?: boolean;
+  canComment?: boolean;
 }
 
 function getEventTimestamp(event: TaskEvent): number {
@@ -142,6 +143,7 @@ export function TaskActivitySection({
   expandLabel = "Expand",
   collapseLabel = "Show less",
   isFreePlan = true,
+  canComment = true,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const { formatTimeAgo } = useLocalizedDateTime();
@@ -191,6 +193,7 @@ export function TaskActivitySection({
   const trimmedComment = comment.trim();
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const isSubmitDisabled =
+    !canComment ||
     isPending ||
     trimmedComment.length === 0 ||
     !currentUser?.id ||
@@ -295,90 +298,92 @@ export function TaskActivitySection({
     <section className="space-y-4">
       <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
 
-      <form
-        ref={formRef}
-        onSubmit={handleSubmit}
-        className="border-border/50 rounded-lg border p-3"
-      >
-        <FileUpload
-          value={pendingUploadFiles}
-          onValueChange={setPendingUploadFiles}
-          onAccept={(files) => {
-            void handleAttachFiles(files);
-          }}
-          multiple
+      {canComment ? (
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="border-border/50 rounded-lg border p-3"
         >
-          <FileUploadDropzone
-            className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
-            onClick={(event) => event.preventDefault()}
+          <FileUpload
+            value={pendingUploadFiles}
+            onValueChange={setPendingUploadFiles}
+            onAccept={(files) => {
+              void handleAttachFiles(files);
+            }}
+            multiple
           >
-            <MarkdownEditor
-              ref={markdownEditorRef}
-              placeholder={placeholder}
-              className="border-border/50 bg-muted-foreground/5 w-full rounded-lg border"
-              value={comment}
-              onChange={setComment}
-              onSubmitShortcut={() => formRef.current?.requestSubmit()}
-              onAttachClick={() => attachmentTriggerRef.current?.click()}
-              attachLabel={_attachLabel}
-              isAttachmentUploading={isUploadingAttachments}
-              mentions={mentionOptions}
-            />
-            <FileUploadTrigger asChild>
-              <button
-                ref={attachmentTriggerRef}
-                type="button"
-                className="sr-only"
-                aria-label={_attachLabel}
-              >
-                {_attachLabel}
-              </button>
-            </FileUploadTrigger>
-          </FileUploadDropzone>
-        </FileUpload>
-        {attachmentUrls.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-3">
-            {attachmentUrls.map((url) => (
-              <FileChipMiniPreviewWithMetadata
-                key={url}
-                url={url}
-                onRemove={() =>
-                  setComment((prev) => removeTaskAttachmentLinks(prev, [url]))
-                }
-                removeLabel={t("removeAttachment")}
+            <FileUploadDropzone
+              className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
+              onClick={(event) => event.preventDefault()}
+            >
+              <MarkdownEditor
+                ref={markdownEditorRef}
+                placeholder={placeholder}
+                className="border-border/50 bg-muted-foreground/5 w-full rounded-lg border"
+                value={comment}
+                onChange={setComment}
+                onSubmitShortcut={() => formRef.current?.requestSubmit()}
+                onAttachClick={() => attachmentTriggerRef.current?.click()}
+                attachLabel={_attachLabel}
+                isAttachmentUploading={isUploadingAttachments}
+                mentions={mentionOptions}
               />
-            ))}
-          </div>
-        ) : null}
-        <div className="mt-2 flex items-center gap-3">
-          {!isMobile ? (
-            <div className="text-muted-foreground flex items-center gap-2 text-xs">
-              <span>{t("sendWith")}</span>
-              <div className="flex items-center gap-0.5 opacity-60">
-                {os === "MacOS" ? (
-                  <Command className="size-3" aria-hidden />
-                ) : (
-                  <span className="text-xs">{t("ctrl")}</span>
-                )}
-                <CornerDownLeft className="size-3" aria-hidden />
-              </div>
+              <FileUploadTrigger asChild>
+                <button
+                  ref={attachmentTriggerRef}
+                  type="button"
+                  className="sr-only"
+                  aria-label={_attachLabel}
+                >
+                  {_attachLabel}
+                </button>
+              </FileUploadTrigger>
+            </FileUploadDropzone>
+          </FileUpload>
+          {attachmentUrls.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-3">
+              {attachmentUrls.map((url) => (
+                <FileChipMiniPreviewWithMetadata
+                  key={url}
+                  url={url}
+                  onRemove={() =>
+                    setComment((prev) => removeTaskAttachmentLinks(prev, [url]))
+                  }
+                  removeLabel={t("removeAttachment")}
+                />
+              ))}
             </div>
           ) : null}
-          <Button
-            size="icon"
-            className="ml-auto size-7 rounded-full"
-            aria-label={submitLabel}
-            type="submit"
-            disabled={isSubmitDisabled}
-          >
-            {isPending ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : (
-              <ArrowUp className="size-3.5" aria-hidden />
-            )}
-          </Button>
-        </div>
-      </form>
+          <div className="mt-2 flex items-center gap-3">
+            {!isMobile ? (
+              <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                <span>{t("sendWith")}</span>
+                <div className="flex items-center gap-0.5 opacity-60">
+                  {os === "MacOS" ? (
+                    <Command className="size-3" aria-hidden />
+                  ) : (
+                    <span className="text-xs">{t("ctrl")}</span>
+                  )}
+                  <CornerDownLeft className="size-3" aria-hidden />
+                </div>
+              </div>
+            ) : null}
+            <Button
+              size="icon"
+              className="ml-auto size-7 rounded-full"
+              aria-label={submitLabel}
+              type="submit"
+              disabled={isSubmitDisabled}
+            >
+              {isPending ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <ArrowUp className="size-3.5" aria-hidden />
+              )}
+            </Button>
+          </div>
+        </form>
+      ) : null}
 
       {orderedEvents.length > 0 ? (
         <div className="space-y-3">

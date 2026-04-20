@@ -1309,6 +1309,31 @@
       "List": {
         "placeholder": "Keine Tasks"
       },
+      "Filters": {
+        "title": "Filter",
+        "searchPlaceholder": "Filtern…",
+        "emptyResults": "Keine Treffer.",
+        "all": "Alle",
+        "scopeLabel": "Bereich",
+        "scopeOwned": "Meine Tasks",
+        "scopeWorkspace": "Workspace",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "Status",
+        "statusOptions": {
+          "DRAFT": "Entwurf",
+          "READY": "Bereit",
+          "INPUT_REQUIRED": "Eingabe erforderlich",
+          "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
+          "OUT_OF_CREDITS": "Keine Credits mehr",
+          "CREDITS_TOPPED_UP": "Credits aufgeladen",
+          "RUNNING": "Läuft",
+          "AWAITING_EXTERNAL": "Wartet auf Externes",
+          "COMPLETED": "Abgeschlossen",
+          "FAILED": "Fehlgeschlagen",
+          "CANCEL_REQUESTED": "Abbruch angefordert",
+          "CANCELED": "Abgebrochen"
+        }
+      },
       "Jobs": {
         "filterButton": "Status",
         "filterHideFailed": "Fehlgeschlagene ausblenden",
@@ -1609,8 +1634,8 @@
       "cancelsOnDate": "Endet am {date}",
       "statusCancellationScheduled": "Die Kündigung des Abonnements wurde geplant.",
       "billingPortalTitle": "Billing-Portal",
-      "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um dein Abonnement und deine Rechnungen zu verwalten.",
-      "billingPortalDescriptionWithPlan": "Du nutzt aktuell {plan}. Verwalte Zahlungsdetails und Rechnungen in Stripe.",
+      "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um deine Abonnements und Rechnungen zu verwalten.",
+      "billingPortalDescriptionWithPlan": "Du nutzt aktuell {plan}. Verwalte Abonnements, Zahlungsdetails und Rechnungen in Stripe.",
       "openingBillingPortal": "Wird geöffnet...",
       "billingPortalCta": "Billing-Portal öffnen",
       "freePrice": "Kostenlos",
@@ -1690,7 +1715,7 @@
         "coupon": "Gutschein"
       },
       "billingPortalTitle": "Billing-Portal",
-      "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um deine Zahlungsdetails und Rechnungen zu verwalten.",
+      "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um deine Abonnements, Zahlungsdetails und Rechnungen zu verwalten.",
       "openingBillingPortal": "Wird geöffnet...",
       "billingPortalCta": "Billing-Portal öffnen",
       "orgAccessRestrictedTitle": "Billing-Zugang eingeschränkt",

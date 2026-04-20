@@ -505,6 +505,402 @@ export const PaginationMetadataSchema = {
     ]
 } as const;
 
+export const AgentDetailSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'agent_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        name: {
+            type: 'string',
+            example: 'Research Assistant'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/image.png'
+        },
+        icon: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/icon.svg'
+        },
+        credits: {
+            type: 'number',
+            example: 100,
+            description: 'Price in credits'
+        },
+        summary: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'A research assistant that can help you with your research'
+        },
+        description: {
+            type: 'string',
+            example: 'A research assistant that can help you with your research'
+        },
+        metrics: {
+            type: 'object',
+            properties: {
+                executions: {
+                    type: 'object',
+                    properties: {
+                        count: {
+                            type: 'number',
+                            example: 100,
+                            description: 'Number of executions'
+                        },
+                        averageTime: {
+                            type: [
+                                'number',
+                                'null'
+                            ],
+                            example: 100000,
+                            description: 'Average execution time in seconds'
+                        }
+                    },
+                    required: [
+                        'count',
+                        'averageTime'
+                    ],
+                    description: 'Execution metrics'
+                },
+                ratings: {
+                    type: 'object',
+                    properties: {
+                        total: {
+                            type: 'number',
+                            example: 100,
+                            description: 'Total number of ratings'
+                        },
+                        average: {
+                            type: [
+                                'number',
+                                'null'
+                            ],
+                            example: 4.5,
+                            description: 'Average rating (out of 5 stars). Null if there are no ratings.'
+                        }
+                    },
+                    required: [
+                        'total',
+                        'average'
+                    ],
+                    description: 'Rating metrics'
+                }
+            },
+            required: [
+                'executions',
+                'ratings'
+            ],
+            description: 'Execution and rating metrics'
+        },
+        author: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'John Doe'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/image.png'
+                },
+                organization: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'John Doe\'s Organization'
+                },
+                email: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'email',
+                    example: 'john.doe@example.com'
+                },
+                other: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Other contact information'
+                }
+            },
+            required: [
+                'name',
+                'image',
+                'organization',
+                'other'
+            ]
+        },
+        legal: {
+            type: 'object',
+            properties: {
+                privacyPolicy: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Privacy Policy'
+                },
+                terms: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Terms of Service'
+                },
+                dpa: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Data Processing Agreement (DPA)'
+                },
+                other: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Other'
+                }
+            },
+            required: [
+                'privacyPolicy',
+                'terms',
+                'dpa',
+                'other'
+            ]
+        },
+        categories: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/Category'
+            },
+            description: 'Categories this agent belongs to'
+        },
+        riskClassification: {
+            type: 'string',
+            enum: [
+                'MINIMAL',
+                'LIMITED',
+                'HIGH',
+                'UNACCEPTABLE'
+            ],
+            example: 'MINIMAL',
+            description: 'The agent\'s risk classification'
+        },
+        tags: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Resolved tags for the agent, using override tags when present',
+            example: [
+                'research',
+                'analysis'
+            ]
+        },
+        exampleOutputs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AgentExampleOutput'
+            },
+            description: 'Resolved example outputs for the agent, using overrides when present'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'name',
+        'image',
+        'icon',
+        'credits',
+        'summary',
+        'description',
+        'metrics',
+        'author',
+        'legal',
+        'categories',
+        'riskClassification',
+        'tags',
+        'exampleOutputs'
+    ]
+} as const;
+
+export const AgentExampleOutputSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'Generated summary'
+        },
+        mimeType: {
+            type: 'string',
+            example: 'image/png'
+        },
+        url: {
+            type: 'string',
+            example: 'https://example.com/output.png'
+        }
+    },
+    required: [
+        'name',
+        'mimeType',
+        'url'
+    ]
+} as const;
+
+export const AgentReviewsSchema = {
+    type: 'object',
+    properties: {
+        distribution: {
+            $ref: '#/components/schemas/AgentRatingDistribution'
+        },
+        ratingsWithComments: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AgentReview'
+            },
+            description: 'Recent visible ratings that include comments'
+        }
+    },
+    required: [
+        'distribution',
+        'ratingsWithComments'
+    ]
+} as const;
+
+export const AgentRatingDistributionSchema = {
+    type: 'object',
+    properties: {
+        1: {
+            type: 'number',
+            example: 1
+        },
+        2: {
+            type: 'number',
+            example: 2
+        },
+        3: {
+            type: 'number',
+            example: 4
+        },
+        4: {
+            type: 'number',
+            example: 8
+        },
+        5: {
+            type: 'number',
+            example: 12
+        }
+    },
+    required: [
+        '1',
+        '2',
+        '3',
+        '4',
+        '5'
+    ]
+} as const;
+
+export const AgentReviewSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'rating_123'
+        },
+        rating: {
+            type: 'number',
+            minimum: 1,
+            maximum: 5,
+            example: 5
+        },
+        comment: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Great results.'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        user: {
+            $ref: '#/components/schemas/AgentReviewAuthor'
+        }
+    },
+    required: [
+        'id',
+        'rating',
+        'comment',
+        'createdAt',
+        'updatedAt',
+        'user'
+    ]
+} as const;
+
+export const AgentReviewAuthorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/avatar.png'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'image'
+    ]
+} as const;
+
 export const JobSummarySchema = {
     type: 'object',
     properties: {
