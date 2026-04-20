@@ -51,6 +51,7 @@ function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      role: "user",
     });
     c.set("workspaceContext", {
       workspaceId: activeWorkspaceId,

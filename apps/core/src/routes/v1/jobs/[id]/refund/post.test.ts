@@ -20,10 +20,12 @@ const {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     } as {
       actor: "user";
       userId: string;
       organizationId: string | null;
+      role: string;
     } | null,
   },
   prismaTransactionMock: vi.fn(),
@@ -197,6 +199,7 @@ describe("POST /jobs/{id}/refund", () => {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     };
     requestRefundMock.mockResolvedValue(ok());
 

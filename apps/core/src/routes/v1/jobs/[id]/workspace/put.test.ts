@@ -150,6 +150,7 @@ function createApp(activeOrganizationId: string | null = null) {
       actor: "user",
       userId: "user_123",
       organizationId: activeOrganizationId,
+      role: "user",
     });
 
     return await next();

@@ -20,10 +20,12 @@ const {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     } as {
       actor: "user";
       userId: string;
       organizationId: string | null;
+      role: string;
     } | null,
   },
   prismaTransactionMock: vi.fn(),
@@ -189,6 +191,7 @@ describe("PATCH /jobs/{id}", () => {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     };
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>

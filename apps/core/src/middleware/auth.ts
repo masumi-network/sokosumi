@@ -8,10 +8,14 @@ import { auth } from "@/lib/auth";
 import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 
+const DEFAULT_USER_ROLE = "user";
+
 export interface UserAuthenticationContext {
   actor: "user";
   userId: string;
   organizationId: string | null;
+  /** Comma-separated roles from `User.role` (Better Auth / Prisma). */
+  role: string;
 }
 
 export interface CoworkerAuthenticationContext {
@@ -92,6 +96,25 @@ export function requireCoworkerAuthContext(
   return authContext;
 }
 
+export function hasAdminRole(role: string | null | undefined): boolean {
+  return (
+    role?.split(",").some((value) => value.trim().toLowerCase() === "admin") ??
+    false
+  );
+}
+
+export function requireAdminAuthContext(
+  authContext: AuthenticationContext,
+): UserAuthenticationContext {
+  const userAuthContext = requireUserAuthContext(authContext);
+
+  if (!hasAdminRole(userAuthContext.role)) {
+    throw forbidden("Admin access required");
+  }
+
+  return userAuthContext;
+}
+
 /**
  * Verifies a Better Auth API key and sets the authentication context if valid.
  *
@@ -108,12 +131,18 @@ async function verifyApiKey(
   });
 
   if (apiKeyResult.valid && apiKeyResult.key) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: apiKeyResult.key.referenceId },
+      select: { role: true },
+    });
+
     setAuthContext(c, {
       isAuthenticated: true,
       authContext: {
         actor: "user",
         userId: apiKeyResult.key.referenceId,
         organizationId: null,
+        role: dbUser?.role ?? DEFAULT_USER_ROLE,
       },
     });
     return true;
@@ -201,6 +230,9 @@ async function verifyOAuthToken(
       where: { token: hashedToken },
       include: {
         refreshToken: true,
+        user: {
+          select: { role: true },
+        },
       },
     });
 
@@ -250,6 +282,7 @@ async function verifyOAuthToken(
       actor: "user",
       userId: oauthToken.userId,
       organizationId: null,
+      role: oauthToken.user?.role ?? DEFAULT_USER_ROLE,
     },
   });
   return true;
@@ -300,6 +333,7 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
       actor: "user",
       userId: user.id,
       organizationId: session.activeOrganizationId ?? null,
+      role: user.role ?? DEFAULT_USER_ROLE,
     },
   });
 

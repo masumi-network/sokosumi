@@ -120,6 +120,7 @@ describe("workspaceMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_existing",
+        role: "user",
       },
       workspaceContext: null,
     });
@@ -158,6 +159,7 @@ describe("workspaceMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       },
       workspaceContext: {
         workspaceId: "workspace_123",
@@ -199,6 +201,7 @@ describe("workspaceMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_existing",
+        role: "user",
       },
       workspaceContext: {
         workspaceId: "workspace_created",
@@ -230,6 +233,7 @@ describe("workspaceMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_existing",
+        role: "user",
       },
       workspaceContext: null,
     });

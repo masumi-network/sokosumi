@@ -6,7 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireAdminAuthContext } from "@/routes/v1/coworkers/admin-guard";
+import { requireAdminAuthContext } from "@/middleware/auth";
 import {
   createCreditCostRequestSchema,
   creditCostSchema,
@@ -37,7 +37,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    await requireAdminAuthContext(c.var.authContext);
+    requireAdminAuthContext(c.var.authContext);
     const body = c.req.valid("json");
 
     const createdRecord = await prisma.$transaction(async (tx) => {

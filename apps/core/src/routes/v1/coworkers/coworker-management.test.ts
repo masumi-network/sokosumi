@@ -54,10 +54,11 @@ interface TransactionMock {
 
 interface AppOptions {
   userId?: string;
+  role?: string;
 }
 
 function createApp(options: AppOptions = {}) {
-  const { userId = "user_123" } = options;
+  const { userId = "user_123", role = "user" } = options;
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -68,6 +69,7 @@ function createApp(options: AppOptions = {}) {
       actor: "user",
       userId,
       organizationId: null,
+      role,
     });
 
     return await next();
@@ -228,6 +230,7 @@ describe("coworker management CRUD endpoints", () => {
 
     const app = createApp({
       userId: "admin_123",
+      role: "admin",
     });
     const response = await app.request("http://localhost/", {
       method: "POST",
@@ -668,6 +671,7 @@ describe("coworker management CRUD endpoints", () => {
 
     const app = createApp({
       userId: "admin_123",
+      role: "admin",
     });
     const response = await app.request("http://localhost/cow_123", {
       method: "PATCH",
@@ -783,6 +787,7 @@ describe("coworker management CRUD endpoints", () => {
 
     const app = createApp({
       userId: "admin_123",
+      role: "admin",
     });
     const response = await app.request("http://localhost/cow_123", {
       method: "PATCH",
@@ -927,6 +932,7 @@ describe("coworker management CRUD endpoints", () => {
 
     const app = createApp({
       userId: "admin_123",
+      role: "admin",
     });
     const response = await app.request("http://localhost/cow_123", {
       method: "DELETE",

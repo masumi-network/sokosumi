@@ -48,11 +48,12 @@ function createApp(options: CreateAppOptions = {}) {
             actor: "coworker",
             coworkerId: "cow_123",
           } satisfies AuthenticationContext)
-        : {
+        : ({
             actor: "user",
             userId,
             organizationId: "org_123",
-          },
+            role: "user",
+          } satisfies AuthenticationContext),
     );
     c.set(
       "workspaceContext",
