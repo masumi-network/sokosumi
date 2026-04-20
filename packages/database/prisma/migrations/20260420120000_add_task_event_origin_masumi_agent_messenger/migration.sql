@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TaskEventOrigin" ADD VALUE 'MASUMI_AGENT_MESSENGER';

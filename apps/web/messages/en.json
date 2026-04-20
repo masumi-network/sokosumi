@@ -1424,6 +1424,7 @@
           "signal": "Signal",
           "discord": "Discord",
           "chat": "Chat",
+          "masumiAgentMessenger": "Masumi Agent Messenger",
           "unknown": "Unknown"
         },
         "actionCommented": "commented",
