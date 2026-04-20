@@ -5,9 +5,8 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireAdminAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
-
-import { requireAdminAuthContext } from "../../admin-guard";
 import { patchCoworkerWhitelistRequestSchema } from "../../schema";
 import { paramsSchema } from "../schema";
 
@@ -39,7 +38,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    await requireAdminAuthContext(c.var.authContext);
+    requireAdminAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { isWhitelisted } = c.req.valid("json");
 

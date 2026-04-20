@@ -63,7 +63,7 @@ function createApiKeyRecord(
   };
 }
 
-function createApp(userId = "owner_123") {
+function createApp(userId = "owner_123", role = "user") {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -74,6 +74,7 @@ function createApp(userId = "owner_123") {
       actor: "user",
       userId,
       organizationId: null,
+      role,
     });
     return await next();
   });
@@ -316,9 +317,6 @@ describe("coworker API key protected endpoints", () => {
   });
 
   it("allows admin to create an API key for another user's coworker", async () => {
-    userFindUniqueMock.mockResolvedValue({
-      role: "admin",
-    });
     coworkerFindFirstMock.mockResolvedValue({
       id: "cow_123",
       userId: "owner_999",
@@ -336,7 +334,7 @@ describe("coworker API key protected endpoints", () => {
     };
     mockTransaction(tx);
 
-    const app = createApp("admin_123");
+    const app = createApp("admin_123", "admin");
     const response = await app.request("http://localhost/cow_123/api-keys", {
       method: "POST",
       headers: {

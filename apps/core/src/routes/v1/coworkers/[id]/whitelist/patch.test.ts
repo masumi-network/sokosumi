@@ -45,6 +45,7 @@ function createApp() {
       actor: "user",
       userId: "admin_123",
       organizationId: null,
+      role: "user",
     });
 
     return await next();

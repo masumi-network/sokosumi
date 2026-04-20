@@ -21,6 +21,7 @@ const userContext: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: null,
+  role: "user",
 };
 
 describe("validateStatusTransition", () => {

@@ -358,6 +358,7 @@ describe("POST /users/magic-link", () => {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     });
 
     const response = await app.request("http://localhost/", {

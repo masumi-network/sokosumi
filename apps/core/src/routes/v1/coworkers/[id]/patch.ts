@@ -5,12 +5,10 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireAdminAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
-import {
-  requireAdminAuthContext,
-  requireCoworkerManagementAccess,
-} from "../admin-guard";
+import { requireCoworkerManagementAccess } from "../admin-guard";
 import { normalizeCoworkerMetadata } from "../metadata";
 import { patchCoworkerRequestSchema } from "../schema";
 import { paramsSchema } from "./schema";
@@ -45,7 +43,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     if (body.priority !== undefined) {
-      await requireAdminAuthContext(c.var.authContext);
+      requireAdminAuthContext(c.var.authContext);
     }
 
     const metadata = normalizeCoworkerMetadata(body.metadata);

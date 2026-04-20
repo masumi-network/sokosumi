@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AuthVariables } from "./auth";
-import { authMiddleware } from "./auth";
+import { authMiddleware, requireAdminAuthContext } from "./auth";
 
 const {
   verifyApiKeyMock,
@@ -11,6 +11,7 @@ const {
   prismaTransactionMock,
   oauthAccessTokenFindUniqueMock,
   oauthConsentFindFirstMock,
+  userFindUniqueMock,
 } = vi.hoisted(() => ({
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
@@ -18,6 +19,7 @@ const {
   prismaTransactionMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -33,6 +35,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworkerApiKey: {
       findUnique: coworkerApiKeyFindUniqueMock,
+    },
+    user: {
+      findUnique: userFindUniqueMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -64,6 +69,7 @@ describe("authMiddleware", () => {
     getSessionMock.mockResolvedValue(null);
     oauthAccessTokenFindUniqueMock.mockResolvedValue(null);
     oauthConsentFindFirstMock.mockResolvedValue(null);
+    userFindUniqueMock.mockResolvedValue({ role: "user" });
 
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
@@ -218,6 +224,11 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_api_key",
       organizationId: null,
+      role: "user",
+    });
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_api_key" },
+      select: { role: true },
     });
     expect(verifyApiKeyMock).toHaveBeenCalledWith({
       body: { configId: "default", key: "token" },
@@ -257,6 +268,7 @@ describe("authMiddleware", () => {
       refreshId: null,
       refreshToken: null,
       clientId: "client_123",
+      user: { role: "user" },
     });
     oauthConsentFindFirstMock.mockResolvedValue({
       id: "consent_123",
@@ -274,6 +286,7 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_oauth",
       organizationId: null,
+      role: "user",
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
@@ -283,6 +296,9 @@ describe("authMiddleware", () => {
       },
       include: {
         refreshToken: true,
+        user: {
+          select: { role: true },
+        },
       },
     });
   });
@@ -305,6 +321,7 @@ describe("authMiddleware", () => {
       },
       user: {
         id: "user_session",
+        role: "user",
       },
     });
 
@@ -316,6 +333,7 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_session",
       organizationId: "org_session",
+      role: "user",
     });
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).not.toHaveBeenCalled();
@@ -327,5 +345,63 @@ describe("authMiddleware", () => {
 
     expect(response.status).toBe(401);
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("requireAdminAuthContext", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("allows user role admin", () => {
+    expect(
+      requireAdminAuthContext({
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "admin",
+      }),
+    ).toEqual({
+      actor: "user",
+      userId: "user_123",
+      organizationId: null,
+      role: "admin",
+    });
+  });
+
+  it("allows comma-separated roles that include admin", () => {
+    expect(
+      requireAdminAuthContext({
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user, admin",
+      }),
+    ).toEqual({
+      actor: "user",
+      userId: "user_123",
+      organizationId: null,
+      role: "user, admin",
+    });
+  });
+
+  it("rejects missing admin role", () => {
+    expect(() =>
+      requireAdminAuthContext({
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      }),
+    ).toThrowError("Admin access required");
+  });
+
+  it("rejects coworker actor", () => {
+    expect(() =>
+      requireAdminAuthContext({
+        actor: "coworker",
+        coworkerId: "cow_123",
+      }),
+    ).toThrowError("User authentication required");
   });
 });
