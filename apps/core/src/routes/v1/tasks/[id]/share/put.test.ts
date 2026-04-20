@@ -58,6 +58,10 @@ vi.mock("@/middleware/auth", () => ({
     return await next();
   },
   requireUserAuthContext: (authContext: unknown) => authContext,
+  isUserAuthContext: (authContext: { actor: string }) =>
+    authContext.actor === "user",
+  isCoworkerAuthContext: (authContext: { actor: string }) =>
+    authContext.actor === "coworker",
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
@@ -73,7 +77,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 function createApp() {
-  const app = new OpenAPIHonoWithAuth({ includeOrganizationHeader: false });
+  const app = new OpenAPIHonoWithAuth();
   mountPutTaskShareById(app);
   return app;
 }

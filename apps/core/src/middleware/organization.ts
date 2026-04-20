@@ -52,14 +52,8 @@ async function resolveOrganizationFromSlug(
  * app.use(organizationHeaderMiddleware);
  * ```
  */
-export const organizationHeaderMiddleware = (
-  includeOrganizationHeader: boolean,
-) =>
-  createMiddleware<AuthEnv>(async (c, next) => {
-    if (!includeOrganizationHeader) {
-      return await next();
-    }
-
+export const organizationHeaderMiddleware = createMiddleware<AuthEnv>(
+  async (c, next) => {
     const { authContext, isAuthenticated } = c.var;
 
     if (
@@ -85,4 +79,5 @@ export const organizationHeaderMiddleware = (
     }
 
     return await next();
-  });
+  },
+);

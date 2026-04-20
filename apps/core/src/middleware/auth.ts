@@ -18,9 +18,16 @@ export interface UserAuthenticationContext {
   role: string;
 }
 
+/** Optional user/org scope supplied by coworker API keys via delegation headers. */
+export interface CoworkerDelegation {
+  userId: string;
+  organizationId: string | null;
+}
+
 export interface CoworkerAuthenticationContext {
   actor: "coworker";
   coworkerId: string;
+  delegation?: CoworkerDelegation;
 }
 
 export type AuthenticationContext =
@@ -52,10 +59,17 @@ function syncSentryUser(context: AuthVariables) {
     return;
   }
 
+  const coworker = context.authContext;
   scope.setUser({
-    id: `coworker:${context.authContext.coworkerId}`,
-    coworkerId: context.authContext.coworkerId,
+    id: `coworker:${coworker.coworkerId}`,
+    coworkerId: coworker.coworkerId,
   });
+  if (coworker.delegation) {
+    scope.setContext("coworkerDelegation", {
+      userId: coworker.delegation.userId,
+      organizationId: coworker.delegation.organizationId,
+    });
+  }
 }
 
 export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
