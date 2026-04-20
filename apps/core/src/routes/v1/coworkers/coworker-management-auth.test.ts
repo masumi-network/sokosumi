@@ -131,6 +131,7 @@ describe("coworker management endpoints auth guard", () => {
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      role: "user",
     });
 
     const response = await app.request(`http://localhost${path}`, {

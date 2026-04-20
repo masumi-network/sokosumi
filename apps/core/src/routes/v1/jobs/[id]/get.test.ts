@@ -12,10 +12,12 @@ const { authContextState, prismaTransactionMock, jobFindFirstMock } =
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       } as {
         actor: "user";
         userId: string;
         organizationId: string | null;
+        role: string;
       } | null,
     },
     prismaTransactionMock: vi.fn(),
@@ -200,6 +202,7 @@ describe("GET /jobs/{id}", () => {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     };
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
@@ -250,6 +253,7 @@ describe("GET /jobs/{id}", () => {
       actor: "user",
       userId: "user_456",
       organizationId: "org_123",
+      role: "user",
     };
     jobFindFirstMock.mockResolvedValue(
       createJob({

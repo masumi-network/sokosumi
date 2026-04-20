@@ -17,6 +17,7 @@ vi.mock("@/middleware/auth", () => ({
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      role: "user",
     });
     await next();
   },
@@ -33,6 +34,7 @@ vi.mock("@/middleware/organization", () => ({
             actor: "user";
             userId: string;
             organizationId: string | null;
+            role: string;
           };
         };
       },
@@ -60,6 +62,7 @@ vi.mock("@/middleware/workspace", () => ({
             actor: "user";
             userId: string;
             organizationId: string | null;
+            role: string;
           };
         };
       },
@@ -103,6 +106,7 @@ describe("OpenAPIHonoWithAuth", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       },
       workspaceContext: null,
     });
@@ -128,6 +132,7 @@ describe("OpenAPIHonoWithAuth", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       },
       workspaceContext: {
         workspaceId: "workspace_123",

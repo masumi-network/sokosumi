@@ -1425,6 +1425,7 @@
           "signal": "Signal",
           "discord": "Discord",
           "chat": "チャット",
+          "messenger": "Messenger",
           "unknown": "不明"
         },
         "actionCommented": "コメントしました",

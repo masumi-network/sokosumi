@@ -41,6 +41,7 @@ function createApp() {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     });
     c.set("workspaceContext", {
       workspaceId: testWorkspaceId,
@@ -83,6 +84,7 @@ describe("GET /tasks/{id}/jobs", () => {
           actor: "user",
           userId: "user_123",
           organizationId: "org_123",
+          role: "user",
         },
         workspaceContext: {
           workspaceId: testWorkspaceId,

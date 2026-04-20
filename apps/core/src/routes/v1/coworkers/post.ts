@@ -7,10 +7,11 @@ import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  requireAdminAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
-
-import { requireAdminAuthContext } from "./admin-guard";
 import { normalizeCoworkerMetadata } from "./metadata";
 import { createCoworkerRequestSchema } from "./schema";
 
@@ -71,7 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let userAuthContext = requireUserAuthContext(c.var.authContext);
 
     if (body.priority !== undefined) {
-      userAuthContext = await requireAdminAuthContext(c.var.authContext);
+      userAuthContext = requireAdminAuthContext(c.var.authContext);
     }
 
     const metadata = normalizeCoworkerMetadata(body.metadata);

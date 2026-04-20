@@ -10,7 +10,7 @@ import {
   updateCoworkerApiKeyRequestSchema,
 } from "@/schemas/coworker-api-key.schema";
 
-import { requireCoworkerManagementAccess } from "../../admin-guard";
+import { requireCoworkerManagementAccess } from "../../coworker-management-access";
 import { apiKeyParamsSchema } from "../schema";
 
 const route = createRoute({
