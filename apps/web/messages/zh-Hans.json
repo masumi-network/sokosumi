@@ -1696,7 +1696,7 @@
       "statusCancellationScheduled": "订阅取消已安排。",
       "billingPortalTitle": "计费门户",
       "billingPortalDescription": "打开 Stripe 计费门户以管理您的订阅和发票。",
-      "billingPortalDescriptionWithPlan": "您当前使用 {plan}。请在 Stripe 中管理账单信息和发票。",
+      "billingPortalDescriptionWithPlan": "您当前使用 {plan}。请在 Stripe 中管理订阅、账单信息和发票。",
       "openingBillingPortal": "正在打开...",
       "billingPortalCta": "打开计费门户",
       "freePrice": "免费",
@@ -1776,7 +1776,7 @@
         "coupon": "优惠券"
       },
       "billingPortalTitle": "计费门户",
-      "billingPortalDescription": "打开 Stripe 计费门户以管理您的账单信息和发票。",
+      "billingPortalDescription": "打开 Stripe 计费门户以管理您的订阅、账单信息和发票。",
       "openingBillingPortal": "正在打开...",
       "billingPortalCta": "打开计费门户",
       "orgAccessRestrictedTitle": "计费访问受限",
