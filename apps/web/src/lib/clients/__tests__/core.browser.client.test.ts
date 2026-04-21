@@ -19,7 +19,8 @@ vi.mock("@/lib/clients/generated/core/client", () => ({
 
 vi.mock("@/lib/clients/generated/core", () => ({
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
-  postUsersByIdUploads: (...args: unknown[]) => postUsersByIdUploadsMock(...args),
+  postUsersByIdUploads: (...args: unknown[]) =>
+    postUsersByIdUploadsMock(...args),
 }));
 
 describe("core.browser.client", () => {

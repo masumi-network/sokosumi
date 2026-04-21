@@ -275,9 +275,7 @@ describe("core.client", () => {
     const { coreClient } = await import("../core.client");
     const response = await coreClient.acknowledgeNotice("notice_1");
 
-    expect(
-      postUsersByIdNoticesByNoticeIdAcknowledgeMock,
-    ).toHaveBeenCalledWith({
+    expect(postUsersByIdNoticesByNoticeIdAcknowledgeMock).toHaveBeenCalledWith({
       client: mockClient,
       path: { id: "me", noticeId: "notice_1" },
     });

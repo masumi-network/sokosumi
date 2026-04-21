@@ -10,7 +10,6 @@ import type {
   DeleteTasksByIdShareError,
   GetCoworkersData,
   GetJobsData,
-  GetUsersByIdOrganizationsData,
   GetShareByTokenError,
   GetTasksData,
   PaginationMetadata,
