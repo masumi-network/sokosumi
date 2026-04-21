@@ -28,7 +28,7 @@ import {
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
-  getConversationsByIdItems as coreGetConversationsByIdItems,
+  getConversationsByIdMessages as coreGetConversationsByIdMessages,
   getCoworkers as coreGetCoworkers,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
@@ -44,7 +44,7 @@ import {
   patchJobsById as corePatchJobsById,
   patchTasksById as corePatchTasksById,
   postConversations as corePostConversations,
-  postConversationsByIdItems as corePostConversationsByIdItems,
+  postConversationsByIdMessages as corePostConversationsByIdMessages,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
@@ -306,24 +306,24 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getConversationItems(
+  async function getConversationMessages(
     id: string,
     query?: { cursor?: string; limit?: number },
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetConversationsByIdItems({
+        coreGetConversationsByIdMessages({
           client,
           path: { id },
           query,
           cache: "no-store",
         }),
-      "Failed to fetch conversation items",
+      "Failed to fetch conversation messages",
     );
   }
 
-  async function addConversationItem(
+  async function addConversationMessage(
     id: string,
     body: {
       role: "user" | "assistant" | "system";
@@ -333,12 +333,12 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostConversationsByIdItems({
+        corePostConversationsByIdMessages({
           client,
           path: { id },
           body,
         }),
-      "Failed to add conversation item",
+      "Failed to add conversation message",
     );
   }
 
@@ -697,38 +697,6 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function postConversationsByIdRecoverResponse(id: string) {
-    return executeOperation(
-      getClient,
-      async (client) => {
-        const result = await client.post({
-          url: `/conversations/${encodeURIComponent(id)}/recover-response`,
-          security: [{ scheme: "bearer", type: "http" }],
-          cache: "no-store",
-        });
-        if (result.error) {
-          return {
-            data: undefined,
-            error: result.error,
-            response: result.response,
-          };
-        }
-        const envelope = result.data as { data?: unknown } | undefined;
-        return {
-          data: envelope?.data as
-            | {
-                recovered?: boolean;
-                reason?: "not_found" | "in_progress" | "terminal";
-              }
-            | undefined,
-          error: undefined,
-          response: result.response,
-        };
-      },
-      "Failed to recover conversation response",
-    );
-  }
-
   async function putJobShare(
     id: string,
     body: { allowSearchIndexing: boolean },
@@ -867,7 +835,7 @@ export function createCoreClient(getClient: GetClient) {
 
   return {
     acknowledgeNotice,
-    addConversationItem,
+    addConversationMessage,
     archiveConversation,
     createConversation,
     createMyFileUploadSession,
@@ -879,11 +847,10 @@ export function createCoreClient(getClient: GetClient) {
     deleteTaskLink,
     deleteTask,
     getConversation,
-    getConversationItems,
+    getConversationMessages,
     getConversations,
     getAgentById,
     getAgentInputSchema,
-    postConversationsByIdRecoverResponse,
     getCoworkers,
     getJobById,
     getJobs,

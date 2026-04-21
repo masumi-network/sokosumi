@@ -4,21 +4,24 @@ import type { UIMessage } from "ai";
 import { useCallback, useEffect, useRef } from "react";
 
 import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
-import { getConversationItems } from "@/lib/actions/conversation/core-api-actions";
+import { getConversationMessages } from "@/lib/actions/conversation/core-api-actions";
 
 interface UseChatMessagesProps {
   selectedChatId: string | null;
   selectedConversation: {
     id: string;
-    items?: Array<{
+    messages?: Array<{
       id: string;
       role: string;
       content: Array<{ type: string; text?: string }> | string;
       createdAt: number;
+      thoughtTiming?: {
+        startedAtMs: number | null;
+        endedAtMs: number | null;
+      };
     }>;
     metadata?: Record<string, unknown> | null;
   } | null;
-  skipLoadWhenPendingId?: boolean;
   setMessagesForConversation: (convId: string, messages: UIMessage[]) => void;
   previousChatIdRef: React.MutableRefObject<string | null>;
   messagesChatIdRef: React.MutableRefObject<string | null>;
@@ -32,7 +35,6 @@ interface UseChatMessagesProps {
 export function useChatMessages({
   selectedChatId,
   selectedConversation,
-  skipLoadWhenPendingId,
   setMessagesForConversation,
   previousChatIdRef,
   messagesChatIdRef,
@@ -47,21 +49,9 @@ export function useChatMessages({
       if (streamingConversationIdsRef?.current.has(currentSelectedChatId)) {
         return;
       }
-      const meta = (selectedConversation?.metadata ?? {}) as Record<
-        string,
-        unknown
-      >;
-      const hasPendingResponseId =
-        skipLoadWhenPendingId === true ||
-        (selectedConversation?.id === currentSelectedChatId &&
-          typeof meta.pending_responses_api_response_id === "string" &&
-          meta.pending_responses_api_response_id.length > 0);
-      if (hasPendingResponseId) {
-        return;
-      }
-      const hasSyncItems =
+      const hasSyncMessages =
         selectedConversation?.id === currentSelectedChatId &&
-        Array.isArray(selectedConversation.items);
+        Array.isArray(selectedConversation.messages);
 
       // Clear any existing retry timeout from previous effect run
       if (retryTimeoutRef.current !== null) {
@@ -69,11 +59,11 @@ export function useChatMessages({
         retryTimeoutRef.current = null;
       }
 
-      if (hasSyncItems && selectedConversation.items) {
-        const items = selectedConversation.items;
+      if (hasSyncMessages && selectedConversation.messages) {
+        const conversationMessages = selectedConversation.messages;
         previousChatIdRef.current = currentSelectedChatId;
-        if (items.length > 0) {
-          const dbMessages = convertItemsToMessages(items);
+        if (conversationMessages.length > 0) {
+          const dbMessages = convertItemsToMessages(conversationMessages);
           messagesChatIdRef.current = currentSelectedChatId;
           setMessagesForConversation(currentSelectedChatId, dbMessages);
           chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
@@ -101,11 +91,15 @@ export function useChatMessages({
           | {
               ok: true;
               data: {
-                items: Array<{
+                messages: Array<{
                   id: string;
                   role: string;
                   content: Array<{ type: string; text?: string }> | string;
                   createdAt: number;
+                  thoughtTiming?: {
+                    startedAtMs: number | null;
+                    endedAtMs: number | null;
+                  };
                 }>;
                 pagination: {
                   cursor: string | null;
@@ -130,17 +124,21 @@ export function useChatMessages({
             );
           }
 
-          const rawItemsResult: unknown = await getConversationItems({
+          const rawItemsResult: unknown = await getConversationMessages({
             conversationId: currentSelectedChatId,
             limit: 100,
           });
 
           const resultAny = rawItemsResult as SerializedResult;
-          let items: Array<{
+          let conversationMessages: Array<{
             id: string;
             role: string;
             content: Array<{ type: string; text?: string }> | string;
             createdAt: number;
+            thoughtTiming?: {
+              startedAtMs: number | null;
+              endedAtMs: number | null;
+            };
           }> | null = null;
 
           if (
@@ -150,9 +148,9 @@ export function useChatMessages({
             "data" in resultAny &&
             resultAny.data &&
             typeof resultAny.data === "object" &&
-            "items" in resultAny.data
+            "messages" in resultAny.data
           ) {
-            items = resultAny.data.items;
+            conversationMessages = resultAny.data.messages;
           } else if (
             resultAny &&
             "isOk" in resultAny &&
@@ -160,19 +158,23 @@ export function useChatMessages({
           ) {
             if (resultAny.isOk() && "value" in resultAny) {
               const value = resultAny.value as {
-                items: Array<{
+                messages: Array<{
                   id: string;
                   role: string;
                   content: Array<{ type: string; text?: string }> | string;
                   createdAt: number;
+                  thoughtTiming?: {
+                    startedAtMs: number | null;
+                    endedAtMs: number | null;
+                  };
                 }>;
               };
-              items = value.items;
+              conversationMessages = value.messages;
             }
           }
 
-          if (items && items.length > 0) {
-            const dbMessages = convertItemsToMessages(items);
+          if (conversationMessages && conversationMessages.length > 0) {
+            const dbMessages = convertItemsToMessages(conversationMessages);
             messagesChatIdRef.current = currentSelectedChatId;
             setMessagesForConversation(currentSelectedChatId, dbMessages);
             chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
@@ -185,7 +187,7 @@ export function useChatMessages({
                 messagesChatIdRef.current === null
               ) {
                 try {
-                  const retryResult: unknown = await getConversationItems({
+                  const retryResult: unknown = await getConversationMessages({
                     conversationId: currentSelectedChatId,
                     limit: 100,
                   });
@@ -195,6 +197,10 @@ export function useChatMessages({
                     role: string;
                     content: Array<{ type: string; text?: string }> | string;
                     createdAt: number;
+                    thoughtTiming?: {
+                      startedAtMs: number | null;
+                      endedAtMs: number | null;
+                    };
                   }> | null = null;
 
                   if (
@@ -204,9 +210,9 @@ export function useChatMessages({
                     "data" in retryResultAny &&
                     retryResultAny.data &&
                     typeof retryResultAny.data === "object" &&
-                    "items" in retryResultAny.data
+                    "messages" in retryResultAny.data
                   ) {
-                    retryItems = retryResultAny.data.items;
+                    retryItems = retryResultAny.data.messages;
                   } else if (
                     retryResultAny &&
                     "isOk" in retryResultAny &&
@@ -214,16 +220,20 @@ export function useChatMessages({
                   ) {
                     if (retryResultAny.isOk() && "value" in retryResultAny) {
                       const value = retryResultAny.value as {
-                        items: Array<{
+                        messages: Array<{
                           id: string;
                           role: string;
                           content:
                             | Array<{ type: string; text?: string }>
                             | string;
                           createdAt: number;
+                          thoughtTiming?: {
+                            startedAtMs: number | null;
+                            endedAtMs: number | null;
+                          };
                         }>;
                       };
-                      retryItems = value.items;
+                      retryItems = value.messages;
                     }
                   }
 
@@ -302,8 +312,7 @@ export function useChatMessages({
   }, [
     selectedChatId,
     selectedConversation,
-    skipLoadWhenPendingId,
-    selectedConversation?.items,
+    selectedConversation?.messages,
     setMessagesForConversation,
     previousChatIdRef,
     messagesChatIdRef,
@@ -316,8 +325,8 @@ export function useChatMessages({
     if (
       selectedChatId &&
       selectedConversation?.id === selectedChatId &&
-      Array.isArray(selectedConversation.items) &&
-      selectedConversation.items.length > 0
+      Array.isArray(selectedConversation.messages) &&
+      selectedConversation.messages.length > 0
     ) {
       if (streamingConversationIdsRef?.current.has(selectedChatId)) {
         return;
@@ -327,7 +336,7 @@ export function useChatMessages({
         return;
       }
 
-      const dbMessages = convertItemsToMessages(selectedConversation.items);
+      const dbMessages = convertItemsToMessages(selectedConversation.messages);
       messagesChatIdRef.current = selectedChatId;
       setMessagesForConversation(selectedChatId, dbMessages);
       chatMessagesRef.current.set(selectedChatId, dbMessages);

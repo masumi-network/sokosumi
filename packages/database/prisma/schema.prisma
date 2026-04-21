@@ -208,15 +208,15 @@ model Organization {
 }
 
 model Workspace {
-  id        String        @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  organizationId String?        @unique
-  organization   Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String?       @unique
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   jobs         Job[]
   jobSchedules JobSchedule[]
@@ -699,8 +699,8 @@ model Job {
 
   purchase JobPurchase?
 
-  workspaceId String     @db.Uuid
-  workspace   Workspace  @relation(fields: [workspaceId], references: [id])
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
   // Optional link to the schedule that initiated this job
   jobScheduleId String?
@@ -1129,6 +1129,8 @@ model Coworker {
   image       String?
   metadata    Json?
 
+  supportsConversationsApi Boolean @default(true)
+
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1182,8 +1184,8 @@ model Task {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
-  workspaceId String     @db.Uuid
-  workspace   Workspace  @relation(fields: [workspaceId], references: [id])
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
   share PublicShare?
 
@@ -1316,16 +1318,19 @@ model CoworkerUsage {
 }
 
 model Conversation {
-  id         String             @id @default(uuid(7))
-  openaiId   String             @unique
+  id         String    @id @default(uuid(7)) @db.Uuid
+  openaiId   String    @unique
   userId     String
-  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   title      String?
   metadata   Json?
   archivedAt DateTime?
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
-  items      ConversationItem[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  providerConversationId String? @unique
+
+  messages ConversationMessage[]
 
   @@index([userId])
   @@index([openaiId])
@@ -1333,18 +1338,19 @@ model Conversation {
   @@map("conversation")
 }
 
-model ConversationItem {
-  id                     String       @id @default(uuid(7))
-  conversationId         String
+model ConversationMessage {
+  id                     String       @id @default(uuid(7)) @db.Uuid
+  conversationId         String       @db.Uuid
   conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role                   String // "user" | "assistant" | "system"
   contentType            String? // "input_text", "output_text", etc. (optional)
-  contentText            String // The actual text content
-  responsesApiResponseId String? // Set when item is created from Responses API recovery; prevents duplicate storage per response ID
+  contentText            String
+  responsesApiResponseId String?
+  metadata               Json?
   createdAt              DateTime     @default(now())
 
   @@unique([conversationId, responsesApiResponseId])
   @@index([conversationId])
   @@index([conversationId, createdAt])
-  @@map("conversationItem")
+  @@map("conversationMessage")
 }

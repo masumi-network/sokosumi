@@ -6,21 +6,21 @@ import { useConversations } from "@/app/chat/hooks/use-conversations";
 import type { ActionError } from "@/lib/actions";
 import type {
   Conversation,
-  ConversationWithItems,
+  ConversationWithMessages,
 } from "@/lib/actions/conversation/core-api-actions";
 
 type RefreshConversationsResult = Conversation[] | undefined;
 
 export interface ConversationsContextValue {
   conversations: Conversation[];
-  selectedConversation: ConversationWithItems | null;
+  selectedConversation: ConversationWithMessages | null;
   isLoading: boolean;
   error: ActionError | null;
   createNewConversation: (
     metadata?: Record<string, unknown>,
     title?: string,
   ) => Promise<Conversation | null>;
-  selectConversation: (id: string) => Promise<ConversationWithItems | null>;
+  selectConversation: (id: string) => Promise<ConversationWithMessages | null>;
   updateSelectedConversation: (
     metadata?: Record<string, unknown>,
     title?: string,

@@ -9,7 +9,7 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import type {
-  ConversationItem,
+  ConversationMessage,
   Conversation as CoreConversation,
 } from "@/lib/clients/generated/core/types.gen";
 import {
@@ -23,9 +23,9 @@ export type Conversation = Omit<CoreConversation, "createdAt" | "updatedAt"> & {
   updatedAt: string;
 };
 
-/** Conversation with optional items (e.g. from getConversation). */
-export interface ConversationWithItems extends Conversation {
-  items?: ConversationItem[];
+/** Conversation with optional loaded messages (e.g. from getConversation). */
+export interface ConversationWithMessages extends Conversation {
+  messages?: ConversationMessage[];
 }
 
 interface CreateConversationParameters extends AuthenticatedRequest {
@@ -49,20 +49,16 @@ interface ListConversationsParameters extends AuthenticatedRequest {
   order?: "asc" | "desc";
 }
 
-interface AddConversationItemParameters extends AuthenticatedRequest {
+interface AddConversationMessageParameters extends AuthenticatedRequest {
   conversationId: string; // Internal database ID
   role: "user" | "assistant" | "system";
   content: Array<{ type: string; text?: string }> | string;
 }
 
-interface GetConversationItemsParameters extends AuthenticatedRequest {
+interface GetConversationMessagesParameters extends AuthenticatedRequest {
   conversationId: string; // Internal database ID
   limit?: number;
   cursor?: string | null;
-}
-
-interface RecoverConversationResponseParameters extends AuthenticatedRequest {
-  conversationId: string; // Internal database ID
 }
 
 /** API response may have optional title/metadata; we normalize to Conversation. */
@@ -112,19 +108,22 @@ export const listConversations = withSession<
 });
 
 /**
- * Gets conversation items (messages) by conversation ID via Core API
+ * Gets conversation messages by conversation ID via Core API
  * CRITICAL: Validates ownership before returning.
- * Returns items and pagination metadata for cursor-based pagination.
+ * Returns messages and pagination metadata for cursor-based pagination.
  */
-export const getConversationItems = withSession<
-  GetConversationItemsParameters,
+export const getConversationMessages = withSession<
+  GetConversationMessagesParameters,
   Result<
-    { items: ConversationItem[]; pagination: CoreApiPagination | null },
+    {
+      messages: ConversationMessage[];
+      pagination: CoreApiPagination | null;
+    },
     ActionError
   >
 >(async ({ conversationId, limit, cursor }) => {
   const result = await makeCoreApiRequest(() =>
-    coreClient.getConversationItems(conversationId, {
+    coreClient.getConversationMessages(conversationId, {
       limit,
       cursor: cursor ?? undefined,
     }),
@@ -135,71 +134,24 @@ export const getConversationItems = withSession<
       ok: false,
       error: result.error,
     } as unknown as Result<
-      { items: ConversationItem[]; pagination: CoreApiPagination | null },
-      ActionError
-    >;
-  }
-
-  return {
-    ok: true,
-    data: {
-      items: (result.value.data ?? []) as ConversationItem[],
-      pagination: result.value.meta?.pagination ?? null,
-    },
-  } as unknown as Result<
-    { items: ConversationItem[]; pagination: CoreApiPagination | null },
-    ActionError
-  >;
-});
-
-/**
- * Recovers a pending coworker response after client disconnect via Core API.
- * Returns { recovered: true } if a response was persisted, { recovered: false, reason? } otherwise.
- * reason is "not_found" when the coworker API returned 404, "terminal" when the response ended without a recoverable completion.
- */
-export const recoverConversationResponse = withSession<
-  RecoverConversationResponseParameters,
-  Result<
-    {
-      recovered: boolean;
-      reason?: "not_found" | "in_progress" | "terminal";
-    },
-    ActionError
-  >
->(async ({ conversationId }) => {
-  const result = await makeCoreApiRequest(() =>
-    coreClient.postConversationsByIdRecoverResponse(conversationId),
-  );
-
-  if (result.isErr()) {
-    return {
-      ok: false,
-      error: result.error,
-    } as unknown as Result<
       {
-        recovered: boolean;
-        reason?: "not_found" | "in_progress" | "terminal";
+        messages: ConversationMessage[];
+        pagination: CoreApiPagination | null;
       },
       ActionError
     >;
   }
 
-  const value = result.value as
-    | {
-        recovered?: boolean;
-        reason?: "not_found" | "in_progress" | "terminal";
-      }
-    | undefined;
   return {
     ok: true,
     data: {
-      recovered: value?.recovered ?? false,
-      reason: value?.reason,
+      messages: (result.value.data ?? []) as ConversationMessage[],
+      pagination: result.value.meta?.pagination ?? null,
     },
   } as unknown as Result<
     {
-      recovered: boolean;
-      reason?: "not_found" | "in_progress" | "terminal";
+      messages: ConversationMessage[];
+      pagination: CoreApiPagination | null;
     },
     ActionError
   >;
@@ -208,11 +160,11 @@ export const recoverConversationResponse = withSession<
 /**
  * Gets a conversation by internal database ID via Core API
  * CRITICAL: Validates ownership before returning.
- * Fetches conversation items from the database.
+ * Fetches conversation messages from the database.
  */
 export const getConversation = withSession<
   GetConversationParameters,
-  Result<ConversationWithItems, ActionError>
+  Result<ConversationWithMessages, ActionError>
 >(async ({ id }) => {
   // Fetch conversation metadata
   const conversationResult = await makeCoreApiRequest(() =>
@@ -223,52 +175,52 @@ export const getConversation = withSession<
     return {
       ok: false,
       error: conversationResult.error,
-    } as unknown as Result<ConversationWithItems, ActionError>;
+    } as unknown as Result<ConversationWithMessages, ActionError>;
   }
 
-  // Fetch conversation items from database (limit 100 so list/conversation view has full history)
-  const itemsResult = await getConversationItems({
+  // Fetch conversation messages from database (limit 100 so list/conversation view has full history)
+  const messagesResult = await getConversationMessages({
     conversationId: id,
     limit: 100,
   });
 
-  // Handle serialized Result format from getConversationItems
+  // Handle serialized Result format from getConversationMessages
   if (
-    itemsResult &&
-    typeof itemsResult === "object" &&
-    "ok" in itemsResult &&
-    itemsResult.ok === false
+    messagesResult &&
+    typeof messagesResult === "object" &&
+    "ok" in messagesResult &&
+    messagesResult.ok === false
   ) {
-    // If items fetch fails, return conversation without items
+    // If message fetch fails, return conversation without messages
     return {
       ok: true,
       data: {
         ...toConversation(conversationResult.value.data),
-        items: [],
+        messages: [],
       },
-    } as unknown as Result<ConversationWithItems, ActionError>;
+    } as unknown as Result<ConversationWithMessages, ActionError>;
   }
 
-  // Extract items from serialized Result format
-  const items =
-    itemsResult &&
-    typeof itemsResult === "object" &&
-    "ok" in itemsResult &&
-    itemsResult.ok === true &&
-    "data" in itemsResult &&
-    itemsResult.data &&
-    typeof itemsResult.data === "object" &&
-    "items" in itemsResult.data
-      ? (itemsResult.data.items as ConversationItem[])
+  // Extract messages from serialized Result format
+  const messages =
+    messagesResult &&
+    typeof messagesResult === "object" &&
+    "ok" in messagesResult &&
+    messagesResult.ok === true &&
+    "data" in messagesResult &&
+    messagesResult.data &&
+    typeof messagesResult.data === "object" &&
+    "messages" in messagesResult.data
+      ? (messagesResult.data.messages as ConversationMessage[])
       : [];
 
   return {
     ok: true,
     data: {
       ...toConversation(conversationResult.value.data),
-      items,
+      messages,
     },
-  } as unknown as Result<ConversationWithItems, ActionError>;
+  } as unknown as Result<ConversationWithMessages, ActionError>;
 });
 
 /**
@@ -377,15 +329,15 @@ export const getConversationId = withSession<
 });
 
 /**
- * Adds an item to a conversation via Core API
+ * Adds a message to a conversation via Core API
  * Used by chat route to store messages in conversations
  */
-export const addConversationItem = withSession<
-  AddConversationItemParameters,
+export const addConversationMessage = withSession<
+  AddConversationMessageParameters,
   Result<{ id: string }, ActionError>
 >(async ({ conversationId, role, content }) => {
   const result = await makeCoreApiRequest(() =>
-    coreClient.addConversationItem(conversationId, {
+    coreClient.addConversationMessage(conversationId, {
       role,
       content,
     }),
@@ -398,13 +350,13 @@ export const addConversationItem = withSession<
     } as unknown as Result<{ id: string }, ActionError>;
   }
 
-  const item = result.value.data as ConversationItem | undefined;
+  const item = result.value.data as ConversationMessage | undefined;
   if (!item?.id) {
     return {
       ok: false,
       error: {
         code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Failed to add conversation item",
+        message: "Failed to add conversation message",
       },
     } as unknown as Result<{ id: string }, ActionError>;
   }
