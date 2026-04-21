@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
-import { resolveUsersPathUserId } from "@/routes/v1/users/user-path-access";
-import type { UserRouteVariables } from "@/routes/v1/users/user-route-context";
+import {
+  type UserRouteVariables,
+  usersPathUserContextMiddleware,
+} from "@/routes/v1/users/user-route-context";
 
 import mountGetAgentJobs from "./agents/[id]/jobs/get";
 import mountGetConversations from "./conversations/get";
@@ -33,9 +35,9 @@ function createCoworkerContextApp(
 
 function createCoworkerUserRouteContextApp(
   mount: (app: OpenAPIHonoWithAuth<UserRouteVariables>) => void,
-): OpenAPIHono<{ Variables: AuthVariables & UserRouteVariables }> {
+): OpenAPIHono<{ Variables: AuthVariables }> {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables;
+    Variables: AuthVariables;
   }>();
 
   app.use("*", async (c, next) => {
@@ -44,14 +46,15 @@ function createCoworkerUserRouteContextApp(
       actor: "coworker",
       coworkerId: "cow_123",
     });
-    c.set(
-      "userRouteContext",
-      resolveUsersPathUserId(c.var.authContext, c.req.param("id")!),
-    );
     return await next();
   });
 
-  mount(app as unknown as OpenAPIHonoWithAuth<UserRouteVariables>);
+  const userByIdApp = new OpenAPIHono<{
+    Variables: AuthVariables & UserRouteVariables;
+  }>();
+  userByIdApp.use("*", usersPathUserContextMiddleware);
+  mount(userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>);
+  app.route("/:id", userByIdApp);
   return app;
 }
 

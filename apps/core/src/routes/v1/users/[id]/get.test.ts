@@ -3,18 +3,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
-import { resolveUsersPathUserId } from "@/routes/v1/users/user-path-access";
-import type { UserRouteVariables } from "@/routes/v1/users/user-route-context";
+import {
+  type UserRouteVariables,
+  usersPathUserContextMiddleware,
+} from "@/routes/v1/users/user-route-context";
 
 import mountGetUserById from "./get";
 
-const { prismaTransactionMock, userFindUniqueMock } = vi.hoisted(() => ({
-  prismaTransactionMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
-}));
+const { pathUserFindUniqueMock, prismaTransactionMock, txUserFindUniqueMock } =
+  vi.hoisted(() => ({
+    pathUserFindUniqueMock: vi.fn(),
+    prismaTransactionMock: vi.fn(),
+    txUserFindUniqueMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    user: {
+      findUnique: pathUserFindUniqueMock,
+    },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -39,13 +46,7 @@ function createApp() {
   const userByIdApp = new OpenAPIHono<{
     Variables: AuthVariables & UserRouteVariables;
   }>();
-  userByIdApp.use("*", async (c, next) => {
-    c.set(
-      "userRouteContext",
-      resolveUsersPathUserId(c.var.authContext, c.req.param("id")!),
-    );
-    return await next();
-  });
+  userByIdApp.use("*", usersPathUserContextMiddleware);
   mountGetUserById(
     userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
   );
@@ -59,21 +60,24 @@ describe("GET /users/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         user: {
-          findUnique: userFindUniqueMock,
+          findUnique: txUserFindUniqueMock,
         },
       });
     });
   });
 
   it("returns 404 when the target user is missing", async () => {
-    userFindUniqueMock.mockResolvedValue(null);
+    pathUserFindUniqueMock.mockResolvedValue(null);
     const app = createApp();
 
     const response = await app.request("http://localhost/missing_user");
 
     expect(response.status).toBe(404);
-    expect(userFindUniqueMock).toHaveBeenCalledWith({
+    expect(pathUserFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "missing_user" },
+      select: { id: true },
     });
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(txUserFindUniqueMock).not.toHaveBeenCalled();
   });
 });
