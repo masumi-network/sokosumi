@@ -423,17 +423,6 @@ export type PatchCreditCostRequest = {
     creditsPerUnit: number;
 };
 
-export type User = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    name: string;
-    email: string;
-    emailVerified: boolean;
-    image?: string | null;
-    role: string;
-};
-
 export type Organization = {
     id: string;
     createdAt: Date;
@@ -530,6 +519,17 @@ export type CreateUserFileUploadRequest = {
      * Optional allowlist for the upload session. Every value must be supported by the server, and the selected contentType must be included.
      */
     allowedContentTypes?: Array<string>;
+};
+
+export type User = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    name: string;
+    email: string;
+    emailVerified: boolean;
+    image?: string | null;
+    role: string;
 };
 
 export type Job = {
@@ -922,6 +922,16 @@ export type MasumiTaskPaymentSource = {
  */
 export type OrganizationSlug = string;
 
+/**
+ * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+ */
+export type DelegationUserId = string;
+
+/**
+ * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+ */
+export type DelegationOrganizationId = string;
+
 export type GetAgentsData = {
     body?: never;
     headers?: {
@@ -929,6 +939,14 @@ export type GetAgentsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -1002,6 +1020,14 @@ export type GetAgentsByIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -1064,6 +1090,14 @@ export type GetAgentsByIdReviewsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -1126,6 +1160,14 @@ export type GetAgentsByIdInputSchemaData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -2136,6 +2178,14 @@ export type GetAgentsByIdJobsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -3182,6 +3232,14 @@ export type PostAgentsByIdJobsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -3296,6 +3354,14 @@ export type GetCategoriesData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -4343,1029 +4409,6 @@ export type PatchCreditCostsByIdResponses = {
 
 export type PatchCreditCostsByIdResponse = PatchCreditCostsByIdResponses[keyof PatchCreditCostsByIdResponses];
 
-export type GetUsersMeData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me';
-};
-
-export type GetUsersMeErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeError = GetUsersMeErrors[keyof GetUsersMeErrors];
-
-export type GetUsersMeResponses = {
-    /**
-     * Retrieve the current user
-     */
-    200: {
-        data: User;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeResponse = GetUsersMeResponses[keyof GetUsersMeResponses];
-
-export type GetUsersMeOrganizationsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/organizations';
-};
-
-export type GetUsersMeOrganizationsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeOrganizationsError = GetUsersMeOrganizationsErrors[keyof GetUsersMeOrganizationsErrors];
-
-export type GetUsersMeOrganizationsResponses = {
-    /**
-     * Retrieve organizations for current user
-     */
-    200: {
-        data: Array<Organization>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeOrganizationsResponse = GetUsersMeOrganizationsResponses[keyof GetUsersMeOrganizationsResponses];
-
-export type GetUsersMeOrganizationsByIdCreditsData = {
-    body?: never;
-    path: {
-        /**
-         * Organization ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/me/organizations/{id}/credits';
-};
-
-export type GetUsersMeOrganizationsByIdCreditsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden - You are not a member of this organization
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - Organization not found
-     */
-    404: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeOrganizationsByIdCreditsError = GetUsersMeOrganizationsByIdCreditsErrors[keyof GetUsersMeOrganizationsByIdCreditsErrors];
-
-export type GetUsersMeOrganizationsByIdCreditsResponses = {
-    /**
-     * Retrieve shared non-subscription organization credits plus the member subscription wallet
-     */
-    200: {
-        data: {
-            credits: {
-                subscription: {
-                    plan: string;
-                    status: string;
-                    periodStart?: Date | null;
-                    periodEnd?: Date | null;
-                    cancelAtPeriodEnd?: boolean | null;
-                    credits: {
-                        /**
-                         * Total subscription-period credits granted this period
-                         */
-                        total: number;
-                        /**
-                         * Remaining subscription-period credits this period
-                         */
-                        remaining: number;
-                        /**
-                         * Used subscription-period credits consumed during this period
-                         */
-                        used: number;
-                    } | null;
-                } | null;
-                /**
-                 * Current available non-subscription credit balance
-                 */
-                buffer: number;
-                /**
-                 * Current available total credit balance (buffer plus remaining subscription credits)
-                 */
-                total: number;
-            };
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeOrganizationsByIdCreditsResponse = GetUsersMeOrganizationsByIdCreditsResponses[keyof GetUsersMeOrganizationsByIdCreditsResponses];
-
-export type GetUsersMeCreditsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/users/me/credits';
-};
-
-export type GetUsersMeCreditsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeCreditsError = GetUsersMeCreditsErrors[keyof GetUsersMeCreditsErrors];
-
-export type GetUsersMeCreditsResponses = {
-    /**
-     * Retrieve the current user's credits or the member-scoped organization-context credits
-     */
-    200: {
-        data: {
-            credits: {
-                subscription: {
-                    plan: string;
-                    status: string;
-                    periodStart?: Date | null;
-                    periodEnd?: Date | null;
-                    cancelAtPeriodEnd?: boolean | null;
-                    credits: {
-                        /**
-                         * Total subscription-period credits granted this period
-                         */
-                        total: number;
-                        /**
-                         * Remaining subscription-period credits this period
-                         */
-                        remaining: number;
-                        /**
-                         * Used subscription-period credits consumed during this period
-                         */
-                        used: number;
-                    } | null;
-                } | null;
-                /**
-                 * Current available non-subscription credit balance
-                 */
-                buffer: number;
-                /**
-                 * Current available total credit balance (buffer plus remaining subscription credits)
-                 */
-                total: number;
-            };
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeCreditsResponse = GetUsersMeCreditsResponses[keyof GetUsersMeCreditsResponses];
-
-export type GetUsersMePreferencesData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/preferences';
-};
-
-export type GetUsersMePreferencesErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMePreferencesError = GetUsersMePreferencesErrors[keyof GetUsersMePreferencesErrors];
-
-export type GetUsersMePreferencesResponses = {
-    /**
-     * Retrieve the current user's preferences
-     */
-    200: {
-        data: {
-            /**
-             * Whether the user wants to receive marketing emails
-             */
-            marketingOptIn: boolean;
-            /**
-             * Whether the user wants to receive job status notifications
-             */
-            notificationsOptIn: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMePreferencesResponse = GetUsersMePreferencesResponses[keyof GetUsersMePreferencesResponses];
-
-export type PatchUsersMePreferencesData = {
-    body?: {
-        /**
-         * Whether the user wants to receive marketing emails
-         */
-        marketingOptIn?: boolean;
-        /**
-         * Whether the user wants to receive job status notifications
-         */
-        notificationsOptIn?: boolean;
-    };
-    path?: never;
-    query?: never;
-    url: '/users/me/preferences';
-};
-
-export type PatchUsersMePreferencesErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchUsersMePreferencesError = PatchUsersMePreferencesErrors[keyof PatchUsersMePreferencesErrors];
-
-export type PatchUsersMePreferencesResponses = {
-    /**
-     * Update the current user's preferences
-     */
-    200: {
-        data: {
-            /**
-             * Whether the user wants to receive marketing emails
-             */
-            marketingOptIn: boolean;
-            /**
-             * Whether the user wants to receive job status notifications
-             */
-            notificationsOptIn: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchUsersMePreferencesResponse = PatchUsersMePreferencesResponses[keyof PatchUsersMePreferencesResponses];
-
-export type GetUsersMeOnboardingData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/onboarding';
-};
-
-export type GetUsersMeOnboardingErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeOnboardingError = GetUsersMeOnboardingErrors[keyof GetUsersMeOnboardingErrors];
-
-export type GetUsersMeOnboardingResponses = {
-    /**
-     * Retrieve the current user's onboarding status
-     */
-    200: {
-        data: {
-            /**
-             * Whether the user has completed onboarding
-             */
-            completed: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeOnboardingResponse = GetUsersMeOnboardingResponses[keyof GetUsersMeOnboardingResponses];
-
-export type PostUsersMeOnboardingData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/onboarding';
-};
-
-export type PostUsersMeOnboardingErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersMeOnboardingError = PostUsersMeOnboardingErrors[keyof PostUsersMeOnboardingErrors];
-
-export type PostUsersMeOnboardingResponses = {
-    /**
-     * Complete onboarding for the current user
-     */
-    200: {
-        data: {
-            /**
-             * Whether the user has completed onboarding
-             */
-            completed: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersMeOnboardingResponse = PostUsersMeOnboardingResponses[keyof PostUsersMeOnboardingResponses];
-
-export type GetUsersMeNoticesPendingData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/notices/pending';
-};
-
-export type GetUsersMeNoticesPendingErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeNoticesPendingError = GetUsersMeNoticesPendingErrors[keyof GetUsersMeNoticesPendingErrors];
-
-export type GetUsersMeNoticesPendingResponses = {
-    /**
-     * Retrieve pending notices for the current user
-     */
-    200: {
-        data: {
-            pendingNotices: Array<Notice>;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeNoticesPendingResponse = GetUsersMeNoticesPendingResponses[keyof GetUsersMeNoticesPendingResponses];
-
-export type PostUsersMeNoticesByIdAcknowledgeData = {
-    body?: never;
-    path: {
-        /**
-         * Notice ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/me/notices/{id}/acknowledge';
-};
-
-export type PostUsersMeNoticesByIdAcknowledgeErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersMeNoticesByIdAcknowledgeError = PostUsersMeNoticesByIdAcknowledgeErrors[keyof PostUsersMeNoticesByIdAcknowledgeErrors];
-
-export type PostUsersMeNoticesByIdAcknowledgeResponses = {
-    /**
-     * Notice acknowledged successfully
-     */
-    200: {
-        data: {
-            noticeId: string;
-            acknowledgedAt: Date;
-            alreadyAcknowledged: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersMeNoticesByIdAcknowledgeResponse = PostUsersMeNoticesByIdAcknowledgeResponses[keyof PostUsersMeNoticesByIdAcknowledgeResponses];
-
-export type GetUsersMeUploadsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/uploads';
-};
-
-export type GetUsersMeUploadsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeUploadsError = GetUsersMeUploadsErrors[keyof GetUsersMeUploadsErrors];
-
-export type GetUsersMeUploadsResponses = {
-    /**
-     * Retrieve user uploads
-     */
-    200: {
-        data: Array<BlobFile>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeUploadsResponse = GetUsersMeUploadsResponses[keyof GetUsersMeUploadsResponses];
-
-export type PostUsersMeUploadsData = {
-    body: CreateUserFileUploadRequest & {
-        /**
-         * File size in bytes
-         */
-        size?: number;
-    };
-    path?: never;
-    query?: never;
-    url: '/users/me/uploads';
-};
-
-export type PostUsersMeUploadsErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersMeUploadsError = PostUsersMeUploadsErrors[keyof PostUsersMeUploadsErrors];
-
-export type PostUsersMeUploadsResponses = {
-    /**
-     * User file upload session created successfully
-     */
-    201: {
-        data: UserFileUploadSession;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersMeUploadsResponse = PostUsersMeUploadsResponses[keyof PostUsersMeUploadsResponses];
-
 export type GetUsersRegisteredData = {
     body?: never;
     path?: never;
@@ -5454,16 +4497,24 @@ export type GetUsersByIdCreditsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         /**
-         * User ID whose credits are being retrieved
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
          */
         id: string;
     };
     query?: {
         /**
-         * When set, returns credits for this user in the given organization context (the user must be a member). Omit for personal (non-organization) credits.
+         * When set, returns credits for this user in the given organization context (the user must be a member). When omitted, returns credits for the active organization from request headers when the caller is that user (or their delegated coworker), or personal credits when an admin requests another user's balance without an organization.
          */
         organizationId?: string;
     };
@@ -5588,6 +4639,977 @@ export type GetUsersByIdCreditsResponses = {
 
 export type GetUsersByIdCreditsResponse = GetUsersByIdCreditsResponses[keyof GetUsersByIdCreditsResponses];
 
+export type GetUsersByIdOrganizationsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/organizations';
+};
+
+export type GetUsersByIdOrganizationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdOrganizationsError = GetUsersByIdOrganizationsErrors[keyof GetUsersByIdOrganizationsErrors];
+
+export type GetUsersByIdOrganizationsResponses = {
+    /**
+     * Retrieve organizations for the user
+     */
+    200: {
+        data: Array<Organization>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdOrganizationsResponse = GetUsersByIdOrganizationsResponses[keyof GetUsersByIdOrganizationsResponses];
+
+export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Organization ID
+         */
+        organizationId: string;
+    };
+    query?: never;
+    url: '/users/{id}/organizations/{organizationId}/credits';
+};
+
+export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdOrganizationsByOrganizationIdCreditsError = GetUsersByIdOrganizationsByOrganizationIdCreditsErrors[keyof GetUsersByIdOrganizationsByOrganizationIdCreditsErrors];
+
+export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
+    /**
+     * Retrieve shared non-subscription organization credits plus the member subscription wallet
+     */
+    200: {
+        data: {
+            credits: {
+                subscription: {
+                    plan: string;
+                    status: string;
+                    periodStart?: Date | null;
+                    periodEnd?: Date | null;
+                    cancelAtPeriodEnd?: boolean | null;
+                    credits: {
+                        /**
+                         * Total subscription-period credits granted this period
+                         */
+                        total: number;
+                        /**
+                         * Remaining subscription-period credits this period
+                         */
+                        remaining: number;
+                        /**
+                         * Used subscription-period credits consumed during this period
+                         */
+                        used: number;
+                    } | null;
+                } | null;
+                /**
+                 * Current available non-subscription credit balance
+                 */
+                buffer: number;
+                /**
+                 * Current available total credit balance (buffer plus remaining subscription credits)
+                 */
+                total: number;
+            };
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponse = GetUsersByIdOrganizationsByOrganizationIdCreditsResponses[keyof GetUsersByIdOrganizationsByOrganizationIdCreditsResponses];
+
+export type GetUsersByIdPreferencesData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/preferences';
+};
+
+export type GetUsersByIdPreferencesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdPreferencesError = GetUsersByIdPreferencesErrors[keyof GetUsersByIdPreferencesErrors];
+
+export type GetUsersByIdPreferencesResponses = {
+    /**
+     * Retrieve the user's preferences
+     */
+    200: {
+        data: {
+            /**
+             * Whether the user wants to receive marketing emails
+             */
+            marketingOptIn: boolean;
+            /**
+             * Whether the user wants to receive job status notifications
+             */
+            notificationsOptIn: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdPreferencesResponse = GetUsersByIdPreferencesResponses[keyof GetUsersByIdPreferencesResponses];
+
+export type PatchUsersByIdPreferencesData = {
+    body?: {
+        /**
+         * Whether the user wants to receive marketing emails
+         */
+        marketingOptIn?: boolean;
+        /**
+         * Whether the user wants to receive job status notifications
+         */
+        notificationsOptIn?: boolean;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/preferences';
+};
+
+export type PatchUsersByIdPreferencesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchUsersByIdPreferencesError = PatchUsersByIdPreferencesErrors[keyof PatchUsersByIdPreferencesErrors];
+
+export type PatchUsersByIdPreferencesResponses = {
+    /**
+     * Update the user's preferences
+     */
+    200: {
+        data: {
+            /**
+             * Whether the user wants to receive marketing emails
+             */
+            marketingOptIn: boolean;
+            /**
+             * Whether the user wants to receive job status notifications
+             */
+            notificationsOptIn: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
+
+export type GetUsersByIdOnboardingData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/onboarding';
+};
+
+export type GetUsersByIdOnboardingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdOnboardingError = GetUsersByIdOnboardingErrors[keyof GetUsersByIdOnboardingErrors];
+
+export type GetUsersByIdOnboardingResponses = {
+    /**
+     * Retrieve the user's onboarding status
+     */
+    200: {
+        data: {
+            /**
+             * Whether the user has completed onboarding
+             */
+            completed: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdOnboardingResponse = GetUsersByIdOnboardingResponses[keyof GetUsersByIdOnboardingResponses];
+
+export type PostUsersByIdOnboardingData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/onboarding';
+};
+
+export type PostUsersByIdOnboardingErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdOnboardingError = PostUsersByIdOnboardingErrors[keyof PostUsersByIdOnboardingErrors];
+
+export type PostUsersByIdOnboardingResponses = {
+    /**
+     * Complete onboarding for the user
+     */
+    200: {
+        data: {
+            /**
+             * Whether the user has completed onboarding
+             */
+            completed: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdOnboardingResponse = PostUsersByIdOnboardingResponses[keyof PostUsersByIdOnboardingResponses];
+
+export type GetUsersByIdNoticesPendingData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/notices/pending';
+};
+
+export type GetUsersByIdNoticesPendingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdNoticesPendingError = GetUsersByIdNoticesPendingErrors[keyof GetUsersByIdNoticesPendingErrors];
+
+export type GetUsersByIdNoticesPendingResponses = {
+    /**
+     * Retrieve pending notices for the user
+     */
+    200: {
+        data: {
+            pendingNotices: Array<Notice>;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdNoticesPendingResponse = GetUsersByIdNoticesPendingResponses[keyof GetUsersByIdNoticesPendingResponses];
+
+export type PostUsersByIdNoticesByNoticeIdAcknowledgeData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Notice ID
+         */
+        noticeId: string;
+    };
+    query?: never;
+    url: '/users/{id}/notices/{noticeId}/acknowledge';
+};
+
+export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdNoticesByNoticeIdAcknowledgeError = PostUsersByIdNoticesByNoticeIdAcknowledgeErrors[keyof PostUsersByIdNoticesByNoticeIdAcknowledgeErrors];
+
+export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponses = {
+    /**
+     * Notice acknowledged successfully
+     */
+    200: {
+        data: {
+            noticeId: string;
+            acknowledgedAt: Date;
+            alreadyAcknowledged: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponse = PostUsersByIdNoticesByNoticeIdAcknowledgeResponses[keyof PostUsersByIdNoticesByNoticeIdAcknowledgeResponses];
+
+export type GetUsersByIdUploadsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/uploads';
+};
+
+export type GetUsersByIdUploadsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdUploadsError = GetUsersByIdUploadsErrors[keyof GetUsersByIdUploadsErrors];
+
+export type GetUsersByIdUploadsResponses = {
+    /**
+     * Retrieve user uploads
+     */
+    200: {
+        data: Array<BlobFile>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdUploadsResponse = GetUsersByIdUploadsResponses[keyof GetUsersByIdUploadsResponses];
+
+export type PostUsersByIdUploadsData = {
+    body: CreateUserFileUploadRequest & {
+        /**
+         * File size in bytes
+         */
+        size?: number;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/uploads';
+};
+
+export type PostUsersByIdUploadsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdUploadsError = PostUsersByIdUploadsErrors[keyof PostUsersByIdUploadsErrors];
+
+export type PostUsersByIdUploadsResponses = {
+    /**
+     * User file upload session created successfully
+     */
+    201: {
+        data: UserFileUploadSession;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdUploadsResponse = PostUsersByIdUploadsResponses[keyof PostUsersByIdUploadsResponses];
+
+export type GetUsersByIdData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}';
+};
+
+export type GetUsersByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdError = GetUsersByIdErrors[keyof GetUsersByIdErrors];
+
+export type GetUsersByIdResponses = {
+    /**
+     * Retrieve the user
+     */
+    200: {
+        data: User;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdResponse = GetUsersByIdResponses[keyof GetUsersByIdResponses];
+
 export type GetOrganizationsByIdData = {
     body?: never;
     path: {
@@ -5680,6 +5702,14 @@ export type GetJobsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -5774,6 +5804,14 @@ export type GetJobsByIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -5864,6 +5902,14 @@ export type PatchJobsByIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -5965,6 +6011,14 @@ export type PostJobsByIdRefundData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6066,6 +6120,14 @@ export type GetJobsByIdFilesData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6154,6 +6216,14 @@ export type GetJobsByIdLinksData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6242,6 +6312,14 @@ export type GetJobsByIdInputRequestData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6345,6 +6423,14 @@ export type PostJobsByIdInputsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6472,6 +6558,14 @@ export type GetJobsByIdEventsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6560,6 +6654,14 @@ export type DeleteJobsByIdShareData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6639,6 +6741,14 @@ export type PutJobsByIdShareData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6716,6 +6826,14 @@ export type PutJobsByIdWorkspaceData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6874,19 +6992,6 @@ export type GetCoworkersErrors = {
      * Unauthorized
      */
     401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
         error: string;
         message: string;
         meta: {
@@ -7647,19 +7752,6 @@ export type GetCoworkersByIdErrors = {
         };
     };
     /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Not Found
      */
     404: {
@@ -7860,6 +7952,14 @@ export type GetTasksData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -7967,6 +8067,14 @@ export type PostTasksData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path?: never;
     query?: never;

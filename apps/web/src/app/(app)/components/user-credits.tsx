@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import type { Session } from "@/lib/auth/auth";
-import type { GetUsersMeCreditsResponse } from "@/lib/clients/generated/core/types.gen";
+import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core/types.gen";
 import type { CreditUsage } from "@/lib/types/credit";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
@@ -9,7 +9,7 @@ import CreditCta from "./credit-cta";
 import CreditUsageComponent from "./credit-usage";
 import UserAvatar from "./user-avatar";
 
-export type UserCreditsData = GetUsersMeCreditsResponse["data"]["credits"];
+export type UserCreditsData = GetUsersByIdCreditsResponse["data"]["credits"];
 
 interface UserCreditsProps {
   creditsData: UserCreditsData | null;

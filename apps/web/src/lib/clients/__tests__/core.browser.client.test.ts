@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
 const getAgentsByIdInputSchemaMock = vi.fn();
-const postUsersMeUploadsMock = vi.fn();
+const postUsersByIdUploadsMock = vi.fn();
 const createClientMock = vi.fn();
 const mockClient = {
   id: "browser-core-client",
@@ -19,7 +19,7 @@ vi.mock("@/lib/clients/generated/core/client", () => ({
 
 vi.mock("@/lib/clients/generated/core", () => ({
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
-  postUsersMeUploads: (...args: unknown[]) => postUsersMeUploadsMock(...args),
+  postUsersByIdUploads: (...args: unknown[]) => postUsersByIdUploadsMock(...args),
 }));
 
 describe("core.browser.client", () => {
@@ -76,7 +76,7 @@ describe("core.browser.client", () => {
   });
 
   it("creates direct upload sessions through the browser transport", async () => {
-    postUsersMeUploadsMock.mockResolvedValue({
+    postUsersByIdUploadsMock.mockResolvedValue({
       data: {
         data: {
           clientToken: "upload-token",
@@ -100,8 +100,9 @@ describe("core.browser.client", () => {
       size: 1234,
     });
 
-    expect(postUsersMeUploadsMock).toHaveBeenCalledWith({
+    expect(postUsersByIdUploadsMock).toHaveBeenCalledWith({
       client: mockClient,
+      path: { id: "me" },
       body: {
         filename: "report.pdf",
         contentType: "application/pdf",
@@ -113,7 +114,7 @@ describe("core.browser.client", () => {
   });
 
   it("forwards optional upload constraints to the browser transport", async () => {
-    postUsersMeUploadsMock.mockResolvedValue({
+    postUsersByIdUploadsMock.mockResolvedValue({
       data: {
         data: {
           clientToken: "upload-token",
@@ -139,8 +140,9 @@ describe("core.browser.client", () => {
       allowedContentTypes: ["image/png", "image/jpeg"],
     });
 
-    expect(postUsersMeUploadsMock).toHaveBeenCalledWith({
+    expect(postUsersByIdUploadsMock).toHaveBeenCalledWith({
       client: mockClient,
+      path: { id: "me" },
       body: {
         filename: "logo.png",
         contentType: "image/png",
