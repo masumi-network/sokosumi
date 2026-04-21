@@ -20,10 +20,15 @@ const HEADER_DELEGATION_ORGANIZATION_ID = "x-delegation-organization-id";
  * - `X-Delegation-Organization-Id` without `X-Delegation-User-Id` is rejected (400).
  * - When both delegation user and organization are set, the user must be a member of
  *   that organization (same rule as organization-scoped user routes); otherwise 400.
+ * - This is intentionally broad for now: any coworker API key may delegate to any
+ *   valid user/org pair. In practice this makes coworker API keys admin-like for
+ *   delegated user routes until per-coworker delegation permissions are added.
  * - User auth and other actors are not modified by this middleware.
  *
  * Runs after {@link authMiddleware}. Further authorization (whether this coworker may
  * act for that user/org for a given operation) remains the responsibility of routes or helpers.
+ *
+ * TODO: Narrow this once we add a real coworker delegation permission model.
  */
 export const coworkerDelegationMiddleware = createMiddleware<AuthEnv>(
   async (c, next) => {

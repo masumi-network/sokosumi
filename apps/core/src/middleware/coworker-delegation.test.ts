@@ -116,6 +116,33 @@ describe("coworkerDelegationMiddleware", () => {
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 
+  it("currently allows delegation to any valid user even when unrelated to the coworker", async () => {
+    userFindUniqueMock.mockResolvedValue({ id: "user_arbitrary" });
+
+    const app = createApp({
+      isAuthenticated: true,
+      authContext: { actor: "coworker", coworkerId: "cow_1" },
+    });
+
+    const res = await app.request("http://localhost/", {
+      headers: { "X-Delegation-User-Id": "user_arbitrary" },
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      authContext: AuthVariables["authContext"];
+    };
+    expect(body.authContext).toEqual({
+      actor: "coworker",
+      coworkerId: "cow_1",
+      delegation: { userId: "user_arbitrary", organizationId: null },
+    });
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_arbitrary" },
+      select: { id: true },
+    });
+  });
+
   it("attaches delegation with organization when both headers are set and user is a member", async () => {
     userFindUniqueMock.mockResolvedValue({ id: "u1" });
     memberFindUniqueMock.mockResolvedValue({ userId: "u1" });
