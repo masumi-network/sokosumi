@@ -220,6 +220,8 @@ export async function requireTaskCollaboration(
 
   const coworker = requireCoworkerAuthContext(authContext);
   if (coworker.delegation) {
+    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+
     return await requireTaskOwnership(
       {
         source: "delegation",
@@ -285,6 +287,8 @@ export async function requireTaskReadForRouteVars(
 
   const coworker = requireCoworkerAuthContext(authContext);
   if (coworker.delegation) {
+    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+
     return await requireTaskReadForWorkspace(
       requireWorkspaceContext(workspaceContext),
       taskId,

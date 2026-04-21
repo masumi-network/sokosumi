@@ -134,6 +134,27 @@ describe("requireTaskCollaboration", () => {
 
     expect(tx.task.findUnique).not.toHaveBeenCalled();
   });
+
+  it("rejects delegated coworkers without tasks capability before loading the task", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_delegate",
+        organizationId: "org_123",
+      },
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireTaskCollaboration(coworkerContext, "tsk_123", tx),
+    ).rejects.toThrow("Coworker is not allowed to use tasks");
+
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
+    expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
 });
 
 describe("requireTaskReadForWorkspace", () => {
@@ -262,6 +283,11 @@ describe("requireTaskReadForRouteVars", () => {
       },
     };
 
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
     } as never);
@@ -281,7 +307,48 @@ describe("requireTaskReadForRouteVars", () => {
         workspaceId,
       },
     });
-    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+        archivedAt: null,
+        isWhitelisted: true,
+        capabilities: {
+          has: "tasks",
+        },
+      },
+      select: {
+        id: true,
+        slug: true,
+        baseURL: true,
+      },
+    });
+    expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects delegated coworker reads without tasks capability before loading the task", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_delegate",
+        organizationId: "org_123",
+      },
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_123", tx),
+    ).rejects.toThrow("Coworker is not allowed to use tasks");
+
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
     expect(tx.task.findUnique).not.toHaveBeenCalled();
   });
 });
