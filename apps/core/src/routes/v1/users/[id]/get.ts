@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { internalServerError } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -41,6 +41,7 @@ const route = createRoute({
     }),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -58,7 +59,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { id: targetUserId },
       });
       if (!user) {
-        throw internalServerError("Failed to retrieve user");
+        throw notFound("User not found");
       }
 
       return userSchema.parse(user);
