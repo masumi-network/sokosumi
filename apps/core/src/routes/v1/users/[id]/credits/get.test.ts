@@ -16,7 +16,6 @@ describe("users/{id}/credits OpenAPI contract", () => {
 
     expect(creditsResponses).toBeDefined();
     expect(creditsResponses).toHaveProperty("200");
-    expect(creditsResponses).toHaveProperty("400");
     expect(creditsResponses).toHaveProperty("401");
     expect(creditsResponses).toHaveProperty("403");
     expect(creditsResponses).toHaveProperty("404");

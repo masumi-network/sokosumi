@@ -4512,29 +4512,11 @@ export type GetUsersByIdCreditsData = {
          */
         id: string;
     };
-    query?: {
-        /**
-         * When set, returns credits for this user in the given organization context (the user must be a member). When omitted, returns credits for the active organization from request headers when the caller is that user (or their delegated coworker), or personal credits when an admin requests another user's balance without an organization.
-         */
-        organizationId?: string;
-    };
+    query?: never;
     url: '/users/{id}/credits';
 };
 
 export type GetUsersByIdCreditsErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
     /**
      * Unauthorized
      */
@@ -5568,6 +5550,19 @@ export type GetUsersByIdErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         meta: {

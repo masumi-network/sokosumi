@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { badRequest, notFound } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -19,28 +19,15 @@ const params = z.object({
   id: usersRoutePathUserIdSchema,
 });
 
-const query = z.object({
-  organizationId: z
-    .string()
-    .optional()
-    .openapi({
-      param: { name: "organizationId", in: "query" },
-      description:
-        "When set, returns credits for this user in the given organization context (the user must be a member). When omitted, returns credits for the active organization from request headers when the caller is that user (or their delegated coworker), or personal credits when an admin requests another user's balance without an organization.",
-      example: "org_123",
-    }),
-});
-
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/credits",
     description:
-      "Get credit balance: path `me` for the session user (same as organization headers on `/me`), or a user id when the effective user matches, a delegated coworker acts for that user, or a session admin requests any user.",
+      "Get credit balance for the authenticated organization context (session active org, optional `X-Organization-Slug` when no active org, or coworker delegation headers): path `me` for the session user, or a user id when the effective user matches, a delegated coworker acts for that user, or a session admin requests any user. For a specific organization by id without relying on session context, use `GET /{id}/organizations/{organizationId}/credits`.",
     tags: ["Users"],
     request: {
       params,
-      query,
     },
     responses: {
       200: jsonSuccessResponse(
@@ -71,7 +58,6 @@ const route = withGlobalHeaderParameters(
           },
         },
       ),
-      400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
@@ -83,7 +69,6 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id: pathUser } = c.req.valid("param");
-    const { organizationId: queryOrganizationId } = c.req.valid("query");
 
     const { targetUserId, userContext } = resolveUsersPathUserId(
       c.var.authContext,
@@ -100,31 +85,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const credits = await prisma.$transaction(async (tx) => {
-      if (queryOrganizationId) {
-        const member = await tx.member.findUnique({
-          where: {
-            userId_organizationId: {
-              userId: targetUserId,
-              organizationId: queryOrganizationId,
-            },
-          },
-          select: { userId: true },
-        });
-
-        if (!member) {
-          throw badRequest(
-            "User is not a member of the specified organization",
-          );
-        }
-
-        return await buildCreditsPayload({
-          userId: targetUserId,
-          organizationId: queryOrganizationId,
-          referenceId: queryOrganizationId,
-          tx,
-        });
-      }
-
       const organizationId =
         userContext.userId === targetUserId ? userContext.organizationId : null;
       const referenceId = organizationId ?? targetUserId;
