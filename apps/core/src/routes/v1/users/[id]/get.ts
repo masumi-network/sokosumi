@@ -1,20 +1,30 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
-import { internalServerError } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
+import {
+  requireUserRouteContext,
+  type UserRouteVariables,
+} from "@/routes/v1/users/user-route-context";
 import { type User, userSchema } from "@/schemas/user.schema";
+
+const params = z.object({
+  id: usersRoutePathUserIdSchema,
+});
 
 const route = createRoute({
   method: "get",
   path: "/",
-  description: "Get current authenticated user",
+  description:
+    "Get a user: use path `me` for the authenticated session user, or a user id when the effective user matches that id, a delegated coworker acts for that user, or a session admin requests any user.",
   tags: ["Users"],
+  request: { params },
   responses: {
-    200: jsonSuccessResponse(userSchema, "Retrieve the current user", {
+    200: jsonSuccessResponse(userSchema, "Retrieve the user", {
       data: {
         id: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj",
         createdAt: "2025-01-01T00:00:00.000Z",
@@ -32,20 +42,22 @@ const route = createRoute({
     }),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    c.req.valid("param");
+    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const user: User = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
-        where: { id: authContext.userId },
+        where: { id: resolvedUserId },
       });
       if (!user) {
-        throw internalServerError("Failed to retrieve user");
+        throw notFound("User not found");
       }
 
       return userSchema.parse(user);

@@ -1,22 +1,32 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
 import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
+import {
+  requireUserRouteContext,
+  type UserRouteVariables,
+} from "@/routes/v1/users/user-route-context";
 import { pendingNoticesResponseSchema } from "@/schemas/notice.schema";
+
+const params = z.object({
+  id: usersRoutePathUserIdSchema,
+});
 
 const route = createRoute({
   method: "get",
   path: "/notices/pending",
-  description: "Get pending notices for the current user",
+  description:
+    "Get pending notices: path `me` for the session user, or a user id when the caller may access that user's data.",
   tags: ["Users"],
+  request: { params },
   responses: {
     200: jsonSuccessResponse(
       pendingNoticesResponseSchema,
-      "Retrieve pending notices for the current user",
+      "Retrieve pending notices for the user",
       {
         data: {
           pendingNotices: [
@@ -39,18 +49,20 @@ const route = createRoute({
     ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    c.req.valid("param");
+    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const now = new Date();
     const pendingNotices = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
-        where: { id: authContext.userId },
+        where: { id: resolvedUserId },
         select: { id: true, createdAt: true },
       });
       if (!user) {
@@ -61,12 +73,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           isActive: true,
           effectiveAt: {
-            lte: now, // Only show notices that are active and effective at the current time
-            gt: user.createdAt, // Only show notices that are effective after the user was created
+            lte: now,
+            gt: user.createdAt,
           },
           acknowledgments: {
             none: {
-              // Only show notices that have not been acknowledged
               userId: user.id,
             },
           },

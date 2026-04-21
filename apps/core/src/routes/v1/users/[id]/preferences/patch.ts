@@ -1,11 +1,18 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
+import {
+  requireUserRouteContext,
+  type UserRouteVariables,
+} from "@/routes/v1/users/user-route-context";
 import { userPreferencesResponseSchema } from "@/schemas/user.schema";
+
+const params = z.object({
+  id: usersRoutePathUserIdSchema,
+});
 
 const requestBodySchema = z
   .object({
@@ -34,9 +41,11 @@ const requestBodySchema = z
 const route = createRoute({
   method: "patch",
   path: "/preferences",
-  description: "Update current user's preferences",
+  description:
+    "Update preferences: path `me` for the session user, or a user id when the caller may access that user's data.",
   tags: ["Users"],
   request: {
+    params,
     body: {
       content: {
         "application/json": {
@@ -48,7 +57,7 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(
       userPreferencesResponseSchema,
-      "Update the current user's preferences",
+      "Update the user's preferences",
       {
         data: {
           marketingOptIn: true,
@@ -63,17 +72,19 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    c.req.valid("param");
+    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
     const body = c.req.valid("json");
 
     const preferences = await prisma.$transaction(async (tx) => {
       const updatedUser = await tx.user.update({
-        where: { id: authContext.userId },
+        where: { id: resolvedUserId },
         data: {
           ...(body.marketingOptIn !== undefined && {
             marketingOptIn: body.marketingOptIn,

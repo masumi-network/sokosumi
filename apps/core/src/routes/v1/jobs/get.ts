@@ -16,7 +16,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
@@ -124,7 +124,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
     const { agentId, scope, status } = queryParams;
@@ -132,7 +132,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { jobs, count, hasMore } = await getUserJobs(
       {
-        authContext,
+        userContext,
         workspaceContext,
       },
       {

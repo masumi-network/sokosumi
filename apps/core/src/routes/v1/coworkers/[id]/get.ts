@@ -5,7 +5,6 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
 import { paramsSchema } from "./schema";
@@ -50,15 +49,12 @@ const route = createRoute({
       },
     }),
     401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserAuthContext(c.var.authContext);
-
     const { id } = c.req.valid("param");
 
     const coworker = await prisma.coworker.findFirst({

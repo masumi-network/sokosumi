@@ -6,13 +6,19 @@ import { LIMITS } from "@/config/constants";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import {
+  type UserRouteVariables,
+  usersPathUserContextMiddleware,
+} from "@/routes/v1/users/user-route-context";
 
-const { getEnvMock, createUserFileUploadSessionMock } = vi.hoisted(() => ({
-  getEnvMock: vi.fn(() => ({
-    BLOB_READ_WRITE_TOKEN: "blob-token",
-  })),
-  createUserFileUploadSessionMock: vi.fn(),
-}));
+const { getEnvMock, createUserFileUploadSessionMock, userFindUniqueMock } =
+  vi.hoisted(() => ({
+    getEnvMock: vi.fn(() => ({
+      BLOB_READ_WRITE_TOKEN: "blob-token",
+    })),
+    createUserFileUploadSessionMock: vi.fn(),
+    userFindUniqueMock: vi.fn(),
+  }));
 
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
@@ -21,6 +27,14 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/lib/blob", () => ({
   createUserFileUploadSession: (...args: unknown[]) =>
     createUserFileUploadSessionMock(...args),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    user: {
+      findUnique: userFindUniqueMock,
+    },
+  },
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -42,7 +56,9 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   role: "user",
 };
 
-let mountPostUserFileUploads: (app: OpenAPIHonoWithAuth) => void;
+let mountPostUserFileUploads: (
+  app: OpenAPIHonoWithAuth<UserRouteVariables>,
+) => void;
 
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
@@ -72,13 +88,26 @@ function createApp(
     return await next();
   });
 
-  mountPostUserFileUploads(app as unknown as OpenAPIHonoWithAuth);
+  const userByIdApp = new OpenAPIHono<{
+    Variables: AuthVariables & UserRouteVariables & { requestId: string };
+  }>({
+    defaultHook: (result) => {
+      if (!result.success && result.error) {
+        throw unprocessableEntity(formatZodErrorMessage(result.error));
+      }
+    },
+  });
+  userByIdApp.use("*", usersPathUserContextMiddleware);
+  mountPostUserFileUploads(
+    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
+  );
+  app.route("/:id", userByIdApp);
 
   return app;
 }
 
 beforeAll(async () => {
-  const module = await import("./post");
+  const module = await import("../../[id]/uploads/post");
   mountPostUserFileUploads = module.default;
 });
 
@@ -87,6 +116,7 @@ beforeEach(() => {
   getEnvMock.mockReturnValue({
     BLOB_READ_WRITE_TOKEN: "blob-token",
   });
+  userFindUniqueMock.mockResolvedValue({ id: "user_123" });
   createUserFileUploadSessionMock.mockResolvedValue({
     clientToken: "client-token-123",
     access: "public",
@@ -100,7 +130,7 @@ describe("POST /uploads route", () => {
   it("creates a direct upload session", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "report.pdf",
@@ -113,6 +143,10 @@ describe("POST /uploads route", () => {
     });
 
     expect(response.status).toBe(201);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      select: { id: true },
+    });
     expect(createUserFileUploadSessionMock).toHaveBeenCalledWith(
       "user_123",
       {
@@ -128,7 +162,7 @@ describe("POST /uploads route", () => {
   it("resolves application/octet-stream from the filename when the browser omits a specific MIME type", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "report.pdf",
@@ -156,7 +190,7 @@ describe("POST /uploads route", () => {
   it("returns 422 for oversized uploads", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "video.mp4",
@@ -175,7 +209,7 @@ describe("POST /uploads route", () => {
   it("returns 422 for invalid metadata", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "",
@@ -194,7 +228,7 @@ describe("POST /uploads route", () => {
   it("returns 422 when contentType is unsupported without a custom allowlist", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "logo.bin",
@@ -220,7 +254,7 @@ describe("POST /uploads route", () => {
       maxSizeBytes: 2_097_152,
     });
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "logo.png",
@@ -251,7 +285,7 @@ describe("POST /uploads route", () => {
   it("returns 422 when size exceeds a custom maxSizeBytes", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "logo.png",
@@ -272,7 +306,7 @@ describe("POST /uploads route", () => {
   it("returns 422 when contentType is not included in allowedContentTypes", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "logo.pdf",
@@ -292,7 +326,7 @@ describe("POST /uploads route", () => {
   it("returns 422 when allowedContentTypes contains unsupported values", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads", {
+    const response = await app.request("http://localhost/me/uploads", {
       method: "POST",
       body: JSON.stringify({
         filename: "logo.bin",

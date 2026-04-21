@@ -7,10 +7,7 @@ import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  requireAdminAuthContext,
-  requireUserAuthContext,
-} from "@/middleware/auth";
+import { requireAdminAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 import { normalizeCoworkerMetadata } from "./metadata";
 import { createCoworkerRequestSchema } from "./schema";
@@ -18,7 +15,7 @@ import { createCoworkerRequestSchema } from "./schema";
 const route = createRoute({
   method: "post",
   path: "/",
-  description: "Create coworker",
+  description: "Create coworker (admin only)",
   tags: ["Coworkers"],
   request: {
     body: {
@@ -68,12 +65,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    const userAuthContext = requireAdminAuthContext(c.var.authContext);
     const body = c.req.valid("json");
-    let userAuthContext = requireUserAuthContext(c.var.authContext);
-
-    if (body.priority !== undefined) {
-      userAuthContext = requireAdminAuthContext(c.var.authContext);
-    }
 
     const metadata = normalizeCoworkerMetadata(body.metadata);
     const slug = slugify(body.name, {

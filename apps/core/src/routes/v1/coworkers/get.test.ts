@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountGetCoworkers from "./get";
 
@@ -21,7 +21,19 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp() {
+const coworkerAuth: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_456",
+};
+
+function createApp(
+  authContext: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>({
@@ -34,12 +46,7 @@ function createApp() {
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     return await next();
   });
 
@@ -189,5 +196,15 @@ describe("GET /coworkers", () => {
 
     expect(response.status).toBe(422);
     expect(coworkerFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("allows authenticated coworker API keys (same as session users)", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+    const app = createApp(coworkerAuth);
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalled();
   });
 });

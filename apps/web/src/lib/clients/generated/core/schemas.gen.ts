@@ -1523,59 +1523,6 @@ export const PatchCreditCostRequestSchema = {
     ]
 } as const;
 
-export const UserSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: '0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        name: {
-            type: 'string',
-            example: 'John Doe'
-        },
-        email: {
-            type: 'string',
-            format: 'email',
-            example: 'john.doe@example.com'
-        },
-        emailVerified: {
-            type: 'boolean',
-            example: true
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/image.png'
-        },
-        role: {
-            type: 'string',
-            example: 'user'
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'name',
-        'email',
-        'emailVerified',
-        'role'
-    ]
-} as const;
-
 export const OrganizationSchema = {
     type: 'object',
     properties: {
@@ -1848,6 +1795,59 @@ export const CreateUserFileUploadRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const UserSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: '0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        name: {
+            type: 'string',
+            example: 'John Doe'
+        },
+        email: {
+            type: 'string',
+            format: 'email',
+            example: 'john.doe@example.com'
+        },
+        emailVerified: {
+            type: 'boolean',
+            example: true
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/image.png'
+        },
+        role: {
+            type: 'string',
+            example: 'user'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'name',
+        'email',
+        'emailVerified',
+        'role'
     ]
 } as const;
 

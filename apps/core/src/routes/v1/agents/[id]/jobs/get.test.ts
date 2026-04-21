@@ -85,7 +85,8 @@ describe("GET /agents/{id}/jobs", () => {
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        authContext: {
+        userContext: {
+          source: "session",
           actor: "user",
           userId: "user_123",
           organizationId: "org_123",
@@ -137,6 +138,58 @@ describe("GET /agents/{id}/jobs", () => {
         agentId: "agent_123",
         scope: "workspace",
       }),
+    );
+  });
+
+  it("accepts delegated coworker context when workspaceContext is resolved", async () => {
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables & WorkspaceVariables;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        delegation: {
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountGetAgentJobs(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/agent_123/jobs");
+
+    expect(response.status).toBe(200);
+    expect(getUserJobsMock).toHaveBeenCalledWith(
+      {
+        userContext: {
+          source: "delegation",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        workspaceContext: {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: null,
+          organizationId: "org_123",
+        },
+      },
+      {
+        agentId: "agent_123",
+        scope: "owned",
+        cursor: undefined,
+        take: 20,
+        skip: undefined,
+      },
     );
   });
 });

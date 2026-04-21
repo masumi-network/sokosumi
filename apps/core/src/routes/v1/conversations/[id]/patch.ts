@@ -8,7 +8,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import {
   conversationSchema,
   updateConversationRequestSchema,
@@ -71,7 +71,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
@@ -79,7 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const updatedConversation = await prisma.$transaction(async (tx) => {
       // First verify ownership (exclude deleted conversations)
       const existing = await tx.conversation.findFirst({
-        where: { id, userId: authContext.userId, archivedAt: null },
+        where: { id, userId: userContext.userId, archivedAt: null },
       });
 
       if (!existing) {
@@ -101,7 +101,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         updateData.metadata = {
           ...existingMetadata,
           ...body.metadata,
-          userId: authContext.userId, // Ensure userId is preserved
+          userId: userContext.userId, // Ensure userId is preserved
         };
       }
 

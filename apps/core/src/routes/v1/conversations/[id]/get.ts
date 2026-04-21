@@ -8,7 +8,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { conversationSchema } from "@/schemas/conversation.schema";
 
 const route = withGlobalHeaderParameters(
@@ -62,7 +62,7 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const authContext = requireUserAuthContext(c.var.authContext);
+      const userContext = requireUserContext(c.var.authContext);
       const { id } = c.req.valid("param");
 
       // Database is the source of truth - fetch conversation directly from DB
@@ -70,7 +70,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return tx.conversation.findFirst({
           where: {
             id,
-            userId: authContext.userId,
+            userId: userContext.userId,
             archivedAt: null,
           },
         });

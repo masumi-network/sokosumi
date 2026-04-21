@@ -9,7 +9,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import {
   conversationSchema,
   createConversationRequestSchema,
@@ -60,7 +60,7 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const authContext = requireUserAuthContext(c.var.authContext);
+      const userContext = requireUserContext(c.var.authContext);
       const body = c.req.valid("json");
 
       // Database is the source of truth - create conversation directly in DB
@@ -72,7 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const existing = await tx.conversation.findFirst({
           where: {
             openaiId,
-            userId: authContext.userId,
+            userId: userContext.userId,
             archivedAt: null,
           },
         });
@@ -84,14 +84,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // Create conversation in database with title and metadata
         const conversationData = {
           openaiId,
-          userId: authContext.userId,
+          userId: userContext.userId,
           title: body.title,
           metadata: body.metadata
             ? {
                 ...body.metadata,
-                userId: authContext.userId, // Store userId in metadata for reference
+                userId: userContext.userId, // Store userId in metadata for reference
               }
-            : { userId: authContext.userId },
+            : { userId: userContext.userId },
         };
 
         return tx.conversation.create({ data: conversationData });
