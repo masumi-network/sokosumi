@@ -5,7 +5,6 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { categorySchema } from "@/schemas/category.schema";
-import type { AgentWithExampleOutput, AgentWithTags } from "@/types/agent";
 
 export const executionMetricsSchema = z
   .object({
@@ -117,8 +116,21 @@ export const agentExampleOutputSchema = z
 
 export type AgentExampleOutput = z.infer<typeof agentExampleOutputSchema>;
 
+interface AgentExampleOutputSource {
+  exampleOutput: Array<{
+    name: string;
+    mimeType: string;
+    url: string;
+  }>;
+  overrideExampleOutput: Array<{
+    name: string;
+    mimeType: string;
+    url: string;
+  }>;
+}
+
 export function getAgentExampleOutputsFromAgent(
-  agent: AgentWithExampleOutput,
+  agent: AgentExampleOutputSource,
 ): AgentExampleOutput[] {
   const exampleOutputs =
     agent.overrideExampleOutput.length > 0
@@ -134,7 +146,12 @@ export function getAgentExampleOutputsFromAgent(
   );
 }
 
-export function getAgentTagsFromAgent(agent: AgentWithTags): string[] {
+interface AgentTagsSource {
+  tags: Array<{ name: string }>;
+  overrideTags: Array<{ name: string }>;
+}
+
+export function getAgentTagsFromAgent(agent: AgentTagsSource): string[] {
   return agent.overrideTags.length > 0
     ? agent.overrideTags.map((tag) => tag.name)
     : agent.tags.map((tag) => tag.name);

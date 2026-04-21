@@ -18,9 +18,16 @@ export interface UserAuthenticationContext {
   role: string;
 }
 
+/** Optional user/org scope supplied by coworker API keys via delegation headers. */
+export interface CoworkerDelegation {
+  userId: string;
+  organizationId: string | null;
+}
+
 export interface CoworkerAuthenticationContext {
   actor: "coworker";
   coworkerId: string;
+  delegation?: CoworkerDelegation;
 }
 
 export type AuthenticationContext =
@@ -52,10 +59,17 @@ function syncSentryUser(context: AuthVariables) {
     return;
   }
 
+  const coworker = context.authContext;
   scope.setUser({
-    id: `coworker:${context.authContext.coworkerId}`,
-    coworkerId: context.authContext.coworkerId,
+    id: `coworker:${coworker.coworkerId}`,
+    coworkerId: coworker.coworkerId,
   });
+  if (coworker.delegation) {
+    scope.setContext("coworkerDelegation", {
+      userId: coworker.delegation.userId,
+      organizationId: coworker.delegation.organizationId,
+    });
+  }
 }
 
 export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
@@ -76,6 +90,57 @@ export function isCoworkerAuthContext(
   return authContext.actor === "coworker";
 }
 
+/**
+ * Effective user context for a handler: either a Better Auth session (`source: "session"`)
+ * or a coworker API key with delegation headers (`source: "delegation"`). Use
+ * {@link requireUserAuthContext} when the operation must not run under coworker
+ * delegation (PII, session-bound consent, etc.).
+ */
+export type UserContext =
+  | ({ source: "session" } & UserAuthenticationContext)
+  | {
+      source: "delegation";
+      userId: string;
+      organizationId: string | null;
+    };
+
+/**
+ * Resolves the effective user context for this request (session user or delegated
+ * coworker). Coworkers must send `X-Delegation-User-Id` (and optional org header validated
+ * in middleware).
+ */
+export function requireUserContext(
+  authContext: AuthenticationContext,
+): UserContext {
+  if (isUserAuthContext(authContext)) {
+    return { source: "session", ...authContext };
+  }
+
+  if (isCoworkerAuthContext(authContext)) {
+    const delegation = authContext.delegation;
+    if (!delegation) {
+      throw forbidden(
+        "Delegation headers (X-Delegation-User-Id) are required for this resource",
+      );
+    }
+
+    return {
+      source: "delegation",
+      userId: delegation.userId,
+      organizationId: delegation.organizationId,
+    };
+  }
+
+  throw forbidden("User authentication required");
+}
+
+/**
+ * Requires an interactive user session (Better Auth). Rejects coworker keys,
+ * including delegated ones — use for PII, session-bound operations, and any
+ * handler that must read the real session user (e.g. before an admin-role check).
+ *
+ * For the effective user (session or delegated coworker), use {@link requireUserContext}.
+ */
 export function requireUserAuthContext(
   authContext: AuthenticationContext,
 ): UserAuthenticationContext {

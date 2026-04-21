@@ -24,7 +24,7 @@ import {
 } from "@/helpers/persist-pending-response-id";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 
 const chatRequestSchema = z.object({
   messages: z.array(
@@ -92,7 +92,7 @@ const _route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.post("/chat", async (c) => {
     try {
-      const authContext = requireUserAuthContext(c.var.authContext);
+      const userContext = requireUserContext(c.var.authContext);
 
       const body = await c.req.json();
       const parsedBody = chatRequestSchema.safeParse(body);
@@ -120,7 +120,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         conversation = await prisma.conversation.findFirst({
           where: {
             id: conversationId,
-            userId: authContext.userId,
+            userId: userContext.userId,
             archivedAt: null,
           },
         });
@@ -256,7 +256,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           const convWithCount = await prisma.conversation.findFirst({
             where: {
               id: internalConversationId,
-              userId: authContext.userId,
+              userId: userContext.userId,
               archivedAt: null,
             },
             select: { _count: { select: { items: true } } },
@@ -299,8 +299,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
         const responsesApiOptions = {
           responsesApiBaseUrl: coworker!.baseURL!.trim(),
-          sokosumiUserId: authContext.userId,
-          sokosumiOrganizationId: authContext.organizationId ?? null,
+          sokosumiUserId: userContext.userId,
+          sokosumiOrganizationId: userContext.organizationId ?? null,
           coworkerSlug: coworker!.slug,
           previousResponseId,
           onResponseStarted: async (responseId: string) => {
@@ -308,7 +308,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             if (!internalConversationId) return;
             void persistPendingResponseId({
               conversationId: internalConversationId,
-              userId: authContext.userId,
+              userId: userContext.userId,
               responseId,
               coworkerSlug: coworker!.slug,
               coworkerId: coworker!.id,
@@ -321,7 +321,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             try {
               await clearPendingAndSetPrevious({
                 conversationId: internalConversationId,
-                userId: authContext.userId,
+                userId: userContext.userId,
                 responseId,
               });
             } catch (error) {
@@ -354,7 +354,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               const conv = await prisma.conversation.findFirst({
                 where: {
                   id: internalConversationId,
-                  userId: authContext.userId,
+                  userId: userContext.userId,
                 },
                 select: { metadata: true },
               });
@@ -387,7 +387,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           const wrapped = streamWithAssistantPersistence(
             result.body,
             internalConversationId,
-            authContext.userId,
+            userContext.userId,
             { responsesApiResponseIdRef },
           );
           return new Response(wrapped, {
@@ -407,7 +407,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const wrapped = streamWithAssistantPersistence(
           result.body,
           internalConversationId,
-          authContext.userId,
+          userContext.userId,
         );
         return new Response(wrapped, {
           headers: result.headers,

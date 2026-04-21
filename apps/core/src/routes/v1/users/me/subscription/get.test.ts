@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import usersMeRouter from "../index";
+import usersRouter from "../../index";
 
 describe("users/me subscription routes OpenAPI contract", () => {
   it("does not expose subscription routes", () => {
-    const doc = usersMeRouter.getOpenAPI31Document({
+    const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
         title: "Users Me API",
@@ -13,9 +13,10 @@ describe("users/me subscription routes OpenAPI contract", () => {
     });
 
     const meSubscriptionResponses =
-      doc.paths?.["/subscription"]?.get?.responses;
+      doc.paths?.["/{id}/subscription"]?.get?.responses;
     const organizationSubscriptionResponses =
-      doc.paths?.["/organizations/{id}/subscription"]?.get?.responses;
+      doc.paths?.["/{id}/organizations/{organizationId}/subscription"]?.get
+        ?.responses;
 
     expect(meSubscriptionResponses).toBeUndefined();
     expect(organizationSubscriptionResponses).toBeUndefined();

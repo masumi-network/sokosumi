@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import usersMeRouter from "../index";
+import usersRouter from "../../index";
 
 describe("users/me uploads routes OpenAPI contract", () => {
   it("documents POST /uploads as a JSON endpoint", () => {
-    const doc = usersMeRouter.getOpenAPI31Document({
+    const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
         title: "Users Me API",
@@ -12,8 +12,8 @@ describe("users/me uploads routes OpenAPI contract", () => {
       },
     });
 
-    const requestBody = doc.paths?.["/uploads"]?.post?.requestBody;
-    const description = doc.paths?.["/uploads"]?.post?.description;
+    const requestBody = doc.paths?.["/{id}/uploads"]?.post?.requestBody;
+    const description = doc.paths?.["/{id}/uploads"]?.post?.description;
     const requestBodyJson = JSON.stringify(requestBody);
     const requestSchema = doc.components?.schemas?.CreateUserFileUploadRequest;
     const requestSchemaJson = JSON.stringify(requestSchema);
@@ -34,7 +34,7 @@ describe("users/me uploads routes OpenAPI contract", () => {
   });
 
   it("does not document legacy /files upload endpoints", () => {
-    const doc = usersMeRouter.getOpenAPI31Document({
+    const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
         title: "Users Me API",

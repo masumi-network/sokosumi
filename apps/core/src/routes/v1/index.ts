@@ -36,11 +36,45 @@ app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {
   },
 });
 
+app.openAPIRegistry.registerComponent("parameters", "DelegationUserId", {
+  name: "X-Delegation-User-Id",
+  in: "header",
+  description:
+    "Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.",
+  required: false,
+  schema: {
+    type: "string",
+    example: "user_abc123",
+  },
+});
+
+app.openAPIRegistry.registerComponent(
+  "parameters",
+  "DelegationOrganizationId",
+  {
+    name: "X-Delegation-Organization-Id",
+    in: "header",
+    description:
+      "Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.",
+    required: false,
+    schema: {
+      type: "string",
+      example: "org_xyz789",
+    },
+  },
+);
+
 app.use(
   "*",
   cors({
     origin: (origin) => resolveCorsAllowOrigin(origin),
-    allowHeaders: ["Content-Type", "Authorization", "X-Organization-Slug"],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Organization-Slug",
+      "X-Delegation-User-Id",
+      "X-Delegation-Organization-Id",
+    ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: TIME.CORS_MAX_AGE,

@@ -3,16 +3,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import {
+  type UserRouteVariables,
+  usersPathUserContextMiddleware,
+} from "@/routes/v1/users/user-route-context";
 
-import mountPostNoticeAcknowledge from "./[id]/acknowledge/post";
+import mountPostNoticeAcknowledge from "../../[id]/notices/[noticeId]/acknowledge/post";
 
-const { prismaTransactionMock } = vi.hoisted(() => ({
+const { prismaTransactionMock, userFindUniqueMock } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    user: {
+      findUnique: userFindUniqueMock,
+    },
   },
 }));
 
@@ -82,7 +90,14 @@ function createApp(actor: "user" | "coworker" = "user") {
     return await next();
   });
 
-  mountPostNoticeAcknowledge(app as unknown as OpenAPIHonoWithAuth);
+  const userByIdApp = new OpenAPIHono<{
+    Variables: AuthVariables & UserRouteVariables;
+  }>();
+  userByIdApp.use("*", usersPathUserContextMiddleware);
+  mountPostNoticeAcknowledge(
+    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
+  );
+  app.route("/:id", userByIdApp);
 
   return app;
 }
@@ -98,6 +113,7 @@ describe("POST /notices/{id}/acknowledge", () => {
     vi.useFakeTimers();
     vi.setSystemTime(CREATED_ACKNOWLEDGED_AT);
     vi.clearAllMocks();
+    userFindUniqueMock.mockResolvedValue({ id: USER_ID });
   });
 
   afterEach(() => {
@@ -124,13 +140,17 @@ describe("POST /notices/{id}/acknowledge", () => {
 
     const app = createApp();
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },
     );
 
     expect(response.status).toBe(200);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: USER_ID },
+      select: { id: true },
+    });
     expect(tx.noticeAcknowledgment.createMany).toHaveBeenCalledWith({
       data: [
         {
@@ -172,7 +192,7 @@ describe("POST /notices/{id}/acknowledge", () => {
 
     const app = createApp();
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },
@@ -212,7 +232,7 @@ describe("POST /notices/{id}/acknowledge", () => {
 
     const app = createApp();
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },
@@ -258,7 +278,7 @@ describe("POST /notices/{id}/acknowledge", () => {
 
     const app = createApp();
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },
@@ -288,7 +308,7 @@ describe("POST /notices/{id}/acknowledge", () => {
 
     const app = createApp();
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },
@@ -301,7 +321,7 @@ describe("POST /notices/{id}/acknowledge", () => {
   it("returns 403 for coworker-authenticated requests", async () => {
     const app = createApp("coworker");
     const response = await app.request(
-      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      `http://localhost/me/notices/${NOTICE_ID}/acknowledge`,
       {
         method: "POST",
       },

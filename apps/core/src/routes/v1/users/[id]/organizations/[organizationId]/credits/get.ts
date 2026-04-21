@@ -1,17 +1,21 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
+import {
+  requireUserRouteContext,
+  type UserRouteVariables,
+} from "@/routes/v1/users/user-route-context";
 import { creditsResponseSchema } from "@/schemas/user.schema";
 
 const params = z.object({
-  id: z.string().openapi({
-    param: { name: "id", in: "path" },
+  id: usersRoutePathUserIdSchema,
+  organizationId: z.string().openapi({
+    param: { name: "organizationId", in: "path" },
     description: "Organization ID",
     example: "org_123",
   }),
@@ -19,8 +23,9 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/organizations/{id}/credits",
-  description: "Get organization-context credits for the current member by ID",
+  path: "/organizations/{organizationId}/credits",
+  description:
+    "Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id.",
   tags: ["Users"],
   request: {
     params,
@@ -63,19 +68,19 @@ const route = createRoute({
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
-    const { id } = c.req.valid("param");
+    const { organizationId } = c.req.valid("param");
+    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const credits = await prisma.$transaction(async (tx) => {
       const { organization } = await resolveMemberOrganizationById({
-        id,
-        userId: authContext.userId,
+        id: organizationId,
+        userId: resolvedUserId,
         tx,
       });
       return await buildCreditsPayload({
-        userId: authContext.userId,
+        userId: resolvedUserId,
         organizationId: organization.id,
         referenceId: organization.id,
         tx,

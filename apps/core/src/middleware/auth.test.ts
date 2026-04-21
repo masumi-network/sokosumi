@@ -404,4 +404,17 @@ describe("requireAdminAuthContext", () => {
       }),
     ).toThrowError("User authentication required");
   });
+
+  it("rejects delegated coworker actor", () => {
+    expect(() =>
+      requireAdminAuthContext({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        delegation: {
+          userId: "user_456",
+          organizationId: "org_1",
+        },
+      }),
+    ).toThrowError("User authentication required");
+  });
 });

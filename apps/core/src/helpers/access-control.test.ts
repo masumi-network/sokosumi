@@ -43,6 +43,8 @@ const userAuthContext: UserAuthenticationContext = {
   role: "user",
 };
 
+const sessionUserContext = { source: "session" as const, ...userAuthContext };
+
 const workspaceId = "11111111-1111-7111-8111-111111111111";
 
 const jobReadWorkspaceContext: WorkspaceContext = {
@@ -58,7 +60,7 @@ describe("requireTaskOwnership", () => {
       id: "tsk_123",
     } as never);
 
-    await requireTaskOwnership(userAuthContext, "tsk_123", tx);
+    await requireTaskOwnership(sessionUserContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -130,6 +132,27 @@ describe("requireTaskCollaboration", () => {
       requireTaskCollaboration(coworkerContext, "tsk_123", tx),
     ).rejects.toThrow("Coworker is not allowed to use tasks");
 
+    expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects delegated coworkers without tasks capability before loading the task", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_delegate",
+        organizationId: "org_123",
+      },
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireTaskCollaboration(coworkerContext, "tsk_123", tx),
+    ).rejects.toThrow("Coworker is not allowed to use tasks");
+
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
     expect(tx.task.findUnique).not.toHaveBeenCalled();
   });
 });
@@ -247,6 +270,86 @@ describe("requireTaskReadForRouteVars", () => {
         archivedAt: null,
       },
     });
+  });
+
+  it("delegates coworker reads with delegation to workspace read", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_delegate",
+        organizationId: "org_123",
+      },
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskReadForRouteVars(vars, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId,
+      },
+    });
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+        archivedAt: null,
+        isWhitelisted: true,
+        capabilities: {
+          has: "tasks",
+        },
+      },
+      select: {
+        id: true,
+        slug: true,
+        baseURL: true,
+      },
+    });
+    expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects delegated coworker reads without tasks capability before loading the task", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_delegate",
+        organizationId: "org_123",
+      },
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_123", tx),
+    ).rejects.toThrow("Coworker is not allowed to use tasks");
+
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
+    expect(tx.task.findUnique).not.toHaveBeenCalled();
   });
 });
 
@@ -436,7 +539,7 @@ describe("requireJobOwnership", () => {
       id: "job_123",
     } as never);
 
-    await requireJobOwnership(userAuthContext, "job_123", tx);
+    await requireJobOwnership(sessionUserContext, "job_123", tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -451,7 +554,7 @@ describe("requireJobOwnership", () => {
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireJobOwnership(userAuthContext, "job_123", tx),
+      requireJobOwnership(sessionUserContext, "job_123", tx),
     ).rejects.toThrow("You can only access your own jobs");
   });
 });
