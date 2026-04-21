@@ -27,7 +27,7 @@ const responseSchema = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/registered",
+  path: "/",
   tags: ["Users"],
   description: "User registered and email verified status (coworker only)",
   request: {

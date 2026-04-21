@@ -3,6 +3,19 @@ import { describe, expect, it } from "vitest";
 import usersRouter from "./index";
 
 describe("users routes OpenAPI contract", () => {
+  it("mounts the registered lookup at /registered without a duplicated segment", () => {
+    const doc = usersRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Users API",
+        version: "1.0.0",
+      },
+    });
+
+    expect(doc.paths?.["/registered"]?.get).toBeDefined();
+    expect(doc.paths?.["/registered/registered"]?.get).toBeUndefined();
+  });
+
   it("returns 404 for /{id} routes when the target user does not exist", () => {
     const doc = usersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
