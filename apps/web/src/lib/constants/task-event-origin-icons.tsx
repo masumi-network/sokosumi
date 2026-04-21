@@ -17,7 +17,7 @@ import {
   SiWhatsapp,
 } from "react-icons/si";
 
-import { SokosumiIcon } from "@/components/masumi-logos";
+import { MasumiMessengerIcon, SokosumiIcon } from "@/components/masumi-logos";
 
 function SokosumiOriginIcon(
   props: Omit<React.SVGProps<SVGSVGElement>, "width" | "height"> & {
@@ -25,6 +25,14 @@ function SokosumiOriginIcon(
   },
 ) {
   return <SokosumiIcon {...props} animated={false} />;
+}
+
+function MasumiMessengerOriginIcon(
+  props: Omit<React.SVGProps<SVGSVGElement>, "width" | "height"> & {
+    size?: number;
+  },
+) {
+  return <MasumiMessengerIcon {...props} animated={false} />;
 }
 
 export interface TaskEventOriginIconProps
@@ -49,7 +57,7 @@ export const ORIGIN_ICON_MAP: Record<
   [TaskEventOrigin.SIGNAL]: SiSignal,
   [TaskEventOrigin.DISCORD]: SiDiscord,
   [TaskEventOrigin.CHAT]: MessageSquare,
-  [TaskEventOrigin.MESSENGER]: MessageSquare,
+  [TaskEventOrigin.MESSENGER]: MasumiMessengerOriginIcon,
   [TaskEventOrigin.SOKOSUMI]: SokosumiOriginIcon,
   [TaskEventOrigin.UNKNOWN]: CircleHelp,
 };
