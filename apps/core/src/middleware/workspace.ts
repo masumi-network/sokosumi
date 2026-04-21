@@ -4,7 +4,11 @@ import { createMiddleware } from "hono/factory";
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { type EnvVariables } from "@/lib/hono";
-import { isUserAuthContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  isCoworkerAuthContext,
+  isUserAuthContext,
+} from "@/middleware/auth";
 
 export interface WorkspaceContext {
   workspaceId: string;
@@ -25,6 +29,27 @@ export function requireWorkspaceContext(
   return workspaceContext;
 }
 
+function getWorkspaceOwnerContext(authContext: AuthenticationContext): {
+  userId: string;
+  organizationId: string | null;
+} | null {
+  if (isUserAuthContext(authContext)) {
+    return {
+      userId: authContext.userId,
+      organizationId: authContext.organizationId ?? null,
+    };
+  }
+
+  if (isCoworkerAuthContext(authContext) && authContext.delegation) {
+    return {
+      userId: authContext.delegation.userId,
+      organizationId: authContext.delegation.organizationId ?? null,
+    };
+  }
+
+  return null;
+}
+
 /**
  * Resolves the active workspace for authenticated user requests.
  *
@@ -40,15 +65,21 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
 
     const { authContext, isAuthenticated } = c.var;
 
-    if (!isAuthenticated || !isUserAuthContext(authContext)) {
+    if (!isAuthenticated) {
+      c.set("workspaceContext", null);
+      return await next();
+    }
+
+    const workspaceOwnerContext = getWorkspaceOwnerContext(authContext);
+    if (!workspaceOwnerContext) {
       c.set("workspaceContext", null);
       return await next();
     }
 
     try {
       const workspace = await workspaceRepository.upsertWorkspaceForContext(
-        authContext.userId,
-        authContext.organizationId ?? null,
+        workspaceOwnerContext.userId,
+        workspaceOwnerContext.organizationId,
         prisma,
       );
 
@@ -65,8 +96,8 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
           context: "workspace_context_resolution",
         },
         extra: {
-          activeOrganizationId: authContext.organizationId ?? null,
-          userId: authContext.userId,
+          activeOrganizationId: workspaceOwnerContext.organizationId,
+          userId: workspaceOwnerContext.userId,
         },
       });
       c.set("workspaceContext", null);

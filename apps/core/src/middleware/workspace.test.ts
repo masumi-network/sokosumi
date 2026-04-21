@@ -276,4 +276,53 @@ describe("workspaceMiddleware", () => {
     });
     expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
   });
+
+  it("resolves workspaceContext for delegated coworker requests", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: "cow_123",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: {
+        archivedAt: null,
+      },
+    });
+    upsertWorkspaceForContextMock.mockResolvedValueOnce({
+      id: "workspace_delegated",
+      userId: "user_delegate",
+      organizationId: null,
+    });
+
+    const app = createApp(true);
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer coworker_validtoken",
+        "x-delegation-user-id": "user_delegate",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        delegation: {
+          userId: "user_delegate",
+          organizationId: null,
+        },
+      },
+      workspaceContext: {
+        workspaceId: "workspace_delegated",
+        userId: "user_delegate",
+        organizationId: null,
+      },
+    });
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+      "user_delegate",
+      null,
+      expect.objectContaining({
+        coworkerApiKey: expect.any(Object),
+        member: expect.any(Object),
+      }),
+    );
+  });
 });
