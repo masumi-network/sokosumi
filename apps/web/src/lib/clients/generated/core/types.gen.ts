@@ -7103,7 +7103,7 @@ export type PostCoworkersError = PostCoworkersErrors[keyof PostCoworkersErrors];
 
 export type PostCoworkersResponses = {
     /**
-     * Create coworker
+     * Create coworker (admin only)
      */
     201: {
         data: Coworker;
