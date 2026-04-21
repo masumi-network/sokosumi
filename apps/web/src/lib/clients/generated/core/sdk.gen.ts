@@ -559,7 +559,7 @@ export const getCoworkers = <ThrowOnError extends boolean = false>(options?: Opt
 });
 
 /**
- * Create coworker
+ * Create coworker (admin only)
  */
 export const postCoworkers = <ThrowOnError extends boolean = false>(options?: Options<PostCoworkersData, ThrowOnError>) => (options?.client ?? client).post<PostCoworkersResponses, PostCoworkersErrors, ThrowOnError>({
     responseTransformer: postCoworkersResponseTransformer,
