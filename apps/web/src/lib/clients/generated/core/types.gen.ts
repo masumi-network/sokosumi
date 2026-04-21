@@ -285,6 +285,29 @@ export type WorkspaceSummary = {
     } | null;
 };
 
+export type GetChatUiMessagesResponseData = {
+    messages: Array<ChatUiMessage>;
+};
+
+export type ChatUiMessage = {
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    parts: Array<{
+        type: 'reasoning';
+        text: string;
+    } | {
+        type: 'text';
+        text: string;
+    } | {
+        type: string;
+        text?: string;
+    }>;
+    metadata?: {
+        thoughtStartedAtMs: number;
+        thoughtEndedAtMs: number;
+    };
+};
+
 export type ConversationList = Array<Conversation>;
 
 export type Conversation = {
@@ -353,17 +376,17 @@ export type ArchiveConversationRequest = {
     archived: boolean;
 };
 
-export type ConversationItem = {
+export type ConversationMessage = {
     /**
-     * Conversation item ID
+     * Conversation message ID
      */
     id: string;
     /**
-     * Item role
+     * Message role
      */
     role: 'user' | 'assistant' | 'system';
     /**
-     * Item content - string for simple text, array for structured content with type
+     * Message content — string for plain text, or array of typed parts
      */
     content: string | Array<{
         type: string;
@@ -373,31 +396,27 @@ export type ConversationItem = {
      * Unix timestamp in seconds
      */
     createdAt: number;
+    /**
+     * Wall-clock thought phase (ms since epoch), when persisted for coworker reasoning
+     */
+    thoughtTiming?: {
+        startedAtMs: number | null;
+        endedAtMs: number | null;
+    };
 };
 
-export type CreateConversationItemRequest = {
+export type CreateConversationMessageRequest = {
     /**
-     * Item role
+     * Message role
      */
     role: 'user' | 'assistant' | 'system';
     /**
-     * Item content - string for simple text, array for structured content with type
+     * Message content — string for plain text, or array of typed parts
      */
     content: string | Array<{
         type: string;
         text?: string;
     }>;
-};
-
-export type RecoverResponseResult = {
-    /**
-     * True if a completed response was fetched and saved
-     */
-    recovered: boolean;
-    /**
-     * When recovered is false
-     */
-    reason?: 'not_found' | 'in_progress' | 'terminal';
 };
 
 export type CreditCost = {
@@ -923,12 +942,12 @@ export type MasumiTaskPaymentSource = {
 export type OrganizationSlug = string;
 
 /**
- * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+ * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
  */
 export type DelegationUserId = string;
 
 /**
- * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+ * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
  */
 export type DelegationOrganizationId = string;
 
@@ -940,11 +959,11 @@ export type GetAgentsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -1021,11 +1040,11 @@ export type GetAgentsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -1091,11 +1110,11 @@ export type GetAgentsByIdReviewsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -1161,11 +1180,11 @@ export type GetAgentsByIdInputSchemaData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -2179,11 +2198,11 @@ export type GetAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -3233,11 +3252,11 @@ export type PostAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -3355,11 +3374,11 @@ export type GetCategoriesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -3402,8 +3421,395 @@ export type GetCategoriesResponses = {
 
 export type GetCategoriesResponse = GetCategoriesResponses[keyof GetCategoriesResponses];
 
+export type GetChatData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Internal conversation id
+         */
+        conversationId: string;
+        /**
+         * Cursor for pagination (id of the last message from the previous page).
+         */
+        cursor?: string;
+        /**
+         * Page size (max 200). Cursor pagination metadata is always returned for forward compatibility.
+         */
+        limit?: number;
+    };
+    url: '/chat';
+};
+
+export type GetChatErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatError = GetChatErrors[keyof GetChatErrors];
+
+export type GetChatResponses = {
+    /**
+     * UIMessages for the conversation (standard data + meta envelope; messages in data.messages)
+     */
+    200: {
+        data: GetChatUiMessagesResponseData;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatResponse = GetChatResponses[keyof GetChatResponses];
+
+export type PostChatData = {
+    body?: {
+        messages?: Array<{
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: string;
+                text?: string;
+            }>;
+            content?: string | Array<{
+                type: string;
+                text?: string;
+            }>;
+            id?: string;
+        }>;
+        message?: {
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: string;
+                text?: string;
+            }>;
+            content?: string | Array<{
+                type: string;
+                text?: string;
+            }>;
+            id?: string;
+        };
+        id?: string;
+        trigger?: 'submit-message' | 'regenerate-message';
+        messageId?: string;
+        conversationId?: string;
+        previousResponseId?: string;
+        model?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chat';
+};
+
+export type PostChatErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatError = PostChatErrors[keyof PostChatErrors];
+
+export type PostChatResponses = {
+    /**
+     * Streaming UI message response (AI SDK)
+     */
+    200: string;
+};
+
+export type PostChatResponse = PostChatResponses[keyof PostChatResponses];
+
+export type GetChatStreamByConversationIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Internal conversation id
+         */
+        conversationId: string;
+    };
+    query?: never;
+    url: '/chat/stream/{conversationId}';
+};
+
+export type GetChatStreamByConversationIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatStreamByConversationIdError = GetChatStreamByConversationIdErrors[keyof GetChatStreamByConversationIdErrors];
+
+export type GetChatStreamByConversationIdResponses = {
+    /**
+     * Resumable UI message stream (SSE)
+     */
+    200: string;
+    /**
+     * No active resumable stream for this conversation
+     */
+    204: void;
+};
+
+export type GetChatStreamByConversationIdResponse = GetChatStreamByConversationIdResponses[keyof GetChatStreamByConversationIdResponses];
+
 export type GetConversationsData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/conversations';
@@ -3471,6 +3877,20 @@ export type GetConversationsResponse = GetConversationsResponses[keyof GetConver
 
 export type PostConversationsData = {
     body?: CreateConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/conversations';
@@ -3551,6 +3971,20 @@ export type PostConversationsResponse = PostConversationsResponses[keyof PostCon
 
 export type GetConversationsByIdData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3636,6 +4070,20 @@ export type GetConversationsByIdResponse = GetConversationsByIdResponses[keyof G
 
 export type PatchConversationsByIdData = {
     body?: UpdateConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3721,6 +4169,20 @@ export type PatchConversationsByIdResponse = PatchConversationsByIdResponses[key
 
 export type PatchConversationsByIdArchiveData = {
     body?: ArchiveConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3804,8 +4266,22 @@ export type PatchConversationsByIdArchiveResponses = {
 
 export type PatchConversationsByIdArchiveResponse = PatchConversationsByIdArchiveResponses[keyof PatchConversationsByIdArchiveResponses];
 
-export type GetConversationsByIdItemsData = {
+export type GetConversationsByIdMessagesData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3822,10 +4298,10 @@ export type GetConversationsByIdItemsData = {
          */
         limit?: number;
     };
-    url: '/conversations/{id}/items';
+    url: '/conversations/{id}/messages';
 };
 
-export type GetConversationsByIdItemsErrors = {
+export type GetConversationsByIdMessagesErrors = {
     /**
      * Unauthorized
      */
@@ -3880,14 +4356,14 @@ export type GetConversationsByIdItemsErrors = {
     };
 };
 
-export type GetConversationsByIdItemsError = GetConversationsByIdItemsErrors[keyof GetConversationsByIdItemsErrors];
+export type GetConversationsByIdMessagesError = GetConversationsByIdMessagesErrors[keyof GetConversationsByIdMessagesErrors];
 
-export type GetConversationsByIdItemsResponses = {
+export type GetConversationsByIdMessagesResponses = {
     /**
-     * Conversation items retrieved successfully
+     * Conversation messages retrieved successfully
      */
     200: {
-        data: Array<ConversationItem>;
+        data: Array<ConversationMessage>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -3896,10 +4372,24 @@ export type GetConversationsByIdItemsResponses = {
     };
 };
 
-export type GetConversationsByIdItemsResponse = GetConversationsByIdItemsResponses[keyof GetConversationsByIdItemsResponses];
+export type GetConversationsByIdMessagesResponse = GetConversationsByIdMessagesResponses[keyof GetConversationsByIdMessagesResponses];
 
-export type PostConversationsByIdItemsData = {
-    body?: CreateConversationItemRequest;
+export type PostConversationsByIdMessagesData = {
+    body?: CreateConversationMessageRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3907,10 +4397,10 @@ export type PostConversationsByIdItemsData = {
         id: string;
     };
     query?: never;
-    url: '/conversations/{id}/items';
+    url: '/conversations/{id}/messages';
 };
 
-export type PostConversationsByIdItemsErrors = {
+export type PostConversationsByIdMessagesErrors = {
     /**
      * Unauthorized
      */
@@ -3965,14 +4455,14 @@ export type PostConversationsByIdItemsErrors = {
     };
 };
 
-export type PostConversationsByIdItemsError = PostConversationsByIdItemsErrors[keyof PostConversationsByIdItemsErrors];
+export type PostConversationsByIdMessagesError = PostConversationsByIdMessagesErrors[keyof PostConversationsByIdMessagesErrors];
 
-export type PostConversationsByIdItemsResponses = {
+export type PostConversationsByIdMessagesResponses = {
     /**
-     * Conversation item created successfully
+     * Conversation message created successfully
      */
     201: {
-        data: ConversationItem;
+        data: ConversationMessage;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -3981,105 +4471,7 @@ export type PostConversationsByIdItemsResponses = {
     };
 };
 
-export type PostConversationsByIdItemsResponse = PostConversationsByIdItemsResponses[keyof PostConversationsByIdItemsResponses];
-
-export type PostConversationsByIdRecoverResponseData = {
-    body?: never;
-    path: {
-        /**
-         * Conversation ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/conversations/{id}/recover-response';
-};
-
-export type PostConversationsByIdRecoverResponseErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostConversationsByIdRecoverResponseError = PostConversationsByIdRecoverResponseErrors[keyof PostConversationsByIdRecoverResponseErrors];
-
-export type PostConversationsByIdRecoverResponseResponses = {
-    /**
-     * Recovery result
-     */
-    200: {
-        data: RecoverResponseResult;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostConversationsByIdRecoverResponseResponse = PostConversationsByIdRecoverResponseResponses[keyof PostConversationsByIdRecoverResponseResponses];
+export type PostConversationsByIdMessagesResponse = PostConversationsByIdMessagesResponses[keyof PostConversationsByIdMessagesResponses];
 
 export type GetCreditCostsData = {
     body?: never;
@@ -4498,11 +4890,11 @@ export type GetUsersByIdCreditsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4651,6 +5043,19 @@ export type GetUsersByIdOrganizationsErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         meta: {
@@ -4854,6 +5259,19 @@ export type GetUsersByIdPreferencesErrors = {
         };
     };
     /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -4956,6 +5374,19 @@ export type PatchUsersByIdPreferencesErrors = {
             method: string;
         };
     };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PatchUsersByIdPreferencesError = PatchUsersByIdPreferencesErrors[keyof PatchUsersByIdPreferencesErrors];
@@ -5015,6 +5446,19 @@ export type GetUsersByIdOnboardingErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         meta: {
@@ -5114,6 +5558,19 @@ export type PostUsersByIdOnboardingErrors = {
             method: string;
         };
     };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostUsersByIdOnboardingError = PostUsersByIdOnboardingErrors[keyof PostUsersByIdOnboardingErrors];
@@ -5169,6 +5626,19 @@ export type GetUsersByIdNoticesPendingErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         meta: {
@@ -5359,6 +5829,19 @@ export type GetUsersByIdUploadsErrors = {
         };
     };
     /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -5452,6 +5935,19 @@ export type PostUsersByIdUploadsErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         meta: {
@@ -5698,11 +6194,11 @@ export type GetJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -5800,11 +6296,11 @@ export type GetJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -5898,11 +6394,11 @@ export type PatchJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6007,11 +6503,11 @@ export type PostJobsByIdRefundData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6116,11 +6612,11 @@ export type GetJobsByIdFilesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6212,11 +6708,11 @@ export type GetJobsByIdLinksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6308,11 +6804,11 @@ export type GetJobsByIdInputRequestData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6419,11 +6915,11 @@ export type PostJobsByIdInputsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6554,11 +7050,11 @@ export type GetJobsByIdEventsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6650,11 +7146,11 @@ export type DeleteJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6737,11 +7233,11 @@ export type PutJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6822,11 +7318,11 @@ export type PutJobsByIdWorkspaceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7103,7 +7599,7 @@ export type PostCoworkersError = PostCoworkersErrors[keyof PostCoworkersErrors];
 
 export type PostCoworkersResponses = {
     /**
-     * Create coworker (admin only)
+     * Create coworker
      */
     201: {
         data: Coworker;
@@ -7948,11 +8444,11 @@ export type GetTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8063,11 +8559,11 @@ export type PostTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
          */
         'X-Delegation-Organization-Id'?: string;
     };

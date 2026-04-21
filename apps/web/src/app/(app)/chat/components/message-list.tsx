@@ -60,13 +60,6 @@ interface MessageListProps {
   userImageUrl: string;
   userName?: string;
   isLoading: boolean;
-  isPollingForPendingResponse?: boolean;
-  isRecovering?: boolean;
-  isRecoveringPolling?: boolean;
-  /** When true, show "connection lost" message instead of generic pending error */
-  isRecoveryNotFound?: boolean;
-  pendingResponseFailed?: boolean;
-  hasPendingIdInMetadata?: boolean;
   conversationCoworkerFallback?: {
     id: string;
     name?: string;
@@ -89,12 +82,6 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       userImageUrl,
       userName,
       isLoading,
-      isPollingForPendingResponse = false,
-      isRecovering = false,
-      isRecoveringPolling = false,
-      isRecoveryNotFound = false,
-      pendingResponseFailed = false,
-      hasPendingIdInMetadata = false,
       conversationCoworkerFallback = null,
       reasoningMessages = [],
       reasoningStartedAt,
@@ -150,33 +137,24 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const lastAssistantHasNoContent =
       lastMessage?.role === "assistant" && !lastMessageContent.trim();
     const showPendingErrorForEmptyAssistant =
-      hasPendingIdInMetadata &&
       lastMessage?.role === "assistant" &&
       lastAssistantHasNoContent &&
       !isLoading;
     const showLoadingArea =
-      (isLoading || isPollingForPendingResponse || isRecovering) &&
+      isLoading &&
       (!lastMessage ||
         lastMessage.role !== "assistant" ||
         lastAssistantHasNoContent);
     const showReasoningLoaders =
-      showLoadingArea &&
-      isCoworker &&
-      reasoningMessages.length > 0 &&
-      !isRecoveringPolling &&
-      !isRecovering;
+      showLoadingArea && isCoworker && reasoningMessages.length > 0;
     const hasStreamingWithReasoning =
       isCoworker &&
       reasoningMessages.length > 0 &&
       lastMessage?.role === "assistant" &&
       lastMessageContent.trim().length > 0;
-    const recoveryInFlight = isRecovering || isRecoveringPolling;
-    const showPendingError =
-      !recoveryInFlight &&
-      (pendingResponseFailed || showPendingErrorForEmptyAssistant);
+    const showPendingError = showPendingErrorForEmptyAssistant;
     const showLoadingIndicator =
-      isRecovering ||
-      (showLoadingArea && !showReasoningLoaders && !showPendingError);
+      showLoadingArea && !showReasoningLoaders && !showPendingError;
     const loadingIndicatorLabel = undefined;
 
     const sections = groupMessagesIntoSection(messagesWithTimestamps);
@@ -212,9 +190,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       showPendingError && onResendLastMessage && lastUserMessageText,
     );
 
-    const pendingErrorMessage = isRecoveryNotFound
-      ? t("noResponseConnectionLost")
-      : t("pendingResponseFailed");
+    const pendingErrorMessage = t("pendingResponseFailed");
     const pendingErrorBlock = showPendingError && (
       <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
         <Avatar
@@ -355,28 +331,27 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         >
           <div className="flex flex-col items-center pt-20 pb-40 md:pt-4">
             <div className="flex w-full max-w-4xl flex-col">
-              {sections.length === 0 &&
-                (showLoadingArea || pendingResponseFailed || isRecovering) && (
-                  <>
-                    {showReasoningLoaders && (
-                      <ReasoningLoaders
-                        reasoningMessages={reasoningMessages}
-                        selectedChatId={selectedChatId}
-                        chats={chats}
-                        coworkers={coworkers}
-                      />
-                    )}
-                    {showLoadingIndicator && (
-                      <LoadingIndicator label={loadingIndicatorLabel} />
-                    )}
-                    {pendingErrorBlock}
-                    <div
-                      className="min-h-[160px] shrink-0"
-                      aria-hidden
-                      data-slot="scroll-spacer"
+              {sections.length === 0 && showLoadingArea && (
+                <>
+                  {showReasoningLoaders && (
+                    <ReasoningLoaders
+                      reasoningMessages={reasoningMessages}
+                      selectedChatId={selectedChatId}
+                      chats={chats}
+                      coworkers={coworkers}
                     />
-                  </>
-                )}
+                  )}
+                  {showLoadingIndicator && (
+                    <LoadingIndicator label={loadingIndicatorLabel} />
+                  )}
+                  {pendingErrorBlock}
+                  <div
+                    className="min-h-[160px] shrink-0"
+                    aria-hidden
+                    data-slot="scroll-spacer"
+                  />
+                </>
+              )}
               {sections.map((section, sectionIndex) => {
                 const isActiveNewSection =
                   sectionIndex > 0 && sectionIndex === sections.length - 1;
@@ -432,7 +407,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                           <LoadingIndicator label={loadingIndicatorLabel} />
                         )}
                         {pendingErrorBlock}
-                        {(showLoadingArea || pendingResponseFailed) && (
+                        {showLoadingArea && (
                           <div
                             className="min-h-[160px] shrink-0"
                             aria-hidden

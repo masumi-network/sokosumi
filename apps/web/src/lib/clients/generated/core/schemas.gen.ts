@@ -1090,6 +1090,116 @@ export const WorkspaceSummarySchema = {
     ]
 } as const;
 
+export const GetChatUiMessagesResponseDataSchema = {
+    type: 'object',
+    properties: {
+        messages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatUiMessage'
+            }
+        }
+    },
+    required: [
+        'messages'
+    ]
+} as const;
+
+export const ChatUiMessageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'user',
+                'assistant',
+                'system'
+            ]
+        },
+        parts: {
+            type: 'array',
+            items: {
+                anyOf: [
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                enum: [
+                                    'reasoning'
+                                ]
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type',
+                            'text'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                enum: [
+                                    'text'
+                                ]
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type',
+                            'text'
+                        ]
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string'
+                            },
+                            text: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'type'
+                        ],
+                        description: 'Other or future UI message part shapes.'
+                    }
+                ]
+            }
+        },
+        metadata: {
+            type: 'object',
+            properties: {
+                thoughtStartedAtMs: {
+                    type: 'number'
+                },
+                thoughtEndedAtMs: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'thoughtStartedAtMs',
+                'thoughtEndedAtMs'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'role',
+        'parts'
+    ]
+} as const;
+
 export const ConversationListSchema = {
     type: 'array',
     items: {
@@ -1214,13 +1324,13 @@ export const ArchiveConversationRequestSchema = {
     ]
 } as const;
 
-export const ConversationItemSchema = {
+export const ConversationMessageSchema = {
     type: 'object',
     properties: {
         id: {
             type: 'string',
             format: 'uuid',
-            description: 'Conversation item ID',
+            description: 'Conversation message ID',
             example: '550e8400-e29b-41d4-a716-446655440000'
         },
         role: {
@@ -1230,7 +1340,7 @@ export const ConversationItemSchema = {
                 'assistant',
                 'system'
             ],
-            description: 'Item role',
+            description: 'Message role',
             example: 'user'
         },
         content: {
@@ -1256,13 +1366,35 @@ export const ConversationItemSchema = {
                     }
                 }
             ],
-            description: 'Item content - string for simple text, array for structured content with type',
+            description: 'Message content — string for plain text, or array of typed parts',
             example: 'Hello!'
         },
         createdAt: {
             type: 'number',
             description: 'Unix timestamp in seconds',
             example: 1706284800
+        },
+        thoughtTiming: {
+            type: 'object',
+            properties: {
+                startedAtMs: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                endedAtMs: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'startedAtMs',
+                'endedAtMs'
+            ],
+            description: 'Wall-clock thought phase (ms since epoch), when persisted for coworker reasoning'
         }
     },
     required: [
@@ -1273,7 +1405,7 @@ export const ConversationItemSchema = {
     ]
 } as const;
 
-export const CreateConversationItemRequestSchema = {
+export const CreateConversationMessageRequestSchema = {
     type: 'object',
     properties: {
         role: {
@@ -1283,7 +1415,7 @@ export const CreateConversationItemRequestSchema = {
                 'assistant',
                 'system'
             ],
-            description: 'Item role',
+            description: 'Message role',
             example: 'user'
         },
         content: {
@@ -1309,35 +1441,13 @@ export const CreateConversationItemRequestSchema = {
                     }
                 }
             ],
-            description: 'Item content - string for simple text, array for structured content with type',
+            description: 'Message content — string for plain text, or array of typed parts',
             example: 'Hello!'
         }
     },
     required: [
         'role',
         'content'
-    ]
-} as const;
-
-export const RecoverResponseResultSchema = {
-    type: 'object',
-    properties: {
-        recovered: {
-            type: 'boolean',
-            description: 'True if a completed response was fetched and saved'
-        },
-        reason: {
-            type: 'string',
-            enum: [
-                'not_found',
-                'in_progress',
-                'terminal'
-            ],
-            description: 'When recovered is false'
-        }
-    },
-    required: [
-        'recovered'
     ]
 } as const;
 

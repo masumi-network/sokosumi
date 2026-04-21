@@ -1,0 +1,278 @@
+"use client";
+
+import type { UIMessage } from "ai";
+import type { MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
+import { readPendingResponsesApiResponseIdFromMetadata } from "@/app/chat-ui/utils/conversation-metadata";
+import { extractMessageContent } from "@/app/chat-ui/utils/message-utils";
+import { getConversationMessages } from "@/lib/actions/conversation/core-api-actions";
+
+const DEFAULT_POLL_TIMEOUT_MS = 60_000;
+
+function getPollTimeoutMs(): number {
+  const ms = (globalThis as { __SOKOSUMI_TEST_POLL_TIMEOUT_MS?: number })
+    .__SOKOSUMI_TEST_POLL_TIMEOUT_MS;
+  if (typeof ms === "number" && ms > 0) return ms;
+  return DEFAULT_POLL_TIMEOUT_MS;
+}
+
+const INITIAL_BACKOFF_MS = 500;
+const MAX_BACKOFF_MS = 8000;
+
+const CONVERSATION_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isConversationUuid(value: string): boolean {
+  return CONVERSATION_UUID_RE.test(value.trim());
+}
+
+function hasNonEmptyAssistantTail(messages: UIMessage[]): boolean {
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== "assistant") return false;
+  return extractMessageContent(last).trim().length > 0;
+}
+
+function isLastMessageUserWithText(messages: UIMessage[]): boolean {
+  if (messages.length === 0) return false;
+  const last = messages[messages.length - 1];
+  if (last.role !== "user") return false;
+  return extractMessageContent(last).trim().length > 0;
+}
+
+type SerializedMessagesResult =
+  | {
+      ok: true;
+      data: {
+        messages: Array<{
+          id: string;
+          role: string;
+          content: Array<{ type: string; text?: string }> | string;
+          createdAt: number;
+          thoughtTiming?: {
+            startedAtMs: number | null;
+            endedAtMs: number | null;
+          };
+        }>;
+      };
+    }
+  | { ok: false; error: unknown }
+  | { isOk: () => boolean; value?: unknown };
+
+type SerializedConversationMessages = Extract<
+  SerializedMessagesResult,
+  { ok: true }
+>["data"]["messages"];
+
+function extractMessagesFromGetConversationMessagesResult(
+  raw: unknown,
+): SerializedConversationMessages | null {
+  const resultAny = raw as SerializedMessagesResult;
+  if (
+    resultAny &&
+    "ok" in resultAny &&
+    resultAny.ok === true &&
+    "data" in resultAny &&
+    resultAny.data &&
+    typeof resultAny.data === "object" &&
+    "messages" in resultAny.data
+  ) {
+    return resultAny.data.messages;
+  }
+  if (
+    resultAny &&
+    "isOk" in resultAny &&
+    typeof resultAny.isOk === "function"
+  ) {
+    if (resultAny.isOk() && "value" in resultAny) {
+      const value = resultAny.value as {
+        messages: SerializedConversationMessages;
+      };
+      return value.messages;
+    }
+  }
+  return null;
+}
+
+export interface UseCoworkerPostRefreshAssistantPollParams {
+  conversationId: string | null;
+  isCoworkerThread: boolean;
+  isChatStreaming: boolean;
+  conversationMetadata: Record<string, unknown> | null | undefined;
+  messagesChatIdRef: MutableRefObject<string | null>;
+  displayedMessages: UIMessage[];
+  setMessagesForConversation: (convId: string, messages: UIMessage[]) => void;
+  refreshConversations: () => Promise<unknown>;
+}
+
+export interface UseCoworkerPostRefreshAssistantPollResult {
+  userTailRecoveryLoading: boolean;
+  userTailRecoveryFailed: boolean;
+}
+
+export function useCoworkerPostRefreshAssistantPoll({
+  conversationId,
+  isCoworkerThread,
+  isChatStreaming,
+  conversationMetadata,
+  messagesChatIdRef,
+  displayedMessages,
+  setMessagesForConversation,
+  refreshConversations,
+}: UseCoworkerPostRefreshAssistantPollParams): UseCoworkerPostRefreshAssistantPollResult {
+  const [userTailRecoveryLoading, setUserTailRecoveryLoading] = useState(false);
+  const [userTailRecoveryFailed, setUserTailRecoveryFailed] = useState(false);
+  const pollGenerationRef = useRef(0);
+
+  const pendingApiFingerprint = useMemo(
+    () =>
+      readPendingResponsesApiResponseIdFromMetadata(conversationMetadata) ?? "",
+    [conversationMetadata],
+  );
+
+  const messageTailFingerprint = useMemo(() => {
+    const m = displayedMessages;
+    if (m.length === 0) return "empty";
+    const last = m[m.length - 1];
+    const id = typeof last.id === "string" ? last.id : "";
+    const role = last.role;
+    const text =
+      role === "user" ? extractMessageContent(last).slice(0, 64) : "";
+    return `${m.length}:${id}:${role}:${text}`;
+  }, [displayedMessages]);
+
+  useEffect(() => {
+    if (!conversationId || !isConversationUuid(conversationId)) {
+      setUserTailRecoveryLoading(false);
+      setUserTailRecoveryFailed(false);
+      return;
+    }
+
+    if (!isCoworkerThread) {
+      setUserTailRecoveryLoading(false);
+      setUserTailRecoveryFailed(false);
+      return;
+    }
+
+    if (isChatStreaming) {
+      setUserTailRecoveryLoading(false);
+      setUserTailRecoveryFailed(false);
+      return;
+    }
+
+    if (messagesChatIdRef.current !== conversationId) {
+      setUserTailRecoveryLoading(false);
+      setUserTailRecoveryFailed(false);
+      return;
+    }
+
+    if (!isLastMessageUserWithText(displayedMessages)) {
+      setUserTailRecoveryLoading(false);
+      setUserTailRecoveryFailed(false);
+      return;
+    }
+
+    if (hasNonEmptyAssistantTail(displayedMessages)) {
+      setUserTailRecoveryLoading(false);
+      setUserTailRecoveryFailed(false);
+      return;
+    }
+
+    const generation = pollGenerationRef.current;
+
+    function isStale(): boolean {
+      return pollGenerationRef.current !== generation;
+    }
+
+    void (async () => {
+      setUserTailRecoveryFailed(false);
+      setUserTailRecoveryLoading(true);
+
+      const pollStartedAt = Date.now();
+      const pollTimeoutMs = getPollTimeoutMs();
+      let backoffMs = INITIAL_BACKOFF_MS;
+
+      while (true) {
+        if (isStale()) {
+          setUserTailRecoveryLoading(false);
+          return;
+        }
+
+        if (Date.now() - pollStartedAt >= pollTimeoutMs) {
+          setUserTailRecoveryLoading(false);
+          setUserTailRecoveryFailed(true);
+          return;
+        }
+
+        const raw = await getConversationMessages({
+          conversationId,
+          limit: 100,
+        });
+        if (isStale()) {
+          setUserTailRecoveryLoading(false);
+          return;
+        }
+
+        const conversationMessages =
+          extractMessagesFromGetConversationMessagesResult(raw);
+        if (conversationMessages && conversationMessages.length > 0) {
+          const dbMessages = convertItemsToMessages(conversationMessages);
+          if (hasNonEmptyAssistantTail(dbMessages)) {
+            setMessagesForConversation(conversationId, dbMessages);
+            void refreshConversations();
+            if (!isStale()) {
+              setUserTailRecoveryLoading(false);
+              setUserTailRecoveryFailed(false);
+            }
+            return;
+          }
+        }
+
+        const remaining = pollTimeoutMs - (Date.now() - pollStartedAt);
+        if (remaining <= 0) {
+          setUserTailRecoveryLoading(false);
+          setUserTailRecoveryFailed(true);
+          return;
+        }
+
+        const sleep = Math.min(backoffMs, Math.max(0, remaining));
+        await new Promise((r) => setTimeout(r, sleep));
+        if (isStale()) {
+          setUserTailRecoveryLoading(false);
+          return;
+        }
+
+        backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
+      }
+    })();
+
+    return () => {
+      pollGenerationRef.current += 1;
+      setUserTailRecoveryLoading(false);
+    };
+  }, [
+    conversationId,
+    isCoworkerThread,
+    isChatStreaming,
+    pendingApiFingerprint,
+    messageTailFingerprint,
+    messagesChatIdRef,
+    setMessagesForConversation,
+    refreshConversations,
+  ]);
+
+  useEffect(() => {
+    if (
+      userTailRecoveryFailed &&
+      (isChatStreaming || hasNonEmptyAssistantTail(displayedMessages))
+    ) {
+      setUserTailRecoveryFailed(false);
+    }
+  }, [userTailRecoveryFailed, isChatStreaming, messageTailFingerprint]);
+
+  return {
+    userTailRecoveryLoading,
+    userTailRecoveryFailed,
+  };
+}

@@ -51,6 +51,7 @@ export default function ThoughtSummaryBar({
   }, [subordinateSteps, isOpen]);
 
   const displaySeconds = isFrozen ? frozenSeconds : liveSeconds;
+  const secondsForThoughtCopy = Math.max(1, displaySeconds);
   const isRecordedView = reasoningEndedAt != null;
 
   return (
@@ -66,7 +67,9 @@ export default function ThoughtSummaryBar({
           }
         >
           <span>
-            {t("reasoning.thoughtForSeconds", { seconds: displaySeconds })}
+            {t("reasoning.thoughtForSeconds", {
+              seconds: secondsForThoughtCopy,
+            })}
           </span>
           <span
             className={cn(
@@ -84,7 +87,9 @@ export default function ThoughtSummaryBar({
         </button>
       ) : (
         <div className="text-muted-foreground flex w-full items-center px-4 py-1.5 text-sm">
-          {t("reasoning.thoughtForSeconds", { seconds: displaySeconds })}
+          {t("reasoning.thoughtForSeconds", {
+            seconds: secondsForThoughtCopy,
+          })}
         </div>
       )}
       {isOpen && subordinateSteps.length > 0 && (
