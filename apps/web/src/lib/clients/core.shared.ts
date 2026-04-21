@@ -45,6 +45,7 @@ import {
   patchTasksById as corePatchTasksById,
   postConversations as corePostConversations,
   postConversationsByIdItems as corePostConversationsByIdItems,
+  postJobsByIdRefund as corePostJobsByIdRefund,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
@@ -407,6 +408,18 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to update job",
+    );
+  }
+
+  async function requestJobRefund(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostJobsByIdRefund({
+          client,
+          path: { id },
+        }),
+      "Failed to request job refund",
     );
   }
 
@@ -876,6 +889,7 @@ export function createCoreClient(getClient: GetClient) {
     moveJobToWorkspace,
     moveTaskToWorkspace,
     patchJob,
+    requestJobRefund,
     getTaskById,
     getTaskLinks,
     getTasks,

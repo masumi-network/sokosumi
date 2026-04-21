@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 
@@ -50,6 +49,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
 }));
 
 const patchJobMock = vi.fn();
+const requestJobRefundMock = vi.fn();
 const toCoreApiActionErrorMock = vi.fn();
 
 class MockCoreApiRequestError extends Error {
@@ -66,6 +66,7 @@ vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: MockCoreApiRequestError,
   coreClient: {
     patchJob: (...args: unknown[]) => patchJobMock(...args),
+    requestJobRefund: (...args: unknown[]) => requestJobRefundMock(...args),
   },
   toCoreApiActionError: (...args: unknown[]) =>
     toCoreApiActionErrorMock(...args),
@@ -80,16 +81,12 @@ vi.mock("@/lib/services", () => ({
   jobService: {
     moveJobToWorkspace: vi.fn(),
     provideJobInput: vi.fn(),
-    requestRefund: vi.fn(),
     startDemoJob: vi.fn(),
     startJob: vi.fn(),
   },
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  jobRepository: {
-    getJobByBlockchainIdentifier: vi.fn(),
-  },
   userRepository: {
     getUserById: vi.fn(),
   },
@@ -211,6 +208,131 @@ describe("updateJobName", () => {
       error: {
         code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         message: "The service is currently unavailable.",
+      },
+    });
+  });
+});
+
+describe("requestRefundJob", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    toCoreApiActionErrorMock.mockReturnValue({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to communicate with Core API",
+    });
+  });
+
+  it("requests the refund through core and returns the updated paid job status", async () => {
+    requestJobRefundMock.mockResolvedValue({
+      data: {
+        id: "job-1",
+        jobType: "PAID",
+        status: "refund_pending",
+      },
+    });
+
+    const { requestRefundJob } = await import("../action");
+    const result = await requestRefundJob({
+      jobId: "job-1",
+    });
+
+    expect(requestJobRefundMock).toHaveBeenCalledWith("job-1");
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        job: {
+          id: "job-1",
+          jobType: "PAID",
+          status: "refund_pending",
+        },
+      },
+    });
+  });
+
+  it("returns unauthorized when core rejects with 401 or 403", async () => {
+    const { requestRefundJob } = await import("../action");
+
+    for (const status of [401, 403]) {
+      requestJobRefundMock.mockRejectedValueOnce(
+        new MockCoreApiRequestError("Unauthorized", { status }),
+      );
+
+      const result = await requestRefundJob({
+        jobId: `job-${status}`,
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          message: "Unauthorized",
+          code: CommonErrorCode.UNAUTHORIZED,
+        },
+      });
+    }
+  });
+
+  it("returns job not found when core returns 404", async () => {
+    requestJobRefundMock.mockRejectedValue(
+      new MockCoreApiRequestError("Job not found", { status: 404 }),
+    );
+
+    const { requestRefundJob } = await import("../action");
+    const result = await requestRefundJob({
+      jobId: "job-1",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: "Job not found",
+        code: JobErrorCode.JOB_NOT_FOUND,
+      },
+    });
+  });
+
+  it("maps a 422 core error through the shared core error mapper", async () => {
+    requestJobRefundMock.mockRejectedValue(
+      new MockCoreApiRequestError("Refund failed", { status: 422 }),
+    );
+    toCoreApiActionErrorMock.mockReturnValue({
+      code: CommonErrorCode.BAD_INPUT,
+      message: "Refund failed",
+    });
+
+    const { requestRefundJob } = await import("../action");
+    const result = await requestRefundJob({
+      jobId: "job-1",
+    });
+
+    expect(toCoreApiActionErrorMock).toHaveBeenCalledWith(expect.any(Error));
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Refund failed",
+      },
+    });
+  });
+
+  it("returns job not found when core returns a non-paid job", async () => {
+    requestJobRefundMock.mockResolvedValue({
+      data: {
+        id: "job-1",
+        jobType: "FREE",
+        status: "refund_pending",
+      },
+    });
+
+    const { requestRefundJob } = await import("../action");
+    const result = await requestRefundJob({
+      jobId: "job-1",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: "Job not found",
+        code: JobErrorCode.JOB_NOT_FOUND,
       },
     });
   });
