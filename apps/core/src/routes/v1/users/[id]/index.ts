@@ -1,5 +1,8 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-
+import {
+  type UserRouteVariables,
+  usersPathUserContextMiddleware,
+} from "../user-route-context.js";
 import mountGetUserCredits from "./credits/get.js";
 import mountGetUserById from "./get.js";
 import mountPostUserNoticeAcknowledge from "./notices/[noticeId]/acknowledge/post.js";
@@ -12,11 +15,10 @@ import mountGetUserPreferences from "./preferences/get.js";
 import mountPatchUserPreferences from "./preferences/patch.js";
 import mountGetUserUploads from "./uploads/get.js";
 import mountPostUserUploads from "./uploads/post.js";
-import { usersPathUserExistsMiddleware } from "../path-user-middleware.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
-app.use("*", usersPathUserExistsMiddleware);
+app.use("*", usersPathUserContextMiddleware);
 
 mountGetUserCredits(app);
 mountGetUserOrganizations(app);

@@ -50,7 +50,11 @@ export type EnvVariables = {
  * const app = new OpenAPIHonoWithAuth();
  * // authMiddleware and organizationHeaderMiddleware are already applied
  */
-export class OpenAPIHonoWithAuth extends OpenAPIHono<EnvVariables> {
+export class OpenAPIHonoWithAuth<
+  ExtraVariables extends object = {},
+> extends OpenAPIHono<{
+  Variables: EnvVariables["Variables"] & ExtraVariables;
+}> {
   constructor(options: OpenAPIHonoWithAuthOptions = {}) {
     const { includeWorkspaceContext = false } = options;
 

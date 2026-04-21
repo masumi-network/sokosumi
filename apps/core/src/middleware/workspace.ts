@@ -3,7 +3,7 @@ import { workspaceRepository } from "@sokosumi/database/repositories";
 import { createMiddleware } from "hono/factory";
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import { type EnvVariables } from "@/lib/hono";
+import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,

@@ -11,10 +11,11 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { createUserFileUploadSession } from "@/lib/blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
-  resolveUsersPathUserId,
-  usersRoutePathUserIdSchema,
-} from "@/routes/v1/users/user-path-access";
+  requireUserRouteContext,
+  type UserRouteVariables,
+} from "@/routes/v1/users/user-route-context";
 import {
   createUserFileUploadRequestSchema,
   userFileUploadSessionSchema,
@@ -160,13 +161,10 @@ const route = createRoute({
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    const { id: pathUser } = c.req.valid("param");
-    const { targetUserId } = resolveUsersPathUserId(
-      c.var.authContext,
-      pathUser,
-    );
+    c.req.valid("param");
+    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const token = getEnv().BLOB_READ_WRITE_TOKEN;
     if (!token) {
@@ -195,7 +193,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const uploadSession = await createUserFileUploadSession(
-      targetUserId,
+      resolvedUserId,
       sessionInput,
       token,
     );

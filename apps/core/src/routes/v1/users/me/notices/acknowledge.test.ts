@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { resolveUsersPathUserId } from "@/routes/v1/users/user-path-access";
+import type { UserRouteVariables } from "@/routes/v1/users/user-route-context";
 
 import mountPostNoticeAcknowledge from "../../[id]/notices/[noticeId]/acknowledge/post";
 
@@ -83,9 +85,18 @@ function createApp(actor: "user" | "coworker" = "user") {
   });
 
   const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & UserRouteVariables;
   }>();
-  mountPostNoticeAcknowledge(userByIdApp as unknown as OpenAPIHonoWithAuth);
+  userByIdApp.use("*", async (c, next) => {
+    c.set(
+      "userRouteContext",
+      resolveUsersPathUserId(c.var.authContext, c.req.param("id")!),
+    );
+    return await next();
+  });
+  mountPostNoticeAcknowledge(
+    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
+  );
   app.route("/:id", userByIdApp);
 
   return app;

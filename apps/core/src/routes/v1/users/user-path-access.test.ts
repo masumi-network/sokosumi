@@ -80,7 +80,7 @@ describe("requireAccessToTargetUserData", () => {
 
 describe("resolveUsersPathUserId", () => {
   it("resolves me to the session user id", () => {
-    const { targetUserId, userContext } = resolveUsersPathUserId(
+    const { resolvedUserId, userContext } = resolveUsersPathUserId(
       {
         actor: "user",
         userId: "usr_self",
@@ -89,7 +89,7 @@ describe("resolveUsersPathUserId", () => {
       },
       USERS_PATH_ME,
     );
-    expect(targetUserId).toBe("usr_self");
+    expect(resolvedUserId).toBe("usr_self");
     expect(userContext.source).toBe("session");
     expect(userContext.userId).toBe("usr_self");
   });
@@ -108,7 +108,7 @@ describe("resolveUsersPathUserId", () => {
   });
 
   it("delegates to requireAccessToTargetUserData for concrete ids", () => {
-    const { targetUserId, userContext } = resolveUsersPathUserId(
+    const { resolvedUserId, userContext } = resolveUsersPathUserId(
       {
         actor: "user",
         userId: "usr_self",
@@ -117,7 +117,7 @@ describe("resolveUsersPathUserId", () => {
       },
       "usr_self",
     );
-    expect(targetUserId).toBe("usr_self");
+    expect(resolvedUserId).toBe("usr_self");
     expect(userContext.userId).toBe("usr_self");
   });
 });

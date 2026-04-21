@@ -4,10 +4,11 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
-  resolveUsersPathUserId,
-  usersRoutePathUserIdSchema,
-} from "@/routes/v1/users/user-path-access";
+  requireUserRouteContext,
+  type UserRouteVariables,
+} from "@/routes/v1/users/user-route-context";
 import { organizationsSchema } from "@/schemas/organization.schema";
 
 const params = z.object({
@@ -53,17 +54,14 @@ const route = createRoute({
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    const { id: pathUser } = c.req.valid("param");
-    const { targetUserId } = resolveUsersPathUserId(
-      c.var.authContext,
-      pathUser,
-    );
+    c.req.valid("param");
+    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const organizations = await prisma.$transaction(async (tx) => {
       const members = await tx.member.findMany({
-        where: { userId: targetUserId },
+        where: { userId: resolvedUserId },
         include: { organization: true },
       });
 

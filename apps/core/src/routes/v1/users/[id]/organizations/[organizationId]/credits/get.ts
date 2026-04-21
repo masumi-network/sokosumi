@@ -5,10 +5,11 @@ import { ok } from "@/helpers/response";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
-  resolveUsersPathUserId,
-  usersRoutePathUserIdSchema,
-} from "@/routes/v1/users/user-path-access";
+  requireUserRouteContext,
+  type UserRouteVariables,
+} from "@/routes/v1/users/user-route-context";
 import { creditsResponseSchema } from "@/schemas/user.schema";
 
 const params = z.object({
@@ -67,22 +68,19 @@ const route = createRoute({
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    const { id: pathUser, organizationId } = c.req.valid("param");
-    const { targetUserId } = resolveUsersPathUserId(
-      c.var.authContext,
-      pathUser,
-    );
+    const { organizationId } = c.req.valid("param");
+    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const credits = await prisma.$transaction(async (tx) => {
       const { organization } = await resolveMemberOrganizationById({
         id: organizationId,
-        userId: targetUserId,
+        userId: resolvedUserId,
         tx,
       });
       return await buildCreditsPayload({
-        userId: targetUserId,
+        userId: resolvedUserId,
         organizationId: organization.id,
         referenceId: organization.id,
         tx,

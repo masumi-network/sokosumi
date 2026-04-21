@@ -4,6 +4,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { resolveUsersPathUserId } from "@/routes/v1/users/user-path-access";
+import type { UserRouteVariables } from "@/routes/v1/users/user-route-context";
 
 const { getEnvMock, listUserUploadsMock } = vi.hoisted(() => ({
   getEnvMock: vi.fn(() => ({
@@ -39,7 +41,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   role: "user",
 };
 
-let mountGetUserUploads: (app: OpenAPIHonoWithAuth) => void;
+let mountGetUserUploads: (app: OpenAPIHonoWithAuth<UserRouteVariables>) => void;
 
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
@@ -70,7 +72,7 @@ function createApp(
   });
 
   const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & { requestId: string };
+    Variables: AuthVariables & UserRouteVariables & { requestId: string };
   }>({
     defaultHook: (result) => {
       if (!result.success && result.error) {
@@ -78,7 +80,16 @@ function createApp(
       }
     },
   });
-  mountGetUserUploads(userByIdApp as unknown as OpenAPIHonoWithAuth);
+  userByIdApp.use("*", async (c, next) => {
+    c.set(
+      "userRouteContext",
+      resolveUsersPathUserId(c.var.authContext, c.req.param("id")!),
+    );
+    return await next();
+  });
+  mountGetUserUploads(
+    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
+  );
   app.route("/:id", userByIdApp);
 
   return app;

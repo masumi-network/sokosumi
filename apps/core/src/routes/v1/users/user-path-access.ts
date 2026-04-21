@@ -27,11 +27,11 @@ export const usersRoutePathUserIdSchema = z.string().openapi({
 export function resolveUsersPathUserId(
   authContext: AuthenticationContext,
   pathUserSegment: string,
-): { targetUserId: string; userContext: UserContext } {
+): { resolvedUserId: string; userContext: UserContext } {
   if (pathUserSegment === USERS_PATH_ME) {
     const session = requireUserAuthContext(authContext);
     return {
-      targetUserId: session.userId,
+      resolvedUserId: session.userId,
       userContext: { source: "session", ...session },
     };
   }
@@ -40,20 +40,20 @@ export function resolveUsersPathUserId(
     authContext,
     pathUserSegment,
   );
-  return { targetUserId: pathUserSegment, userContext };
+  return { resolvedUserId: pathUserSegment, userContext };
 }
 
 /**
- * Ensures the caller may access or mutate data for `targetUserId`: the effective
- * user (session or delegated coworker) matches `targetUserId`, or the caller is a
+ * Ensures the caller may access or mutate data for `resolvedUserId`: the effective
+ * user (session or delegated coworker) matches `resolvedUserId`, or the caller is a
  * session user with an admin role.
  */
 export function requireAccessToTargetUserData(
   authContext: AuthenticationContext,
-  targetUserId: string,
+  resolvedUserId: string,
 ): UserContext {
   const userContext = requireUserContext(authContext);
-  if (userContext.userId === targetUserId) {
+  if (userContext.userId === resolvedUserId) {
     return userContext;
   }
   if (userContext.source === "session" && hasAdminRole(userContext.role)) {

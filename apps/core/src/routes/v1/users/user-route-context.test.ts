@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AuthVariables, AuthenticationContext } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
-import { usersPathUserExistsMiddleware } from "./path-user-middleware";
+import { usersPathUserContextMiddleware } from "./user-route-context";
 
 const { userFindUniqueMock } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
@@ -24,9 +24,7 @@ const ADMIN_AUTH_CONTEXT: AuthenticationContext = {
   role: "admin",
 };
 
-function createApp(
-  authContext: AuthenticationContext = ADMIN_AUTH_CONTEXT,
-) {
+function createApp(authContext: AuthenticationContext = ADMIN_AUTH_CONTEXT) {
   const app = new Hono<{
     Variables: AuthVariables;
   }>();
@@ -41,7 +39,7 @@ function createApp(
   const userByIdApp = new Hono<{
     Variables: AuthVariables;
   }>();
-  userByIdApp.use("*", usersPathUserExistsMiddleware);
+  userByIdApp.use("*", usersPathUserContextMiddleware);
   userByIdApp.get("/", (c) => c.json({ id: c.req.param("id") }));
   userByIdApp.get("/uploads", (c) => c.json({ id: c.req.param("id") }));
 
@@ -50,7 +48,7 @@ function createApp(
   return app;
 }
 
-describe("usersPathUserExistsMiddleware", () => {
+describe("usersPathUserContextMiddleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -85,5 +83,4 @@ describe("usersPathUserExistsMiddleware", () => {
       select: { id: true },
     });
   });
-
 });

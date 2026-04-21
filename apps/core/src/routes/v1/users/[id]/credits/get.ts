@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -9,10 +8,11 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
-  resolveUsersPathUserId,
-  usersRoutePathUserIdSchema,
-} from "@/routes/v1/users/user-path-access";
+  requireUserRouteContext,
+  type UserRouteVariables,
+} from "@/routes/v1/users/user-route-context";
 import { creditsResponseSchema } from "@/schemas/user.schema";
 
 const params = z.object({
@@ -66,31 +66,22 @@ const route = withGlobalHeaderParameters(
   }),
 );
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    const { id: pathUser } = c.req.valid("param");
-
-    const { targetUserId, userContext } = resolveUsersPathUserId(
-      c.var.authContext,
-      pathUser,
+    c.req.valid("param");
+    const { resolvedUserId, userContext } = requireUserRouteContext(
+      c.var.userRouteContext,
     );
-
-    const user = await prisma.user.findUnique({
-      where: { id: targetUserId },
-      select: { id: true },
-    });
-
-    if (!user) {
-      throw notFound("User not found");
-    }
 
     const credits = await prisma.$transaction(async (tx) => {
       const organizationId =
-        userContext.userId === targetUserId ? userContext.organizationId : null;
-      const referenceId = organizationId ?? targetUserId;
+        userContext.userId === resolvedUserId
+          ? userContext.organizationId
+          : null;
+      const referenceId = organizationId ?? resolvedUserId;
 
       return await buildCreditsPayload({
-        userId: targetUserId,
+        userId: resolvedUserId,
         organizationId,
         referenceId,
         tx,
