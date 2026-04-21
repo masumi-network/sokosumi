@@ -35,7 +35,7 @@ import {
   type ActionError,
   CommonErrorCode,
   JobErrorCode,
-  requestRefundJobByBlockchainIdentifier,
+  requestRefundJob,
 } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
@@ -245,11 +245,14 @@ export default function RequestRefundButton({
     setIsLoading(true);
     setError(null);
 
-    const result = await requestRefundJobByBlockchainIdentifier({
-      blockchainIdentifier: job.blockchainIdentifier,
+    const result = await requestRefundJob({
+      jobId: job.id,
     });
     if (result.ok) {
-      setJob(result.data.job);
+      setJob((currentJob) => ({
+        ...currentJob,
+        ...result.data.job,
+      }));
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
