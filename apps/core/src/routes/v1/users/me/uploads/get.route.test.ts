@@ -4,15 +4,20 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
-import { resolveUsersPathUserId } from "@/routes/v1/users/user-path-access";
-import type { UserRouteVariables } from "@/routes/v1/users/user-route-context";
+import {
+  type UserRouteVariables,
+  usersPathUserContextMiddleware,
+} from "@/routes/v1/users/user-route-context";
 
-const { getEnvMock, listUserUploadsMock } = vi.hoisted(() => ({
-  getEnvMock: vi.fn(() => ({
-    BLOB_READ_WRITE_TOKEN: "blob-token",
-  })),
-  listUserUploadsMock: vi.fn(),
-}));
+const { getEnvMock, listUserUploadsMock, userFindUniqueMock } = vi.hoisted(
+  () => ({
+    getEnvMock: vi.fn(() => ({
+      BLOB_READ_WRITE_TOKEN: "blob-token",
+    })),
+    listUserUploadsMock: vi.fn(),
+    userFindUniqueMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
@@ -20,6 +25,14 @@ vi.mock("@/config/env", () => ({
 
 vi.mock("@/lib/blob", () => ({
   listUserUploads: (...args: unknown[]) => listUserUploadsMock(...args),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    user: {
+      findUnique: userFindUniqueMock,
+    },
+  },
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -80,13 +93,7 @@ function createApp(
       }
     },
   });
-  userByIdApp.use("*", async (c, next) => {
-    c.set(
-      "userRouteContext",
-      resolveUsersPathUserId(c.var.authContext, c.req.param("id")!),
-    );
-    return await next();
-  });
+  userByIdApp.use("*", usersPathUserContextMiddleware);
   mountGetUserUploads(
     userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
   );
@@ -105,6 +112,7 @@ beforeEach(() => {
   getEnvMock.mockReturnValue({
     BLOB_READ_WRITE_TOKEN: "blob-token",
   });
+  userFindUniqueMock.mockResolvedValue({ id: "user_123" });
   listUserUploadsMock.mockResolvedValue([
     {
       publicUrl: "https://blob.example/users/user_123/report.pdf",
@@ -127,6 +135,10 @@ describe("GET /uploads route", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      select: { id: true },
+    });
     expect(listUserUploadsMock).toHaveBeenCalledWith("user_123", "blob-token");
     expect(payload.data).toEqual([
       expect.objectContaining({

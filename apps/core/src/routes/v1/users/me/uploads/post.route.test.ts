@@ -6,15 +6,19 @@ import { LIMITS } from "@/config/constants";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
-import { resolveUsersPathUserId } from "@/routes/v1/users/user-path-access";
-import type { UserRouteVariables } from "@/routes/v1/users/user-route-context";
+import {
+  type UserRouteVariables,
+  usersPathUserContextMiddleware,
+} from "@/routes/v1/users/user-route-context";
 
-const { getEnvMock, createUserFileUploadSessionMock } = vi.hoisted(() => ({
-  getEnvMock: vi.fn(() => ({
-    BLOB_READ_WRITE_TOKEN: "blob-token",
-  })),
-  createUserFileUploadSessionMock: vi.fn(),
-}));
+const { getEnvMock, createUserFileUploadSessionMock, userFindUniqueMock } =
+  vi.hoisted(() => ({
+    getEnvMock: vi.fn(() => ({
+      BLOB_READ_WRITE_TOKEN: "blob-token",
+    })),
+    createUserFileUploadSessionMock: vi.fn(),
+    userFindUniqueMock: vi.fn(),
+  }));
 
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
@@ -23,6 +27,14 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/lib/blob", () => ({
   createUserFileUploadSession: (...args: unknown[]) =>
     createUserFileUploadSessionMock(...args),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    user: {
+      findUnique: userFindUniqueMock,
+    },
+  },
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -85,13 +97,7 @@ function createApp(
       }
     },
   });
-  userByIdApp.use("*", async (c, next) => {
-    c.set(
-      "userRouteContext",
-      resolveUsersPathUserId(c.var.authContext, c.req.param("id")!),
-    );
-    return await next();
-  });
+  userByIdApp.use("*", usersPathUserContextMiddleware);
   mountPostUserFileUploads(
     userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
   );
@@ -110,6 +116,7 @@ beforeEach(() => {
   getEnvMock.mockReturnValue({
     BLOB_READ_WRITE_TOKEN: "blob-token",
   });
+  userFindUniqueMock.mockResolvedValue({ id: "user_123" });
   createUserFileUploadSessionMock.mockResolvedValue({
     clientToken: "client-token-123",
     access: "public",
@@ -136,6 +143,10 @@ describe("POST /uploads route", () => {
     });
 
     expect(response.status).toBe(201);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      select: { id: true },
+    });
     expect(createUserFileUploadSessionMock).toHaveBeenCalledWith(
       "user_123",
       {
