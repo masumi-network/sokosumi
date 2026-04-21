@@ -168,6 +168,7 @@ export function TaskDetailActions({
   const canEditOrDelete =
     !isReadOnly &&
     (status === TASK_STATUS.DRAFT || status === TASK_STATUS.READY);
+  const canDelete = !isReadOnly;
   const isFinalized =
     status === TASK_STATUS.COMPLETED ||
     status === TASK_STATUS.FAILED ||
@@ -196,6 +197,7 @@ export function TaskDetailActions({
   const hasOverflowMenuActions =
     statusActions.length > 0 ||
     canEditOrDelete ||
+    canDelete ||
     canManageRelations ||
     canMove;
   const taskPickerOptions = useMemo(
@@ -710,12 +712,12 @@ export function TaskDetailActions({
               </DropdownMenuItem>
             ) : null}
 
-            {canEditOrDelete &&
-            (statusActions.length > 0 || canManageRelations || canMove) ? (
+            {canDelete &&
+            (statusActions.length > 0 || canEditOrDelete || canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
 
-            {canEditOrDelete ? (
+            {canDelete ? (
               <DropdownMenuItem
                 variant="destructive"
                 disabled={actionsDisabled}
@@ -729,7 +731,7 @@ export function TaskDetailActions({
         </DropdownMenu>
       ) : null}
 
-      {canEditOrDelete ? (
+      {canDelete ? (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
