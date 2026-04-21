@@ -118,18 +118,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
 
-      if (statuses?.includes(TaskStatus.DRAFT)) {
-        throw badRequest(
-          "Coworkers cannot filter by DRAFT status. DRAFT tasks are not accessible to coworkers.",
+      if (authContext.delegation) {
+        const workspaceContext = requireWorkspaceContext(
+          c.var.workspaceContext,
         );
+        where = {
+          archivedAt: null,
+          workspaceId: workspaceContext.workspaceId,
+          ...(scope === "owned"
+            ? { userId: authContext.delegation.userId }
+            : {}),
+          ...(statuses ? { status: { in: statuses } } : {}),
+          ...(coworkerId ? { coworkerId } : {}),
+          ...searchFilter,
+        };
+      } else {
+        if (statuses?.includes(TaskStatus.DRAFT)) {
+          throw badRequest(
+            "Coworkers cannot filter by DRAFT status. DRAFT tasks are not accessible to coworkers.",
+          );
+        }
+        where = {
+          coworkerId: authContext.coworkerId,
+          archivedAt: null,
+          ...(statuses ? { status: { in: statuses } } : {}),
+          ...searchFilter,
+          NOT: { status: { in: [TaskStatus.DRAFT] } },
+        };
       }
-      where = {
-        coworkerId: authContext.coworkerId,
-        archivedAt: null,
-        ...(statuses ? { status: { in: statuses } } : {}),
-        ...searchFilter,
-        NOT: { status: { in: [TaskStatus.DRAFT] } },
-      };
     } else {
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       where = {
