@@ -10,6 +10,8 @@ const {
   prismaTransactionMock,
   upsertWorkspaceForContextMock,
   memberFindFirstMock,
+  userFindUniqueMock,
+  memberFindUniqueMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
   verifyApiKeyMock: vi.fn(),
@@ -18,6 +20,8 @@ const {
   prismaTransactionMock: vi.fn(),
   upsertWorkspaceForContextMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@sentry/node", async (importOriginal) => {
@@ -43,8 +47,12 @@ vi.mock("@/lib/db/prisma", () => ({
     coworkerApiKey: {
       findUnique: coworkerApiKeyFindUniqueMock,
     },
+    user: {
+      findUnique: userFindUniqueMock,
+    },
     member: {
       findFirst: memberFindFirstMock,
+      findUnique: memberFindUniqueMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -83,6 +91,8 @@ describe("workspaceMiddleware", () => {
     getSessionMock.mockResolvedValue(null);
     coworkerApiKeyFindUniqueMock.mockResolvedValue(null);
     memberFindFirstMock.mockResolvedValue(null);
+    userFindUniqueMock.mockResolvedValue(null);
+    memberFindUniqueMock.mockResolvedValue(null);
     upsertWorkspaceForContextMock.mockResolvedValue({
       id: "workspace_123",
       userId: "user_123",
@@ -286,6 +296,7 @@ describe("workspaceMiddleware", () => {
         archivedAt: null,
       },
     });
+    userFindUniqueMock.mockResolvedValue({ id: "user_delegate" });
     upsertWorkspaceForContextMock.mockResolvedValueOnce({
       id: "workspace_delegated",
       userId: "user_delegate",
