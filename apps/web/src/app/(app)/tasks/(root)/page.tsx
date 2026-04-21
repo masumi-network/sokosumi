@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { AgentJobStatus, TaskStatus } from "@sokosumi/database";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
@@ -8,14 +8,16 @@ import {
   findCoworkerIdBySlug,
   getCoworkerOptions,
 } from "@/app/tasks/utils/coworker-options";
+import { parseJobsListFilters } from "@/app/tasks/utils/jobs-filters";
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import { parseTasksFilters } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/utils";
+import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
-import { userService } from "@/lib/services/user.service";
+import { taskService } from "@/lib/services/task.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { KANBAN_COLUMNS, type KanbanColumnId } from "@/lib/types/task";
 import {
@@ -30,6 +32,8 @@ interface TasksPageProps {
     scope?: string | string[];
     coworkerId?: string | string[];
     status?: string | string[];
+    agentId?: string | string[];
+    jobStatus?: string | string[];
   }>;
 }
 
@@ -44,6 +48,8 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     scope,
     coworkerId,
     status,
+    agentId,
+    jobStatus,
   } = await searchParams;
   const [t, tColumns, cookieStore, session] = await Promise.all([
     getTranslations("App.Tasks"),
@@ -55,22 +61,29 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const [taskCoworkers, agents] = await Promise.all([
+    coworkerService.listCoworkers("tasks"),
+    agentService.getAvailableAgentsWithCreditsPrice(),
+  ]);
   const filters = parseTasksFilters(
     { scope, coworkerId, status },
     activeOrganizationId,
   );
-
-  const [taskCoworkers, agents, jobsPage] = await Promise.all([
-    coworkerService.listCoworkers("tasks"),
-    agentService.getAvailableAgentsWithCreditsPrice(),
-    userService.listMyJobsForActiveContextPaginated({ limit: 20, session }),
-  ]);
-
+  const agentNameById = buildAgentNameById(agents);
+  const jobAgentOptions = agents.map((agent) => ({
+    id: agent.id,
+    name: agentNameById.get(agent.id) ?? agent.name,
+    image: getAgentResolvedIcon(agent),
+  }));
+  const jobsListFilters = parseJobsListFilters(
+    { scope, agentId, jobStatus },
+    activeOrganizationId,
+    jobAgentOptions,
+  );
   const coworkersById = new Map(
     taskCoworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
-  const agentNameById = buildAgentNameById(agents);
   const validCoworkerIds = new Set(
     taskCoworkers.map((coworker) => coworker.id),
   );
@@ -81,22 +94,30 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         ? filters.coworkerId
         : null,
   };
-  const columnPages = await Promise.all(
-    KANBAN_COLUMNS.map(async (column) => {
-      const page = await getTasksColumnPage({
-        columnId: column.id,
-        cursor: null,
-        limit: TASKS_COLUMN_PAGE_LIMIT,
-        scope: activeFilters.scope,
-        coworkerId: activeFilters.coworkerId,
-        status: activeFilters.status,
-        coworkersById,
-        agentsById,
-      });
-
-      return [column.id, page] as const;
+  const [jobsPage, columnPages] = await Promise.all([
+    taskService.listJobs({
+      scope: jobsListFilters.scope,
+      agentId: jobsListFilters.agentId ?? undefined,
+      status: jobsListFilters.jobStatus ?? undefined,
+      limit: 20,
     }),
-  );
+    Promise.all(
+      KANBAN_COLUMNS.map(async (column) => {
+        const page = await getTasksColumnPage({
+          columnId: column.id,
+          cursor: null,
+          limit: TASKS_COLUMN_PAGE_LIMIT,
+          scope: activeFilters.scope,
+          coworkerId: activeFilters.coworkerId,
+          status: activeFilters.status,
+          coworkersById,
+          agentsById,
+        });
+
+        return [column.id, page] as const;
+      }),
+    ),
+  ]);
   const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);
   const columnNextCursorById = Object.fromEntries(
     columnPages.map(([columnId, page]) => [columnId, page.nextCursor]),
@@ -110,9 +131,12 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       },
     ]),
   );
+  const knownAgentsById = new Map(agents.map((agent) => [agent.id, agent]));
+
   const { jobs, agentPreviewById } = await mapJobsToTasksViewData({
     jobs: jobsPage.jobs,
     coworkersById,
+    knownAgentsById,
     seedTasksById,
   });
 
@@ -136,15 +160,17 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       <TasksView
         tasks={tasks}
         jobs={jobs}
-        jobsNextCursor={jobsPage.nextCursor}
+        jobsNextCursor={jobsPage.pagination?.nextCursor ?? null}
         agentPreviewById={agentPreviewById}
         columnNextCursorById={columnNextCursorById}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
+        jobAgentOptions={jobAgentOptions}
         agentNameById={agentNameById}
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}
         initialFilters={activeFilters}
+        initialJobsListFilters={jobsListFilters}
         defaultViewMode={defaultViewMode}
         initialCreateTaskOpen={initialCreateTaskOpen}
         initialCoworkerId={initialCoworkerId}
@@ -204,15 +230,26 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
           listPlaceholder: t("List.placeholder"),
           jobs: {
             filterButton: t("Jobs.filterButton"),
-            filterHideFailed: t("Jobs.filterHideFailed"),
-            filterShowAll: t("Jobs.filterShowAll"),
+            agentLabel: t("Jobs.agentLabel"),
+            jobStatusLabel: t("Jobs.jobStatusLabel"),
+            jobStatusOptions: {
+              [AgentJobStatus.INITIATED]: t("Jobs.jobStatusOptions.INITIATED"),
+              [AgentJobStatus.AWAITING_PAYMENT]: t(
+                "Jobs.jobStatusOptions.AWAITING_PAYMENT",
+              ),
+              [AgentJobStatus.AWAITING_INPUT]: t(
+                "Jobs.jobStatusOptions.AWAITING_INPUT",
+              ),
+              [AgentJobStatus.RUNNING]: t("Jobs.jobStatusOptions.RUNNING"),
+              [AgentJobStatus.COMPLETED]: t("Jobs.jobStatusOptions.COMPLETED"),
+              [AgentJobStatus.FAILED]: t("Jobs.jobStatusOptions.FAILED"),
+            },
             recentTitle: t("Jobs.recentTitle"),
             emptyRecent: t("Jobs.emptyRecent"),
             emptyList: t("Jobs.emptyList"),
             emptySection: t("Jobs.emptySection"),
             untitled: t("Jobs.untitled"),
             unknownAgent: t("Jobs.unknownAgent"),
-            unknownCoworker: t("Jobs.unknownCoworker"),
           },
           emptyState: {
             title: t("EmptyState.title"),

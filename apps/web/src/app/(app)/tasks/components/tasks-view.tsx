@@ -9,7 +9,11 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/database";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,8 +33,12 @@ import { useDebouncedCallback } from "use-debounce";
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import {
+  getJobsListFiltersFromSearchParams,
+  getTasksViewServerResetKey,
+  type JobsListFilters,
+} from "@/app/tasks/utils/jobs-filters";
+import {
   getTasksFiltersFromSearchParams,
-  getTasksFiltersResetKey,
   isTaskDraggableForViewFilters,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
@@ -62,11 +70,8 @@ import {
   CreateTaskModalProvider,
   useCreateTaskModal,
 } from "./create-task-modal";
-import {
-  type JobsFailedFilterMode,
-  JobsFilterDropdown,
-} from "./jobs-filter-dropdown";
 import { JobsListView, type TasksViewJob } from "./jobs-list-view";
+import { JobsViewFilters } from "./jobs-view-filters";
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";
 import { isDnDColumn, statusForColumn } from "./task-dnd";
@@ -125,8 +130,6 @@ const hydrationStore = (() => {
   return { subscribe, getSnapshot, getServerSnapshot };
 })();
 
-const JOBS_FAILED_FILTER_MODE_STORAGE_KEY =
-  "sokosumi.tasks.jobs.failedFilterMode";
 const TASKS_GUIDE_COMPLETED_STORAGE_KEY = "sokosumi.tasks.guideCompleted";
 interface TasksRealtimeListenerProps {
   userId: string;
@@ -194,10 +197,12 @@ interface TasksViewProps {
   columnNextCursorById: Record<KanbanColumnId, string | null>;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
+  jobAgentOptions: Array<{ id: string; name: string; image: string | null }>;
   agentNameById: Map<string, string>;
   userId?: string | null;
   activeOrganizationId: string | null;
   initialFilters: TasksFilters;
+  initialJobsListFilters: JobsListFilters;
   defaultViewMode?: TasksViewMode;
   initialCreateTaskOpen?: boolean;
   initialCoworkerId?: string | null;
@@ -224,15 +229,15 @@ interface TasksViewProps {
     addTask: string;
     jobs: {
       filterButton: string;
-      filterHideFailed: string;
-      filterShowAll: string;
+      agentLabel: string;
+      jobStatusLabel: string;
+      jobStatusOptions: Record<AgentJobStatus, string>;
       recentTitle: string;
       emptyRecent: string;
       emptyList: string;
       emptySection: string;
       untitled: string;
       unknownAgent: string;
-      unknownCoworker: string;
     };
     display: {
       button: string;
@@ -272,10 +277,12 @@ export function TasksView({
   columnNextCursorById: initialColumnNextCursorById,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
+  jobAgentOptions,
   agentNameById,
   userId,
   activeOrganizationId,
   initialFilters,
+  initialJobsListFilters,
   defaultViewMode,
   initialCreateTaskOpen = false,
   initialCoworkerId = null,
@@ -293,26 +300,19 @@ export function TasksView({
       ),
     [activeOrganizationId, coworkerOptions, searchParams],
   );
+  const jobsRouteFilters = useMemo(
+    () =>
+      getJobsListFiltersFromSearchParams(
+        searchParams,
+        activeOrganizationId,
+        jobAgentOptions,
+      ),
+    [activeOrganizationId, jobAgentOptions, searchParams],
+  );
   const [viewMode, setViewMode] = useState<TasksViewMode>(
     defaultViewMode ?? "board",
   );
   const [activeTab, setActiveTab] = useState<TasksTabValue>("tasks");
-  const [jobsFailedFilterMode, setJobsFailedFilterMode] =
-    useState<JobsFailedFilterMode>(() => {
-      if (typeof window === "undefined") {
-        return "hideFailed";
-      }
-
-      try {
-        const storedValue = window.localStorage.getItem(
-          JOBS_FAILED_FILTER_MODE_STORAGE_KEY,
-        );
-
-        return storedValue === "showAll" ? "showAll" : "hideFailed";
-      } catch {
-        return "hideFailed";
-      }
-    });
   const [guideCompleted, setGuideCompleted] = useState<boolean>(() => {
     if (typeof window === "undefined") {
       return false;
@@ -366,12 +366,22 @@ export function TasksView({
     TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
   );
   const serverFiltersResetKey = useMemo(
-    () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
-    [activeOrganizationId, initialFilters],
+    () =>
+      getTasksViewServerResetKey(
+        initialFilters,
+        initialJobsListFilters,
+        activeOrganizationId,
+      ),
+    [activeOrganizationId, initialFilters, initialJobsListFilters],
   );
   const routeFiltersResetKey = useMemo(
-    () => getTasksFiltersResetKey(routeFilters, activeOrganizationId),
-    [activeOrganizationId, routeFilters],
+    () =>
+      getTasksViewServerResetKey(
+        routeFilters,
+        jobsRouteFilters,
+        activeOrganizationId,
+      ),
+    [activeOrganizationId, jobsRouteFilters, routeFilters],
   );
   const isTaskPaginationInSync = routeFiltersResetKey === serverFiltersResetKey;
   const previousFiltersResetKeyRef = useRef(serverFiltersResetKey);
@@ -400,17 +410,6 @@ export function TasksView({
       refreshRoute.cancel();
     };
   }, [refreshRoute]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        JOBS_FAILED_FILTER_MODE_STORAGE_KEY,
-        jobsFailedFilterMode,
-      );
-    } catch {
-      // Ignore storage errors.
-    }
-  }, [jobsFailedFilterMode]);
 
   useLayoutEffect(() => {
     if (previousFiltersResetKeyRef.current === serverFiltersResetKey) return;
@@ -668,7 +667,12 @@ export function TasksView({
     if (!jobsCursor) return;
     startJobsTransition(async () => {
       try {
-        const result = await loadMoreJobs(jobsCursor);
+        const result = await loadMoreJobs(
+          jobsCursor,
+          jobsRouteFilters.scope,
+          jobsRouteFilters.agentId,
+          jobsRouteFilters.jobStatus,
+        );
         setJobsItems((prev) => appendUniqueJobs(prev, result.jobs));
         setJobsCursor(result.nextCursor);
         setAgentPreviews((prev) => ({
@@ -687,8 +691,14 @@ export function TasksView({
 
     startJobsTransition(async () => {
       try {
-        const result = await loadMoreJobs(null);
+        const result = await loadMoreJobs(
+          null,
+          jobsRouteFilters.scope,
+          jobsRouteFilters.agentId,
+          jobsRouteFilters.jobStatus,
+        );
         setJobsItems((prev) => mergeTopPageJobs(prev, result.jobs));
+        setJobsCursor(result.nextCursor ?? null);
         setAgentPreviews((prev) => ({
           ...prev,
           ...result.agentPreviewById,
@@ -857,13 +867,23 @@ export function TasksView({
             />
           ) : null}
           {activeTab === "jobs" ? (
-            <JobsFilterDropdown
-              value={jobsFailedFilterMode}
-              onChange={setJobsFailedFilterMode}
+            <JobsViewFilters
+              activeOrganizationId={activeOrganizationId}
+              agentOptions={jobAgentOptions}
+              filtersLabels={{
+                title: labels.filters.title,
+                searchPlaceholder: labels.filters.searchPlaceholder,
+                emptyResults: labels.filters.emptyResults,
+                all: labels.filters.all,
+                scopeLabel: labels.filters.scopeLabel,
+                scopeOwned: labels.filters.scopeOwned,
+                scopeWorkspace: labels.filters.scopeWorkspace,
+              }}
               labels={{
-                button: labels.jobs.filterButton,
-                hideFailed: labels.jobs.filterHideFailed,
-                showAll: labels.jobs.filterShowAll,
+                filterButton: labels.jobs.filterButton,
+                agentLabel: labels.jobs.agentLabel,
+                jobStatusLabel: labels.jobs.jobStatusLabel,
+                jobStatusOptions: labels.jobs.jobStatusOptions,
               }}
             />
           ) : null}
@@ -985,7 +1005,6 @@ export function TasksView({
           jobs={jobsItems}
           agentPreviewById={agentPreviews}
           columnLabels={labels.columns}
-          failedFilterMode={jobsFailedFilterMode}
           labels={labels.jobs}
         />
         {jobsCursor ? (

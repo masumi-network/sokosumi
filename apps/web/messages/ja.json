@@ -1366,16 +1366,23 @@
         }
       },
       "Jobs": {
-        "filterButton": "ステータス",
-        "filterHideFailed": "失敗を非表示",
-        "filterShowAll": "すべて表示",
+        "filterButton": "フィルター",
+        "agentLabel": "エージェント",
+        "jobStatusLabel": "ジョブのステータス",
+        "jobStatusOptions": {
+          "INITIATED": "開始済み",
+          "AWAITING_PAYMENT": "支払い待ち",
+          "AWAITING_INPUT": "入力待ち",
+          "RUNNING": "実行中",
+          "COMPLETED": "完了",
+          "FAILED": "失敗"
+        },
         "recentTitle": "最近",
         "emptyRecent": "最近完了したジョブはありません。",
         "emptyList": "ジョブはまだありません。",
         "emptySection": "このステータスのジョブはありません。",
         "untitled": "無題のジョブ",
-        "unknownAgent": "不明なエージェント",
-        "unknownCoworker": "不明な同僚"
+        "unknownAgent": "不明なエージェント"
       },
       "Detail": {
         "back": "タスクに戻る",

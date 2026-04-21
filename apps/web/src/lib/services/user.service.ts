@@ -6,10 +6,8 @@ import type {
   Member,
   MemberWithOrganization,
   OrganizationWithRelations,
-  Prisma,
   User,
 } from "@sokosumi/database";
-import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import {
   invitationRepository,
   jobRepository,
@@ -18,24 +16,12 @@ import {
   userRepository,
   workspaceRepository,
 } from "@sokosumi/database/repositories";
-import { jobInclude } from "@sokosumi/database/types/job";
 import { headers } from "next/headers";
 import { cache } from "react";
 
 import { auth, type Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
-
-interface ListMyJobsForActiveContextParams {
-  cursor?: string | null;
-  limit?: number;
-  session?: Session | null;
-}
-
-interface PaginatedJobsResult {
-  jobs: JobWithSokosumiStatus[];
-  nextCursor: string | null;
-}
 
 /**
  * Service for user-related operations.
@@ -120,77 +106,6 @@ export const userService = (() => {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-  }
-
-  async function listMyJobsForActiveContextPaginated(
-    params: ListMyJobsForActiveContextParams = {},
-  ): Promise<PaginatedJobsResult> {
-    const { cursor = null, limit = 20 } = params;
-    const session = params.session ?? (await getSession());
-    if (!session) {
-      return { jobs: [], nextCursor: null };
-    }
-    const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
-      session.user.id,
-      activeOrganizationId ?? null,
-      prisma,
-    );
-
-    const baseWhere: Prisma.JobWhereInput = {
-      OR: [
-        {
-          userId: session.user.id,
-          workspaceId: workspace.id,
-        },
-      ],
-    };
-
-    let where: Prisma.JobWhereInput = baseWhere;
-    if (cursor) {
-      const cursorJob = await prisma.job.findUnique({
-        where: { id: cursor },
-        select: { id: true, createdAt: true },
-      });
-
-      if (!cursorJob) {
-        return { jobs: [], nextCursor: null };
-      }
-
-      where = {
-        AND: [
-          baseWhere,
-          {
-            OR: [
-              { createdAt: { lt: cursorJob.createdAt } },
-              {
-                createdAt: cursorJob.createdAt,
-                id: { lt: cursorJob.id },
-              },
-            ],
-          },
-        ],
-      };
-    }
-
-    const rawJobs = await prisma.job.findMany({
-      where,
-      include: jobInclude,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: limit + 1,
-    });
-
-    const hasMore = rawJobs.length > limit;
-    const pageJobs = hasMore ? rawJobs.slice(0, limit) : rawJobs;
-    const paginatedJobs = pageJobs.map(mapJobWithStatus);
-    const nextCursor = hasMore
-      ? (pageJobs[pageJobs.length - 1]?.id ?? null)
-      : null;
-
-    return {
-      jobs: paginatedJobs,
-      nextCursor,
-    };
   }
 
   /**
@@ -354,7 +269,6 @@ export const userService = (() => {
     getActiveOrganizationId,
     getActiveOrganization,
     getMyJobs,
-    listMyJobsForActiveContextPaginated,
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
     getMyValidPendingInvitations,
