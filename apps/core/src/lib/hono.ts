@@ -2,6 +2,7 @@ import { OpenAPIHono, type RouteConfig, z } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import { type AuthVariables, authMiddleware } from "@/middleware/auth";
+import { coworkerDelegationMiddleware } from "@/middleware/coworker-delegation";
 import { organizationHeaderMiddleware } from "@/middleware/organization";
 import {
   type WorkspaceVariables,
@@ -26,11 +27,6 @@ function defaultValidationHook(result: {
  */
 export interface OpenAPIHonoWithAuthOptions {
   /**
-   * Whether to include the organization header middleware.
-   * Defaults to true. Set to false to disable organization context handling.
-   */
-  includeOrganizationHeader?: boolean;
-  /**
    * Whether to include the workspace context middleware.
    * Defaults to false. Set to true for routers that need workspace-scoped reads.
    */
@@ -46,6 +42,7 @@ export type EnvVariables = {
  * Use this for OpenAPI routes that require authentication
  *
  * Auth middleware is automatically applied - all routes are protected
+ * Coworker delegation middleware runs after auth to attach optional delegation scope from headers.
  * Organization header middleware is also applied to set organizationId from X-Organization-Slug header
  * For mixed public/private routes, use standard OpenAPIHono class instead
  *
@@ -53,19 +50,21 @@ export type EnvVariables = {
  * const app = new OpenAPIHonoWithAuth();
  * // authMiddleware and organizationHeaderMiddleware are already applied
  */
-export class OpenAPIHonoWithAuth extends OpenAPIHono<EnvVariables> {
+export class OpenAPIHonoWithAuth<
+  ExtraVariables extends object = {},
+> extends OpenAPIHono<{
+  Variables: EnvVariables["Variables"] & ExtraVariables;
+}> {
   constructor(options: OpenAPIHonoWithAuthOptions = {}) {
-    const {
-      includeOrganizationHeader = true,
-      includeWorkspaceContext = false,
-    } = options;
+    const { includeWorkspaceContext = false } = options;
 
     super({
       defaultHook: defaultValidationHook,
     });
 
     this.use(authMiddleware);
-    this.use(organizationHeaderMiddleware(includeOrganizationHeader));
+    this.use(coworkerDelegationMiddleware);
+    this.use(organizationHeaderMiddleware);
     this.use(workspaceMiddleware(includeWorkspaceContext));
   }
 }
@@ -81,6 +80,8 @@ export function withGlobalHeaderParameters<T extends RouteConfig>(route: T): T {
     parameters: [
       ...(route.parameters ?? []),
       { $ref: "#/components/parameters/OrganizationSlug" },
+      { $ref: "#/components/parameters/DelegationUserId" },
+      { $ref: "#/components/parameters/DelegationOrganizationId" },
     ],
   } as T;
 }

@@ -12,7 +12,7 @@ import {
   type CoworkerAuthenticationContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
-  type UserAuthenticationContext,
+  type UserContext,
 } from "@/middleware/auth";
 
 import {
@@ -33,14 +33,14 @@ import { forbidden, notFound } from "./error";
  * @throws {forbidden} If the job is not owned by the user
  */
 export async function requireJobOwnership(
-  authContext: UserAuthenticationContext,
+  userContext: UserContext,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
   const job = await tx.job.findFirst({
     where: {
       id: jobId,
-      userId: authContext.userId,
+      userId: userContext.userId,
     },
   });
 
@@ -56,14 +56,14 @@ export async function requireJobOwnership(
  * @throws {notFound} If the task does not exist or is not owned by the user
  */
 export async function requireTaskOwnership(
-  authContext: UserAuthenticationContext,
+  userContext: UserContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
-      userId: authContext.userId,
+      userId: userContext.userId,
       archivedAt: null,
     },
   });
@@ -211,14 +211,29 @@ export async function requireTaskCollaboration(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   if (isUserAuthContext(authContext)) {
-    return await requireTaskOwnership(authContext, taskId, tx);
+    return await requireTaskOwnership(
+      { source: "session", ...authContext },
+      taskId,
+      tx,
+    );
   }
 
-  return await requireCoworkerTaskCollaboration(
-    requireCoworkerAuthContext(authContext),
-    taskId,
-    tx,
-  );
+  const coworker = requireCoworkerAuthContext(authContext);
+  if (coworker.delegation) {
+    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+
+    return await requireTaskOwnership(
+      {
+        source: "delegation",
+        userId: coworker.delegation.userId,
+        organizationId: coworker.delegation.organizationId,
+      },
+      taskId,
+      tx,
+    );
+  }
+
+  return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
 }
 
 // -----------------------------------------------------------------------------
@@ -270,11 +285,18 @@ export async function requireTaskReadForRouteVars(
     );
   }
 
-  return await requireCoworkerTaskCollaboration(
-    requireCoworkerAuthContext(authContext),
-    taskId,
-    tx,
-  );
+  const coworker = requireCoworkerAuthContext(authContext);
+  if (coworker.delegation) {
+    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+
+    return await requireTaskReadForWorkspace(
+      requireWorkspaceContext(workspaceContext),
+      taskId,
+      tx,
+    );
+  }
+
+  return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
 }
 
 /**

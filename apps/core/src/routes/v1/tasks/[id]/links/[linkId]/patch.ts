@@ -10,7 +10,7 @@ import {
 } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   patchTaskLinkRequestSchema,
@@ -55,7 +55,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id, linkId } = c.req.valid("param");
     const { relation, note } = c.req.valid("json");
@@ -69,14 +69,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Task link not found");
       }
 
-      await requireTaskOwnership(authContext, id, tx);
+      await requireTaskOwnership(userContext, id, tx);
 
       const peerTaskId =
         link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
       const peerTask = await tx.task.findFirst({
         where: {
           id: peerTaskId,
-          userId: authContext.userId,
+          userId: userContext.userId,
           workspaceId: workspaceContext.workspaceId,
         },
         select: taskLinkPeerTaskSelect,

@@ -11,7 +11,11 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { createUserFileUploadSession } from "@/lib/blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
+import {
+  requireUserRouteContext,
+  type UserRouteVariables,
+} from "@/routes/v1/users/user-route-context";
 import {
   createUserFileUploadRequestSchema,
   userFileUploadSessionSchema,
@@ -24,6 +28,10 @@ function normalizeContentType(contentType: string): string {
 function formatUnsupportedContentTypes(contentTypes: string[]): string {
   return contentTypes.map((contentType) => `"${contentType}"`).join(", ");
 }
+
+const pathParams = z.object({
+  id: usersRoutePathUserIdSchema,
+});
 
 const requestSchema = createUserFileUploadRequestSchema
   .extend({
@@ -103,7 +111,7 @@ const route = createRoute({
   method: "post",
   path: "/uploads",
   description: [
-    "Create a direct upload session for a user file.",
+    "Create a direct upload session: path `me` for the session user, or a user id when the caller may access that user's data.",
     "",
     "Next steps:",
     "1. Call this endpoint with the original `filename`, `contentType`, and `size`.",
@@ -115,6 +123,7 @@ const route = createRoute({
   ].join("\n"),
   tags: ["Users"],
   request: {
+    params: pathParams,
     body: {
       required: true,
       content: {
@@ -145,15 +154,17 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    c.req.valid("param");
+    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const token = getEnv().BLOB_READ_WRITE_TOKEN;
     if (!token) {
@@ -182,7 +193,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const uploadSession = await createUserFileUploadSession(
-      authContext.userId,
+      resolvedUserId,
       sessionInput,
       token,
     );

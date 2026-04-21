@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import {
+  type UserRouteVariables,
+  usersPathUserContextMiddleware,
+} from "@/routes/v1/users/user-route-context";
 
 import mountGetAgentJobs from "./agents/[id]/jobs/get";
 import mountGetConversations from "./conversations/get";
 import mountGetJobs from "./jobs/get";
-import mountGetMeCredits from "./users/me/credits/get";
+import mountGetUserCredits from "./users/[id]/credits/get";
 
 function createCoworkerContextApp(
   mount: (app: OpenAPIHonoWithAuth) => void,
@@ -29,6 +33,31 @@ function createCoworkerContextApp(
   return app;
 }
 
+function createCoworkerUserRouteContextApp(
+  mount: (app: OpenAPIHonoWithAuth<UserRouteVariables>) => void,
+): OpenAPIHono<{ Variables: AuthVariables }> {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables;
+  }>();
+
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "coworker",
+      coworkerId: "cow_123",
+    });
+    return await next();
+  });
+
+  const userByIdApp = new OpenAPIHono<{
+    Variables: AuthVariables & UserRouteVariables;
+  }>();
+  userByIdApp.use("*", usersPathUserContextMiddleware);
+  mount(userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>);
+  app.route("/:id", userByIdApp);
+  return app;
+}
+
 describe("route actor guards", () => {
   it("returns 403 for coworker auth on jobs routes", async () => {
     const app = createCoworkerContextApp(mountGetJobs);
@@ -38,8 +67,8 @@ describe("route actor guards", () => {
   });
 
   it("returns 403 for coworker auth on users/me routes", async () => {
-    const app = createCoworkerContextApp(mountGetMeCredits);
-    const response = await app.request("http://localhost/credits");
+    const app = createCoworkerUserRouteContextApp(mountGetUserCredits);
+    const response = await app.request("http://localhost/me/credits");
 
     expect(response.status).toBe(403);
   });

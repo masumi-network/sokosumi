@@ -10,7 +10,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
@@ -74,7 +74,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 
@@ -90,8 +90,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return tx.task.create({
         data: {
-          userId: authContext.userId,
-          organizationId: authContext.organizationId,
+          userId: userContext.userId,
+          organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
           name: body.name,
           description: body.description ?? null,
@@ -102,7 +102,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               status: body.status,
               comment: null,
               origin: body.origin,
-              userId: authContext.userId,
+              userId: userContext.userId,
               coworkerId: null,
             },
           },

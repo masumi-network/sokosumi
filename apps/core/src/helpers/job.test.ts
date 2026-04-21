@@ -30,7 +30,7 @@ const orgWorkspaceContext: WorkspaceContext = {
 };
 
 const orgJobContext: JobContext = {
-  authContext: orgAuthContext,
+  userContext: { source: "session", ...orgAuthContext },
   workspaceContext: orgWorkspaceContext,
 };
 
@@ -100,7 +100,7 @@ describe("getUserJobs", () => {
 
     await getUserJobs(
       {
-        authContext: personalContext,
+        userContext: { source: "session", ...personalContext },
         workspaceContext: personalWorkspaceContext,
       },
       {

@@ -15,7 +15,7 @@ import type {
   PaginationMetadata,
   PatchJobsByIdData,
   PostTasksByIdLinksData,
-  PostUsersMeUploadsData,
+  PostUsersByIdUploadsData,
   PutJobsByIdShareError,
   PutTasksByIdShareError,
 } from "@/lib/clients/generated/core";
@@ -36,9 +36,9 @@ import {
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
-  getUsersMeCredits as coreGetUsersMeCredits,
-  getUsersMeNoticesPending as coreGetUsersMeNoticesPending,
-  getUsersMeOrganizations as coreGetUsersMeOrganizations,
+  getUsersByIdCredits as coreGetUsersByIdCredits,
+  getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
+  getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchJobsById as corePatchJobsById,
@@ -49,8 +49,8 @@ import {
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
-  postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
-  postUsersMeUploads as corePostUsersMeUploads,
+  postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
+  postUsersByIdUploads as corePostUsersByIdUploads,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putTasksByIdShare as corePutTasksByIdShare,
@@ -93,6 +93,7 @@ type CoreOperationResult<TData, TError> = {
 };
 
 type GetClient = () => Client | Promise<Client>;
+const CURRENT_USER_PATH_ID = "me";
 
 function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
@@ -592,8 +593,9 @@ export function createCoreClient(getClient: GetClient) {
     const response = await executeOperation(
       getClient,
       (client) =>
-        coreGetUsersMeNoticesPending({
+        coreGetUsersByIdNoticesPending({
           client,
+          path: { id: CURRENT_USER_PATH_ID },
           cache: "no-store",
         }),
       "Failed to fetch pending notices",
@@ -609,9 +611,9 @@ export function createCoreClient(getClient: GetClient) {
     const response = await executeOperation(
       getClient,
       (client) =>
-        corePostUsersMeNoticesByIdAcknowledge({
+        corePostUsersByIdNoticesByNoticeIdAcknowledge({
           client,
-          path: { id },
+          path: { id: CURRENT_USER_PATH_ID, noticeId: id },
         }),
       "Failed to acknowledge notice",
     );
@@ -623,8 +625,9 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetUsersMeCredits({
+        coreGetUsersByIdCredits({
           client,
+          path: { id: CURRENT_USER_PATH_ID },
           cache: "no-store",
         }),
       "Failed to fetch user credits",
@@ -635,8 +638,9 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetUsersMeOrganizations({
+        coreGetUsersByIdOrganizations({
           client,
+          path: { id: CURRENT_USER_PATH_ID },
           cache: "no-store",
         }),
       "Failed to fetch user organizations",
@@ -644,13 +648,14 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function createMyFileUploadSession(
-    body: NonNullable<PostUsersMeUploadsData["body"]>,
+    body: NonNullable<PostUsersByIdUploadsData["body"]>,
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostUsersMeUploads({
+        corePostUsersByIdUploads({
           client,
+          path: { id: CURRENT_USER_PATH_ID },
           body,
           cache: "no-store",
         }),

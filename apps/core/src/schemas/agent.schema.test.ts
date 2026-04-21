@@ -1,8 +1,6 @@
 import { type Agent, RiskClassification } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import type { AgentWithExampleOutput, AgentWithTags } from "@/types/agent";
-
 import {
   agentDetailSchema,
   agentLegalSchema,
@@ -192,7 +190,7 @@ describe("getAgentTagsFromAgent", () => {
     const agent = {
       tags: [{ name: "base-tag" }],
       overrideTags: [{ name: "override-tag" }],
-    } as AgentWithTags;
+    };
 
     expect(getAgentTagsFromAgent(agent)).toEqual(["override-tag"]);
   });
@@ -201,7 +199,7 @@ describe("getAgentTagsFromAgent", () => {
     const agent = {
       tags: [{ name: "base-tag" }],
       overrideTags: [],
-    } as AgentWithTags;
+    };
 
     expect(getAgentTagsFromAgent(agent)).toEqual(["base-tag"]);
   });
@@ -235,7 +233,7 @@ describe("getAgentExampleOutputsFromAgent", () => {
           agentIdOverride: "agent_123",
         },
       ],
-    } as AgentWithExampleOutput;
+    };
 
     expect(getAgentExampleOutputsFromAgent(agent)).toEqual([
       {

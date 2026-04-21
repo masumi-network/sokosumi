@@ -23,32 +23,38 @@ vi.mock("@/middleware/auth", () => ({
   },
 }));
 
+vi.mock("@/middleware/coworker-delegation", () => ({
+  coworkerDelegationMiddleware: async (
+    _c: unknown,
+    next: () => Promise<void>,
+  ) => {
+    middlewareCalls.calls.push("delegation");
+    await next();
+  },
+}));
+
 vi.mock("@/middleware/organization", () => ({
-  organizationHeaderMiddleware:
-    (includeOrganizationHeader: boolean) =>
-    async (
-      c: {
-        set: (key: string, value: unknown) => void;
-        var: {
-          authContext: {
-            actor: "user";
-            userId: string;
-            organizationId: string | null;
-            role: string;
-          };
+  organizationHeaderMiddleware: async (
+    c: {
+      set: (key: string, value: unknown) => void;
+      var: {
+        authContext: {
+          actor: "user";
+          userId: string;
+          organizationId: string | null;
+          role: string;
         };
-      },
-      next: () => Promise<void>,
-    ) => {
-      if (includeOrganizationHeader) {
-        middlewareCalls.calls.push("organization");
-        c.set("authContext", {
-          ...c.var.authContext,
-          organizationId: "org_123",
-        });
-      }
-      await next();
+      };
     },
+    next: () => Promise<void>,
+  ) => {
+    middlewareCalls.calls.push("organization");
+    c.set("authContext", {
+      ...c.var.authContext,
+      organizationId: "org_123",
+    });
+    await next();
+  },
 }));
 
 vi.mock("@/middleware/workspace", () => ({
@@ -110,7 +116,11 @@ describe("OpenAPIHonoWithAuth", () => {
       },
       workspaceContext: null,
     });
-    expect(middlewareCalls.calls).toEqual(["auth", "organization"]);
+    expect(middlewareCalls.calls).toEqual([
+      "auth",
+      "delegation",
+      "organization",
+    ]);
   });
 
   it("resolves workspaceContext when includeWorkspaceContext is enabled", async () => {
@@ -142,6 +152,7 @@ describe("OpenAPIHonoWithAuth", () => {
     });
     expect(middlewareCalls.calls).toEqual([
       "auth",
+      "delegation",
       "organization",
       "workspace",
     ]);

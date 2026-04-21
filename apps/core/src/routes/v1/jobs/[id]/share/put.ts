@@ -9,7 +9,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import {
   jobShareSchema,
   putJobShareRequestSchema,
@@ -49,7 +49,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { allowSearchIndexing } = c.req.valid("json");
 
@@ -66,7 +66,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Job not found");
       }
 
-      if (job.userId !== authContext.userId) {
+      if (job.userId !== userContext.userId) {
         throw forbidden("You can only manage sharing for your own jobs");
       }
 

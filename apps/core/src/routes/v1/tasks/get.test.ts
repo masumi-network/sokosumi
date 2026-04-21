@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTasks from "./get";
@@ -35,32 +35,51 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp(actor: "user" | "coworker" = "user") {
+const USER_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "user",
+  userId: "user_123",
+  organizationId: "org_123",
+  role: "user",
+};
+
+const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+};
+
+const DELEGATED_COWORKER_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  delegation: {
+    userId: "user_delegate",
+    organizationId: "org_delegate",
+  },
+};
+
+const USER_WORKSPACE_CONTEXT = {
+  workspaceId: "11111111-1111-7111-8111-111111111111",
+  userId: null,
+  organizationId: "org_123",
+} satisfies WorkspaceVariables["workspaceContext"];
+
+const DELEGATED_WORKSPACE_CONTEXT = {
+  workspaceId: "22222222-2222-7222-8222-222222222222",
+  userId: "user_delegate",
+  organizationId: "org_delegate",
+} satisfies WorkspaceVariables["workspaceContext"];
+
+function createApp(
+  authContext: AuthenticationContext = USER_AUTH_CONTEXT,
+  workspaceContext: WorkspaceVariables["workspaceContext"] = USER_WORKSPACE_CONTEXT,
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    if (actor === "coworker") {
-      c.set("authContext", {
-        actor: "coworker",
-        coworkerId: "cow_123",
-      });
-      c.set("workspaceContext", null);
-    } else {
-      c.set("authContext", {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      });
-      c.set("workspaceContext", {
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-        userId: null,
-        organizationId: "org_123",
-      });
-    }
+    c.set("authContext", authContext);
+    c.set("workspaceContext", workspaceContext);
 
     return await next();
   });
@@ -173,7 +192,7 @@ describe("GET /tasks", () => {
   });
 
   it("does not include task links for coworker-scoped task list reads", async () => {
-    const app = createApp("coworker");
+    const app = createApp(COWORKER_AUTH_CONTEXT, null);
 
     const response = await app.request("http://localhost/");
 
@@ -199,7 +218,7 @@ describe("GET /tasks", () => {
   });
 
   it("rejects coworker requests that include DRAFT", async () => {
-    const app = createApp("coworker");
+    const app = createApp(COWORKER_AUTH_CONTEXT, null);
     const response = await app.request("http://localhost/?status=DRAFT,READY");
 
     expect(response.status).toBe(400);
@@ -214,11 +233,51 @@ describe("GET /tasks", () => {
       }),
     );
 
-    const app = createApp("coworker");
+    const app = createApp(COWORKER_AUTH_CONTEXT, null);
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(403);
     expect(taskFindManyMock).not.toHaveBeenCalled();
     expect(taskCountMock).not.toHaveBeenCalled();
+  });
+
+  it("uses delegated user and workspace for delegated coworker owned scope", async () => {
+    const app = createApp(
+      DELEGATED_COWORKER_AUTH_CONTEXT,
+      DELEGATED_WORKSPACE_CONTEXT,
+    );
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "22222222-2222-7222-8222-222222222222",
+          userId: "user_delegate",
+        },
+      }),
+    );
+  });
+
+  it("uses delegated workspace scope for delegated coworker workspace queries", async () => {
+    const app = createApp(
+      DELEGATED_COWORKER_AUTH_CONTEXT,
+      DELEGATED_WORKSPACE_CONTEXT,
+    );
+    const response = await app.request(
+      "http://localhost/?scope=workspace&coworkerId=cow_999",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "22222222-2222-7222-8222-222222222222",
+          coworkerId: "cow_999",
+        },
+      }),
+    );
   });
 });

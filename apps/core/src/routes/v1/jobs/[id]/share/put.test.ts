@@ -57,7 +57,36 @@ vi.mock("@/middleware/auth", () => ({
     c.set("authContext", authContextState.current);
     return await next();
   },
-  requireUserAuthContext: (authContext: unknown) => authContext,
+  requireUserContext: (authContext: unknown) => {
+    const a = authContext as {
+      actor: string;
+      userId: string;
+      organizationId: string | null;
+      role: string;
+      delegation?: { userId: string; organizationId: string | null };
+    };
+    if (a.actor === "user") {
+      return {
+        source: "session" as const,
+        actor: "user",
+        userId: a.userId,
+        organizationId: a.organizationId,
+        role: a.role,
+      };
+    }
+    if (a.actor === "coworker" && a.delegation) {
+      return {
+        source: "delegation" as const,
+        userId: a.delegation.userId,
+        organizationId: a.delegation.organizationId,
+      };
+    }
+    throw new Error("mock requireUserContext: unsupported auth context");
+  },
+  isUserAuthContext: (authContext: { actor: string }) =>
+    authContext.actor === "user",
+  isCoworkerAuthContext: (authContext: { actor: string }) =>
+    authContext.actor === "coworker",
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
@@ -73,7 +102,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 function createApp() {
-  const app = new OpenAPIHonoWithAuth({ includeOrganizationHeader: false });
+  const app = new OpenAPIHonoWithAuth();
   mountPutJobShareById(app);
   return app;
 }
