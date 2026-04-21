@@ -48,6 +48,15 @@ export const coworkerDelegationMiddleware = createMiddleware<AuthEnv>(
       );
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw badRequest("Delegated user does not exist");
+    }
+
     if (organizationIdTrimmed) {
       const member = await prisma.member.findUnique({
         where: {
