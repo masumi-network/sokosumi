@@ -8,6 +8,7 @@ import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
+  isCoworkerAuthContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
 } from "@/middleware/auth";
@@ -45,7 +46,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const task = await prisma.$transaction(async (tx) => {
       await requireTaskReadForRouteVars(c.var, id, tx);
 
-      if (isUserAuthContext(authContext)) {
+      if (
+        isUserAuthContext(authContext) ||
+        (isCoworkerAuthContext(authContext) && authContext.delegation)
+      ) {
         const requiredWorkspaceContext =
           requireWorkspaceContext(workspaceContext);
 

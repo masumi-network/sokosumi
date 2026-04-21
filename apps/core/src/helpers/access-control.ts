@@ -283,11 +283,16 @@ export async function requireTaskReadForRouteVars(
     );
   }
 
-  return await requireCoworkerTaskCollaboration(
-    requireCoworkerAuthContext(authContext),
-    taskId,
-    tx,
-  );
+  const coworker = requireCoworkerAuthContext(authContext);
+  if (coworker.delegation) {
+    return await requireTaskReadForWorkspace(
+      requireWorkspaceContext(workspaceContext),
+      taskId,
+      tx,
+    );
+  }
+
+  return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
 }
 
 /**

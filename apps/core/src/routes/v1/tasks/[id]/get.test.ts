@@ -31,10 +31,14 @@ const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
 interface CreateAppOptions {
   actor?: "user" | "coworker";
   userId?: string;
+  delegation?: {
+    userId: string;
+    organizationId: string | null;
+  };
 }
 
 function createApp(options: CreateAppOptions = {}) {
-  const { actor = "user", userId = "user_123" } = options;
+  const { actor = "user", userId = "user_123", delegation } = options;
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
@@ -47,6 +51,7 @@ function createApp(options: CreateAppOptions = {}) {
         ? ({
             actor: "coworker",
             coworkerId: "cow_123",
+            ...(delegation ? { delegation } : {}),
           } satisfies AuthenticationContext)
         : ({
             actor: "user",
@@ -57,11 +62,11 @@ function createApp(options: CreateAppOptions = {}) {
     );
     c.set(
       "workspaceContext",
-      actor === "user"
+      actor === "user" || delegation
         ? {
             workspaceId: testWorkspaceId,
-            userId: null,
-            organizationId: "org_123",
+            userId: delegation?.userId ?? null,
+            organizationId: delegation?.organizationId ?? "org_123",
           }
         : null,
     );
@@ -377,6 +382,62 @@ describe("GET /tasks/{id}", () => {
               },
             },
           },
+          orderBy: { createdAt: "asc" },
+        },
+      }),
+    });
+  });
+
+  it("uses workspace-scoped reads for delegated coworkers", async () => {
+    const app = createApp({
+      actor: "coworker",
+      delegation: {
+        userId: "user_delegate",
+        organizationId: "org_delegate",
+      },
+    });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        workspaceId: testWorkspaceId,
+      },
+    });
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        workspaceId: testWorkspaceId,
+      },
+      include: expect.objectContaining({
+        share: true,
+        linksFrom: {
+          where: {
+            toTask: {
+              is: {
+                workspaceId: testWorkspaceId,
+                archivedAt: null,
+              },
+            },
+          },
+          include: expect.any(Object),
+          orderBy: { createdAt: "asc" },
+        },
+        linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                workspaceId: testWorkspaceId,
+                archivedAt: null,
+              },
+            },
+          },
+          include: expect.any(Object),
           orderBy: { createdAt: "asc" },
         },
       }),

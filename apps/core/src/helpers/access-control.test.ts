@@ -250,6 +250,40 @@ describe("requireTaskReadForRouteVars", () => {
       },
     });
   });
+
+  it("delegates coworker reads with delegation to workspace read", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_delegate",
+        organizationId: "org_123",
+      },
+    };
+
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskReadForRouteVars(vars, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId,
+      },
+    });
+    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
+    expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
 });
 
 describe("requireCoworkerTaskCollaboration", () => {
