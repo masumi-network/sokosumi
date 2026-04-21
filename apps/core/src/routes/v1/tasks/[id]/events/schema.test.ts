@@ -50,6 +50,18 @@ describe("createTaskEventRequestSchema", () => {
     }
   });
 
+  it("accepts MESSENGER origin", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      origin: TaskEventOrigin.MESSENGER,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.origin).toBe(TaskEventOrigin.MESSENGER);
+    }
+  });
+
   it("throws an error for unsupported origins", () => {
     expect(() => {
       taskEventRequestSchema.parse({

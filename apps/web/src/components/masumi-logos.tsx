@@ -84,6 +84,21 @@ function SokosumiIcon({ className, animated = true, ...props }: IconProps) {
   );
 }
 
+function MasumiMessengerIcon({
+  className,
+  animated: _animated = true,
+  ...props
+}: IconProps) {
+  return (
+    <svg viewBox="0 0 253 245" fill="none" className={cn(className)} {...props}>
+      <path
+        d="M130.01 0C62.38 0 7.55 54.82 7.55 122.46C7.55 135.96 9.73 148.96 13.78 161.13C16.93 170.6 17.05 181.52 15.53 191.53C14 201.62 10.98 209.77 8.79 213.5L0 228.49L17.29 226.97C30.44 225.82 51.28 221.46 72.48 230.59C89.64 239.74 109.23 244.93 130.01 244.93C197.65 244.93 252.48 190.1 252.48 122.46C252.48 54.82 197.65 0 130.01 0ZM111.38 188.3C74.85 188.3 45.22 158.93 45.22 122.71H63.61C63.61 148.83 85.04 170.08 111.39 170.08C137.74 170.08 159.17 148.83 159.17 122.71H177.54C177.54 158.94 147.92 188.3 111.38 188.3ZM195.93 122.71C195.93 96.59 174.5 75.33 148.15 75.33C121.8 75.33 100.38 96.58 100.38 122.71H82C82 86.48 111.62 57.11 148.16 57.11C184.69 57.12 214.31 86.49 214.31 122.71H195.93Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 function KodosumiLogo({ variant = "black", ...props }: LogoProps) {
   return (
     <Image
@@ -112,6 +127,7 @@ export {
   KanjiLogo,
   KodosumiLogo,
   MasumiLogo,
+  MasumiMessengerIcon,
   SokosumiIcon,
   SokosumiLogo,
   ThemedLogo,

@@ -1255,6 +1255,7 @@ enum TaskEventOrigin {
   SIGNAL
   DISCORD
   CHAT
+  MESSENGER
   SOKOSUMI
   UNKNOWN
 }
