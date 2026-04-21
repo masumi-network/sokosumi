@@ -72,7 +72,17 @@ function createApp(
     return await next();
   });
 
-  mountPostUserFileUploads(app as unknown as OpenAPIHonoWithAuth);
+  const userByIdApp = new OpenAPIHono<{
+    Variables: AuthVariables & { requestId: string };
+  }>({
+    defaultHook: (result) => {
+      if (!result.success && result.error) {
+        throw unprocessableEntity(formatZodErrorMessage(result.error));
+      }
+    },
+  });
+  mountPostUserFileUploads(userByIdApp as unknown as OpenAPIHonoWithAuth);
+  app.route("/:id", userByIdApp);
 
   return app;
 }

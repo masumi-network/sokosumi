@@ -18,7 +18,7 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/{id}/uploads",
+  path: "/uploads",
   description:
     "Get uploads: path `me` for the session user, or a user id when the caller may access that user's data.",
   tags: ["Users"],
@@ -46,6 +46,7 @@ const route = createRoute({
     }),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
     503: jsonErrorResponse("Service Unavailable"),
     500: jsonErrorResponse("Internal Server Error"),
   },

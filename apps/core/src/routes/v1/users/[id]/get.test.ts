@@ -34,7 +34,11 @@ function createApp() {
     return await next();
   });
 
-  mountGetUserById(app as unknown as OpenAPIHonoWithAuth);
+  const userByIdApp = new OpenAPIHono<{
+    Variables: AuthVariables;
+  }>();
+  mountGetUserById(userByIdApp as unknown as OpenAPIHonoWithAuth);
+  app.route("/:id", userByIdApp);
   return app;
 }
 

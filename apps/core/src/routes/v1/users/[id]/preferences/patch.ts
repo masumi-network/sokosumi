@@ -39,7 +39,7 @@ const requestBodySchema = z
 
 const route = createRoute({
   method: "patch",
-  path: "/{id}/preferences",
+  path: "/preferences",
   description:
     "Update preferences: path `me` for the session user, or a user id when the caller may access that user's data.",
   tags: ["Users"],
@@ -71,6 +71,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
   },
 });
 

@@ -17,7 +17,7 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/{id}",
+  path: "/",
   description:
     "Get a user: use path `me` for the authenticated session user, or a user id when the effective user matches that id, a delegated coworker acts for that user, or a session admin requests any user.",
   tags: ["Users"],

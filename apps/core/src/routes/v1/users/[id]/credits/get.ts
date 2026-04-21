@@ -22,7 +22,7 @@ const params = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
-    path: "/{id}/credits",
+    path: "/credits",
     description:
       "Get credit balance for the authenticated organization context (session active org, optional `X-Organization-Slug` when no active org, or coworker delegation headers): path `me` for the session user, or a user id when the effective user matches, a delegated coworker acts for that user, or a session admin requests any user. For a specific organization by id without relying on session context, use `GET /{id}/organizations/{organizationId}/credits`.",
     tags: ["Users"],

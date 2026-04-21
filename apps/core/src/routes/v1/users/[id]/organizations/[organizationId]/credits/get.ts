@@ -22,7 +22,7 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/{id}/organizations/{organizationId}/credits",
+  path: "/organizations/{organizationId}/credits",
   description:
     "Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id.",
   tags: ["Users"],

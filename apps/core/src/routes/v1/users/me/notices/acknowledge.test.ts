@@ -82,7 +82,11 @@ function createApp(actor: "user" | "coworker" = "user") {
     return await next();
   });
 
-  mountPostNoticeAcknowledge(app as unknown as OpenAPIHonoWithAuth);
+  const userByIdApp = new OpenAPIHono<{
+    Variables: AuthVariables;
+  }>();
+  mountPostNoticeAcknowledge(userByIdApp as unknown as OpenAPIHonoWithAuth);
+  app.route("/:id", userByIdApp);
 
   return app;
 }
