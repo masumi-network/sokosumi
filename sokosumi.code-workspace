@@ -29,6 +29,10 @@
       "path": "packages/chat"
     },
     {
+      "name": "Package: AI-SDK Provider",
+      "path": "packages/ai-provider"
+    },
+    {
       "name": "Package: Utils",
       "path": "packages/utils"
     }
