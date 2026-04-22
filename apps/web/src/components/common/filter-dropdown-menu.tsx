@@ -2,6 +2,7 @@
 
 import { Check, ListFilter, type LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import AgentIcon from "@/components/agents/agent-icon";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ export interface FilterDropdownMenuOption {
   label: string;
   avatarLabel?: string;
   image?: string | null;
+  useAgentIcon?: boolean;
   searchKeywords?: string[];
 }
 
@@ -183,10 +185,27 @@ function FilterDropdownMenuSectionItem({
 function FilterDropdownMenuOptionAvatar({
   option,
 }: {
-  option: Pick<FilterDropdownMenuOption, "avatarLabel" | "image">;
+  option: Pick<
+    FilterDropdownMenuOption,
+    "avatarLabel" | "image" | "useAgentIcon"
+  >;
 }) {
   if (!option.avatarLabel) {
     return null;
+  }
+
+  if (option.useAgentIcon) {
+    return (
+      <span className="flex size-5 shrink-0 items-center justify-center text-current">
+        <AgentIcon
+          agent={{
+            name: option.avatarLabel,
+            icon: option.image ?? null,
+          }}
+          className="size-4 shrink-0"
+        />
+      </span>
+    );
   }
 
   const fallback = option.avatarLabel.trim().charAt(0).toUpperCase() || "?";

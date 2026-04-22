@@ -121,6 +121,7 @@ export function JobsViewFilters({
         label: agent.name,
         avatarLabel: agent.name,
         image: agent.image,
+        useAgentIcon: true,
       })),
     });
 
