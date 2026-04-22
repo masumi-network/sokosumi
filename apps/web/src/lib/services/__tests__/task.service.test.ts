@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { TaskStatus } from "@sokosumi/database";
+import { AgentJobStatus, TaskStatus } from "@sokosumi/database";
 
 const coreClientMock = {
   createTaskLink: vi.fn(),
@@ -10,6 +10,7 @@ const coreClientMock = {
   createTaskEvent: vi.fn(),
   deleteTaskLink: vi.fn(),
   deleteTask: vi.fn(),
+  getJobs: vi.fn(),
   getTaskById: vi.fn(),
   getTaskLinks: vi.fn(),
   getTasks: vi.fn(),
@@ -122,6 +123,69 @@ describe("task.service", () => {
       q: undefined,
       cursor: undefined,
       limit: 20,
+    });
+  });
+
+  it("forwards jobs filters to the core client", async () => {
+    const job = {
+      id: "job-1",
+      createdAt: new Date("2026-02-19T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      completedAt: null,
+      agentId: "agent-1",
+      userId: "user-1",
+      organizationId: null,
+      taskId: "task-1",
+      name: "Test job",
+      jobType: "PAID" as const,
+      status: "processing" as const,
+      credits: 5,
+      onChainStatus: null,
+      onChainTransactionHash: null,
+      result: null,
+      resultHash: null,
+      workspace: {
+        id: "workspace-1",
+        organizationId: null,
+        organization: null,
+      },
+    };
+    coreClientMock.getJobs.mockResolvedValue({
+      data: [job],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 20,
+          total: 1,
+          nextCursor: "job-2",
+        },
+      },
+    });
+
+    const { taskService } = await import("../task.service");
+    const result = await taskService.listJobs({
+      scope: "workspace",
+      agentId: "agent-1",
+      status: AgentJobStatus.RUNNING,
+      cursor: "job-1",
+      limit: 20,
+    });
+
+    expect(coreClientMock.getJobs).toHaveBeenCalledWith({
+      scope: "workspace",
+      agentId: "agent-1",
+      status: AgentJobStatus.RUNNING,
+      cursor: "job-1",
+      limit: 20,
+    });
+    expect(result).toEqual({
+      jobs: [job],
+      pagination: {
+        cursor: null,
+        limit: 20,
+        total: 1,
+        nextCursor: "job-2",
+      },
     });
   });
 

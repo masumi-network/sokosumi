@@ -1366,19 +1366,27 @@
         }
       },
       "Jobs": {
-        "filterButton": "状态",
-        "filterHideFailed": "隐藏失败",
-        "filterShowAll": "显示全部",
+        "filterButton": "筛选",
+        "agentLabel": "智能体",
+        "jobStatusLabel": "作业状态",
+        "jobStatusOptions": {
+          "INITIATED": "已发起",
+          "AWAITING_PAYMENT": "等待付款",
+          "AWAITING_INPUT": "等待输入",
+          "RUNNING": "运行中",
+          "COMPLETED": "已完成",
+          "FAILED": "失败"
+        },
         "recentTitle": "最近",
         "emptyRecent": "暂无最近完成的作业。",
         "emptyList": "暂无作业。",
         "emptySection": "该状态下暂无作业。",
         "untitled": "未命名作业",
-        "unknownAgent": "未知智能体",
-        "unknownCoworker": "未知协作伙伴"
+        "unknownAgent": "未知智能体"
       },
       "Detail": {
         "back": "返回任务列表",
+        "parentTask": "父任务：",
         "properties": "属性",
         "status": "状态",
         "coworker": "协作伙伴",
