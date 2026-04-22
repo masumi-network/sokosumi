@@ -151,7 +151,7 @@ describe("SignUpForm OAuth workflow", () => {
       redirect_uri: "https://consumer.example.com/callback",
       code_challenge: "test-challenge",
       code_challenge_method: "S256",
-      scope: "openid offline_access",
+      scope: "openid",
       state: "test-state",
       response_type: "code",
       exp: "1772367377",
@@ -235,7 +235,7 @@ describe("SignUpForm OAuth workflow", () => {
       redirect_uri: "https://consumer.example.com/callback",
       code_challenge: "test-challenge",
       code_challenge_method: "S256",
-      scope: "openid offline_access",
+      scope: "openid",
       state: "test-state",
       response_type: "code",
       exp: "1772367377",
@@ -279,7 +279,7 @@ describe("SignUpForm OAuth workflow", () => {
     );
     expect(callbackUrl).toContain("code_challenge=test-challenge");
     expect(callbackUrl).toContain("code_challenge_method=S256");
-    expect(callbackUrl).toContain("scope=openid+offline_access");
+    expect(callbackUrl).toContain("scope=openid");
     expect(callbackUrl).toContain("state=test-state");
     expect(callbackUrl).toContain("response_type=code");
     expect(callbackUrl).toContain("exp=1772367377");
