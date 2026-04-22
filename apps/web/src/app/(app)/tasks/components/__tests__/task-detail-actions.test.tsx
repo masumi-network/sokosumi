@@ -23,6 +23,7 @@ import {
 import {
   createTaskAndLink,
   createTaskLink,
+  deleteTask,
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
@@ -434,10 +435,10 @@ function buildTaskListItem(
 
 const labels = {
   edit: "Edit",
-  delete: "Delete",
-  confirmDelete: "Confirm delete",
-  confirmDeleteDescription: "Are you sure?",
-  deleteError: "Delete error",
+  archive: "Archive",
+  confirmArchive: "Confirm archive",
+  confirmArchiveDescription: "Are you sure?",
+  archiveError: "Archive error",
   markAsReady: "Mark as Ready",
   revertToDraft: "Revert to Draft",
   cancelRequest: "Cancel Request",
@@ -563,6 +564,7 @@ describe("TaskDetailActions", () => {
     vi.mocked(setTaskStatusFromDrag).mockReset();
     vi.mocked(createTaskLink).mockReset();
     vi.mocked(createTaskAndLink).mockReset();
+    vi.mocked(deleteTask).mockReset();
     vi.mocked(deleteTaskLink).mockReset();
   });
 
@@ -573,13 +575,33 @@ describe("TaskDetailActions", () => {
   it.each([
     TASK_STATUS.COMPLETED,
     TASK_STATUS.FAILED,
-    TASK_STATUS.CANCEL_REQUESTED,
-  ] as const)("does not render the overflow menu for finalized status %s", (status) => {
+  ] as const)("shows archive in the overflow menu for finalized status %s without edit", async (status) => {
+    const user = userEvent.setup();
     renderActions({ status });
-    expect(
-      screen.queryByRole("button", { name: actionsMenuLabel }),
-    ).not.toBeInTheDocument();
+
     expect(screen.getByRole("button", { name: labels.share })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+  });
+
+  it("hides archive while the coworker is running", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TASK_STATUS.RUNNING,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancelRequest }),
+    ).toBeInTheDocument();
   });
 
   it("hides share and overflow actions in read-only workspace mode", () => {
@@ -647,6 +669,20 @@ describe("TaskDetailActions", () => {
         desiredStatus: TASK_STATUS.DRAFT,
       });
     });
+  });
+
+  it("renders a single separator between status actions and archive for canceled tasks", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TASK_STATUS.CANCELED,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      document.querySelectorAll('[data-slot="dropdown-menu-separator"]').length,
+    ).toBe(1);
   });
 
   it("shows move to workspace when the task can be moved", async () => {
@@ -1148,7 +1184,7 @@ describe("TaskDetailActions", () => {
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("renders grouped separators for status, relation, workspace, and delete sections", async () => {
+  it("renders grouped separators for status, relation, workspace, and archive sections", async () => {
     const user = userEvent.setup();
     renderActions({
       taskLinks: [...defaultTaskLinks],
@@ -1159,6 +1195,30 @@ describe("TaskDetailActions", () => {
     expect(
       document.querySelectorAll('[data-slot="dropdown-menu-separator"]').length,
     ).toBe(3);
+  });
+
+  it("archives the task from the confirmation dialog", async () => {
+    const user = userEvent.setup();
+    const deleteTaskMock = vi.mocked(deleteTask);
+    deleteTaskMock.mockResolvedValue(undefined);
+
+    renderActions({ organizations: undefined });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: labels.archive }));
+
+    expect(
+      await screen.findByRole("heading", { name: labels.confirmArchive }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getAllByRole("button", { name: labels.archive }).at(-1)!,
+    );
+
+    await waitFor(() => {
+      expect(deleteTaskMock).toHaveBeenCalledWith({ taskId: "task-1" });
+      expect(pushMock).toHaveBeenCalledWith("/tasks");
+    });
   });
 
   it("keeps desktop submenu behavior for mark as actions", async () => {

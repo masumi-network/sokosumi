@@ -1,8 +1,10 @@
 "use client";
 
 import { type MemberWithOrganization } from "@sokosumi/database";
+import { isTaskArchivableStatus } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import {
+  Archive,
   ArrowLeftRight,
   Ban,
   CheckCircle2,
@@ -19,14 +21,12 @@ import {
   SquareMinus,
   SquareMousePointer,
   SquarePlus,
-  Trash,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,10 +82,10 @@ import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 
 interface TaskDetailActionsLabels {
   edit: string;
-  delete: string;
-  confirmDelete: string;
-  confirmDeleteDescription: string;
-  deleteError: string;
+  archive: string;
+  confirmArchive: string;
+  confirmArchiveDescription: string;
+  archiveError: string;
   markAsReady: string;
   revertToDraft: string;
   cancelRequest: string;
@@ -132,7 +132,7 @@ export function TaskDetailActions({
   const router = useRouter();
   const isMobile = useIsMobile();
   const [isStatusPending, startStatusTransition] = useTransition();
-  const [isDeletePending, startDeleteTransition] = useTransition();
+  const [isArchivePending, startArchiveTransition] = useTransition();
   const [isLinkPending, startLinkTransition] = useTransition();
   const [isParentRemovalPending, startParentRemovalTransition] =
     useTransition();
@@ -165,9 +165,10 @@ export function TaskDetailActions({
 
   const statusActions = isReadOnly ? [] : getTaskStatusActions(status, labels);
 
-  const canEditOrDelete =
+  const canEdit =
     !isReadOnly &&
     (status === TASK_STATUS.DRAFT || status === TASK_STATUS.READY);
+  const canArchiveTask = !isReadOnly && isTaskArchivableStatus(status);
   const isFinalized =
     status === TASK_STATUS.COMPLETED ||
     status === TASK_STATUS.FAILED ||
@@ -195,9 +196,10 @@ export function TaskDetailActions({
   const canRemoveParent = canManageRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
     statusActions.length > 0 ||
-    canEditOrDelete ||
+    canEdit ||
     canManageRelations ||
-    canMove;
+    canMove ||
+    canArchiveTask;
   const taskPickerOptions = useMemo(
     () => buildTaskPickerOptions(tDetailActions),
     [tDetailActions],
@@ -257,15 +259,15 @@ export function TaskDetailActions({
     });
   };
 
-  const handleDelete = () => {
-    startDeleteTransition(async () => {
+  const handleArchive = () => {
+    startArchiveTransition(async () => {
       try {
         await deleteTask({ taskId });
         setIsOpen(false);
         router.push("/tasks");
       } catch (error) {
-        console.error("Failed to delete task", error);
-        toast.error(labels.deleteError);
+        console.error("Failed to archive task", error);
+        toast.error(labels.archiveError);
       }
     });
   };
@@ -363,7 +365,7 @@ export function TaskDetailActions({
 
   const actionsDisabled =
     isStatusPending ||
-    isDeletePending ||
+    isArchivePending ||
     isLinkPending ||
     isParentRemovalPending ||
     isRemoveRelatedPending;
@@ -418,11 +420,11 @@ export function TaskDetailActions({
             })}
 
             {statusActions.length > 0 &&
-            (canEditOrDelete || canManageRelations || canMove) ? (
+            (canEdit || canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
 
-            {canEditOrDelete ? (
+            {canEdit ? (
               <DropdownMenuItem asChild disabled={actionsDisabled}>
                 <Link
                   href={`/tasks/${taskId}/edit`}
@@ -696,7 +698,7 @@ export function TaskDetailActions({
               </>
             ) : null}
 
-            {(canEditOrDelete || canManageRelations) && canMove ? (
+            {(canEdit || canManageRelations) && canMove ? (
               <DropdownMenuSeparator />
             ) : null}
 
@@ -710,44 +712,45 @@ export function TaskDetailActions({
               </DropdownMenuItem>
             ) : null}
 
-            {canEditOrDelete &&
-            (statusActions.length > 0 || canManageRelations || canMove) ? (
+            {canArchiveTask &&
+            (statusActions.length > 0 ||
+              canEdit ||
+              canManageRelations ||
+              canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
 
-            {canEditOrDelete ? (
+            {canArchiveTask ? (
               <DropdownMenuItem
-                variant="destructive"
                 disabled={actionsDisabled}
                 onSelect={() => setIsOpen(true)}
               >
-                <Trash className="size-4" aria-hidden />
-                {labels.delete}
+                <Archive className="size-4" aria-hidden />
+                {labels.archive}
               </DropdownMenuItem>
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
 
-      {canEditOrDelete ? (
+      {canArchiveTask ? (
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{labels.confirmDelete}</AlertDialogTitle>
+              <AlertDialogTitle>{labels.confirmArchive}</AlertDialogTitle>
               <AlertDialogDescription>
-                {labels.confirmDeleteDescription}
+                {labels.confirmArchiveDescription}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeletePending}>
+              <AlertDialogCancel disabled={isArchivePending}>
                 {tApp("cancel")}
               </AlertDialogCancel>
               <AlertDialogAction
-                onClick={handleDelete}
-                disabled={isDeletePending}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={handleArchive}
+                disabled={isArchivePending}
               >
-                {labels.delete}
+                {labels.archive}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
