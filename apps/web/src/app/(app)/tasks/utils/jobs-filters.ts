@@ -227,15 +227,7 @@ function isSokosumiStatusClearlyOutsideAgentJobFilter(
         status === SokosumiJobStatus.DISPUTE_RESOLVED
       );
     case AgentJobStatus.AWAITING_INPUT:
-      return (
-        status === SokosumiJobStatus.COMPLETED ||
-        status === SokosumiJobStatus.FAILED ||
-        status === SokosumiJobStatus.PAYMENT_FAILED ||
-        status === SokosumiJobStatus.PAYMENT_PENDING ||
-        status === SokosumiJobStatus.STARTED ||
-        status === SokosumiJobStatus.REFUND_RESOLVED ||
-        status === SokosumiJobStatus.DISPUTE_RESOLVED
-      );
+      return status !== SokosumiJobStatus.INPUT_REQUIRED;
     case AgentJobStatus.INITIATED:
       return (
         status === SokosumiJobStatus.COMPLETED ||
