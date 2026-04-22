@@ -1,7 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
+import { getTaskCannotArchiveMessage } from "@sokosumi/utils";
+import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { errorHandler } from "@/helpers/error-handler";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -19,10 +21,13 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskOwnership: requireTaskOwnershipMock,
 }));
 
-vi.mock("@/helpers/task", () => ({
-  isTaskArchivableStatus: vi.fn(() => true),
-  mapTask: mapTaskMock,
-}));
+vi.mock("@/helpers/task", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/helpers/task")>();
+  return {
+    ...actual,
+    mapTask: mapTaskMock,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -32,10 +37,11 @@ vi.mock("@/lib/db/prisma", () => ({
 
 function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
+    Variables: AuthVariables & WorkspaceVariables & RequestIdVariables;
   }>();
 
   app.use("*", async (c, next) => {
+    c.set("requestId", "req_delete_route_test");
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
@@ -51,6 +57,9 @@ function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
 
     return await next();
   });
+
+  // errorHandler is typed for RequestId-only context; this test app adds auth/workspace vars.
+  app.onError(errorHandler as never);
 
   mountDeleteTask(app as unknown as OpenAPIHonoWithAuth);
 
@@ -133,5 +142,33 @@ describe("DELETE /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  it("returns 422 when the task status is not archivable", async () => {
+    const updateMock = vi.fn();
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          update: updateMock,
+        },
+      });
+    });
+
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.RUNNING,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(422);
+    expect(updateMock).not.toHaveBeenCalled();
+
+    const body = (await response.json()) as { message?: string };
+    expect(body.message).toBe(getTaskCannotArchiveMessage(TaskStatus.RUNNING));
   });
 });
