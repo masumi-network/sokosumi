@@ -73,11 +73,9 @@ export function JobsListView({
     [jobs],
   );
 
-  const visibleJobs = sortedJobs;
-
   const recentJobs = useMemo(
     () =>
-      visibleJobs.filter((job) => {
+      sortedJobs.filter((job) => {
         if (job.status !== SokosumiJobStatus.COMPLETED) return false;
         if (!job.completedAt) return false;
         const retentionFloor = recentReferenceTs - RECENT_RETENTION_MS;
@@ -87,7 +85,7 @@ export function JobsListView({
             : retentionFloor;
         return new Date(job.completedAt).getTime() > effectiveLastSeenAt;
       }),
-    [lastSeenAt, recentReferenceTs, visibleJobs],
+    [lastSeenAt, recentReferenceTs, sortedJobs],
   );
 
   const recentJobIds = useMemo(
@@ -104,14 +102,14 @@ export function JobsListView({
       done: [],
     };
 
-    for (const job of visibleJobs) {
+    for (const job of sortedJobs) {
       if (recentJobIds.has(job.id)) continue;
       const columnId = jobStatusToColumnId(job.status);
       initial[columnId].push(job);
     }
 
     return initial;
-  }, [recentJobIds, visibleJobs]);
+  }, [recentJobIds, sortedJobs]);
 
   const orderedColumns: KanbanColumnId[] = [
     "done",
@@ -119,7 +117,7 @@ export function JobsListView({
     "in-progress",
     "todo",
   ];
-  const hasAnyJobs = visibleJobs.length > 0;
+  const hasAnyJobs = sortedJobs.length > 0;
 
   const listContent = (
     <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">

@@ -3,11 +3,9 @@ import { AgentJobStatus } from "@sokosumi/database";
 import {
   firstQueryString,
   getDefaultTasksScope,
-  getTasksFiltersResetKey,
   normalizeOptionalString,
   sanitizeTasksScopeInput,
   type TasksFilterQueryParam,
-  type TasksFilters,
   type TasksScope,
 } from "@/app/tasks/utils/tasks-filters";
 
@@ -148,12 +146,4 @@ export function getJobsListFiltersResetKey(
   activeOrganizationId: string | null,
 ): string {
   return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.agentId ?? "all"}:${filters.jobStatus ?? "all"}`;
-}
-
-export function getTasksViewServerResetKey(
-  tasksFilters: TasksFilters,
-  jobsListFilters: JobsListFilters,
-  activeOrganizationId: string | null,
-): string {
-  return `${getTasksFiltersResetKey(tasksFilters, activeOrganizationId)}:${getJobsListFiltersResetKey(jobsListFilters, activeOrganizationId)}`;
 }

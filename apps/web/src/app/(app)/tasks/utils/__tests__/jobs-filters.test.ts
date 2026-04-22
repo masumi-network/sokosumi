@@ -1,11 +1,10 @@
-import { AgentJobStatus, TaskStatus } from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import {
   buildJobsListFiltersSearchParams,
   getJobsListFiltersFromSearchParams,
   getJobsListFiltersResetKey,
-  getTasksViewServerResetKey,
   parseJobsListFilters,
   sanitizeAgentJobStatusInput,
   sanitizeJobAgentIdInput,
@@ -124,7 +123,7 @@ describe("jobs-filters", () => {
     expect(sanitizeAgentJobStatusInput(null)).toBeNull();
   });
 
-  it("derives stable reset keys for jobs and the combined tasks view", () => {
+  it("derives stable reset keys for jobs list filters", () => {
     expect(
       getJobsListFiltersResetKey(
         {
@@ -135,21 +134,5 @@ describe("jobs-filters", () => {
         "org-1",
       ),
     ).toBe("org-1:workspace:agent-1:COMPLETED");
-
-    expect(
-      getTasksViewServerResetKey(
-        {
-          scope: "workspace",
-          coworkerId: "coworker-1",
-          status: TaskStatus.READY,
-        },
-        {
-          scope: "workspace",
-          agentId: "agent-1",
-          jobStatus: AgentJobStatus.RUNNING,
-        },
-        "org-1",
-      ),
-    ).toBe("org-1:workspace:coworker-1:READY:org-1:workspace:agent-1:RUNNING");
   });
 });
