@@ -421,7 +421,7 @@ export function TaskDetailActions({
             })}
 
             {statusActions.length > 0 &&
-            (canEdit || canManageRelations || canMove || canArchiveTask) ? (
+            (canEdit || canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
 

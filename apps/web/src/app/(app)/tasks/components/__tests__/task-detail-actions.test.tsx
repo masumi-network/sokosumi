@@ -671,6 +671,20 @@ describe("TaskDetailActions", () => {
     });
   });
 
+  it("renders a single separator between status actions and archive for canceled tasks", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TASK_STATUS.CANCELED,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      document.querySelectorAll('[data-slot="dropdown-menu-separator"]').length,
+    ).toBe(1);
+  });
+
   it("shows move to workspace when the task can be moved", async () => {
     const user = userEvent.setup();
 
