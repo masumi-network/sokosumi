@@ -7,6 +7,7 @@ import {
   getJobsListFiltersResetKey,
   parseJobsListFilters,
   sanitizeAgentJobStatusInput,
+  sanitizeJobAgentIdForPersistedFilter,
   sanitizeJobAgentIdInput,
 } from "@/app/tasks/utils/jobs-filters";
 
@@ -121,6 +122,15 @@ describe("jobs-filters", () => {
     );
     expect(sanitizeAgentJobStatusInput("invalid")).toBeNull();
     expect(sanitizeAgentJobStatusInput(null)).toBeNull();
+  });
+
+  it("sanitizes persisted job agent ids without an availability allowlist", () => {
+    expect(sanitizeJobAgentIdForPersistedFilter(" offline-agent ")).toBe(
+      "offline-agent",
+    );
+    expect(sanitizeJobAgentIdForPersistedFilter(null)).toBeNull();
+    expect(sanitizeJobAgentIdForPersistedFilter("   ")).toBeNull();
+    expect(sanitizeJobAgentIdForPersistedFilter("a".repeat(129))).toBeNull();
   });
 
   it("derives stable reset keys for jobs list filters", () => {

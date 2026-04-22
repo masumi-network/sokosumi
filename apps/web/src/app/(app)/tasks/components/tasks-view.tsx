@@ -379,8 +379,14 @@ export function TasksView({
     () => getTasksFiltersResetKey(routeFilters, activeOrganizationId),
     [activeOrganizationId, routeFilters],
   );
+  const routeJobsListFiltersResetKey = useMemo(
+    () => getJobsListFiltersResetKey(jobsRouteFilters, activeOrganizationId),
+    [activeOrganizationId, jobsRouteFilters],
+  );
   const isTaskPaginationInSync =
     routeTasksFiltersResetKey === serverTasksFiltersResetKey;
+  const isJobsPaginationInSync =
+    routeJobsListFiltersResetKey === serverJobsListFiltersResetKey;
   const previousTasksFiltersResetKeyRef = useRef(serverTasksFiltersResetKey);
   const previousJobsListFiltersResetKeyRef = useRef(
     serverJobsListFiltersResetKey,
@@ -677,6 +683,7 @@ export function TasksView({
   };
 
   const handleLoadMoreJobs = () => {
+    if (!isJobsPaginationInSync) return;
     if (!jobsCursor) return;
     startJobsTransition(async () => {
       try {
@@ -1025,7 +1032,7 @@ export function TasksView({
             <Button
               variant="outline"
               onClick={handleLoadMoreJobs}
-              disabled={isJobsPending}
+              disabled={isJobsPending || !isJobsPaginationInSync}
             >
               {isJobsPending ? labels.loading : labels.loadMore}
             </Button>

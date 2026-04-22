@@ -71,6 +71,30 @@ export function sanitizeJobAgentIdInput(
     : null;
 }
 
+/** Upper bound for DB-backed agent IDs (cuid, uuid, etc.). */
+const JOB_AGENT_ID_MAX_LENGTH = 128;
+
+/**
+ * Normalizes an agent id for server actions that replay an already-applied jobs
+ * filter (e.g. pagination). Unlike {@link sanitizeJobAgentIdInput}, this does not
+ * consult the live availability catalog — an agent can disappear from the picker
+ * while the user is paging, and the list API must keep filtering by the same id.
+ */
+export function sanitizeJobAgentIdForPersistedFilter(
+  raw: unknown,
+): string | null {
+  if (typeof raw !== "string") {
+    return null;
+  }
+
+  const normalized = raw.trim();
+  if (!normalized || normalized.length > JOB_AGENT_ID_MAX_LENGTH) {
+    return null;
+  }
+
+  return normalized;
+}
+
 export function parseJobsListFilters(
   searchParams: JobsListFiltersSearchParams,
   activeOrganizationId: string | null,

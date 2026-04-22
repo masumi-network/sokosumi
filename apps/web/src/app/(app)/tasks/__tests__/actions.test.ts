@@ -292,7 +292,7 @@ describe("loadMoreJobs", () => {
     });
   });
 
-  it("drops invalid agent and job status filters before loading more jobs", async () => {
+  it("keeps agent filter for pagination when agent is not in the availability catalog", async () => {
     listCoworkersMock.mockResolvedValue([]);
     getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([
       { id: "agent-1", name: "Agent" },
@@ -309,7 +309,37 @@ describe("loadMoreJobs", () => {
     await loadMoreJobs(
       null,
       "workspace",
-      "missing-agent",
+      "offline-agent",
+      "not-a-status" as never,
+    );
+
+    expect(listJobsMock).toHaveBeenCalledWith({
+      scope: "workspace",
+      agentId: "offline-agent",
+      status: undefined,
+      cursor: null,
+      limit: 20,
+    });
+  });
+
+  it("drops invalid job status and rejects oversized agent id before loading more jobs", async () => {
+    listCoworkersMock.mockResolvedValue([]);
+    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
+    listJobsMock.mockResolvedValue({
+      jobs: [],
+      pagination: null,
+    });
+    mapJobsToTasksViewDataMock.mockResolvedValue({
+      jobs: [],
+      agentPreviewById: {},
+    });
+
+    const tooLongAgentId = "a".repeat(129);
+
+    await loadMoreJobs(
+      null,
+      "workspace",
+      tooLongAgentId,
       "not-a-status" as never,
     );
 

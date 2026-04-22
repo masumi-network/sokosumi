@@ -2,7 +2,7 @@
 
 import {
   sanitizeAgentJobStatusInput,
-  sanitizeJobAgentIdInput,
+  sanitizeJobAgentIdForPersistedFilter,
 } from "@/app/tasks/utils/jobs-filters";
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import {
@@ -81,7 +81,7 @@ export async function loadMoreJobs(
   ]);
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const sanitizedScope = sanitizeTasksScopeInput(scope, activeOrganizationId);
-  const sanitizedAgentId = sanitizeJobAgentIdInput(agentId, agents);
+  const sanitizedAgentId = sanitizeJobAgentIdForPersistedFilter(agentId);
   const sanitizedJobStatus = sanitizeAgentJobStatusInput(jobStatus);
   const jobsPage = await taskService.listJobs({
     scope: sanitizedScope,
