@@ -10,6 +10,8 @@ const {
   prismaTransactionMock,
   upsertWorkspaceForContextMock,
   memberFindFirstMock,
+  userFindUniqueMock,
+  memberFindUniqueMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
   verifyApiKeyMock: vi.fn(),
@@ -18,6 +20,8 @@ const {
   prismaTransactionMock: vi.fn(),
   upsertWorkspaceForContextMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@sentry/node", async (importOriginal) => {
@@ -43,8 +47,12 @@ vi.mock("@/lib/db/prisma", () => ({
     coworkerApiKey: {
       findUnique: coworkerApiKeyFindUniqueMock,
     },
+    user: {
+      findUnique: userFindUniqueMock,
+    },
     member: {
       findFirst: memberFindFirstMock,
+      findUnique: memberFindUniqueMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -83,6 +91,8 @@ describe("workspaceMiddleware", () => {
     getSessionMock.mockResolvedValue(null);
     coworkerApiKeyFindUniqueMock.mockResolvedValue(null);
     memberFindFirstMock.mockResolvedValue(null);
+    userFindUniqueMock.mockResolvedValue(null);
+    memberFindUniqueMock.mockResolvedValue(null);
     upsertWorkspaceForContextMock.mockResolvedValue({
       id: "workspace_123",
       userId: "user_123",
@@ -120,6 +130,7 @@ describe("workspaceMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_existing",
+        role: "user",
       },
       workspaceContext: null,
     });
@@ -158,6 +169,7 @@ describe("workspaceMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       },
       workspaceContext: {
         workspaceId: "workspace_123",
@@ -199,6 +211,7 @@ describe("workspaceMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_existing",
+        role: "user",
       },
       workspaceContext: {
         workspaceId: "workspace_created",
@@ -230,6 +243,7 @@ describe("workspaceMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_existing",
+        role: "user",
       },
       workspaceContext: null,
     });
@@ -271,5 +285,55 @@ describe("workspaceMiddleware", () => {
       workspaceContext: null,
     });
     expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves workspaceContext for delegated coworker requests", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: "cow_123",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: {
+        archivedAt: null,
+      },
+    });
+    userFindUniqueMock.mockResolvedValue({ id: "user_delegate" });
+    upsertWorkspaceForContextMock.mockResolvedValueOnce({
+      id: "workspace_delegated",
+      userId: "user_delegate",
+      organizationId: null,
+    });
+
+    const app = createApp(true);
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer coworker_validtoken",
+        "x-delegation-user-id": "user_delegate",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        delegation: {
+          userId: "user_delegate",
+          organizationId: null,
+        },
+      },
+      workspaceContext: {
+        workspaceId: "workspace_delegated",
+        userId: "user_delegate",
+        organizationId: null,
+      },
+    });
+    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+      "user_delegate",
+      null,
+      expect.objectContaining({
+        coworkerApiKey: expect.any(Object),
+        member: expect.any(Object),
+      }),
+    );
   });
 });

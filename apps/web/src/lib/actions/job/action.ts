@@ -2,12 +2,16 @@
 
 import * as Sentry from "@sentry/nextjs";
 import type { PaidJobWithStatus } from "@sokosumi/database";
-import { jobRepository, userRepository } from "@sokosumi/database/repositories";
+import { userRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { toCoreApiActionError } from "@/lib/clients/core.client";
+import {
+  CoreApiRequestError,
+  coreClient,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import {
   type JobDetailsNameFormSchemaType,
@@ -350,9 +354,7 @@ interface UpdateJobNameParameters extends AuthenticatedRequest {
 export const updateJobName = withSession<
   UpdateJobNameParameters,
   Result<void, ActionError>
->(async ({ jobId, data, session }) => {
-  const userId = session.user.id;
-
+>(async ({ jobId, data }) => {
   const parsedResult = jobDetailsNameFormSchema().safeParse(data);
   if (!parsedResult.success) {
     return Err({
@@ -362,60 +364,80 @@ export const updateJobName = withSession<
   }
   const parsed = parsedResult.data;
 
-  const job = await jobRepository.getJobById(jobId, prisma);
-  if (!job) {
-    return Err({
-      message: "Job not found",
-      code: JobErrorCode.JOB_NOT_FOUND,
+  try {
+    await coreClient.patchJob(jobId, {
+      name: parsed.name === "" ? null : parsed.name,
     });
-  }
 
-  // check job user id is same as authenticated user
-  if (job.userId !== userId) {
-    return Err({
-      message: "Unauthorized",
-      code: CommonErrorCode.UNAUTHORIZED,
-    });
-  }
+    return Ok();
+  } catch (error) {
+    if (error instanceof CoreApiRequestError) {
+      if (error.status === 404) {
+        return Err({
+          message: "Job not found",
+          code: JobErrorCode.JOB_NOT_FOUND,
+        });
+      }
 
-  // update job name
-  await jobRepository.updateJobNameById(
-    jobId,
-    parsed.name === "" ? null : parsed.name,
-    prisma,
-  );
-  return Ok();
+      if (error.status === 401 || error.status === 403) {
+        return Err({
+          message: "Unauthorized",
+          code: CommonErrorCode.UNAUTHORIZED,
+        });
+      }
+    }
+
+    return Err(toCoreApiActionError(error));
+  }
 });
 
-interface RequestRefundJobByBlockchainIdentifierParameters
-  extends AuthenticatedRequest {
-  blockchainIdentifier: string;
+interface RequestRefundJobParameters extends AuthenticatedRequest {
+  jobId: string;
 }
 
-export const requestRefundJobByBlockchainIdentifier = withSession<
-  RequestRefundJobByBlockchainIdentifierParameters,
-  Result<{ job: PaidJobWithStatus }, ActionError>
->(async ({ blockchainIdentifier, session }) => {
-  const userId = session.user.id;
-  const foundJob = await jobRepository.getJobByBlockchainIdentifier(
-    blockchainIdentifier,
-    prisma,
-  );
-  if (!foundJob) {
-    return Err({
-      message: "Job not found",
-      code: JobErrorCode.JOB_NOT_FOUND,
-    });
-  }
+interface RequestRefundJobResponse {
+  id: PaidJobWithStatus["id"];
+  jobType: PaidJobWithStatus["jobType"];
+  status: PaidJobWithStatus["status"];
+}
 
-  // check user is owner of job
-  if (foundJob.userId !== userId) {
-    return Err({
-      message: "Unauthorized",
-      code: CommonErrorCode.UNAUTHORIZED,
-    });
-  }
+export const requestRefundJob = withSession<
+  RequestRefundJobParameters,
+  Result<{ job: RequestRefundJobResponse }, ActionError>
+>(async ({ jobId }) => {
+  try {
+    const { data: job } = await coreClient.requestJobRefund(jobId);
+    if (job.jobType !== "PAID") {
+      return Err({
+        message: "Job not found",
+        code: JobErrorCode.JOB_NOT_FOUND,
+      });
+    }
 
-  const job = await jobService.requestRefund(blockchainIdentifier);
-  return Ok({ job });
+    return Ok({
+      job: {
+        id: job.id,
+        jobType: job.jobType,
+        status: job.status as PaidJobWithStatus["status"],
+      },
+    });
+  } catch (error) {
+    if (error instanceof CoreApiRequestError) {
+      if (error.status === 404) {
+        return Err({
+          message: "Job not found",
+          code: JobErrorCode.JOB_NOT_FOUND,
+        });
+      }
+
+      if (error.status === 401 || error.status === 403) {
+        return Err({
+          message: "Unauthorized",
+          code: CommonErrorCode.UNAUTHORIZED,
+        });
+      }
+    }
+
+    return Err(toCoreApiActionError(error));
+  }
 });

@@ -20,6 +20,7 @@ const orgAuthContext: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: "org_123",
+  role: "user",
 };
 
 const orgWorkspaceContext: WorkspaceContext = {
@@ -29,7 +30,7 @@ const orgWorkspaceContext: WorkspaceContext = {
 };
 
 const orgJobContext: JobContext = {
-  authContext: orgAuthContext,
+  userContext: { source: "session", ...orgAuthContext },
   workspaceContext: orgWorkspaceContext,
 };
 
@@ -89,6 +90,7 @@ describe("getUserJobs", () => {
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      role: "user",
     };
     const personalWorkspaceContext: WorkspaceContext = {
       workspaceId: "22222222-2222-7222-8222-222222222222",
@@ -98,7 +100,7 @@ describe("getUserJobs", () => {
 
     await getUserJobs(
       {
-        authContext: personalContext,
+        userContext: { source: "session", ...personalContext },
         workspaceContext: personalWorkspaceContext,
       },
       {

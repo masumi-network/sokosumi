@@ -2,8 +2,8 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import { deleteCoworkersByIdApiKeysByKeyIdResponseTransformer, deleteCoworkersByIdResponseTransformer, deleteCreditCostsByIdResponseTransformer, deleteJobsByIdShareResponseTransformer, deleteTasksByIdLinksByLinkIdResponseTransformer, deleteTasksByIdResponseTransformer, deleteTasksByIdShareResponseTransformer, getAgentsByIdInputSchemaResponseTransformer, getAgentsByIdJobsResponseTransformer, getAgentsByIdResponseTransformer, getAgentsResponseTransformer, getCategoriesResponseTransformer, getConversationsByIdItemsResponseTransformer, getConversationsByIdResponseTransformer, getConversationsResponseTransformer, getCoworkersByIdApiKeysResponseTransformer, getCoworkersByIdResponseTransformer, getCoworkersMeEventsResponseTransformer, getCoworkersMeResponseTransformer, getCoworkersResponseTransformer, getCreditCostsByIdResponseTransformer, getCreditCostsResponseTransformer, getJobsByIdEventsResponseTransformer, getJobsByIdFilesResponseTransformer, getJobsByIdInputRequestResponseTransformer, getJobsByIdLinksResponseTransformer, getJobsByIdResponseTransformer, getJobsResponseTransformer, getOrganizationsByIdResponseTransformer, getShareByTokenResponseTransformer, getTasksByIdEventsResponseTransformer, getTasksByIdJobsResponseTransformer, getTasksByIdLinksResponseTransformer, getTasksByIdResponseTransformer, getTasksResponseTransformer, getUsersMeCreditsResponseTransformer, getUsersMeNoticesPendingResponseTransformer, getUsersMeOnboardingResponseTransformer, getUsersMeOrganizationsByIdCreditsResponseTransformer, getUsersMeOrganizationsResponseTransformer, getUsersMePreferencesResponseTransformer, getUsersMeResponseTransformer, getUsersMeUploadsResponseTransformer, getUsersRegisteredResponseTransformer, patchConversationsByIdArchiveResponseTransformer, patchConversationsByIdResponseTransformer, patchCoworkersByIdApiKeysByKeyIdResponseTransformer, patchCoworkersByIdResponseTransformer, patchCoworkersByIdWhitelistResponseTransformer, patchCreditCostsByIdResponseTransformer, patchJobsByIdResponseTransformer, patchTasksByIdLinksByLinkIdResponseTransformer, patchTasksByIdResponseTransformer, patchUsersMePreferencesResponseTransformer, postAgentsByIdJobsResponseTransformer, postConversationsByIdItemsResponseTransformer, postConversationsByIdRecoverResponseResponseTransformer, postConversationsResponseTransformer, postCoworkersByIdApiKeysResponseTransformer, postCoworkersResponseTransformer, postCreditCostsResponseTransformer, postJobsByIdInputsResponseTransformer, postJobsByIdRefundResponseTransformer, postTasksByIdEventsResponseTransformer, postTasksByIdJobsResponseTransformer, postTasksByIdLinksResponseTransformer, postTasksResponseTransformer, postUsersMagicLinkResponseTransformer, postUsersMeNoticesByIdAcknowledgeResponseTransformer, postUsersMeOnboardingResponseTransformer, postUsersMeUploadsResponseTransformer, putJobsByIdShareResponseTransformer, putJobsByIdWorkspaceResponseTransformer, putTasksByIdShareResponseTransformer, putTasksByIdWorkspaceResponseTransformer } from './transformers.gen';
-import type { DeleteCoworkersByIdApiKeysByKeyIdData, DeleteCoworkersByIdApiKeysByKeyIdErrors, DeleteCoworkersByIdApiKeysByKeyIdResponses, DeleteCoworkersByIdData, DeleteCoworkersByIdErrors, DeleteCoworkersByIdResponses, DeleteCreditCostsByIdData, DeleteCreditCostsByIdErrors, DeleteCreditCostsByIdResponses, DeleteJobsByIdShareData, DeleteJobsByIdShareErrors, DeleteJobsByIdShareResponses, DeleteTasksByIdData, DeleteTasksByIdErrors, DeleteTasksByIdLinksByLinkIdData, DeleteTasksByIdLinksByLinkIdErrors, DeleteTasksByIdLinksByLinkIdResponses, DeleteTasksByIdResponses, DeleteTasksByIdShareData, DeleteTasksByIdShareErrors, DeleteTasksByIdShareResponses, GetAgentsByIdData, GetAgentsByIdErrors, GetAgentsByIdInputSchemaData, GetAgentsByIdInputSchemaErrors, GetAgentsByIdInputSchemaResponses, GetAgentsByIdJobsData, GetAgentsByIdJobsErrors, GetAgentsByIdJobsResponses, GetAgentsByIdResponses, GetAgentsData, GetAgentsErrors, GetAgentsResponses, GetCategoriesData, GetCategoriesErrors, GetCategoriesResponses, GetConversationsByIdData, GetConversationsByIdErrors, GetConversationsByIdItemsData, GetConversationsByIdItemsErrors, GetConversationsByIdItemsResponses, GetConversationsByIdResponses, GetConversationsData, GetConversationsErrors, GetConversationsResponses, GetCoworkersByIdApiKeysData, GetCoworkersByIdApiKeysErrors, GetCoworkersByIdApiKeysResponses, GetCoworkersByIdData, GetCoworkersByIdErrors, GetCoworkersByIdResponses, GetCoworkersData, GetCoworkersErrors, GetCoworkersMeData, GetCoworkersMeErrors, GetCoworkersMeEventsData, GetCoworkersMeEventsErrors, GetCoworkersMeEventsResponses, GetCoworkersMeResponses, GetCoworkersResponses, GetCreditCostsByIdData, GetCreditCostsByIdErrors, GetCreditCostsByIdResponses, GetCreditCostsData, GetCreditCostsErrors, GetCreditCostsResponses, GetJobsByIdData, GetJobsByIdErrors, GetJobsByIdEventsData, GetJobsByIdEventsErrors, GetJobsByIdEventsResponses, GetJobsByIdFilesData, GetJobsByIdFilesErrors, GetJobsByIdFilesResponses, GetJobsByIdInputRequestData, GetJobsByIdInputRequestErrors, GetJobsByIdInputRequestResponses, GetJobsByIdLinksData, GetJobsByIdLinksErrors, GetJobsByIdLinksResponses, GetJobsByIdResponses, GetJobsData, GetJobsErrors, GetJobsResponses, GetOrganizationsByIdData, GetOrganizationsByIdErrors, GetOrganizationsByIdResponses, GetShareByTokenData, GetShareByTokenErrors, GetShareByTokenResponses, GetTasksByIdData, GetTasksByIdErrors, GetTasksByIdEventsData, GetTasksByIdEventsErrors, GetTasksByIdEventsResponses, GetTasksByIdJobsData, GetTasksByIdJobsErrors, GetTasksByIdJobsResponses, GetTasksByIdLinksData, GetTasksByIdLinksErrors, GetTasksByIdLinksResponses, GetTasksByIdResponses, GetTasksData, GetTasksErrors, GetTasksResponses, GetUsersMeCreditsData, GetUsersMeCreditsErrors, GetUsersMeCreditsResponses, GetUsersMeData, GetUsersMeErrors, GetUsersMeNoticesPendingData, GetUsersMeNoticesPendingErrors, GetUsersMeNoticesPendingResponses, GetUsersMeOnboardingData, GetUsersMeOnboardingErrors, GetUsersMeOnboardingResponses, GetUsersMeOrganizationsByIdCreditsData, GetUsersMeOrganizationsByIdCreditsErrors, GetUsersMeOrganizationsByIdCreditsResponses, GetUsersMeOrganizationsData, GetUsersMeOrganizationsErrors, GetUsersMeOrganizationsResponses, GetUsersMePreferencesData, GetUsersMePreferencesErrors, GetUsersMePreferencesResponses, GetUsersMeResponses, GetUsersMeUploadsData, GetUsersMeUploadsErrors, GetUsersMeUploadsResponses, GetUsersRegisteredData, GetUsersRegisteredErrors, GetUsersRegisteredResponses, PatchConversationsByIdArchiveData, PatchConversationsByIdArchiveErrors, PatchConversationsByIdArchiveResponses, PatchConversationsByIdData, PatchConversationsByIdErrors, PatchConversationsByIdResponses, PatchCoworkersByIdApiKeysByKeyIdData, PatchCoworkersByIdApiKeysByKeyIdErrors, PatchCoworkersByIdApiKeysByKeyIdResponses, PatchCoworkersByIdData, PatchCoworkersByIdErrors, PatchCoworkersByIdResponses, PatchCoworkersByIdWhitelistData, PatchCoworkersByIdWhitelistErrors, PatchCoworkersByIdWhitelistResponses, PatchCreditCostsByIdData, PatchCreditCostsByIdErrors, PatchCreditCostsByIdResponses, PatchJobsByIdData, PatchJobsByIdErrors, PatchJobsByIdResponses, PatchTasksByIdData, PatchTasksByIdErrors, PatchTasksByIdLinksByLinkIdData, PatchTasksByIdLinksByLinkIdErrors, PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdResponses, PatchUsersMePreferencesData, PatchUsersMePreferencesErrors, PatchUsersMePreferencesResponses, PostAgentsByIdJobsData, PostAgentsByIdJobsErrors, PostAgentsByIdJobsResponses, PostConversationsByIdItemsData, PostConversationsByIdItemsErrors, PostConversationsByIdItemsResponses, PostConversationsByIdRecoverResponseData, PostConversationsByIdRecoverResponseErrors, PostConversationsByIdRecoverResponseResponses, PostConversationsData, PostConversationsErrors, PostConversationsResponses, PostCoworkersByIdApiKeysData, PostCoworkersByIdApiKeysErrors, PostCoworkersByIdApiKeysResponses, PostCoworkersData, PostCoworkersErrors, PostCoworkersMeUsageData, PostCoworkersMeUsageErrors, PostCoworkersMeUsageResponses, PostCoworkersResponses, PostCreditCostsData, PostCreditCostsErrors, PostCreditCostsResponses, PostJobsByIdInputsData, PostJobsByIdInputsErrors, PostJobsByIdInputsResponses, PostJobsByIdRefundData, PostJobsByIdRefundErrors, PostJobsByIdRefundResponses, PostTasksByIdEventsData, PostTasksByIdEventsErrors, PostTasksByIdEventsResponses, PostTasksByIdJobsData, PostTasksByIdJobsErrors, PostTasksByIdJobsResponses, PostTasksByIdLinksData, PostTasksByIdLinksErrors, PostTasksByIdLinksResponses, PostTasksData, PostTasksErrors, PostTasksResponses, PostUsersMagicLinkData, PostUsersMagicLinkErrors, PostUsersMagicLinkResponses, PostUsersMeNoticesByIdAcknowledgeData, PostUsersMeNoticesByIdAcknowledgeErrors, PostUsersMeNoticesByIdAcknowledgeResponses, PostUsersMeOnboardingData, PostUsersMeOnboardingErrors, PostUsersMeOnboardingResponses, PostUsersMeUploadsData, PostUsersMeUploadsErrors, PostUsersMeUploadsResponses, PutJobsByIdShareData, PutJobsByIdShareErrors, PutJobsByIdShareResponses, PutJobsByIdWorkspaceData, PutJobsByIdWorkspaceErrors, PutJobsByIdWorkspaceResponses, PutTasksByIdShareData, PutTasksByIdShareErrors, PutTasksByIdShareResponses, PutTasksByIdWorkspaceData, PutTasksByIdWorkspaceErrors, PutTasksByIdWorkspaceResponses } from './types.gen';
+import { deleteCoworkersByIdApiKeysByKeyIdResponseTransformer, deleteCoworkersByIdResponseTransformer, deleteCreditCostsByIdResponseTransformer, deleteJobsByIdShareResponseTransformer, deleteTasksByIdLinksByLinkIdResponseTransformer, deleteTasksByIdResponseTransformer, deleteTasksByIdShareResponseTransformer, getAgentsByIdInputSchemaResponseTransformer, getAgentsByIdJobsResponseTransformer, getAgentsByIdResponseTransformer, getAgentsByIdReviewsResponseTransformer, getAgentsResponseTransformer, getCategoriesResponseTransformer, getChatResponseTransformer, getConversationsByIdMessagesResponseTransformer, getConversationsByIdResponseTransformer, getConversationsResponseTransformer, getCoworkersByIdApiKeysResponseTransformer, getCoworkersByIdResponseTransformer, getCoworkersMeEventsResponseTransformer, getCoworkersMeResponseTransformer, getCoworkersResponseTransformer, getCreditCostsByIdResponseTransformer, getCreditCostsResponseTransformer, getJobsByIdEventsResponseTransformer, getJobsByIdFilesResponseTransformer, getJobsByIdInputRequestResponseTransformer, getJobsByIdLinksResponseTransformer, getJobsByIdResponseTransformer, getJobsResponseTransformer, getOrganizationsByIdResponseTransformer, getShareByTokenResponseTransformer, getTasksByIdEventsResponseTransformer, getTasksByIdJobsResponseTransformer, getTasksByIdLinksResponseTransformer, getTasksByIdResponseTransformer, getTasksResponseTransformer, getUsersByIdCreditsResponseTransformer, getUsersByIdNoticesPendingResponseTransformer, getUsersByIdOnboardingResponseTransformer, getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer, getUsersByIdOrganizationsResponseTransformer, getUsersByIdPreferencesResponseTransformer, getUsersByIdResponseTransformer, getUsersByIdUploadsResponseTransformer, getUsersRegisteredResponseTransformer, patchConversationsByIdArchiveResponseTransformer, patchConversationsByIdResponseTransformer, patchCoworkersByIdApiKeysByKeyIdResponseTransformer, patchCoworkersByIdResponseTransformer, patchCoworkersByIdWhitelistResponseTransformer, patchCreditCostsByIdResponseTransformer, patchJobsByIdResponseTransformer, patchTasksByIdLinksByLinkIdResponseTransformer, patchTasksByIdResponseTransformer, patchUsersByIdPreferencesResponseTransformer, postAgentsByIdJobsResponseTransformer, postConversationsByIdMessagesResponseTransformer, postConversationsResponseTransformer, postCoworkersByIdApiKeysResponseTransformer, postCoworkersResponseTransformer, postCreditCostsResponseTransformer, postJobsByIdInputsResponseTransformer, postJobsByIdRefundResponseTransformer, postTasksByIdEventsResponseTransformer, postTasksByIdJobsResponseTransformer, postTasksByIdLinksResponseTransformer, postTasksResponseTransformer, postUsersByIdNoticesByNoticeIdAcknowledgeResponseTransformer, postUsersByIdOnboardingResponseTransformer, postUsersByIdUploadsResponseTransformer, putJobsByIdShareResponseTransformer, putJobsByIdWorkspaceResponseTransformer, putTasksByIdShareResponseTransformer, putTasksByIdWorkspaceResponseTransformer } from './transformers.gen';
+import type { DeleteCoworkersByIdApiKeysByKeyIdData, DeleteCoworkersByIdApiKeysByKeyIdErrors, DeleteCoworkersByIdApiKeysByKeyIdResponses, DeleteCoworkersByIdData, DeleteCoworkersByIdErrors, DeleteCoworkersByIdResponses, DeleteCreditCostsByIdData, DeleteCreditCostsByIdErrors, DeleteCreditCostsByIdResponses, DeleteJobsByIdShareData, DeleteJobsByIdShareErrors, DeleteJobsByIdShareResponses, DeleteTasksByIdData, DeleteTasksByIdErrors, DeleteTasksByIdLinksByLinkIdData, DeleteTasksByIdLinksByLinkIdErrors, DeleteTasksByIdLinksByLinkIdResponses, DeleteTasksByIdResponses, DeleteTasksByIdShareData, DeleteTasksByIdShareErrors, DeleteTasksByIdShareResponses, GetAgentsByIdData, GetAgentsByIdErrors, GetAgentsByIdInputSchemaData, GetAgentsByIdInputSchemaErrors, GetAgentsByIdInputSchemaResponses, GetAgentsByIdJobsData, GetAgentsByIdJobsErrors, GetAgentsByIdJobsResponses, GetAgentsByIdResponses, GetAgentsByIdReviewsData, GetAgentsByIdReviewsErrors, GetAgentsByIdReviewsResponses, GetAgentsData, GetAgentsErrors, GetAgentsResponses, GetCategoriesData, GetCategoriesErrors, GetCategoriesResponses, GetChatData, GetChatErrors, GetChatResponses, GetChatStreamByConversationIdData, GetChatStreamByConversationIdErrors, GetChatStreamByConversationIdResponse, GetChatStreamByConversationIdResponses, GetConversationsByIdData, GetConversationsByIdErrors, GetConversationsByIdMessagesData, GetConversationsByIdMessagesErrors, GetConversationsByIdMessagesResponses, GetConversationsByIdResponses, GetConversationsData, GetConversationsErrors, GetConversationsResponses, GetCoworkersByIdApiKeysData, GetCoworkersByIdApiKeysErrors, GetCoworkersByIdApiKeysResponses, GetCoworkersByIdData, GetCoworkersByIdErrors, GetCoworkersByIdResponses, GetCoworkersData, GetCoworkersErrors, GetCoworkersMeData, GetCoworkersMeErrors, GetCoworkersMeEventsData, GetCoworkersMeEventsErrors, GetCoworkersMeEventsResponses, GetCoworkersMeResponses, GetCoworkersResponses, GetCreditCostsByIdData, GetCreditCostsByIdErrors, GetCreditCostsByIdResponses, GetCreditCostsData, GetCreditCostsErrors, GetCreditCostsResponses, GetJobsByIdData, GetJobsByIdErrors, GetJobsByIdEventsData, GetJobsByIdEventsErrors, GetJobsByIdEventsResponses, GetJobsByIdFilesData, GetJobsByIdFilesErrors, GetJobsByIdFilesResponses, GetJobsByIdInputRequestData, GetJobsByIdInputRequestErrors, GetJobsByIdInputRequestResponses, GetJobsByIdLinksData, GetJobsByIdLinksErrors, GetJobsByIdLinksResponses, GetJobsByIdResponses, GetJobsData, GetJobsErrors, GetJobsResponses, GetOrganizationsByIdData, GetOrganizationsByIdErrors, GetOrganizationsByIdResponses, GetShareByTokenData, GetShareByTokenErrors, GetShareByTokenResponses, GetTasksByIdData, GetTasksByIdErrors, GetTasksByIdEventsData, GetTasksByIdEventsErrors, GetTasksByIdEventsResponses, GetTasksByIdJobsData, GetTasksByIdJobsErrors, GetTasksByIdJobsResponses, GetTasksByIdLinksData, GetTasksByIdLinksErrors, GetTasksByIdLinksResponses, GetTasksByIdResponses, GetTasksData, GetTasksErrors, GetTasksResponses, GetUsersByIdCreditsData, GetUsersByIdCreditsErrors, GetUsersByIdCreditsResponses, GetUsersByIdData, GetUsersByIdErrors, GetUsersByIdNoticesPendingData, GetUsersByIdNoticesPendingErrors, GetUsersByIdNoticesPendingResponses, GetUsersByIdOnboardingData, GetUsersByIdOnboardingErrors, GetUsersByIdOnboardingResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsData, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsData, GetUsersByIdOrganizationsErrors, GetUsersByIdOrganizationsResponses, GetUsersByIdPreferencesData, GetUsersByIdPreferencesErrors, GetUsersByIdPreferencesResponses, GetUsersByIdResponses, GetUsersByIdUploadsData, GetUsersByIdUploadsErrors, GetUsersByIdUploadsResponses, GetUsersRegisteredData, GetUsersRegisteredErrors, GetUsersRegisteredResponses, PatchConversationsByIdArchiveData, PatchConversationsByIdArchiveErrors, PatchConversationsByIdArchiveResponses, PatchConversationsByIdData, PatchConversationsByIdErrors, PatchConversationsByIdResponses, PatchCoworkersByIdApiKeysByKeyIdData, PatchCoworkersByIdApiKeysByKeyIdErrors, PatchCoworkersByIdApiKeysByKeyIdResponses, PatchCoworkersByIdData, PatchCoworkersByIdErrors, PatchCoworkersByIdResponses, PatchCoworkersByIdWhitelistData, PatchCoworkersByIdWhitelistErrors, PatchCoworkersByIdWhitelistResponses, PatchCreditCostsByIdData, PatchCreditCostsByIdErrors, PatchCreditCostsByIdResponses, PatchJobsByIdData, PatchJobsByIdErrors, PatchJobsByIdResponses, PatchTasksByIdData, PatchTasksByIdErrors, PatchTasksByIdLinksByLinkIdData, PatchTasksByIdLinksByLinkIdErrors, PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdResponses, PatchUsersByIdPreferencesData, PatchUsersByIdPreferencesErrors, PatchUsersByIdPreferencesResponses, PostAgentsByIdJobsData, PostAgentsByIdJobsErrors, PostAgentsByIdJobsResponses, PostChatData, PostChatErrors, PostChatResponse, PostChatResponses, PostConversationsByIdMessagesData, PostConversationsByIdMessagesErrors, PostConversationsByIdMessagesResponses, PostConversationsData, PostConversationsErrors, PostConversationsResponses, PostCoworkersByIdApiKeysData, PostCoworkersByIdApiKeysErrors, PostCoworkersByIdApiKeysResponses, PostCoworkersData, PostCoworkersErrors, PostCoworkersMeUsageData, PostCoworkersMeUsageErrors, PostCoworkersMeUsageResponses, PostCoworkersResponses, PostCreditCostsData, PostCreditCostsErrors, PostCreditCostsResponses, PostJobsByIdInputsData, PostJobsByIdInputsErrors, PostJobsByIdInputsResponses, PostJobsByIdRefundData, PostJobsByIdRefundErrors, PostJobsByIdRefundResponses, PostTasksByIdEventsData, PostTasksByIdEventsErrors, PostTasksByIdEventsResponses, PostTasksByIdJobsData, PostTasksByIdJobsErrors, PostTasksByIdJobsResponses, PostTasksByIdLinksData, PostTasksByIdLinksErrors, PostTasksByIdLinksResponses, PostTasksData, PostTasksErrors, PostTasksResponses, PostUsersByIdNoticesByNoticeIdAcknowledgeData, PostUsersByIdNoticesByNoticeIdAcknowledgeErrors, PostUsersByIdNoticesByNoticeIdAcknowledgeResponses, PostUsersByIdOnboardingData, PostUsersByIdOnboardingErrors, PostUsersByIdOnboardingResponses, PostUsersByIdUploadsData, PostUsersByIdUploadsErrors, PostUsersByIdUploadsResponses, PutJobsByIdShareData, PutJobsByIdShareErrors, PutJobsByIdShareResponses, PutJobsByIdWorkspaceData, PutJobsByIdWorkspaceErrors, PutJobsByIdWorkspaceResponses, PutTasksByIdShareData, PutTasksByIdShareErrors, PutTasksByIdShareResponses, PutTasksByIdWorkspaceData, PutTasksByIdWorkspaceErrors, PutTasksByIdWorkspaceResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -36,6 +36,16 @@ export const getAgentsById = <ThrowOnError extends boolean = false>(options: Opt
     responseTransformer: getAgentsByIdResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/agents/{id}',
+    ...options
+});
+
+/**
+ * Get public review details for an agent
+ */
+export const getAgentsByIdReviews = <ThrowOnError extends boolean = false>(options: Options<GetAgentsByIdReviewsData, ThrowOnError>) => (options.client ?? client).get<GetAgentsByIdReviewsResponses, GetAgentsByIdReviewsErrors, ThrowOnError>({
+    responseTransformer: getAgentsByIdReviewsResponseTransformer,
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/agents/{id}/reviews',
     ...options
 });
 
@@ -80,6 +90,38 @@ export const getCategories = <ThrowOnError extends boolean = false>(options?: Op
     responseTransformer: getCategoriesResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/categories',
+    ...options
+});
+
+/**
+ * Load persisted messages as AI SDK UIMessage[] for the chat UI (same source as POST /chat persistence).
+ */
+export const getChat = <ThrowOnError extends boolean = false>(options: Options<GetChatData, ThrowOnError>) => (options.client ?? client).get<GetChatResponses, GetChatErrors, ThrowOnError>({
+    responseTransformer: getChatResponseTransformer,
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/chat',
+    ...options
+});
+
+/**
+ * Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`) to OpenRouter or a coworker Responses endpoint.
+ */
+export const postChat = <ThrowOnError extends boolean = false>(options?: Options<PostChatData, ThrowOnError, PostChatResponse>) => (options?.client ?? client).sse.post<PostChatResponses, PostChatErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/chat',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Resume an active UI message SSE stream; 204 when none.
+ */
+export const getChatStreamByConversationId = <ThrowOnError extends boolean = false>(options: Options<GetChatStreamByConversationIdData, ThrowOnError, GetChatStreamByConversationIdResponse>) => (options.client ?? client).sse.get<GetChatStreamByConversationIdResponses, GetChatStreamByConversationIdErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/chat/stream/{conversationId}',
     ...options
 });
 
@@ -146,37 +188,27 @@ export const patchConversationsByIdArchive = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Get all items (messages) for a conversation (paginated)
+ * Get messages for a conversation (paginated)
  */
-export const getConversationsByIdItems = <ThrowOnError extends boolean = false>(options: Options<GetConversationsByIdItemsData, ThrowOnError>) => (options.client ?? client).get<GetConversationsByIdItemsResponses, GetConversationsByIdItemsErrors, ThrowOnError>({
-    responseTransformer: getConversationsByIdItemsResponseTransformer,
+export const getConversationsByIdMessages = <ThrowOnError extends boolean = false>(options: Options<GetConversationsByIdMessagesData, ThrowOnError>) => (options.client ?? client).get<GetConversationsByIdMessagesResponses, GetConversationsByIdMessagesErrors, ThrowOnError>({
+    responseTransformer: getConversationsByIdMessagesResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/conversations/{id}/items',
+    url: '/conversations/{id}/messages',
     ...options
 });
 
 /**
- * Add an item to a conversation
+ * Add a message to a conversation
  */
-export const postConversationsByIdItems = <ThrowOnError extends boolean = false>(options: Options<PostConversationsByIdItemsData, ThrowOnError>) => (options.client ?? client).post<PostConversationsByIdItemsResponses, PostConversationsByIdItemsErrors, ThrowOnError>({
-    responseTransformer: postConversationsByIdItemsResponseTransformer,
+export const postConversationsByIdMessages = <ThrowOnError extends boolean = false>(options: Options<PostConversationsByIdMessagesData, ThrowOnError>) => (options.client ?? client).post<PostConversationsByIdMessagesResponses, PostConversationsByIdMessagesErrors, ThrowOnError>({
+    responseTransformer: postConversationsByIdMessagesResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/conversations/{id}/items',
+    url: '/conversations/{id}/messages',
     ...options,
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
     }
-});
-
-/**
- * Fetch pending coworker Responses API result and persist if complete
- */
-export const postConversationsByIdRecoverResponse = <ThrowOnError extends boolean = false>(options: Options<PostConversationsByIdRecoverResponseData, ThrowOnError>) => (options.client ?? client).post<PostConversationsByIdRecoverResponseResponses, PostConversationsByIdRecoverResponseErrors, ThrowOnError>({
-    responseTransformer: postConversationsByIdRecoverResponseResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/conversations/{id}/recover-response',
-    ...options
 });
 
 /**
@@ -238,135 +270,121 @@ export const patchCreditCostsById = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Send a new-user magic link invite (coworker only)
+ * User registered and email verified status (coworker only)
  */
-export const postUsersMagicLink = <ThrowOnError extends boolean = false>(options?: Options<PostUsersMagicLinkData, ThrowOnError>) => (options?.client ?? client).post<PostUsersMagicLinkResponses, PostUsersMagicLinkErrors, ThrowOnError>({
-    responseTransformer: postUsersMagicLinkResponseTransformer,
+export const getUsersRegistered = <ThrowOnError extends boolean = false>(options: Options<GetUsersRegisteredData, ThrowOnError>) => (options.client ?? client).get<GetUsersRegisteredResponses, GetUsersRegisteredErrors, ThrowOnError>({
+    responseTransformer: getUsersRegisteredResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/magic-link',
+    url: '/users/registered',
+    ...options
+});
+
+/**
+ * Get credit balance for the authenticated organization context (session active org, optional `X-Organization-Slug` when no active org, or coworker delegation headers): path `me` for the session user, or a user id when the effective user matches, a delegated coworker acts for that user, or a session admin requests any user. For a specific organization by id without relying on session context, use `GET /{id}/organizations/{organizationId}/credits`.
+ */
+export const getUsersByIdCredits = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdCreditsData, ThrowOnError>) => (options.client ?? client).get<GetUsersByIdCreditsResponses, GetUsersByIdCreditsErrors, ThrowOnError>({
+    responseTransformer: getUsersByIdCreditsResponseTransformer,
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/users/{id}/credits',
+    ...options
+});
+
+/**
+ * Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data.
+ */
+export const getUsersByIdOrganizations = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsData, ThrowOnError>) => (options.client ?? client).get<GetUsersByIdOrganizationsResponses, GetUsersByIdOrganizationsErrors, ThrowOnError>({
+    responseTransformer: getUsersByIdOrganizationsResponseTransformer,
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/users/{id}/organizations',
+    ...options
+});
+
+/**
+ * Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id.
+ */
+export const getUsersByIdOrganizationsByOrganizationIdCredits = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsByOrganizationIdCreditsData, ThrowOnError>) => (options.client ?? client).get<GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, ThrowOnError>({
+    responseTransformer: getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer,
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/users/{id}/organizations/{organizationId}/credits',
+    ...options
+});
+
+/**
+ * Get preferences: path `me` for the session user, or a user id when the caller may access that user's data.
+ */
+export const getUsersByIdPreferences = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdPreferencesData, ThrowOnError>) => (options.client ?? client).get<GetUsersByIdPreferencesResponses, GetUsersByIdPreferencesErrors, ThrowOnError>({
+    responseTransformer: getUsersByIdPreferencesResponseTransformer,
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/users/{id}/preferences',
+    ...options
+});
+
+/**
+ * Update preferences: path `me` for the session user, or a user id when the caller may access that user's data.
+ */
+export const patchUsersByIdPreferences = <ThrowOnError extends boolean = false>(options: Options<PatchUsersByIdPreferencesData, ThrowOnError>) => (options.client ?? client).patch<PatchUsersByIdPreferencesResponses, PatchUsersByIdPreferencesErrors, ThrowOnError>({
+    responseTransformer: patchUsersByIdPreferencesResponseTransformer,
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/users/{id}/preferences',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 
 /**
- * Get current authenticated user
+ * Get onboarding status: path `me` for the session user, or a user id when the caller may access that user's data.
  */
-export const getUsersMe = <ThrowOnError extends boolean = false>(options?: Options<GetUsersMeData, ThrowOnError>) => (options?.client ?? client).get<GetUsersMeResponses, GetUsersMeErrors, ThrowOnError>({
-    responseTransformer: getUsersMeResponseTransformer,
+export const getUsersByIdOnboarding = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOnboardingData, ThrowOnError>) => (options.client ?? client).get<GetUsersByIdOnboardingResponses, GetUsersByIdOnboardingErrors, ThrowOnError>({
+    responseTransformer: getUsersByIdOnboardingResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me',
+    url: '/users/{id}/onboarding',
     ...options
 });
 
 /**
- * Get all organizations for the current user
+ * Complete onboarding: path `me` for the session user, or a user id when the caller may access that user's data.
  */
-export const getUsersMeOrganizations = <ThrowOnError extends boolean = false>(options?: Options<GetUsersMeOrganizationsData, ThrowOnError>) => (options?.client ?? client).get<GetUsersMeOrganizationsResponses, GetUsersMeOrganizationsErrors, ThrowOnError>({
-    responseTransformer: getUsersMeOrganizationsResponseTransformer,
+export const postUsersByIdOnboarding = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdOnboardingData, ThrowOnError>) => (options.client ?? client).post<PostUsersByIdOnboardingResponses, PostUsersByIdOnboardingErrors, ThrowOnError>({
+    responseTransformer: postUsersByIdOnboardingResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/organizations',
+    url: '/users/{id}/onboarding',
     ...options
 });
 
 /**
- * Get organization-context credits for the current member by ID
+ * Get pending notices: path `me` for the session user, or a user id when the caller may access that user's data.
  */
-export const getUsersMeOrganizationsByIdCredits = <ThrowOnError extends boolean = false>(options: Options<GetUsersMeOrganizationsByIdCreditsData, ThrowOnError>) => (options.client ?? client).get<GetUsersMeOrganizationsByIdCreditsResponses, GetUsersMeOrganizationsByIdCreditsErrors, ThrowOnError>({
-    responseTransformer: getUsersMeOrganizationsByIdCreditsResponseTransformer,
+export const getUsersByIdNoticesPending = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdNoticesPendingData, ThrowOnError>) => (options.client ?? client).get<GetUsersByIdNoticesPendingResponses, GetUsersByIdNoticesPendingErrors, ThrowOnError>({
+    responseTransformer: getUsersByIdNoticesPendingResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/organizations/{id}/credits',
+    url: '/users/{id}/notices/pending',
     ...options
 });
 
 /**
- * Get current user's credit balance or, in organization context, shared non-subscription credits plus the member's subscription wallet
+ * Acknowledge a notice: first path segment is `me` or a user id; second is the notice id.
  */
-export const getUsersMeCredits = <ThrowOnError extends boolean = false>(options?: Options<GetUsersMeCreditsData, ThrowOnError>) => (options?.client ?? client).get<GetUsersMeCreditsResponses, GetUsersMeCreditsErrors, ThrowOnError>({
-    responseTransformer: getUsersMeCreditsResponseTransformer,
+export const postUsersByIdNoticesByNoticeIdAcknowledge = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdNoticesByNoticeIdAcknowledgeData, ThrowOnError>) => (options.client ?? client).post<PostUsersByIdNoticesByNoticeIdAcknowledgeResponses, PostUsersByIdNoticesByNoticeIdAcknowledgeErrors, ThrowOnError>({
+    responseTransformer: postUsersByIdNoticesByNoticeIdAcknowledgeResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/credits',
+    url: '/users/{id}/notices/{noticeId}/acknowledge',
     ...options
 });
 
 /**
- * Get current user's preferences
+ * Get uploads: path `me` for the session user, or a user id when the caller may access that user's data.
  */
-export const getUsersMePreferences = <ThrowOnError extends boolean = false>(options?: Options<GetUsersMePreferencesData, ThrowOnError>) => (options?.client ?? client).get<GetUsersMePreferencesResponses, GetUsersMePreferencesErrors, ThrowOnError>({
-    responseTransformer: getUsersMePreferencesResponseTransformer,
+export const getUsersByIdUploads = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdUploadsData, ThrowOnError>) => (options.client ?? client).get<GetUsersByIdUploadsResponses, GetUsersByIdUploadsErrors, ThrowOnError>({
+    responseTransformer: getUsersByIdUploadsResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/preferences',
+    url: '/users/{id}/uploads',
     ...options
 });
 
 /**
- * Update current user's preferences
- */
-export const patchUsersMePreferences = <ThrowOnError extends boolean = false>(options?: Options<PatchUsersMePreferencesData, ThrowOnError>) => (options?.client ?? client).patch<PatchUsersMePreferencesResponses, PatchUsersMePreferencesErrors, ThrowOnError>({
-    responseTransformer: patchUsersMePreferencesResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/preferences',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers
-    }
-});
-
-/**
- * Get current user's onboarding status
- */
-export const getUsersMeOnboarding = <ThrowOnError extends boolean = false>(options?: Options<GetUsersMeOnboardingData, ThrowOnError>) => (options?.client ?? client).get<GetUsersMeOnboardingResponses, GetUsersMeOnboardingErrors, ThrowOnError>({
-    responseTransformer: getUsersMeOnboardingResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/onboarding',
-    ...options
-});
-
-/**
- * Mark onboarding as completed for current user
- */
-export const postUsersMeOnboarding = <ThrowOnError extends boolean = false>(options?: Options<PostUsersMeOnboardingData, ThrowOnError>) => (options?.client ?? client).post<PostUsersMeOnboardingResponses, PostUsersMeOnboardingErrors, ThrowOnError>({
-    responseTransformer: postUsersMeOnboardingResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/onboarding',
-    ...options
-});
-
-/**
- * Get pending notices for the current user
- */
-export const getUsersMeNoticesPending = <ThrowOnError extends boolean = false>(options?: Options<GetUsersMeNoticesPendingData, ThrowOnError>) => (options?.client ?? client).get<GetUsersMeNoticesPendingResponses, GetUsersMeNoticesPendingErrors, ThrowOnError>({
-    responseTransformer: getUsersMeNoticesPendingResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/notices/pending',
-    ...options
-});
-
-/**
- * Acknowledge a notice for the current user
- */
-export const postUsersMeNoticesByIdAcknowledge = <ThrowOnError extends boolean = false>(options: Options<PostUsersMeNoticesByIdAcknowledgeData, ThrowOnError>) => (options.client ?? client).post<PostUsersMeNoticesByIdAcknowledgeResponses, PostUsersMeNoticesByIdAcknowledgeErrors, ThrowOnError>({
-    responseTransformer: postUsersMeNoticesByIdAcknowledgeResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/notices/{id}/acknowledge',
-    ...options
-});
-
-/**
- * Get uploads for the current user
- */
-export const getUsersMeUploads = <ThrowOnError extends boolean = false>(options?: Options<GetUsersMeUploadsData, ThrowOnError>) => (options?.client ?? client).get<GetUsersMeUploadsResponses, GetUsersMeUploadsErrors, ThrowOnError>({
-    responseTransformer: getUsersMeUploadsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/uploads',
-    ...options
-});
-
-/**
- * Create a direct upload session for a user file.
+ * Create a direct upload session: path `me` for the session user, or a user id when the caller may access that user's data.
  *
  * Next steps:
  * 1. Call this endpoint with the original `filename`, `contentType`, and `size`.
@@ -376,10 +394,10 @@ export const getUsersMeUploads = <ThrowOnError extends boolean = false>(options?
  *
  * Reference: https://vercel.com/docs/storage/vercel-blob/using-blob-sdk
  */
-export const postUsersMeUploads = <ThrowOnError extends boolean = false>(options: Options<PostUsersMeUploadsData, ThrowOnError>) => (options.client ?? client).post<PostUsersMeUploadsResponses, PostUsersMeUploadsErrors, ThrowOnError>({
-    responseTransformer: postUsersMeUploadsResponseTransformer,
+export const postUsersByIdUploads = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdUploadsData, ThrowOnError>) => (options.client ?? client).post<PostUsersByIdUploadsResponses, PostUsersByIdUploadsErrors, ThrowOnError>({
+    responseTransformer: postUsersByIdUploadsResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/me/uploads',
+    url: '/users/{id}/uploads',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -388,12 +406,12 @@ export const postUsersMeUploads = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * User registered and email verified status (coworker only)
+ * Get a user: use path `me` for the authenticated session user, or a user id when the effective user matches that id, a delegated coworker acts for that user, or a session admin requests any user.
  */
-export const getUsersRegistered = <ThrowOnError extends boolean = false>(options: Options<GetUsersRegisteredData, ThrowOnError>) => (options.client ?? client).get<GetUsersRegisteredResponses, GetUsersRegisteredErrors, ThrowOnError>({
-    responseTransformer: getUsersRegisteredResponseTransformer,
+export const getUsersById = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdData, ThrowOnError>) => (options.client ?? client).get<GetUsersByIdResponses, GetUsersByIdErrors, ThrowOnError>({
+    responseTransformer: getUsersByIdResponseTransformer,
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/users/registered',
+    url: '/users/{id}',
     ...options
 });
 
@@ -563,7 +581,7 @@ export const getCoworkers = <ThrowOnError extends boolean = false>(options?: Opt
 });
 
 /**
- * Create coworker
+ * Create coworker (admin only)
  */
 export const postCoworkers = <ThrowOnError extends boolean = false>(options?: Options<PostCoworkersData, ThrowOnError>) => (options?.client ?? client).post<PostCoworkersResponses, PostCoworkersErrors, ThrowOnError>({
     responseTransformer: postCoworkersResponseTransformer,

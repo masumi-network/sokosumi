@@ -8,12 +8,12 @@ const getConversationsMock = vi.fn();
 const getAgentsByIdInputSchemaMock = vi.fn();
 const getShareByTokenMock = vi.fn();
 const getTasksByIdMock = vi.fn();
-const getUsersMeNoticesPendingMock = vi.fn();
-const postUsersMeNoticesByIdAcknowledgeMock = vi.fn();
+const getUsersByIdNoticesPendingMock = vi.fn();
+const postUsersByIdNoticesByNoticeIdAcknowledgeMock = vi.fn();
 const putJobsByIdShareMock = vi.fn();
 const putTasksByIdShareMock = vi.fn();
-const getUsersMeCreditsMock = vi.fn();
-const getUsersMeOrganizationsMock = vi.fn();
+const getUsersByIdCreditsMock = vi.fn();
+const getUsersByIdOrganizationsMock = vi.fn();
 const deleteJobsByIdShareMock = vi.fn();
 const deleteTasksByIdShareMock = vi.fn();
 const createClientMock = vi.fn();
@@ -42,10 +42,11 @@ vi.mock("@/lib/clients/generated/core", () => ({
   getConversations: getConversationsMock,
   getShareByToken: getShareByTokenMock,
   getTasksById: getTasksByIdMock,
-  getUsersMeNoticesPending: getUsersMeNoticesPendingMock,
-  postUsersMeNoticesByIdAcknowledge: postUsersMeNoticesByIdAcknowledgeMock,
-  getUsersMeCredits: getUsersMeCreditsMock,
-  getUsersMeOrganizations: getUsersMeOrganizationsMock,
+  getUsersByIdNoticesPending: getUsersByIdNoticesPendingMock,
+  postUsersByIdNoticesByNoticeIdAcknowledge:
+    postUsersByIdNoticesByNoticeIdAcknowledgeMock,
+  getUsersByIdCredits: getUsersByIdCreditsMock,
+  getUsersByIdOrganizations: getUsersByIdOrganizationsMock,
   putJobsByIdShare: putJobsByIdShareMock,
   putTasksByIdShare: putTasksByIdShareMock,
 }));
@@ -154,7 +155,7 @@ describe("core.client", () => {
   });
 
   it("executes user credit and organization operations through the server transport", async () => {
-    getUsersMeCreditsMock.mockResolvedValue({
+    getUsersByIdCreditsMock.mockResolvedValue({
       data: {
         data: {
           credits: {
@@ -166,7 +167,7 @@ describe("core.client", () => {
       },
       response: new Response("{}", { status: 200 }),
     });
-    getUsersMeOrganizationsMock.mockResolvedValue({
+    getUsersByIdOrganizationsMock.mockResolvedValue({
       data: {
         data: [{ id: "org_1", name: "Acme", slug: "acme" }],
       },
@@ -179,13 +180,15 @@ describe("core.client", () => {
     await coreClient.getMyOrganizations();
 
     expect(createClientMock).toHaveBeenCalledTimes(2);
-    expect(getUsersMeCreditsMock).toHaveBeenCalledWith({
+    expect(getUsersByIdCreditsMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
+      path: { id: "me" },
     });
-    expect(getUsersMeOrganizationsMock).toHaveBeenCalledWith({
+    expect(getUsersByIdOrganizationsMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
+      path: { id: "me" },
     });
   });
 
@@ -227,7 +230,7 @@ describe("core.client", () => {
   });
 
   it("fetches pending notices through the server transport", async () => {
-    getUsersMeNoticesPendingMock.mockResolvedValue({
+    getUsersByIdNoticesPendingMock.mockResolvedValue({
       data: {
         data: {
           pendingNotices: [
@@ -249,15 +252,16 @@ describe("core.client", () => {
     const { coreClient } = await import("../core.client");
     const response = await coreClient.getPendingNotices();
 
-    expect(getUsersMeNoticesPendingMock).toHaveBeenCalledWith({
+    expect(getUsersByIdNoticesPendingMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
+      path: { id: "me" },
     });
     expect(response).toHaveLength(1);
   });
 
   it("acknowledges notices through the server transport", async () => {
-    postUsersMeNoticesByIdAcknowledgeMock.mockResolvedValue({
+    postUsersByIdNoticesByNoticeIdAcknowledgeMock.mockResolvedValue({
       data: {
         data: {
           noticeId: "notice_1",
@@ -271,9 +275,9 @@ describe("core.client", () => {
     const { coreClient } = await import("../core.client");
     const response = await coreClient.acknowledgeNotice("notice_1");
 
-    expect(postUsersMeNoticesByIdAcknowledgeMock).toHaveBeenCalledWith({
+    expect(postUsersByIdNoticesByNoticeIdAcknowledgeMock).toHaveBeenCalledWith({
       client: mockClient,
-      path: { id: "notice_1" },
+      path: { id: "me", noticeId: "notice_1" },
     });
     expect(response.noticeId).toBe("notice_1");
   });

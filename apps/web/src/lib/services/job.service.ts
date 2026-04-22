@@ -7,12 +7,9 @@ import {
   type JobEvent,
   JobType,
   type JobWithSokosumiStatus,
-  NextJobAction,
-  type PaidJobWithStatus,
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import { isPaidJob } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobEventRepository,
@@ -646,80 +643,6 @@ export const jobService = (() => {
     }
   };
 
-  /**
-   * Requests a refund for a job based on its blockchain identifier.
-   *
-   * This function initiates a refund process for a job by contacting the payment service.
-   * It updates the job's status to indicate that a refund has been requested.
-   *
-   * @param jobBlockchainIdentifier - The blockchain identifier of the job to refund.
-   * @returns The updated job with status indicating the refund request.
-   * @throws {JobError} If the refund request fails.
-   */
-  const requestRefund = async (
-    jobBlockchainIdentifier: string,
-  ): Promise<PaidJobWithStatus> => {
-    // Add breadcrumb for refund request
-    Sentry.addBreadcrumb({
-      category: "Job Service",
-      message: "Requesting job refund",
-      level: "info",
-      data: {
-        blockchainIdentifier: jobBlockchainIdentifier,
-      },
-    });
-
-    const refundResult = await paymentClient.requestRefund(
-      jobBlockchainIdentifier,
-    );
-    if (refundResult.isErr()) {
-      Sentry.setTag("error_type", "refund_request_failed");
-      Sentry.setContext("refund_error", {
-        blockchainIdentifier: jobBlockchainIdentifier,
-        error: refundResult.error,
-      });
-
-      Sentry.captureException(refundResult.error);
-      throw new JobError(JobErrorCode.REFUND_REQUEST_FAILED);
-    }
-
-    const job = await prisma.$transaction(async (tx) => {
-      await jobPurchaseRepository.updateJobPurchaseByExternalId(
-        jobBlockchainIdentifier,
-        {
-          nextAction: NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
-        },
-        tx,
-      );
-
-      const job = await jobRepository.getJobByBlockchainIdentifier(
-        jobBlockchainIdentifier,
-        tx,
-      );
-      if (!job) {
-        throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
-      }
-      return job;
-    });
-
-    // Add breadcrumb for successful refund request
-    Sentry.addBreadcrumb({
-      category: "Job Service",
-      message: "Refund requested successfully",
-      level: "info",
-      data: {
-        jobId: job.id,
-        blockchainIdentifier: jobBlockchainIdentifier,
-      },
-    });
-
-    if (!isPaidJob(job)) {
-      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
-    }
-
-    return job;
-  };
-
   const moveJobToWorkspace = async (
     jobId: string,
     organizationId: string | null,
@@ -930,7 +853,6 @@ export const jobService = (() => {
     startJob,
     startDemoJob,
     moveJobToWorkspace,
-    requestRefund,
     getJobStatusesDataForAgents,
     provideJobInput,
   };

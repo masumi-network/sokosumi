@@ -19,6 +19,7 @@ vi.mock("@/middleware/auth", () => ({
             actor: "user";
             userId: string;
             organizationId: string | null;
+            role: string;
           }
         | {
             actor: "coworker";
@@ -35,6 +36,7 @@ vi.mock("@/middleware/auth", () => ({
           actor: "user";
           userId: string;
           organizationId: string | null;
+          role: string;
         }
       | {
           actor: "coworker";
@@ -58,6 +60,7 @@ type Variables = {
         actor: "user";
         userId: string;
         organizationId: string | null;
+        role: string;
       }
     | {
         actor: "coworker";
@@ -76,11 +79,12 @@ function createUserApp(initialOrganizationId: string | null) {
       actor: "user",
       userId: "user_123",
       organizationId: initialOrganizationId,
+      role: "user",
     });
     return await next();
   });
 
-  app.use("*", organizationHeaderMiddleware(true));
+  app.use("*", organizationHeaderMiddleware);
 
   app.get("/", (c) => {
     return c.json(c.var.authContext);
@@ -103,7 +107,7 @@ function createCoworkerApp() {
     return await next();
   });
 
-  app.use("*", organizationHeaderMiddleware(true));
+  app.use("*", organizationHeaderMiddleware);
 
   app.get("/", (c) => {
     return c.json(c.var.authContext);
@@ -130,6 +134,7 @@ describe("organizationHeaderMiddleware", () => {
       actor: "user",
       userId: "user_123",
       organizationId: "org_existing",
+      role: "user",
     });
     expect(memberFindFirstMock).not.toHaveBeenCalled();
   });
@@ -143,6 +148,7 @@ describe("organizationHeaderMiddleware", () => {
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      role: "user",
     });
     expect(memberFindFirstMock).not.toHaveBeenCalled();
   });
@@ -164,6 +170,7 @@ describe("organizationHeaderMiddleware", () => {
       actor: "user",
       userId: "user_123",
       organizationId: "org_new",
+      role: "user",
     });
     expect(memberFindFirstMock).toHaveBeenCalledWith({
       where: {

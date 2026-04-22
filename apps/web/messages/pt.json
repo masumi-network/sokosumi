@@ -1340,6 +1340,31 @@
       "List": {
         "placeholder": "Sem tarefas"
       },
+      "Filters": {
+        "title": "Filtros",
+        "searchPlaceholder": "Filtrar…",
+        "emptyResults": "Nenhum resultado encontrado.",
+        "all": "Todas",
+        "scopeLabel": "Âmbito",
+        "scopeOwned": "As minhas tarefas",
+        "scopeWorkspace": "Espaço de trabalho",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "Estado",
+        "statusOptions": {
+          "DRAFT": "Rascunho",
+          "READY": "Pronto",
+          "INPUT_REQUIRED": "Entrada necessária",
+          "AUTHENTICATION_REQUIRED": "Autenticação necessária",
+          "OUT_OF_CREDITS": "Sem créditos",
+          "CREDITS_TOPPED_UP": "Créditos recarregados",
+          "RUNNING": "Em execução",
+          "AWAITING_EXTERNAL": "À espera de externo",
+          "COMPLETED": "Concluído",
+          "FAILED": "Falhou",
+          "CANCEL_REQUESTED": "Cancelamento pedido",
+          "CANCELED": "Cancelado"
+        }
+      },
       "Jobs": {
         "filterButton": "Estado",
         "filterHideFailed": "Ocultar falhados",
@@ -1400,6 +1425,7 @@
           "signal": "Signal",
           "discord": "Discord",
           "chat": "Chat",
+          "messenger": "Messenger",
           "unknown": "Desconhecido"
         },
         "actionCommented": "comentou",
@@ -1417,10 +1443,10 @@
         },
         "actions": {
           "edit": "Editar",
-          "delete": "Eliminar",
-          "confirmDelete": "Eliminar esta tarefa?",
-          "confirmDeleteDescription": "Esta ação não pode ser anulada. Isto eliminará permanentemente a tarefa.",
-          "deleteError": "Falha ao eliminar a tarefa",
+          "archive": "Arquivar",
+          "confirmArchive": "Arquivar esta tarefa?",
+          "confirmArchiveDescription": "A tarefa deixa de aparecer na sua lista e não é eliminada permanentemente da base de dados.",
+          "archiveError": "Falha ao arquivar a tarefa",
           "markAsReady": "Marcar como pronta",
           "revertToDraft": "Reverter para rascunho",
           "cancelRequest": "Cancelar pedido",
@@ -1671,8 +1697,8 @@
       "cancelsOnDate": "Cancela em {date}",
       "statusCancellationScheduled": "O cancelamento da subscrição foi agendado.",
       "billingPortalTitle": "Portal de faturação",
-      "billingPortalDescription": "Abra o Portal de faturação da Stripe para gerir a sua subscrição e faturas.",
-      "billingPortalDescriptionWithPlan": "Atualmente está no plano {plan}. Gira os detalhes de faturação e as faturas na Stripe.",
+      "billingPortalDescription": "Abra o Portal de faturação da Stripe para gerir as suas subscrições e faturas.",
+      "billingPortalDescriptionWithPlan": "Atualmente está no plano {plan}. Gira as suas subscrições, os detalhes de faturação e as faturas na Stripe.",
       "openingBillingPortal": "A abrir...",
       "billingPortalCta": "Abrir portal de faturação",
       "freePrice": "Gratuito",
@@ -1752,7 +1778,7 @@
         "coupon": "Cupão"
       },
       "billingPortalTitle": "Portal de faturação",
-      "billingPortalDescription": "Abra o Portal de faturação da Stripe para gerir os seus detalhes de faturação e faturas.",
+      "billingPortalDescription": "Abra o Portal de faturação da Stripe para gerir as suas subscrições, os seus detalhes de faturação e as faturas.",
       "openingBillingPortal": "A abrir...",
       "billingPortalCta": "Abrir portal de faturação",
       "orgAccessRestrictedTitle": "Acesso à faturação restrito",

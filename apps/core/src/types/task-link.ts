@@ -1,9 +1,6 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 
-import {
-  type AuthenticationContext,
-  isCoworkerAuthContext,
-} from "@/middleware/auth";
+import { type AuthenticationContext } from "@/middleware/auth";
 
 export const taskLinkPeerTaskSelect = {
   id: true,
@@ -38,28 +35,57 @@ export const taskLinksInclude = {
 
 function buildVisiblePeerTaskWhere(
   authContext: AuthenticationContext,
+  workspaceId?: string | null,
 ): Prisma.TaskWhereInput {
-  if (isCoworkerAuthContext(authContext)) {
-    return {
-      coworkerId: authContext.coworkerId,
-      archivedAt: null,
-      NOT: {
-        status: {
-          in: [TaskStatus.DRAFT],
-        },
-      },
-    };
-  }
+  switch (authContext.actor) {
+    case "coworker": {
+      if (authContext.delegation) {
+        if (workspaceId) {
+          return {
+            workspaceId,
+            archivedAt: null,
+          };
+        }
 
-  return {
-    userId: authContext.userId,
-  };
+        return {
+          userId: authContext.delegation.userId,
+        };
+      }
+
+      return {
+        coworkerId: authContext.coworkerId,
+        archivedAt: null,
+        NOT: {
+          status: {
+            in: [TaskStatus.DRAFT],
+          },
+        },
+      };
+    }
+    case "user": {
+      if (workspaceId) {
+        return {
+          workspaceId,
+          archivedAt: null,
+        };
+      }
+
+      return {
+        userId: authContext.userId,
+      };
+    }
+    default: {
+      const exhaustive: never = authContext;
+      return exhaustive;
+    }
+  }
 }
 
 export function buildVisibleTaskLinksInclude(
   authContext: AuthenticationContext,
+  workspaceId?: string | null,
 ) {
-  const peerTaskWhere = buildVisiblePeerTaskWhere(authContext);
+  const peerTaskWhere = buildVisiblePeerTaskWhere(authContext, workspaceId);
 
   return {
     linksFrom: {

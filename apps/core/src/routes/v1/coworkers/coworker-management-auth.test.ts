@@ -59,6 +59,14 @@ const RESTRICTED_ENDPOINTS: Array<{
   restriction: "creator-or-admin" | "admin-only";
 }> = [
   {
+    method: "POST",
+    path: "/",
+    body: {
+      name: "Ops Agent",
+    },
+    restriction: "admin-only",
+  },
+  {
     method: "PATCH",
     path: "/cow_123/whitelist",
     body: {
@@ -131,6 +139,7 @@ describe("coworker management endpoints auth guard", () => {
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      role: "user",
     });
 
     const response = await app.request(`http://localhost${path}`, {
@@ -164,25 +173,6 @@ describe("coworker management endpoints auth guard", () => {
       method,
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-    });
-
-    expect(response.status).toBe(403);
-  });
-
-  it("returns 403 for coworker actor on POST /", async () => {
-    const app = createApp({
-      actor: "coworker",
-      coworkerId: "cow_123",
-    });
-
-    const response = await app.request("http://localhost/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "Ops Agent",
-      }),
     });
 
     expect(response.status).toBe(403);

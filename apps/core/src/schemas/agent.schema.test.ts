@@ -1,7 +1,14 @@
-import type { Agent } from "@sokosumi/database";
+import { type Agent, RiskClassification } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import { agentLegalSchema, getAgentLegalFromAgent } from "./agent.schema";
+import {
+  agentDetailSchema,
+  agentLegalSchema,
+  agentSummarySchema,
+  getAgentExampleOutputsFromAgent,
+  getAgentLegalFromAgent,
+  getAgentTagsFromAgent,
+} from "./agent.schema";
 
 function createMockAgent(overrides: Partial<Agent> = {}): Agent {
   const now = new Date();
@@ -91,5 +98,149 @@ describe("getAgentLegalFromAgent", () => {
       dpa: "https://example.com/override-dpa.pdf",
       other: null,
     });
+  });
+});
+
+const baseAgentResponse = {
+  id: "agent_123",
+  createdAt: new Date("2026-03-17T10:00:00.000Z"),
+  updatedAt: new Date("2026-03-17T10:00:00.000Z"),
+  name: "Research Assistant",
+  image: null,
+  icon: null,
+  credits: 10,
+  summary: "Helpful summary",
+  description: "Detailed description",
+  metrics: {
+    executions: {
+      count: 2,
+      averageTime: 120,
+    },
+    ratings: {
+      total: 3,
+      average: 4.5,
+    },
+  },
+  author: {
+    name: "Jane Doe",
+    image: null,
+    organization: "Sokosumi",
+    email: "jane@example.com",
+    other: null,
+  },
+  legal: {
+    privacyPolicy: null,
+    terms: null,
+    dpa: null,
+    other: null,
+  },
+  categories: [],
+};
+
+describe("agent response schemas", () => {
+  it("keeps detail-only fields out of the summary schema", () => {
+    const parsed = agentSummarySchema.parse({
+      ...baseAgentResponse,
+      riskClassification: RiskClassification.MINIMAL,
+      tags: ["research"],
+      exampleOutputs: [
+        {
+          name: "Sample output",
+          mimeType: "image/png",
+          url: "https://example.com/output.png",
+        },
+      ],
+    });
+
+    expect(parsed).not.toHaveProperty("riskClassification");
+    expect(parsed).not.toHaveProperty("tags");
+    expect(parsed).not.toHaveProperty("exampleOutputs");
+  });
+
+  it("includes detail-only fields in the detail schema", () => {
+    expect(
+      agentDetailSchema.parse({
+        ...baseAgentResponse,
+        riskClassification: RiskClassification.HIGH,
+        tags: ["research", "analysis"],
+        exampleOutputs: [
+          {
+            name: "Sample output",
+            mimeType: "image/png",
+            url: "https://example.com/output.png",
+          },
+        ],
+      }),
+    ).toMatchObject({
+      riskClassification: RiskClassification.HIGH,
+      tags: ["research", "analysis"],
+      exampleOutputs: [
+        {
+          name: "Sample output",
+          mimeType: "image/png",
+          url: "https://example.com/output.png",
+        },
+      ],
+    });
+  });
+});
+
+describe("getAgentTagsFromAgent", () => {
+  it("prefers override tags when present", () => {
+    const agent = {
+      tags: [{ name: "base-tag" }],
+      overrideTags: [{ name: "override-tag" }],
+    };
+
+    expect(getAgentTagsFromAgent(agent)).toEqual(["override-tag"]);
+  });
+
+  it("falls back to default tags when overrides are absent", () => {
+    const agent = {
+      tags: [{ name: "base-tag" }],
+      overrideTags: [],
+    };
+
+    expect(getAgentTagsFromAgent(agent)).toEqual(["base-tag"]);
+  });
+});
+
+describe("getAgentExampleOutputsFromAgent", () => {
+  it("prefers override example outputs when present", () => {
+    const now = new Date("2026-03-17T10:00:00.000Z");
+    const agent = {
+      exampleOutput: [
+        {
+          id: "example_base",
+          createdAt: now,
+          updatedAt: now,
+          name: "Base output",
+          mimeType: "image/png",
+          url: "https://example.com/base.png",
+          agentId: "agent_123",
+          agentIdOverride: null,
+        },
+      ],
+      overrideExampleOutput: [
+        {
+          id: "example_override",
+          createdAt: now,
+          updatedAt: now,
+          name: "Override output",
+          mimeType: "image/png",
+          url: "https://example.com/override.png",
+          agentId: null,
+          agentIdOverride: "agent_123",
+        },
+      ],
+    };
+
+    expect(getAgentExampleOutputsFromAgent(agent)).toEqual([
+      {
+        name: "Override output",
+        mimeType: "image/png",
+        url: "https://example.com/override.png",
+      },
+    ]);
   });
 });

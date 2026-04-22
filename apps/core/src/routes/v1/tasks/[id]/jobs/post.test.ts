@@ -15,7 +15,7 @@ const { createAgentJobForUserMock, flattenJobMock, requireTaskAccessMock } =
   }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireCoworkerTaskAccess: requireTaskAccessMock,
+  requireCoworkerTaskCollaboration: requireTaskAccessMock,
 }));
 
 vi.mock("@/helpers/job", () => ({

@@ -13,8 +13,9 @@ import type {
   GetShareByTokenError,
   GetTasksData,
   PaginationMetadata,
+  PatchJobsByIdData,
   PostTasksByIdLinksData,
-  PostUsersMeUploadsData,
+  PostUsersByIdUploadsData,
   PutJobsByIdShareError,
   PutTasksByIdShareError,
 } from "@/lib/clients/generated/core";
@@ -27,7 +28,7 @@ import {
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
-  getConversationsByIdItems as coreGetConversationsByIdItems,
+  getConversationsByIdMessages as coreGetConversationsByIdMessages,
   getCoworkers as coreGetCoworkers,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
@@ -35,19 +36,21 @@ import {
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
-  getUsersMeCredits as coreGetUsersMeCredits,
-  getUsersMeNoticesPending as coreGetUsersMeNoticesPending,
-  getUsersMeOrganizations as coreGetUsersMeOrganizations,
+  getUsersByIdCredits as coreGetUsersByIdCredits,
+  getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
+  getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
+  patchJobsById as corePatchJobsById,
   patchTasksById as corePatchTasksById,
   postConversations as corePostConversations,
-  postConversationsByIdItems as corePostConversationsByIdItems,
+  postConversationsByIdMessages as corePostConversationsByIdMessages,
+  postJobsByIdRefund as corePostJobsByIdRefund,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
-  postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
-  postUsersMeUploads as corePostUsersMeUploads,
+  postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
+  postUsersByIdUploads as corePostUsersByIdUploads,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putTasksByIdShare as corePutTasksByIdShare,
@@ -90,6 +93,7 @@ type CoreOperationResult<TData, TError> = {
 };
 
 type GetClient = () => Client | Promise<Client>;
+const CURRENT_USER_PATH_ID = "me";
 
 function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
@@ -302,24 +306,24 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getConversationItems(
+  async function getConversationMessages(
     id: string,
     query?: { cursor?: string; limit?: number },
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetConversationsByIdItems({
+        coreGetConversationsByIdMessages({
           client,
           path: { id },
           query,
           cache: "no-store",
         }),
-      "Failed to fetch conversation items",
+      "Failed to fetch conversation messages",
     );
   }
 
-  async function addConversationItem(
+  async function addConversationMessage(
     id: string,
     body: {
       role: "user" | "assistant" | "system";
@@ -329,12 +333,12 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostConversationsByIdItems({
+        corePostConversationsByIdMessages({
           client,
           path: { id },
           body,
         }),
-      "Failed to add conversation item",
+      "Failed to add conversation message",
     );
   }
 
@@ -389,6 +393,34 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch job",
+    );
+  }
+
+  async function patchJob(
+    id: string,
+    body: NonNullable<PatchJobsByIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchJobsById({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to update job",
+    );
+  }
+
+  async function requestJobRefund(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostJobsByIdRefund({
+          client,
+          path: { id },
+        }),
+      "Failed to request job refund",
     );
   }
 
@@ -561,8 +593,9 @@ export function createCoreClient(getClient: GetClient) {
     const response = await executeOperation(
       getClient,
       (client) =>
-        coreGetUsersMeNoticesPending({
+        coreGetUsersByIdNoticesPending({
           client,
+          path: { id: CURRENT_USER_PATH_ID },
           cache: "no-store",
         }),
       "Failed to fetch pending notices",
@@ -578,9 +611,9 @@ export function createCoreClient(getClient: GetClient) {
     const response = await executeOperation(
       getClient,
       (client) =>
-        corePostUsersMeNoticesByIdAcknowledge({
+        corePostUsersByIdNoticesByNoticeIdAcknowledge({
           client,
-          path: { id },
+          path: { id: CURRENT_USER_PATH_ID, noticeId: id },
         }),
       "Failed to acknowledge notice",
     );
@@ -592,8 +625,9 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetUsersMeCredits({
+        coreGetUsersByIdCredits({
           client,
+          path: { id: CURRENT_USER_PATH_ID },
           cache: "no-store",
         }),
       "Failed to fetch user credits",
@@ -604,8 +638,9 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetUsersMeOrganizations({
+        coreGetUsersByIdOrganizations({
           client,
+          path: { id: CURRENT_USER_PATH_ID },
           cache: "no-store",
         }),
       "Failed to fetch user organizations",
@@ -613,13 +648,14 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function createMyFileUploadSession(
-    body: NonNullable<PostUsersMeUploadsData["body"]>,
+    body: NonNullable<PostUsersByIdUploadsData["body"]>,
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostUsersMeUploads({
+        corePostUsersByIdUploads({
           client,
+          path: { id: CURRENT_USER_PATH_ID },
           body,
           cache: "no-store",
         }),
@@ -658,38 +694,6 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to move job to workspace",
-    );
-  }
-
-  async function postConversationsByIdRecoverResponse(id: string) {
-    return executeOperation(
-      getClient,
-      async (client) => {
-        const result = await client.post({
-          url: `/conversations/${encodeURIComponent(id)}/recover-response`,
-          security: [{ scheme: "bearer", type: "http" }],
-          cache: "no-store",
-        });
-        if (result.error) {
-          return {
-            data: undefined,
-            error: result.error,
-            response: result.response,
-          };
-        }
-        const envelope = result.data as { data?: unknown } | undefined;
-        return {
-          data: envelope?.data as
-            | {
-                recovered?: boolean;
-                reason?: "not_found" | "in_progress" | "terminal";
-              }
-            | undefined,
-          error: undefined,
-          response: result.response,
-        };
-      },
-      "Failed to recover conversation response",
     );
   }
 
@@ -831,7 +835,7 @@ export function createCoreClient(getClient: GetClient) {
 
   return {
     acknowledgeNotice,
-    addConversationItem,
+    addConversationMessage,
     archiveConversation,
     createConversation,
     createMyFileUploadSession,
@@ -843,11 +847,10 @@ export function createCoreClient(getClient: GetClient) {
     deleteTaskLink,
     deleteTask,
     getConversation,
-    getConversationItems,
+    getConversationMessages,
     getConversations,
     getAgentById,
     getAgentInputSchema,
-    postConversationsByIdRecoverResponse,
     getCoworkers,
     getJobById,
     getJobs,
@@ -857,6 +860,8 @@ export function createCoreClient(getClient: GetClient) {
     getSharedResourceByToken,
     moveJobToWorkspace,
     moveTaskToWorkspace,
+    patchJob,
+    requestJobRefund,
     getTaskById,
     getTaskLinks,
     getTasks,

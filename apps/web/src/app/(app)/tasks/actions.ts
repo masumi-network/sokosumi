@@ -1,7 +1,14 @@
 "use server";
 
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
+import {
+  sanitizeTasksScopeInput,
+  sanitizeTasksStatusInput,
+  TasksScope,
+} from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
+import { getSession } from "@/lib/auth/utils";
+import type { Task } from "@/lib/clients/generated/core";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { userService } from "@/lib/services/user.service";
@@ -12,25 +19,41 @@ import { getTasksColumnPage } from "./utils/tasks-column-page";
 interface LoadMoreTasksColumnParams {
   columnId: KanbanColumnId;
   cursor: string | null;
+  scope: TasksScope | null;
+  coworkerId: string | null;
+  status: Task["status"] | null;
 }
 
 export async function loadMoreTasksColumn({
   columnId,
   cursor,
+  scope,
+  coworkerId,
+  status,
 }: LoadMoreTasksColumnParams) {
-  const [coworkers, agents] = await Promise.all([
-    coworkerService.listCoworkers(),
+  const [session, coworkers, agents] = await Promise.all([
+    getSession(),
+    coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
+
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const sanitizedScope = sanitizeTasksScopeInput(scope, activeOrganizationId);
 
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
+  const sanitizedCoworkerId =
+    coworkerId && coworkersById.has(coworkerId) ? coworkerId : null;
+  const sanitizedStatus = sanitizeTasksStatusInput(status);
   const page = await getTasksColumnPage({
     columnId,
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
+    scope: sanitizedScope,
+    coworkerId: sanitizedCoworkerId,
+    status: sanitizedStatus,
     coworkersById,
     agentsById,
   });

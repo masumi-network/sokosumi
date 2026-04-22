@@ -143,6 +143,118 @@ export type PaginationMetadata = {
     nextCursor: string | null;
 };
 
+export type AgentDetail = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    name: string;
+    image: string | null;
+    icon: string | null;
+    /**
+     * Price in credits
+     */
+    credits: number;
+    summary: string | null;
+    description: string;
+    /**
+     * Execution and rating metrics
+     */
+    metrics: {
+        /**
+         * Execution metrics
+         */
+        executions: {
+            /**
+             * Number of executions
+             */
+            count: number;
+            /**
+             * Average execution time in seconds
+             */
+            averageTime: number | null;
+        };
+        /**
+         * Rating metrics
+         */
+        ratings: {
+            /**
+             * Total number of ratings
+             */
+            total: number;
+            /**
+             * Average rating (out of 5 stars). Null if there are no ratings.
+             */
+            average: number | null;
+        };
+    };
+    author: {
+        name: string | null;
+        image: string | null;
+        organization: string | null;
+        email?: string | null;
+        other: string | null;
+    };
+    legal: {
+        privacyPolicy: string | null;
+        terms: string | null;
+        dpa: string | null;
+        other: string | null;
+    };
+    /**
+     * Categories this agent belongs to
+     */
+    categories: Array<Category>;
+    /**
+     * The agent's risk classification
+     */
+    riskClassification: 'MINIMAL' | 'LIMITED' | 'HIGH' | 'UNACCEPTABLE';
+    /**
+     * Resolved tags for the agent, using override tags when present
+     */
+    tags: Array<string>;
+    /**
+     * Resolved example outputs for the agent, using overrides when present
+     */
+    exampleOutputs: Array<AgentExampleOutput>;
+};
+
+export type AgentExampleOutput = {
+    name: string;
+    mimeType: string;
+    url: string;
+};
+
+export type AgentReviews = {
+    distribution: AgentRatingDistribution;
+    /**
+     * Recent visible ratings that include comments
+     */
+    ratingsWithComments: Array<AgentReview>;
+};
+
+export type AgentRatingDistribution = {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+};
+
+export type AgentReview = {
+    id: string;
+    rating: number;
+    comment: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    user: AgentReviewAuthor;
+};
+
+export type AgentReviewAuthor = {
+    id: string;
+    name: string;
+    image: string | null;
+};
+
 export type JobSummary = {
     id: string;
     createdAt: Date;
@@ -171,6 +283,29 @@ export type WorkspaceSummary = {
         name: string;
         slug: string;
     } | null;
+};
+
+export type GetChatUiMessagesResponseData = {
+    messages: Array<ChatUiMessage>;
+};
+
+export type ChatUiMessage = {
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    parts: Array<{
+        type: 'reasoning';
+        text: string;
+    } | {
+        type: 'text';
+        text: string;
+    } | {
+        type: string;
+        text?: string;
+    }>;
+    metadata?: {
+        thoughtStartedAtMs: number;
+        thoughtEndedAtMs: number;
+    };
 };
 
 export type ConversationList = Array<Conversation>;
@@ -241,17 +376,17 @@ export type ArchiveConversationRequest = {
     archived: boolean;
 };
 
-export type ConversationItem = {
+export type ConversationMessage = {
     /**
-     * Conversation item ID
+     * Conversation message ID
      */
     id: string;
     /**
-     * Item role
+     * Message role
      */
     role: 'user' | 'assistant' | 'system';
     /**
-     * Item content - string for simple text, array for structured content with type
+     * Message content — string for plain text, or array of typed parts
      */
     content: string | Array<{
         type: string;
@@ -261,31 +396,27 @@ export type ConversationItem = {
      * Unix timestamp in seconds
      */
     createdAt: number;
+    /**
+     * Wall-clock thought phase (ms since epoch), when persisted for coworker reasoning
+     */
+    thoughtTiming?: {
+        startedAtMs: number | null;
+        endedAtMs: number | null;
+    };
 };
 
-export type CreateConversationItemRequest = {
+export type CreateConversationMessageRequest = {
     /**
-     * Item role
+     * Message role
      */
     role: 'user' | 'assistant' | 'system';
     /**
-     * Item content - string for simple text, array for structured content with type
+     * Message content — string for plain text, or array of typed parts
      */
     content: string | Array<{
         type: string;
         text?: string;
     }>;
-};
-
-export type RecoverResponseResult = {
-    /**
-     * True if a completed response was fetched and saved
-     */
-    recovered: boolean;
-    /**
-     * When recovered is false
-     */
-    reason?: 'not_found' | 'in_progress' | 'terminal';
 };
 
 export type CreditCost = {
@@ -309,17 +440,6 @@ export type PatchCreditCostRequest = {
      * Credits charged per unit (user-facing decimal)
      */
     creditsPerUnit: number;
-};
-
-export type User = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    name: string;
-    email: string;
-    emailVerified: boolean;
-    image?: string | null;
-    role: string;
 };
 
 export type Organization = {
@@ -418,6 +538,17 @@ export type CreateUserFileUploadRequest = {
      * Optional allowlist for the upload session. Every value must be supported by the server, and the selected contentType must be included.
      */
     allowedContentTypes?: Array<string>;
+};
+
+export type User = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    name: string;
+    email: string;
+    emailVerified: boolean;
+    image?: string | null;
+    role: string;
 };
 
 export type Job = {
@@ -611,7 +742,7 @@ export type PublicSharedTaskMilestone = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
+    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
     status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
     comment: string | null;
     credits: number | null;
@@ -677,7 +808,7 @@ export type TaskEvent = {
     credits?: number | null;
     comment?: string | null;
     authenticationUrl?: string | null;
-    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
+    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
     status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
 };
 
@@ -810,6 +941,16 @@ export type MasumiTaskPaymentSource = {
  */
 export type OrganizationSlug = string;
 
+/**
+ * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+ */
+export type DelegationUserId = string;
+
+/**
+ * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+ */
+export type DelegationOrganizationId = string;
+
 export type GetAgentsData = {
     body?: never;
     headers?: {
@@ -817,6 +958,14 @@ export type GetAgentsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -890,6 +1039,14 @@ export type GetAgentsByIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -934,7 +1091,7 @@ export type GetAgentsByIdResponses = {
      * Retrieve the agent by ID
      */
     200: {
-        data: Agent;
+        data: AgentDetail;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -945,6 +1102,76 @@ export type GetAgentsByIdResponses = {
 
 export type GetAgentsByIdResponse = GetAgentsByIdResponses[keyof GetAgentsByIdResponses];
 
+export type GetAgentsByIdReviewsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/agents/{id}/reviews';
+};
+
+export type GetAgentsByIdReviewsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAgentsByIdReviewsError = GetAgentsByIdReviewsErrors[keyof GetAgentsByIdReviewsErrors];
+
+export type GetAgentsByIdReviewsResponses = {
+    /**
+     * Retrieve public reviews for the agent by ID
+     */
+    200: {
+        data: AgentReviews;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAgentsByIdReviewsResponse = GetAgentsByIdReviewsResponses[keyof GetAgentsByIdReviewsResponses];
+
 export type GetAgentsByIdInputSchemaData = {
     body?: never;
     headers?: {
@@ -952,6 +1179,14 @@ export type GetAgentsByIdInputSchemaData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -1962,6 +2197,14 @@ export type GetAgentsByIdJobsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -3008,6 +3251,14 @@ export type PostAgentsByIdJobsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -3122,6 +3373,14 @@ export type GetCategoriesData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -3162,8 +3421,395 @@ export type GetCategoriesResponses = {
 
 export type GetCategoriesResponse = GetCategoriesResponses[keyof GetCategoriesResponses];
 
+export type GetChatData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Internal conversation id
+         */
+        conversationId: string;
+        /**
+         * Cursor for pagination (id of the last message from the previous page).
+         */
+        cursor?: string;
+        /**
+         * Page size (max 200). Cursor pagination metadata is always returned for forward compatibility.
+         */
+        limit?: number;
+    };
+    url: '/chat';
+};
+
+export type GetChatErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatError = GetChatErrors[keyof GetChatErrors];
+
+export type GetChatResponses = {
+    /**
+     * UIMessages for the conversation (standard data + meta envelope; messages in data.messages)
+     */
+    200: {
+        data: GetChatUiMessagesResponseData;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatResponse = GetChatResponses[keyof GetChatResponses];
+
+export type PostChatData = {
+    body?: {
+        messages?: Array<{
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: string;
+                text?: string;
+            }>;
+            content?: string | Array<{
+                type: string;
+                text?: string;
+            }>;
+            id?: string;
+        }>;
+        message?: {
+            role: 'user' | 'assistant' | 'system';
+            parts?: Array<{
+                type: string;
+                text?: string;
+            }>;
+            content?: string | Array<{
+                type: string;
+                text?: string;
+            }>;
+            id?: string;
+        };
+        id?: string;
+        trigger?: 'submit-message' | 'regenerate-message';
+        messageId?: string;
+        conversationId?: string;
+        previousResponseId?: string;
+        model?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chat';
+};
+
+export type PostChatErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatError = PostChatErrors[keyof PostChatErrors];
+
+export type PostChatResponses = {
+    /**
+     * Streaming UI message response (AI SDK)
+     */
+    200: string;
+};
+
+export type PostChatResponse = PostChatResponses[keyof PostChatResponses];
+
+export type GetChatStreamByConversationIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Internal conversation id
+         */
+        conversationId: string;
+    };
+    query?: never;
+    url: '/chat/stream/{conversationId}';
+};
+
+export type GetChatStreamByConversationIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatStreamByConversationIdError = GetChatStreamByConversationIdErrors[keyof GetChatStreamByConversationIdErrors];
+
+export type GetChatStreamByConversationIdResponses = {
+    /**
+     * Resumable UI message stream (SSE)
+     */
+    200: string;
+    /**
+     * No active resumable stream for this conversation
+     */
+    204: void;
+};
+
+export type GetChatStreamByConversationIdResponse = GetChatStreamByConversationIdResponses[keyof GetChatStreamByConversationIdResponses];
+
 export type GetConversationsData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/conversations';
@@ -3231,6 +3877,20 @@ export type GetConversationsResponse = GetConversationsResponses[keyof GetConver
 
 export type PostConversationsData = {
     body?: CreateConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/conversations';
@@ -3311,6 +3971,20 @@ export type PostConversationsResponse = PostConversationsResponses[keyof PostCon
 
 export type GetConversationsByIdData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3396,6 +4070,20 @@ export type GetConversationsByIdResponse = GetConversationsByIdResponses[keyof G
 
 export type PatchConversationsByIdData = {
     body?: UpdateConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3481,6 +4169,20 @@ export type PatchConversationsByIdResponse = PatchConversationsByIdResponses[key
 
 export type PatchConversationsByIdArchiveData = {
     body?: ArchiveConversationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3564,8 +4266,22 @@ export type PatchConversationsByIdArchiveResponses = {
 
 export type PatchConversationsByIdArchiveResponse = PatchConversationsByIdArchiveResponses[keyof PatchConversationsByIdArchiveResponses];
 
-export type GetConversationsByIdItemsData = {
+export type GetConversationsByIdMessagesData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3582,10 +4298,10 @@ export type GetConversationsByIdItemsData = {
          */
         limit?: number;
     };
-    url: '/conversations/{id}/items';
+    url: '/conversations/{id}/messages';
 };
 
-export type GetConversationsByIdItemsErrors = {
+export type GetConversationsByIdMessagesErrors = {
     /**
      * Unauthorized
      */
@@ -3640,14 +4356,14 @@ export type GetConversationsByIdItemsErrors = {
     };
 };
 
-export type GetConversationsByIdItemsError = GetConversationsByIdItemsErrors[keyof GetConversationsByIdItemsErrors];
+export type GetConversationsByIdMessagesError = GetConversationsByIdMessagesErrors[keyof GetConversationsByIdMessagesErrors];
 
-export type GetConversationsByIdItemsResponses = {
+export type GetConversationsByIdMessagesResponses = {
     /**
-     * Conversation items retrieved successfully
+     * Conversation messages retrieved successfully
      */
     200: {
-        data: Array<ConversationItem>;
+        data: Array<ConversationMessage>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -3656,10 +4372,24 @@ export type GetConversationsByIdItemsResponses = {
     };
 };
 
-export type GetConversationsByIdItemsResponse = GetConversationsByIdItemsResponses[keyof GetConversationsByIdItemsResponses];
+export type GetConversationsByIdMessagesResponse = GetConversationsByIdMessagesResponses[keyof GetConversationsByIdMessagesResponses];
 
-export type PostConversationsByIdItemsData = {
-    body?: CreateConversationItemRequest;
+export type PostConversationsByIdMessagesData = {
+    body?: CreateConversationMessageRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
     path: {
         /**
          * Internal database ID
@@ -3667,10 +4397,10 @@ export type PostConversationsByIdItemsData = {
         id: string;
     };
     query?: never;
-    url: '/conversations/{id}/items';
+    url: '/conversations/{id}/messages';
 };
 
-export type PostConversationsByIdItemsErrors = {
+export type PostConversationsByIdMessagesErrors = {
     /**
      * Unauthorized
      */
@@ -3725,14 +4455,14 @@ export type PostConversationsByIdItemsErrors = {
     };
 };
 
-export type PostConversationsByIdItemsError = PostConversationsByIdItemsErrors[keyof PostConversationsByIdItemsErrors];
+export type PostConversationsByIdMessagesError = PostConversationsByIdMessagesErrors[keyof PostConversationsByIdMessagesErrors];
 
-export type PostConversationsByIdItemsResponses = {
+export type PostConversationsByIdMessagesResponses = {
     /**
-     * Conversation item created successfully
+     * Conversation message created successfully
      */
     201: {
-        data: ConversationItem;
+        data: ConversationMessage;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -3741,105 +4471,7 @@ export type PostConversationsByIdItemsResponses = {
     };
 };
 
-export type PostConversationsByIdItemsResponse = PostConversationsByIdItemsResponses[keyof PostConversationsByIdItemsResponses];
-
-export type PostConversationsByIdRecoverResponseData = {
-    body?: never;
-    path: {
-        /**
-         * Conversation ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/conversations/{id}/recover-response';
-};
-
-export type PostConversationsByIdRecoverResponseErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conversation not found
-     */
-    404: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostConversationsByIdRecoverResponseError = PostConversationsByIdRecoverResponseErrors[keyof PostConversationsByIdRecoverResponseErrors];
-
-export type PostConversationsByIdRecoverResponseResponses = {
-    /**
-     * Recovery result
-     */
-    200: {
-        data: RecoverResponseResult;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostConversationsByIdRecoverResponseResponse = PostConversationsByIdRecoverResponseResponses[keyof PostConversationsByIdRecoverResponseResponses];
+export type PostConversationsByIdMessagesResponse = PostConversationsByIdMessagesResponses[keyof PostConversationsByIdMessagesResponses];
 
 export type GetCreditCostsData = {
     body?: never;
@@ -4169,1177 +4801,6 @@ export type PatchCreditCostsByIdResponses = {
 
 export type PatchCreditCostsByIdResponse = PatchCreditCostsByIdResponses[keyof PatchCreditCostsByIdResponses];
 
-export type PostUsersMagicLinkData = {
-    body?: {
-        /**
-         * Email address to send the magic link to
-         */
-        email: string;
-        /**
-         * Optional display name for first-time signup
-         */
-        name?: string;
-        /**
-         * Optional OAuth2 authorize request to start after magic-link verification
-         */
-        oauth?: {
-            /**
-             * OAuth2 authorize response type
-             */
-            response_type: 'code';
-            /**
-             * OAuth2 client ID
-             */
-            client_id: string;
-            /**
-             * OAuth2 redirect URI
-             */
-            redirect_uri?: string;
-            /**
-             * OAuth2 scopes (space-separated)
-             */
-            scope?: string;
-            /**
-             * OAuth2 state parameter
-             */
-            state?: string;
-            /**
-             * PKCE code challenge
-             */
-            code_challenge?: string;
-            /**
-             * PKCE code challenge method
-             */
-            code_challenge_method?: 'S256';
-            /**
-             * OpenID Connect nonce
-             */
-            nonce?: string;
-            /**
-             * OAuth2 prompt parameter
-             */
-            prompt?: string;
-        };
-    };
-    path?: never;
-    query?: never;
-    url: '/users/magic-link';
-};
-
-export type PostUsersMagicLinkErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersMagicLinkError = PostUsersMagicLinkErrors[keyof PostUsersMagicLinkErrors];
-
-export type PostUsersMagicLinkResponses = {
-    /**
-     * Magic link invite sent
-     */
-    200: {
-        data: {
-            /**
-             * Whether the magic link request was accepted
-             */
-            status: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersMagicLinkResponse = PostUsersMagicLinkResponses[keyof PostUsersMagicLinkResponses];
-
-export type GetUsersMeData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me';
-};
-
-export type GetUsersMeErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeError = GetUsersMeErrors[keyof GetUsersMeErrors];
-
-export type GetUsersMeResponses = {
-    /**
-     * Retrieve the current user
-     */
-    200: {
-        data: User;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeResponse = GetUsersMeResponses[keyof GetUsersMeResponses];
-
-export type GetUsersMeOrganizationsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/organizations';
-};
-
-export type GetUsersMeOrganizationsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeOrganizationsError = GetUsersMeOrganizationsErrors[keyof GetUsersMeOrganizationsErrors];
-
-export type GetUsersMeOrganizationsResponses = {
-    /**
-     * Retrieve organizations for current user
-     */
-    200: {
-        data: Array<Organization>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeOrganizationsResponse = GetUsersMeOrganizationsResponses[keyof GetUsersMeOrganizationsResponses];
-
-export type GetUsersMeOrganizationsByIdCreditsData = {
-    body?: never;
-    path: {
-        /**
-         * Organization ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/me/organizations/{id}/credits';
-};
-
-export type GetUsersMeOrganizationsByIdCreditsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden - You are not a member of this organization
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - Organization not found
-     */
-    404: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeOrganizationsByIdCreditsError = GetUsersMeOrganizationsByIdCreditsErrors[keyof GetUsersMeOrganizationsByIdCreditsErrors];
-
-export type GetUsersMeOrganizationsByIdCreditsResponses = {
-    /**
-     * Retrieve shared non-subscription organization credits plus the member subscription wallet
-     */
-    200: {
-        data: {
-            credits: {
-                subscription: {
-                    plan: string;
-                    status: string;
-                    periodStart?: Date | null;
-                    periodEnd?: Date | null;
-                    cancelAtPeriodEnd?: boolean | null;
-                    credits: {
-                        /**
-                         * Total subscription-period credits granted this period
-                         */
-                        total: number;
-                        /**
-                         * Remaining subscription-period credits this period
-                         */
-                        remaining: number;
-                        /**
-                         * Used subscription-period credits consumed during this period
-                         */
-                        used: number;
-                    } | null;
-                } | null;
-                /**
-                 * Current available non-subscription credit balance
-                 */
-                buffer: number;
-                /**
-                 * Current available total credit balance (buffer plus remaining subscription credits)
-                 */
-                total: number;
-            };
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeOrganizationsByIdCreditsResponse = GetUsersMeOrganizationsByIdCreditsResponses[keyof GetUsersMeOrganizationsByIdCreditsResponses];
-
-export type GetUsersMeCreditsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/users/me/credits';
-};
-
-export type GetUsersMeCreditsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeCreditsError = GetUsersMeCreditsErrors[keyof GetUsersMeCreditsErrors];
-
-export type GetUsersMeCreditsResponses = {
-    /**
-     * Retrieve the current user's credits or the member-scoped organization-context credits
-     */
-    200: {
-        data: {
-            credits: {
-                subscription: {
-                    plan: string;
-                    status: string;
-                    periodStart?: Date | null;
-                    periodEnd?: Date | null;
-                    cancelAtPeriodEnd?: boolean | null;
-                    credits: {
-                        /**
-                         * Total subscription-period credits granted this period
-                         */
-                        total: number;
-                        /**
-                         * Remaining subscription-period credits this period
-                         */
-                        remaining: number;
-                        /**
-                         * Used subscription-period credits consumed during this period
-                         */
-                        used: number;
-                    } | null;
-                } | null;
-                /**
-                 * Current available non-subscription credit balance
-                 */
-                buffer: number;
-                /**
-                 * Current available total credit balance (buffer plus remaining subscription credits)
-                 */
-                total: number;
-            };
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeCreditsResponse = GetUsersMeCreditsResponses[keyof GetUsersMeCreditsResponses];
-
-export type GetUsersMePreferencesData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/preferences';
-};
-
-export type GetUsersMePreferencesErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMePreferencesError = GetUsersMePreferencesErrors[keyof GetUsersMePreferencesErrors];
-
-export type GetUsersMePreferencesResponses = {
-    /**
-     * Retrieve the current user's preferences
-     */
-    200: {
-        data: {
-            /**
-             * Whether the user wants to receive marketing emails
-             */
-            marketingOptIn: boolean;
-            /**
-             * Whether the user wants to receive job status notifications
-             */
-            notificationsOptIn: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMePreferencesResponse = GetUsersMePreferencesResponses[keyof GetUsersMePreferencesResponses];
-
-export type PatchUsersMePreferencesData = {
-    body?: {
-        /**
-         * Whether the user wants to receive marketing emails
-         */
-        marketingOptIn?: boolean;
-        /**
-         * Whether the user wants to receive job status notifications
-         */
-        notificationsOptIn?: boolean;
-    };
-    path?: never;
-    query?: never;
-    url: '/users/me/preferences';
-};
-
-export type PatchUsersMePreferencesErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchUsersMePreferencesError = PatchUsersMePreferencesErrors[keyof PatchUsersMePreferencesErrors];
-
-export type PatchUsersMePreferencesResponses = {
-    /**
-     * Update the current user's preferences
-     */
-    200: {
-        data: {
-            /**
-             * Whether the user wants to receive marketing emails
-             */
-            marketingOptIn: boolean;
-            /**
-             * Whether the user wants to receive job status notifications
-             */
-            notificationsOptIn: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchUsersMePreferencesResponse = PatchUsersMePreferencesResponses[keyof PatchUsersMePreferencesResponses];
-
-export type GetUsersMeOnboardingData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/onboarding';
-};
-
-export type GetUsersMeOnboardingErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeOnboardingError = GetUsersMeOnboardingErrors[keyof GetUsersMeOnboardingErrors];
-
-export type GetUsersMeOnboardingResponses = {
-    /**
-     * Retrieve the current user's onboarding status
-     */
-    200: {
-        data: {
-            /**
-             * Whether the user has completed onboarding
-             */
-            completed: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeOnboardingResponse = GetUsersMeOnboardingResponses[keyof GetUsersMeOnboardingResponses];
-
-export type PostUsersMeOnboardingData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/onboarding';
-};
-
-export type PostUsersMeOnboardingErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersMeOnboardingError = PostUsersMeOnboardingErrors[keyof PostUsersMeOnboardingErrors];
-
-export type PostUsersMeOnboardingResponses = {
-    /**
-     * Complete onboarding for the current user
-     */
-    200: {
-        data: {
-            /**
-             * Whether the user has completed onboarding
-             */
-            completed: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersMeOnboardingResponse = PostUsersMeOnboardingResponses[keyof PostUsersMeOnboardingResponses];
-
-export type GetUsersMeNoticesPendingData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/notices/pending';
-};
-
-export type GetUsersMeNoticesPendingErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeNoticesPendingError = GetUsersMeNoticesPendingErrors[keyof GetUsersMeNoticesPendingErrors];
-
-export type GetUsersMeNoticesPendingResponses = {
-    /**
-     * Retrieve pending notices for the current user
-     */
-    200: {
-        data: {
-            pendingNotices: Array<Notice>;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeNoticesPendingResponse = GetUsersMeNoticesPendingResponses[keyof GetUsersMeNoticesPendingResponses];
-
-export type PostUsersMeNoticesByIdAcknowledgeData = {
-    body?: never;
-    path: {
-        /**
-         * Notice ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/me/notices/{id}/acknowledge';
-};
-
-export type PostUsersMeNoticesByIdAcknowledgeErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersMeNoticesByIdAcknowledgeError = PostUsersMeNoticesByIdAcknowledgeErrors[keyof PostUsersMeNoticesByIdAcknowledgeErrors];
-
-export type PostUsersMeNoticesByIdAcknowledgeResponses = {
-    /**
-     * Notice acknowledged successfully
-     */
-    200: {
-        data: {
-            noticeId: string;
-            acknowledgedAt: Date;
-            alreadyAcknowledged: boolean;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersMeNoticesByIdAcknowledgeResponse = PostUsersMeNoticesByIdAcknowledgeResponses[keyof PostUsersMeNoticesByIdAcknowledgeResponses];
-
-export type GetUsersMeUploadsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/users/me/uploads';
-};
-
-export type GetUsersMeUploadsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeUploadsError = GetUsersMeUploadsErrors[keyof GetUsersMeUploadsErrors];
-
-export type GetUsersMeUploadsResponses = {
-    /**
-     * Retrieve user uploads
-     */
-    200: {
-        data: Array<BlobFile>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeUploadsResponse = GetUsersMeUploadsResponses[keyof GetUsersMeUploadsResponses];
-
-export type PostUsersMeUploadsData = {
-    body: CreateUserFileUploadRequest & {
-        /**
-         * File size in bytes
-         */
-        size?: number;
-    };
-    path?: never;
-    query?: never;
-    url: '/users/me/uploads';
-};
-
-export type PostUsersMeUploadsErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersMeUploadsError = PostUsersMeUploadsErrors[keyof PostUsersMeUploadsErrors];
-
-export type PostUsersMeUploadsResponses = {
-    /**
-     * User file upload session created successfully
-     */
-    201: {
-        data: UserFileUploadSession;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersMeUploadsResponse = PostUsersMeUploadsResponses[keyof PostUsersMeUploadsResponses];
-
 export type GetUsersRegisteredData = {
     body?: never;
     path?: never;
@@ -5420,6 +4881,1225 @@ export type GetUsersRegisteredResponses = {
 };
 
 export type GetUsersRegisteredResponse = GetUsersRegisteredResponses[keyof GetUsersRegisteredResponses];
+
+export type GetUsersByIdCreditsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/credits';
+};
+
+export type GetUsersByIdCreditsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdCreditsError = GetUsersByIdCreditsErrors[keyof GetUsersByIdCreditsErrors];
+
+export type GetUsersByIdCreditsResponses = {
+    /**
+     * Retrieve the user's credits for personal or organization context
+     */
+    200: {
+        data: {
+            credits: {
+                subscription: {
+                    plan: string;
+                    status: string;
+                    periodStart?: Date | null;
+                    periodEnd?: Date | null;
+                    cancelAtPeriodEnd?: boolean | null;
+                    credits: {
+                        /**
+                         * Total subscription-period credits granted this period
+                         */
+                        total: number;
+                        /**
+                         * Remaining subscription-period credits this period
+                         */
+                        remaining: number;
+                        /**
+                         * Used subscription-period credits consumed during this period
+                         */
+                        used: number;
+                    } | null;
+                } | null;
+                /**
+                 * Current available non-subscription credit balance
+                 */
+                buffer: number;
+                /**
+                 * Current available total credit balance (buffer plus remaining subscription credits)
+                 */
+                total: number;
+            };
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdCreditsResponse = GetUsersByIdCreditsResponses[keyof GetUsersByIdCreditsResponses];
+
+export type GetUsersByIdOrganizationsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/organizations';
+};
+
+export type GetUsersByIdOrganizationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdOrganizationsError = GetUsersByIdOrganizationsErrors[keyof GetUsersByIdOrganizationsErrors];
+
+export type GetUsersByIdOrganizationsResponses = {
+    /**
+     * Retrieve organizations for the user
+     */
+    200: {
+        data: Array<Organization>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdOrganizationsResponse = GetUsersByIdOrganizationsResponses[keyof GetUsersByIdOrganizationsResponses];
+
+export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Organization ID
+         */
+        organizationId: string;
+    };
+    query?: never;
+    url: '/users/{id}/organizations/{organizationId}/credits';
+};
+
+export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdOrganizationsByOrganizationIdCreditsError = GetUsersByIdOrganizationsByOrganizationIdCreditsErrors[keyof GetUsersByIdOrganizationsByOrganizationIdCreditsErrors];
+
+export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
+    /**
+     * Retrieve shared non-subscription organization credits plus the member subscription wallet
+     */
+    200: {
+        data: {
+            credits: {
+                subscription: {
+                    plan: string;
+                    status: string;
+                    periodStart?: Date | null;
+                    periodEnd?: Date | null;
+                    cancelAtPeriodEnd?: boolean | null;
+                    credits: {
+                        /**
+                         * Total subscription-period credits granted this period
+                         */
+                        total: number;
+                        /**
+                         * Remaining subscription-period credits this period
+                         */
+                        remaining: number;
+                        /**
+                         * Used subscription-period credits consumed during this period
+                         */
+                        used: number;
+                    } | null;
+                } | null;
+                /**
+                 * Current available non-subscription credit balance
+                 */
+                buffer: number;
+                /**
+                 * Current available total credit balance (buffer plus remaining subscription credits)
+                 */
+                total: number;
+            };
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponse = GetUsersByIdOrganizationsByOrganizationIdCreditsResponses[keyof GetUsersByIdOrganizationsByOrganizationIdCreditsResponses];
+
+export type GetUsersByIdPreferencesData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/preferences';
+};
+
+export type GetUsersByIdPreferencesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdPreferencesError = GetUsersByIdPreferencesErrors[keyof GetUsersByIdPreferencesErrors];
+
+export type GetUsersByIdPreferencesResponses = {
+    /**
+     * Retrieve the user's preferences
+     */
+    200: {
+        data: {
+            /**
+             * Whether the user wants to receive marketing emails
+             */
+            marketingOptIn: boolean;
+            /**
+             * Whether the user wants to receive job status notifications
+             */
+            notificationsOptIn: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdPreferencesResponse = GetUsersByIdPreferencesResponses[keyof GetUsersByIdPreferencesResponses];
+
+export type PatchUsersByIdPreferencesData = {
+    body?: {
+        /**
+         * Whether the user wants to receive marketing emails
+         */
+        marketingOptIn?: boolean;
+        /**
+         * Whether the user wants to receive job status notifications
+         */
+        notificationsOptIn?: boolean;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/preferences';
+};
+
+export type PatchUsersByIdPreferencesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchUsersByIdPreferencesError = PatchUsersByIdPreferencesErrors[keyof PatchUsersByIdPreferencesErrors];
+
+export type PatchUsersByIdPreferencesResponses = {
+    /**
+     * Update the user's preferences
+     */
+    200: {
+        data: {
+            /**
+             * Whether the user wants to receive marketing emails
+             */
+            marketingOptIn: boolean;
+            /**
+             * Whether the user wants to receive job status notifications
+             */
+            notificationsOptIn: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
+
+export type GetUsersByIdOnboardingData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/onboarding';
+};
+
+export type GetUsersByIdOnboardingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdOnboardingError = GetUsersByIdOnboardingErrors[keyof GetUsersByIdOnboardingErrors];
+
+export type GetUsersByIdOnboardingResponses = {
+    /**
+     * Retrieve the user's onboarding status
+     */
+    200: {
+        data: {
+            /**
+             * Whether the user has completed onboarding
+             */
+            completed: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdOnboardingResponse = GetUsersByIdOnboardingResponses[keyof GetUsersByIdOnboardingResponses];
+
+export type PostUsersByIdOnboardingData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/onboarding';
+};
+
+export type PostUsersByIdOnboardingErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdOnboardingError = PostUsersByIdOnboardingErrors[keyof PostUsersByIdOnboardingErrors];
+
+export type PostUsersByIdOnboardingResponses = {
+    /**
+     * Complete onboarding for the user
+     */
+    200: {
+        data: {
+            /**
+             * Whether the user has completed onboarding
+             */
+            completed: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdOnboardingResponse = PostUsersByIdOnboardingResponses[keyof PostUsersByIdOnboardingResponses];
+
+export type GetUsersByIdNoticesPendingData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/notices/pending';
+};
+
+export type GetUsersByIdNoticesPendingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdNoticesPendingError = GetUsersByIdNoticesPendingErrors[keyof GetUsersByIdNoticesPendingErrors];
+
+export type GetUsersByIdNoticesPendingResponses = {
+    /**
+     * Retrieve pending notices for the user
+     */
+    200: {
+        data: {
+            pendingNotices: Array<Notice>;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdNoticesPendingResponse = GetUsersByIdNoticesPendingResponses[keyof GetUsersByIdNoticesPendingResponses];
+
+export type PostUsersByIdNoticesByNoticeIdAcknowledgeData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Notice ID
+         */
+        noticeId: string;
+    };
+    query?: never;
+    url: '/users/{id}/notices/{noticeId}/acknowledge';
+};
+
+export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdNoticesByNoticeIdAcknowledgeError = PostUsersByIdNoticesByNoticeIdAcknowledgeErrors[keyof PostUsersByIdNoticesByNoticeIdAcknowledgeErrors];
+
+export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponses = {
+    /**
+     * Notice acknowledged successfully
+     */
+    200: {
+        data: {
+            noticeId: string;
+            acknowledgedAt: Date;
+            alreadyAcknowledged: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponse = PostUsersByIdNoticesByNoticeIdAcknowledgeResponses[keyof PostUsersByIdNoticesByNoticeIdAcknowledgeResponses];
+
+export type GetUsersByIdUploadsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/uploads';
+};
+
+export type GetUsersByIdUploadsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdUploadsError = GetUsersByIdUploadsErrors[keyof GetUsersByIdUploadsErrors];
+
+export type GetUsersByIdUploadsResponses = {
+    /**
+     * Retrieve user uploads
+     */
+    200: {
+        data: Array<BlobFile>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdUploadsResponse = GetUsersByIdUploadsResponses[keyof GetUsersByIdUploadsResponses];
+
+export type PostUsersByIdUploadsData = {
+    body: CreateUserFileUploadRequest & {
+        /**
+         * File size in bytes
+         */
+        size?: number;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/uploads';
+};
+
+export type PostUsersByIdUploadsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdUploadsError = PostUsersByIdUploadsErrors[keyof PostUsersByIdUploadsErrors];
+
+export type PostUsersByIdUploadsResponses = {
+    /**
+     * User file upload session created successfully
+     */
+    201: {
+        data: UserFileUploadSession;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdUploadsResponse = PostUsersByIdUploadsResponses[keyof PostUsersByIdUploadsResponses];
+
+export type GetUsersByIdData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}';
+};
+
+export type GetUsersByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdError = GetUsersByIdErrors[keyof GetUsersByIdErrors];
+
+export type GetUsersByIdResponses = {
+    /**
+     * Retrieve the user
+     */
+    200: {
+        data: User;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdResponse = GetUsersByIdResponses[keyof GetUsersByIdResponses];
 
 export type GetOrganizationsByIdData = {
     body?: never;
@@ -5513,6 +6193,14 @@ export type GetJobsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -5607,6 +6295,14 @@ export type GetJobsByIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -5697,6 +6393,14 @@ export type PatchJobsByIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -5798,6 +6502,14 @@ export type PostJobsByIdRefundData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -5899,6 +6611,14 @@ export type GetJobsByIdFilesData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -5987,6 +6707,14 @@ export type GetJobsByIdLinksData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6075,6 +6803,14 @@ export type GetJobsByIdInputRequestData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6178,6 +6914,14 @@ export type PostJobsByIdInputsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6305,6 +7049,14 @@ export type GetJobsByIdEventsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6393,6 +7145,14 @@ export type DeleteJobsByIdShareData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6472,6 +7232,14 @@ export type PutJobsByIdShareData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6549,6 +7317,14 @@ export type PutJobsByIdWorkspaceData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6707,19 +7483,6 @@ export type GetCoworkersErrors = {
      * Unauthorized
      */
     401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
         error: string;
         message: string;
         meta: {
@@ -7480,19 +8243,6 @@ export type GetCoworkersByIdErrors = {
         };
     };
     /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Not Found
      */
     404: {
@@ -7693,6 +8443,14 @@ export type GetTasksData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -7793,13 +8551,21 @@ export type PostTasksData = {
         /**
          * Origin of the initial task event. Defaults to SOKOSUMI if not provided.
          */
-        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
+        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
     };
     headers?: {
         /**
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -8695,7 +9461,7 @@ export type PostTasksByIdEventsData = {
         /**
          * The origin of the task event. Defaults to SOKOSUMI if undefined.
          */
-        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'SOKOSUMI' | 'UNKNOWN';
+        origin?: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
         masumiPayment?: MasumiPayment;
     };
     path: {

@@ -7,7 +7,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { createJobRequestSchema, jobSummarySchema } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
@@ -49,15 +49,15 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: agentId } = c.req.valid("param");
     const { maxCredits, inputData, inputSchema, name } = c.req.valid("json");
 
     const job = await createAgentJobForUser({
       owner: {
-        userId: authContext.userId,
-        organizationId: authContext.organizationId,
+        userId: userContext.userId,
+        organizationId: userContext.organizationId,
         workspaceId: workspaceContext.workspaceId,
       },
       agentInput: {

@@ -9,7 +9,7 @@ import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
@@ -51,7 +51,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const { authContext } = c.var;
+    const userContext = requireUserContext(authContext);
     const { id } = c.req.valid("param");
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
@@ -60,10 +61,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const task = await tx.task.findFirst({
           where: {
             id,
-            userId: authContext.userId,
+            userId: userContext.userId,
             archivedAt: null,
           },
           select: {
+            workspaceId: true,
             workspace: {
               select: {
                 organizationId: true,
@@ -82,7 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!workspaceChanged) {
           return await tx.task.findUniqueOrThrow({
             where: { id },
-            include: buildTaskIncludeForViewer(authContext),
+            include: buildTaskIncludeForViewer(authContext, task.workspaceId),
           });
         }
 
@@ -90,13 +92,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (targetOrganizationId !== null) {
           await resolveMemberOrganizationById({
             id: targetOrganizationId,
-            userId: authContext.userId,
+            userId: userContext.userId,
             tx,
           });
         }
 
         const workspace = await workspaceRepository.upsertWorkspaceForContext(
-          authContext.userId,
+          userContext.userId,
           targetOrganizationId ?? null,
           tx,
         );
@@ -134,7 +136,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         return await tx.task.findUniqueOrThrow({
           where: { id },
-          include: buildTaskIncludeForViewer(authContext),
+          include: buildTaskIncludeForViewer(authContext, workspace.id),
         });
       },
       {

@@ -2,6 +2,7 @@ import { AgentJobStatus, JobType, NextJobAction } from "@sokosumi/database";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostJobRefund from "./post";
@@ -11,16 +12,20 @@ const {
   prismaTransactionMock,
   jobFindUniqueMock,
   updateJobPurchaseByExternalIdMock,
+  requireJobOwnershipMock,
 } = vi.hoisted(() => ({
+  requireJobOwnershipMock: vi.fn(async () => undefined),
   authContextState: {
     current: {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     } as {
       actor: "user";
       userId: string;
       organizationId: string | null;
+      role: string;
     } | null,
   },
   prismaTransactionMock: vi.fn(),
@@ -69,11 +74,40 @@ vi.mock("@/middleware/auth", () => ({
     c.set("authContext", authContextState.current);
     return await next();
   },
-  requireUserAuthContext: (authContext: unknown) => authContext,
+  requireUserContext: (authContext: unknown) => {
+    const a = authContext as {
+      actor: string;
+      userId: string;
+      organizationId: string | null;
+      role: string;
+      delegation?: { userId: string; organizationId: string | null };
+    };
+    if (a.actor === "user") {
+      return {
+        source: "session" as const,
+        actor: "user",
+        userId: a.userId,
+        organizationId: a.organizationId,
+        role: a.role,
+      };
+    }
+    if (a.actor === "coworker" && a.delegation) {
+      return {
+        source: "delegation" as const,
+        userId: a.delegation.userId,
+        organizationId: a.delegation.organizationId,
+      };
+    }
+    throw new Error("mock requireUserContext: unsupported auth context");
+  },
+  isUserAuthContext: (authContext: { actor: string }) =>
+    authContext.actor === "user",
+  isCoworkerAuthContext: (authContext: { actor: string }) =>
+    authContext.actor === "coworker",
 }));
 
 vi.mock("@/helpers/access-control.js", () => ({
-  requireJobReadAccess: vi.fn(async () => undefined),
+  requireJobOwnership: requireJobOwnershipMock,
 }));
 
 const requestRefundMock = vi.fn();
@@ -91,7 +125,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 function createApp() {
-  const app = new OpenAPIHonoWithAuth({ includeOrganizationHeader: false });
+  const app = new OpenAPIHonoWithAuth();
   mountPostJobRefund(app);
   return app;
 }
@@ -187,10 +221,14 @@ function createFullJobForSecondFetch() {
 describe("POST /jobs/{id}/refund", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    jobFindUniqueMock.mockReset();
+    requireJobOwnershipMock.mockReset();
+    requireJobOwnershipMock.mockResolvedValue(undefined);
     authContextState.current = {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     };
     requestRefundMock.mockResolvedValue(ok());
 
@@ -244,22 +282,8 @@ describe("POST /jobs/{id}/refund", () => {
   });
 
   it("returns 403 when the job belongs to another user", async () => {
-    prismaTransactionMock.mockImplementationOnce(
-      async (
-        callback: (tx: {
-          job: { findUnique: typeof jobFindUniqueMock };
-        }) => Promise<unknown>,
-      ) => {
-        jobFindUniqueMock.mockResolvedValueOnce({
-          userId: "user_other",
-          jobType: JobType.PAID,
-          blockchainIdentifier: "purchase_bc_1",
-          purchase: { externalId: "purchase_ext_1" },
-        });
-        return await callback({
-          job: { findUnique: jobFindUniqueMock },
-        });
-      },
+    requireJobOwnershipMock.mockRejectedValueOnce(
+      forbidden("You can only access your own jobs"),
     );
 
     const app = createApp();
@@ -273,14 +297,13 @@ describe("POST /jobs/{id}/refund", () => {
   });
 
   it("returns 422 when the job is not paid", async () => {
-    prismaTransactionMock.mockImplementationOnce(
+    prismaTransactionMock.mockImplementation(
       async (
         callback: (tx: {
           job: { findUnique: typeof jobFindUniqueMock };
         }) => Promise<unknown>,
       ) => {
-        jobFindUniqueMock.mockResolvedValueOnce({
-          userId: "user_123",
+        jobFindUniqueMock.mockResolvedValue({
           jobType: JobType.FREE,
           blockchainIdentifier: null,
           purchase: null,

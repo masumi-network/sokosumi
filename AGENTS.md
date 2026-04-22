@@ -4,7 +4,7 @@
 
 ## Tech Stack & Architecture
 
-**Core Stack**: Next.js 16 (App Router), React 19.2, TypeScript, pnpm workspace, Node.js 24.x
+**Core Stack**: Next.js 16 (App Router), React 19.2, TypeScript, pnpm workspace, Node.js 24.x  
 **Web Architecture**: Three-layer pattern with repositories (`@sokosumi/database`) wrapping Prisma/Postgres, services (`src/lib/services/`) coordinating domain flows, and actions (`src/lib/actions/`) exposing typed server mutations
 **API Architecture**: Hono with OpenAPI validation and standardized response helpers
 **Styling**: Tailwind CSS + shadcn/ui + Radix UI primitives

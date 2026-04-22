@@ -4,8 +4,11 @@ import { internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import { type OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
+import { requireUserContext } from "@/middleware/auth";
 import { conversationSchema } from "@/schemas/conversation.schema";
 
 const archiveConversationRequestSchema = z
@@ -17,64 +20,66 @@ const archiveConversationRequestSchema = z
   })
   .openapi("ArchiveConversationRequest");
 
-const route = createRoute({
-  method: "patch",
-  path: "/{id}/archive",
-  description:
-    "Archive or unarchive a conversation mapping (sets archivedAt timestamp, can be recovered)",
-  tags: ["Conversations"],
-  request: {
-    params: z.object({
-      id: z
-        .string()
-        .uuid()
-        .openapi({
-          param: {
-            name: "id",
-            in: "path",
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "patch",
+    path: "/{id}/archive",
+    description:
+      "Archive or unarchive a conversation mapping (sets archivedAt timestamp, can be recovered)",
+    tags: ["Conversations"],
+    request: {
+      params: z.object({
+        id: z
+          .string()
+          .uuid()
+          .openapi({
+            param: {
+              name: "id",
+              in: "path",
+            },
+            description: "Internal database ID",
+            example: "550e8400-e29b-41d4-a716-446655440000",
+          }),
+      }),
+      body: {
+        content: {
+          "application/json": {
+            schema: archiveConversationRequestSchema,
           },
-          description: "Internal database ID",
-          example: "550e8400-e29b-41d4-a716-446655440000",
-        }),
-    }),
-    body: {
-      content: {
-        "application/json": {
-          schema: archiveConversationRequestSchema,
         },
       },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(
-      conversationSchema,
-      "Conversation archived successfully",
-      {
-        data: {
-          id: "550e8400-e29b-41d4-a716-446655440000",
-          userId: "550e8400-e29b-41d4-a716-446655440000",
-          title: "Chat with Hannah",
-          metadata: { coworker: "Hannah" },
-          createdAt: "2025-01-21T12:00:00.000Z",
-          updatedAt: "2025-01-21T12:00:00.000Z",
+    responses: {
+      200: jsonSuccessResponse(
+        conversationSchema,
+        "Conversation archived successfully",
+        {
+          data: {
+            id: "550e8400-e29b-41d4-a716-446655440000",
+            userId: "550e8400-e29b-41d4-a716-446655440000",
+            title: "Chat with Hannah",
+            metadata: { coworker: "Hannah" },
+            createdAt: "2025-01-21T12:00:00.000Z",
+            updatedAt: "2025-01-21T12:00:00.000Z",
+          },
+          meta: {
+            timestamp: "2025-01-21T12:00:00.000Z",
+            requestId: "550e8400-e29b-41d4-a716-446655440000",
+          },
         },
-        meta: {
-          timestamp: "2025-01-21T12:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-        },
-      },
-    ),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Conversation not found"),
-    500: jsonErrorResponse("Internal Server Error"),
-  },
-});
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Conversation not found"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const authContext = requireUserAuthContext(c.var.authContext);
+      const userContext = requireUserContext(c.var.authContext);
       const { id } = c.req.valid("param");
       const body = c.req.valid("json");
 
@@ -82,7 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const updatedConversation = await prisma.$transaction(async (tx) => {
         // Include archived conversations so we can archive/unarchive them
         const existing = await tx.conversation.findFirst({
-          where: { id, userId: authContext.userId },
+          where: { id, userId: userContext.userId },
         });
 
         if (!existing) {

@@ -1340,6 +1340,31 @@
       "List": {
         "placeholder": "Nessun task"
       },
+      "Filters": {
+        "title": "Filtri",
+        "searchPlaceholder": "Filtra…",
+        "emptyResults": "Nessun risultato.",
+        "all": "Tutti",
+        "scopeLabel": "Ambito",
+        "scopeOwned": "Le mie attività",
+        "scopeWorkspace": "Spazio di lavoro",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "Stato",
+        "statusOptions": {
+          "DRAFT": "Bozza",
+          "READY": "Pronto",
+          "INPUT_REQUIRED": "Input richiesto",
+          "AUTHENTICATION_REQUIRED": "Autenticazione richiesta",
+          "OUT_OF_CREDITS": "Crediti esauriti",
+          "CREDITS_TOPPED_UP": "Crediti ricaricati",
+          "RUNNING": "In esecuzione",
+          "AWAITING_EXTERNAL": "In attesa esterno",
+          "COMPLETED": "Completato",
+          "FAILED": "Non riuscito",
+          "CANCEL_REQUESTED": "Annullamento richiesto",
+          "CANCELED": "Annullato"
+        }
+      },
       "Jobs": {
         "filterButton": "Stato",
         "filterHideFailed": "Nascondi falliti",
@@ -1400,6 +1425,7 @@
           "signal": "Signal",
           "discord": "Discord",
           "chat": "Chat",
+          "messenger": "Messenger",
           "unknown": "Sconosciuto"
         },
         "actionCommented": "ha commentato",
@@ -1417,10 +1443,10 @@
         },
         "actions": {
           "edit": "Modifica",
-          "delete": "Elimina",
-          "confirmDelete": "Eliminare questo task?",
-          "confirmDeleteDescription": "Questa operazione non può essere annullata. Il task verrà eliminato definitivamente.",
-          "deleteError": "Impossibile eliminare il task",
+          "archive": "Archivia",
+          "confirmArchive": "Archiviare questo task?",
+          "confirmArchiveDescription": "Il task viene nascosto dall’elenco e non viene eliminato definitivamente dal database.",
+          "archiveError": "Impossibile archiviare il task",
           "markAsReady": "Segna come pronto",
           "revertToDraft": "Ripristina bozza",
           "cancelRequest": "Annulla richiesta",
@@ -1671,8 +1697,8 @@
       "cancelsOnDate": "Si annulla il {date}",
       "statusCancellationScheduled": "L’annullamento dell’abbonamento è stato programmato.",
       "billingPortalTitle": "Portale di fatturazione",
-      "billingPortalDescription": "Apri il Portale di fatturazione Stripe per gestire il tuo abbonamento e le tue fatture.",
-      "billingPortalDescriptionWithPlan": "Attualmente sei su {plan}. Gestisci i dettagli di fatturazione e le fatture in Stripe.",
+      "billingPortalDescription": "Apri il Portale di fatturazione Stripe per gestire i tuoi abbonamenti e le tue fatture.",
+      "billingPortalDescriptionWithPlan": "Attualmente sei su {plan}. Gestisci i tuoi abbonamenti, i dettagli di fatturazione e le fatture in Stripe.",
       "openingBillingPortal": "Apertura in corso...",
       "billingPortalCta": "Apri il portale di fatturazione",
       "freePrice": "Gratis",
@@ -1752,7 +1778,7 @@
         "coupon": "Coupon"
       },
       "billingPortalTitle": "Portale di fatturazione",
-      "billingPortalDescription": "Apri il Portale di fatturazione Stripe per gestire i dettagli di fatturazione e le fatture.",
+      "billingPortalDescription": "Apri il Portale di fatturazione Stripe per gestire i tuoi abbonamenti, i dettagli di fatturazione e le fatture.",
       "openingBillingPortal": "Apertura in corso...",
       "billingPortalCta": "Apri il portale di fatturazione",
       "orgAccessRestrictedTitle": "Accesso alla fatturazione limitato",

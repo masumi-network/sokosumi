@@ -1340,6 +1340,31 @@
       "List": {
         "placeholder": "暂无任务"
       },
+      "Filters": {
+        "title": "筛选",
+        "searchPlaceholder": "筛选…",
+        "emptyResults": "未找到结果。",
+        "all": "全部",
+        "scopeLabel": "范围",
+        "scopeOwned": "我的任务",
+        "scopeWorkspace": "工作区",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "状态",
+        "statusOptions": {
+          "DRAFT": "草稿",
+          "READY": "就绪",
+          "INPUT_REQUIRED": "需要输入",
+          "AUTHENTICATION_REQUIRED": "需要认证",
+          "OUT_OF_CREDITS": "积分不足",
+          "CREDITS_TOPPED_UP": "积分已充值",
+          "RUNNING": "运行中",
+          "AWAITING_EXTERNAL": "等待外部",
+          "COMPLETED": "已完成",
+          "FAILED": "失败",
+          "CANCEL_REQUESTED": "已请求取消",
+          "CANCELED": "已取消"
+        }
+      },
       "Jobs": {
         "filterButton": "状态",
         "filterHideFailed": "隐藏失败",
@@ -1399,6 +1424,7 @@
           "signal": "Signal",
           "discord": "Discord",
           "chat": "聊天",
+          "messenger": "Messenger",
           "unknown": "未知"
         },
         "actionCommented": "评论了",
@@ -1416,10 +1442,10 @@
         },
         "actions": {
           "edit": "编辑",
-          "delete": "删除",
-          "confirmDelete": "删除此任务？",
-          "confirmDeleteDescription": "此操作无法撤销。将永久删除该任务。",
-          "deleteError": "删除任务失败",
+          "archive": "归档",
+          "confirmArchive": "归档此任务？",
+          "confirmArchiveDescription": "任务将从列表中隐藏，不会从数据库中永久删除。",
+          "archiveError": "归档任务失败",
           "markAsReady": "标记为就绪",
           "revertToDraft": "恢复为草稿",
           "cancelRequest": "请求取消",
@@ -1671,7 +1697,7 @@
       "statusCancellationScheduled": "订阅取消已安排。",
       "billingPortalTitle": "计费门户",
       "billingPortalDescription": "打开 Stripe 计费门户以管理您的订阅和发票。",
-      "billingPortalDescriptionWithPlan": "您当前使用 {plan}。请在 Stripe 中管理账单信息和发票。",
+      "billingPortalDescriptionWithPlan": "您当前使用 {plan}。请在 Stripe 中管理订阅、账单信息和发票。",
       "openingBillingPortal": "正在打开...",
       "billingPortalCta": "打开计费门户",
       "freePrice": "免费",
@@ -1751,7 +1777,7 @@
         "coupon": "优惠券"
       },
       "billingPortalTitle": "计费门户",
-      "billingPortalDescription": "打开 Stripe 计费门户以管理您的账单信息和发票。",
+      "billingPortalDescription": "打开 Stripe 计费门户以管理您的订阅、账单信息和发票。",
       "openingBillingPortal": "正在打开...",
       "billingPortalCta": "打开计费门户",
       "orgAccessRestrictedTitle": "计费访问受限",

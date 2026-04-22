@@ -4,13 +4,20 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import {
+  type UserRouteVariables,
+  usersPathUserContextMiddleware,
+} from "@/routes/v1/users/user-route-context";
 
-const { getEnvMock, listUserUploadsMock } = vi.hoisted(() => ({
-  getEnvMock: vi.fn(() => ({
-    BLOB_READ_WRITE_TOKEN: "blob-token",
-  })),
-  listUserUploadsMock: vi.fn(),
-}));
+const { getEnvMock, listUserUploadsMock, userFindUniqueMock } = vi.hoisted(
+  () => ({
+    getEnvMock: vi.fn(() => ({
+      BLOB_READ_WRITE_TOKEN: "blob-token",
+    })),
+    listUserUploadsMock: vi.fn(),
+    userFindUniqueMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
@@ -18,6 +25,14 @@ vi.mock("@/config/env", () => ({
 
 vi.mock("@/lib/blob", () => ({
   listUserUploads: (...args: unknown[]) => listUserUploadsMock(...args),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    user: {
+      findUnique: userFindUniqueMock,
+    },
+  },
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -36,9 +51,10 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: null,
+  role: "user",
 };
 
-let mountGetUserUploads: (app: OpenAPIHonoWithAuth) => void;
+let mountGetUserUploads: (app: OpenAPIHonoWithAuth<UserRouteVariables>) => void;
 
 function createApp(
   authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
@@ -68,13 +84,26 @@ function createApp(
     return await next();
   });
 
-  mountGetUserUploads(app as unknown as OpenAPIHonoWithAuth);
+  const userByIdApp = new OpenAPIHono<{
+    Variables: AuthVariables & UserRouteVariables & { requestId: string };
+  }>({
+    defaultHook: (result) => {
+      if (!result.success && result.error) {
+        throw unprocessableEntity(formatZodErrorMessage(result.error));
+      }
+    },
+  });
+  userByIdApp.use("*", usersPathUserContextMiddleware);
+  mountGetUserUploads(
+    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
+  );
+  app.route("/:id", userByIdApp);
 
   return app;
 }
 
 beforeAll(async () => {
-  const module = await import("./get");
+  const module = await import("../../[id]/uploads/get");
   mountGetUserUploads = module.default;
 });
 
@@ -83,6 +112,7 @@ beforeEach(() => {
   getEnvMock.mockReturnValue({
     BLOB_READ_WRITE_TOKEN: "blob-token",
   });
+  userFindUniqueMock.mockResolvedValue({ id: "user_123" });
   listUserUploadsMock.mockResolvedValue([
     {
       publicUrl: "https://blob.example/users/user_123/report.pdf",
@@ -101,10 +131,14 @@ describe("GET /uploads route", () => {
   it("lists uploads for the authenticated user", async () => {
     const app = createApp();
 
-    const response = await app.request("http://localhost/uploads");
+    const response = await app.request("http://localhost/me/uploads");
     const payload = await response.json();
 
     expect(response.status).toBe(200);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      select: { id: true },
+    });
     expect(listUserUploadsMock).toHaveBeenCalledWith("user_123", "blob-token");
     expect(payload.data).toEqual([
       expect.objectContaining({

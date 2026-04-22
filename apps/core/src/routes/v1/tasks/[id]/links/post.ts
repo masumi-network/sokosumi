@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 
-import { requireUserTaskAccess } from "@/helpers/access-control";
+import { requireTaskOwnership } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   createTaskLinkRequestSchema,
@@ -58,7 +58,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
@@ -68,7 +68,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       try {
         return await prisma.$transaction(
           async (tx) => {
-            await requireUserTaskAccess(authContext, id, tx);
+            await requireTaskOwnership(userContext, id, tx);
             assertTaskLinkAllowed(id, peerTaskId);
             const linkData = mapTaskLinkRelationToWriteData(
               id,
@@ -79,7 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             const peerTask = await tx.task.findFirst({
               where: {
                 id: peerTaskId,
-                userId: authContext.userId,
+                userId: userContext.userId,
                 workspaceId: workspaceContext.workspaceId,
               },
               select: taskLinkPeerTaskSelect,

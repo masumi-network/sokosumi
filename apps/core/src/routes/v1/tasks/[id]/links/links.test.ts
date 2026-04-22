@@ -14,8 +14,8 @@ import mountPostTaskLink from "./post";
 
 const {
   prismaTransactionMock,
-  requireTaskReadAccessMock,
-  requireUserTaskAccessMock,
+  requireTaskOwnershipMock,
+  requireTaskReadForRouteVarsMock,
   taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
@@ -24,8 +24,8 @@ const {
   taskLinkUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireTaskReadAccessMock: vi.fn(),
-  requireUserTaskAccessMock: vi.fn(),
+  requireTaskOwnershipMock: vi.fn(),
+  requireTaskReadForRouteVarsMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
@@ -35,8 +35,8 @@ const {
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccess: requireTaskReadAccessMock,
-  requireUserTaskAccess: requireUserTaskAccessMock,
+  requireTaskOwnership: requireTaskOwnershipMock,
+  requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -45,7 +45,12 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createUserApp() {
+interface CreateUserAppOptions {
+  userId?: string;
+}
+
+function createUserApp(options: CreateUserAppOptions = {}) {
+  const { userId = "user_123" } = options;
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
@@ -54,8 +59,9 @@ function createUserApp() {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
-      userId: "user_123",
+      userId,
       organizationId: "org_123",
+      role: "user",
     });
     c.set("workspaceContext", {
       workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -104,7 +110,7 @@ function mockTx() {
 describe("GET /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessMock.mockResolvedValue(undefined);
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb(mockTx());
@@ -126,6 +132,24 @@ describe("GET /tasks/{id}/links", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown[] };
     expect(body.data).toEqual([]);
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+          role: "user",
+        },
+        workspaceContext: {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: null,
+          organizationId: "org_123",
+        },
+      }),
+      "tsk_a",
+      expect.any(Object),
+    );
   });
 
   it("returns nested peerTask summaries for visible links", async () => {
@@ -178,6 +202,24 @@ describe("GET /tasks/{id}/links", () => {
         archivedAt: null,
       },
     });
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+          role: "user",
+        },
+        workspaceContext: {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: null,
+          organizationId: "org_123",
+        },
+      }),
+      "tsk_a",
+      expect.any(Object),
+    );
   });
 
   it("filters linked peer tasks to those visible to the coworker", async () => {
@@ -187,6 +229,18 @@ describe("GET /tasks/{id}/links", () => {
     const response = await app.request("http://localhost/tsk_a/links");
 
     expect(response.status).toBe(200);
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "coworker",
+          coworkerId: "cow_123",
+        },
+        workspaceContext: null,
+      }),
+      "tsk_a",
+      expect.any(Object),
+    );
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_a", archivedAt: null },
       select: {
@@ -255,7 +309,7 @@ describe("GET /tasks/{id}/links", () => {
     });
   });
 
-  it("keeps archived peer links visible for user-owned link reads", async () => {
+  it("filters archived peer links from user link reads", async () => {
     const app = createUserApp();
     mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
 
@@ -270,7 +324,8 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             toTask: {
               is: {
-                userId: "user_123",
+                workspaceId: "11111111-1111-7111-8111-111111111111",
+                archivedAt: null,
               },
             },
           },
@@ -298,7 +353,115 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             fromTask: {
               is: {
-                userId: "user_123",
+                workspaceId: "11111111-1111-7111-8111-111111111111",
+                archivedAt: null,
+              },
+            },
+          },
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+  });
+
+  it("returns same-workspace peer links for a collaborator", async () => {
+    taskFindUniqueMock.mockResolvedValueOnce({
+      id: "tsk_a",
+      linksFrom: [
+        {
+          id: "tl_1",
+          createdAt: new Date("2026-03-25T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+          fromTaskId: "tsk_a",
+          toTaskId: "tsk_b",
+          type: TaskLinkType.RELATES,
+          note: null,
+          toTask: {
+            id: "tsk_b",
+            name: "Task B",
+            status: TaskStatus.RUNNING,
+            archivedAt: null,
+          },
+        },
+      ],
+      linksTo: [],
+    });
+
+    const app = createUserApp({ userId: "user_456" });
+    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: Array<{
+        relation: string;
+        peerTask: {
+          id: string;
+          name: string;
+          status: TaskStatus;
+          archivedAt: string | null;
+        };
+      }>;
+    };
+    expect(body.data).toHaveLength(1);
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "tsk_a", archivedAt: null },
+      select: {
+        id: true,
+        linksFrom: {
+          where: {
+            toTask: {
+              is: {
+                workspaceId: "11111111-1111-7111-8111-111111111111",
+                archivedAt: null,
+              },
+            },
+          },
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+        linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                workspaceId: "11111111-1111-7111-8111-111111111111",
+                archivedAt: null,
               },
             },
           },
@@ -341,7 +504,7 @@ describe("GET /tasks/{id}/links", () => {
 describe("POST /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
@@ -592,7 +755,7 @@ describe("POST /tasks/{id}/links", () => {
 describe("DELETE /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",
@@ -634,7 +797,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
   });
 
   it("returns 200 when the peer task is archived but still owned by the user", async () => {
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -664,12 +827,12 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
+    expect(requireTaskOwnershipMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 when the peer task is outside the user's current workspace", async () => {
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -699,7 +862,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireUserTaskAccessMock).toHaveBeenCalledTimes(1);
+    expect(requireTaskOwnershipMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
@@ -739,7 +902,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 describe("PATCH /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireUserTaskAccessMock.mockImplementation(
+    requireTaskOwnershipMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         userId: "user_123",

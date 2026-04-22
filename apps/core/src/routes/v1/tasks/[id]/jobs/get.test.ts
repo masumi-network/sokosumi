@@ -4,18 +4,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTaskJobs from "./get";
 
-const { jobFindManyMock, prismaTransactionMock, requireTaskReadAccessMock } =
-  vi.hoisted(() => ({
-    jobFindManyMock: vi.fn(),
-    prismaTransactionMock: vi.fn(),
-    requireTaskReadAccessMock: vi.fn(),
-  }));
+const {
+  jobFindManyMock,
+  prismaTransactionMock,
+  requireTaskReadForRouteVarsMock,
+} = vi.hoisted(() => ({
+  jobFindManyMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+  requireTaskReadForRouteVarsMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccess: requireTaskReadAccessMock,
+  requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -24,9 +28,11 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
+
 function createApp() {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {
@@ -34,6 +40,12 @@ function createApp() {
     c.set("authContext", {
       actor: "user",
       userId: "user_123",
+      organizationId: "org_123",
+      role: "user",
+    });
+    c.set("workspaceContext", {
+      workspaceId: testWorkspaceId,
+      userId: null,
       organizationId: "org_123",
     });
 
@@ -48,7 +60,7 @@ function createApp() {
 describe("GET /tasks/{id}/jobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessMock.mockResolvedValue(undefined);
+    requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         job: {
@@ -65,12 +77,21 @@ describe("GET /tasks/{id}/jobs", () => {
     const response = await app.request("http://localhost/tsk_123/jobs");
 
     expect(response.status).toBe(200);
-    expect(requireTaskReadAccessMock).toHaveBeenCalledWith(
-      {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-      },
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "user",
+          userId: "user_123",
+          organizationId: "org_123",
+          role: "user",
+        },
+        workspaceContext: {
+          workspaceId: testWorkspaceId,
+          userId: null,
+          organizationId: "org_123",
+        },
+      }),
       "tsk_123",
       expect.any(Object),
     );

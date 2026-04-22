@@ -11,6 +11,7 @@ import {
   calculateAgentRating,
   calculateAgentRatings,
   getCreditCostsOrThrow,
+  getRecentAgentReviews,
 } from "./agent";
 
 function createCreditCost(unit: string): CreditCost {
@@ -181,5 +182,64 @@ describe("calculateAgentRatings", () => {
         ],
       ]),
     );
+  });
+});
+
+describe("getRecentAgentReviews", () => {
+  it("filters out ratings without meaningful comments", async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        id: "rating-1",
+        rating: 5,
+        comment: "Helpful review",
+        createdAt: new Date("2026-03-17T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-17T10:00:00.000Z"),
+        user: {
+          id: "user-1",
+          name: "Jane Doe",
+          image: "https://example.com/avatar.png",
+        },
+      },
+    ]);
+    const tx = {
+      userAgentRating: {
+        findMany,
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const result = await getRecentAgentReviews("agent-1", 10, tx);
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        agentId: "agent-1",
+        isHidden: false,
+        AND: [{ comment: { not: null } }, { comment: { not: "" } }],
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+    expect(result).toEqual([
+      {
+        id: "rating-1",
+        rating: 5,
+        comment: "Helpful review",
+        createdAt: "2026-03-17T10:00:00.000Z",
+        updatedAt: "2026-03-17T10:00:00.000Z",
+        user: {
+          id: "user-1",
+          name: "Jane Doe",
+          image: "https://example.com/avatar.png",
+        },
+      },
+    ]);
   });
 });

@@ -168,16 +168,6 @@ export function isTaskStatusSpendable(status: TaskStatus | undefined): boolean {
   return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
-export function isTaskArchivableStatus(status: TaskStatus): boolean {
-  return (
-    status === TaskStatus.DRAFT ||
-    status === TaskStatus.READY ||
-    status === TaskStatus.CANCELED ||
-    status === TaskStatus.COMPLETED ||
-    status === TaskStatus.FAILED
-  );
-}
-
 function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const credits = task.events.reduce((total, event) => {
     const amount = event.transaction?.amount;

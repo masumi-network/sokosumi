@@ -4,18 +4,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTaskById from "./get";
 
-const { prismaTransactionMock, requireTaskReadAccessMock, taskFindUniqueMock } =
-  vi.hoisted(() => ({
-    prismaTransactionMock: vi.fn(),
-    requireTaskReadAccessMock: vi.fn(),
-    taskFindUniqueMock: vi.fn(),
-  }));
-
-vi.mock("@/helpers/access-control", () => ({
-  requireTaskReadAccess: requireTaskReadAccessMock,
+const {
+  prismaTransactionMock,
+  taskFindFirstMock,
+  taskFindUniqueMock,
+  coworkerFindFirstMock,
+} = vi.hoisted(() => ({
+  prismaTransactionMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
+  taskFindUniqueMock: vi.fn(),
+  coworkerFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -24,9 +26,21 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp(actor: "user" | "coworker" = "user") {
+const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
+
+interface CreateAppOptions {
+  actor?: "user" | "coworker";
+  userId?: string;
+  delegation?: {
+    userId: string;
+    organizationId: string | null;
+  };
+}
+
+function createApp(options: CreateAppOptions = {}) {
+  const { actor = "user", userId = "user_123", delegation } = options;
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & WorkspaceVariables;
   }>();
 
   app.use("*", async (c, next) => {
@@ -37,12 +51,24 @@ function createApp(actor: "user" | "coworker" = "user") {
         ? ({
             actor: "coworker",
             coworkerId: "cow_123",
+            ...(delegation ? { delegation } : {}),
           } satisfies AuthenticationContext)
-        : {
+        : ({
             actor: "user",
-            userId: "user_123",
+            userId,
             organizationId: "org_123",
-          },
+            role: "user",
+          } satisfies AuthenticationContext),
+    );
+    c.set(
+      "workspaceContext",
+      actor === "user" || delegation
+        ? {
+            workspaceId: testWorkspaceId,
+            userId: delegation?.userId ?? null,
+            organizationId: delegation?.organizationId ?? "org_123",
+          }
+        : null,
     );
     return await next();
   });
@@ -52,6 +78,15 @@ function createApp(actor: "user" | "coworker" = "user") {
 
 function createTask(
   overrides?: Partial<{
+    userId: string;
+    share: {
+      id: string;
+      token: string;
+      taskId: string;
+      allowSearchIndexing: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null;
     linksFrom: unknown[];
     linksTo: unknown[];
   }>,
@@ -60,7 +95,7 @@ function createTask(
     id: "tsk_a",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
     updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-    userId: "user_123",
+    userId: overrides?.userId ?? "user_123",
     organizationId: "org_123",
     coworkerId: "cow_123",
     name: "Task A",
@@ -77,29 +112,49 @@ function createTask(
         slug: "acme-labs",
       },
     },
-    share: null,
+    share: overrides?.share ?? null,
     linksFrom: overrides?.linksFrom ?? [],
     linksTo: overrides?.linksTo ?? [],
   };
 }
 
+/** Payload returned for the viewer query (`findUnique` with `include`). Access checks use `findFirst` (user) or `findUnique` (coworker) without include. */
+let viewerTaskIncludeResult = createTask();
+
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskReadAccessMock.mockResolvedValue(undefined);
+    viewerTaskIncludeResult = createTask();
     prismaTransactionMock.mockImplementation(
       async (cb: (tx: unknown) => unknown) => {
         return await cb({
+          coworker: {
+            findFirst: coworkerFindFirstMock,
+          },
           task: {
+            findFirst: taskFindFirstMock,
             findUnique: taskFindUniqueMock,
           },
         });
       },
     );
-    taskFindUniqueMock.mockResolvedValue(createTask());
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_123",
+      slug: "cow",
+      baseURL: "http://coworker.test",
+    });
+    taskFindFirstMock.mockResolvedValue(createTask());
+    taskFindUniqueMock.mockImplementation(
+      async (args: { include?: unknown }) => {
+        if (args.include !== undefined) {
+          return viewerTaskIncludeResult;
+        }
+        return createTask();
+      },
+    );
   });
 
-  it("keeps archived peer links visible for user-owned task reads", async () => {
+  it("filters archived peer links from user task reads", async () => {
     const app = createApp();
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
 
@@ -107,14 +162,19 @@ describe("GET /tasks/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
-      where: { id: "tsk_a", archivedAt: null },
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        workspaceId: testWorkspaceId,
+      },
       include: expect.objectContaining({
         share: true,
         linksFrom: {
           where: {
             toTask: {
               is: {
-                userId: "user_123",
+                workspaceId: testWorkspaceId,
+                archivedAt: null,
               },
             },
           },
@@ -142,7 +202,8 @@ describe("GET /tasks/{id}", () => {
           where: {
             fromTask: {
               is: {
-                userId: "user_123",
+                workspaceId: testWorkspaceId,
+                archivedAt: null,
               },
             },
           },
@@ -164,6 +225,83 @@ describe("GET /tasks/{id}", () => {
               },
             },
           },
+          orderBy: { createdAt: "asc" },
+        },
+      }),
+    });
+  });
+
+  it("keeps same-workspace peer links visible for a workspace collaborator", async () => {
+    viewerTaskIncludeResult = createTask({
+      userId: "user_123",
+      linksFrom: [
+        {
+          id: "tl_1",
+          createdAt: new Date("2026-03-25T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+          fromTaskId: "tsk_a",
+          toTaskId: "tsk_b",
+          type: TaskLinkType.RELATES,
+          note: null,
+          toTask: {
+            id: "tsk_b",
+            name: "Task B",
+            status: TaskStatus.RUNNING,
+            archivedAt: null,
+          },
+        },
+      ],
+    });
+
+    const app = createApp({ userId: "user_456" });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: {
+        links: Array<{
+          relation: string;
+          peerTask: {
+            id: string;
+            name: string;
+            status: TaskStatus;
+            archivedAt: string | null;
+          };
+        }>;
+      };
+    };
+    expect(body.data.links).toHaveLength(1);
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        workspaceId: testWorkspaceId,
+      },
+      include: expect.objectContaining({
+        linksFrom: {
+          where: {
+            toTask: {
+              is: {
+                workspaceId: testWorkspaceId,
+                archivedAt: null,
+              },
+            },
+          },
+          include: expect.any(Object),
+          orderBy: { createdAt: "asc" },
+        },
+        linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                workspaceId: testWorkspaceId,
+                archivedAt: null,
+              },
+            },
+          },
+          include: expect.any(Object),
           orderBy: { createdAt: "asc" },
         },
       }),
@@ -171,14 +309,19 @@ describe("GET /tasks/{id}", () => {
   });
 
   it("filters included links to peer tasks visible to the coworker", async () => {
-    const app = createApp("coworker");
+    const app = createApp({ actor: "coworker" });
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
 
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
-      where: { id: "tsk_a", archivedAt: null },
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        status: { not: TaskStatus.DRAFT },
+        coworkerId: "cow_123",
+      },
       include: expect.objectContaining({
         share: true,
         linksFrom: {
@@ -245,28 +388,132 @@ describe("GET /tasks/{id}", () => {
     });
   });
 
-  it("returns nested peerTask summaries on task detail links", async () => {
-    taskFindUniqueMock.mockResolvedValue(
-      createTask({
-        linksFrom: [
-          {
-            id: "tl_1",
-            createdAt: new Date("2026-03-25T10:00:00.000Z"),
-            updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-            fromTaskId: "tsk_a",
-            toTaskId: "tsk_b",
-            type: TaskLinkType.RELATES,
-            note: null,
+  it("uses workspace-scoped reads for delegated coworkers", async () => {
+    const app = createApp({
+      actor: "coworker",
+      delegation: {
+        userId: "user_delegate",
+        organizationId: "org_delegate",
+      },
+    });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        workspaceId: testWorkspaceId,
+      },
+    });
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        workspaceId: testWorkspaceId,
+      },
+      include: expect.objectContaining({
+        share: true,
+        linksFrom: {
+          where: {
             toTask: {
-              id: "tsk_b",
-              name: "Task B",
-              status: TaskStatus.RUNNING,
-              archivedAt: null,
+              is: {
+                workspaceId: testWorkspaceId,
+                archivedAt: null,
+              },
             },
           },
-        ],
+          include: expect.any(Object),
+          orderBy: { createdAt: "asc" },
+        },
+        linksTo: {
+          where: {
+            fromTask: {
+              is: {
+                workspaceId: testWorkspaceId,
+                archivedAt: null,
+              },
+            },
+          },
+          include: expect.any(Object),
+          orderBy: { createdAt: "asc" },
+        },
+      }),
+    });
+  });
+
+  it("returns an existing share token to a workspace collaborator", async () => {
+    viewerTaskIncludeResult = createTask({
+      userId: "user_123",
+      share: {
+        id: "share_123",
+        token: "public-share-token",
+        taskId: "tsk_a",
+        allowSearchIndexing: true,
+        createdAt: new Date("2026-03-25T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+      },
+    });
+
+    const app = createApp({ userId: "user_456" });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: {
+        userId: string;
+        share: {
+          id: string;
+          token: string;
+          taskId: string;
+          allowSearchIndexing: boolean;
+        } | null;
+      };
+    };
+    expect(body.data).toMatchObject({
+      userId: "user_123",
+      share: {
+        id: "share_123",
+        token: "public-share-token",
+        taskId: "tsk_a",
+        allowSearchIndexing: true,
+      },
+    });
+    expect(taskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "tsk_a",
+          archivedAt: null,
+          workspaceId: testWorkspaceId,
+        },
       }),
     );
+  });
+
+  it("returns nested peerTask summaries on task detail links", async () => {
+    viewerTaskIncludeResult = createTask({
+      linksFrom: [
+        {
+          id: "tl_1",
+          createdAt: new Date("2026-03-25T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-25T10:00:00.000Z"),
+          fromTaskId: "tsk_a",
+          toTaskId: "tsk_b",
+          type: TaskLinkType.RELATES,
+          note: null,
+          toTask: {
+            id: "tsk_b",
+            name: "Task B",
+            status: TaskStatus.RUNNING,
+            archivedAt: null,
+          },
+        },
+      ],
+    });
 
     const app = createApp();
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);

@@ -1,5 +1,5 @@
 # Global Owners
-* @mrgrauel @francisluz @VitoMelchionna
+* @mrgrauel @francisluz
 
 # Frontend
 apps/web/ @francisluz
@@ -8,5 +8,5 @@ apps/web/ @francisluz
 apps/core/ @mrgrauel
 
 # Packages
-packages/ @mrgrauel @francisluz @VitoMelchionna
+packages/ @mrgrauel @francisluz
 

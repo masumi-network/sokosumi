@@ -51,6 +51,12 @@ export {
   type OrganizationMetadata,
   parseOrganizationMetadata,
 } from "./organization-metadata.js";
+export {
+  getTaskCannotArchiveMessage,
+  isTaskArchivableStatus,
+  TASK_ARCHIVABLE_STATUSES,
+  type TaskArchivableStatus,
+} from "./task-archive.js";
 export { getFallbackUserName, getStoredUserName } from "./user-name.js";
 export {
   resolveUserUploadContentType,

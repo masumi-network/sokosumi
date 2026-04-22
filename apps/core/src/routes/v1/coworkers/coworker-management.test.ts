@@ -54,10 +54,11 @@ interface TransactionMock {
 
 interface AppOptions {
   userId?: string;
+  role?: string;
 }
 
 function createApp(options: AppOptions = {}) {
-  const { userId = "user_123" } = options;
+  const { userId = "user_123", role = "user" } = options;
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -68,6 +69,7 @@ function createApp(options: AppOptions = {}) {
       actor: "user",
       userId,
       organizationId: null,
+      role,
     });
 
     return await next();
@@ -137,7 +139,7 @@ describe("coworker management CRUD endpoints", () => {
 
     mockTransaction(tx);
 
-    const app = createApp();
+    const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
@@ -152,7 +154,7 @@ describe("coworker management CRUD endpoints", () => {
     expect(coworkerCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          userId: "user_123",
+          userId: "admin_123",
           isWhitelisted: false,
           priority: 0,
           baseURL: null,
@@ -180,7 +182,7 @@ describe("coworker management CRUD endpoints", () => {
 
     mockTransaction(tx);
 
-    const app = createApp();
+    const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
@@ -228,6 +230,7 @@ describe("coworker management CRUD endpoints", () => {
 
     const app = createApp({
       userId: "admin_123",
+      role: "admin",
     });
     const response = await app.request("http://localhost/", {
       method: "POST",
@@ -253,7 +256,7 @@ describe("coworker management CRUD endpoints", () => {
     expect(body.data.priority).toBe(10);
   });
 
-  it("rejects explicit priority on create for non-admin", async () => {
+  it("rejects create for non-admin", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/", {
       method: "POST",
@@ -262,7 +265,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        priority: 10,
       }),
     });
 
@@ -289,7 +291,7 @@ describe("coworker management CRUD endpoints", () => {
 
     mockTransaction(tx);
 
-    const app = createApp();
+    const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
@@ -336,7 +338,7 @@ describe("coworker management CRUD endpoints", () => {
 
     mockTransaction(tx);
 
-    const app = createApp();
+    const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
@@ -375,7 +377,7 @@ describe("coworker management CRUD endpoints", () => {
 
     mockTransaction(tx);
 
-    const app = createApp();
+    const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
@@ -417,7 +419,7 @@ describe("coworker management CRUD endpoints", () => {
 
     mockTransaction(tx);
 
-    const app = createApp();
+    const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
@@ -432,7 +434,7 @@ describe("coworker management CRUD endpoints", () => {
   });
 
   it("rejects create when name is shorter than 3 characters", async () => {
-    const app = createApp();
+    const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
@@ -448,7 +450,7 @@ describe("coworker management CRUD endpoints", () => {
   });
 
   it("rejects create when companyLogo is not a valid HTTP URL", async () => {
-    const app = createApp();
+    const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
@@ -668,6 +670,7 @@ describe("coworker management CRUD endpoints", () => {
 
     const app = createApp({
       userId: "admin_123",
+      role: "admin",
     });
     const response = await app.request("http://localhost/cow_123", {
       method: "PATCH",
@@ -783,6 +786,7 @@ describe("coworker management CRUD endpoints", () => {
 
     const app = createApp({
       userId: "admin_123",
+      role: "admin",
     });
     const response = await app.request("http://localhost/cow_123", {
       method: "PATCH",
@@ -927,6 +931,7 @@ describe("coworker management CRUD endpoints", () => {
 
     const app = createApp({
       userId: "admin_123",
+      role: "admin",
     });
     const response = await app.request("http://localhost/cow_123", {
       method: "DELETE",

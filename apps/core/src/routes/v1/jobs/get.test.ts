@@ -26,6 +26,7 @@ function createApp() {
       actor: "user",
       userId: "user_123",
       organizationId: "org_123",
+      role: "user",
     });
     c.set("workspaceContext", null);
 
@@ -66,6 +67,7 @@ describe("GET /jobs", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       });
       c.set("workspaceContext", {
         workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -83,10 +85,12 @@ describe("GET /jobs", () => {
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
       {
-        authContext: {
+        userContext: {
+          source: "session",
           actor: "user",
           userId: "user_123",
           organizationId: "org_123",
+          role: "user",
         },
         workspaceContext: {
           workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -116,6 +120,7 @@ describe("GET /jobs", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       });
       c.set("workspaceContext", {
         workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -136,6 +141,59 @@ describe("GET /jobs", () => {
       expect.objectContaining({
         scope: "workspace",
       }),
+    );
+  });
+
+  it("accepts delegated coworker context when workspaceContext is resolved", async () => {
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables & WorkspaceVariables;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        delegation: {
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountGetJobs(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(getUserJobsMock).toHaveBeenCalledWith(
+      {
+        userContext: {
+          source: "delegation",
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+        workspaceContext: {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: null,
+          organizationId: "org_123",
+        },
+      },
+      {
+        agentId: undefined,
+        status: undefined,
+        scope: "owned",
+        cursor: undefined,
+        take: 20,
+        skip: undefined,
+      },
     );
   });
 });

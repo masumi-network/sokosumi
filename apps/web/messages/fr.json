@@ -1340,6 +1340,31 @@
       "List": {
         "placeholder": "Aucune tâche"
       },
+      "Filters": {
+        "title": "Filtres",
+        "searchPlaceholder": "Filtrer…",
+        "emptyResults": "Aucun résultat.",
+        "all": "Tous",
+        "scopeLabel": "Portée",
+        "scopeOwned": "Mes tâches",
+        "scopeWorkspace": "Espace de travail",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "Statut",
+        "statusOptions": {
+          "DRAFT": "Brouillon",
+          "READY": "Prêt",
+          "INPUT_REQUIRED": "Saisie requise",
+          "AUTHENTICATION_REQUIRED": "Authentification requise",
+          "OUT_OF_CREDITS": "Plus de crédits",
+          "CREDITS_TOPPED_UP": "Crédits rechargés",
+          "RUNNING": "En cours",
+          "AWAITING_EXTERNAL": "En attente externe",
+          "COMPLETED": "Terminé",
+          "FAILED": "Échoué",
+          "CANCEL_REQUESTED": "Annulation demandée",
+          "CANCELED": "Annulé"
+        }
+      },
       "Jobs": {
         "filterButton": "Statut",
         "filterHideFailed": "Masquer les échecs",
@@ -1399,6 +1424,7 @@
           "signal": "Signal",
           "discord": "Discord",
           "chat": "Chat",
+          "messenger": "Messenger",
           "unknown": "Inconnu"
         },
         "actionCommented": "a commenté",
@@ -1416,10 +1442,10 @@
         },
         "actions": {
           "edit": "Modifier",
-          "delete": "Supprimer",
-          "confirmDelete": "Supprimer cette tâche ?",
-          "confirmDeleteDescription": "Cette action est irréversible. Elle supprimera définitivement la tâche.",
-          "deleteError": "Échec de la suppression de la tâche",
+          "archive": "Archiver",
+          "confirmArchive": "Archiver cette tâche ?",
+          "confirmArchiveDescription": "La tâche sera masquée dans votre liste et n’est pas supprimée définitivement de la base de données.",
+          "archiveError": "Échec de l’archivage de la tâche",
           "markAsReady": "Marquer comme prêt",
           "revertToDraft": "Revenir au brouillon",
           "cancelRequest": "Annuler la demande",
@@ -1670,8 +1696,8 @@
       "cancelsOnDate": "Annulation le {date}",
       "statusCancellationScheduled": "L’annulation de l’abonnement a été planifiée.",
       "billingPortalTitle": "Portail de facturation",
-      "billingPortalDescription": "Ouvrez le portail de facturation Stripe pour gérer votre abonnement et vos factures.",
-      "billingPortalDescriptionWithPlan": "Vous êtes actuellement sur {plan}. Gérez la facturation et les factures dans Stripe.",
+      "billingPortalDescription": "Ouvrez le portail de facturation Stripe pour gérer vos abonnements et vos factures.",
+      "billingPortalDescriptionWithPlan": "Vous êtes actuellement sur {plan}. Gérez vos abonnements, vos informations de facturation et vos factures dans Stripe.",
       "openingBillingPortal": "Ouverture...",
       "billingPortalCta": "Ouvrir le portail de facturation",
       "freePrice": "Gratuit",
@@ -1751,7 +1777,7 @@
         "coupon": "Code promo"
       },
       "billingPortalTitle": "Portail de facturation",
-      "billingPortalDescription": "Ouvrez le portail de facturation Stripe pour gérer vos informations de facturation et vos factures.",
+      "billingPortalDescription": "Ouvrez le portail de facturation Stripe pour gérer vos abonnements, vos informations de facturation et vos factures.",
       "openingBillingPortal": "Ouverture...",
       "billingPortalCta": "Ouvrir le portail de facturation",
       "orgAccessRestrictedTitle": "Accès à la facturation restreint",

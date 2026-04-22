@@ -111,6 +111,7 @@ describe("sentryMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       },
     });
 
@@ -163,6 +164,7 @@ describe("sentryMiddleware", () => {
           actor: "user",
           userId: "user_123",
           organizationId: "org_123",
+          role: "user",
         },
       });
 
@@ -191,6 +193,7 @@ describe("sentryMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: null,
+        role: "user",
       },
     });
 

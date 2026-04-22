@@ -10,14 +10,35 @@ const { prismaTransactionMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/middleware/auth", () => ({
-  requireUserAuthContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
+  requireUserContext: (authContext: AuthenticationContext | null) => {
+    if (!authContext) {
       throw new HTTPException(403, {
         message: "User authentication required",
       });
     }
 
-    return authContext;
+    if (authContext.actor === "user") {
+      return {
+        source: "session" as const,
+        ...authContext,
+      };
+    }
+
+    if (
+      authContext.actor === "coworker" &&
+      "delegation" in authContext &&
+      authContext.delegation
+    ) {
+      return {
+        source: "delegation" as const,
+        userId: authContext.delegation.userId,
+        organizationId: authContext.delegation.organizationId,
+      };
+    }
+
+    throw new HTTPException(403, {
+      message: "User authentication required",
+    });
   },
 }));
 
@@ -31,6 +52,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: null,
+  role: "user",
 };
 
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {

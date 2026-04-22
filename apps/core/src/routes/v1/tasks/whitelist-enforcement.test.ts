@@ -13,13 +13,13 @@ import mountPostTask from "./post";
 const {
   prismaTransactionMock,
   requireTaskAssignableCoworkerMock,
-  requireUserTaskAccessMock,
+  requireTaskOwnershipMock,
   mapTaskMock,
   validateTaskCoworkerAssignmentMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireUserTaskAccessMock: vi.fn(),
+  requireTaskOwnershipMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => task),
   validateTaskCoworkerAssignmentMock: vi.fn(),
 }));
@@ -32,7 +32,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireUserTaskAccess: requireUserTaskAccessMock,
+  requireTaskOwnership: requireTaskOwnershipMock,
 }));
 
 vi.mock("@/helpers/task", () => ({
@@ -40,7 +40,7 @@ vi.mock("@/helpers/task", () => ({
   validateTaskCoworkerAssignment: validateTaskCoworkerAssignmentMock,
 }));
 
-function createApp() {
+function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
@@ -51,9 +51,10 @@ function createApp() {
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      role: "user",
     });
     c.set("workspaceContext", {
-      workspaceId: "22222222-2222-7222-8222-222222222222",
+      workspaceId: activeWorkspaceId,
       userId: "user_123",
       organizationId: null,
     });
@@ -119,10 +120,11 @@ describe("task coworker whitelist enforcement", () => {
       return await callback(tx);
     });
 
-    requireUserTaskAccessMock.mockResolvedValue({
+    requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.READY,
       coworkerId: null,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
     });
     requireTaskAssignableCoworkerMock.mockRejectedValue(
       new HTTPException(404, { message: "Coworker not found" }),
@@ -141,6 +143,87 @@ describe("task coworker whitelist enforcement", () => {
 
     expect(response.status).toBe(404);
     expect(tx.task.update).not.toHaveBeenCalled();
+  });
+
+  it("uses workspace-scoped link visibility in the patch response", async () => {
+    const updateMock = vi.fn().mockResolvedValue({
+      id: "tsk_123",
+      createdAt: "2026-03-25T10:00:00.000Z",
+      updatedAt: "2026-03-25T10:00:00.000Z",
+      userId: "user_123",
+      organizationId: null,
+      status: TaskStatus.READY,
+      coworkerId: null,
+      name: "Updated title",
+      description: null,
+      credits: 0,
+      events: [],
+      jobs: [],
+      workspace: {
+        id: "22222222-2222-7222-8222-222222222222",
+        organizationId: null,
+        organization: null,
+      },
+      share: null,
+      links: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const tx = {
+      task: {
+        update: updateMock,
+      },
+    };
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback(tx);
+    });
+
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.READY,
+      coworkerId: null,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Updated title",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          linksFrom: expect.objectContaining({
+            where: {
+              toTask: {
+                is: {
+                  workspaceId: "22222222-2222-7222-8222-222222222222",
+                  archivedAt: null,
+                },
+              },
+            },
+          }),
+          linksTo: expect.objectContaining({
+            where: {
+              fromTask: {
+                is: {
+                  workspaceId: "22222222-2222-7222-8222-222222222222",
+                  archivedAt: null,
+                },
+              },
+            },
+          }),
+        }),
+      }),
+    );
   });
 
   it("rejects task creation when coworker lacks tasks capability", async () => {

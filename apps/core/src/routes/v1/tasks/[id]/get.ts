@@ -1,12 +1,18 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
-import { requireTaskReadAccess } from "@/helpers/access-control";
+import { TaskStatus } from "@sokosumi/database";
+import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  isCoworkerAuthContext,
+  isUserAuthContext,
+  requireCoworkerAuthContext,
+} from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
@@ -34,14 +40,44 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
     const { id } = c.req.valid("param");
+    const { authContext, workspaceContext } = c.var;
 
     const task = await prisma.$transaction(async (tx) => {
-      await requireTaskReadAccess(authContext, id, tx);
+      await requireTaskReadForRouteVars(c.var, id, tx);
+
+      if (
+        isUserAuthContext(authContext) ||
+        (isCoworkerAuthContext(authContext) && authContext.delegation)
+      ) {
+        const requiredWorkspaceContext =
+          requireWorkspaceContext(workspaceContext);
+
+        return tx.task.findUnique({
+          where: {
+            id,
+            archivedAt: null,
+            workspaceId: requiredWorkspaceContext.workspaceId,
+          },
+          // Workspace collaborators may read an existing share token here.
+          // Share creation and deletion remain owner-only in the dedicated share routes.
+          include: buildTaskIncludeForViewer(
+            authContext,
+            requiredWorkspaceContext.workspaceId,
+          ),
+        });
+      }
+
+      const coworkerAuthContext = requireCoworkerAuthContext(authContext);
+
       return tx.task.findUnique({
-        where: { id, archivedAt: null },
-        include: buildTaskIncludeForViewer(authContext),
+        where: {
+          id,
+          archivedAt: null,
+          status: { not: TaskStatus.DRAFT },
+          coworkerId: coworkerAuthContext.coworkerId,
+        },
+        include: buildTaskIncludeForViewer(coworkerAuthContext),
       });
     });
 

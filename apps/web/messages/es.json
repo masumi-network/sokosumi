@@ -1309,6 +1309,31 @@
       "List": {
         "placeholder": "Sin Tasks"
       },
+      "Filters": {
+        "title": "Filtros",
+        "searchPlaceholder": "Filtrar…",
+        "emptyResults": "No se encontraron resultados.",
+        "all": "Todas",
+        "scopeLabel": "Ámbito",
+        "scopeOwned": "Mis tareas",
+        "scopeWorkspace": "Espacio de trabajo",
+        "coworkerLabel": "Coworker",
+        "statusLabel": "Estado",
+        "statusOptions": {
+          "DRAFT": "Borrador",
+          "READY": "Listo",
+          "INPUT_REQUIRED": "Entrada requerida",
+          "AUTHENTICATION_REQUIRED": "Autenticación requerida",
+          "OUT_OF_CREDITS": "Sin créditos",
+          "CREDITS_TOPPED_UP": "Créditos recargados",
+          "RUNNING": "En ejecución",
+          "AWAITING_EXTERNAL": "Esperando externo",
+          "COMPLETED": "Completado",
+          "FAILED": "Fallido",
+          "CANCEL_REQUESTED": "Cancelación solicitada",
+          "CANCELED": "Cancelado"
+        }
+      },
       "Jobs": {
         "filterButton": "Estado",
         "filterHideFailed": "Ocultar fallidos",
@@ -1369,6 +1394,7 @@
           "signal": "Signal",
           "discord": "Discord",
           "chat": "Chat",
+          "messenger": "Messenger",
           "unknown": "Desconocido"
         },
         "actionCommented": "comentó",
@@ -1386,10 +1412,10 @@
         },
         "actions": {
           "edit": "Editar",
-          "delete": "Eliminar",
-          "confirmDelete": "¿Eliminar este Task?",
-          "confirmDeleteDescription": "Esta acción no se puede deshacer. El Task se eliminará permanentemente.",
-          "deleteError": "No se pudo eliminar el Task",
+          "archive": "Archivar",
+          "confirmArchive": "¿Archivar esta tarea?",
+          "confirmArchiveDescription": "La tarea dejará de aparecer en tu lista; no se elimina permanentemente de la base de datos.",
+          "archiveError": "No se pudo archivar la tarea",
           "markAsReady": "Marcar como listo",
           "revertToDraft": "Revertir a borrador",
           "cancelRequest": "Cancelar solicitud",
@@ -1609,8 +1635,8 @@
       "cancelsOnDate": "Se cancela el {date}",
       "statusCancellationScheduled": "La cancelación de la suscripción fue programada.",
       "billingPortalTitle": "Portal de Billing",
-      "billingPortalDescription": "Abre el portal de Billing de Stripe para gestionar tu suscripción y facturas.",
-      "billingPortalDescriptionWithPlan": "Actualmente usas {plan}. Gestiona los detalles de pago y facturas en Stripe.",
+      "billingPortalDescription": "Abre el portal de Billing de Stripe para gestionar tus suscripciones y facturas.",
+      "billingPortalDescriptionWithPlan": "Actualmente usas {plan}. Gestiona tus suscripciones, datos de pago y facturas en Stripe.",
       "openingBillingPortal": "Abriendo...",
       "billingPortalCta": "Abrir portal de Billing",
       "freePrice": "Gratis",
@@ -1690,7 +1716,7 @@
         "coupon": "Cupón"
       },
       "billingPortalTitle": "Portal de Billing",
-      "billingPortalDescription": "Abre el portal de Billing de Stripe para gestionar tus datos de pago y facturas.",
+      "billingPortalDescription": "Abre el portal de Billing de Stripe para gestionar tus suscripciones, datos de pago y facturas.",
       "openingBillingPortal": "Abriendo...",
       "billingPortalCta": "Abrir portal de Billing",
       "orgAccessRestrictedTitle": "Acceso a Billing restringido",

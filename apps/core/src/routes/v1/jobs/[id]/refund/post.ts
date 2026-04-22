@@ -4,8 +4,8 @@ import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { jobPurchaseRepository } from "@sokosumi/database/repositories";
 
 import { paymentClient } from "@/clients/masumi-payment.client.js";
-import { requireJobReadAccess } from "@/helpers/access-control.js";
-import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
+import { requireJobOwnership } from "@/helpers/access-control.js";
+import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -13,7 +13,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { jobSchema } from "@/schemas/job.schema.js";
 import { serializeJobDetails } from "@/types/job";
 
@@ -102,17 +102,16 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     const { blockchainIdentifier, externalId } = await prisma.$transaction(
       async (tx) => {
-        await requireJobReadAccess(authContext, id, tx);
+        await requireJobOwnership(userContext, id, tx);
 
         const job = await tx.job.findUnique({
           where: { id },
           select: {
-            userId: true,
             jobType: true,
             blockchainIdentifier: true,
             purchase: { select: { externalId: true } },
@@ -121,12 +120,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (!job) {
           throw notFound("Job not found");
-        }
-
-        // Refunds must stay owner-scoped even when requireJobReadAccess is
-        // relaxed to workspace-level visibility.
-        if (job.userId !== authContext.userId) {
-          throw forbidden("You can only request a refund for your own jobs");
         }
 
         if (job.jobType !== JobType.PAID) {

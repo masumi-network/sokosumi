@@ -17,36 +17,44 @@ vi.mock("@/middleware/auth", () => ({
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      role: "user",
     });
     await next();
   },
 }));
 
+vi.mock("@/middleware/coworker-delegation", () => ({
+  coworkerDelegationMiddleware: async (
+    _c: unknown,
+    next: () => Promise<void>,
+  ) => {
+    middlewareCalls.calls.push("delegation");
+    await next();
+  },
+}));
+
 vi.mock("@/middleware/organization", () => ({
-  organizationHeaderMiddleware:
-    (includeOrganizationHeader: boolean) =>
-    async (
-      c: {
-        set: (key: string, value: unknown) => void;
-        var: {
-          authContext: {
-            actor: "user";
-            userId: string;
-            organizationId: string | null;
-          };
+  organizationHeaderMiddleware: async (
+    c: {
+      set: (key: string, value: unknown) => void;
+      var: {
+        authContext: {
+          actor: "user";
+          userId: string;
+          organizationId: string | null;
+          role: string;
         };
-      },
-      next: () => Promise<void>,
-    ) => {
-      if (includeOrganizationHeader) {
-        middlewareCalls.calls.push("organization");
-        c.set("authContext", {
-          ...c.var.authContext,
-          organizationId: "org_123",
-        });
-      }
-      await next();
+      };
     },
+    next: () => Promise<void>,
+  ) => {
+    middlewareCalls.calls.push("organization");
+    c.set("authContext", {
+      ...c.var.authContext,
+      organizationId: "org_123",
+    });
+    await next();
+  },
 }));
 
 vi.mock("@/middleware/workspace", () => ({
@@ -60,6 +68,7 @@ vi.mock("@/middleware/workspace", () => ({
             actor: "user";
             userId: string;
             organizationId: string | null;
+            role: string;
           };
         };
       },
@@ -103,10 +112,15 @@ describe("OpenAPIHonoWithAuth", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       },
       workspaceContext: null,
     });
-    expect(middlewareCalls.calls).toEqual(["auth", "organization"]);
+    expect(middlewareCalls.calls).toEqual([
+      "auth",
+      "delegation",
+      "organization",
+    ]);
   });
 
   it("resolves workspaceContext when includeWorkspaceContext is enabled", async () => {
@@ -128,6 +142,7 @@ describe("OpenAPIHonoWithAuth", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
+        role: "user",
       },
       workspaceContext: {
         workspaceId: "workspace_123",
@@ -137,6 +152,7 @@ describe("OpenAPIHonoWithAuth", () => {
     });
     expect(middlewareCalls.calls).toEqual([
       "auth",
+      "delegation",
       "organization",
       "workspace",
     ]);

@@ -7,17 +7,15 @@ import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireAdminAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
-
-import { requireAdminAuthContext } from "./admin-guard";
 import { normalizeCoworkerMetadata } from "./metadata";
 import { createCoworkerRequestSchema } from "./schema";
 
 const route = createRoute({
   method: "post",
   path: "/",
-  description: "Create coworker",
+  description: "Create coworker (admin only)",
   tags: ["Coworkers"],
   request: {
     body: {
@@ -67,12 +65,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    const userAuthContext = requireAdminAuthContext(c.var.authContext);
     const body = c.req.valid("json");
-    let authContext = requireUserAuthContext(c.var.authContext);
-
-    if (body.priority !== undefined) {
-      authContext = await requireAdminAuthContext(c.var.authContext);
-    }
 
     const metadata = normalizeCoworkerMetadata(body.metadata);
     const slug = slugify(body.name, {
@@ -106,7 +100,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       try {
         return await tx.coworker.create({
           data: {
-            userId: authContext.userId,
+            userId: userAuthContext.userId,
             slug,
             name: body.name,
             caption: body.caption ?? null,

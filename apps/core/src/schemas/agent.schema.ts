@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import type { Agent } from "@sokosumi/database";
+import { type Agent, RiskClassification } from "@sokosumi/database";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -105,37 +106,153 @@ export const getAgentLegalFromAgent = (agent: Agent) => {
   });
 };
 
-export const agentSchema = z
+export const agentExampleOutputSchema = z
   .object({
-    id: z.string().openapi({ example: "agent_123" }),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
-    name: z.string().openapi({ example: "Research Assistant" }),
+    name: z.string().openapi({ example: "Generated summary" }),
+    mimeType: z.string().openapi({ example: "image/png" }),
+    url: z.string().openapi({ example: "https://example.com/output.png" }),
+  })
+  .openapi("AgentExampleOutput");
+
+export type AgentExampleOutput = z.infer<typeof agentExampleOutputSchema>;
+
+interface AgentExampleOutputSource {
+  exampleOutput: Array<{
+    name: string;
+    mimeType: string;
+    url: string;
+  }>;
+  overrideExampleOutput: Array<{
+    name: string;
+    mimeType: string;
+    url: string;
+  }>;
+}
+
+export function getAgentExampleOutputsFromAgent(
+  agent: AgentExampleOutputSource,
+): AgentExampleOutput[] {
+  const exampleOutputs =
+    agent.overrideExampleOutput.length > 0
+      ? agent.overrideExampleOutput
+      : agent.exampleOutput;
+
+  return exampleOutputs.map((exampleOutput) =>
+    agentExampleOutputSchema.parse({
+      name: exampleOutput.name,
+      mimeType: exampleOutput.mimeType,
+      url: resolveIpfsOrHttpUrl(exampleOutput.url),
+    }),
+  );
+}
+
+interface AgentTagsSource {
+  tags: Array<{ name: string }>;
+  overrideTags: Array<{ name: string }>;
+}
+
+export function getAgentTagsFromAgent(agent: AgentTagsSource): string[] {
+  return agent.overrideTags.length > 0
+    ? agent.overrideTags.map((tag) => tag.name)
+    : agent.tags.map((tag) => tag.name);
+}
+
+const agentBaseSchema = z.object({
+  id: z.string().openapi({ example: "agent_123" }),
+  createdAt: dateTimeSchema,
+  updatedAt: dateTimeSchema,
+  name: z.string().openapi({ example: "Research Assistant" }),
+  image: z
+    .string()
+    .nullable()
+    .openapi({ example: "https://example.com/image.png" }),
+  icon: z
+    .string()
+    .nullable()
+    .openapi({ example: "https://example.com/icon.svg" }),
+  credits: z.number().openapi({
+    example: 100,
+    description: "Price in credits",
+  }),
+  summary: z.string().nullable().openapi({
+    example: "A research assistant that can help you with your research",
+  }),
+  description: z.string().openapi({
+    example: "A research assistant that can help you with your research",
+  }),
+  metrics: metricsSchema,
+  author: authorSchema,
+  legal: agentLegalSchema,
+  categories: z.array(categorySchema).openapi({
+    description: "Categories this agent belongs to",
+  }),
+});
+
+export const agentSummarySchema = agentBaseSchema.openapi("Agent");
+
+export const agentDetailSchema = agentBaseSchema
+  .extend({
+    riskClassification: z.nativeEnum(RiskClassification).openapi({
+      example: RiskClassification.MINIMAL,
+      description: "The agent's risk classification",
+    }),
+    tags: z.array(z.string()).openapi({
+      description:
+        "Resolved tags for the agent, using override tags when present",
+      example: ["research", "analysis"],
+    }),
+    exampleOutputs: z.array(agentExampleOutputSchema).openapi({
+      description:
+        "Resolved example outputs for the agent, using overrides when present",
+    }),
+  })
+  .openapi("AgentDetail");
+
+export const ratingDistributionSchema = z
+  .object({
+    "1": z.number().openapi({ example: 1 }),
+    "2": z.number().openapi({ example: 2 }),
+    "3": z.number().openapi({ example: 4 }),
+    "4": z.number().openapi({ example: 8 }),
+    "5": z.number().openapi({ example: 12 }),
+  })
+  .openapi("AgentRatingDistribution");
+
+export type RatingDistribution = z.infer<typeof ratingDistributionSchema>;
+
+export const agentReviewAuthorSchema = z
+  .object({
+    id: z.string().openapi({ example: "user_123" }),
+    name: z.string().openapi({ example: "Jane Doe" }),
     image: z
       .string()
       .nullable()
-      .openapi({ example: "https://example.com/image.png" }),
-    icon: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/icon.svg" }),
-    credits: z.number().openapi({
-      example: 100,
-      description: "Price in credits",
-    }),
-    summary: z.string().nullable().openapi({
-      example: "A research assistant that can help you with your research",
-    }),
-    description: z.string().openapi({
-      example: "A research assistant that can help you with your research",
-    }),
-    metrics: metricsSchema,
-    author: authorSchema,
-    legal: agentLegalSchema,
-    categories: z.array(categorySchema).openapi({
-      description: "Categories this agent belongs to",
+      .openapi({ example: "https://example.com/avatar.png" }),
+  })
+  .openapi("AgentReviewAuthor");
+
+export const agentReviewSchema = z
+  .object({
+    id: z.string().openapi({ example: "rating_123" }),
+    rating: z.number().min(1).max(5).openapi({ example: 5 }),
+    comment: z.string().nullable().openapi({ example: "Great results." }),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
+    user: agentReviewAuthorSchema,
+  })
+  .openapi("AgentReview");
+
+export type AgentReview = z.infer<typeof agentReviewSchema>;
+
+export const agentReviewsSchema = z
+  .object({
+    distribution: ratingDistributionSchema,
+    ratingsWithComments: z.array(agentReviewSchema).openapi({
+      description: "Recent visible ratings that include comments",
     }),
   })
-  .openapi("Agent");
+  .openapi("AgentReviews");
 
-export const agentsSchema = z.array(agentSchema);
+export type AgentReviews = z.infer<typeof agentReviewsSchema>;
+
+export const agentsSummarySchema = z.array(agentSummarySchema);

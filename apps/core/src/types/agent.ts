@@ -55,3 +55,47 @@ export const agentCategoriesInclude = {
 export type AgentWithCategories = Prisma.AgentGetPayload<{
   include: typeof agentCategoriesInclude;
 }>;
+
+export const agentTagsInclude = {
+  tags: {
+    orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
+  },
+  overrideTags: {
+    orderBy: [{ name: "asc" }] as Prisma.TagOrderByWithRelationInput[],
+  },
+} as const;
+
+export type AgentWithTags = Prisma.AgentGetPayload<{
+  include: typeof agentTagsInclude;
+}>;
+
+export const agentExampleOutputInclude = {
+  exampleOutput: {
+    orderBy: [
+      { createdAt: "asc" },
+      { id: "asc" },
+    ] as Prisma.ExampleOutputOrderByWithRelationInput[],
+  },
+  overrideExampleOutput: {
+    orderBy: [
+      { createdAt: "asc" },
+      { id: "asc" },
+    ] as Prisma.ExampleOutputOrderByWithRelationInput[],
+  },
+} as const;
+
+export type AgentWithExampleOutput = Prisma.AgentGetPayload<{
+  include: typeof agentExampleOutputInclude;
+}>;
+
+export const agentDetailInclude = {
+  ...agentPricingInclude,
+  ...agentJobsCountInclude,
+  ...agentCategoriesInclude,
+  ...agentTagsInclude,
+  ...agentExampleOutputInclude,
+} as const;
+
+export type AgentWithDetailRelations = Prisma.AgentGetPayload<{
+  include: typeof agentDetailInclude;
+}>;

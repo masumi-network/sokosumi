@@ -101,6 +101,50 @@ describe("agents routes OpenAPI scope contract", () => {
     expect(props?.categories).toBeDefined();
   });
 
+  it("documents agent detail-only fields separately from the list schema", () => {
+    const doc = agentsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Agents API",
+        version: "1.0.0",
+      },
+    });
+
+    const components = doc.components?.schemas as
+      | Record<string, { properties?: Record<string, unknown> }>
+      | undefined;
+
+    expect(components?.Agent?.properties?.riskClassification).toBeFalsy();
+    expect(components?.Agent?.properties?.tags).toBeFalsy();
+    expect(components?.Agent?.properties?.exampleOutputs).toBeFalsy();
+
+    expect(
+      components?.AgentDetail?.properties?.riskClassification,
+    ).toBeDefined();
+    expect(components?.AgentDetail?.properties?.tags).toBeDefined();
+    expect(components?.AgentDetail?.properties?.exampleOutputs).toBeDefined();
+  });
+
+  it("documents the agent reviews endpoint", () => {
+    const doc = agentsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Agents API",
+        version: "1.0.0",
+      },
+    });
+
+    expect(doc.paths?.["/{id}/reviews"]?.get).toBeDefined();
+
+    const components = doc.components?.schemas as
+      | Record<string, { properties?: Record<string, unknown> }>
+      | undefined;
+    expect(components?.AgentReviews?.properties?.distribution).toBeDefined();
+    expect(
+      components?.AgentReviews?.properties?.ratingsWithComments,
+    ).toBeDefined();
+  });
+
   it("documents category styles as a structured object schema", () => {
     const doc = agentsRouter.getOpenAPI31Document({
       openapi: "3.1.0",

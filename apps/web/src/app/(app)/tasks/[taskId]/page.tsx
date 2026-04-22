@@ -267,6 +267,8 @@ async function TaskDetailActionsSlot({
     agentNameById,
     coworkerOptions,
   } = buildTaskDetailContext(task, coworkers, agents);
+  const isReadOnlyWorkspaceView =
+    task.workspace.organizationId !== null && session?.user.id !== task.userId;
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
     session?.user?.email?.trim() ||
@@ -285,13 +287,14 @@ async function TaskDetailActionsSlot({
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
+      isReadOnly={isReadOnlyWorkspaceView}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),
-        delete: t("actions.delete"),
-        confirmDelete: t("actions.confirmDelete"),
-        confirmDeleteDescription: t("actions.confirmDeleteDescription"),
-        deleteError: t("actions.deleteError"),
+        archive: t("actions.archive"),
+        confirmArchive: t("actions.confirmArchive"),
+        confirmArchiveDescription: t("actions.confirmArchiveDescription"),
+        archiveError: t("actions.archiveError"),
         markAsReady: t("actions.markAsReady"),
         revertToDraft: t("actions.revertToDraft"),
         cancelRequest: t("actions.cancelRequest"),
@@ -357,6 +360,8 @@ async function TaskActivitySectionContent({
   ]);
   const { agentNameById } = buildTaskDetailContext(task, coworkers, agents);
   const isFreePlan = currentPlan === "free";
+  const isReadOnlyWorkspaceView =
+    task.workspace.organizationId !== null && session?.user.id !== task.userId;
   const currentUser = session?.user
     ? {
         id: session.user.id,
@@ -395,6 +400,7 @@ async function TaskActivitySectionContent({
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
       isFreePlan={isFreePlan}
+      canComment={!isReadOnlyWorkspaceView}
     />
   );
 }
