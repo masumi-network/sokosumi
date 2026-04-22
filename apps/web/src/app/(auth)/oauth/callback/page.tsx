@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { normalizeOAuthIssuerBase } from "@/lib/utils/oauth-issuer";
 
 interface TokenResponse {
   access_token?: string;
@@ -80,10 +81,24 @@ export default function OAuthCallbackPage() {
       // `authClient.oauth2.token()` sends JSON. The oauth-provider fetch plugin also
       // re-serializes POST bodies as JSON when `window.location.search` is set (this page),
       // so we POST with URLSearchParams via `fetch` instead of the Better Auth client.
-      const issuerBase = issuerFromParams?.trim().length
-        ? issuerFromParams.trim().replace(/\/$/, "")
-        : `${window.location.origin}/api/auth`;
-      const tokenUrl = `${issuerBase}/oauth2/token`;
+      const expectedIssuerBase = normalizeOAuthIssuerBase(
+        `${window.location.origin}/api/auth`,
+      );
+      if (!expectedIssuerBase) {
+        setError(t("errors.tokenExchangeFailed"));
+        return;
+      }
+
+      const issuerFromQuery = issuerFromParams?.trim().length
+        ? normalizeOAuthIssuerBase(issuerFromParams)
+        : expectedIssuerBase;
+
+      if (!issuerFromQuery || issuerFromQuery !== expectedIssuerBase) {
+        setError(t("errors.invalidIssuer"));
+        return;
+      }
+
+      const tokenUrl = `${issuerFromQuery}/oauth2/token`;
 
       const body = new URLSearchParams({
         grant_type: "authorization_code",

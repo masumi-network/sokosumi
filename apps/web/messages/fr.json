@@ -2182,6 +2182,7 @@
           "missingCode": "Aucun code d’autorisation trouvé dans l’URL",
           "missingCodeVerifier": "Veuillez saisir le vérificateur de code",
           "missingCredentials": "L’ID client est requis. Laissez le secret client vide pour les clients publics.",
+          "invalidIssuer": "La valeur iss dans l’URL ne correspond pas au serveur d’autorisation de ce site. Utilisez l’URL de rappel renvoyée par la réponse d’autorisation sans modifier les paramètres de requête.",
           "tokenExchangeFailed": "Échec de l’échange du code d’autorisation contre un jeton"
         },
         "clientIdLabel": "ID client",

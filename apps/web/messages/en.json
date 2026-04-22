@@ -2182,6 +2182,7 @@
           "missingCode": "No authorization code found in the URL",
           "missingCodeVerifier": "Please enter the code verifier",
           "missingCredentials": "Client ID is required. Leave Client Secret empty for public clients.",
+          "invalidIssuer": "The iss value in the URL does not match this site's authorization server. Use the callback URL returned by the authorization response without modifying query parameters.",
           "tokenExchangeFailed": "Failed to exchange authorization code for token"
         },
         "clientIdLabel": "Client ID",

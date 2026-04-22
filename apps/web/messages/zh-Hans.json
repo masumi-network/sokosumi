@@ -2182,6 +2182,7 @@
           "missingCode": "URL 中未找到授权码",
           "missingCodeVerifier": "请输入代码校验器",
           "missingCredentials": "必须填写客户端 ID。公开客户端请将客户端密钥留空。",
+          "invalidIssuer": "URL 中的 iss 值与本站的授权服务器不匹配。请使用授权响应返回的回调 URL，且不要修改查询参数。",
           "tokenExchangeFailed": "使用授权码兑换令牌失败"
         },
         "clientIdLabel": "客户端 ID",
