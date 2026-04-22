@@ -291,10 +291,10 @@ async function TaskDetailActionsSlot({
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),
-        delete: t("actions.delete"),
-        confirmDelete: t("actions.confirmDelete"),
-        confirmDeleteDescription: t("actions.confirmDeleteDescription"),
-        deleteError: t("actions.deleteError"),
+        archive: t("actions.archive"),
+        confirmArchive: t("actions.confirmArchive"),
+        confirmArchiveDescription: t("actions.confirmArchiveDescription"),
+        archiveError: t("actions.archiveError"),
         markAsReady: t("actions.markAsReady"),
         revertToDraft: t("actions.revertToDraft"),
         cancelRequest: t("actions.cancelRequest"),
