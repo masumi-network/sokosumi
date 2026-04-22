@@ -168,14 +168,9 @@ export function isTaskStatusSpendable(status: TaskStatus | undefined): boolean {
   return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
-export function isTaskArchivableStatus(status: TaskStatus): boolean {
-  return (
-    status === TaskStatus.DRAFT ||
-    status === TaskStatus.READY ||
-    status === TaskStatus.CANCELED ||
-    status === TaskStatus.COMPLETED ||
-    status === TaskStatus.FAILED
-  );
+/** Any task status may be archived (soft-delete via archivedAt). */
+export function isTaskArchivableStatus(_status: TaskStatus): boolean {
+  return true;
 }
 
 function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {

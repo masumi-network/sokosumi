@@ -20,7 +20,6 @@ vi.mock("@/helpers/access-control", () => ({
 }));
 
 vi.mock("@/helpers/task", () => ({
-  isTaskArchivableStatus: vi.fn(() => true),
   mapTask: mapTaskMock,
 }));
 

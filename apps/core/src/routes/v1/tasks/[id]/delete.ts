@@ -1,10 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { requireTaskOwnership } from "@/helpers/access-control";
-import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { isTaskArchivableStatus, mapTask } from "@/helpers/task";
+import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
@@ -42,12 +41,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await prisma.$transaction(async (tx) => {
       const currentTask = await requireTaskOwnership(userContext, id, tx);
-
-      if (!isTaskArchivableStatus(currentTask.status)) {
-        throw forbidden(
-          "You can only archive tasks in DRAFT, READY, CANCELED, COMPLETED, or FAILED state",
-        );
-      }
 
       return tx.task.update({
         where: {
