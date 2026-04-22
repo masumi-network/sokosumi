@@ -214,7 +214,10 @@ function isSokosumiStatusClearlyOutsideAgentJobFilter(
         status !== SokosumiJobStatus.PAYMENT_FAILED
       );
     case AgentJobStatus.AWAITING_PAYMENT:
-      return status !== SokosumiJobStatus.PAYMENT_PENDING;
+      return (
+        status !== SokosumiJobStatus.PAYMENT_PENDING &&
+        status !== SokosumiJobStatus.STARTED
+      );
     case AgentJobStatus.RUNNING:
       return (
         status === SokosumiJobStatus.COMPLETED ||

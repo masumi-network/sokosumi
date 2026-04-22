@@ -236,6 +236,29 @@ describe("jobs-filters", () => {
         ),
       ).toBe(true);
     });
+
+    it("keeps started jobs when filtering to AWAITING_PAYMENT", () => {
+      expect(
+        tasksViewJobStillEligibleForJobsListFilters(
+          { ...baseJob, status: SokosumiJobStatus.STARTED },
+          {
+            scope: "workspace",
+            agentId: null,
+            jobStatus: AgentJobStatus.AWAITING_PAYMENT,
+          },
+        ),
+      ).toBe(true);
+    });
+
+    it("treats processing jobs as ineligible when filtering to AWAITING_PAYMENT", () => {
+      expect(
+        tasksViewJobStillEligibleForJobsListFilters(baseJob, {
+          scope: "workspace",
+          agentId: null,
+          jobStatus: AgentJobStatus.AWAITING_PAYMENT,
+        }),
+      ).toBe(false);
+    });
   });
 
   describe("mergeTopPageJobsWithListFilters", () => {
@@ -315,6 +338,31 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: null,
           jobStatus: AgentJobStatus.FAILED,
+        }),
+      ).toEqual([refreshed[0], prev[1]]);
+    });
+
+    it("preserves started tail rows when filtering to AWAITING_PAYMENT", () => {
+      const prev = [
+        {
+          id: "pending",
+          agentId: "x",
+          status: SokosumiJobStatus.PAYMENT_PENDING,
+        },
+        { id: "started", agentId: "x", status: SokosumiJobStatus.STARTED },
+      ];
+      const refreshed = [
+        {
+          id: "pending",
+          agentId: "x",
+          status: SokosumiJobStatus.PAYMENT_PENDING,
+        },
+      ];
+      expect(
+        mergeTopPageJobsWithListFilters(prev, refreshed, {
+          scope: "workspace",
+          agentId: null,
+          jobStatus: AgentJobStatus.AWAITING_PAYMENT,
         }),
       ).toEqual([refreshed[0], prev[1]]);
     });
