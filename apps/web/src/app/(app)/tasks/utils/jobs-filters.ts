@@ -1,4 +1,4 @@
-import { AgentJobStatus } from "@sokosumi/database";
+import { AgentJobStatus, SokosumiJobStatus } from "@sokosumi/database";
 
 import {
   firstQueryString,
@@ -170,4 +170,113 @@ export function getJobsListFiltersResetKey(
   activeOrganizationId: string | null,
 ): string {
   return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.agentId ?? "all"}:${filters.jobStatus ?? "all"}`;
+}
+
+/** Minimal job fields needed when merging a refetched first page with prior pages. */
+export type JobsListMergeableJob = {
+  id: string;
+  agentId: string;
+  status: SokosumiJobStatus;
+};
+
+/**
+ * When {@link mergeTopPageJobsWithListFilters} keeps jobs from before the refetch that are
+ * absent from the refreshed first page, only rows that can still match the active URL
+ * filters are retained. This avoids resurrecting rows the filtered API intentionally omitted
+ * (e.g. a job that left RUNNING while the list is filtered to RUNNING).
+ */
+export function tasksViewJobStillEligibleForJobsListFilters(
+  job: JobsListMergeableJob,
+  filters: JobsListFilters,
+): boolean {
+  if (filters.agentId !== null && job.agentId !== filters.agentId) {
+    return false;
+  }
+  if (filters.jobStatus === null) {
+    return true;
+  }
+  return !isSokosumiStatusClearlyOutsideAgentJobFilter(
+    job.status,
+    filters.jobStatus,
+  );
+}
+
+function isSokosumiStatusClearlyOutsideAgentJobFilter(
+  status: SokosumiJobStatus,
+  filter: AgentJobStatus,
+): boolean {
+  switch (filter) {
+    case AgentJobStatus.COMPLETED:
+      return status !== SokosumiJobStatus.COMPLETED;
+    case AgentJobStatus.FAILED:
+      return (
+        status !== SokosumiJobStatus.FAILED &&
+        status !== SokosumiJobStatus.PAYMENT_FAILED
+      );
+    case AgentJobStatus.AWAITING_PAYMENT:
+      return status !== SokosumiJobStatus.PAYMENT_PENDING;
+    case AgentJobStatus.RUNNING:
+      return (
+        status === SokosumiJobStatus.COMPLETED ||
+        status === SokosumiJobStatus.FAILED ||
+        status === SokosumiJobStatus.PAYMENT_FAILED ||
+        status === SokosumiJobStatus.PAYMENT_PENDING ||
+        status === SokosumiJobStatus.STARTED ||
+        status === SokosumiJobStatus.INPUT_REQUIRED ||
+        status === SokosumiJobStatus.REFUND_RESOLVED ||
+        status === SokosumiJobStatus.DISPUTE_RESOLVED
+      );
+    case AgentJobStatus.AWAITING_INPUT:
+      return (
+        status === SokosumiJobStatus.COMPLETED ||
+        status === SokosumiJobStatus.FAILED ||
+        status === SokosumiJobStatus.PAYMENT_FAILED ||
+        status === SokosumiJobStatus.PAYMENT_PENDING ||
+        status === SokosumiJobStatus.STARTED ||
+        status === SokosumiJobStatus.REFUND_RESOLVED ||
+        status === SokosumiJobStatus.DISPUTE_RESOLVED
+      );
+    case AgentJobStatus.INITIATED:
+      return (
+        status === SokosumiJobStatus.COMPLETED ||
+        status === SokosumiJobStatus.FAILED ||
+        status === SokosumiJobStatus.PAYMENT_FAILED ||
+        status === SokosumiJobStatus.REFUND_RESOLVED ||
+        status === SokosumiJobStatus.DISPUTE_RESOLVED
+      );
+  }
+}
+
+/**
+ * Merges the first page of jobs returned from the server with any extra pages already loaded
+ * client-side. When agent or job-status filters are active, jobs from the previous list that
+ * no longer plausibly match those filters are dropped so they cannot reappear after a refetch.
+ */
+export function mergeTopPageJobsWithListFilters<T extends JobsListMergeableJob>(
+  prevJobs: T[],
+  refreshedJobs: T[],
+  filters: JobsListFilters,
+): T[] {
+  const hasNarrowingFilter =
+    filters.jobStatus !== null || filters.agentId !== null;
+  if (!hasNarrowingFilter) {
+    return mergeTopPageJobsPlain(prevJobs, refreshedJobs);
+  }
+
+  const refreshedJobIds = new Set(refreshedJobs.map((job) => job.id));
+  const remainingJobs = prevJobs.filter(
+    (job) =>
+      !refreshedJobIds.has(job.id) &&
+      tasksViewJobStillEligibleForJobsListFilters(job, filters),
+  );
+  return [...refreshedJobs, ...remainingJobs];
+}
+
+function mergeTopPageJobsPlain<T extends { id: string }>(
+  prevJobs: T[],
+  refreshedJobs: T[],
+): T[] {
+  const refreshedJobIds = new Set(refreshedJobs.map((job) => job.id));
+  const remainingJobs = prevJobs.filter((job) => !refreshedJobIds.has(job.id));
+  return [...refreshedJobs, ...remainingJobs];
 }

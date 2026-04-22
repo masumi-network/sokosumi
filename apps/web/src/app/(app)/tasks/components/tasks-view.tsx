@@ -36,6 +36,7 @@ import {
   getJobsListFiltersFromSearchParams,
   getJobsListFiltersResetKey,
   type JobsListFilters,
+  mergeTopPageJobsWithListFilters,
 } from "@/app/tasks/utils/jobs-filters";
 import {
   getTasksFiltersFromSearchParams,
@@ -717,7 +718,9 @@ export function TasksView({
           jobsRouteFilters.agentId,
           jobsRouteFilters.jobStatus,
         );
-        setJobsItems((prev) => mergeTopPageJobs(prev, result.jobs));
+        setJobsItems((prev) =>
+          mergeTopPageJobsWithListFilters(prev, result.jobs, jobsRouteFilters),
+        );
         setJobsCursor(result.nextCursor ?? null);
         setAgentPreviews((prev) => ({
           ...prev,
@@ -1123,13 +1126,4 @@ function buildInitialColumnCursorById(
     },
     {} as Record<KanbanColumnId, string | null>,
   );
-}
-
-function mergeTopPageJobs(
-  prevJobs: TasksViewJob[],
-  refreshedJobs: TasksViewJob[],
-) {
-  const refreshedJobIds = new Set(refreshedJobs.map((job) => job.id));
-  const remainingJobs = prevJobs.filter((job) => !refreshedJobIds.has(job.id));
-  return [...refreshedJobs, ...remainingJobs];
 }

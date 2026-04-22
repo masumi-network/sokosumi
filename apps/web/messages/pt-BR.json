@@ -1386,6 +1386,7 @@
       },
       "Detail": {
         "back": "Voltar para tarefas",
+        "parentTask": "Principal:",
         "properties": "Propriedades",
         "status": "Status",
         "coworker": "Coworker",

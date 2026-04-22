@@ -1,14 +1,16 @@
-import { AgentJobStatus } from "@sokosumi/database";
+import { AgentJobStatus, SokosumiJobStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import {
   buildJobsListFiltersSearchParams,
   getJobsListFiltersFromSearchParams,
   getJobsListFiltersResetKey,
+  mergeTopPageJobsWithListFilters,
   parseJobsListFilters,
   sanitizeAgentJobStatusInput,
   sanitizeJobAgentIdForPersistedFilter,
   sanitizeJobAgentIdInput,
+  tasksViewJobStillEligibleForJobsListFilters,
 } from "@/app/tasks/utils/jobs-filters";
 
 const agentOptions = [
@@ -144,5 +146,82 @@ describe("jobs-filters", () => {
         "org-1",
       ),
     ).toBe("org-1:workspace:agent-1:COMPLETED");
+  });
+
+  describe("tasksViewJobStillEligibleForJobsListFilters", () => {
+    const baseJob = {
+      id: "job-1",
+      agentId: "agent-1",
+      status: SokosumiJobStatus.PROCESSING,
+    };
+
+    it("drops jobs that no longer match the agent filter", () => {
+      expect(
+        tasksViewJobStillEligibleForJobsListFilters(baseJob, {
+          scope: "workspace",
+          agentId: "agent-2",
+          jobStatus: AgentJobStatus.RUNNING,
+        }),
+      ).toBe(false);
+    });
+
+    it("treats completed jobs as ineligible when filtering to RUNNING", () => {
+      expect(
+        tasksViewJobStillEligibleForJobsListFilters(
+          { ...baseJob, status: SokosumiJobStatus.COMPLETED },
+          {
+            scope: "workspace",
+            agentId: null,
+            jobStatus: AgentJobStatus.RUNNING,
+          },
+        ),
+      ).toBe(false);
+    });
+
+    it("keeps in-progress jobs when filtering to RUNNING", () => {
+      expect(
+        tasksViewJobStillEligibleForJobsListFilters(baseJob, {
+          scope: "workspace",
+          agentId: null,
+          jobStatus: AgentJobStatus.RUNNING,
+        }),
+      ).toBe(true);
+    });
+  });
+
+  describe("mergeTopPageJobsWithListFilters", () => {
+    it("preserves deeper pages when no narrowing filters are set", () => {
+      const prev = [
+        { id: "a", agentId: "x", status: SokosumiJobStatus.PROCESSING },
+        { id: "b", agentId: "x", status: SokosumiJobStatus.COMPLETED },
+      ];
+      const refreshed = [
+        { id: "c", agentId: "x", status: SokosumiJobStatus.PROCESSING },
+      ];
+      expect(
+        mergeTopPageJobsWithListFilters(prev, refreshed, {
+          scope: "workspace",
+          agentId: null,
+          jobStatus: null,
+        }),
+      ).toEqual([refreshed[0], prev[0], prev[1]]);
+    });
+
+    it("drops tail jobs that cannot match an active job-status filter", () => {
+      const prev = [
+        { id: "running", agentId: "x", status: SokosumiJobStatus.PROCESSING },
+        { id: "done", agentId: "x", status: SokosumiJobStatus.COMPLETED },
+      ];
+      const refreshed = [
+        { id: "running", agentId: "x", status: SokosumiJobStatus.COMPLETED },
+      ];
+      expect(
+        mergeTopPageJobsWithListFilters(prev, refreshed, {
+          scope: "workspace",
+          agentId: null,
+          jobStatus: AgentJobStatus.RUNNING,
+        }),
+      ).toEqual([refreshed[0]]);
+    });
   });
 });

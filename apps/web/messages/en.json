@@ -1386,6 +1386,7 @@
       },
       "Detail": {
         "back": "Back to tasks",
+        "parentTask": "Parent:",
         "properties": "Properties",
         "status": "Status",
         "coworker": "Coworker",
