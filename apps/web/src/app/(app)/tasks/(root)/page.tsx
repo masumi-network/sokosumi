@@ -131,12 +131,11 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       },
     ]),
   );
-  const knownAgentsById = new Map(agents.map((agent) => [agent.id, agent]));
 
   const { jobs, agentPreviewById } = await mapJobsToTasksViewData({
     jobs: jobsPage.jobs,
     coworkersById,
-    knownAgentsById,
+    knownAgentsById: agentsById,
     seedTasksById,
   });
 

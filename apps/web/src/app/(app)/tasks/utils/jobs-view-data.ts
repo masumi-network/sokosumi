@@ -105,8 +105,10 @@ export async function mapJobsToTasksViewData({
   agentPreviewById: Record<string, { name: string; icon: string | null }>;
 }> {
   const tasksById = new Map(seedTasksById);
-  const agentsById = await resolveAgentsForJobs(jobs, knownAgentsById);
-  await getMissingTasksById(jobs, tasksById);
+  const [agentsById] = await Promise.all([
+    resolveAgentsForJobs(jobs, knownAgentsById),
+    getMissingTasksById(jobs, tasksById),
+  ]);
 
   const mappedJobs: TasksViewJob[] = jobs.map((job) => ({
     id: job.id,
