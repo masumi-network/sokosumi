@@ -358,6 +358,8 @@ export function TasksView({
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
   const itemsRef = useRef(items);
   const jobsItemsRef = useRef(jobsItems);
+  /** True after at least one successful jobs "Load more"; cleared when jobs reset from the server. */
+  const hasAppendedJobsViaPaginationRef = useRef(false);
   const isRefetchingJobsRef = useRef(false);
   const columnCursorByIdRef = useRef<Record<KanbanColumnId, string | null>>(
     buildInitialColumnCursorById(columns, initialColumnNextCursorById),
@@ -447,6 +449,7 @@ export function TasksView({
 
     previousJobsListFiltersResetKeyRef.current = serverJobsListFiltersResetKey;
     isRefetchingJobsRef.current = false;
+    hasAppendedJobsViaPaginationRef.current = false;
 
     const nextJobCursor = initialJobsNextCursor ?? null;
 
@@ -503,6 +506,7 @@ export function TasksView({
     setJobsItems(next);
 
     if (next.length <= jobs.length) {
+      hasAppendedJobsViaPaginationRef.current = false;
       setJobsCursor(initialJobsNextCursor ?? null);
     }
   }, [initialJobsNextCursor, jobs]);
@@ -694,6 +698,7 @@ export function TasksView({
           jobsRouteFilters.agentId,
           jobsRouteFilters.jobStatus,
         );
+        hasAppendedJobsViaPaginationRef.current = true;
         setJobsItems((prev) => appendUniqueJobs(prev, result.jobs));
         setJobsCursor(result.nextCursor);
         setAgentPreviews((prev) => ({
@@ -721,12 +726,10 @@ export function TasksView({
         setJobsItems((prev) =>
           mergeTopPageJobsWithListFilters(prev, result.jobs, jobsRouteFilters),
         );
-        const refreshedJobIds = new Set(result.jobs.map((job) => job.id));
-        const hadJobsBeyondFirstPage = jobsItemsRef.current.some(
-          (job) => !refreshedJobIds.has(job.id),
-        );
         setJobsCursor((prevCursor) =>
-          hadJobsBeyondFirstPage ? prevCursor : (result.nextCursor ?? null),
+          hasAppendedJobsViaPaginationRef.current && prevCursor !== null
+            ? prevCursor
+            : (result.nextCursor ?? null),
         );
         setAgentPreviews((prev) => ({
           ...prev,
