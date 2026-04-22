@@ -34,11 +34,12 @@ import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import {
   getJobsListFiltersFromSearchParams,
-  getTasksViewServerResetKey,
+  getJobsListFiltersResetKey,
   type JobsListFilters,
 } from "@/app/tasks/utils/jobs-filters";
 import {
   getTasksFiltersFromSearchParams,
+  getTasksFiltersResetKey,
   isTaskDraggableForViewFilters,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
@@ -365,26 +366,25 @@ export function TasksView({
     () => router.refresh(),
     TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
   );
-  const serverFiltersResetKey = useMemo(
-    () =>
-      getTasksViewServerResetKey(
-        initialFilters,
-        initialJobsListFilters,
-        activeOrganizationId,
-      ),
-    [activeOrganizationId, initialFilters, initialJobsListFilters],
+  const serverTasksFiltersResetKey = useMemo(
+    () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
+    [activeOrganizationId, initialFilters],
   );
-  const routeFiltersResetKey = useMemo(
+  const serverJobsListFiltersResetKey = useMemo(
     () =>
-      getTasksViewServerResetKey(
-        routeFilters,
-        jobsRouteFilters,
-        activeOrganizationId,
-      ),
-    [activeOrganizationId, jobsRouteFilters, routeFilters],
+      getJobsListFiltersResetKey(initialJobsListFilters, activeOrganizationId),
+    [activeOrganizationId, initialJobsListFilters],
   );
-  const isTaskPaginationInSync = routeFiltersResetKey === serverFiltersResetKey;
-  const previousFiltersResetKeyRef = useRef(serverFiltersResetKey);
+  const routeTasksFiltersResetKey = useMemo(
+    () => getTasksFiltersResetKey(routeFilters, activeOrganizationId),
+    [activeOrganizationId, routeFilters],
+  );
+  const isTaskPaginationInSync =
+    routeTasksFiltersResetKey === serverTasksFiltersResetKey;
+  const previousTasksFiltersResetKeyRef = useRef(serverTasksFiltersResetKey);
+  const previousJobsListFiltersResetKeyRef = useRef(
+    serverJobsListFiltersResetKey,
+  );
   const handleEventUpdate = (_data: TaskEventData) => {
     refreshRoute();
   };
@@ -412,33 +412,46 @@ export function TasksView({
   }, [refreshRoute]);
 
   useLayoutEffect(() => {
-    if (previousFiltersResetKeyRef.current === serverFiltersResetKey) return;
+    if (
+      previousTasksFiltersResetKeyRef.current === serverTasksFiltersResetKey
+    ) {
+      return;
+    }
 
-    previousFiltersResetKeyRef.current = serverFiltersResetKey;
+    previousTasksFiltersResetKeyRef.current = serverTasksFiltersResetKey;
     moveVersionRef.current = 0;
     pendingMoveVersionByTaskIdRef.current.clear();
-    isRefetchingJobsRef.current = false;
-
-    const nextJobCursor = initialJobsNextCursor ?? null;
 
     itemsRef.current = tasks;
-    jobsItemsRef.current = jobs;
     setItems(tasks);
-    setJobsItems(jobs);
     setColumnCursorById(
       buildInitialColumnCursorById(columns, initialColumnNextCursorById),
     );
     setLoadingColumnIds(new Set());
+  }, [columns, initialColumnNextCursorById, serverTasksFiltersResetKey, tasks]);
+
+  useLayoutEffect(() => {
+    if (
+      previousJobsListFiltersResetKeyRef.current ===
+      serverJobsListFiltersResetKey
+    ) {
+      return;
+    }
+
+    previousJobsListFiltersResetKeyRef.current = serverJobsListFiltersResetKey;
+    isRefetchingJobsRef.current = false;
+
+    const nextJobCursor = initialJobsNextCursor ?? null;
+
+    jobsItemsRef.current = jobs;
+    setJobsItems(jobs);
     setJobsCursor(nextJobCursor);
     setAgentPreviews(agentPreviewById);
   }, [
     agentPreviewById,
-    columns,
-    initialColumnNextCursorById,
     initialJobsNextCursor,
     jobs,
-    serverFiltersResetKey,
-    tasks,
+    serverJobsListFiltersResetKey,
   ]);
 
   useEffect(() => {

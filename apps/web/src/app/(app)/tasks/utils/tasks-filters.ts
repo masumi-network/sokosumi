@@ -30,7 +30,9 @@ export const TASKS_FILTER_PARAM_KEYS = {
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
 
 /** Matches `URLSearchParams#get`: first value wins when the key is repeated. */
-function firstQueryString(value: TasksFilterQueryParam): string | undefined {
+export function firstQueryString(
+  value: TasksFilterQueryParam,
+): string | undefined {
   if (value === undefined) return undefined;
   if (Array.isArray(value)) {
     const first = value.find((entry) => typeof entry === "string");
@@ -39,7 +41,9 @@ function firstQueryString(value: TasksFilterQueryParam): string | undefined {
   return value;
 }
 
-function normalizeOptionalString(value: TasksFilterQueryParam): string | null {
+export function normalizeOptionalString(
+  value: TasksFilterQueryParam,
+): string | null {
   const raw = firstQueryString(value);
   const normalized = raw?.trim();
   return normalized ? normalized : null;

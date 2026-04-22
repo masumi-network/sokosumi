@@ -1,8 +1,10 @@
 import { AgentJobStatus } from "@sokosumi/database";
 
 import {
+  firstQueryString,
   getDefaultTasksScope,
   getTasksFiltersResetKey,
+  normalizeOptionalString,
   sanitizeTasksScopeInput,
   type TasksFilterQueryParam,
   type TasksFilters,
@@ -29,21 +31,6 @@ export const JOBS_LIST_FILTER_PARAM_KEYS = {
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
 type AgentOptionLike = { id: string };
-
-function firstQueryString(value: TasksFilterQueryParam): string | undefined {
-  if (value === undefined) return undefined;
-  if (Array.isArray(value)) {
-    const first = value.find((entry) => typeof entry === "string");
-    return first;
-  }
-  return value;
-}
-
-function normalizeOptionalString(value: TasksFilterQueryParam): string | null {
-  const raw = firstQueryString(value);
-  const normalized = raw?.trim();
-  return normalized ? normalized : null;
-}
 
 function isAgentJobStatusValue(value: string | null): value is AgentJobStatus {
   return (
