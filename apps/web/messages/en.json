@@ -2181,7 +2181,7 @@
           "authorizationFailed": "Authorization failed",
           "missingCode": "No authorization code found in the URL",
           "missingCodeVerifier": "Please enter the code verifier",
-          "missingCredentials": "Client ID and Client Secret are required",
+          "missingCredentials": "Client ID is required. Leave Client Secret empty for public clients.",
           "tokenExchangeFailed": "Failed to exchange authorization code for token"
         },
         "clientIdLabel": "Client ID",

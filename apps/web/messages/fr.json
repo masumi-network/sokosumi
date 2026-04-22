@@ -2181,7 +2181,7 @@
           "authorizationFailed": "Échec de l’autorisation",
           "missingCode": "Aucun code d’autorisation trouvé dans l’URL",
           "missingCodeVerifier": "Veuillez saisir le vérificateur de code",
-          "missingCredentials": "L’ID client et le secret client sont requis",
+          "missingCredentials": "L’ID client est requis. Laissez le secret client vide pour les clients publics.",
           "tokenExchangeFailed": "Échec de l’échange du code d’autorisation contre un jeton"
         },
         "clientIdLabel": "ID client",

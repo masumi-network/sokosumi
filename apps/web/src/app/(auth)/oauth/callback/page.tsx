@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { authClient } from "@/lib/auth/auth.client";
 
 interface TokenResponse {
   access_token?: string;
@@ -42,6 +41,7 @@ export default function OAuthCallbackPage() {
 
   const code = searchParams.get("code");
   const state = searchParams.get("state");
+  const issuerFromParams = searchParams.get("iss");
   const oauthError = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
 
@@ -65,7 +65,7 @@ export default function OAuthCallbackPage() {
       return;
     }
 
-    if (!clientId.trim() || !clientSecret.trim()) {
+    if (!clientId.trim()) {
       setError(t("errors.missingCredentials"));
       return;
     }
@@ -76,41 +76,60 @@ export default function OAuthCallbackPage() {
 
     try {
       const redirectUri = `${window.location.origin}/oauth/callback`;
-      const result = await authClient.oauth2.token({
+      // The token endpoint only accepts `application/x-www-form-urlencoded` (OAuth 2.1).
+      // `authClient.oauth2.token()` sends JSON. The oauth-provider fetch plugin also
+      // re-serializes POST bodies as JSON when `window.location.search` is set (this page),
+      // so we POST with URLSearchParams via `fetch` instead of the Better Auth client.
+      const issuerBase = issuerFromParams?.trim().length
+        ? issuerFromParams.trim().replace(/\/$/, "")
+        : `${window.location.origin}/api/auth`;
+      const tokenUrl = `${issuerBase}/oauth2/token`;
+
+      const body = new URLSearchParams({
         grant_type: "authorization_code",
-        code: code,
+        code,
         redirect_uri: redirectUri,
-        code_verifier: codeVerifier,
-        client_id: clientId,
-        client_secret: clientSecret,
-        fetchOptions: {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
+        code_verifier: codeVerifier.trim(),
+        client_id: clientId.trim(),
+        scope: "openid",
+      });
+      if (clientSecret.trim()) {
+        body.set("client_secret", clientSecret.trim());
+      }
+
+      const response = await fetch(tokenUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
         },
+        body: body.toString(),
       });
 
-      if (result.error) {
-        setError(result.error.message || t("errors.tokenExchangeFailed"));
-        setIsExchanging(false);
+      const payload: unknown = await response.json().catch(() => null);
+      const tokenPayload = payload as TokenResponse | null;
+
+      if (!response.ok || tokenPayload?.error) {
+        setError(
+          tokenPayload?.error_description ||
+            tokenPayload?.error ||
+            t("errors.tokenExchangeFailed"),
+        );
         return;
       }
 
-      if (!result.data) {
+      if (!tokenPayload?.access_token) {
         setError(t("errors.tokenExchangeFailed"));
-        setIsExchanging(false);
         return;
       }
 
-      // Map Better Auth response to TokenResponse format
       const tokenData: TokenResponse = {
-        access_token: result.data.access_token,
-        token_type: result.data.token_type,
-        expires_in: result.data.expires_in,
-        refresh_token: (result.data as { refresh_token?: string })
-          .refresh_token,
-        scope: result.data.scope,
-        id_token: (result.data as { id_token?: string }).id_token,
+        access_token: tokenPayload.access_token,
+        token_type: tokenPayload.token_type,
+        expires_in: tokenPayload.expires_in,
+        refresh_token: tokenPayload.refresh_token,
+        scope: tokenPayload.scope,
+        id_token: tokenPayload.id_token,
       };
 
       setTokenResponse(tokenData);
@@ -332,10 +351,7 @@ export default function OAuthCallbackPage() {
                 type="button"
                 onClick={handleTokenExchange}
                 disabled={
-                  isExchanging ||
-                  !codeVerifier.trim() ||
-                  !clientId.trim() ||
-                  !clientSecret.trim()
+                  isExchanging || !codeVerifier.trim() || !clientId.trim()
                 }
                 className="w-full"
               >

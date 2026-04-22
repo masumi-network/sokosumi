@@ -2120,7 +2120,7 @@
           "authorizationFailed": "Autorisierung fehlgeschlagen",
           "missingCode": "Kein Autorisierungscode in der URL gefunden",
           "missingCodeVerifier": "Bitte gib den Code-Verifier ein",
-          "missingCredentials": "Client-ID und Client-Secret sind erforderlich",
+          "missingCredentials": "Client-ID ist erforderlich. Client-Secret bei öffentlichen Clients leer lassen.",
           "tokenExchangeFailed": "Autorisierungscode konnte nicht gegen Token getauscht werden"
         },
         "clientIdLabel": "Client-ID",

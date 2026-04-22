@@ -2182,7 +2182,7 @@
           "authorizationFailed": "Autorizzazione non riuscita",
           "missingCode": "Nessun codice di autorizzazione trovato nell’URL",
           "missingCodeVerifier": "Inserisci il code verifier",
-          "missingCredentials": "ID client e client secret sono obbligatori",
+          "missingCredentials": "L’ID client è obbligatorio. Lascia vuoto il client secret per i client pubblici.",
           "tokenExchangeFailed": "Impossibile scambiare il codice di autorizzazione con un token"
         },
         "clientIdLabel": "ID client",

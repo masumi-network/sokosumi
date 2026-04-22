@@ -2181,7 +2181,7 @@
           "authorizationFailed": "Falha na autorização",
           "missingCode": "Nenhum código de autorização encontrado na URL",
           "missingCodeVerifier": "Digite o code verifier",
-          "missingCredentials": "Client ID e Client Secret são obrigatórios",
+          "missingCredentials": "O Client ID é obrigatório. Deixe o Client Secret em branco para clientes públicos.",
           "tokenExchangeFailed": "Falha ao trocar o código de autorização por token"
         },
         "clientIdLabel": "ID do cliente",

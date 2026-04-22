@@ -2120,7 +2120,7 @@
           "authorizationFailed": "Autorización fallida",
           "missingCode": "No se encontró ningún código de autorización en la URL",
           "missingCodeVerifier": "Por favor, introduce el verificador de código",
-          "missingCredentials": "Se requieren Client ID y Client Secret",
+          "missingCredentials": "Se requiere el Client ID. Deja el Client Secret vacío para clientes públicos.",
           "tokenExchangeFailed": "No se pudo intercambiar el código de autorización por un token"
         },
         "clientIdLabel": "Client ID",

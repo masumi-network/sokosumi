@@ -2181,7 +2181,7 @@
           "authorizationFailed": "授权失败",
           "missingCode": "URL 中未找到授权码",
           "missingCodeVerifier": "请输入代码校验器",
-          "missingCredentials": "客户端 ID 和客户端密钥为必填项",
+          "missingCredentials": "必须填写客户端 ID。公开客户端请将客户端密钥留空。",
           "tokenExchangeFailed": "使用授权码兑换令牌失败"
         },
         "clientIdLabel": "客户端 ID",
