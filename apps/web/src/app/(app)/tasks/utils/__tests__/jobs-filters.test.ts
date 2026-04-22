@@ -187,6 +187,55 @@ describe("jobs-filters", () => {
         }),
       ).toBe(true);
     });
+
+    it("treats processing jobs as ineligible when filtering to AWAITING_INPUT", () => {
+      expect(
+        tasksViewJobStillEligibleForJobsListFilters(baseJob, {
+          scope: "workspace",
+          agentId: null,
+          jobStatus: AgentJobStatus.AWAITING_INPUT,
+        }),
+      ).toBe(false);
+    });
+
+    it("keeps input-required jobs when filtering to AWAITING_INPUT", () => {
+      expect(
+        tasksViewJobStillEligibleForJobsListFilters(
+          { ...baseJob, status: SokosumiJobStatus.INPUT_REQUIRED },
+          {
+            scope: "workspace",
+            agentId: null,
+            jobStatus: AgentJobStatus.AWAITING_INPUT,
+          },
+        ),
+      ).toBe(true);
+    });
+
+    it("treats result-pending jobs as ineligible when filtering to AWAITING_INPUT", () => {
+      expect(
+        tasksViewJobStillEligibleForJobsListFilters(
+          { ...baseJob, status: SokosumiJobStatus.RESULT_PENDING },
+          {
+            scope: "workspace",
+            agentId: null,
+            jobStatus: AgentJobStatus.AWAITING_INPUT,
+          },
+        ),
+      ).toBe(false);
+    });
+
+    it("keeps payment-failed jobs when filtering to FAILED", () => {
+      expect(
+        tasksViewJobStillEligibleForJobsListFilters(
+          { ...baseJob, status: SokosumiJobStatus.PAYMENT_FAILED },
+          {
+            scope: "workspace",
+            agentId: null,
+            jobStatus: AgentJobStatus.FAILED,
+          },
+        ),
+      ).toBe(true);
+    });
   });
 
   describe("mergeTopPageJobsWithListFilters", () => {
@@ -222,6 +271,52 @@ describe("jobs-filters", () => {
           jobStatus: AgentJobStatus.RUNNING,
         }),
       ).toEqual([refreshed[0]]);
+    });
+
+    it("drops stale processing tail rows when filtering to AWAITING_INPUT", () => {
+      const prev = [
+        {
+          id: "needs-input",
+          agentId: "x",
+          status: SokosumiJobStatus.INPUT_REQUIRED,
+        },
+        { id: "stale", agentId: "x", status: SokosumiJobStatus.PROCESSING },
+      ];
+      const refreshed = [
+        {
+          id: "needs-input",
+          agentId: "x",
+          status: SokosumiJobStatus.INPUT_REQUIRED,
+        },
+      ];
+      expect(
+        mergeTopPageJobsWithListFilters(prev, refreshed, {
+          scope: "workspace",
+          agentId: null,
+          jobStatus: AgentJobStatus.AWAITING_INPUT,
+        }),
+      ).toEqual([refreshed[0]]);
+    });
+
+    it("preserves payment-failed tail rows when filtering to FAILED", () => {
+      const prev = [
+        { id: "failed-job", agentId: "x", status: SokosumiJobStatus.FAILED },
+        {
+          id: "payment-failed",
+          agentId: "x",
+          status: SokosumiJobStatus.PAYMENT_FAILED,
+        },
+      ];
+      const refreshed = [
+        { id: "failed-job", agentId: "x", status: SokosumiJobStatus.FAILED },
+      ];
+      expect(
+        mergeTopPageJobsWithListFilters(prev, refreshed, {
+          scope: "workspace",
+          agentId: null,
+          jobStatus: AgentJobStatus.FAILED,
+        }),
+      ).toEqual([refreshed[0], prev[1]]);
     });
   });
 });

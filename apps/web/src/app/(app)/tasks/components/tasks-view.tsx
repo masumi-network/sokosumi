@@ -721,7 +721,13 @@ export function TasksView({
         setJobsItems((prev) =>
           mergeTopPageJobsWithListFilters(prev, result.jobs, jobsRouteFilters),
         );
-        setJobsCursor(result.nextCursor ?? null);
+        const refreshedJobIds = new Set(result.jobs.map((job) => job.id));
+        const hadJobsBeyondFirstPage = jobsItemsRef.current.some(
+          (job) => !refreshedJobIds.has(job.id),
+        );
+        setJobsCursor((prevCursor) =>
+          hadJobsBeyondFirstPage ? prevCursor : (result.nextCursor ?? null),
+        );
         setAgentPreviews((prev) => ({
           ...prev,
           ...result.agentPreviewById,
