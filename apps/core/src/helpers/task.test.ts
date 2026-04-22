@@ -6,10 +6,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
-  getTaskCannotArchiveMessage,
-  isTaskArchivableStatus,
   mapTask,
-  TASK_ARCHIVABLE_STATUSES,
   validateStatusTransition,
   validateTaskCoworkerAssignment,
 } from "./task";
@@ -630,42 +627,6 @@ describe("validateTaskCoworkerAssignment", () => {
         coworkerId: "   ",
       }),
     ).not.toThrow();
-  });
-});
-
-describe("isTaskArchivableStatus", () => {
-  it.each([
-    TaskStatus.DRAFT,
-    TaskStatus.READY,
-    TaskStatus.CANCELED,
-    TaskStatus.COMPLETED,
-    TaskStatus.FAILED,
-  ] as const)("returns true for %s", (status) => {
-    expect(isTaskArchivableStatus(status)).toBe(true);
-  });
-
-  it.each([
-    TaskStatus.INPUT_REQUIRED,
-    TaskStatus.AUTHENTICATION_REQUIRED,
-    TaskStatus.OUT_OF_CREDITS,
-    TaskStatus.CREDITS_TOPPED_UP,
-    TaskStatus.RUNNING,
-    TaskStatus.AWAITING_EXTERNAL,
-    TaskStatus.CANCEL_REQUESTED,
-  ] as const)("returns false for %s", (status) => {
-    expect(isTaskArchivableStatus(status)).toBe(false);
-  });
-
-  it("lists every archivable status in TASK_ARCHIVABLE_STATUSES", () => {
-    for (const status of TASK_ARCHIVABLE_STATUSES) {
-      expect(isTaskArchivableStatus(status)).toBe(true);
-    }
-  });
-
-  it("getTaskCannotArchiveMessage lists allowed statuses and the current one", () => {
-    const message = getTaskCannotArchiveMessage(TaskStatus.RUNNING);
-    expect(message).toContain(TASK_ARCHIVABLE_STATUSES.join(", "));
-    expect(message).toContain("Current status: RUNNING");
   });
 });
 

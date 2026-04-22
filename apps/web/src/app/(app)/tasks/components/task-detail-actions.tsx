@@ -1,6 +1,7 @@
 "use client";
 
 import { type MemberWithOrganization } from "@sokosumi/database";
+import { isTaskArchivableStatus } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import {
   Archive,
@@ -26,7 +27,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,7 +67,6 @@ import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
   getTaskLinkActionInput,
-  isTaskArchivableStatus,
   TASK_STATUS,
   type TaskStatus,
 } from "./task-detail-api-types";

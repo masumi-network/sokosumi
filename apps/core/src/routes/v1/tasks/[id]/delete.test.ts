@@ -1,10 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
+import { getTaskCannotArchiveMessage } from "@sokosumi/utils";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
-import { getTaskCannotArchiveMessage } from "@/helpers/task";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -59,7 +58,8 @@ function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
     return await next();
   });
 
-  app.onError(errorHandler);
+  // errorHandler is typed for RequestId-only context; this test app adds auth/workspace vars.
+  app.onError(errorHandler as never);
 
   mountDeleteTask(app as unknown as OpenAPIHonoWithAuth);
 
