@@ -19,9 +19,13 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskOwnership: requireTaskOwnershipMock,
 }));
 
-vi.mock("@/helpers/task", () => ({
-  mapTask: mapTaskMock,
-}));
+vi.mock("@/helpers/task", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/helpers/task")>();
+  return {
+    ...actual,
+    mapTask: mapTaskMock,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -132,5 +136,30 @@ describe("DELETE /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  it("returns 422 when the task status is not archivable", async () => {
+    const updateMock = vi.fn();
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          update: updateMock,
+        },
+      });
+    });
+
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.RUNNING,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(422);
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getTaskLinkActionInput,
+  isTaskArchivableStatus,
   mapVisibleTaskLinks,
   TASK_STATUS,
 } from "@/app/tasks/components/task-detail-api-types";
@@ -57,5 +58,27 @@ describe("task-detail-api-types", () => {
         relation: TaskLinkRelation.RELATED,
       },
     ]);
+  });
+
+  it.each([
+    TASK_STATUS.DRAFT,
+    TASK_STATUS.READY,
+    TASK_STATUS.CANCELED,
+    TASK_STATUS.COMPLETED,
+    TASK_STATUS.FAILED,
+  ] as const)("isTaskArchivableStatus returns true for %s", (status) => {
+    expect(isTaskArchivableStatus(status)).toBe(true);
+  });
+
+  it.each([
+    TASK_STATUS.INPUT_REQUIRED,
+    TASK_STATUS.AUTHENTICATION_REQUIRED,
+    TASK_STATUS.OUT_OF_CREDITS,
+    TASK_STATUS.CREDITS_TOPPED_UP,
+    TASK_STATUS.RUNNING,
+    TASK_STATUS.AWAITING_EXTERNAL,
+    TASK_STATUS.CANCEL_REQUESTED,
+  ] as const)("isTaskArchivableStatus returns false for %s", (status) => {
+    expect(isTaskArchivableStatus(status)).toBe(false);
   });
 });

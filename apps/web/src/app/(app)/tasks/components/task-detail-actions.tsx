@@ -67,6 +67,7 @@ import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
   getTaskLinkActionInput,
+  isTaskArchivableStatus,
   TASK_STATUS,
   type TaskStatus,
 } from "./task-detail-api-types";
@@ -168,7 +169,7 @@ export function TaskDetailActions({
   const canEdit =
     !isReadOnly &&
     (status === TASK_STATUS.DRAFT || status === TASK_STATUS.READY);
-  const canArchiveTask = !isReadOnly;
+  const canArchiveTask = !isReadOnly && isTaskArchivableStatus(status);
   const isFinalized =
     status === TASK_STATUS.COMPLETED ||
     status === TASK_STATUS.FAILED ||

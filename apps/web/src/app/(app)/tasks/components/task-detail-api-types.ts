@@ -1,3 +1,5 @@
+import { TaskStatus as PrismaTaskStatus } from "@sokosumi/database";
+
 import type { createTaskLink } from "@/lib/actions/task/action";
 import {
   type TaskEvent,
@@ -98,4 +100,14 @@ export function mapVisibleTaskLinks(links: TaskLink[]): VisibleTaskLink[] {
       status: link.peerTask.status,
       relation: link.relation,
     }));
+}
+
+export function isTaskArchivableStatus(status: TaskStatus): boolean {
+  return (
+    status === PrismaTaskStatus.DRAFT ||
+    status === PrismaTaskStatus.READY ||
+    status === PrismaTaskStatus.CANCELED ||
+    status === PrismaTaskStatus.COMPLETED ||
+    status === PrismaTaskStatus.FAILED
+  );
 }

@@ -168,9 +168,18 @@ export function isTaskStatusSpendable(status: TaskStatus | undefined): boolean {
   return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
-/** Any task status may be archived (soft-delete via archivedAt). */
-export function isTaskArchivableStatus(_status: TaskStatus): boolean {
-  return true;
+/**
+ * Tasks may be archived only when the coworker has not started work or has
+ * finished (terminal outcome or still editable pre-run states).
+ */
+export function isTaskArchivableStatus(status: TaskStatus): boolean {
+  return (
+    status === TaskStatus.DRAFT ||
+    status === TaskStatus.READY ||
+    status === TaskStatus.CANCELED ||
+    status === TaskStatus.COMPLETED ||
+    status === TaskStatus.FAILED
+  );
 }
 
 function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {

@@ -1,9 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { requireTaskOwnership } from "@/helpers/access-control";
+import { unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import { isTaskArchivableStatus, mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
@@ -30,6 +31,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
 
@@ -41,6 +43,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await prisma.$transaction(async (tx) => {
       const currentTask = await requireTaskOwnership(userContext, id, tx);
+
+      if (!isTaskArchivableStatus(currentTask.status)) {
+        throw unprocessableEntity(
+          "Task cannot be archived while the coworker is running",
+        );
+      }
 
       return tx.task.update({
         where: {

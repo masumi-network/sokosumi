@@ -632,10 +632,26 @@ describe("validateTaskCoworkerAssignment", () => {
 });
 
 describe("isTaskArchivableStatus", () => {
-  it("returns true for every task status", () => {
-    for (const status of Object.values(TaskStatus)) {
-      expect(isTaskArchivableStatus(status)).toBe(true);
-    }
+  it.each([
+    TaskStatus.DRAFT,
+    TaskStatus.READY,
+    TaskStatus.CANCELED,
+    TaskStatus.COMPLETED,
+    TaskStatus.FAILED,
+  ] as const)("returns true for %s", (status) => {
+    expect(isTaskArchivableStatus(status)).toBe(true);
+  });
+
+  it.each([
+    TaskStatus.INPUT_REQUIRED,
+    TaskStatus.AUTHENTICATION_REQUIRED,
+    TaskStatus.OUT_OF_CREDITS,
+    TaskStatus.CREDITS_TOPPED_UP,
+    TaskStatus.RUNNING,
+    TaskStatus.AWAITING_EXTERNAL,
+    TaskStatus.CANCEL_REQUESTED,
+  ] as const)("returns false for %s", (status) => {
+    expect(isTaskArchivableStatus(status)).toBe(false);
   });
 });
 

@@ -575,7 +575,6 @@ describe("TaskDetailActions", () => {
   it.each([
     TASK_STATUS.COMPLETED,
     TASK_STATUS.FAILED,
-    TASK_STATUS.CANCEL_REQUESTED,
   ] as const)("shows archive in the overflow menu for finalized status %s without edit", async (status) => {
     const user = userEvent.setup();
     renderActions({ status });
@@ -589,7 +588,7 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
-  it("shows archive for running tasks even when edit is unavailable", async () => {
+  it("hides archive while the coworker is running", async () => {
     const user = userEvent.setup();
     renderActions({
       status: TASK_STATUS.RUNNING,
@@ -598,10 +597,11 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
-    expect(
-      screen.getByRole("menuitem", { name: labels.archive }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancelRequest }),
+    ).toBeInTheDocument();
   });
 
   it("hides share and overflow actions in read-only workspace mode", () => {
