@@ -1,7 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
+import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
+import { getTaskCannotArchiveMessage } from "@/helpers/task";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -35,10 +38,11 @@ vi.mock("@/lib/db/prisma", () => ({
 
 function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables & WorkspaceVariables;
+    Variables: AuthVariables & WorkspaceVariables & RequestIdVariables;
   }>();
 
   app.use("*", async (c, next) => {
+    c.set("requestId", "req_delete_route_test");
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
@@ -54,6 +58,8 @@ function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
 
     return await next();
   });
+
+  app.onError(errorHandler);
 
   mountDeleteTask(app as unknown as OpenAPIHonoWithAuth);
 
@@ -161,5 +167,8 @@ describe("DELETE /tasks/{id}", () => {
 
     expect(response.status).toBe(422);
     expect(updateMock).not.toHaveBeenCalled();
+
+    const body = (await response.json()) as { message?: string };
+    expect(body.message).toBe(getTaskCannotArchiveMessage(TaskStatus.RUNNING));
   });
 });

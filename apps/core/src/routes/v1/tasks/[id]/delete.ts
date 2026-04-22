@@ -4,7 +4,11 @@ import { requireTaskOwnership } from "@/helpers/access-control";
 import { unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { isTaskArchivableStatus, mapTask } from "@/helpers/task";
+import {
+  getTaskCannotArchiveMessage,
+  isTaskArchivableStatus,
+  mapTask,
+} from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
@@ -46,7 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (!isTaskArchivableStatus(currentTask.status)) {
         throw unprocessableEntity(
-          "Task cannot be archived while the coworker is running",
+          getTaskCannotArchiveMessage(currentTask.status),
         );
       }
 

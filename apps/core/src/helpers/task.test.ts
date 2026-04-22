@@ -6,8 +6,10 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
+  getTaskCannotArchiveMessage,
   isTaskArchivableStatus,
   mapTask,
+  TASK_ARCHIVABLE_STATUSES,
   validateStatusTransition,
   validateTaskCoworkerAssignment,
 } from "./task";
@@ -652,6 +654,18 @@ describe("isTaskArchivableStatus", () => {
     TaskStatus.CANCEL_REQUESTED,
   ] as const)("returns false for %s", (status) => {
     expect(isTaskArchivableStatus(status)).toBe(false);
+  });
+
+  it("lists every archivable status in TASK_ARCHIVABLE_STATUSES", () => {
+    for (const status of TASK_ARCHIVABLE_STATUSES) {
+      expect(isTaskArchivableStatus(status)).toBe(true);
+    }
+  });
+
+  it("getTaskCannotArchiveMessage lists allowed statuses and the current one", () => {
+    const message = getTaskCannotArchiveMessage(TaskStatus.RUNNING);
+    expect(message).toContain(TASK_ARCHIVABLE_STATUSES.join(", "));
+    expect(message).toContain("Current status: RUNNING");
   });
 });
 

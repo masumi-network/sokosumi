@@ -168,18 +168,26 @@ export function isTaskStatusSpendable(status: TaskStatus | undefined): boolean {
   return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
+/** Status values for which archive (soft-delete) is allowed. Keep in sync with `isTaskArchivableStatus`. */
+export const TASK_ARCHIVABLE_STATUSES = [
+  TaskStatus.DRAFT,
+  TaskStatus.READY,
+  TaskStatus.CANCELED,
+  TaskStatus.COMPLETED,
+  TaskStatus.FAILED,
+] as const;
+
 /**
  * Tasks may be archived only when the coworker has not started work or has
  * finished (terminal outcome or still editable pre-run states).
  */
 export function isTaskArchivableStatus(status: TaskStatus): boolean {
-  return (
-    status === TaskStatus.DRAFT ||
-    status === TaskStatus.READY ||
-    status === TaskStatus.CANCELED ||
-    status === TaskStatus.COMPLETED ||
-    status === TaskStatus.FAILED
-  );
+  return (TASK_ARCHIVABLE_STATUSES as readonly TaskStatus[]).includes(status);
+}
+
+export function getTaskCannotArchiveMessage(currentStatus: TaskStatus): string {
+  const allowed = TASK_ARCHIVABLE_STATUSES.join(", ");
+  return `Tasks can only be archived when the status is one of: ${allowed}. Current status: ${currentStatus}.`;
 }
 
 function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
