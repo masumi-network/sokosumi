@@ -274,7 +274,7 @@ export type JobSummary = {
     resultHash?: string | null;
     workspace: WorkspaceSummary;
     user: UserSummary;
-    organization?: OrganizationSummary;
+    organization: OrganizationSummary;
 };
 
 export type WorkspaceSummary = {
@@ -589,7 +589,7 @@ export type Job = {
     identifierFromPurchaser?: string | null;
     workspace: WorkspaceSummary;
     user: UserSummary;
-    organization?: OrganizationSummary;
+    organization: OrganizationSummary;
     agent: {
         id: string;
         name: string;
@@ -868,9 +868,9 @@ export type TaskListItem = {
     userId: string;
     user: UserSummary;
     organizationId: string | null;
-    organization?: OrganizationSummary;
+    organization: OrganizationSummary;
     coworkerId: string | null;
-    coworker?: CoworkerSummary & ({
+    coworker: CoworkerSummary & ({
         [key: string]: unknown;
     } | null);
     name: string;
@@ -889,9 +889,9 @@ export type Task = {
     userId: string;
     user: UserSummary;
     organizationId: string | null;
-    organization?: OrganizationSummary;
+    organization: OrganizationSummary;
     coworkerId: string | null;
-    coworker?: CoworkerSummary & ({
+    coworker: CoworkerSummary & ({
         [key: string]: unknown;
     } | null);
     name: string;

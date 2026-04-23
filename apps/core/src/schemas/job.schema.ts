@@ -73,7 +73,7 @@ export const jobSummarySchema = z
     resultHash: z.string().nullish().openapi({ example: "result_hash" }),
     workspace: workspaceSummarySchema,
     user: userSummarySchema,
-    organization: organizationSummarySchema.nullish(),
+    organization: organizationSummarySchema.nullable(),
   })
   .openapi("JobSummary");
 
@@ -191,7 +191,7 @@ export const jobSchema = z
       .openapi({ example: "identifier_123" }),
     workspace: workspaceSummarySchema,
     user: userSummarySchema,
-    organization: organizationSummarySchema.nullish(),
+    organization: organizationSummarySchema.nullable(),
     agent: jobDetailsAgentSchema,
     events: z.array(jobDetailsEventSchema),
   })

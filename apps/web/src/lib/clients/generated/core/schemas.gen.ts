@@ -1045,7 +1045,8 @@ export const JobSummarySchema = {
         'status',
         'credits',
         'workspace',
-        'user'
+        'user',
+        'organization'
     ]
 } as const;
 
@@ -2292,6 +2293,7 @@ export const JobSchema = {
         'agentJobId',
         'workspace',
         'user',
+        'organization',
         'agent',
         'events'
     ]
@@ -3529,7 +3531,9 @@ export const TaskListItemSchema = {
         'userId',
         'user',
         'organizationId',
+        'organization',
         'coworkerId',
+        'coworker',
         'name',
         'description',
         'status',
@@ -3673,7 +3677,9 @@ export const TaskSchema = {
         'userId',
         'user',
         'organizationId',
+        'organization',
         'coworkerId',
+        'coworker',
         'name',
         'description',
         'status',
