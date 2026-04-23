@@ -1,3 +1,4 @@
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import type { Task } from "@/lib/clients/generated/core/types.gen";
@@ -6,11 +7,12 @@ import { buildTaskActivityActors } from "../task-activity-actors";
 
 describe("buildTaskActivityActors", () => {
   it("builds actor maps from task and embedded event summaries", () => {
+    const adaAvatar = "ipfs://bafyada";
     const task = {
       user: {
         id: "user-1",
         name: "Ada Lovelace",
-        image: "https://example.com/ada.png",
+        image: adaAvatar,
       },
       coworker: {
         id: "cow-1",
@@ -65,15 +67,10 @@ describe("buildTaskActivityActors", () => {
 
     const result = buildTaskActivityActors(task);
 
-    expect(result.currentUser).toEqual({
-      id: "user-1",
-      name: "Ada Lovelace",
-      image: "https://example.com/ada.png",
-    });
     expect(result.userById).toMatchObject({
       "user-1": {
         name: "Ada Lovelace",
-        image: "https://example.com/ada.png",
+        image: resolveIpfsOrHttpUrl(adaAvatar),
       },
       "user-2": {
         name: "Grace Hopper",

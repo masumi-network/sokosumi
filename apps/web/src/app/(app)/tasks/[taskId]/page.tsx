@@ -1,4 +1,5 @@
 import { subscriptionRepository } from "@sokosumi/database/repositories";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -357,7 +358,26 @@ async function TaskActivitySectionContent({
     currentPlanPromise,
     getTranslations("App.Tasks.Detail"),
   ]);
-  const { userById, coworkerById, currentUser } = buildTaskActivityActors(task);
+  const { userById: actorsUserById, coworkerById } =
+    buildTaskActivityActors(task);
+  const currentUser = session?.user
+    ? {
+        id: session.user.id,
+        name: session.user.name ?? "User",
+        image: session.user.image
+          ? resolveIpfsOrHttpUrl(session.user.image)
+          : null,
+      }
+    : null;
+  const userById = currentUser
+    ? {
+        ...actorsUserById,
+        [currentUser.id]: {
+          name: currentUser.name,
+          image: currentUser.image,
+        },
+      }
+    : actorsUserById;
   const agentNameById = buildAgentNameById(agents);
   const isFreePlan = currentPlan === "free";
   const isReadOnlyWorkspaceView =

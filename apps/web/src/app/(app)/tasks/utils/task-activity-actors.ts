@@ -9,14 +9,9 @@ export interface TaskActivityActorInfo {
   image: string | null;
 }
 
-export interface TaskActivityCurrentUser extends TaskActivityActorInfo {
-  id: string;
-}
-
 export interface TaskActivityActors {
   userById: Record<string, TaskActivityActorInfo>;
   coworkerById?: Record<string, TaskActivityActorInfo>;
-  currentUser: TaskActivityCurrentUser;
 }
 
 export function buildTaskActivityActors(
@@ -45,11 +40,6 @@ export function buildTaskActivityActors(
     userById,
     coworkerById:
       Object.keys(coworkerById).length > 0 ? coworkerById : undefined,
-    currentUser: {
-      id: task.user.id,
-      name: task.user.name,
-      image: getUserImage(task.user.image),
-    },
   };
 }
 
@@ -63,7 +53,7 @@ function addUserActor(
 ) {
   userById[user.id] = {
     name: user.name,
-    image: getUserImage(user.image),
+    image: user.image ? resolveIpfsOrHttpUrl(user.image) : null,
   };
 }
 
@@ -80,8 +70,4 @@ function addCoworkerActor(
     name: coworker.name,
     image: getCoworkerImage(coworker),
   };
-}
-
-function getUserImage(image: string | null | undefined): string | null {
-  return image ? resolveIpfsOrHttpUrl(image) : null;
 }

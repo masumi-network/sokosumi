@@ -1,7 +1,11 @@
 "use client";
 
 import { BlobStatus, TaskEventOrigin, TaskStatus } from "@sokosumi/database";
-import { extractFileLikeLinks, extractHttpLinks } from "@sokosumi/utils";
+import {
+  extractFileLikeLinks,
+  extractHttpLinks,
+  resolveIpfsOrHttpUrl,
+} from "@sokosumi/utils";
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -86,7 +90,7 @@ function getEventActorInfo(
     if (event.user) {
       return {
         name: event.user.name,
-        image: event.user.image ?? null,
+        image: event.user.image ? resolveIpfsOrHttpUrl(event.user.image) : null,
       };
     }
 
