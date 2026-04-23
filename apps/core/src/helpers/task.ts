@@ -19,6 +19,23 @@ type TaskEventWithOptionalTransaction = Omit<
   } | null;
 };
 
+/** Include for standalone task event API responses (list/create/coworker feed). */
+export const taskEventApiInclude = {
+  user: { select: { id: true, name: true, image: true } },
+  coworker: { select: { id: true, name: true, image: true, slug: true } },
+  transaction: { select: { amount: true } },
+} as const;
+
+type TaskEventForMapping = TaskEventWithOptionalTransaction & {
+  user?: { id: string; name: string; image: string | null } | null;
+  coworker?: {
+    id: string;
+    name: string;
+    image: string | null;
+    slug: string;
+  } | null;
+};
+
 interface ValidateTaskCoworkerAssignmentParams {
   status: TaskStatus;
   coworkerId: string | null | undefined;
@@ -152,11 +169,31 @@ export function validateTaskCoworkerAssignment({
   }
 }
 
-export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
-  const { cents, ...rest } = event;
+export function mapTaskEvent(event: TaskEventForMapping) {
+  const { cents, user, coworker, ...rest } = event;
+
   return {
     ...rest,
     credits: cents != null ? convertCentsToCredits(cents) : null,
+    ...(event.userId != null && user != null
+      ? {
+          user: {
+            id: user.id,
+            name: user.name,
+            image: user.image,
+          },
+        }
+      : {}),
+    ...(event.coworkerId != null && coworker != null
+      ? {
+          coworker: {
+            id: coworker.id,
+            name: coworker.name,
+            image: coworker.image,
+            slug: coworker.slug,
+          },
+        }
+      : {}),
   };
 }
 
@@ -182,17 +219,52 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     return total + convertCentsToCredits(amount * -1n);
   }, 0);
 
+  const taskOrganizationSummary =
+    task.organizationId != null && task.organization != null
+      ? {
+          id: task.organization.id,
+          name: task.organization.name,
+          slug: task.organization.slug,
+        }
+      : null;
+
+  const taskUserSummary =
+    task.user != null
+      ? {
+          id: task.user.id,
+          name: task.user.name,
+          image: task.user.image,
+        }
+      : {
+          id: task.userId,
+          name: "User",
+          image: null as string | null,
+        };
+
+  const taskCoworkerSummary =
+    task.coworkerId != null && task.coworker != null
+      ? {
+          id: task.coworker.id,
+          name: task.coworker.name,
+          image: task.coworker.image,
+          slug: task.coworker.slug,
+        }
+      : null;
+
   return {
     id: task.id,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     userId: task.userId,
     organizationId: task.organizationId,
+    user: taskUserSummary,
+    organization: taskOrganizationSummary,
     coworkerId: task.coworkerId,
+    coworker: taskCoworkerSummary,
     name: task.name,
     description: task.description,
     status: task.status,
-    events: task.events.map(mapTaskEvent),
+    events: task.events.map((event) => mapTaskEvent(event)),
     jobs: task.jobs.map(flattenJob),
     credits,
     workspace: mapWorkspaceSummary(task.workspace),

@@ -23,6 +23,24 @@ const userContext: AuthenticationContext = {
   role: "user",
 };
 
+const defaultTaskUser = {
+  id: "user_123",
+  name: "Test User",
+  image: null as string | null,
+};
+
+const defaultTaskCoworker = {
+  id: "cow_123",
+  name: "Test Coworker",
+  image: null as string | null,
+  slug: "test-coworker",
+};
+
+const defaultNestedJobUserOrg = {
+  user: defaultTaskUser,
+  organization: null as { id: string; name: string; slug: string } | null,
+};
+
 describe("validateStatusTransition", () => {
   it("rejects same-status transition", () => {
     expect(() => {
@@ -647,7 +665,10 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       userId: "user_123",
       organizationId: null,
+      user: defaultTaskUser,
+      organization: null,
       coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
       name: "Task with share",
       description: null,
       status: TaskStatus.READY,
@@ -675,7 +696,10 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       userId: "user_123",
       organizationId: null,
+      user: defaultTaskUser,
+      organization: null,
       coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
       name: "Task with job",
       description: null,
       status: TaskStatus.READY,
@@ -714,6 +738,7 @@ describe("mapTask", () => {
           purchase: null,
           transaction: null,
           events: [],
+          ...defaultNestedJobUserOrg,
         },
       ],
     } as unknown as TaskWithIncludes;
@@ -738,10 +763,14 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       userId: "user_123",
       organizationId: null,
+      user: defaultTaskUser,
+      organization: null,
       coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
       name: "Task with retries",
       description: null,
       status: TaskStatus.COMPLETED,
+      share: null,
       jobs: [],
       linksFrom: [],
       linksTo: [],
@@ -764,6 +793,8 @@ describe("mapTask", () => {
           coworkerId: "cow_123",
           transactionId: "txn_cancel",
           cents: convertCreditsToCents(2),
+          user: null,
+          coworker: defaultTaskCoworker,
           transaction: {
             amount: convertCreditsToCents(2) * -1n,
           },
@@ -782,6 +813,7 @@ describe("mapTask", () => {
           transactionId: null,
           cents: null,
           transaction: null,
+          user: defaultTaskUser,
         },
         {
           id: "evt_complete",
@@ -796,9 +828,11 @@ describe("mapTask", () => {
           coworkerId: "cow_123",
           transactionId: "txn_complete",
           cents: convertCreditsToCents(3),
+          coworker: defaultTaskCoworker,
           transaction: {
             amount: convertCreditsToCents(3) * -1n,
           },
+          user: null,
         },
       ],
     } as unknown as TaskWithIncludes;
@@ -819,10 +853,14 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       userId: "user_123",
       organizationId: null,
+      user: defaultTaskUser,
+      organization: null,
       coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
       name: "Task with top-up",
       description: null,
       status: TaskStatus.COMPLETED,
+      share: null,
       jobs: [],
       linksFrom: [],
       linksTo: [],
@@ -845,6 +883,8 @@ describe("mapTask", () => {
           coworkerId: "cow_123",
           transactionId: "txn_complete",
           cents: convertCreditsToCents(3),
+          user: null,
+          coworker: defaultTaskCoworker,
           transaction: { amount: convertCreditsToCents(3) * -1n },
         },
         {
@@ -861,6 +901,7 @@ describe("mapTask", () => {
           transactionId: null,
           cents: convertCreditsToCents(10),
           transaction: null,
+          user: defaultTaskUser,
         },
       ],
     } as unknown as TaskWithIncludes;
@@ -880,10 +921,14 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       userId: "user_123",
       organizationId: null,
+      user: defaultTaskUser,
+      organization: null,
       coworkerId: "cow_123",
+      coworker: defaultTaskCoworker,
       name: "Task with partial charge",
       description: null,
       status: TaskStatus.OUT_OF_CREDITS,
+      share: null,
       jobs: [],
       linksFrom: [],
       linksTo: [],
@@ -906,6 +951,8 @@ describe("mapTask", () => {
           coworkerId: "cow_123",
           transactionId: "txn_partial",
           cents: convertCreditsToCents(5),
+          user: null,
+          coworker: defaultTaskCoworker,
           transaction: {
             amount: convertCreditsToCents(2) * -1n,
           },

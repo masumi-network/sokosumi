@@ -273,6 +273,8 @@ export type JobSummary = {
     result?: string | null;
     resultHash?: string | null;
     workspace: WorkspaceSummary;
+    user: UserSummary;
+    organization?: OrganizationSummary;
 };
 
 export type WorkspaceSummary = {
@@ -284,6 +286,25 @@ export type WorkspaceSummary = {
         slug: string;
     } | null;
 };
+
+export type UserSummary = {
+    id: string;
+    name: string;
+    image?: string | null;
+};
+
+export type CoworkerSummary = {
+    id: string;
+    name: string;
+    image?: string | null;
+    slug: string;
+};
+
+export type OrganizationSummary = {
+    id: string;
+    name: string;
+    slug: string;
+} | null;
 
 export type GetChatUiMessagesResponseData = {
     messages: Array<ChatUiMessage>;
@@ -574,16 +595,8 @@ export type Job = {
     agentJobId: string;
     identifierFromPurchaser?: string | null;
     workspace: WorkspaceSummary;
-    user: {
-        id: string;
-        name: string;
-        image?: string | null;
-    };
-    organization?: {
-        id: string;
-        name: string;
-        slug: string;
-    } | null;
+    user: UserSummary;
+    organization?: OrganizationSummary;
     agent: {
         id: string;
         name: string;
@@ -810,6 +823,8 @@ export type TaskEvent = {
     authenticationUrl?: string | null;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
     status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    user?: UserSummary & unknown;
+    coworker?: CoworkerSummary & unknown;
 };
 
 export type CoworkerUsage = {
@@ -849,7 +864,10 @@ export type TaskListItem = {
     updatedAt: Date;
     userId: string;
     organizationId: string | null;
+    user: UserSummary;
+    organization?: OrganizationSummary;
     coworkerId: string | null;
+    coworker?: CoworkerSummary | null;
     name: string;
     description: string | null;
     status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
@@ -865,7 +883,10 @@ export type Task = {
     updatedAt: Date;
     userId: string;
     organizationId: string | null;
+    user: UserSummary;
+    organization?: OrganizationSummary;
     coworkerId: string | null;
+    coworker?: CoworkerSummary | null;
     name: string;
     description: string | null;
     status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
@@ -8983,6 +9004,19 @@ export type DeleteTasksByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         meta: {

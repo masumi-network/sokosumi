@@ -31,6 +31,26 @@ export function flattenJob(job: JobWithSummaryRelations) {
     credits: getCredits(job),
     status: computeJobStatus(job),
     workspace: mapWorkspaceSummary(job.workspace),
+    user:
+      job.user != null
+        ? {
+            id: job.user.id,
+            name: job.user.name,
+            image: job.user.image,
+          }
+        : {
+            id: job.userId,
+            name: "User",
+            image: null,
+          },
+    organization:
+      job.organizationId != null && job.organization != null
+        ? {
+            id: job.organization.id,
+            name: job.organization.name,
+            slug: job.organization.slug,
+          }
+        : null,
   };
 }
 

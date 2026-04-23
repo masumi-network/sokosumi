@@ -42,11 +42,17 @@ export type JobWithTransaction = Prisma.JobGetPayload<{
   include: typeof jobWithTransaction;
 }>;
 
+export const jobSummaryUserOrganizationInclude = {
+  user: { select: { id: true, name: true, image: true } },
+  organization: { select: { id: true, name: true, slug: true } },
+} as const;
+
 export const jobSummaryInclude = {
   ...workspaceRelationInclude,
   ...jobWithEvents,
   ...jobWithTransaction,
   ...jobWithPurchase,
+  ...jobSummaryUserOrganizationInclude,
 } as const;
 
 export type JobWithSummaryRelations = Prisma.JobGetPayload<{

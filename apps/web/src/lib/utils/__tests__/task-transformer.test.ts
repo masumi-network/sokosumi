@@ -1,25 +1,30 @@
 import { TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
+import type {
+  Task,
+  TaskListItem,
+} from "@/lib/clients/generated/core/types.gen";
 import {
   clampTaskNameForCoreApi,
   DEFAULT_TASK_NAME_MAX_LENGTH,
   mapTaskToTaskWithCoworker,
 } from "@/lib/utils/task-transformer";
 
-type TaskInput = Parameters<typeof mapTaskToTaskWithCoworker>[0];
-
 function buildTask(
   status: TaskStatus,
-  overrides?: Partial<TaskInput>,
-): TaskInput {
+  overrides?: Partial<TaskListItem>,
+): TaskListItem {
   return {
     id: "task-1",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     userId: "user-1",
     organizationId: null,
+    user: { id: "user-1", name: "Test User", image: null },
+    organization: null,
     coworkerId: null,
+    coworker: null,
     name: "Test task",
     description: null,
     status,
@@ -94,7 +99,7 @@ describe("mapTaskToTaskWithCoworker", () => {
 
   it("maps jobs count from the API task", () => {
     const task = buildTask(TaskStatus.READY, {
-      jobs: [{ id: "job-1" }] as TaskInput["jobs"],
+      jobs: [{ id: "job-1" }] as unknown as TaskListItem["jobs"],
     });
 
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
@@ -103,7 +108,8 @@ describe("mapTaskToTaskWithCoworker", () => {
   });
 
   it("preserves share information from task detail responses", () => {
-    const task = buildTask(TaskStatus.READY, {
+    const task: Task = {
+      ...buildTask(TaskStatus.READY),
       share: {
         id: "share-1",
         taskId: "task-1",
@@ -111,8 +117,9 @@ describe("mapTaskToTaskWithCoworker", () => {
         allowSearchIndexing: true,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      } as never,
-    });
+      },
+      links: [],
+    };
 
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 

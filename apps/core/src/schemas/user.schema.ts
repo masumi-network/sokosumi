@@ -19,7 +19,20 @@ export const userSchema = z
   })
   .openapi("User");
 
+/** Compact user shape embedded in jobs, tasks, and task events. */
+export const userSummarySchema = z
+  .object({
+    id: z.string().openapi({ example: "user_123" }),
+    name: z.string().openapi({ example: "Ada Lovelace" }),
+    image: z
+      .string()
+      .nullish()
+      .openapi({ example: "https://example.com/avatar.png" }),
+  })
+  .openapi("UserSummary");
+
 export type User = z.infer<typeof userSchema>;
+export type UserSummary = z.infer<typeof userSummarySchema>;
 
 export const userPreferencesResponseSchema = z.object({
   marketingOptIn: z.boolean().openapi({

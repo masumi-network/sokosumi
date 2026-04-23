@@ -135,6 +135,7 @@ function createApp({
       actor: "user",
       userId: "user_123",
       organizationId,
+      role: "user",
     });
     return await next();
   });

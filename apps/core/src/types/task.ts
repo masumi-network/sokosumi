@@ -1,5 +1,6 @@
 import { type Prisma, workspaceRelationInclude } from "@sokosumi/database";
 import {
+  jobSummaryUserOrganizationInclude,
   jobWithEvents,
   jobWithPurchase,
   jobWithTransaction,
@@ -11,10 +12,19 @@ import {
   taskLinksInclude,
 } from "@/types/task-link";
 
+const taskUserOrganizationInclude = {
+  user: { select: { id: true, name: true, image: true } },
+  organization: { select: { id: true, name: true, slug: true } },
+  coworker: { select: { id: true, name: true, image: true, slug: true } },
+} as const;
+
 const taskBaseInclude = {
   ...workspaceRelationInclude,
+  ...taskUserOrganizationInclude,
   events: {
     include: {
+      user: { select: { id: true, name: true, image: true } },
+      coworker: { select: { id: true, name: true, image: true, slug: true } },
       transaction: {
         select: { amount: true },
       },
@@ -29,6 +39,7 @@ const taskBaseInclude = {
       ...jobWithEvents,
       ...jobWithTransaction,
       ...jobWithPurchase,
+      ...jobSummaryUserOrganizationInclude,
     },
     orderBy: {
       createdAt: "asc",

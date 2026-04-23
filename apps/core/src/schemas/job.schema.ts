@@ -8,6 +8,8 @@ import type {
 import { inputGroupsSchema, inputSchemaSchema } from "@sokosumi/masumi/schemas";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { organizationSummarySchema } from "@/schemas/organization.schema";
+import { userSummarySchema } from "@/schemas/user.schema";
 
 import { fileSchema } from "./file.schema.js";
 import { linkSchema } from "./link.schema.js";
@@ -70,25 +72,12 @@ export const jobSummarySchema = z
     result: z.string().nullish().openapi({ example: "Markdown text" }),
     resultHash: z.string().nullish().openapi({ example: "result_hash" }),
     workspace: workspaceSummarySchema,
+    user: userSummarySchema,
+    organization: organizationSummarySchema.nullish(),
   })
   .openapi("JobSummary");
 
 export const jobSummariesSchema = z.array(jobSummarySchema);
-
-export const jobDetailsUserSchema = z.object({
-  id: z.string().openapi({ example: "user_123" }),
-  name: z.string().openapi({ example: "Ada Lovelace" }),
-  image: z
-    .string()
-    .nullish()
-    .openapi({ example: "https://example.com/avatar.png" }),
-});
-
-export const jobDetailsOrganizationSchema = z.object({
-  id: z.string().openapi({ example: "org_123" }),
-  name: z.string().openapi({ example: "Acme Labs" }),
-  slug: z.string().openapi({ example: "acme-labs" }),
-});
 
 export const jobDetailsAgentSchema = z.object({
   id: z.string().openapi({ example: "agent_123" }),
@@ -201,8 +190,8 @@ export const jobSchema = z
       .nullish()
       .openapi({ example: "identifier_123" }),
     workspace: workspaceSummarySchema,
-    user: jobDetailsUserSchema,
-    organization: jobDetailsOrganizationSchema.nullish(),
+    user: userSummarySchema,
+    organization: organizationSummarySchema.nullish(),
     agent: jobDetailsAgentSchema,
     events: z.array(jobDetailsEventSchema),
   })
