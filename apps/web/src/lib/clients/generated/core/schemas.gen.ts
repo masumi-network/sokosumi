@@ -934,12 +934,21 @@ export const JobSummarySchema = {
             type: 'string',
             example: 'user_123'
         },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
         organizationId: {
             type: [
                 'string',
                 'null'
             ],
             example: 'organization_123'
+        },
+        organization: {
+            $ref: '#/components/schemas/OrganizationSummary'
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
         },
         taskId: {
             type: [
@@ -1024,9 +1033,6 @@ export const JobSummarySchema = {
                 'null'
             ],
             example: 'result_hash'
-        },
-        workspace: {
-            $ref: '#/components/schemas/WorkspaceSummary'
         }
     },
     required: [
@@ -1035,10 +1041,62 @@ export const JobSummarySchema = {
         'updatedAt',
         'agentId',
         'userId',
+        'user',
+        'workspace',
         'jobType',
         'status',
-        'credits',
-        'workspace'
+        'credits'
+    ]
+} as const;
+
+export const UserSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ada Lovelace'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/avatar.png'
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const OrganizationSummarySchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            example: 'org_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Acme Labs'
+        },
+        slug: {
+            type: 'string',
+            example: 'acme-labs'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
     ]
 } as const;
 
@@ -1884,12 +1942,18 @@ export const JobSchema = {
             type: 'string',
             example: 'user_123'
         },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
         organizationId: {
             type: [
                 'string',
                 'null'
             ],
             example: 'organization_123'
+        },
+        organization: {
+            $ref: '#/components/schemas/OrganizationSummary'
         },
         taskId: {
             type: [
@@ -2009,55 +2073,6 @@ export const JobSchema = {
         },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
-        },
-        user: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                image: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/avatar.png'
-                }
-            },
-            required: [
-                'id',
-                'name'
-            ]
-        },
-        organization: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'org_123'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Acme Labs'
-                },
-                slug: {
-                    type: 'string',
-                    example: 'acme-labs'
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'slug'
-            ]
         },
         agent: {
             type: 'object',
@@ -2271,12 +2286,12 @@ export const JobSchema = {
         'updatedAt',
         'agentId',
         'userId',
+        'user',
         'jobType',
         'status',
         'credits',
         'agentJobId',
         'workspace',
-        'user',
         'agent',
         'events'
     ]
@@ -3110,12 +3125,73 @@ export const TaskEventSchema = {
             ],
             example: 'user_123'
         },
+        user: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/avatar.png'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Mirrors userId: omitted, null, or set when the actor user was loaded.'
+        },
         coworkerId: {
             type: [
                 'string',
                 'null'
             ],
             example: 'cow_123'
+        },
+        coworker: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cow_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ops Agent'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/logo'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'ops-agent'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ],
+            description: 'Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.'
         },
         transactionId: {
             type: [
@@ -3379,6 +3455,9 @@ export const TaskListItemSchema = {
             type: 'string',
             example: 'user_123'
         },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
         organizationId: {
             type: [
                 'string',
@@ -3386,12 +3465,18 @@ export const TaskListItemSchema = {
             ],
             example: 'org_123'
         },
+        organization: {
+            $ref: '#/components/schemas/OrganizationSummary'
+        },
         coworkerId: {
             type: [
                 'string',
                 'null'
             ],
             example: 'cow_123'
+        },
+        coworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
         },
         name: {
             type: 'string',
@@ -3449,8 +3534,11 @@ export const TaskListItemSchema = {
         'createdAt',
         'updatedAt',
         'userId',
+        'user',
         'organizationId',
+        'organization',
         'coworkerId',
+        'coworker',
         'name',
         'description',
         'status',
@@ -3458,6 +3546,39 @@ export const TaskListItemSchema = {
         'events',
         'jobs',
         'workspace'
+    ]
+} as const;
+
+export const CoworkerSummarySchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ops Agent'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/logo'
+        },
+        slug: {
+            type: 'string',
+            example: 'ops-agent'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
     ]
 } as const;
 
@@ -3482,6 +3603,9 @@ export const TaskSchema = {
             type: 'string',
             example: 'user_123'
         },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
         organizationId: {
             type: [
                 'string',
@@ -3489,12 +3613,18 @@ export const TaskSchema = {
             ],
             example: 'org_123'
         },
+        organization: {
+            $ref: '#/components/schemas/OrganizationSummary'
+        },
         coworkerId: {
             type: [
                 'string',
                 'null'
             ],
             example: 'cow_123'
+        },
+        coworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
         },
         name: {
             type: 'string',
@@ -3573,8 +3703,11 @@ export const TaskSchema = {
         'createdAt',
         'updatedAt',
         'userId',
+        'user',
         'organizationId',
+        'organization',
         'coworkerId',
+        'coworker',
         'name',
         'description',
         'status',

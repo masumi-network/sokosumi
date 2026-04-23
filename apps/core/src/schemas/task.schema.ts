@@ -2,12 +2,15 @@ import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { coworkerSummarySchema } from "@/schemas/coworker.schema";
 import {
   createJobRequestSchema,
   jobSummariesSchema,
 } from "@/schemas/job.schema";
+import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { taskShareSchema } from "@/schemas/public-share.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
+import { userSummarySchema } from "@/schemas/user.schema";
 import { workspaceSummarySchema } from "@/schemas/workspace.schema";
 
 export const taskEventSchema = z
@@ -17,7 +20,15 @@ export const taskEventSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     userId: z.string().nullish().openapi({ example: "user_123" }),
+    user: userSummarySchema.nullish().openapi({
+      description:
+        "Mirrors userId: omitted, null, or set when the actor user was loaded.",
+    }),
     coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
+    coworker: coworkerSummarySchema.nullish().openapi({
+      description:
+        "Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.",
+    }),
     transactionId: z.string().nullish().openapi({ example: "txn_123" }),
     credits: z.number().nullish().openapi({ example: 2.5 }),
     comment: z.string().nullish().openapi({ example: "Looks good." }),
@@ -49,8 +60,11 @@ const taskBaseSchema = z.object({
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
   userId: z.string().openapi({ example: "user_123" }),
+  user: userSummarySchema,
   organizationId: z.string().nullable().openapi({ example: "org_123" }),
+  organization: organizationSummarySchema.nullable(),
   coworkerId: z.string().nullable().openapi({ example: "cow_123" }),
+  coworker: coworkerSummarySchema.nullable(),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),

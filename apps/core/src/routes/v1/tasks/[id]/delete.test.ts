@@ -14,7 +14,36 @@ const { prismaTransactionMock, requireTaskOwnershipMock, mapTaskMock } =
   vi.hoisted(() => ({
     prismaTransactionMock: vi.fn(),
     requireTaskOwnershipMock: vi.fn(),
-    mapTaskMock: vi.fn((task: unknown) => task),
+    mapTaskMock: vi.fn((task: unknown) => {
+      const t = task as Record<string, unknown>;
+      return {
+        ...t,
+        user: t.user ?? {
+          id: t.userId,
+          name: "Task owner",
+          image: null,
+        },
+        organization:
+          t.organization ??
+          (t.organizationId
+            ? {
+                id: t.organizationId,
+                name: "Organization",
+                slug: "organization",
+              }
+            : null),
+        coworker:
+          t.coworker ??
+          (t.coworkerId
+            ? {
+                id: t.coworkerId,
+                name: "Coworker",
+                image: null,
+                slug: "coworker",
+              }
+            : null),
+      };
+    }),
   }));
 
 vi.mock("@/helpers/access-control", () => ({

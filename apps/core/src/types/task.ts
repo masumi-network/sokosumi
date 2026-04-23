@@ -1,5 +1,6 @@
 import { type Prisma, workspaceRelationInclude } from "@sokosumi/database";
 import {
+  jobSummaryUserOrganizationInclude,
   jobWithEvents,
   jobWithPurchase,
   jobWithTransaction,
@@ -11,14 +12,23 @@ import {
   taskLinksInclude,
 } from "@/types/task-link";
 
+export const taskEventApiInclude = {
+  user: { select: { id: true, name: true, image: true } },
+  coworker: { select: { id: true, name: true, image: true, slug: true } },
+  transaction: { select: { amount: true } },
+} as const;
+
+const taskUserOrganizationInclude = {
+  user: taskEventApiInclude.user,
+  organization: { select: { id: true, name: true, slug: true } },
+  coworker: taskEventApiInclude.coworker,
+} as const;
+
 const taskBaseInclude = {
   ...workspaceRelationInclude,
+  ...taskUserOrganizationInclude,
   events: {
-    include: {
-      transaction: {
-        select: { amount: true },
-      },
-    },
+    include: taskEventApiInclude,
     orderBy: {
       createdAt: "asc",
     },
@@ -29,6 +39,7 @@ const taskBaseInclude = {
       ...jobWithEvents,
       ...jobWithTransaction,
       ...jobWithPurchase,
+      ...jobSummaryUserOrganizationInclude,
     },
     orderBy: {
       createdAt: "asc",

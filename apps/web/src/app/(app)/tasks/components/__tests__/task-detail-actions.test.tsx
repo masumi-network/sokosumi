@@ -1200,7 +1200,7 @@ describe("TaskDetailActions", () => {
   it("archives the task from the confirmation dialog", async () => {
     const user = userEvent.setup();
     const deleteTaskMock = vi.mocked(deleteTask);
-    deleteTaskMock.mockResolvedValue(undefined);
+    deleteTaskMock.mockResolvedValue({ taskId: "task-1" });
 
     renderActions({ organizations: undefined });
 

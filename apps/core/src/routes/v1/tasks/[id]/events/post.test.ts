@@ -104,6 +104,7 @@ interface TaskEventRecord {
 interface TransactionMock {
   taskEvent: {
     create: ReturnType<typeof vi.fn>;
+    findUnique?: ReturnType<typeof vi.fn>;
   };
   task: {
     updateMany: ReturnType<typeof vi.fn>;
@@ -163,7 +164,41 @@ function createApp(authContext: AuthenticationContext) {
   return app;
 }
 
+function enrichTaskEventRowForResponse(record: TaskEventRecord) {
+  return {
+    ...record,
+    user: record.userId
+      ? { id: record.userId, name: "Task user", image: null }
+      : null,
+    coworker: record.coworkerId
+      ? {
+          id: record.coworkerId,
+          name: "Task coworker",
+          image: null,
+          slug: "task-coworker",
+        }
+      : null,
+    transaction: null as { amount: bigint } | null,
+  };
+}
+
 function mockTransaction(tx: TransactionMock) {
+  const innerCreate = tx.taskEvent.create;
+  const findUnique = (tx.taskEvent.findUnique ??= vi.fn());
+  tx.taskEvent.create = vi
+    .fn()
+    .mockImplementation(async (...args: unknown[]) => {
+      const raw = await Promise.resolve(
+        (innerCreate as (...a: unknown[]) => unknown)(...args),
+      );
+      if (raw == null) {
+        return raw;
+      }
+      const created = raw as TaskEventRecord;
+      findUnique.mockResolvedValue(enrichTaskEventRowForResponse(created));
+      return created;
+    });
+
   prismaTransactionMock.mockImplementation(
     async (callback: (tx: TransactionMock) => unknown) => {
       return await callback(tx);
