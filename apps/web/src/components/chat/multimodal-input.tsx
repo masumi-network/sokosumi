@@ -776,7 +776,83 @@ function PureMultimodalInput({
   );
 }
 
-export const MultimodalInput = memo(PureMultimodalInput);
+function areMultimodalInputPropsEqual(
+  prevProps: Readonly<MultimodalInputProps>,
+  nextProps: Readonly<MultimodalInputProps>,
+): boolean {
+  if (prevProps.input !== nextProps.input) {
+    return false;
+  }
+  if (prevProps.status !== nextProps.status) {
+    return false;
+  }
+  if (prevProps.chatId !== nextProps.chatId) {
+    return false;
+  }
+  if (prevProps.submitBlocked !== nextProps.submitBlocked) {
+    return false;
+  }
+  if (prevProps.controlledComposeKind !== nextProps.controlledComposeKind) {
+    return false;
+  }
+  if (prevProps.className !== nextProps.className) {
+    return false;
+  }
+  if (prevProps.coworkers !== nextProps.coworkers) {
+    return false;
+  }
+  if (prevProps.coworkersLoading !== nextProps.coworkersLoading) {
+    return false;
+  }
+  if (prevProps.enterSubmitsOnMobile !== nextProps.enterSubmitsOnMobile) {
+    return false;
+  }
+  if (prevProps.blurOnSendOnMobile !== nextProps.blurOnSendOnMobile) {
+    return false;
+  }
+  if (prevProps.coworker?.id !== nextProps.coworker?.id) {
+    return false;
+  }
+  if (prevProps.selectedModel?.id !== nextProps.selectedModel?.id) {
+    return false;
+  }
+  if (prevProps.setInput !== nextProps.setInput) {
+    return false;
+  }
+  if (prevProps.onSendMessage !== nextProps.onSendMessage) {
+    return false;
+  }
+  if (prevProps.sendMessage !== nextProps.sendMessage) {
+    return false;
+  }
+  if (prevProps.onComposeKindChange !== nextProps.onComposeKindChange) {
+    return false;
+  }
+  if (prevProps.onSelectModel !== nextProps.onSelectModel) {
+    return false;
+  }
+  if (prevProps.onCoworkerChange !== nextProps.onCoworkerChange) {
+    return false;
+  }
+
+  // `messages` is not read in the component body; ignore unstable `[]` from welcome shell.
+
+  if (prevProps.status === "submitted" && nextProps.status === "submitted") {
+    if (prevProps.stop !== nextProps.stop) {
+      return false;
+    }
+    if (prevProps.setMessages !== nextProps.setMessages) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export const MultimodalInput = memo(
+  PureMultimodalInput,
+  areMultimodalInputPropsEqual,
+);
 
 function PureStopButton({
   stop,

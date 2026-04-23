@@ -73,6 +73,9 @@ function isConversationUuid(value: string): boolean {
 
 const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
 
+/** Stable no-op for inputs that do not wire `useChat` stop; avoids breaking memo equality on `stop`. */
+function noopChatComposerStop() {}
+
 interface SlotPayload {
   conversationId: string | null;
   model: { id: string; name: string } | null;
@@ -1425,7 +1428,7 @@ export default function ChatInterface({
                   input={input}
                   setInput={setInput}
                   status={selectedChatStatus}
-                  stop={() => {}}
+                  stop={noopChatComposerStop}
                   messages={displayedMessages}
                   setMessages={setMessagesForInput}
                   sendMessage={sendMessageForInput}
@@ -1454,7 +1457,7 @@ export default function ChatInterface({
             setMessages={() => {}}
             sendMessage={sendMessageForInput}
             status="ready"
-            stop={() => {}}
+            stop={noopChatComposerStop}
             coworkers={coworkers}
             initialCoworker={effectiveWelcomeCoworker ?? undefined}
             onCoworkerChange={handleWelcomeCoworkerChange}
