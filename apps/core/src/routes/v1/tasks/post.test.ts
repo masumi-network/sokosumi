@@ -139,7 +139,18 @@ describe("POST /tasks", () => {
       updatedAt: "2026-04-02T08:00:00.000Z",
       userId: "user_123",
       organizationId: "org_123",
+      user: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: null,
+      },
+      organization: {
+        id: "org_123",
+        name: "Acme Labs",
+        slug: "acme-labs",
+      },
       coworkerId: null,
+      coworker: null,
       name: "New Task",
       description: null,
       status: TaskStatus.DRAFT,

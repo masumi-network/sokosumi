@@ -4,9 +4,18 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { isCoworkerAuthContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
-import type { TaskListItemWithIncludes, TaskWithIncludes } from "@/types/task";
+import {
+  type TaskListItemWithIncludes,
+  type TaskWithIncludes,
+  taskEventApiInclude,
+} from "@/types/task";
 
 import { unprocessableEntity } from "./error";
+import {
+  coworkerSummaryFromLoadedRelation,
+  organizationSummaryFromLoadedRelation,
+  userSummaryFromLoadedRelation,
+} from "./loaded-relation-summaries";
 import { mapTaskLinksForTask } from "./task-link";
 import { mapWorkspaceSummary } from "./workspace";
 
@@ -16,6 +25,18 @@ type TaskEventWithOptionalTransaction = Omit<
 > & {
   transaction?: {
     amount: bigint;
+  } | null;
+};
+
+export { taskEventApiInclude };
+
+type TaskEventForMapping = TaskEventWithOptionalTransaction & {
+  user?: { id: string; name: string; image: string | null } | null;
+  coworker?: {
+    id: string;
+    name: string;
+    image: string | null;
+    slug: string;
   } | null;
 };
 
@@ -152,11 +173,31 @@ export function validateTaskCoworkerAssignment({
   }
 }
 
-export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
-  const { cents, ...rest } = event;
+export function mapTaskEvent(event: TaskEventForMapping) {
+  const { cents, user, coworker, ...rest } = event;
+
   return {
     ...rest,
     credits: cents != null ? convertCentsToCredits(cents) : null,
+    ...(event.userId != null && user != null
+      ? {
+          user: {
+            id: user.id,
+            name: user.name,
+            image: user.image,
+          },
+        }
+      : {}),
+    ...(event.coworkerId != null && coworker != null
+      ? {
+          coworker: {
+            id: coworker.id,
+            name: coworker.name,
+            image: coworker.image,
+            slug: coworker.slug,
+          },
+        }
+      : {}),
   };
 }
 
@@ -182,13 +223,34 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     return total + convertCentsToCredits(amount * -1n);
   }, 0);
 
+  const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
+    `Task ${task.id}`,
+    task.organizationId,
+    task.organization ?? null,
+  );
+
+  const taskUserSummary = userSummaryFromLoadedRelation(
+    `Task ${task.id}`,
+    task.userId,
+    task.user,
+  );
+
+  const taskCoworkerSummary = coworkerSummaryFromLoadedRelation(
+    `Task ${task.id}`,
+    task.coworkerId,
+    task.coworker ?? null,
+  );
+
   return {
     id: task.id,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     userId: task.userId,
     organizationId: task.organizationId,
+    user: taskUserSummary,
+    organization: taskOrganizationSummary,
     coworkerId: task.coworkerId,
+    coworker: taskCoworkerSummary,
     name: task.name,
     description: task.description,
     status: task.status,
