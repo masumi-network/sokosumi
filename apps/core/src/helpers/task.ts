@@ -11,8 +11,12 @@ import {
 } from "@/types/task";
 
 import { unprocessableEntity } from "./error";
+import {
+  coworkerSummaryFromLoadedRelation,
+  organizationSummaryFromLoadedRelation,
+  userSummaryFromLoadedRelation,
+} from "./loaded-relation-summaries";
 import { mapTaskLinksForTask } from "./task-link";
-import { userSummaryFromLoadedRelation } from "./user-summary";
 import { mapWorkspaceSummary } from "./workspace";
 
 type TaskEventWithOptionalTransaction = Omit<
@@ -219,14 +223,11 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     return total + convertCentsToCredits(amount * -1n);
   }, 0);
 
-  const taskOrganizationSummary =
-    task.organizationId != null && task.organization != null
-      ? {
-          id: task.organization.id,
-          name: task.organization.name,
-          slug: task.organization.slug,
-        }
-      : null;
+  const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
+    `Task ${task.id}`,
+    task.organizationId,
+    task.organization ?? null,
+  );
 
   const taskUserSummary = userSummaryFromLoadedRelation(
     `Task ${task.id}`,
@@ -234,15 +235,11 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.user,
   );
 
-  const taskCoworkerSummary =
-    task.coworkerId != null && task.coworker != null
-      ? {
-          id: task.coworker.id,
-          name: task.coworker.name,
-          image: task.coworker.image,
-          slug: task.coworker.slug,
-        }
-      : null;
+  const taskCoworkerSummary = coworkerSummaryFromLoadedRelation(
+    `Task ${task.id}`,
+    task.coworkerId,
+    task.coworker ?? null,
+  );
 
   return {
     id: task.id,

@@ -10,7 +10,10 @@ import {
   getResultHash,
 } from "@sokosumi/database/helpers";
 
-import { userSummaryFromLoadedRelation } from "@/helpers/user-summary";
+import {
+  organizationSummaryFromLoadedRelation,
+  userSummaryFromLoadedRelation,
+} from "@/helpers/loaded-relation-summaries";
 import { mapWorkspaceSummary } from "@/helpers/workspace";
 
 export function flattenJob(job: JobWithSummaryRelations) {
@@ -33,14 +36,11 @@ export function flattenJob(job: JobWithSummaryRelations) {
     status: computeJobStatus(job),
     workspace: mapWorkspaceSummary(job.workspace),
     user: userSummaryFromLoadedRelation(`Job ${job.id}`, job.userId, job.user),
-    organization:
-      job.organizationId != null && job.organization != null
-        ? {
-            id: job.organization.id,
-            name: job.organization.name,
-            slug: job.organization.slug,
-          }
-        : null,
+    organization: organizationSummaryFromLoadedRelation(
+      `Job ${job.id}`,
+      job.organizationId,
+      job.organization ?? null,
+    ),
   };
 }
 
@@ -68,18 +68,12 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
     agentJobId: job.agentJobId,
     identifierFromPurchaser: job.identifierFromPurchaser,
     workspace: mapWorkspaceSummary(job.workspace),
-    user: {
-      id: job.user.id,
-      name: job.user.name,
-      image: job.user.image,
-    },
-    organization: job.organization
-      ? {
-          id: job.organization.id,
-          name: job.organization.name,
-          slug: job.organization.slug,
-        }
-      : null,
+    user: userSummaryFromLoadedRelation(`Job ${job.id}`, job.userId, job.user),
+    organization: organizationSummaryFromLoadedRelation(
+      `Job ${job.id}`,
+      job.organizationId,
+      job.organization ?? null,
+    ),
     agent: {
       id: job.agent.id,
       name: job.agent.name,
