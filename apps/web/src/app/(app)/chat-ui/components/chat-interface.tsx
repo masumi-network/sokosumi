@@ -2,10 +2,16 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
+import { TaskStatus } from "@sokosumi/database";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { Loader2 } from "lucide-react";
-import { useParams, usePathname, useSearchParams } from "next/navigation";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -23,7 +29,12 @@ import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { useCoworkerPostRefreshAssistantPoll } from "@/app/chat/hooks/use-coworker-post-refresh-assistant-poll";
-import type { Chat, Coworker } from "@/app/chat/utils/types";
+import type {
+  Chat,
+  ChatComposeKind,
+  ChatComposeSubmitOptions,
+  Coworker,
+} from "@/app/chat/utils/types";
 import { useChatCreation } from "@/app/chat-ui/hooks/use-chat-creation";
 import { useChatSelection } from "@/app/chat-ui/hooks/use-chat-selection";
 import {
@@ -40,6 +51,7 @@ import {
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
+import { createTask } from "@/lib/actions/task/action";
 
 import MessageList from "./message-list";
 
@@ -97,6 +109,7 @@ export default function ChatInterface({
   const t = useTranslations("App.Chat.Chat");
   const params = useParams<{ conversationId?: string }>();
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isRouteDriven = navigationMode === "route";
   const isChatPath = useMemo(() => isChatShellPathname(pathname), [pathname]);
@@ -219,6 +232,22 @@ export default function ChatInterface({
     [],
   );
 
+  const [welcomeComposeKind, setWelcomeComposeKind] =
+    useState<ChatComposeKind>("chat");
+  const [isWelcomeTaskSubmitting, setIsWelcomeTaskSubmitting] = useState(false);
+  const welcomeTaskCreationInFlightRef = useRef(false);
+
+  const previousSelectedChatIdForComposeRef = useRef<string | null>(
+    selectedChatId,
+  );
+  useEffect(() => {
+    const previous = previousSelectedChatIdForComposeRef.current;
+    previousSelectedChatIdForComposeRef.current = selectedChatId;
+    if (previous !== null && selectedChatId === null) {
+      setWelcomeComposeKind("chat");
+    }
+  }, [selectedChatId]);
+
   useEffect(() => {
     if (isRouteDriven && !urlConversationId && isChatPath) {
       setWelcomeSelectedCoworker(null);
@@ -258,6 +287,7 @@ export default function ChatInterface({
     setInput("");
     setWelcomeSelectedCoworker(null);
     setWelcomeSelectedModel(null);
+    setWelcomeComposeKind("chat");
   }, [controlledConversationId, isRouteDriven, setSelectedModel]);
 
   useEffect(() => {
@@ -1112,12 +1142,56 @@ export default function ChatInterface({
       messageText: string,
       coworker?: Coworker,
       model?: { id: string; name: string },
-    ) => {
-      if (!messageText.trim() || isLoading) return;
+      options?: ChatComposeSubmitOptions,
+    ): Promise<boolean> => {
+      if (!messageText.trim() || isLoading) {
+        return false;
+      }
 
       const trimmedMessage = messageText.trim();
+      const composeKind = options?.kind ?? "chat";
 
       if (!selectedChatId) {
+        if (composeKind === "task") {
+          if (welcomeTaskCreationInFlightRef.current) {
+            return false;
+          }
+
+          const selectedTaskCoworker =
+            coworker ??
+            coworkers.find((candidate) =>
+              candidate.capabilities?.includes("tasks"),
+            ) ??
+            null;
+
+          if (!selectedTaskCoworker) {
+            toast.error(t("noTaskCoworkers"));
+            return false;
+          }
+
+          welcomeTaskCreationInFlightRef.current = true;
+          setIsWelcomeTaskSubmitting(true);
+          try {
+            const result = await createTask({
+              description: trimmedMessage,
+              coworkerId: selectedTaskCoworker.id,
+              status:
+                options?.taskStatus === "DRAFT"
+                  ? TaskStatus.DRAFT
+                  : TaskStatus.READY,
+            });
+            router.push(`/tasks/${result.taskId}`);
+            return true;
+          } catch (error) {
+            console.error("Failed to create task from chat composer", error);
+            toast.error(t("taskCreationFailed"));
+            return false;
+          } finally {
+            welcomeTaskCreationInFlightRef.current = false;
+            setIsWelcomeTaskSubmitting(false);
+          }
+        }
+
         setIsWelcomeTransitioning(true);
         await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -1134,28 +1208,28 @@ export default function ChatInterface({
           if (!selectedCoworker) {
             toast.error(t("noCoworkersAvailable"));
             setIsWelcomeTransitioning(false);
-            return;
+            return false;
           }
           conversationId = await handleCoworkerSelected(selectedCoworker);
         }
 
         if (!conversationId) {
           setIsWelcomeTransitioning(false);
-          return;
+          return false;
         }
 
         if (!currentChatIdRef.current) {
           await new Promise((resolve) => setTimeout(resolve, 100));
           if (!currentChatIdRef.current) {
             setIsWelcomeTransitioning(false);
-            return;
+            return false;
           }
         }
 
         const cid = currentChatIdRef.current ?? conversationId;
         const sent = cid ? sendInConversation(cid, trimmedMessage) : false;
         if (sent) setInput("");
-        return;
+        return sent;
       }
 
       if (selectedChatId) {
@@ -1175,6 +1249,7 @@ export default function ChatInterface({
 
       const sent = sendInConversation(selectedChatId, trimmedMessage);
       if (sent) setInput("");
+      return sent;
     },
     [
       coworkers,
@@ -1187,6 +1262,7 @@ export default function ChatInterface({
       selectedModel,
       effectiveWelcomeCoworker,
       t,
+      router,
       setIsWelcomeTransitioning,
       currentChatIdRef,
       setChats,
@@ -1340,7 +1416,7 @@ export default function ChatInterface({
               <>
                 <div
                   aria-hidden
-                  className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
+                  className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-5 h-32 bg-linear-to-t to-transparent"
                 />
                 <ChatInputContainer
                   key={selectedChatId}
@@ -1367,6 +1443,9 @@ export default function ChatInterface({
             mobileKeyboardOptimized={mobileKeyboardOptimized}
             showGreetingAndSuggestions={showGreetingAndSuggestions}
             userName={userName?.split(" ")[0] ?? userName}
+            welcomeComposeKind={welcomeComposeKind}
+            onWelcomeComposeKindChange={setWelcomeComposeKind}
+            welcomeSendBlocked={isWelcomeTaskSubmitting}
             onSendMessage={handleSendMessage}
             isTransitioning={isWelcomeTransitioning}
             input={input}

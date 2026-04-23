@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Rss, Sparkles, SquareCheckBig } from "lucide-react";
+import { CalendarClock, ListTodo, Rss, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -41,7 +41,7 @@ export default function MenuItems() {
       key: "task-manager",
       href: "/tasks",
       label: t("taskManager"),
-      Icon: SquareCheckBig,
+      Icon: ListTodo,
     },
     {
       key: "my-feed",

@@ -33,6 +33,7 @@ interface CoworkerModelSelectorProps {
   onSelectCoworker: (coworker: Coworker) => void;
   onSelectModel?: (model: Model | null) => void;
   disabled?: boolean;
+  showModels?: boolean;
 }
 
 function ModelIcon({
@@ -62,6 +63,7 @@ export default function CoworkerModelSelector({
   onSelectCoworker,
   onSelectModel,
   disabled = false,
+  showModels = true,
 }: CoworkerModelSelectorProps) {
   const t = useTranslations("App.Chat.Chat");
   const [open, setOpen] = useState(false);
@@ -202,28 +204,31 @@ export default function CoworkerModelSelector({
             ))}
           </div>
 
-          {/* Models Section */}
-          <div className="border-t px-3 pt-3 pb-2">
-            <h3 className="text-foreground text-xs font-semibold">
-              {t("models")}
-            </h3>
-          </div>
-          <div className="px-1 pb-2">
-            {models.map((model) => (
-              <button
-                key={model.id}
-                type="button"
-                onClick={() => handleModelSelect(model)}
-                className={cn(
-                  "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
-                  selectedModel?.id === model.id && "bg-accent",
-                )}
-              >
-                <ModelIcon modelId={model.id} modelName={model.name} />
-                <span className="flex-1 text-left">{model.name}</span>
-              </button>
-            ))}
-          </div>
+          {showModels ? (
+            <>
+              <div className="border-t px-3 pt-3 pb-2">
+                <h3 className="text-foreground text-xs font-semibold">
+                  {t("models")}
+                </h3>
+              </div>
+              <div className="px-1 pb-2">
+                {models.map((model) => (
+                  <button
+                    key={model.id}
+                    type="button"
+                    onClick={() => handleModelSelect(model)}
+                    className={cn(
+                      "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
+                      selectedModel?.id === model.id && "bg-accent",
+                    )}
+                  >
+                    <ModelIcon modelId={model.id} modelName={model.name} />
+                    <span className="flex-1 text-left">{model.name}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
       </PopoverContent>
     </Popover>
