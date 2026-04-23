@@ -1,6 +1,6 @@
 "use client";
 
-import { ListPlus, MessageSquarePlus } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -23,7 +23,7 @@ export default function NewChatTaskActions() {
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent>
-        <SidebarMenu className="gap-0">
+        <SidebarMenu className="gap-0 pt-2">
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isChatActive}>
               <SheetClose asChild>
@@ -37,25 +37,8 @@ export default function NewChatTaskActions() {
                       : "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
                   )}
                 >
-                  <MessageSquarePlus className="size-4" aria-hidden />
-                  <span className="flex-1 truncate">{tChat("newChat")}</span>
-                </Link>
-              </SheetClose>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            {/* New Task is never shown as the active sidebar item (Tasks nav covers `/tasks/*`). */}
-            <SidebarMenuButton asChild>
-              <SheetClose asChild>
-                <Link
-                  href="/tasks/new"
-                  className={cn(
-                    "flex min-h-auto w-full items-center gap-2 px-3",
-                    "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
-                  )}
-                >
-                  <ListPlus className="size-4" aria-hidden />
-                  <span className="flex-1 truncate">{tChat("newTask")}</span>
+                  <Plus className="size-4" aria-hidden />
+                  <span className="flex-1 truncate">{tChat("sidebarNew")}</span>
                 </Link>
               </SheetClose>
             </SidebarMenuButton>
