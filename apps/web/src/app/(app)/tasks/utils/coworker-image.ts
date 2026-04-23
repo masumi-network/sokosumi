@@ -1,11 +1,15 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
-import type { TaskWithCoworker } from "@/lib/types/task";
-
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
 
+interface CoworkerImageSource {
+  image?: string | null;
+  slug?: string | null;
+  name?: string | null;
+}
+
 export function getCoworkerImage(
-  coworker: TaskWithCoworker["coworker"],
+  coworker: CoworkerImageSource | null | undefined,
 ): string | null {
   if (coworker?.image) {
     return resolveIpfsOrHttpUrl(coworker.image);

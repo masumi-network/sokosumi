@@ -123,12 +123,20 @@ function createEvent(
     comment = null,
     authenticationUrl = null,
     origin = TaskEventOrigin.SOKOSUMI,
+    userId = "user-1",
+    user,
+    coworkerId = null,
+    coworker,
   }: {
     createdAt: string;
     status: TaskStatus | null;
     comment?: string | null;
     authenticationUrl?: string | null;
     origin?: TaskEventOrigin;
+    userId?: string | null;
+    user?: TaskEvent["user"];
+    coworkerId?: string | null;
+    coworker?: TaskEvent["coworker"];
   },
 ): TaskEvent {
   return {
@@ -140,8 +148,10 @@ function createEvent(
     comment,
     authenticationUrl,
     origin,
-    userId: "user-1",
-    coworkerId: null,
+    userId,
+    user,
+    coworkerId,
+    coworker,
     transactionId: null,
   } as unknown as TaskEvent;
 }
@@ -300,6 +310,86 @@ describe("TaskActivitySection", () => {
     expect(
       screen.queryByRole("img", { name: "Alice" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders embedded user data without relying on current session maps", () => {
+    const events: TaskEvent[] = [
+      createEvent("embedded-user-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Left a note",
+        userId: "user-2",
+        user: {
+          id: "user-2",
+          name: "Ada Lovelace",
+          image: null,
+        },
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+  });
+
+  it("prefers embedded coworker data over fallback coworker maps", () => {
+    const events: TaskEvent[] = [
+      createEvent("embedded-coworker-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "I handled this",
+        userId: null,
+        coworkerId: "cow-1",
+        coworker: {
+          id: "cow-1",
+          name: "Ops Agent",
+          image: null,
+          slug: "ops-agent",
+        },
+      }),
+    ];
+
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        coworkerById={{
+          "cow-1": {
+            name: "Fallback Coworker",
+            image: null,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Ops Agent")).toBeInTheDocument();
+    expect(screen.queryByText("Fallback Coworker")).not.toBeInTheDocument();
+  });
+
+  it("falls back to actor maps when embedded event actors are missing", () => {
+    const events: TaskEvent[] = [
+      createEvent("mapped-user-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Left a note",
+        userId: "user-2",
+      }),
+    ];
+
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        userById={{
+          "user-2": {
+            name: "Grace Hopper",
+            image: null,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Grace Hopper")).toBeInTheDocument();
   });
 
   it("renders extracted file and link sources for markdown comments", () => {

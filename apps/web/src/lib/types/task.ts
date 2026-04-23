@@ -4,6 +4,7 @@ import type { Coworker } from "@/lib/clients/generated/core";
 import type {
   TaskEvent,
   TaskShare,
+  UserSummary,
 } from "@/lib/clients/generated/core/types.gen";
 
 export type { TaskEvent };
@@ -20,6 +21,7 @@ export interface TaskWithCoworker {
   name: string;
   status: TaskStatus;
   userId: string;
+  user: UserSummary;
   createdAt: string;
   updatedAt: string;
   jobsCount: number;

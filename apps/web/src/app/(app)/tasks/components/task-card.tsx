@@ -1,5 +1,6 @@
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
+import { TaskCardOwner } from "./task-card-owner";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
@@ -46,11 +47,14 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
               <TaskStatusBadge status={task.status} />
             </div>
 
-            {task.descriptionPlain || task.description ? (
-              <p className="text-muted-foreground/80 line-clamp-2 text-xs leading-relaxed break-all">
-                {task.descriptionPlain ?? task.description}
-              </p>
-            ) : null}
+            <div className="space-y-1.5">
+              {task.descriptionPlain || task.description ? (
+                <p className="text-muted-foreground/80 line-clamp-2 text-xs leading-relaxed break-all">
+                  {task.descriptionPlain ?? task.description}
+                </p>
+              ) : null}
+              <TaskCardOwner user={task.user} />
+            </div>
 
             <TaskMetaDetails
               coworker={task.coworker}

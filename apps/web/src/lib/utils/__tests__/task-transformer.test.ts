@@ -125,6 +125,18 @@ describe("mapTaskToTaskWithCoworker", () => {
 
     expect(mapped.share?.token).toBe("public-share-token");
   });
+
+  it("preserves owner information from the API task", () => {
+    const task = buildTask(TaskStatus.READY, {
+      user: { id: "user-2", name: "Owner Name", image: "ipfs://owner" },
+      userId: "user-2",
+    });
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.user).toEqual(task.user);
+    expect(mapped.userId).toBe("user-2");
+  });
 });
 
 describe("clampTaskNameForCoreApi", () => {
