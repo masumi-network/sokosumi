@@ -1,9 +1,10 @@
 import "server-only";
 
-import type { TaskStatus } from "@sokosumi/database";
+import type { AgentJobStatus, TaskStatus } from "@sokosumi/database";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
+  JobSummary,
   Task,
   TaskEvent,
   TaskLink,
@@ -16,6 +17,14 @@ interface ListTasksParams {
   coworkerId?: string;
   q?: string;
   scope?: "workspace" | "owned";
+  cursor?: string | null;
+  limit?: number;
+}
+
+interface ListJobsParams {
+  scope?: "workspace" | "owned";
+  agentId?: string;
+  status?: AgentJobStatus;
   cursor?: string | null;
   limit?: number;
 }
@@ -61,6 +70,29 @@ export const taskService = (() => {
 
     return {
       tasks: result.data,
+      pagination: result.meta?.pagination ?? null,
+    };
+  }
+
+  async function listJobs(params: ListJobsParams = {}): Promise<{
+    jobs: JobSummary[];
+    pagination: {
+      cursor: string | null;
+      limit: number;
+      total: number;
+      nextCursor: string | null;
+    } | null;
+  }> {
+    const result = await coreClient.getJobs({
+      scope: params.scope,
+      agentId: params.agentId,
+      status: params.status,
+      cursor: params.cursor ?? undefined,
+      limit: params.limit,
+    });
+
+    return {
+      jobs: result.data,
       pagination: result.meta?.pagination ?? null,
     };
   }
@@ -167,6 +199,7 @@ export const taskService = (() => {
   }
 
   return {
+    listJobs,
     listTasks,
     getTaskById,
     createTask,

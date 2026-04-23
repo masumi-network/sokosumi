@@ -1,6 +1,5 @@
 "use client";
 
-import { UserCog } from "lucide-react";
 import Link from "next/link";
 
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
@@ -17,7 +16,6 @@ import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 interface JobListItemLabels {
   untitled: string;
   unknownAgent: string;
-  unknownCoworker: string;
 }
 
 interface JobListItemProps {
@@ -37,7 +35,7 @@ export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
     name: agentName,
     icon: agentPreview?.icon ?? null,
   };
-  const coworkerName = job.coworker?.name?.trim() || labels.unknownCoworker;
+  const coworkerName = job.coworker?.name?.trim() || null;
   const coworkerImage = job.coworker?.image ?? null;
   const href = `/agents/${job.agentId}/jobs/${job.id}`;
   const statusBadge = (
@@ -64,36 +62,33 @@ export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
     </div>
   );
 
-  const coworkerCell = (
-    <div className="flex min-w-0 items-center gap-2">
-      <Avatar className="size-6 shrink-0">
-        {coworkerImage ? (
-          <AvatarImage
-            src={coworkerImage}
-            alt={coworkerName}
-            className="object-cover"
-          />
-        ) : null}
-        <AvatarFallback className="text-[10px] font-medium">
-          {coworkerName === labels.unknownCoworker ? (
-            <UserCog className="size-3" aria-hidden />
-          ) : (
-            coworkerName.slice(0, 1).toUpperCase()
-          )}
-        </AvatarFallback>
-      </Avatar>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <p className="text-foreground max-w-40 truncate text-xs font-medium">
+  const coworkerCell =
+    coworkerName !== null ? (
+      <div className="flex min-w-0 items-center gap-2">
+        <Avatar className="size-6 shrink-0">
+          {coworkerImage ? (
+            <AvatarImage
+              src={coworkerImage}
+              alt={coworkerName}
+              className="object-cover"
+            />
+          ) : null}
+          <AvatarFallback className="text-[10px] font-medium">
+            {coworkerName.slice(0, 1).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p className="text-foreground max-w-40 truncate text-xs font-medium">
+              {coworkerName}
+            </p>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6}>
             {coworkerName}
-          </p>
-        </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={6}>
-          {coworkerName}
-        </TooltipContent>
-      </Tooltip>
-    </div>
-  );
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    ) : null;
 
   const timeCell = (
     <p className="text-muted-foreground shrink-0 text-xs capitalize sm:w-[120px] sm:text-right">

@@ -1366,16 +1366,23 @@
         }
       },
       "Jobs": {
-        "filterButton": "Estado",
-        "filterHideFailed": "Ocultar falhados",
-        "filterShowAll": "Mostrar tudo",
+        "filterButton": "Filtros",
+        "agentLabel": "Agente",
+        "jobStatusLabel": "Estado do job",
+        "jobStatusOptions": {
+          "INITIATED": "Iniciado",
+          "AWAITING_PAYMENT": "Aguarda pagamento",
+          "AWAITING_INPUT": "Aguarda entrada",
+          "RUNNING": "Em execução",
+          "COMPLETED": "Concluído",
+          "FAILED": "Falhou"
+        },
         "recentTitle": "Recentes",
         "emptyRecent": "Sem jobs concluídos recentemente.",
         "emptyList": "Ainda não existem jobs.",
         "emptySection": "Sem jobs neste estado.",
         "untitled": "Job sem título",
-        "unknownAgent": "Agente desconhecido",
-        "unknownCoworker": "Colega de trabalho desconhecido"
+        "unknownAgent": "Agente desconhecido"
       },
       "Detail": {
         "back": "Voltar às tarefas",

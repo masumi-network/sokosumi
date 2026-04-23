@@ -1,5 +1,9 @@
 "use server";
 
+import {
+  sanitizeAgentJobStatusInput,
+  sanitizeJobAgentIdForPersistedFilter,
+} from "@/app/tasks/utils/jobs-filters";
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import {
   sanitizeTasksScopeInput,
@@ -11,7 +15,7 @@ import { getSession } from "@/lib/auth/utils";
 import type { Task } from "@/lib/clients/generated/core";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
-import { userService } from "@/lib/services/user.service";
+import { taskService } from "@/lib/services/task.service";
 import type { KanbanColumnId } from "@/lib/types/task";
 
 import { getTasksColumnPage } from "./utils/tasks-column-page";
@@ -64,26 +68,42 @@ export async function loadMoreTasksColumn({
   };
 }
 
-export async function loadMoreJobs(cursor: string | null) {
-  const [coworkers, jobsPage] = await Promise.all([
+export async function loadMoreJobs(
+  cursor: string | null,
+  scope: TasksScope | null,
+  agentId: string | null,
+  jobStatus: string | null,
+) {
+  const [session, coworkers, agents] = await Promise.all([
+    getSession(),
     coworkerService.listCoworkers(),
-    userService.listMyJobsForActiveContextPaginated({
-      cursor,
-      limit: 20,
-    }),
+    agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const sanitizedScope = sanitizeTasksScopeInput(scope, activeOrganizationId);
+  const sanitizedAgentId = sanitizeJobAgentIdForPersistedFilter(agentId);
+  const sanitizedJobStatus = sanitizeAgentJobStatusInput(jobStatus);
+  const jobsPage = await taskService.listJobs({
+    scope: sanitizedScope,
+    agentId: sanitizedAgentId ?? undefined,
+    status: sanitizedJobStatus ?? undefined,
+    cursor,
+    limit: 20,
+  });
 
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
+  const knownAgentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const { jobs, agentPreviewById } = await mapJobsToTasksViewData({
     jobs: jobsPage.jobs,
     coworkersById,
+    knownAgentsById,
   });
 
   return {
     jobs,
-    nextCursor: jobsPage.nextCursor,
+    nextCursor: jobsPage.pagination?.nextCursor ?? null,
     agentPreviewById,
   };
 }

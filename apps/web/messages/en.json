@@ -1366,19 +1366,27 @@
         }
       },
       "Jobs": {
-        "filterButton": "Status",
-        "filterHideFailed": "Hide failed",
-        "filterShowAll": "Show all",
+        "filterButton": "Filters",
+        "agentLabel": "Agent",
+        "jobStatusLabel": "Job status",
+        "jobStatusOptions": {
+          "INITIATED": "Initiated",
+          "AWAITING_PAYMENT": "Awaiting payment",
+          "AWAITING_INPUT": "Awaiting input",
+          "RUNNING": "Running",
+          "COMPLETED": "Completed",
+          "FAILED": "Failed"
+        },
         "recentTitle": "Recent",
         "emptyRecent": "No recently finished jobs.",
         "emptyList": "No jobs yet.",
         "emptySection": "No jobs in this status.",
         "untitled": "Untitled job",
-        "unknownAgent": "Unknown agent",
-        "unknownCoworker": "Unknown coworker"
+        "unknownAgent": "Unknown agent"
       },
       "Detail": {
         "back": "Back to tasks",
+        "parentTask": "Parent:",
         "properties": "Properties",
         "status": "Status",
         "coworker": "Coworker",

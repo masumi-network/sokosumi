@@ -1366,19 +1366,27 @@
         }
       },
       "Jobs": {
-        "filterButton": "Status",
-        "filterHideFailed": "Ocultar falhados",
-        "filterShowAll": "Mostrar todos",
+        "filterButton": "Filtros",
+        "agentLabel": "Agente",
+        "jobStatusLabel": "Status do job",
+        "jobStatusOptions": {
+          "INITIATED": "Iniciado",
+          "AWAITING_PAYMENT": "Aguardando pagamento",
+          "AWAITING_INPUT": "Aguardando entrada",
+          "RUNNING": "Em execução",
+          "COMPLETED": "Concluído",
+          "FAILED": "Falhou"
+        },
         "recentTitle": "Recentes",
         "emptyRecent": "Nenhum job finalizado recentemente.",
         "emptyList": "Ainda não há jobs.",
         "emptySection": "Nenhum job com este status.",
         "untitled": "Job sem título",
-        "unknownAgent": "Agente desconhecido",
-        "unknownCoworker": "Coworker desconhecido"
+        "unknownAgent": "Agente desconhecido"
       },
       "Detail": {
         "back": "Voltar para tarefas",
+        "parentTask": "Principal:",
         "properties": "Propriedades",
         "status": "Status",
         "coworker": "Coworker",

@@ -40,16 +40,12 @@ function createJob(overrides: Partial<TasksViewJob>): TasksViewJob {
 }
 
 const labels = {
-  filterButton: "Status",
-  filterHideFailed: "Hide failed",
-  filterShowAll: "Show all",
   recentTitle: "Recent",
   emptyRecent: "No recently finished jobs.",
   emptyList: "No jobs yet.",
   emptySection: "No jobs in this status.",
   untitled: "Untitled job",
   unknownAgent: "Unknown agent",
-  unknownCoworker: "Unknown coworker",
 };
 
 const columnLabels: Record<KanbanColumnId, string> = {
@@ -127,7 +123,6 @@ describe("JobsListView", () => {
           "agent-1": { name: "Agent name", icon: null },
         }}
         columnLabels={columnLabels}
-        failedFilterMode="hideFailed"
         labels={labels}
       />,
     );
@@ -140,7 +135,7 @@ describe("JobsListView", () => {
     expect(screen.getByText("Older complete")).toBeInTheDocument();
     expect(screen.getByText("Needs input")).toBeInTheDocument();
     expect(screen.getByText("Untitled job")).toBeInTheDocument();
-    expect(screen.getAllByText("Unknown coworker").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Unknown coworker")).not.toBeInTheDocument();
     expect(screen.getAllByText("Agent name").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Jane coworker").length).toBeGreaterThan(0);
 
@@ -156,49 +151,7 @@ describe("JobsListView", () => {
     );
   });
 
-  it("hides FAILED and PAYMENT_FAILED when failedFilterMode is hideFailed", () => {
-    const jobs: TasksViewJob[] = [
-      createJob({
-        id: "job-failed",
-        name: "Failed one",
-        status: SokosumiJobStatus.FAILED,
-        createdAt: "2026-02-10T11:00:00.000Z",
-        completedAt: "2026-02-10T11:10:00.000Z",
-      }),
-      createJob({
-        id: "job-payment-failed",
-        name: "Payment failed one",
-        status: SokosumiJobStatus.PAYMENT_FAILED,
-        createdAt: "2026-02-10T10:00:00.000Z",
-        completedAt: "2026-02-10T10:10:00.000Z",
-      }),
-      createJob({
-        id: "job-completed",
-        name: "Completed one",
-        status: SokosumiJobStatus.COMPLETED,
-        createdAt: "2026-02-10T09:00:00.000Z",
-        completedAt: "2026-02-10T09:10:00.000Z",
-      }),
-    ];
-
-    render(
-      <JobsListView
-        jobs={jobs}
-        agentPreviewById={{
-          "agent-1": { name: "Agent name", icon: null },
-        }}
-        columnLabels={columnLabels}
-        failedFilterMode="hideFailed"
-        labels={labels}
-      />,
-    );
-
-    expect(screen.queryByText("Failed one")).not.toBeInTheDocument();
-    expect(screen.queryByText("Payment failed one")).not.toBeInTheDocument();
-    expect(screen.getByText("Completed one")).toBeInTheDocument();
-  });
-
-  it("shows FAILED and PAYMENT_FAILED when failedFilterMode is showAll", () => {
+  it("shows failed jobs in the list", () => {
     const jobs: TasksViewJob[] = [
       createJob({
         id: "job-failed",
@@ -223,7 +176,6 @@ describe("JobsListView", () => {
           "agent-1": { name: "Agent name", icon: null },
         }}
         columnLabels={columnLabels}
-        failedFilterMode="showAll"
         labels={labels}
       />,
     );
@@ -262,7 +214,6 @@ describe("JobsListView", () => {
           "agent-1": { name: "Agent name", icon: null },
         }}
         columnLabels={columnLabels}
-        failedFilterMode="showAll"
         labels={labels}
       />,
     );
