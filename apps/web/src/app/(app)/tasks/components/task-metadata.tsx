@@ -90,7 +90,7 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
                 {task.coworker?.name?.slice(0, 1).toUpperCase() ?? "?"}
               </AvatarFallback>
             </Avatar>
-            <span className="text-right text-sm font-medium">
+            <span className="truncate text-right text-sm font-medium">
               {task.coworker?.name ?? "—"}
             </span>
           </div>
