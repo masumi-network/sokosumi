@@ -262,7 +262,10 @@ export type JobSummary = {
     completedAt?: Date | null;
     agentId: string;
     userId: string;
+    user: UserSummary;
     organizationId?: string | null;
+    organization?: OrganizationSummary;
+    workspace: WorkspaceSummary;
     taskId?: string | null;
     name?: string | null;
     jobType: 'FREE' | 'PAID' | 'DEMO';
@@ -272,19 +275,6 @@ export type JobSummary = {
     onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
-    workspace: WorkspaceSummary;
-    user: UserSummary;
-    organization: OrganizationSummary;
-};
-
-export type WorkspaceSummary = {
-    id: string;
-    organizationId: string | null;
-    organization: {
-        id: string;
-        name: string;
-        slug: string;
-    } | null;
 };
 
 export type UserSummary = {
@@ -298,6 +288,16 @@ export type OrganizationSummary = {
     name: string;
     slug: string;
 } | null;
+
+export type WorkspaceSummary = {
+    id: string;
+    organizationId: string | null;
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null;
+};
 
 export type GetChatUiMessagesResponseData = {
     messages: Array<ChatUiMessage>;
@@ -572,7 +572,9 @@ export type Job = {
     completedAt?: Date | null;
     agentId: string;
     userId: string;
+    user: UserSummary;
     organizationId?: string | null;
+    organization?: OrganizationSummary;
     taskId?: string | null;
     name?: string | null;
     jobType: 'FREE' | 'PAID' | 'DEMO';
@@ -588,8 +590,6 @@ export type Job = {
     agentJobId: string;
     identifierFromPurchaser?: string | null;
     workspace: WorkspaceSummary;
-    user: UserSummary;
-    organization: OrganizationSummary;
     agent: {
         id: string;
         name: string;
@@ -809,25 +809,30 @@ export type TaskEvent = {
     createdAt: Date;
     updatedAt: Date;
     userId?: string | null;
-    user?: UserSummary & unknown;
+    /**
+     * Mirrors userId: omitted, null, or set when the actor user was loaded.
+     */
+    user?: {
+        id: string;
+        name: string;
+        image?: string | null;
+    } | null;
     coworkerId?: string | null;
-    coworker?: CoworkerSummary;
+    /**
+     * Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.
+     */
+    coworker?: {
+        id: string;
+        name: string;
+        image?: string | null;
+        slug: string;
+    } | null;
     transactionId?: string | null;
     credits?: number | null;
     comment?: string | null;
     authenticationUrl?: string | null;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
     status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
-};
-
-/**
- * Present when coworkerId is set and the coworker relation was loaded.
- */
-export type CoworkerSummary = {
-    id: string;
-    name: string;
-    image?: string | null;
-    slug: string;
 };
 
 export type CoworkerUsage = {
@@ -870,9 +875,7 @@ export type TaskListItem = {
     organizationId: string | null;
     organization: OrganizationSummary;
     coworkerId: string | null;
-    coworker: CoworkerSummary & ({
-        [key: string]: unknown;
-    } | null);
+    coworker: CoworkerSummary;
     name: string;
     description: string | null;
     status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
@@ -881,6 +884,13 @@ export type TaskListItem = {
     jobs: Array<JobSummary>;
     workspace: WorkspaceSummary;
 };
+
+export type CoworkerSummary = {
+    id: string;
+    name: string;
+    image?: string | null;
+    slug: string;
+} | null;
 
 export type Task = {
     id: string;
@@ -891,9 +901,7 @@ export type Task = {
     organizationId: string | null;
     organization: OrganizationSummary;
     coworkerId: string | null;
-    coworker: CoworkerSummary & ({
-        [key: string]: unknown;
-    } | null);
+    coworker: CoworkerSummary;
     name: string;
     description: string | null;
     status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';

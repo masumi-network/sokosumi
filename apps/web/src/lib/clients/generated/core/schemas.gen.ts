@@ -934,12 +934,21 @@ export const JobSummarySchema = {
             type: 'string',
             example: 'user_123'
         },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
         organizationId: {
             type: [
                 'string',
                 'null'
             ],
             example: 'organization_123'
+        },
+        organization: {
+            $ref: '#/components/schemas/OrganizationSummary'
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
         },
         taskId: {
             type: [
@@ -1024,15 +1033,6 @@ export const JobSummarySchema = {
                 'null'
             ],
             example: 'result_hash'
-        },
-        workspace: {
-            $ref: '#/components/schemas/WorkspaceSummary'
-        },
-        user: {
-            $ref: '#/components/schemas/UserSummary'
-        },
-        organization: {
-            $ref: '#/components/schemas/OrganizationSummary'
         }
     },
     required: [
@@ -1041,60 +1041,11 @@ export const JobSummarySchema = {
         'updatedAt',
         'agentId',
         'userId',
+        'user',
+        'workspace',
         'jobType',
         'status',
-        'credits',
-        'workspace',
-        'user',
-        'organization'
-    ]
-} as const;
-
-export const WorkspaceSummarySchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '11111111-1111-7111-8111-111111111111'
-        },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'org_123'
-        },
-        organization: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    example: '11111111-1111-7111-8111-111111111111'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Acme Labs'
-                },
-                slug: {
-                    type: 'string',
-                    example: 'acme-labs'
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'slug'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'organizationId',
-        'organization'
+        'credits'
     ]
 } as const;
 
@@ -1146,6 +1097,54 @@ export const OrganizationSummarySchema = {
         'id',
         'name',
         'slug'
+    ]
+} as const;
+
+export const WorkspaceSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '11111111-1111-7111-8111-111111111111'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        },
+        organization: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: '11111111-1111-7111-8111-111111111111'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Labs'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-labs'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'organization'
     ]
 } as const;
 
@@ -1943,12 +1942,18 @@ export const JobSchema = {
             type: 'string',
             example: 'user_123'
         },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
         organizationId: {
             type: [
                 'string',
                 'null'
             ],
             example: 'organization_123'
+        },
+        organization: {
+            $ref: '#/components/schemas/OrganizationSummary'
         },
         taskId: {
             type: [
@@ -2068,12 +2073,6 @@ export const JobSchema = {
         },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
-        },
-        user: {
-            $ref: '#/components/schemas/UserSummary'
-        },
-        organization: {
-            $ref: '#/components/schemas/OrganizationSummary'
         },
         agent: {
             type: 'object',
@@ -2287,13 +2286,12 @@ export const JobSchema = {
         'updatedAt',
         'agentId',
         'userId',
+        'user',
         'jobType',
         'status',
         'credits',
         'agentJobId',
         'workspace',
-        'user',
-        'organization',
         'agent',
         'events'
     ]
@@ -3128,14 +3126,32 @@ export const TaskEventSchema = {
             example: 'user_123'
         },
         user: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/UserSummary'
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
                 },
-                {
-                    description: 'Present when userId is set and the actor user was loaded.'
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/avatar.png'
                 }
-            ]
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Mirrors userId: omitted, null, or set when the actor user was loaded.'
         },
         coworkerId: {
             type: [
@@ -3145,7 +3161,37 @@ export const TaskEventSchema = {
             example: 'cow_123'
         },
         coworker: {
-            $ref: '#/components/schemas/CoworkerSummary'
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cow_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ops Agent'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/logo'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'ops-agent'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ],
+            description: 'Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.'
         },
         transactionId: {
             type: [
@@ -3224,37 +3270,6 @@ export const TaskEventSchema = {
         'updatedAt',
         'origin'
     ]
-} as const;
-
-export const CoworkerSummarySchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'cow_123'
-        },
-        name: {
-            type: 'string',
-            example: 'Ops Agent'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/logo'
-        },
-        slug: {
-            type: 'string',
-            example: 'ops-agent'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'slug'
-    ],
-    description: 'Present when coworkerId is set and the coworker relation was loaded.'
 } as const;
 
 export const CoworkerUsageSchema = {
@@ -3461,17 +3476,7 @@ export const TaskListItemSchema = {
             example: 'cow_123'
         },
         coworker: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/CoworkerSummary'
-                },
-                {
-                    type: [
-                        'object',
-                        'null'
-                    ]
-                }
-            ]
+            $ref: '#/components/schemas/CoworkerSummary'
         },
         name: {
             type: 'string',
@@ -3544,6 +3549,39 @@ export const TaskListItemSchema = {
     ]
 } as const;
 
+export const CoworkerSummarySchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ops Agent'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/logo'
+        },
+        slug: {
+            type: 'string',
+            example: 'ops-agent'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
+    ]
+} as const;
+
 export const TaskSchema = {
     type: 'object',
     properties: {
@@ -3586,17 +3624,7 @@ export const TaskSchema = {
             example: 'cow_123'
         },
         coworker: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/CoworkerSummary'
-                },
-                {
-                    type: [
-                        'object',
-                        'null'
-                    ]
-                }
-            ]
+            $ref: '#/components/schemas/CoworkerSummary'
         },
         name: {
             type: 'string',
