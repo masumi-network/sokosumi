@@ -50,10 +50,13 @@ export const jobSummarySchema = z
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
     userId: z.string().openapi({ example: "user_123" }),
+    user: userSummarySchema,
     organizationId: z
       .string()
       .nullish()
       .openapi({ example: "organization_123" }),
+    organization: organizationSummarySchema.nullish(),
+    workspace: workspaceSummarySchema,
     taskId: z.string().nullish().openapi({ example: "task_123" }),
     name: z.string().nullish().openapi({ example: "My Job" }),
     jobType: z.enum(JobType).openapi({ example: JobType.PAID }),
@@ -71,9 +74,6 @@ export const jobSummarySchema = z
       .openapi({ example: "0x123abc" }),
     result: z.string().nullish().openapi({ example: "Markdown text" }),
     resultHash: z.string().nullish().openapi({ example: "result_hash" }),
-    workspace: workspaceSummarySchema,
-    user: userSummarySchema,
-    organization: organizationSummarySchema.nullable(),
   })
   .openapi("JobSummary");
 
@@ -158,10 +158,12 @@ export const jobSchema = z
     completedAt: dateTimeSchema.nullish(),
     agentId: z.string().openapi({ example: "agent_123" }),
     userId: z.string().openapi({ example: "user_123" }),
+    user: userSummarySchema,
     organizationId: z
       .string()
       .nullish()
       .openapi({ example: "organization_123" }),
+    organization: organizationSummarySchema.nullish(),
     taskId: z.string().nullish().openapi({ example: "task_123" }),
     name: z.string().nullish().openapi({ example: "Research Task" }),
     jobType: z.enum(JobType).openapi({ example: JobType.PAID }),
@@ -190,8 +192,6 @@ export const jobSchema = z
       .nullish()
       .openapi({ example: "identifier_123" }),
     workspace: workspaceSummarySchema,
-    user: userSummarySchema,
-    organization: organizationSummarySchema.nullable(),
     agent: jobDetailsAgentSchema,
     events: z.array(jobDetailsEventSchema),
   })

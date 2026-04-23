@@ -20,13 +20,14 @@ export const taskEventSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     userId: z.string().nullish().openapi({ example: "user_123" }),
-    user: userSummarySchema.optional().openapi({
-      description: "Present when userId is set and the actor user was loaded.",
+    user: userSummarySchema.nullish().openapi({
+      description:
+        "Mirrors userId: omitted, null, or set when the actor user was loaded.",
     }),
     coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
-    coworker: coworkerSummarySchema.optional().openapi({
+    coworker: coworkerSummarySchema.nullish().openapi({
       description:
-        "Present when coworkerId is set and the coworker relation was loaded.",
+        "Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.",
     }),
     transactionId: z.string().nullish().openapi({ example: "txn_123" }),
     credits: z.number().nullish().openapi({ example: 2.5 }),
