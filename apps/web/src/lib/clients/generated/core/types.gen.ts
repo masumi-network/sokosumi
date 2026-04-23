@@ -293,13 +293,6 @@ export type UserSummary = {
     image?: string | null;
 };
 
-export type CoworkerSummary = {
-    id: string;
-    name: string;
-    image?: string | null;
-    slug: string;
-};
-
 export type OrganizationSummary = {
     id: string;
     name: string;
@@ -816,15 +809,25 @@ export type TaskEvent = {
     createdAt: Date;
     updatedAt: Date;
     userId?: string | null;
+    user?: UserSummary & unknown;
     coworkerId?: string | null;
+    coworker?: CoworkerSummary;
     transactionId?: string | null;
     credits?: number | null;
     comment?: string | null;
     authenticationUrl?: string | null;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
     status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
-    user?: UserSummary & unknown;
-    coworker?: CoworkerSummary & unknown;
+};
+
+/**
+ * Present when coworkerId is set and the coworker relation was loaded.
+ */
+export type CoworkerSummary = {
+    id: string;
+    name: string;
+    image?: string | null;
+    slug: string;
 };
 
 export type CoworkerUsage = {
@@ -863,11 +866,13 @@ export type TaskListItem = {
     createdAt: Date;
     updatedAt: Date;
     userId: string;
-    organizationId: string | null;
     user: UserSummary;
+    organizationId: string | null;
     organization?: OrganizationSummary;
     coworkerId: string | null;
-    coworker?: CoworkerSummary | null;
+    coworker?: CoworkerSummary & ({
+        [key: string]: unknown;
+    } | null);
     name: string;
     description: string | null;
     status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
@@ -882,11 +887,13 @@ export type Task = {
     createdAt: Date;
     updatedAt: Date;
     userId: string;
-    organizationId: string | null;
     user: UserSummary;
+    organizationId: string | null;
     organization?: OrganizationSummary;
     coworkerId: string | null;
-    coworker?: CoworkerSummary | null;
+    coworker?: CoworkerSummary & ({
+        [key: string]: unknown;
+    } | null);
     name: string;
     description: string | null;
     status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
