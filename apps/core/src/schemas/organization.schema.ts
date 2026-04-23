@@ -33,3 +33,13 @@ export const organizationWithRoleSchema = organizationSchema
 export type OrganizationWithRole = z.infer<typeof organizationWithRoleSchema>;
 
 export const organizationsSchema = z.array(organizationWithRoleSchema);
+
+export const organizationSummarySchema = z
+  .object({
+    id: z.string().openapi({ example: "org_123" }),
+    name: z.string().openapi({ example: "Acme Labs" }),
+    slug: z.string().openapi({ example: "acme-labs" }),
+  })
+  .openapi("OrganizationSummary");
+
+export type OrganizationSummary = z.infer<typeof organizationSummarySchema>;

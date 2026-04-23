@@ -100,13 +100,34 @@ function createTaskRecord(overrides: Partial<TaskRecord> = {}): TaskRecord {
 }
 
 function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
+  const { organizationId: orgIdOverride, ...restOverrides } = overrides as {
+    organizationId?: string | null;
+  };
+  const organizationId =
+    orgIdOverride !== undefined ? orgIdOverride : "org_current";
+
   return {
     id: "tsk_123",
     createdAt: "2026-03-25T10:00:00.000Z",
     updatedAt: "2026-03-25T10:00:00.000Z",
     userId: "user_123",
-    organizationId: "org_current",
+    organizationId,
+    user: { id: "user_123", name: "Task owner", image: null },
+    organization:
+      organizationId === null
+        ? null
+        : {
+            id: organizationId,
+            name: "Current Org",
+            slug: "current-org",
+          },
     coworkerId: "cow_123",
+    coworker: {
+      id: "cow_123",
+      name: "Current Coworker",
+      image: null,
+      slug: "current-coworker",
+    },
     name: "Current task",
     description: "Current description",
     status: TaskStatus.READY,
@@ -124,7 +145,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     },
     share: null,
     links: [],
-    ...overrides,
+    ...restOverrides,
   };
 }
 

@@ -91,13 +91,26 @@ function createTask(
     linksTo: unknown[];
   }>,
 ) {
+  const userId = overrides?.userId ?? "user_123";
   return {
     id: "tsk_a",
     createdAt: new Date("2026-03-25T10:00:00.000Z"),
     updatedAt: new Date("2026-03-25T10:00:00.000Z"),
-    userId: overrides?.userId ?? "user_123",
+    userId,
+    user: { id: userId, name: "Task Owner", image: null },
     organizationId: "org_123",
+    organization: {
+      id: "org_123",
+      name: "Acme Labs",
+      slug: "acme-labs",
+    },
     coworkerId: "cow_123",
+    coworker: {
+      id: "cow_123",
+      name: "Coworker",
+      image: null,
+      slug: "cow-worker",
+    },
     name: "Task A",
     description: null,
     status: TaskStatus.READY,

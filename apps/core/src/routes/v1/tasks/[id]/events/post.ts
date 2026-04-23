@@ -18,6 +18,7 @@ import { created } from "@/helpers/response";
 import {
   isTaskStatusSpendable,
   mapTaskEvent,
+  taskEventApiInclude,
   validateStatusTransition,
   validateTaskCoworkerAssignment,
 } from "@/helpers/task";
@@ -52,6 +53,20 @@ function getActorData(authContext: AuthenticationContext) {
       coworkerId: null,
     };
   }
+}
+
+async function mapCreatedTaskEventForResponse(
+  tx: Prisma.TransactionClient,
+  eventId: string,
+): Promise<ReturnType<typeof mapTaskEvent>> {
+  const row = await tx.taskEvent.findUnique({
+    where: { id: eventId },
+    include: taskEventApiInclude,
+  });
+  if (!row) {
+    throw new Error(`Task event not found after create: ${eventId}`);
+  }
+  return mapTaskEvent(row);
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -188,7 +203,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               : null;
 
           return {
-            event: mapTaskEvent(createdEvent),
+            event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
             userId: task.userId,
             masumiPayment: payment,
           };
@@ -211,7 +226,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
 
         return {
-          event: mapTaskEvent(createdEvent),
+          event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
           userId: task.userId,
           masumiPayment: null,
         };

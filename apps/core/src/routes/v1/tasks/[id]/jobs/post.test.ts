@@ -85,6 +85,16 @@ describe("POST /tasks/{id}/jobs", () => {
           slug: "acme-labs",
         },
       },
+      user: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: null,
+      },
+      organization: {
+        id: "org_123",
+        name: "Acme Labs",
+        slug: "acme-labs",
+      },
     });
   });
 
