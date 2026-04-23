@@ -1,25 +1,41 @@
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { useFormatter } from "next-intl";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { TaskWithCoworker } from "@/lib/types/task";
+import type { Task } from "@/lib/clients/generated/core/types.gen";
 
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskMetadataLabels {
   propertiesTitle: string;
   status: string;
+  owner: string;
+  organization: string;
+  personalWorkspace: string;
   coworker: string;
   created: string;
   updated: string;
 }
 
+interface TaskMetadataTask {
+  status: Task["status"];
+  user: Task["user"];
+  organization: Task["organization"];
+  coworker: Task["coworker"];
+  createdAt: Task["createdAt"];
+  updatedAt: Task["updatedAt"];
+}
+
 interface TaskMetadataProps {
-  task: TaskWithCoworker;
+  task: TaskMetadataTask;
   labels: TaskMetadataLabels;
 }
 
 export function TaskMetadata({ task, labels }: TaskMetadataProps) {
+  const ownerImage = task.user.image
+    ? resolveIpfsOrHttpUrl(task.user.image)
+    : null;
   const coworkerImage = getCoworkerImage(task.coworker);
   const formatter = useFormatter();
   const dateTimeOptions = {
@@ -36,18 +52,32 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
       </h3>
 
       <div className="space-y-3">
-        {/* Status */}
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-sm">{labels.status}</span>
           <TaskStatusBadge status={task.status} showLabel />
         </div>
 
-        {/* Coworker */}
+        <MetadataAvatarValue
+          label={labels.owner}
+          name={task.user.name}
+          image={ownerImage}
+          fallback={task.user.name}
+        />
+
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground text-sm">
+            {labels.organization}
+          </span>
+          <span className="text-right text-sm font-medium">
+            {task.organization?.name ?? labels.personalWorkspace}
+          </span>
+        </div>
+
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-sm">
             {labels.coworker}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Avatar className="size-5">
               {coworkerImage ? (
                 <AvatarImage
@@ -60,7 +90,7 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
                 {task.coworker?.name?.slice(0, 1).toUpperCase() ?? "?"}
               </AvatarFallback>
             </Avatar>
-            <span className="text-sm font-medium">
+            <span className="text-right text-sm font-medium">
               {task.coworker?.name ?? "—"}
             </span>
           </div>
@@ -68,7 +98,6 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
 
         <div className="border-border/50 my-3 border-t" />
 
-        {/* Created */}
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-sm">
             {labels.created}
@@ -87,6 +116,37 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
             {formatter.dateTime(new Date(task.updatedAt), dateTimeOptions)}
           </span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+interface MetadataAvatarValueProps {
+  label: string;
+  name: string;
+  image: string | null;
+  fallback: string;
+}
+
+function MetadataAvatarValue({
+  label,
+  name,
+  image,
+  fallback,
+}: MetadataAvatarValueProps) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-muted-foreground text-sm">{label}</span>
+      <div className="flex min-w-0 items-center gap-2">
+        <Avatar className="size-5">
+          {image ? (
+            <AvatarImage src={image} alt={name} className="object-cover" />
+          ) : null}
+          <AvatarFallback className="bg-muted text-[10px]">
+            {fallback.slice(0, 1).toUpperCase() || "?"}
+          </AvatarFallback>
+        </Avatar>
+        <span className="truncate text-right text-sm font-medium">{name}</span>
       </div>
     </div>
   );

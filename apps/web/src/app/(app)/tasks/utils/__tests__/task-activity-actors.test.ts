@@ -1,0 +1,94 @@
+import { describe, expect, it } from "vitest";
+
+import type { Task } from "@/lib/clients/generated/core/types.gen";
+
+import { buildTaskActivityActors } from "../task-activity-actors";
+
+describe("buildTaskActivityActors", () => {
+  it("builds actor maps from task and embedded event summaries", () => {
+    const task = {
+      user: {
+        id: "user-1",
+        name: "Ada Lovelace",
+        image: "https://example.com/ada.png",
+      },
+      coworker: {
+        id: "cow-1",
+        name: "Ops Agent",
+        image: "https://example.com/ops.png",
+        slug: "ops-agent",
+      },
+      events: [
+        {
+          id: "evt-1",
+          taskId: "task-1",
+          createdAt: new Date("2026-01-01T12:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T12:00:00.000Z"),
+          userId: "user-2",
+          user: {
+            id: "user-2",
+            name: "Grace Hopper",
+            image: null,
+          },
+          coworkerId: null,
+          coworker: null,
+          transactionId: null,
+          credits: null,
+          comment: "Looks good",
+          authenticationUrl: null,
+          origin: "SOKOSUMI",
+          status: null,
+        },
+        {
+          id: "evt-2",
+          taskId: "task-1",
+          createdAt: new Date("2026-01-01T13:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T13:00:00.000Z"),
+          userId: null,
+          user: null,
+          coworkerId: "cow-2",
+          coworker: {
+            id: "cow-2",
+            name: "Research Agent",
+            image: null,
+            slug: "research-agent",
+          },
+          transactionId: null,
+          credits: null,
+          comment: "Investigating",
+          authenticationUrl: null,
+          origin: "SOKOSUMI",
+          status: null,
+        },
+      ],
+    } satisfies Pick<Task, "user" | "coworker" | "events">;
+
+    const result = buildTaskActivityActors(task);
+
+    expect(result.currentUser).toEqual({
+      id: "user-1",
+      name: "Ada Lovelace",
+      image: "https://example.com/ada.png",
+    });
+    expect(result.userById).toMatchObject({
+      "user-1": {
+        name: "Ada Lovelace",
+        image: "https://example.com/ada.png",
+      },
+      "user-2": {
+        name: "Grace Hopper",
+        image: null,
+      },
+    });
+    expect(result.coworkerById).toMatchObject({
+      "cow-1": {
+        name: "Ops Agent",
+        image: "https://example.com/ops.png",
+      },
+      "cow-2": {
+        name: "Research Agent",
+        image: null,
+      },
+    });
+  });
+});

@@ -14,8 +14,8 @@ import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
-import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { parsePlanName } from "@/components/billing/subscription-plan-utils";
 import { getSession } from "@/lib/auth/utils";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
@@ -142,7 +142,6 @@ export default async function TaskDetailPage({
             <TaskActivitySectionContent
               taskId={taskId}
               task={task}
-              coworkersPromise={coworkersPromise}
               agentsPromise={agentsPromise}
               sessionPromise={sessionPromise}
               currentPlanPromise={currentPlanPromise}
@@ -225,10 +224,13 @@ async function TaskOverviewSection({
       />
 
       <TaskMetadata
-        task={taskWithCoworker}
+        task={task}
         labels={{
           propertiesTitle: t("properties"),
           status: t("status"),
+          owner: t("owner"),
+          organization: t("organization"),
+          personalWorkspace: t("personalWorkspace"),
           coworker: t("coworker"),
           created: t("created"),
           updated: t("updated"),
@@ -339,46 +341,27 @@ async function TaskJobsSection({
 async function TaskActivitySectionContent({
   taskId,
   task,
-  coworkersPromise,
   agentsPromise,
   sessionPromise,
   currentPlanPromise,
 }: {
   taskId: string;
   task: Task;
-  coworkersPromise: Promise<CoworkersResult>;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
   currentPlanPromise: Promise<"free" | "pro" | "standard" | "starter">;
 }) {
-  const [coworkers, agents, session, currentPlan, t] = await Promise.all([
-    coworkersPromise,
+  const [agents, session, currentPlan, t] = await Promise.all([
     agentsPromise,
     sessionPromise,
     currentPlanPromise,
     getTranslations("App.Tasks.Detail"),
   ]);
-  const { agentNameById } = buildTaskDetailContext(task, coworkers, agents);
+  const { userById, coworkerById, currentUser } = buildTaskActivityActors(task);
+  const agentNameById = buildAgentNameById(agents);
   const isFreePlan = currentPlan === "free";
   const isReadOnlyWorkspaceView =
     task.workspace.organizationId !== null && session?.user.id !== task.userId;
-  const currentUser = session?.user
-    ? {
-        id: session.user.id,
-        name: session.user.name ?? "User",
-        image: session.user.image ?? null,
-      }
-    : null;
-  const userById = currentUser ? { [currentUser.id]: currentUser } : undefined;
-  const coworkerById = Object.fromEntries(
-    coworkers.map((coworker) => [
-      coworker.id,
-      {
-        name: coworker.name,
-        image: getCoworkerImage(coworker),
-      },
-    ]),
-  );
 
   return (
     <TaskActivitySection

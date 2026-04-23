@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
+import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { SourcesGrid } from "@/components/sources/sources-grid";
@@ -63,6 +64,36 @@ import {
 interface ActorInfo {
   name: string;
   image: string | null;
+}
+
+function getEventActorInfo(
+  event: TaskEvent,
+  userById?: Record<string, ActorInfo>,
+  coworkerById?: Record<string, ActorInfo>,
+): ActorInfo | undefined {
+  if (event.coworkerId) {
+    if (event.coworker) {
+      return {
+        name: event.coworker.name,
+        image: getCoworkerImage(event.coworker),
+      };
+    }
+
+    return coworkerById?.[event.coworkerId];
+  }
+
+  if (event.userId) {
+    if (event.user) {
+      return {
+        name: event.user.name,
+        image: event.user.image ?? null,
+      };
+    }
+
+    return userById?.[event.userId];
+  }
+
+  return undefined;
 }
 
 interface TaskActivityProps {
@@ -215,6 +246,13 @@ export function TaskActivitySection({
       authenticationUrl: null,
       origin: TaskEventOrigin.SOKOSUMI,
       userId: currentUser?.id ?? null,
+      user: currentUser
+        ? {
+            id: currentUser.id,
+            name: currentUser.name,
+            image: currentUser.image,
+          }
+        : null,
       coworkerId: null,
       transactionId: null,
       credits: null,
@@ -393,11 +431,7 @@ export function TaskActivitySection({
               : event.userId
                 ? actorUserLabel
                 : actorSystemLabel;
-            const actorInfo = event.coworkerId
-              ? coworkerById?.[event.coworkerId]
-              : event.userId
-                ? userById?.[event.userId]
-                : undefined;
+            const actorInfo = getEventActorInfo(event, userById, coworkerById);
             const actorName = actorInfo?.name ?? actorLabel;
             const actorImage = actorInfo?.image ?? null;
             const action = event.comment
