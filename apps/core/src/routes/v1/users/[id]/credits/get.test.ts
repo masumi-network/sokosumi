@@ -22,6 +22,7 @@ describe("users/{id}/credits OpenAPI contract", () => {
     expect(creditsResponses).toHaveProperty("500");
 
     const contract = JSON.stringify(creditsResponses?.["200"]);
+    expect(contract).toContain("extra");
     expect(contract).toContain("buffer");
     expect(contract).toContain("total");
     expect(contract).toContain("subscription");

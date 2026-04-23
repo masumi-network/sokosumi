@@ -54,6 +54,16 @@ export const userOnboardingResponseSchema = z.object({
 export const creditsResponseSchema = z.object({
   credits: z.object({
     subscription: subscriptionSchema.nullable(),
+    extra: z.object({
+      available: z.number().openapi({
+        description: "Current available non-subscription credit balance",
+        example: 12.5,
+      }),
+      total: z.number().openapi({
+        description: "Current total active non-subscription credit pool",
+        example: 30,
+      }),
+    }),
     buffer: z.number().openapi({
       description: "Current available non-subscription credit balance",
       example: 25.0,

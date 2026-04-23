@@ -7,6 +7,7 @@ import {
   buildCreditsPayload,
   getCreditSummary,
   getCurrentSubscriptionCredits,
+  getExtraCreditSummary,
   mapSubscription,
 } from "./subscription";
 
@@ -55,6 +56,10 @@ function createSubscriptionRecord(
 }
 
 function createTransactionClient(params?: {
+  extraTotalCents?: bigint | null;
+  extraUsedCents?: bigint | null;
+  subscriptionTotalCents?: bigint | null;
+  subscriptionUsedCents?: bigint | null;
   totalCents?: bigint | null;
   usedCents?: bigint | null;
 }): {
@@ -62,12 +67,48 @@ function createTransactionClient(params?: {
   aggregateConsumptions: ReturnType<typeof vi.fn>;
   tx: Prisma.TransactionClient;
 } {
-  const aggregateBuckets = vi.fn().mockResolvedValue({
-    _sum: { amount: params?.totalCents ?? null },
-  });
-  const aggregateConsumptions = vi.fn().mockResolvedValue({
-    _sum: { amount: params?.usedCents ?? null },
-  });
+  const aggregateBuckets = vi.fn().mockImplementation(
+    (input?: {
+      where?: {
+        referenceType?: CreditBucketReferenceType;
+      };
+    }) => {
+      const isSubscriptionQuery =
+        input?.where?.referenceType ===
+        CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD;
+
+      return Promise.resolve({
+        _sum: {
+          amount: isSubscriptionQuery
+            ? (params?.subscriptionTotalCents ?? params?.totalCents ?? null)
+            : (params?.extraTotalCents ?? null),
+        },
+      });
+    },
+  );
+  const aggregateConsumptions = vi.fn().mockImplementation(
+    (input?: {
+      where?: {
+        bucket?: {
+          is?: {
+            referenceType?: CreditBucketReferenceType;
+          };
+        };
+      };
+    }) => {
+      const isSubscriptionQuery =
+        input?.where?.bucket?.is?.referenceType ===
+        CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD;
+
+      return Promise.resolve({
+        _sum: {
+          amount: isSubscriptionQuery
+            ? (params?.subscriptionUsedCents ?? params?.usedCents ?? null)
+            : (params?.extraUsedCents ?? null),
+        },
+      });
+    },
+  );
 
   return {
     aggregateBuckets,
@@ -451,6 +492,76 @@ describe("getCurrentSubscriptionCredits", () => {
   });
 });
 
+describe("getExtraCreditSummary", () => {
+  it("aggregates active personal extra credits", async () => {
+    const now = new Date("2025-01-15T12:00:00.000Z");
+    const { aggregateBuckets, aggregateConsumptions, tx } =
+      createTransactionClient({
+        extraTotalCents: convertCreditsToCents(30),
+        extraUsedCents: convertCreditsToCents(11),
+      });
+
+    await expect(
+      getExtraCreditSummary({
+        userId: "user_1",
+        organizationId: null,
+        tx,
+        now,
+      }),
+    ).resolves.toEqual({
+      available: 19,
+      total: 30,
+    });
+
+    expect(aggregateBuckets).toHaveBeenCalledWith({
+      _sum: {
+        amount: true,
+      },
+      where: expect.objectContaining({
+        userId: "user_1",
+        organizationId: null,
+        createdAt: {
+          lt: now,
+        },
+      }),
+    });
+    expect(aggregateConsumptions).toHaveBeenCalledWith({
+      _sum: {
+        amount: true,
+      },
+      where: {
+        bucket: {
+          is: expect.objectContaining({
+            userId: "user_1",
+            organizationId: null,
+            createdAt: {
+              lt: now,
+            },
+          }),
+        },
+      },
+    });
+  });
+
+  it("clamps extra credits when recorded consumption exceeds the active pool", async () => {
+    const { tx } = createTransactionClient({
+      extraTotalCents: convertCreditsToCents(5),
+      extraUsedCents: convertCreditsToCents(8),
+    });
+
+    await expect(
+      getExtraCreditSummary({
+        userId: "user_1",
+        organizationId: "org_1",
+        tx,
+      }),
+    ).resolves.toEqual({
+      available: 0,
+      total: 5,
+    });
+  });
+});
+
 describe("buildCreditsPayload", () => {
   beforeEach(() => {
     getLatestActiveSubscriptionByReferenceIdMock.mockReset();
@@ -475,8 +586,10 @@ describe("buildCreditsPayload", () => {
 
       const { aggregateBuckets, aggregateConsumptions, tx } =
         createTransactionClient({
-          totalCents: convertCreditsToCents(10),
-          usedCents: convertCreditsToCents(4),
+          subscriptionTotalCents: convertCreditsToCents(10),
+          subscriptionUsedCents: convertCreditsToCents(4),
+          extraTotalCents: convertCreditsToCents(30),
+          extraUsedCents: convertCreditsToCents(11),
         });
 
       await expect(
@@ -488,6 +601,10 @@ describe("buildCreditsPayload", () => {
         }),
       ).resolves.toEqual({
         buffer: 19,
+        extra: {
+          available: 19,
+          total: 30,
+        },
         subscription: {
           cancelAtPeriodEnd: false,
           credits: {
@@ -508,8 +625,8 @@ describe("buildCreditsPayload", () => {
         tx,
       );
       expect(getLatestSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
-      expect(aggregateBuckets).toHaveBeenCalledTimes(1);
-      expect(aggregateConsumptions).toHaveBeenCalledTimes(1);
+      expect(aggregateBuckets).toHaveBeenCalledTimes(2);
+      expect(aggregateConsumptions).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }
@@ -534,8 +651,10 @@ describe("buildCreditsPayload", () => {
 
       const { aggregateBuckets, aggregateConsumptions, tx } =
         createTransactionClient({
-          totalCents: convertCreditsToCents(10),
-          usedCents: convertCreditsToCents(4),
+          subscriptionTotalCents: convertCreditsToCents(10),
+          subscriptionUsedCents: convertCreditsToCents(4),
+          extraTotalCents: convertCreditsToCents(30),
+          extraUsedCents: convertCreditsToCents(11),
         });
 
       await expect(
@@ -547,6 +666,10 @@ describe("buildCreditsPayload", () => {
         }),
       ).resolves.toEqual({
         buffer: 19,
+        extra: {
+          available: 19,
+          total: 30,
+        },
         subscription: {
           cancelAtPeriodEnd: false,
           credits: {
@@ -570,8 +693,8 @@ describe("buildCreditsPayload", () => {
         "user_1",
         tx,
       );
-      expect(aggregateBuckets).toHaveBeenCalledTimes(1);
-      expect(aggregateConsumptions).toHaveBeenCalledTimes(1);
+      expect(aggregateBuckets).toHaveBeenCalledTimes(2);
+      expect(aggregateConsumptions).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }

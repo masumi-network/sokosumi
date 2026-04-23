@@ -35,11 +35,19 @@ describe("creditsResponseSchema", () => {
             used: 42.5,
           },
         },
+        extra: {
+          available: 12.5,
+          total: 20,
+        },
         buffer: 12.5,
         total: 70,
       },
     });
 
+    expect(result.credits.extra).toEqual({
+      available: 12.5,
+      total: 20,
+    });
     expect(result.credits.buffer).toBe(12.5);
     expect(result.credits.total).toBe(70);
     expect(result.credits.subscription?.credits).toEqual({
@@ -53,12 +61,20 @@ describe("creditsResponseSchema", () => {
     const result = creditsResponseSchema.parse({
       credits: {
         subscription: null,
+        extra: {
+          available: 20,
+          total: 20,
+        },
         buffer: 20,
         total: 20,
       },
     });
 
     expect(result.credits.subscription).toBeNull();
+    expect(result.credits.extra).toEqual({
+      available: 20,
+      total: 20,
+    });
     expect(result.credits.buffer).toBe(20);
     expect(result.credits.total).toBe(20);
   });

@@ -48,6 +48,10 @@ const route = withGlobalHeaderParameters(
                   used: 42.5,
                 },
               },
+              extra: {
+                available: 12.5,
+                total: 20,
+              },
               buffer: 12.5,
               total: 70,
             },

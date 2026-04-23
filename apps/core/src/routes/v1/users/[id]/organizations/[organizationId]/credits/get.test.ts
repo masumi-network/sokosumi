@@ -27,6 +27,7 @@ describe("users/{id}/organizations/{organizationId}/credits OpenAPI contract", (
       organizationCreditsResponses?.["200"],
     );
 
+    expect(organizationCreditsContract).toContain("extra");
     expect(organizationCreditsContract).toContain("buffer");
     expect(organizationCreditsContract).toContain("total");
     expect(organizationCreditsContract).toContain("subscription");

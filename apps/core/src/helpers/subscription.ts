@@ -21,6 +21,11 @@ interface CreditSummary {
   total: number;
 }
 
+interface ExtraCreditsSummary {
+  available: number;
+  total: number;
+}
+
 interface SubscriptionRecord extends SubscriptionPeriodRecord {
   plan: string;
   status: string;
@@ -175,6 +180,84 @@ export function getCreditSummary(params: {
   };
 }
 
+function buildActiveExtraCreditBucketWhere(params: {
+  userId: string;
+  organizationId: string | null;
+  now: Date;
+}): Prisma.CreditBucketWhereInput {
+  const scopeWhere = params.organizationId
+    ? {
+        organizationId: params.organizationId,
+      }
+    : {
+        userId: params.userId,
+        organizationId: null,
+      };
+
+  return {
+    ...scopeWhere,
+    createdAt: {
+      lt: params.now,
+    },
+    AND: [
+      {
+        OR: [{ expiresAt: null }, { expiresAt: { gt: params.now } }],
+      },
+      {
+        OR: [
+          { referenceType: null },
+          {
+            referenceType: {
+              not: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+export async function getExtraCreditSummary(params: {
+  userId: string;
+  organizationId: string | null;
+  tx: Prisma.TransactionClient;
+  now?: Date;
+}): Promise<ExtraCreditsSummary> {
+  const now = params.now ?? new Date();
+  const extraBucketWhere = buildActiveExtraCreditBucketWhere({
+    userId: params.userId,
+    organizationId: params.organizationId,
+    now,
+  });
+  const [totalAggregateResult, usedAggregateResult] = await Promise.all([
+    params.tx.creditBucket.aggregate({
+      _sum: {
+        amount: true,
+      },
+      where: extraBucketWhere,
+    }),
+    params.tx.creditConsumption.aggregate({
+      _sum: {
+        amount: true,
+      },
+      where: {
+        bucket: {
+          is: extraBucketWhere,
+        },
+      },
+    }),
+  ]);
+  const normalizedCents = normalizeSubscriptionCents(
+    totalAggregateResult._sum.amount ?? 0n,
+    usedAggregateResult._sum.amount ?? 0n,
+  );
+
+  return {
+    available: convertCentsToCredits(normalizedCents.remainingCents),
+    total: convertCentsToCredits(normalizedCents.totalCents),
+  };
+}
+
 export function mapSubscription(subscription: SubscriptionRecord | null) {
   if (!subscription) {
     return null;
@@ -193,6 +276,7 @@ export function mapSubscription(subscription: SubscriptionRecord | null) {
 export interface CreditsPayload {
   subscription: ReturnType<typeof mapSubscription>;
   buffer: number;
+  extra: ExtraCreditsSummary;
   total: number;
 }
 
@@ -234,10 +318,16 @@ export async function buildCreditsPayload(params: {
     totalCredits,
     subscriptionCredits,
   });
+  const extra = await getExtraCreditSummary({
+    userId: params.userId,
+    organizationId: params.organizationId,
+    tx: params.tx,
+  });
 
   return {
     subscription,
     buffer,
+    extra,
     total,
   };
 }
