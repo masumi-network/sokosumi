@@ -4,7 +4,11 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { isCoworkerAuthContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
-import type { TaskListItemWithIncludes, TaskWithIncludes } from "@/types/task";
+import {
+  type TaskListItemWithIncludes,
+  type TaskWithIncludes,
+  taskEventApiInclude,
+} from "@/types/task";
 
 import { unprocessableEntity } from "./error";
 import { mapTaskLinksForTask } from "./task-link";
@@ -19,12 +23,7 @@ type TaskEventWithOptionalTransaction = Omit<
   } | null;
 };
 
-/** Include for standalone task event API responses (list/create/coworker feed). */
-export const taskEventApiInclude = {
-  user: { select: { id: true, name: true, image: true } },
-  coworker: { select: { id: true, name: true, image: true, slug: true } },
-  transaction: { select: { amount: true } },
-} as const;
+export { taskEventApiInclude };
 
 type TaskEventForMapping = TaskEventWithOptionalTransaction & {
   user?: { id: string; name: string; image: string | null } | null;
@@ -238,7 +237,7 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
       : {
           id: task.userId,
           name: "User",
-          image: null as string | null,
+          image: null,
         };
 
   const taskCoworkerSummary =
@@ -264,7 +263,7 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
-    events: task.events.map((event) => mapTaskEvent(event)),
+    events: task.events.map(mapTaskEvent),
     jobs: task.jobs.map(flattenJob),
     credits,
     workspace: mapWorkspaceSummary(task.workspace),

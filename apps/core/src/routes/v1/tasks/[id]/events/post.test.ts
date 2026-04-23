@@ -168,13 +168,13 @@ function enrichTaskEventRowForResponse(record: TaskEventRecord) {
   return {
     ...record,
     user: record.userId
-      ? { id: record.userId, name: "Task user", image: null as string | null }
+      ? { id: record.userId, name: "Task user", image: null }
       : null,
     coworker: record.coworkerId
       ? {
           id: record.coworkerId,
           name: "Task coworker",
-          image: null as string | null,
+          image: null,
           slug: "task-coworker",
         }
       : null,

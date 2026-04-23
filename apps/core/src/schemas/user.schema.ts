@@ -19,7 +19,6 @@ export const userSchema = z
   })
   .openapi("User");
 
-/** Compact user shape embedded in jobs, tasks, and task events. */
 export const userSummarySchema = z
   .object({
     id: z.string().openapi({ example: "user_123" }),

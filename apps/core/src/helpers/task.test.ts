@@ -26,13 +26,13 @@ const userContext: AuthenticationContext = {
 const defaultTaskUser = {
   id: "user_123",
   name: "Test User",
-  image: null as string | null,
+  image: null,
 };
 
 const defaultTaskCoworker = {
   id: "cow_123",
   name: "Test Coworker",
-  image: null as string | null,
+  image: null,
   slug: "test-coworker",
 };
 

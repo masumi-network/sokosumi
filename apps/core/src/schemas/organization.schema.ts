@@ -34,7 +34,6 @@ export type OrganizationWithRole = z.infer<typeof organizationWithRoleSchema>;
 
 export const organizationsSchema = z.array(organizationWithRoleSchema);
 
-/** Compact organization shape embedded in jobs, tasks, and task events. */
 export const organizationSummarySchema = z
   .object({
     id: z.string().openapi({ example: "org_123" }),

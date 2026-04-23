@@ -30,7 +30,6 @@ export const coworkerMetadataSchema = z
 
 export type CoworkerMetadata = z.infer<typeof coworkerMetadataSchema>;
 
-/** Compact coworker shape embedded in tasks and task events. */
 export const coworkerSummarySchema = z
   .object({
     id: z.string().openapi({ example: "cow_123" }),
