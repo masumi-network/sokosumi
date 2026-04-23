@@ -12,6 +12,7 @@ import {
 
 import { unprocessableEntity } from "./error";
 import { mapTaskLinksForTask } from "./task-link";
+import { userSummaryFromLoadedRelation } from "./user-summary";
 import { mapWorkspaceSummary } from "./workspace";
 
 type TaskEventWithOptionalTransaction = Omit<
@@ -227,18 +228,11 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
         }
       : null;
 
-  const taskUserSummary =
-    task.user != null
-      ? {
-          id: task.user.id,
-          name: task.user.name,
-          image: task.user.image,
-        }
-      : {
-          id: task.userId,
-          name: "User",
-          image: null,
-        };
+  const taskUserSummary = userSummaryFromLoadedRelation(
+    `Task ${task.id}`,
+    task.userId,
+    task.user,
+  );
 
   const taskCoworkerSummary =
     task.coworkerId != null && task.coworker != null

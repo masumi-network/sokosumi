@@ -10,6 +10,7 @@ import {
   getResultHash,
 } from "@sokosumi/database/helpers";
 
+import { userSummaryFromLoadedRelation } from "@/helpers/user-summary";
 import { mapWorkspaceSummary } from "@/helpers/workspace";
 
 export function flattenJob(job: JobWithSummaryRelations) {
@@ -31,18 +32,7 @@ export function flattenJob(job: JobWithSummaryRelations) {
     credits: getCredits(job),
     status: computeJobStatus(job),
     workspace: mapWorkspaceSummary(job.workspace),
-    user:
-      job.user != null
-        ? {
-            id: job.user.id,
-            name: job.user.name,
-            image: job.user.image,
-          }
-        : {
-            id: job.userId,
-            name: "User",
-            image: null,
-          },
+    user: userSummaryFromLoadedRelation(`Job ${job.id}`, job.userId, job.user),
     organization:
       job.organizationId != null && job.organization != null
         ? {
