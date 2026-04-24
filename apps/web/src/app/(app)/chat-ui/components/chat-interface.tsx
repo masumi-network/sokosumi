@@ -234,6 +234,9 @@ export default function ChatInterface({
   const welcomeTaskCreationInFlightRef = useRef(false);
 
   const welcomePrefsHydratedRef = useRef(false);
+  const previousWelcomeCoworkerSlugRef = useRef<string | null>(
+    welcomeCoworkerSlug,
+  );
   const welcomeSelectedCoworkerRef = useRef<Coworker | null>(null);
   const welcomeSelectedModelRef = useRef<{
     id: string;
@@ -292,19 +295,22 @@ export default function ChatInterface({
   const previousSelectedChatIdForComposeRef = useRef<string | null>(
     selectedChatId,
   );
-  useEffect(() => {
-    const previous = previousSelectedChatIdForComposeRef.current;
-    previousSelectedChatIdForComposeRef.current = selectedChatId;
-    if (previous !== null && selectedChatId === null) {
+  // Invalidate stored welcome prefs during render so the hydration
+  // `useLayoutEffect` runs before paint (avoids one frame of stale welcome UI).
+  const previousComposeSelectedChatId =
+    previousSelectedChatIdForComposeRef.current;
+  if (previousComposeSelectedChatId !== selectedChatId) {
+    if (previousComposeSelectedChatId !== null && selectedChatId === null) {
       welcomePrefsHydratedRef.current = false;
     }
-  }, [selectedChatId]);
-
-  useEffect(() => {
+    previousSelectedChatIdForComposeRef.current = selectedChatId;
+  }
+  if (previousWelcomeCoworkerSlugRef.current !== welcomeCoworkerSlug) {
     welcomePrefsHydratedRef.current = false;
-  }, [welcomeCoworkerSlug]);
+    previousWelcomeCoworkerSlugRef.current = welcomeCoworkerSlug;
+  }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selectedChatId !== null) return;
     if (coworkers.length === 0) return;
     if (welcomePrefsHydratedRef.current) return;
