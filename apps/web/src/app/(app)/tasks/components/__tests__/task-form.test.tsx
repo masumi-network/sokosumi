@@ -161,6 +161,11 @@ describe("TaskForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     markdownEditorPropsSpy.mockClear();
+    try {
+      window.localStorage.clear();
+    } catch {
+      // Ignore environments without localStorage.
+    }
   });
 
   function getHiddenFileInput(container: HTMLElement): HTMLInputElement {

@@ -4,11 +4,22 @@ import { TaskStatus } from "@sokosumi/database";
 import { ArrowLeft, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
+import {
+  readCreateTaskModalLastCoworkerId,
+  writeCreateTaskModalLastCoworkerId,
+} from "@/app/tasks/utils/create-task-modal-preferences";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
 import {
@@ -110,19 +121,35 @@ export function TaskForm({
   const [description, setDescription] = useState(
     initialValues?.description ?? "",
   );
-  const defaultCoworkerId = (() => {
+  const defaultCoworkerId = useMemo(() => {
     const elenaCoworker = coworkerOptions.find(
       (option) => option.slug === "elena",
     );
-    return (
+    const fallback =
       initialValues?.coworkerId ??
       elenaCoworker?.id ??
       coworkerOptions[0]?.id ??
-      ""
-    );
-  })();
+      "";
+    if (!isModal || mode !== "create") {
+      return fallback;
+    }
+    if (initialValues?.coworkerId != null && initialValues.coworkerId !== "") {
+      return initialValues.coworkerId;
+    }
+    const stored = readCreateTaskModalLastCoworkerId();
+    if (stored && coworkerOptions.some((o) => o.id === stored)) {
+      return stored;
+    }
+    return fallback;
+  }, [coworkerOptions, initialValues?.coworkerId, isModal, mode]);
 
-  const [coworkerId, setCoworkerId] = useState<string>(defaultCoworkerId);
+  const coworkerTouchedRef = useRef(false);
+  const [coworkerId, setCoworkerId] = useState(defaultCoworkerId);
+
+  useLayoutEffect(() => {
+    if (coworkerTouchedRef.current) return;
+    setCoworkerId(defaultCoworkerId);
+  }, [defaultCoworkerId]);
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
@@ -143,6 +170,17 @@ export function TaskForm({
   useEffect(() => {
     onSubmittingChange?.(isSubmittingAny);
   }, [isSubmittingAny, onSubmittingChange]);
+
+  const handleCoworkerSelect = useCallback(
+    (id: string) => {
+      coworkerTouchedRef.current = true;
+      setCoworkerId(id);
+      if (isModal && mode === "create") {
+        writeCreateTaskModalLastCoworkerId(id);
+      }
+    },
+    [isModal, mode],
+  );
 
   const abortActiveUploads = useCallback(() => {
     for (const controller of activeUploadControllersRef.current) {
@@ -441,7 +479,7 @@ export function TaskForm({
                     key={option.id}
                     option={option}
                     isSelected={coworkerId === option.id}
-                    onSelect={() => setCoworkerId(option.id)}
+                    onSelect={() => handleCoworkerSelect(option.id)}
                   />
                 ))}
               </div>
