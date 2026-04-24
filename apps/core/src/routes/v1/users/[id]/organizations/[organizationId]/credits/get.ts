@@ -36,6 +36,19 @@ const route = createRoute({
       "Retrieve shared non-subscription organization credits plus the member subscription wallet",
       {
         data: {
+          subscription: {
+            plan: "starter",
+            status: "active",
+            periodStart: "2025-01-01T00:00:00.000Z",
+            periodEnd: "2025-02-01T00:00:00.000Z",
+            cancelAtPeriodEnd: false,
+            credits: {
+              total: 100,
+              remaining: 57.5,
+              used: 42.5,
+            },
+          },
+          total: 70,
           credits: {
             subscription: {
               plan: "starter",
@@ -51,6 +64,16 @@ const route = createRoute({
             },
             buffer: 12.5,
             total: 70,
+          },
+          extra: {
+            buckets: [
+              {
+                total: 25,
+                remaining: 12.5,
+                expiresAt: "2026-08-01T00:00:00.000Z",
+              },
+            ],
+            remainingTotal: 12.5,
           },
         },
         meta: {
@@ -73,7 +96,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { organizationId } = c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const credits = await prisma.$transaction(async (tx) => {
+    const payload = await prisma.$transaction(async (tx) => {
       const { organization } = await resolveMemberOrganizationById({
         id: organizationId,
         userId: resolvedUserId,
@@ -87,6 +110,6 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       });
     });
 
-    return ok(c, creditsResponseSchema.parse({ credits }));
+    return ok(c, creditsResponseSchema.parse(payload));
   });
 }

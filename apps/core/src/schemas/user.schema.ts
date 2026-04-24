@@ -3,6 +3,38 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { subscriptionSchema } from "@/schemas/subscription.schema";
 
+const creditBucketBreakdownItemSchema = z
+  .object({
+    total: z.number().openapi({
+      description: "Original bucket amount in credits",
+      example: 50,
+    }),
+    remaining: z.number().openapi({
+      description:
+        "Remaining balance in this bucket after prior consumption (FIFO)",
+      example: 32.5,
+    }),
+    expiresAt: dateTimeSchema.nullable().openapi({
+      description: "When this bucket expires; null if it does not expire",
+      example: "2026-07-01T00:00:00.000Z",
+    }),
+  })
+  .openapi("CreditBucketBreakdown");
+
+/** Nested shape mirrored under deprecated `credits` */
+const creditsDeprecatedMirrorSchema = z.object({
+  subscription: subscriptionSchema.nullable(),
+  buffer: z.number().openapi({
+    description: "Current available non-subscription credit balance",
+    example: 25.0,
+  }),
+  total: z.number().openapi({
+    description:
+      "Current available total credit balance (buffer plus remaining subscription credits)",
+    example: 82.5,
+  }),
+});
+
 export const userSchema = z
   .object({
     id: z.string().openapi({ example: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj" }),
@@ -52,16 +84,29 @@ export const userOnboardingResponseSchema = z.object({
 });
 
 export const creditsResponseSchema = z.object({
-  credits: z.object({
-    subscription: subscriptionSchema.nullable(),
-    buffer: z.number().openapi({
-      description: "Current available non-subscription credit balance",
-      example: 25.0,
-    }),
-    total: z.number().openapi({
+  subscription: subscriptionSchema.nullable().openapi({
+    description:
+      "Active subscription and period credit breakdown for the billing context",
+  }),
+  total: z.number().openapi({
+    description:
+      "Current available total credit balance (buffer plus remaining subscription credits)",
+    example: 82.5,
+  }),
+  credits: creditsDeprecatedMirrorSchema.openapi({
+    deprecated: true,
+    description:
+      "Deprecated: prefer top-level `subscription` and `total`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the top-level fields for backward compatibility.",
+  }),
+  extra: z.object({
+    buckets: z.array(creditBucketBreakdownItemSchema).openapi({
       description:
-        "Current available total credit balance (buffer plus remaining subscription credits)",
-      example: 82.5,
+        "Unexpired buckets with remaining balance, in FIFO spend order",
+    }),
+    remainingTotal: z.number().openapi({
+      description:
+        "Sum of `remaining` across all buckets (total available credits represented by the bucket list)",
+      example: 37.5,
     }),
   }),
 });

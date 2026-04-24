@@ -1,6 +1,10 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { getOrganizationMemberSubscriptionReferencePrefixForStartsWith } from "@sokosumi/database/helpers";
-import { subscriptionRepository } from "@sokosumi/database/repositories";
+import {
+  type CreditBucketBalanceRow,
+  creditBucketRepository,
+  subscriptionRepository,
+} from "@sokosumi/database/repositories";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { getCredits } from "@/helpers/user";
@@ -196,12 +200,27 @@ export interface CreditsPayload {
   total: number;
 }
 
+export interface CreditsApiPayload {
+  subscription: ReturnType<typeof mapSubscription>;
+  total: number;
+  credits: CreditsPayload;
+  extra: {
+    buckets: Array<{
+      total: number;
+      remaining: number;
+      expiresAt: Date | null;
+    }>;
+    /** Sum of `remaining` for all buckets (credits) */
+    remainingTotal: number;
+  };
+}
+
 export async function buildCreditsPayload(params: {
   userId: string;
   organizationId: string | null;
   referenceId: string;
   tx: Prisma.TransactionClient;
-}): Promise<CreditsPayload> {
+}): Promise<CreditsApiPayload> {
   const totalCredits = await getCredits(
     params.userId,
     params.organizationId,
@@ -235,9 +254,34 @@ export async function buildCreditsPayload(params: {
     subscriptionCredits,
   });
 
-  return {
+  const bucketRows =
+    await creditBucketRepository.listAvailableBucketsWithBalances(
+      params.userId,
+      params.organizationId,
+      params.tx,
+    );
+
+  const buckets = bucketRows.map((row: CreditBucketBalanceRow) => ({
+    total: convertCentsToCredits(row.totalCents),
+    remaining: convertCentsToCredits(row.remainingCents),
+    expiresAt: row.expiresAt,
+  }));
+
+  const remainingTotal = buckets.reduce((sum, b) => {
+    const r = b.remaining;
+    return sum + (Number.isFinite(r) ? r : 0);
+  }, 0);
+
+  const credits = {
     subscription,
     buffer,
     total,
+  };
+
+  return {
+    subscription,
+    total,
+    credits,
+    extra: { buckets, remainingTotal },
   };
 }

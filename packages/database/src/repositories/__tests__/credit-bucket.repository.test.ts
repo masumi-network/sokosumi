@@ -347,6 +347,74 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
   });
 });
 
+describe("creditBucketRepository.listAvailableBucketsWithBalances", () => {
+  it("returns FIFO-ordered rows with total and remaining cents", async () => {
+    const expiresSoon = new Date("2026-06-01T00:00:00.000Z");
+    const expiresLater = new Date("2026-12-01T00:00:00.000Z");
+    const tx = {
+      $queryRaw: async () => [
+        {
+          totalCents: 100n,
+          remainingCents: 40n,
+          expiresAt: expiresSoon,
+        },
+        {
+          totalCents: 200n,
+          remainingCents: 200n,
+          expiresAt: expiresLater,
+        },
+      ],
+    } as unknown as Prisma.TransactionClient;
+
+    const rows = await creditBucketRepository.listAvailableBucketsWithBalances(
+      "user-1",
+      null,
+      tx,
+    );
+
+    assert.deepEqual(rows, [
+      {
+        totalCents: 100n,
+        remainingCents: 40n,
+        expiresAt: expiresSoon,
+      },
+      {
+        totalCents: 200n,
+        remainingCents: 200n,
+        expiresAt: expiresLater,
+      },
+    ]);
+  });
+
+  it("scopes organization listing to member subscription pattern", async () => {
+    let queryArgs: unknown[] = [];
+    const tx = {
+      $queryRaw: async (...rawArgs: unknown[]) => {
+        queryArgs = rawArgs;
+        return [];
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await creditBucketRepository.listAvailableBucketsWithBalances(
+      "user-1",
+      "org-1",
+      tx,
+    );
+
+    const values = extractNestedSqlValues(queryArgs);
+    assert.ok(values.includes("org-1"));
+    assert.ok(values.includes("user-1"));
+    assert.ok(
+      values.includes(
+        `${getOrganizationMemberSubscriptionReferencePrefix("user-1")}%`,
+      ),
+    );
+    assert.ok(
+      values.includes(CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD),
+    );
+  });
+});
+
 describe("creditBucketRepository.prepareConsumption (organization scope SQL)", () => {
   it("filters organization subscription consumption to member-prefixed references", async () => {
     let queryArgs: unknown[] = [];

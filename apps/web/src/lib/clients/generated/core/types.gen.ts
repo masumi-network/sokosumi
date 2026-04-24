@@ -5007,6 +5007,34 @@ export type GetUsersByIdCreditsResponses = {
      */
     200: {
         data: {
+            subscription: {
+                plan: string;
+                status: string;
+                periodStart?: Date | null;
+                periodEnd?: Date | null;
+                cancelAtPeriodEnd?: boolean | null;
+                credits: {
+                    /**
+                     * Total subscription-period credits granted this period
+                     */
+                    total: number;
+                    /**
+                     * Remaining subscription-period credits this period
+                     */
+                    remaining: number;
+                    /**
+                     * Used subscription-period credits consumed during this period
+                     */
+                    used: number;
+                } | null;
+            } | null;
+            /**
+             * Current available total credit balance (buffer plus remaining subscription credits)
+             */
+            total: number;
+            /**
+             * @deprecated Prefer top-level `subscription` and `total`; `buffer` remains nested here only.
+             */
             credits: {
                 subscription: {
                     plan: string;
@@ -5037,6 +5065,29 @@ export type GetUsersByIdCreditsResponses = {
                  * Current available total credit balance (buffer plus remaining subscription credits)
                  */
                 total: number;
+            };
+            extra: {
+                /**
+                 * Unexpired buckets with remaining balance, in FIFO spend order
+                 */
+                buckets: Array<{
+                    /**
+                     * Original bucket amount in credits
+                     */
+                    total: number;
+                    /**
+                     * Remaining balance in this bucket after prior consumption (FIFO)
+                     */
+                    remaining: number;
+                    /**
+                     * When this bucket expires; null if it does not expire
+                     */
+                    expiresAt: Date | null;
+                }>;
+                /**
+                 * Sum of `remaining` across all buckets (total available credits represented by the bucket list)
+                 */
+                remainingTotal: number;
             };
         };
         meta: {
@@ -5213,6 +5264,34 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
      */
     200: {
         data: {
+            subscription: {
+                plan: string;
+                status: string;
+                periodStart?: Date | null;
+                periodEnd?: Date | null;
+                cancelAtPeriodEnd?: boolean | null;
+                credits: {
+                    /**
+                     * Total subscription-period credits granted this period
+                     */
+                    total: number;
+                    /**
+                     * Remaining subscription-period credits this period
+                     */
+                    remaining: number;
+                    /**
+                     * Used subscription-period credits consumed during this period
+                     */
+                    used: number;
+                } | null;
+            } | null;
+            /**
+             * Current available total credit balance (buffer plus remaining subscription credits)
+             */
+            total: number;
+            /**
+             * @deprecated Prefer top-level `subscription` and `total`; `buffer` remains nested here only.
+             */
             credits: {
                 subscription: {
                     plan: string;
@@ -5243,6 +5322,29 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
                  * Current available total credit balance (buffer plus remaining subscription credits)
                  */
                 total: number;
+            };
+            extra: {
+                /**
+                 * Unexpired buckets with remaining balance, in FIFO spend order
+                 */
+                buckets: Array<{
+                    /**
+                     * Original bucket amount in credits
+                     */
+                    total: number;
+                    /**
+                     * Remaining balance in this bucket after prior consumption (FIFO)
+                     */
+                    remaining: number;
+                    /**
+                     * When this bucket expires; null if it does not expire
+                     */
+                    expiresAt: Date | null;
+                }>;
+                /**
+                 * Sum of `remaining` across all buckets (total available credits represented by the bucket list)
+                 */
+                remainingTotal: number;
             };
         };
         meta: {

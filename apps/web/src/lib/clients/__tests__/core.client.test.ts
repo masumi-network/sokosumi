@@ -158,11 +158,14 @@ describe("core.client", () => {
     getUsersByIdCreditsMock.mockResolvedValue({
       data: {
         data: {
+          subscription: null,
+          total: 42,
           credits: {
             subscription: null,
             buffer: 42,
             total: 42,
           },
+          extra: { buckets: [], remainingTotal: 0 },
         },
       },
       response: new Response("{}", { status: 200 }),

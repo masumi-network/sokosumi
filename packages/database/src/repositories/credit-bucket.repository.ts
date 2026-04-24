@@ -14,6 +14,13 @@ export interface Consumption {
   amount: bigint;
 }
 
+/** Per-bucket amounts in cents from listAvailableBucketsWithBalances */
+export interface CreditBucketBalanceRow {
+  totalCents: bigint;
+  remainingCents: bigint;
+  expiresAt: Date | null;
+}
+
 /**
  * Credit Bucket Repository Interface
  *
@@ -83,6 +90,48 @@ export const creditBucketRepository = {
     `;
 
     return result[0]?.balance ?? 0n;
+  },
+
+  /**
+   * List unexpired buckets with remaining balance > 0, FIFO order (same scope as getBalance).
+   * Amounts are in cents for conversion at the API boundary.
+   */
+  async listAvailableBucketsWithBalances(
+    userId: string,
+    organizationId: string | null,
+    tx: Prisma.TransactionClient,
+  ): Promise<CreditBucketBalanceRow[]> {
+    const now = new Date();
+    const where = buildCreditBucketScopeSql(userId, organizationId);
+
+    return await tx.$queryRaw<
+      Array<{
+        totalCents: bigint;
+        remainingCents: bigint;
+        expiresAt: Date | null;
+      }>
+    >`
+      WITH bucket_avail AS (
+        SELECT
+          cb.id,
+          cb.amount,
+          (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
+          cb."expiresAt",
+          cb."createdAt"
+        FROM credit_bucket cb
+        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+        WHERE ${where}
+          AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+        GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
+        HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
+      )
+      SELECT
+        amount AS "totalCents",
+        available AS "remainingCents",
+        "expiresAt"
+      FROM bucket_avail
+      ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
+    `;
   },
 
   /**

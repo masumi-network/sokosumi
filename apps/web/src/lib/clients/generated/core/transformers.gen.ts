@@ -171,13 +171,28 @@ export const getUsersRegisteredResponseTransformer = async (data: any): Promise<
     return data;
 };
 
+const transformCreditsSubscriptionPeriodDates = (subscription: unknown) => {
+    if (!subscription || typeof subscription !== "object") {
+        return;
+    }
+    const sub = subscription as {
+        periodStart?: string | Date | null;
+        periodEnd?: string | Date | null;
+    };
+    if (sub.periodStart) {
+        sub.periodStart = new Date(sub.periodStart);
+    }
+    if (sub.periodEnd) {
+        sub.periodEnd = new Date(sub.periodEnd);
+    }
+};
+
 export const getUsersByIdCreditsResponseTransformer = async (data: any): Promise<GetUsersByIdCreditsResponse> => {
-    if (data.data.credits.subscription) {
-        if (data.data.credits.subscription.periodStart) {
-            data.data.credits.subscription.periodStart = new Date(data.data.credits.subscription.periodStart);
-        }
-        if (data.data.credits.subscription.periodEnd) {
-            data.data.credits.subscription.periodEnd = new Date(data.data.credits.subscription.periodEnd);
+    transformCreditsSubscriptionPeriodDates(data.data.subscription);
+    transformCreditsSubscriptionPeriodDates(data.data.credits.subscription);
+    for (const bucket of data.data.extra.buckets) {
+        if (bucket.expiresAt) {
+            bucket.expiresAt = new Date(bucket.expiresAt);
         }
     }
     data.meta.timestamp = new Date(data.meta.timestamp);
@@ -196,12 +211,11 @@ export const getUsersByIdOrganizationsResponseTransformer = async (data: any): P
 };
 
 export const getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer = async (data: any): Promise<GetUsersByIdOrganizationsByOrganizationIdCreditsResponse> => {
-    if (data.data.credits.subscription) {
-        if (data.data.credits.subscription.periodStart) {
-            data.data.credits.subscription.periodStart = new Date(data.data.credits.subscription.periodStart);
-        }
-        if (data.data.credits.subscription.periodEnd) {
-            data.data.credits.subscription.periodEnd = new Date(data.data.credits.subscription.periodEnd);
+    transformCreditsSubscriptionPeriodDates(data.data.subscription);
+    transformCreditsSubscriptionPeriodDates(data.data.credits.subscription);
+    for (const bucket of data.data.extra.buckets) {
+        if (bucket.expiresAt) {
+            bucket.expiresAt = new Date(bucket.expiresAt);
         }
     }
     data.meta.timestamp = new Date(data.meta.timestamp);
