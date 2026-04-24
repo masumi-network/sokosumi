@@ -1581,6 +1581,36 @@ export const PatchCreditCostRequestSchema = {
     ]
 } as const;
 
+export const CreditBucketBreakdownSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: 'number',
+            description: 'Original bucket amount in credits',
+            example: 50
+        },
+        remaining: {
+            type: 'number',
+            description: 'Remaining balance in this bucket after prior consumption (FIFO)',
+            example: 32.5
+        },
+        expiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-07-01T00:00:00.000Z',
+            description: 'When this bucket expires; null if it does not expire'
+        }
+    },
+    required: [
+        'total',
+        'remaining',
+        'expiresAt'
+    ]
+} as const;
+
 export const OrganizationSchema = {
     type: 'object',
     properties: {

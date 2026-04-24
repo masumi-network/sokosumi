@@ -508,6 +508,7 @@ describe("buildCreditsPayload", () => {
           status: "active",
         },
         available: 25,
+        buckets: [],
         credits: {
           buffer: 19,
           subscription: {
@@ -524,7 +525,6 @@ describe("buildCreditsPayload", () => {
           },
           total: 25,
         },
-        extra: { buckets: [], remainingTotal: 0, nextExpiring: null },
       });
 
       expect(listAvailableBucketsWithBalancesMock).toHaveBeenCalledWith(
@@ -589,6 +589,7 @@ describe("buildCreditsPayload", () => {
           status: "canceled",
         },
         available: 25,
+        buckets: [],
         credits: {
           buffer: 19,
           subscription: {
@@ -605,7 +606,6 @@ describe("buildCreditsPayload", () => {
           },
           total: 25,
         },
-        extra: { buckets: [], remainingTotal: 0, nextExpiring: null },
       });
 
       expect(listAvailableBucketsWithBalancesMock).toHaveBeenCalledWith(
@@ -629,7 +629,7 @@ describe("buildCreditsPayload", () => {
     }
   });
 
-  it("maps credit bucket rows into extra.buckets in credits", async () => {
+  it("maps credit bucket rows into top-level buckets", async () => {
     vi.useFakeTimers();
     try {
       vi.setSystemTime(new Date("2025-01-15T12:00:00.000Z"));
@@ -667,22 +667,14 @@ describe("buildCreditsPayload", () => {
       ).resolves.toEqual({
         subscription: null,
         available: 10,
+        buckets: [
+          { total: 20, remaining: 7.5, expiresAt },
+          { total: 5, remaining: 5, expiresAt: null },
+        ],
         credits: {
           buffer: 10,
           subscription: null,
           total: 10,
-        },
-        extra: {
-          buckets: [
-            { total: 20, remaining: 7.5, expiresAt },
-            { total: 5, remaining: 5, expiresAt: null },
-          ],
-          remainingTotal: 12.5,
-          nextExpiring: {
-            total: 20,
-            remaining: 7.5,
-            expiresAt,
-          },
         },
       });
 

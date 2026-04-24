@@ -165,7 +165,7 @@ describe("core.client", () => {
             buffer: 42,
             total: 42,
           },
-          extra: { buckets: [], remainingTotal: 0, nextExpiring: null },
+          buckets: [],
         },
       },
       response: new Response("{}", { status: 200 }),

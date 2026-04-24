@@ -36,12 +36,12 @@ describe("creditsResponseSchema", () => {
     const result = creditsResponseSchema.parse({
       subscription,
       available: 70,
+      buckets: [],
       credits: {
         subscription,
         buffer: 12.5,
         total: 70,
       },
-      extra: { buckets: [], remainingTotal: 0, nextExpiring: null },
     });
 
     expect(result.available).toBe(70);
@@ -63,12 +63,12 @@ describe("creditsResponseSchema", () => {
     const result = creditsResponseSchema.parse({
       subscription: null,
       available: 20,
+      buckets: [],
       credits: {
         subscription: null,
         buffer: 20,
         total: 20,
       },
-      extra: { buckets: [], remainingTotal: 0, nextExpiring: null },
     });
 
     expect(result.subscription).toBeNull();
@@ -86,40 +86,26 @@ describe("creditsResponseSchema", () => {
     ).toThrow();
   });
 
-  it("accepts extra.buckets with totals and optional expiry", () => {
+  it("accepts top-level buckets with totals and optional expiry", () => {
     const result = creditsResponseSchema.parse({
       subscription: null,
       available: 5,
+      buckets: [
+        {
+          total: 10,
+          remaining: 3.25,
+          expiresAt: "2026-06-01T00:00:00.000Z",
+        },
+        { total: 2, remaining: 2, expiresAt: null },
+      ],
       credits: {
         subscription: null,
         buffer: 5,
         total: 5,
       },
-      extra: {
-        buckets: [
-          {
-            total: 10,
-            remaining: 3.25,
-            expiresAt: "2026-06-01T00:00:00.000Z",
-          },
-          { total: 2, remaining: 2, expiresAt: null },
-        ],
-        remainingTotal: 5.25,
-        nextExpiring: {
-          total: 10,
-          remaining: 3.25,
-          expiresAt: "2026-06-01T00:00:00.000Z",
-        },
-      },
     });
 
-    expect(result.extra.remainingTotal).toBe(5.25);
-    expect(result.extra.nextExpiring).toEqual({
-      total: 10,
-      remaining: 3.25,
-      expiresAt: "2026-06-01T00:00:00.000Z",
-    });
-    expect(result.extra.buckets).toEqual([
+    expect(result.buckets).toEqual([
       {
         total: 10,
         remaining: 3.25,
@@ -129,22 +115,20 @@ describe("creditsResponseSchema", () => {
     ]);
   });
 
-  it("sets extra.nextExpiring to null when no bucket has an expiry", () => {
+  it("accepts buckets with only non-expiring entries", () => {
     const result = creditsResponseSchema.parse({
       subscription: null,
       available: 5,
+      buckets: [{ total: 2, remaining: 2, expiresAt: null }],
       credits: {
         subscription: null,
         buffer: 5,
         total: 5,
       },
-      extra: {
-        buckets: [{ total: 2, remaining: 2, expiresAt: null }],
-        remainingTotal: 2,
-        nextExpiring: null,
-      },
     });
 
-    expect(result.extra.nextExpiring).toBeNull();
+    expect(result.buckets).toEqual([
+      { total: 2, remaining: 2, expiresAt: null },
+    ]);
   });
 });

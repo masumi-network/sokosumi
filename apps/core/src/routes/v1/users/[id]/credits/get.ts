@@ -48,6 +48,13 @@ const route = withGlobalHeaderParameters(
               },
             },
             available: 70,
+            buckets: [
+              {
+                total: 25,
+                remaining: 12.5,
+                expiresAt: "2026-08-01T00:00:00.000Z",
+              },
+            ],
             credits: {
               subscription: {
                 plan: "starter",
@@ -63,21 +70,6 @@ const route = withGlobalHeaderParameters(
               },
               buffer: 12.5,
               total: 70,
-            },
-            extra: {
-              buckets: [
-                {
-                  total: 25,
-                  remaining: 12.5,
-                  expiresAt: "2026-08-01T00:00:00.000Z",
-                },
-              ],
-              remainingTotal: 12.5,
-              nextExpiring: {
-                total: 25,
-                remaining: 12.5,
-                expiresAt: "2026-08-01T00:00:00.000Z",
-              },
             },
           },
           meta: {

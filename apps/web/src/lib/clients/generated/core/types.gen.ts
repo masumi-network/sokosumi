@@ -456,6 +456,21 @@ export type PatchCreditCostRequest = {
     creditsPerUnit: number;
 };
 
+export type CreditBucketBreakdown = {
+    /**
+     * Original bucket amount in credits
+     */
+    total: number;
+    /**
+     * Remaining balance in this bucket after prior consumption (FIFO)
+     */
+    remaining: number;
+    /**
+     * When this bucket expires; null if it does not expire
+     */
+    expiresAt: Date | null;
+};
+
 export type Organization = {
     id: string;
     createdAt: Date;
@@ -5007,6 +5022,9 @@ export type GetUsersByIdCreditsResponses = {
      */
     200: {
         data: {
+            /**
+             * Active subscription and period credit breakdown for the billing context
+             */
             subscription: {
                 plan: string;
                 status: string;
@@ -5033,7 +5051,13 @@ export type GetUsersByIdCreditsResponses = {
              */
             available: number;
             /**
-             * @deprecated Prefer top-level `subscription` and `available`; `buffer` remains nested here only.
+             * Unexpired buckets with remaining balance, in FIFO spend order
+             */
+            buckets: Array<CreditBucketBreakdown>;
+            /**
+             * Deprecated: prefer top-level `subscription` and `available`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` here matches top-level `available`).
+             *
+             * @deprecated
              */
             credits: {
                 subscription: {
@@ -5065,46 +5089,6 @@ export type GetUsersByIdCreditsResponses = {
                  * Current available total credit balance (buffer plus remaining subscription credits)
                  */
                 total: number;
-            };
-            extra: {
-                /**
-                 * Unexpired buckets with remaining balance, in FIFO spend order
-                 */
-                buckets: Array<{
-                    /**
-                     * Original bucket amount in credits
-                     */
-                    total: number;
-                    /**
-                     * Remaining balance in this bucket after prior consumption (FIFO)
-                     */
-                    remaining: number;
-                    /**
-                     * When this bucket expires; null if it does not expire
-                     */
-                    expiresAt: Date | null;
-                }>;
-                /**
-                 * Sum of `remaining` across all buckets (total available credits represented by the bucket list)
-                 */
-                remainingTotal: number;
-                /**
-                 * The bucket with the earliest `expiresAt` among `buckets` (FIFO order); null if the list is empty or every bucket is non-expiring
-                 */
-                nextExpiring: {
-                    /**
-                     * Original bucket amount in credits
-                     */
-                    total: number;
-                    /**
-                     * Remaining balance in this bucket when it expires next
-                     */
-                    remaining: number;
-                    /**
-                     * Earliest expiry among listed buckets with a finite expiry
-                     */
-                    expiresAt: Date;
-                } | null;
             };
         };
         meta: {
@@ -5281,6 +5265,9 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
      */
     200: {
         data: {
+            /**
+             * Active subscription and period credit breakdown for the billing context
+             */
             subscription: {
                 plan: string;
                 status: string;
@@ -5307,7 +5294,13 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
              */
             available: number;
             /**
-             * @deprecated Prefer top-level `subscription` and `available`; `buffer` remains nested here only.
+             * Unexpired buckets with remaining balance, in FIFO spend order
+             */
+            buckets: Array<CreditBucketBreakdown>;
+            /**
+             * Deprecated: prefer top-level `subscription` and `available`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` here matches top-level `available`).
+             *
+             * @deprecated
              */
             credits: {
                 subscription: {
@@ -5339,46 +5332,6 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
                  * Current available total credit balance (buffer plus remaining subscription credits)
                  */
                 total: number;
-            };
-            extra: {
-                /**
-                 * Unexpired buckets with remaining balance, in FIFO spend order
-                 */
-                buckets: Array<{
-                    /**
-                     * Original bucket amount in credits
-                     */
-                    total: number;
-                    /**
-                     * Remaining balance in this bucket after prior consumption (FIFO)
-                     */
-                    remaining: number;
-                    /**
-                     * When this bucket expires; null if it does not expire
-                     */
-                    expiresAt: Date | null;
-                }>;
-                /**
-                 * Sum of `remaining` across all buckets (total available credits represented by the bucket list)
-                 */
-                remainingTotal: number;
-                /**
-                 * The bucket with the earliest `expiresAt` among `buckets` (FIFO order); null if the list is empty or every bucket is non-expiring
-                 */
-                nextExpiring: {
-                    /**
-                     * Original bucket amount in credits
-                     */
-                    total: number;
-                    /**
-                     * Remaining balance in this bucket when it expires next
-                     */
-                    remaining: number;
-                    /**
-                     * Earliest expiry among listed buckets with a finite expiry
-                     */
-                    expiresAt: Date;
-                } | null;
             };
         };
         meta: {

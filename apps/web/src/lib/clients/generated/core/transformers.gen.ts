@@ -171,32 +171,30 @@ export const getUsersRegisteredResponseTransformer = async (data: any): Promise<
     return data;
 };
 
-const transformCreditsSubscriptionPeriodDates = (subscription: unknown) => {
-    if (!subscription || typeof subscription !== "object") {
-        return;
+const creditBucketBreakdownSchemaResponseTransformer = (data: any) => {
+    if (data.expiresAt) {
+        data.expiresAt = new Date(data.expiresAt);
     }
-    const sub = subscription as {
-        periodStart?: string | Date | null;
-        periodEnd?: string | Date | null;
-    };
-    if (sub.periodStart) {
-        sub.periodStart = new Date(sub.periodStart);
-    }
-    if (sub.periodEnd) {
-        sub.periodEnd = new Date(sub.periodEnd);
-    }
+    return data;
 };
 
 export const getUsersByIdCreditsResponseTransformer = async (data: any): Promise<GetUsersByIdCreditsResponse> => {
-    transformCreditsSubscriptionPeriodDates(data.data.subscription);
-    transformCreditsSubscriptionPeriodDates(data.data.credits.subscription);
-    for (const bucket of data.data.extra.buckets) {
-        if (bucket.expiresAt) {
-            bucket.expiresAt = new Date(bucket.expiresAt);
+    if (data.data.subscription) {
+        if (data.data.subscription.periodStart) {
+            data.data.subscription.periodStart = new Date(data.data.subscription.periodStart);
+        }
+        if (data.data.subscription.periodEnd) {
+            data.data.subscription.periodEnd = new Date(data.data.subscription.periodEnd);
         }
     }
-    if (data.data.extra.nextExpiring?.expiresAt) {
-        data.data.extra.nextExpiring.expiresAt = new Date(data.data.extra.nextExpiring.expiresAt);
+    data.data.buckets = data.data.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
+    if (data.data.credits.subscription) {
+        if (data.data.credits.subscription.periodStart) {
+            data.data.credits.subscription.periodStart = new Date(data.data.credits.subscription.periodStart);
+        }
+        if (data.data.credits.subscription.periodEnd) {
+            data.data.credits.subscription.periodEnd = new Date(data.data.credits.subscription.periodEnd);
+        }
     }
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
@@ -214,15 +212,22 @@ export const getUsersByIdOrganizationsResponseTransformer = async (data: any): P
 };
 
 export const getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer = async (data: any): Promise<GetUsersByIdOrganizationsByOrganizationIdCreditsResponse> => {
-    transformCreditsSubscriptionPeriodDates(data.data.subscription);
-    transformCreditsSubscriptionPeriodDates(data.data.credits.subscription);
-    for (const bucket of data.data.extra.buckets) {
-        if (bucket.expiresAt) {
-            bucket.expiresAt = new Date(bucket.expiresAt);
+    if (data.data.subscription) {
+        if (data.data.subscription.periodStart) {
+            data.data.subscription.periodStart = new Date(data.data.subscription.periodStart);
+        }
+        if (data.data.subscription.periodEnd) {
+            data.data.subscription.periodEnd = new Date(data.data.subscription.periodEnd);
         }
     }
-    if (data.data.extra.nextExpiring?.expiresAt) {
-        data.data.extra.nextExpiring.expiresAt = new Date(data.data.extra.nextExpiring.expiresAt);
+    data.data.buckets = data.data.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
+    if (data.data.credits.subscription) {
+        if (data.data.credits.subscription.periodStart) {
+            data.data.credits.subscription.periodStart = new Date(data.data.credits.subscription.periodStart);
+        }
+        if (data.data.credits.subscription.periodEnd) {
+            data.data.credits.subscription.periodEnd = new Date(data.data.credits.subscription.periodEnd);
+        }
     }
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
