@@ -41,10 +41,10 @@ export function buildResponsesApiWarnings(
     if (message.role !== "user" && message.role !== "assistant") {
       continue;
     }
-      for (const part of message.content) {
+    for (const part of message.content) {
       if (part.type !== "file") {
         continue;
-        }
+      }
       if (message.role === "assistant") {
         warnings.push({
           type: "compatibility",
@@ -65,8 +65,8 @@ export function buildResponsesApiWarnings(
           feature: "non-HTTP(S) file URL",
           details: `A file part uses URL "${url.slice(0, 120)}${url.length > 120 ? "…" : ""}" as file_url. Only http(s) and data payloads are fully supported; other schemes may be rejected or mishandled by the upstream API.`,
         });
+      }
     }
-  }
   }
   return dedupeWarnings(warnings);
 }
