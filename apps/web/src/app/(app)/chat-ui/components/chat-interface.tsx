@@ -243,13 +243,17 @@ export default function ChatInterface({
     name: string;
   } | null>(null);
   const welcomeComposeKindRef = useRef<ChatComposeKind>("chat");
+  const welcomePrefsWriteSelectedChatIdRef = useRef<string | null>(null);
+  const welcomePrefsWriteWelcomeCoworkerSlugRef = useRef<string | null>(null);
   welcomeSelectedCoworkerRef.current = welcomeSelectedCoworker;
   welcomeSelectedModelRef.current = welcomeSelectedModel;
   welcomeComposeKindRef.current = welcomeComposeKind;
+  welcomePrefsWriteSelectedChatIdRef.current = selectedChatId;
+  welcomePrefsWriteWelcomeCoworkerSlugRef.current = welcomeCoworkerSlug;
 
   const writeWelcomePrefsFromRefs = useCallback(() => {
-    if (selectedChatId !== null) return;
-    if (welcomeCoworkerSlug != null) return;
+    if (welcomePrefsWriteSelectedChatIdRef.current !== null) return;
+    if (welcomePrefsWriteWelcomeCoworkerSlugRef.current != null) return;
     writeWelcomeComposePreferences(
       buildWelcomeComposeStoredSnapshot({
         composeKind: welcomeComposeKindRef.current,
@@ -257,7 +261,7 @@ export default function ChatInterface({
         model: welcomeSelectedModelRef.current,
       }),
     );
-  }, [selectedChatId, welcomeCoworkerSlug]);
+  }, []);
 
   const handleWelcomeComposeKindChange = useCallback(
     (kind: ChatComposeKind) => {
