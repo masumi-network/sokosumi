@@ -14,6 +14,7 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 interface CreditUsageProps {
   creditUsage?: CreditUsageType | null;
+  extraCredits?: number | null;
   creditsLabel?: string;
   currentTimestampMs: number;
   subscriptionPeriodEndMs?: number | null;
@@ -21,11 +22,13 @@ interface CreditUsageProps {
 
 export default function CreditUsage({
   creditUsage,
+  extraCredits,
   creditsLabel,
   currentTimestampMs,
   subscriptionPeriodEndMs,
 }: CreditUsageProps) {
   const t = useTranslations("Components.UserAvatar");
+  const tBilling = useTranslations("App.Billing");
   const activeCreditUsage = creditUsage?.hasUsageData ? creditUsage : null;
 
   if (!activeCreditUsage) {
@@ -37,7 +40,13 @@ export default function CreditUsage({
     used: formatCreditsForDisplay(activeCreditUsage.used),
     total: formatCreditsForDisplay(activeCreditUsage.total),
   });
-
+  const hasExtraCredits = (extraCredits ?? 0) > 0;
+  const totalCreditsNumeric = formatCreditsForDisplay(
+    activeCreditUsage.remaining + Math.max(0, extraCredits ?? 0),
+  );
+  const totalCreditsDisplay = tBilling("balanceCreditsLabel", {
+    credits: totalCreditsNumeric,
+  });
   let creditsExpiryLabel: string | null = null;
   if (subscriptionPeriodEndMs) {
     const millisecondsPerDay = 1000 * 60 * 60 * 24;
@@ -74,18 +83,61 @@ export default function CreditUsage({
               />
             </div>
           </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <div className="gap-2">
-              <p className="pb-1 font-semibold">{t("subscriptionUsage")}</p>
-              <ul className="list-disc space-y-1 pl-4">
-                <li>{creditUsageLabel}</li>
-                {creditsExpiryLabel ? <li>{creditsExpiryLabel}</li> : null}
-              </ul>
-              <p className="pt-2 pb-1 font-semibold">{t("extraCredits")}</p>
-              <ul className="list-disc space-y-1 pl-4">
-                <li>{creditsLabel}</li>
-                <li>{t("extraCreditsDescription")}</li>
-              </ul>
+          <TooltipContent
+            side="bottom"
+            className="bg-popover text-popover-foreground min-w-56 rounded-md border p-3 shadow-md"
+            arrowClassName="mt-0.5 bg-popover fill-popover border-b border-r"
+          >
+            <div className="space-y-3 text-left">
+              <section className="space-y-1">
+                <p className="text-lg font-bold tabular-nums leading-none tracking-tight">
+                  {totalCreditsDisplay}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {t("totalBalanceLabel")}
+                </p>
+              </section>
+              <div className="bg-border h-px" />
+              <section className="space-y-1.5">
+                <p className="text-xs font-semibold">
+                  {t("monthlyUsageLimit")}
+                </p>
+                <div className="bg-primary/20 relative h-1.5 w-full overflow-hidden rounded-full">
+                  <div
+                    role="progressbar"
+                    aria-label={creditUsageAriaLabel}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={activeCreditUsage.percentageUsed}
+                    className="bg-primary h-full transition-all"
+                    style={{ width: `${activeCreditUsage.percentageUsed}%` }}
+                  />
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  {creditUsageLabel}
+                </p>
+                {creditsExpiryLabel ? (
+                  <p className="text-muted-foreground text-xs">
+                    {creditsExpiryLabel}
+                  </p>
+                ) : null}
+              </section>
+              {hasExtraCredits ? (
+                <>
+                  <div className="bg-border h-px" />
+                  <section className="space-y-1">
+                    <p className="text-muted-foreground text-xs">
+                      {t("extraCredits")}
+                    </p>
+                    <p className="text-lg font-bold tabular-nums leading-none tracking-tight">
+                      {creditsLabel}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {t("extraCreditsDescription")}
+                    </p>
+                  </section>
+                </>
+              ) : null}
             </div>
           </TooltipContent>
         </Tooltip>
