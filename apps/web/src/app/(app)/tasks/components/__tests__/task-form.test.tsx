@@ -5,6 +5,7 @@ import { forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
+import { writeCreateTaskModalLastCoworkerId } from "@/app/tasks/utils/create-task-modal-preferences";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
 
@@ -303,6 +304,31 @@ describe("TaskForm", () => {
     const sokoButton = screen.getByRole("button", { name: /Soko/i });
     expect(elenaButton).toHaveAttribute("aria-pressed", "true");
     expect(sokoButton).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("applies stored create-modal coworker from localStorage after mount", async () => {
+    writeCreateTaskModalLastCoworkerId("coworker-1");
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Soko/i })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+    });
+    expect(screen.getByRole("button", { name: /Elena/i })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("passes agent mention options to MarkdownEditor", () => {
