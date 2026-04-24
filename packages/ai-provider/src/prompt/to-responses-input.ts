@@ -315,7 +315,8 @@ function extractBase64DataFromDataUrl(
   value: string,
   part: LanguageModelV3FilePart,
 ): string {
-  const match = /^data:[^;,]+(?:;[^;,=]+=[^;,]+)*(;base64)?,(.*)$/i.exec(value);
+  // RFC 2397: mediatype may be empty (`data:;base64,...` is valid).
+  const match = /^data:[^;,]*(?:;[^;,=]+=[^;,]+)*(;base64)?,(.*)$/i.exec(value);
 
   if (match?.[1] !== ";base64") {
     throw invalidFilePartError(

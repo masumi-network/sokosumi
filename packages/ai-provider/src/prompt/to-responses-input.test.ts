@@ -110,6 +110,47 @@ describe("promptToResponsesInput", () => {
     ]);
   });
 
+  it("accepts data URLs with empty mediatype before ;base64 (blob-style)", () => {
+    const input = promptToResponsesInput([
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            mediaType: "application/octet-stream",
+            filename: "blob.bin",
+            data: "data:;base64,SGVsbG8=",
+          },
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            filename: "from-url.pdf",
+            data: new URL("data:;base64,JVBERi0xLjcK"),
+          },
+        ],
+      },
+    ]);
+
+    expect(input).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_file",
+            file_data: "SGVsbG8=",
+            filename: "blob.bin",
+          },
+          {
+            type: "input_file",
+            file_data: "JVBERi0xLjcK",
+            filename: "from-url.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("maps non-image file parts with https blob URL string to input_file file_url", () => {
     const input = promptToResponsesInput([
       {
