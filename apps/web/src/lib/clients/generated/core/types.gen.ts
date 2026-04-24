@@ -5051,7 +5051,7 @@ export type GetUsersByIdCreditsResponses = {
              */
             available: number;
             /**
-             * Unexpired buckets with remaining balance, in consumption order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
+             * Non-subscription credit buckets with remaining balance (subscription-period buckets are omitted; use top-level `subscription` for those). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
              */
             buckets: Array<CreditBucketBreakdown>;
             /**
@@ -5294,7 +5294,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
              */
             available: number;
             /**
-             * Unexpired buckets with remaining balance, in consumption order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
+             * Non-subscription credit buckets with remaining balance (subscription-period buckets are omitted; use top-level `subscription` for those). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
              */
             buckets: Array<CreditBucketBreakdown>;
             /**

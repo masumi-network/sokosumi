@@ -97,7 +97,9 @@ export const creditBucketRepository = {
   },
 
   /**
-   * List unexpired buckets with remaining balance > 0 (same scope as getBalance).
+   * List unexpired buckets with remaining balance > 0 (same ownership scope as getBalance).
+   * Omits subscription-period buckets (`referenceType` subscription); those credits are
+   * represented on the subscription payload instead.
    * Order: expiresAt ASC NULLS LAST, smallest original allocation (`amount`),
    * then createdAt ASC, then id ASC.
    * Amounts are in cents for conversion at the API boundary.
@@ -128,6 +130,7 @@ export const creditBucketRepository = {
         LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
         WHERE ${where}
           AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
         GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
         HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
       )
