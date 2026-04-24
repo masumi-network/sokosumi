@@ -1,6 +1,9 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { getOrganizationMemberSubscriptionReferencePrefixForStartsWith } from "@sokosumi/database/helpers";
-import { subscriptionRepository } from "@sokosumi/database/repositories";
+import {
+  creditBucketRepository,
+  subscriptionRepository,
+} from "@sokosumi/database/repositories";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { getCredits } from "@/helpers/user";
@@ -196,12 +199,29 @@ export interface CreditsPayload {
   total: number;
 }
 
+export interface CreditsApiPayload {
+  subscription: ReturnType<typeof mapSubscription>;
+  extra: {
+    credits: {
+      total: number;
+      remaining: number;
+      used: number;
+    };
+    buckets: Array<{
+      total: number;
+      remaining: number;
+      expiresAt: Date | null;
+    }>;
+  };
+  credits: CreditsPayload;
+}
+
 export async function buildCreditsPayload(params: {
   userId: string;
   organizationId: string | null;
   referenceId: string;
   tx: Prisma.TransactionClient;
-}): Promise<CreditsPayload> {
+}): Promise<CreditsApiPayload> {
   const totalCredits = await getCredits(
     params.userId,
     params.organizationId,
@@ -235,9 +255,45 @@ export async function buildCreditsPayload(params: {
     subscriptionCredits,
   });
 
-  return {
+  const bucketRows =
+    await creditBucketRepository.listAvailableBucketsWithBalances(
+      params.userId,
+      params.organizationId,
+      params.tx,
+    );
+
+  const nonSubAggregates = bucketRows.reduce(
+    (acc, row) => ({
+      totalCents: acc.totalCents + row.totalCents,
+      remainingCents: acc.remainingCents + row.remainingCents,
+    }),
+    { totalCents: 0n, remainingCents: 0n },
+  );
+  const nonSubUsedCents =
+    nonSubAggregates.totalCents - nonSubAggregates.remainingCents;
+
+  const buckets = bucketRows.map((row) => ({
+    total: convertCentsToCredits(row.totalCents),
+    remaining: convertCentsToCredits(row.remainingCents),
+    expiresAt: row.expiresAt,
+  }));
+
+  const credits = {
     subscription,
     buffer,
     total,
+  };
+
+  return {
+    subscription,
+    extra: {
+      credits: {
+        total: convertCentsToCredits(nonSubAggregates.totalCents),
+        remaining: convertCentsToCredits(nonSubAggregates.remainingCents),
+        used: convertCentsToCredits(nonSubUsedCents),
+      },
+      buckets,
+    },
+    credits,
   };
 }

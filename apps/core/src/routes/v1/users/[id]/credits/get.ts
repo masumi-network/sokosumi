@@ -35,6 +35,32 @@ const route = withGlobalHeaderParameters(
         "Retrieve the user's credits for personal or organization context",
         {
           data: {
+            subscription: {
+              plan: "starter",
+              status: "active",
+              periodStart: "2025-01-01T00:00:00.000Z",
+              periodEnd: "2025-02-01T00:00:00.000Z",
+              cancelAtPeriodEnd: false,
+              credits: {
+                total: 100,
+                remaining: 57.5,
+                used: 42.5,
+              },
+            },
+            extra: {
+              credits: {
+                total: 25,
+                remaining: 12.5,
+                used: 12.5,
+              },
+              buckets: [
+                {
+                  total: 25,
+                  remaining: 12.5,
+                  expiresAt: "2026-08-01T00:00:00.000Z",
+                },
+              ],
+            },
             credits: {
               subscription: {
                 plan: "starter",
@@ -73,7 +99,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       c.var.userRouteContext,
     );
 
-    const credits = await prisma.$transaction(async (tx) => {
+    const payload = await prisma.$transaction(async (tx) => {
       const organizationId =
         userContext.userId === resolvedUserId
           ? userContext.organizationId
@@ -88,6 +114,6 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       });
     });
 
-    return ok(c, creditsResponseSchema.parse({ credits }));
+    return ok(c, creditsResponseSchema.parse(payload));
   });
 }

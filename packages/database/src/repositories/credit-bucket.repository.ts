@@ -14,6 +14,13 @@ export interface Consumption {
   amount: bigint;
 }
 
+/** Per-bucket amounts in cents from listAvailableBucketsWithBalances */
+export interface CreditBucketBalanceRow {
+  totalCents: bigint;
+  remainingCents: bigint;
+  expiresAt: Date | null;
+}
+
 /**
  * Credit Bucket Repository Interface
  *
@@ -22,7 +29,9 @@ export interface Consumption {
  */
 export const creditBucketRepository = {
   /**
-   * Get all unexpired credit buckets for a user, ordered by FIFO (expiresAt ASC NULLS LAST, createdAt ASC).
+   * Get all unexpired credit buckets for a user, ordered for spend/display:
+   * expiresAt ASC NULLS LAST, then smallest original allocation (`amount` ASC),
+   * then createdAt ASC, then id ASC.
    *
    * @param userId - The ID of the user.
    * @param organizationId - Optional organization ID (null for personal credits).
@@ -46,7 +55,9 @@ export const creditBucketRepository = {
       },
       orderBy: [
         { expiresAt: { sort: "asc", nulls: "last" } },
+        { amount: "asc" },
         { createdAt: "asc" },
+        { id: "asc" },
       ],
     });
   },
@@ -86,7 +97,55 @@ export const creditBucketRepository = {
   },
 
   /**
-   * Consume credits from buckets in FIFO order until the requested amount is covered.
+   * List unexpired buckets with remaining balance > 0 (same ownership scope as getBalance).
+   * Omits subscription-period buckets (`referenceType` subscription); those credits are
+   * represented on the subscription payload instead.
+   * Order: expiresAt ASC NULLS LAST, smallest original allocation (`amount`),
+   * then createdAt ASC, then id ASC.
+   * Amounts are in cents for conversion at the API boundary.
+   */
+  async listAvailableBucketsWithBalances(
+    userId: string,
+    organizationId: string | null,
+    tx: Prisma.TransactionClient,
+  ): Promise<CreditBucketBalanceRow[]> {
+    const now = new Date();
+    const where = buildCreditBucketScopeSql(userId, organizationId);
+
+    return await tx.$queryRaw<
+      Array<{
+        totalCents: bigint;
+        remainingCents: bigint;
+        expiresAt: Date | null;
+      }>
+    >`
+      WITH bucket_avail AS (
+        SELECT
+          cb.id,
+          cb.amount,
+          (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
+          cb."expiresAt",
+          cb."createdAt"
+        FROM credit_bucket cb
+        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+        WHERE ${where}
+          AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
+        GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
+        HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
+      )
+      SELECT
+        amount AS "totalCents",
+        available AS "remainingCents",
+        "expiresAt"
+      FROM bucket_avail
+      ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
+    `;
+  },
+
+  /**
+   * Consume credits from buckets in list order (expiry, then smallest original amount,
+   * then createdAt, then id) until the requested amount is covered.
    * Creates CreditConsumption records for each bucket consumed from.
    *
    * @param userId - The ID of the user.
@@ -157,6 +216,7 @@ async function getFifoBucketsToCoverSpend(
     WITH bucket_avail AS (
       SELECT
         cb.id,
+        cb.amount,
         (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
         cb."expiresAt",
         cb."createdAt"
@@ -170,18 +230,19 @@ async function getFifoBucketsToCoverSpend(
     ordered AS (
       SELECT
         id,
+        amount,
         available,
         "expiresAt",
         "createdAt",
         SUM(available) OVER (
-          ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
+          ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
         ) AS running_total
       FROM bucket_avail
     )
     SELECT id, available
     FROM ordered
     WHERE running_total - available < ${cents}
-    ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
+    ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
   `;
 }
 

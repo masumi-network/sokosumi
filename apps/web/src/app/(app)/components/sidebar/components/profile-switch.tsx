@@ -52,8 +52,7 @@ async function ProfileSwitchInner({ session }: ProfileSwitchProps) {
     }
 
     if (creditsResult.status === "fulfilled") {
-      currentPlan =
-        creditsResult.value.data.credits.subscription?.plan ?? "free";
+      currentPlan = creditsResult.value.data.subscription?.plan ?? "free";
     }
 
     if (

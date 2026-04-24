@@ -456,6 +456,50 @@ export type PatchCreditCostRequest = {
     creditsPerUnit: number;
 };
 
+/**
+ * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
+ */
+export type CreditsResponseExtra = {
+    credits: CreditsResponseExtraCredits;
+    /**
+     * Non-subscription buckets with remaining balance (subscription-period buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
+     */
+    buckets: Array<CreditBucketBreakdown>;
+};
+
+/**
+ * Non-subscription credit rollup; subscription-period wallet stays on top-level `subscription`
+ */
+export type CreditsResponseExtraCredits = {
+    /**
+     * Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`
+     */
+    total: number;
+    /**
+     * Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)
+     */
+    remaining: number;
+    /**
+     * Sum of credits already consumed from those buckets (`total` − `remaining` per line, summed)
+     */
+    used: number;
+};
+
+export type CreditBucketBreakdown = {
+    /**
+     * Original bucket amount in credits
+     */
+    total: number;
+    /**
+     * Remaining balance in this bucket after prior consumption (same order as debits)
+     */
+    remaining: number;
+    /**
+     * When this bucket expires; null if it does not expire
+     */
+    expiresAt: Date | null;
+};
+
 export type Organization = {
     id: string;
     createdAt: Date;
@@ -5007,6 +5051,36 @@ export type GetUsersByIdCreditsResponses = {
      */
     200: {
         data: {
+            /**
+             * Active subscription and period credit breakdown for the billing context
+             */
+            subscription: {
+                plan: string;
+                status: string;
+                periodStart?: Date | null;
+                periodEnd?: Date | null;
+                cancelAtPeriodEnd?: boolean | null;
+                credits: {
+                    /**
+                     * Total subscription-period credits granted this period
+                     */
+                    total: number;
+                    /**
+                     * Remaining subscription-period credits this period
+                     */
+                    remaining: number;
+                    /**
+                     * Used subscription-period credits consumed during this period
+                     */
+                    used: number;
+                } | null;
+            } | null;
+            extra: CreditsResponseExtra;
+            /**
+             * Deprecated: prefer top-level `subscription`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` is current available total: buffer plus remaining subscription credits).
+             *
+             * @deprecated
+             */
             credits: {
                 subscription: {
                     plan: string;
@@ -5213,6 +5287,36 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
      */
     200: {
         data: {
+            /**
+             * Active subscription and period credit breakdown for the billing context
+             */
+            subscription: {
+                plan: string;
+                status: string;
+                periodStart?: Date | null;
+                periodEnd?: Date | null;
+                cancelAtPeriodEnd?: boolean | null;
+                credits: {
+                    /**
+                     * Total subscription-period credits granted this period
+                     */
+                    total: number;
+                    /**
+                     * Remaining subscription-period credits this period
+                     */
+                    remaining: number;
+                    /**
+                     * Used subscription-period credits consumed during this period
+                     */
+                    used: number;
+                } | null;
+            } | null;
+            extra: CreditsResponseExtra;
+            /**
+             * Deprecated: prefer top-level `subscription`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` is current available total: buffer plus remaining subscription credits).
+             *
+             * @deprecated
+             */
             credits: {
                 subscription: {
                     plan: string;
