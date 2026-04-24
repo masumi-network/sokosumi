@@ -1,7 +1,6 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { getOrganizationMemberSubscriptionReferencePrefixForStartsWith } from "@sokosumi/database/helpers";
 import {
-  type CreditBucketBalanceRow,
   creditBucketRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
@@ -263,15 +262,17 @@ export async function buildCreditsPayload(params: {
       params.tx,
     );
 
-  let nonSubTotalCents = 0n;
-  let nonSubRemainingCents = 0n;
-  for (const row of bucketRows) {
-    nonSubTotalCents += row.totalCents;
-    nonSubRemainingCents += row.remainingCents;
-  }
-  const nonSubUsedCents = nonSubTotalCents - nonSubRemainingCents;
+  const nonSubAggregates = bucketRows.reduce(
+    (acc, row) => ({
+      totalCents: acc.totalCents + row.totalCents,
+      remainingCents: acc.remainingCents + row.remainingCents,
+    }),
+    { totalCents: 0n, remainingCents: 0n },
+  );
+  const nonSubUsedCents =
+    nonSubAggregates.totalCents - nonSubAggregates.remainingCents;
 
-  const buckets = bucketRows.map((row: CreditBucketBalanceRow) => ({
+  const buckets = bucketRows.map((row) => ({
     total: convertCentsToCredits(row.totalCents),
     remaining: convertCentsToCredits(row.remainingCents),
     expiresAt: row.expiresAt,
@@ -287,8 +288,8 @@ export async function buildCreditsPayload(params: {
     subscription,
     extra: {
       credits: {
-        total: convertCentsToCredits(nonSubTotalCents),
-        remaining: convertCentsToCredits(nonSubRemainingCents),
+        total: convertCentsToCredits(nonSubAggregates.totalCents),
+        remaining: convertCentsToCredits(nonSubAggregates.remainingCents),
         used: convertCentsToCredits(nonSubUsedCents),
       },
       buckets,
