@@ -246,7 +246,7 @@ export default function ChatInterface({
 
   const writeWelcomePrefsFromRefs = useCallback(() => {
     if (selectedChatId !== null) return;
-    if (welcomeCoworkerSlug) return;
+    if (welcomeCoworkerSlug != null) return;
     writeWelcomeComposePreferences(
       buildWelcomeComposeStoredSnapshot({
         composeKind: welcomeComposeKindRef.current,
