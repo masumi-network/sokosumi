@@ -1591,7 +1591,7 @@ export const CreditBucketBreakdownSchema = {
         },
         remaining: {
             type: 'number',
-            description: 'Remaining balance in this bucket after prior consumption (FIFO)',
+            description: 'Remaining balance in this bucket after prior consumption (same order as debits)',
             example: 32.5
         },
         expiresAt: {
