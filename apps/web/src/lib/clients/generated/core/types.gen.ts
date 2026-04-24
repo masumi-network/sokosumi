@@ -5031,9 +5031,9 @@ export type GetUsersByIdCreditsResponses = {
             /**
              * Current available total credit balance (buffer plus remaining subscription credits)
              */
-            total: number;
+            available: number;
             /**
-             * @deprecated Prefer top-level `subscription` and `total`; `buffer` remains nested here only.
+             * @deprecated Prefer top-level `subscription` and `available`; `buffer` remains nested here only.
              */
             credits: {
                 subscription: {
@@ -5088,6 +5088,23 @@ export type GetUsersByIdCreditsResponses = {
                  * Sum of `remaining` across all buckets (total available credits represented by the bucket list)
                  */
                 remainingTotal: number;
+                /**
+                 * The bucket with the earliest `expiresAt` among `buckets` (FIFO order); null if the list is empty or every bucket is non-expiring
+                 */
+                nextExpiring: {
+                    /**
+                     * Original bucket amount in credits
+                     */
+                    total: number;
+                    /**
+                     * Remaining balance in this bucket when it expires next
+                     */
+                    remaining: number;
+                    /**
+                     * Earliest expiry among listed buckets with a finite expiry
+                     */
+                    expiresAt: Date;
+                } | null;
             };
         };
         meta: {
@@ -5288,9 +5305,9 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
             /**
              * Current available total credit balance (buffer plus remaining subscription credits)
              */
-            total: number;
+            available: number;
             /**
-             * @deprecated Prefer top-level `subscription` and `total`; `buffer` remains nested here only.
+             * @deprecated Prefer top-level `subscription` and `available`; `buffer` remains nested here only.
              */
             credits: {
                 subscription: {
@@ -5345,6 +5362,23 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
                  * Sum of `remaining` across all buckets (total available credits represented by the bucket list)
                  */
                 remainingTotal: number;
+                /**
+                 * The bucket with the earliest `expiresAt` among `buckets` (FIFO order); null if the list is empty or every bucket is non-expiring
+                 */
+                nextExpiring: {
+                    /**
+                     * Original bucket amount in credits
+                     */
+                    total: number;
+                    /**
+                     * Remaining balance in this bucket when it expires next
+                     */
+                    remaining: number;
+                    /**
+                     * Earliest expiry among listed buckets with a finite expiry
+                     */
+                    expiresAt: Date;
+                } | null;
             };
         };
         meta: {

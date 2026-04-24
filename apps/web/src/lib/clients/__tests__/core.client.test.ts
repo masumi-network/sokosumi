@@ -159,13 +159,13 @@ describe("core.client", () => {
       data: {
         data: {
           subscription: null,
-          total: 42,
+          available: 42,
           credits: {
             subscription: null,
             buffer: 42,
             total: 42,
           },
-          extra: { buckets: [], remainingTotal: 0 },
+          extra: { buckets: [], remainingTotal: 0, nextExpiring: null },
         },
       },
       response: new Response("{}", { status: 200 }),

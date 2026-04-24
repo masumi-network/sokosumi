@@ -48,7 +48,7 @@ const route = createRoute({
               used: 42.5,
             },
           },
-          total: 70,
+          available: 70,
           credits: {
             subscription: {
               plan: "starter",
@@ -74,6 +74,11 @@ const route = createRoute({
               },
             ],
             remainingTotal: 12.5,
+            nextExpiring: {
+              total: 25,
+              remaining: 12.5,
+              expiresAt: "2026-08-01T00:00:00.000Z",
+            },
           },
         },
         meta: {

@@ -202,7 +202,7 @@ export interface CreditsPayload {
 
 export interface CreditsApiPayload {
   subscription: ReturnType<typeof mapSubscription>;
-  total: number;
+  available: number;
   credits: CreditsPayload;
   extra: {
     buckets: Array<{
@@ -212,6 +212,12 @@ export interface CreditsApiPayload {
     }>;
     /** Sum of `remaining` for all buckets (credits) */
     remainingTotal: number;
+    /** Soonest-expiring bucket among `buckets`, or null */
+    nextExpiring: {
+      total: number;
+      remaining: number;
+      expiresAt: Date;
+    } | null;
   };
 }
 
@@ -272,6 +278,17 @@ export async function buildCreditsPayload(params: {
     return sum + (Number.isFinite(r) ? r : 0);
   }, 0);
 
+  const nextExpiringSource = buckets.find(
+    (b): b is typeof b & { expiresAt: Date } => b.expiresAt != null,
+  );
+  const nextExpiring = nextExpiringSource
+    ? {
+        total: nextExpiringSource.total,
+        remaining: nextExpiringSource.remaining,
+        expiresAt: nextExpiringSource.expiresAt,
+      }
+    : null;
+
   const credits = {
     subscription,
     buffer,
@@ -280,8 +297,8 @@ export async function buildCreditsPayload(params: {
 
   return {
     subscription,
-    total,
+    available: total,
     credits,
-    extra: { buckets, remainingTotal },
+    extra: { buckets, remainingTotal, nextExpiring },
   };
 }

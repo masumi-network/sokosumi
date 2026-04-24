@@ -21,6 +21,23 @@ const creditBucketBreakdownItemSchema = z
   })
   .openapi("CreditBucketBreakdown");
 
+const nextExpiringCreditBucketSchema = z
+  .object({
+    total: z.number().openapi({
+      description: "Original bucket amount in credits",
+      example: 50,
+    }),
+    remaining: z.number().openapi({
+      description: "Remaining balance in this bucket when it expires next",
+      example: 32.5,
+    }),
+    expiresAt: dateTimeSchema.openapi({
+      description: "Earliest expiry among listed buckets with a finite expiry",
+      example: "2026-07-01T00:00:00.000Z",
+    }),
+  })
+  .openapi("NextExpiringCreditBucket");
+
 /** Nested shape mirrored under deprecated `credits` */
 const creditsDeprecatedMirrorSchema = z.object({
   subscription: subscriptionSchema.nullable(),
@@ -88,7 +105,7 @@ export const creditsResponseSchema = z.object({
     description:
       "Active subscription and period credit breakdown for the billing context",
   }),
-  total: z.number().openapi({
+  available: z.number().openapi({
     description:
       "Current available total credit balance (buffer plus remaining subscription credits)",
     example: 82.5,
@@ -96,7 +113,7 @@ export const creditsResponseSchema = z.object({
   credits: creditsDeprecatedMirrorSchema.openapi({
     deprecated: true,
     description:
-      "Deprecated: prefer top-level `subscription` and `total`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the top-level fields for backward compatibility.",
+      "Deprecated: prefer top-level `subscription` and `available`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` here matches top-level `available`).",
   }),
   extra: z.object({
     buckets: z.array(creditBucketBreakdownItemSchema).openapi({
@@ -107,6 +124,10 @@ export const creditsResponseSchema = z.object({
       description:
         "Sum of `remaining` across all buckets (total available credits represented by the bucket list)",
       example: 37.5,
+    }),
+    nextExpiring: nextExpiringCreditBucketSchema.nullable().openapi({
+      description:
+        "The bucket with the earliest `expiresAt` among `buckets` (FIFO order); null if the list is empty or every bucket is non-expiring",
     }),
   }),
 });

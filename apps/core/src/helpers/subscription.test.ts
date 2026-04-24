@@ -507,7 +507,7 @@ describe("buildCreditsPayload", () => {
           plan: "starter",
           status: "active",
         },
-        total: 25,
+        available: 25,
         credits: {
           buffer: 19,
           subscription: {
@@ -524,7 +524,7 @@ describe("buildCreditsPayload", () => {
           },
           total: 25,
         },
-        extra: { buckets: [], remainingTotal: 0 },
+        extra: { buckets: [], remainingTotal: 0, nextExpiring: null },
       });
 
       expect(listAvailableBucketsWithBalancesMock).toHaveBeenCalledWith(
@@ -588,7 +588,7 @@ describe("buildCreditsPayload", () => {
           plan: "starter",
           status: "canceled",
         },
-        total: 25,
+        available: 25,
         credits: {
           buffer: 19,
           subscription: {
@@ -605,7 +605,7 @@ describe("buildCreditsPayload", () => {
           },
           total: 25,
         },
-        extra: { buckets: [], remainingTotal: 0 },
+        extra: { buckets: [], remainingTotal: 0, nextExpiring: null },
       });
 
       expect(listAvailableBucketsWithBalancesMock).toHaveBeenCalledWith(
@@ -666,7 +666,7 @@ describe("buildCreditsPayload", () => {
         }),
       ).resolves.toEqual({
         subscription: null,
-        total: 10,
+        available: 10,
         credits: {
           buffer: 10,
           subscription: null,
@@ -678,6 +678,11 @@ describe("buildCreditsPayload", () => {
             { total: 5, remaining: 5, expiresAt: null },
           ],
           remainingTotal: 12.5,
+          nextExpiring: {
+            total: 20,
+            remaining: 7.5,
+            expiresAt,
+          },
         },
       });
 

@@ -35,16 +35,16 @@ describe("creditsResponseSchema", () => {
     };
     const result = creditsResponseSchema.parse({
       subscription,
-      total: 70,
+      available: 70,
       credits: {
         subscription,
         buffer: 12.5,
         total: 70,
       },
-      extra: { buckets: [], remainingTotal: 0 },
+      extra: { buckets: [], remainingTotal: 0, nextExpiring: null },
     });
 
-    expect(result.total).toBe(70);
+    expect(result.available).toBe(70);
     expect(result.subscription?.credits).toEqual({
       total: 100,
       remaining: 57.5,
@@ -62,17 +62,17 @@ describe("creditsResponseSchema", () => {
   it("accepts null subscription credits payload with credit buffer", () => {
     const result = creditsResponseSchema.parse({
       subscription: null,
-      total: 20,
+      available: 20,
       credits: {
         subscription: null,
         buffer: 20,
         total: 20,
       },
-      extra: { buckets: [], remainingTotal: 0 },
+      extra: { buckets: [], remainingTotal: 0, nextExpiring: null },
     });
 
     expect(result.subscription).toBeNull();
-    expect(result.total).toBe(20);
+    expect(result.available).toBe(20);
     expect(result.credits.subscription).toBeNull();
     expect(result.credits.buffer).toBe(20);
     expect(result.credits.total).toBe(20);
@@ -89,7 +89,7 @@ describe("creditsResponseSchema", () => {
   it("accepts extra.buckets with totals and optional expiry", () => {
     const result = creditsResponseSchema.parse({
       subscription: null,
-      total: 5,
+      available: 5,
       credits: {
         subscription: null,
         buffer: 5,
@@ -105,10 +105,20 @@ describe("creditsResponseSchema", () => {
           { total: 2, remaining: 2, expiresAt: null },
         ],
         remainingTotal: 5.25,
+        nextExpiring: {
+          total: 10,
+          remaining: 3.25,
+          expiresAt: "2026-06-01T00:00:00.000Z",
+        },
       },
     });
 
     expect(result.extra.remainingTotal).toBe(5.25);
+    expect(result.extra.nextExpiring).toEqual({
+      total: 10,
+      remaining: 3.25,
+      expiresAt: "2026-06-01T00:00:00.000Z",
+    });
     expect(result.extra.buckets).toEqual([
       {
         total: 10,
@@ -117,5 +127,24 @@ describe("creditsResponseSchema", () => {
       },
       { total: 2, remaining: 2, expiresAt: null },
     ]);
+  });
+
+  it("sets extra.nextExpiring to null when no bucket has an expiry", () => {
+    const result = creditsResponseSchema.parse({
+      subscription: null,
+      available: 5,
+      credits: {
+        subscription: null,
+        buffer: 5,
+        total: 5,
+      },
+      extra: {
+        buckets: [{ total: 2, remaining: 2, expiresAt: null }],
+        remainingTotal: 2,
+        nextExpiring: null,
+      },
+    });
+
+    expect(result.extra.nextExpiring).toBeNull();
   });
 });

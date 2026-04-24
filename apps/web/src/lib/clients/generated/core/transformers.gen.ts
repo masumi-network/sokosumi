@@ -195,6 +195,9 @@ export const getUsersByIdCreditsResponseTransformer = async (data: any): Promise
             bucket.expiresAt = new Date(bucket.expiresAt);
         }
     }
+    if (data.data.extra.nextExpiring?.expiresAt) {
+        data.data.extra.nextExpiring.expiresAt = new Date(data.data.extra.nextExpiring.expiresAt);
+    }
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
@@ -217,6 +220,9 @@ export const getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer
         if (bucket.expiresAt) {
             bucket.expiresAt = new Date(bucket.expiresAt);
         }
+    }
+    if (data.data.extra.nextExpiring?.expiresAt) {
+        data.data.extra.nextExpiring.expiresAt = new Date(data.data.extra.nextExpiring.expiresAt);
     }
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
