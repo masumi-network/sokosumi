@@ -276,6 +276,12 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
     await creditBucketRepository.getUnexpiredBuckets("user-1", "org-1", tx);
 
     assert.ok(args);
+    assert.deepEqual(args.orderBy, [
+      { expiresAt: { sort: "asc", nulls: "last" } },
+      { amount: "asc" },
+      { createdAt: "asc" },
+      { id: "asc" },
+    ]);
     const scopeWhere = args.where.AND[0];
     assert.equal(scopeWhere.organizationId, "org-1");
     assert.deepEqual(scopeWhere.OR, [

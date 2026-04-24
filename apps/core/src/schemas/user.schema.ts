@@ -11,7 +11,7 @@ const creditBucketBreakdownItemSchema = z
     }),
     remaining: z.number().openapi({
       description:
-        "Remaining balance in this bucket after prior consumption (FIFO)",
+        "Remaining balance in this bucket after prior consumption (same order as debits)",
       example: 32.5,
     }),
     expiresAt: dateTimeSchema.nullable().openapi({
@@ -95,7 +95,7 @@ export const creditsResponseSchema = z.object({
   }),
   buckets: z.array(creditBucketBreakdownItemSchema).openapi({
     description:
-      "Unexpired buckets with remaining balance, in FIFO spend order",
+      "Unexpired buckets with remaining balance, in consumption order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id",
   }),
   credits: creditsDeprecatedMirrorSchema.openapi({
     deprecated: true,

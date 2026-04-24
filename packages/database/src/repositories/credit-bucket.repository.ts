@@ -29,7 +29,9 @@ export interface CreditBucketBalanceRow {
  */
 export const creditBucketRepository = {
   /**
-   * Get all unexpired credit buckets for a user, ordered by FIFO (expiresAt ASC NULLS LAST, createdAt ASC).
+   * Get all unexpired credit buckets for a user, ordered for spend/display:
+   * expiresAt ASC NULLS LAST, then smallest original allocation (`amount` ASC),
+   * then createdAt ASC, then id ASC.
    *
    * @param userId - The ID of the user.
    * @param organizationId - Optional organization ID (null for personal credits).
@@ -53,7 +55,9 @@ export const creditBucketRepository = {
       },
       orderBy: [
         { expiresAt: { sort: "asc", nulls: "last" } },
+        { amount: "asc" },
         { createdAt: "asc" },
+        { id: "asc" },
       ],
     });
   },
@@ -93,7 +97,9 @@ export const creditBucketRepository = {
   },
 
   /**
-   * List unexpired buckets with remaining balance > 0, FIFO order (same scope as getBalance).
+   * List unexpired buckets with remaining balance > 0 (same scope as getBalance).
+   * Order: expiresAt ASC NULLS LAST, smallest original allocation (`amount`),
+   * then createdAt ASC, then id ASC.
    * Amounts are in cents for conversion at the API boundary.
    */
   async listAvailableBucketsWithBalances(
@@ -130,12 +136,13 @@ export const creditBucketRepository = {
         available AS "remainingCents",
         "expiresAt"
       FROM bucket_avail
-      ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
+      ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
     `;
   },
 
   /**
-   * Consume credits from buckets in FIFO order until the requested amount is covered.
+   * Consume credits from buckets in list order (expiry, then smallest original amount,
+   * then createdAt, then id) until the requested amount is covered.
    * Creates CreditConsumption records for each bucket consumed from.
    *
    * @param userId - The ID of the user.
@@ -223,14 +230,14 @@ async function getFifoBucketsToCoverSpend(
         "expiresAt",
         "createdAt",
         SUM(available) OVER (
-          ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
+          ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
         ) AS running_total
       FROM bucket_avail
     )
     SELECT id, available
     FROM ordered
     WHERE running_total - available < ${cents}
-    ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
+    ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
   `;
 }
 
