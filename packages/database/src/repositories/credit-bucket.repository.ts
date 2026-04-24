@@ -216,6 +216,7 @@ async function getFifoBucketsToCoverSpend(
     WITH bucket_avail AS (
       SELECT
         cb.id,
+        cb.amount,
         (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
         cb."expiresAt",
         cb."createdAt"
@@ -229,6 +230,7 @@ async function getFifoBucketsToCoverSpend(
     ordered AS (
       SELECT
         id,
+        amount,
         available,
         "expiresAt",
         "createdAt",
