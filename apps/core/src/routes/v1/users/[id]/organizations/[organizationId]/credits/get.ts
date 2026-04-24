@@ -48,14 +48,20 @@ const route = createRoute({
               used: 42.5,
             },
           },
-          available: 70,
-          buckets: [
-            {
+          extra: {
+            credits: {
               total: 25,
               remaining: 12.5,
-              expiresAt: "2026-08-01T00:00:00.000Z",
+              used: 12.5,
             },
-          ],
+            buckets: [
+              {
+                total: 25,
+                remaining: 12.5,
+                expiresAt: "2026-08-01T00:00:00.000Z",
+              },
+            ],
+          },
           credits: {
             subscription: {
               plan: "starter",

@@ -1581,6 +1581,54 @@ export const PatchCreditCostRequestSchema = {
     ]
 } as const;
 
+export const CreditsResponseExtraSchema = {
+    type: 'object',
+    properties: {
+        credits: {
+            $ref: '#/components/schemas/CreditsResponseExtraCredits'
+        },
+        buckets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CreditBucketBreakdown'
+            },
+            description: 'Non-subscription buckets with remaining balance (subscription-period buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id'
+        }
+    },
+    required: [
+        'credits',
+        'buckets'
+    ],
+    description: '`extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.'
+} as const;
+
+export const CreditsResponseExtraCreditsSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: 'number',
+            description: 'Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`',
+            example: 25
+        },
+        remaining: {
+            type: 'number',
+            description: 'Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)',
+            example: 12.5
+        },
+        used: {
+            type: 'number',
+            description: 'Sum of credits already consumed from those buckets (`total` − `remaining` per line, summed)',
+            example: 12.5
+        }
+    },
+    required: [
+        'total',
+        'remaining',
+        'used'
+    ],
+    description: 'Non-subscription credit rollup; subscription-period wallet stays on top-level `subscription`'
+} as const;
+
 export const CreditBucketBreakdownSchema = {
     type: 'object',
     properties: {

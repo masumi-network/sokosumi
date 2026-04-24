@@ -21,6 +21,40 @@ const creditBucketBreakdownItemSchema = z
   })
   .openapi("CreditBucketBreakdown");
 
+/** Rollup of non-subscription credits (sums over `extra.buckets` lines). */
+const creditsResponseExtraCreditsSchema = z
+  .object({
+    total: z.number().openapi({
+      description:
+        "Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`",
+      example: 25,
+    }),
+    remaining: z.number().openapi({
+      description:
+        "Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)",
+      example: 12.5,
+    }),
+    used: z.number().openapi({
+      description:
+        "Sum of credits already consumed from those buckets (`total` − `remaining` per line, summed)",
+      example: 12.5,
+    }),
+  })
+  .openapi("CreditsResponseExtraCredits");
+
+const creditsResponseExtraSchema = z
+  .object({
+    credits: creditsResponseExtraCreditsSchema.openapi({
+      description:
+        "Non-subscription credit rollup; subscription-period wallet stays on top-level `subscription`",
+    }),
+    buckets: z.array(creditBucketBreakdownItemSchema).openapi({
+      description:
+        "Non-subscription buckets with remaining balance (subscription-period buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id",
+    }),
+  })
+  .openapi("CreditsResponseExtra");
+
 /** Nested shape mirrored under deprecated `credits` */
 const creditsDeprecatedMirrorSchema = z.object({
   subscription: subscriptionSchema.nullable(),
@@ -88,18 +122,13 @@ export const creditsResponseSchema = z.object({
     description:
       "Active subscription and period credit breakdown for the billing context",
   }),
-  available: z.number().openapi({
+  extra: creditsResponseExtraSchema.openapi({
     description:
-      "Current available total credit balance (buffer plus remaining subscription credits)",
-    example: 82.5,
-  }),
-  buckets: z.array(creditBucketBreakdownItemSchema).openapi({
-    description:
-      "Non-subscription credit buckets with remaining balance (subscription-period buckets are omitted; use top-level `subscription` for those). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id",
+      "`extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.",
   }),
   credits: creditsDeprecatedMirrorSchema.openapi({
     deprecated: true,
     description:
-      "Deprecated: prefer top-level `subscription` and `available`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` here matches top-level `available`).",
+      "Deprecated: prefer top-level `subscription`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` is current available total: buffer plus remaining subscription credits).",
   }),
 });

@@ -178,6 +178,11 @@ const creditBucketBreakdownSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const creditsResponseExtraSchemaResponseTransformer = (data: any) => {
+    data.buckets = data.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
+    return data;
+};
+
 export const getUsersByIdCreditsResponseTransformer = async (data: any): Promise<GetUsersByIdCreditsResponse> => {
     if (data.data.subscription) {
         if (data.data.subscription.periodStart) {
@@ -187,7 +192,7 @@ export const getUsersByIdCreditsResponseTransformer = async (data: any): Promise
             data.data.subscription.periodEnd = new Date(data.data.subscription.periodEnd);
         }
     }
-    data.data.buckets = data.data.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
+    data.data.extra = creditsResponseExtraSchemaResponseTransformer(data.data.extra);
     if (data.data.credits.subscription) {
         if (data.data.credits.subscription.periodStart) {
             data.data.credits.subscription.periodStart = new Date(data.data.credits.subscription.periodStart);
@@ -220,7 +225,7 @@ export const getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer
             data.data.subscription.periodEnd = new Date(data.data.subscription.periodEnd);
         }
     }
-    data.data.buckets = data.data.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
+    data.data.extra = creditsResponseExtraSchemaResponseTransformer(data.data.extra);
     if (data.data.credits.subscription) {
         if (data.data.credits.subscription.periodStart) {
             data.data.credits.subscription.periodStart = new Date(data.data.credits.subscription.periodStart);

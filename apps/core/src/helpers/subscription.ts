@@ -202,12 +202,18 @@ export interface CreditsPayload {
 
 export interface CreditsApiPayload {
   subscription: ReturnType<typeof mapSubscription>;
-  available: number;
-  buckets: Array<{
-    total: number;
-    remaining: number;
-    expiresAt: Date | null;
-  }>;
+  extra: {
+    credits: {
+      total: number;
+      remaining: number;
+      used: number;
+    };
+    buckets: Array<{
+      total: number;
+      remaining: number;
+      expiresAt: Date | null;
+    }>;
+  };
   credits: CreditsPayload;
 }
 
@@ -257,6 +263,14 @@ export async function buildCreditsPayload(params: {
       params.tx,
     );
 
+  let nonSubTotalCents = 0n;
+  let nonSubRemainingCents = 0n;
+  for (const row of bucketRows) {
+    nonSubTotalCents += row.totalCents;
+    nonSubRemainingCents += row.remainingCents;
+  }
+  const nonSubUsedCents = nonSubTotalCents - nonSubRemainingCents;
+
   const buckets = bucketRows.map((row: CreditBucketBalanceRow) => ({
     total: convertCentsToCredits(row.totalCents),
     remaining: convertCentsToCredits(row.remainingCents),
@@ -271,8 +285,14 @@ export async function buildCreditsPayload(params: {
 
   return {
     subscription,
-    available: total,
-    buckets,
+    extra: {
+      credits: {
+        total: convertCentsToCredits(nonSubTotalCents),
+        remaining: convertCentsToCredits(nonSubRemainingCents),
+        used: convertCentsToCredits(nonSubUsedCents),
+      },
+      buckets,
+    },
     credits,
   };
 }

@@ -456,6 +456,35 @@ export type PatchCreditCostRequest = {
     creditsPerUnit: number;
 };
 
+/**
+ * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
+ */
+export type CreditsResponseExtra = {
+    credits: CreditsResponseExtraCredits;
+    /**
+     * Non-subscription buckets with remaining balance (subscription-period buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
+     */
+    buckets: Array<CreditBucketBreakdown>;
+};
+
+/**
+ * Non-subscription credit rollup; subscription-period wallet stays on top-level `subscription`
+ */
+export type CreditsResponseExtraCredits = {
+    /**
+     * Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`
+     */
+    total: number;
+    /**
+     * Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)
+     */
+    remaining: number;
+    /**
+     * Sum of credits already consumed from those buckets (`total` − `remaining` per line, summed)
+     */
+    used: number;
+};
+
 export type CreditBucketBreakdown = {
     /**
      * Original bucket amount in credits
@@ -5046,16 +5075,9 @@ export type GetUsersByIdCreditsResponses = {
                     used: number;
                 } | null;
             } | null;
+            extra: CreditsResponseExtra;
             /**
-             * Current available total credit balance (buffer plus remaining subscription credits)
-             */
-            available: number;
-            /**
-             * Non-subscription credit buckets with remaining balance (subscription-period buckets are omitted; use top-level `subscription` for those). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
-             */
-            buckets: Array<CreditBucketBreakdown>;
-            /**
-             * Deprecated: prefer top-level `subscription` and `available`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` here matches top-level `available`).
+             * Deprecated: prefer top-level `subscription`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` is current available total: buffer plus remaining subscription credits).
              *
              * @deprecated
              */
@@ -5289,16 +5311,9 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
                     used: number;
                 } | null;
             } | null;
+            extra: CreditsResponseExtra;
             /**
-             * Current available total credit balance (buffer plus remaining subscription credits)
-             */
-            available: number;
-            /**
-             * Non-subscription credit buckets with remaining balance (subscription-period buckets are omitted; use top-level `subscription` for those). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
-             */
-            buckets: Array<CreditBucketBreakdown>;
-            /**
-             * Deprecated: prefer top-level `subscription` and `available`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` here matches top-level `available`).
+             * Deprecated: prefer top-level `subscription`. Still includes `buffer` for non-subscription balance; `subscription` and `total` mirror the canonical fields for backward compatibility (`total` is current available total: buffer plus remaining subscription credits).
              *
              * @deprecated
              */

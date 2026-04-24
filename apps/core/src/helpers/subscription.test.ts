@@ -487,6 +487,14 @@ describe("buildCreditsPayload", () => {
           usedCents: convertCreditsToCents(4),
         });
 
+      listAvailableBucketsWithBalancesMock.mockResolvedValue([
+        {
+          totalCents: convertCreditsToCents(19),
+          remainingCents: convertCreditsToCents(19),
+          expiresAt: null,
+        },
+      ]);
+
       await expect(
         buildCreditsPayload({
           userId: "user_1",
@@ -507,8 +515,20 @@ describe("buildCreditsPayload", () => {
           plan: "starter",
           status: "active",
         },
-        available: 25,
-        buckets: [],
+        extra: {
+          credits: {
+            total: 19,
+            remaining: 19,
+            used: 0,
+          },
+          buckets: [
+            {
+              total: 19,
+              remaining: 19,
+              expiresAt: null,
+            },
+          ],
+        },
         credits: {
           buffer: 19,
           subscription: {
@@ -568,6 +588,14 @@ describe("buildCreditsPayload", () => {
           usedCents: convertCreditsToCents(4),
         });
 
+      listAvailableBucketsWithBalancesMock.mockResolvedValue([
+        {
+          totalCents: convertCreditsToCents(19),
+          remainingCents: convertCreditsToCents(19),
+          expiresAt: null,
+        },
+      ]);
+
       await expect(
         buildCreditsPayload({
           userId: "user_1",
@@ -588,8 +616,20 @@ describe("buildCreditsPayload", () => {
           plan: "starter",
           status: "canceled",
         },
-        available: 25,
-        buckets: [],
+        extra: {
+          credits: {
+            total: 19,
+            remaining: 19,
+            used: 0,
+          },
+          buckets: [
+            {
+              total: 19,
+              remaining: 19,
+              expiresAt: null,
+            },
+          ],
+        },
         credits: {
           buffer: 19,
           subscription: {
@@ -629,7 +669,7 @@ describe("buildCreditsPayload", () => {
     }
   });
 
-  it("maps credit bucket rows into top-level buckets", async () => {
+  it("maps credit bucket rows into extra.buckets", async () => {
     vi.useFakeTimers();
     try {
       vi.setSystemTime(new Date("2025-01-15T12:00:00.000Z"));
@@ -666,11 +706,17 @@ describe("buildCreditsPayload", () => {
         }),
       ).resolves.toEqual({
         subscription: null,
-        available: 10,
-        buckets: [
-          { total: 20, remaining: 7.5, expiresAt },
-          { total: 5, remaining: 5, expiresAt: null },
-        ],
+        extra: {
+          credits: {
+            total: 25,
+            remaining: 12.5,
+            used: 12.5,
+          },
+          buckets: [
+            { total: 20, remaining: 7.5, expiresAt },
+            { total: 5, remaining: 5, expiresAt: null },
+          ],
+        },
         credits: {
           buffer: 10,
           subscription: null,
