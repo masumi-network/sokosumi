@@ -7,6 +7,7 @@ import {
   type LanguageModelV3Content,
   type LanguageModelV3GenerateResult,
   type LanguageModelV3StreamResult,
+  type SharedV3Warning,
 } from "@ai-sdk/provider";
 import { getModelIdentifier } from "@sokosumi/chat";
 import { parseSokosumiProviderOptions } from "./parse-provider-options.js";
@@ -48,7 +49,7 @@ export function createSokosumiLanguageModel(
     const content: LanguageModelV3Content[] = [];
     let textBuffer = "";
     let reasoningBuffer = "";
-    let warnings = buildResponsesApiWarnings(options.prompt);
+    let warnings: SharedV3Warning[] = [];
     let finishReason = finishStop();
     let usage = emptyUsage();
 
@@ -119,7 +120,7 @@ export function createSokosumiLanguageModel(
       if (responsesInput.length === 0) {
         throw new APICallError({
           message:
-            "Sokosumi provider: prompt produced an empty Responses API input (no text to send).",
+            "Sokosumi provider: prompt produced an empty Responses API input (no supported content to send).",
           url: OPENROUTER_RESPONSES_URL,
           requestBodyValues: { responsesInput },
           isRetryable: false,
@@ -152,7 +153,7 @@ async function streamOpenRouter(
   modelId: string | null,
   config: CreateSokosumiOptions,
   responsesInput: ReturnType<typeof promptToResponsesInput>,
-  promptWarnings: ReturnType<typeof buildResponsesApiWarnings>,
+  promptWarnings: SharedV3Warning[],
   sokosumiOpts: ReturnType<typeof parseSokosumiProviderOptions>,
   options: LanguageModelV3CallOptions,
 ): Promise<LanguageModelV3StreamResult> {
@@ -222,7 +223,7 @@ async function streamOpenRouter(
 }
 
 async function streamCoworker(
-  promptWarnings: ReturnType<typeof buildResponsesApiWarnings>,
+  promptWarnings: SharedV3Warning[],
   sokosumiOpts: ReturnType<typeof parseSokosumiProviderOptions>,
   options: LanguageModelV3CallOptions,
 ): Promise<LanguageModelV3StreamResult> {
@@ -234,7 +235,7 @@ async function streamCoworker(
   if (responsesInput.length === 0) {
     throw new APICallError({
       message:
-        "Sokosumi provider: prompt produced an empty Responses API input (no text to send).",
+        "Sokosumi provider: prompt produced an empty Responses API input (no supported content to send).",
       url: `${(sokosumiOpts.coworkerBaseUrl ?? "").replace(/\/$/, "")}/responses`,
       requestBodyValues: { responsesInput },
       isRetryable: false,
