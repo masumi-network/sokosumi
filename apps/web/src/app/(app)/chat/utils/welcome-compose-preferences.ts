@@ -16,6 +16,12 @@ function isChatComposeKind(v: unknown): v is ChatComposeKind {
   return v === "chat" || v === "task";
 }
 
+function firstCoworkerWithTasksCapability(
+  coworkers: Coworker[],
+): Coworker | null {
+  return coworkers.find((x) => x.capabilities?.includes("tasks")) ?? null;
+}
+
 export function readWelcomeComposePreferences(): WelcomeComposeStoredV1 | null {
   if (typeof window === "undefined") return null;
   try {
@@ -124,13 +130,22 @@ export function resolveHydratedWelcomeSelection(
         if (c.capabilities?.includes("tasks")) {
           return { composeKind: "task", coworker: c, model: null };
         }
-        const fallback = coworkers.find((x) =>
-          x.capabilities?.includes("tasks"),
-        );
-        return { composeKind: "task", coworker: fallback ?? null, model: null };
+        return {
+          composeKind: "task",
+          coworker: firstCoworkerWithTasksCapability(coworkers),
+          model: null,
+        };
       }
       return { composeKind: "chat", coworker: c, model: null };
     }
+  }
+
+  if (composeKind === "task") {
+    return {
+      composeKind: "task",
+      coworker: firstCoworkerWithTasksCapability(coworkers),
+      model: null,
+    };
   }
 
   return { composeKind, coworker: null, model: null };

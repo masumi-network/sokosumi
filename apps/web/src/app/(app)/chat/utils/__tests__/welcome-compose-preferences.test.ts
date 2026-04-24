@@ -205,4 +205,51 @@ describe("resolveHydratedWelcomeSelection", () => {
     expect(r.coworker?.capabilities?.includes("tasks")).toBe(true);
     expect(r.coworker?.slug).toBe("alex");
   });
+
+  it("for task compose with null coworkerSlugOrId, picks first tasks-capable coworker", () => {
+    const stored = {
+      v: 1 as const,
+      composeKind: "task" as const,
+      modelId: null,
+      coworkerSlugOrId: null,
+    };
+    const r = resolveHydratedWelcomeSelection(coworkers, stored, {
+      urlCoworkerSlug: false,
+    });
+    expect(r.composeKind).toBe("task");
+    expect(r.coworker?.capabilities?.includes("tasks")).toBe(true);
+    expect(r.coworker?.slug).toBe("alex");
+  });
+
+  it("for task compose when stored coworker id/slug is unknown, picks first tasks-capable coworker", () => {
+    const stored = {
+      v: 1 as const,
+      composeKind: "task" as const,
+      modelId: null,
+      coworkerSlugOrId: "missing-coworker",
+    };
+    const r = resolveHydratedWelcomeSelection(coworkers, stored, {
+      urlCoworkerSlug: false,
+    });
+    expect(r.composeKind).toBe("task");
+    expect(r.coworker?.capabilities?.includes("tasks")).toBe(true);
+    expect(r.coworker?.slug).toBe("alex");
+  });
+
+  it("for task compose with no tasks-capable coworkers, returns null coworker", () => {
+    const chatOnly = [
+      baseCoworker({ id: "b", slug: "no-tasks", capabilities: ["chat"] }),
+    ];
+    const stored = {
+      v: 1 as const,
+      composeKind: "task" as const,
+      modelId: null,
+      coworkerSlugOrId: null,
+    };
+    const r = resolveHydratedWelcomeSelection(chatOnly, stored, {
+      urlCoworkerSlug: false,
+    });
+    expect(r.composeKind).toBe("task");
+    expect(r.coworker).toBeNull();
+  });
 });
