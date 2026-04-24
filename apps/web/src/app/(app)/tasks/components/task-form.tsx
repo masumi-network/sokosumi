@@ -125,19 +125,13 @@ export function TaskForm({
     const elenaCoworker = coworkerOptions.find(
       (option) => option.slug === "elena",
     );
-    const fallback =
+    return (
       initialValues?.coworkerId ??
       elenaCoworker?.id ??
       coworkerOptions[0]?.id ??
-      "";
-    if (!isModal || mode !== "create") {
-      return fallback;
-    }
-    if (initialValues?.coworkerId != null && initialValues.coworkerId !== "") {
-      return initialValues.coworkerId;
-    }
-    return fallback;
-  }, [coworkerOptions, initialValues?.coworkerId, isModal, mode]);
+      ""
+    );
+  }, [coworkerOptions, initialValues?.coworkerId]);
 
   const coworkerTouchedRef = useRef(false);
   const [coworkerId, setCoworkerId] = useState(defaultCoworkerId);
