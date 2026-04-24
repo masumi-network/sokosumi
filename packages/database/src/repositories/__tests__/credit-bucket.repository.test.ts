@@ -246,19 +246,10 @@ describe("creditBucketRepository.getBalance (organization)", () => {
 
 describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
   it("uses member-scoped subscription filters and shared non-subscription filters", async () => {
-    let args:
-      | {
-          where: {
-            AND: Array<{
-              OR?: Array<Record<string, unknown>>;
-              organizationId?: string;
-            }>;
-          };
-        }
-      | undefined;
+    let args: Prisma.CreditBucketFindManyArgs | undefined;
     const tx = {
       creditBucket: {
-        findMany: async (input: typeof args) => {
+        findMany: async (input: Prisma.CreditBucketFindManyArgs) => {
           args = input;
           return [];
         },
@@ -282,7 +273,13 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
       { createdAt: "asc" },
       { id: "asc" },
     ]);
-    const scopeWhere = args.where.AND[0];
+    assert.ok(args.where);
+    const andClause = args.where.AND;
+    assert.ok(Array.isArray(andClause));
+    const scopeWhere = andClause[0] as {
+      organizationId?: string;
+      OR?: Array<Record<string, unknown>>;
+    };
     assert.equal(scopeWhere.organizationId, "org-1");
     assert.deepEqual(scopeWhere.OR, [
       {
@@ -307,19 +304,10 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
   });
 
   it("uses escaped prefix for startsWith when userId contains LIKE wildcards", async () => {
-    let args:
-      | {
-          where: {
-            AND: Array<{
-              OR?: Array<Record<string, unknown>>;
-              organizationId?: string;
-            }>;
-          };
-        }
-      | undefined;
+    let args: Prisma.CreditBucketFindManyArgs | undefined;
     const tx = {
       creditBucket: {
-        findMany: async (input: typeof args) => {
+        findMany: async (input: Prisma.CreditBucketFindManyArgs) => {
           args = input;
           return [];
         },
@@ -337,7 +325,12 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
     await creditBucketRepository.getUnexpiredBuckets("user_1", "org-1", tx);
 
     assert.ok(args);
-    const scopeWhere = args.where.AND[0];
+    assert.ok(args.where);
+    const andClauseWildcard = args.where.AND;
+    assert.ok(Array.isArray(andClauseWildcard));
+    const scopeWhere = andClauseWildcard[0] as {
+      OR?: Array<Record<string, unknown>>;
+    };
     const subscriptionBranch = (
       scopeWhere.OR as Array<Record<string, unknown>>
     ).find(
