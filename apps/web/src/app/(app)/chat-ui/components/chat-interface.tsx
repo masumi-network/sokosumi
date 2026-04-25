@@ -299,6 +299,9 @@ export default function ChatInterface({
   const previousSelectedChatIdForComposeRef = useRef<string | null>(
     selectedChatId,
   );
+  const previousControlledConversationIdRef = useRef<string | null>(
+    controlledConversationId,
+  );
   // Invalidate stored welcome prefs during render so the hydration
   // `useLayoutEffect` runs before paint (avoids one frame of stale welcome UI).
   const previousComposeSelectedChatId =
@@ -365,14 +368,19 @@ export default function ChatInterface({
 
   useEffect(() => {
     if (isRouteDriven) {
+      previousControlledConversationIdRef.current = controlledConversationId;
       return;
     }
 
+    const previousControlled = previousControlledConversationIdRef.current;
     setSelectedChatId(controlledConversationId);
 
     if (controlledConversationId !== null) {
+      previousControlledConversationIdRef.current = controlledConversationId;
       return;
     }
+
+    previousControlledConversationIdRef.current = null;
 
     loadingConversationIdRef.current = null;
     currentChatIdRef.current = null;
@@ -380,7 +388,11 @@ export default function ChatInterface({
     setSelectedModel(null);
     selectedModelRef.current = null;
     setInput("");
-    welcomePrefsHydratedRef.current = false;
+    // Only invalidate welcome hydration when leaving a conversation for welcome;
+    // initial mount with null must not clear the flag after useLayoutEffect hydrated.
+    if (previousControlled !== null) {
+      welcomePrefsHydratedRef.current = false;
+    }
   }, [controlledConversationId, isRouteDriven, setSelectedModel]);
 
   useEffect(() => {

@@ -125,13 +125,25 @@ export function TaskForm({
     const elenaCoworker = coworkerOptions.find(
       (option) => option.slug === "elena",
     );
-    return (
+    const fallback =
       initialValues?.coworkerId ??
       elenaCoworker?.id ??
       coworkerOptions[0]?.id ??
-      ""
-    );
-  }, [coworkerOptions, initialValues?.coworkerId]);
+      "";
+
+    const hasExplicitInitialCoworker =
+      initialValues?.coworkerId != null && initialValues.coworkerId !== "";
+
+    if (!isModal || mode !== "create" || hasExplicitInitialCoworker) {
+      return fallback;
+    }
+
+    const stored = readCreateTaskModalLastCoworkerId();
+    if (stored && coworkerOptions.some((o) => o.id === stored)) {
+      return stored;
+    }
+    return fallback;
+  }, [coworkerOptions, initialValues?.coworkerId, isModal, mode]);
 
   const coworkerTouchedRef = useRef(false);
   const [coworkerId, setCoworkerId] = useState(defaultCoworkerId);
@@ -140,18 +152,6 @@ export function TaskForm({
     if (coworkerTouchedRef.current) return;
     setCoworkerId(defaultCoworkerId);
   }, [defaultCoworkerId]);
-
-  useEffect(() => {
-    if (!isModal || mode !== "create") return;
-    if (initialValues?.coworkerId != null && initialValues.coworkerId !== "") {
-      return;
-    }
-    if (coworkerTouchedRef.current) return;
-    const stored = readCreateTaskModalLastCoworkerId();
-    if (stored && coworkerOptions.some((o) => o.id === stored)) {
-      setCoworkerId(stored);
-    }
-  }, [coworkerOptions, initialValues?.coworkerId, isModal, mode]);
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);

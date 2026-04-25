@@ -306,7 +306,7 @@ describe("TaskForm", () => {
     expect(sokoButton).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("applies stored create-modal coworker from localStorage after mount", async () => {
+  it("applies stored create-modal coworker from localStorage on first render", () => {
     writeCreateTaskModalLastCoworkerId("coworker-1");
     render(
       <TaskForm
@@ -319,12 +319,10 @@ describe("TaskForm", () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Soko/i })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
-    });
+    expect(screen.getByRole("button", { name: /Soko/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(screen.getByRole("button", { name: /Elena/i })).toHaveAttribute(
       "aria-pressed",
       "false",
