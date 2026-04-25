@@ -35,6 +35,12 @@ import type {
   ChatComposeSubmitOptions,
   Coworker,
 } from "@/app/chat/utils/types";
+import {
+  buildWelcomeComposeStoredSnapshot,
+  readWelcomeComposePreferences,
+  resolveHydratedWelcomeSelection,
+  writeWelcomeComposePreferences,
+} from "@/app/chat/utils/welcome-compose-preferences";
 import { useChatCreation } from "@/app/chat-ui/hooks/use-chat-creation";
 import { useChatSelection } from "@/app/chat-ui/hooks/use-chat-selection";
 import {
@@ -222,41 +228,130 @@ export default function ChatInterface({
         ? initialWelcomeCoworker
         : (welcomeSelectedCoworker ?? initialWelcomeCoworker);
 
-  const handleWelcomeCoworkerChange = useCallback((coworker: Coworker) => {
-    setWelcomeSelectedCoworker(coworker);
-    setWelcomeSelectedModel(null);
-  }, []);
-
-  const handleWelcomeModelChange = useCallback(
-    (model: { id: string; name: string } | null) => {
-      setWelcomeSelectedModel(model);
-      if (model) setWelcomeSelectedCoworker(null);
-    },
-    [],
-  );
-
   const [welcomeComposeKind, setWelcomeComposeKind] =
     useState<ChatComposeKind>("chat");
   const [isWelcomeTaskSubmitting, setIsWelcomeTaskSubmitting] = useState(false);
   const welcomeTaskCreationInFlightRef = useRef(false);
 
+  const welcomePrefsHydratedRef = useRef(false);
+  const previousWelcomeCoworkerSlugRef = useRef<string | null>(
+    welcomeCoworkerSlug,
+  );
+  const welcomeSelectedCoworkerRef = useRef<Coworker | null>(null);
+  const welcomeSelectedModelRef = useRef<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const welcomeComposeKindRef = useRef<ChatComposeKind>("chat");
+  const welcomePrefsWriteSelectedChatIdRef = useRef<string | null>(null);
+  const welcomePrefsWriteWelcomeCoworkerSlugRef = useRef<string | null>(null);
+  welcomeSelectedCoworkerRef.current = welcomeSelectedCoworker;
+  welcomeSelectedModelRef.current = welcomeSelectedModel;
+  welcomeComposeKindRef.current = welcomeComposeKind;
+  welcomePrefsWriteSelectedChatIdRef.current = selectedChatId;
+  welcomePrefsWriteWelcomeCoworkerSlugRef.current = welcomeCoworkerSlug;
+
+  const writeWelcomePrefsFromRefs = useCallback(() => {
+    if (welcomePrefsWriteSelectedChatIdRef.current !== null) return;
+    if (welcomePrefsWriteWelcomeCoworkerSlugRef.current != null) return;
+    writeWelcomeComposePreferences(
+      buildWelcomeComposeStoredSnapshot({
+        composeKind: welcomeComposeKindRef.current,
+        coworker: welcomeSelectedCoworkerRef.current,
+        model: welcomeSelectedModelRef.current,
+      }),
+    );
+  }, []);
+
+  const handleWelcomeComposeKindChange = useCallback(
+    (kind: ChatComposeKind) => {
+      setWelcomeComposeKind(kind);
+      welcomeComposeKindRef.current = kind;
+      writeWelcomePrefsFromRefs();
+    },
+    [writeWelcomePrefsFromRefs],
+  );
+
+  const handleWelcomeCoworkerChange = useCallback(
+    (coworker: Coworker) => {
+      setWelcomeSelectedCoworker(coworker);
+      setWelcomeSelectedModel(null);
+      welcomeSelectedCoworkerRef.current = coworker;
+      welcomeSelectedModelRef.current = null;
+      writeWelcomePrefsFromRefs();
+    },
+    [writeWelcomePrefsFromRefs],
+  );
+
+  const handleWelcomeModelChange = useCallback(
+    (model: { id: string; name: string } | null) => {
+      setWelcomeSelectedModel(model);
+      if (model) {
+        setWelcomeSelectedCoworker(null);
+        welcomeSelectedCoworkerRef.current = null;
+      }
+      welcomeSelectedModelRef.current = model;
+      writeWelcomePrefsFromRefs();
+    },
+    [writeWelcomePrefsFromRefs],
+  );
+
   const previousSelectedChatIdForComposeRef = useRef<string | null>(
     selectedChatId,
   );
-  useEffect(() => {
-    const previous = previousSelectedChatIdForComposeRef.current;
+  const previousControlledConversationIdRef = useRef<string | null>(
+    controlledConversationId,
+  );
+  // Invalidate stored welcome prefs during render so the hydration
+  // `useLayoutEffect` runs before paint (avoids one frame of stale welcome UI).
+  const previousComposeSelectedChatId =
+    previousSelectedChatIdForComposeRef.current;
+  if (previousComposeSelectedChatId !== selectedChatId) {
+    if (previousComposeSelectedChatId !== null && selectedChatId === null) {
+      welcomePrefsHydratedRef.current = false;
+    }
     previousSelectedChatIdForComposeRef.current = selectedChatId;
-    if (previous !== null && selectedChatId === null) {
-      setWelcomeComposeKind("chat");
-    }
-  }, [selectedChatId]);
+  }
+  if (previousWelcomeCoworkerSlugRef.current !== welcomeCoworkerSlug) {
+    welcomePrefsHydratedRef.current = false;
+    previousWelcomeCoworkerSlugRef.current = welcomeCoworkerSlug;
+  }
 
-  useEffect(() => {
-    if (isRouteDriven && !urlConversationId && isChatPath) {
-      setWelcomeSelectedCoworker(null);
+  useLayoutEffect(() => {
+    if (selectedChatId !== null) return;
+    if (coworkers.length === 0) return;
+    if (welcomePrefsHydratedRef.current) return;
+    welcomePrefsHydratedRef.current = true;
+
+    const stored = readWelcomeComposePreferences();
+    const resolved = resolveHydratedWelcomeSelection(coworkers, stored, {
+      urlCoworkerSlug: welcomeCoworkerSlug != null,
+    });
+
+    setWelcomeComposeKind(resolved.composeKind);
+    welcomeComposeKindRef.current = resolved.composeKind;
+
+    if (welcomeCoworkerSlug != null) {
       setWelcomeSelectedModel(null);
+      setWelcomeSelectedCoworker(null);
+      return;
     }
-  }, [isChatPath, isRouteDriven, urlConversationId]);
+
+    if (resolved.model) {
+      setWelcomeSelectedModel(resolved.model);
+      setWelcomeSelectedCoworker(null);
+      return;
+    }
+
+    if (resolved.coworker) {
+      setWelcomeSelectedCoworker(resolved.coworker);
+      setWelcomeSelectedModel(null);
+      return;
+    }
+
+    setWelcomeSelectedCoworker(null);
+    setWelcomeSelectedModel(null);
+  }, [selectedChatId, coworkers, welcomeCoworkerSlug]);
 
   const selectedModelRef = useRef<{ id: string; name: string } | null>(null);
   const chatMessagesRef = useRef<Map<string, unknown[]>>(new Map());
@@ -273,14 +368,19 @@ export default function ChatInterface({
 
   useEffect(() => {
     if (isRouteDriven) {
+      previousControlledConversationIdRef.current = controlledConversationId;
       return;
     }
 
+    const previousControlled = previousControlledConversationIdRef.current;
     setSelectedChatId(controlledConversationId);
 
     if (controlledConversationId !== null) {
+      previousControlledConversationIdRef.current = controlledConversationId;
       return;
     }
+
+    previousControlledConversationIdRef.current = null;
 
     loadingConversationIdRef.current = null;
     currentChatIdRef.current = null;
@@ -288,9 +388,11 @@ export default function ChatInterface({
     setSelectedModel(null);
     selectedModelRef.current = null;
     setInput("");
-    setWelcomeSelectedCoworker(null);
-    setWelcomeSelectedModel(null);
-    setWelcomeComposeKind("chat");
+    // Only invalidate welcome hydration when leaving a conversation for welcome;
+    // initial mount with null must not clear the flag after useLayoutEffect hydrated.
+    if (previousControlled !== null) {
+      welcomePrefsHydratedRef.current = false;
+    }
   }, [controlledConversationId, isRouteDriven, setSelectedModel]);
 
   useEffect(() => {
@@ -1447,7 +1549,7 @@ export default function ChatInterface({
             showGreetingAndSuggestions={showGreetingAndSuggestions}
             userName={userName?.split(" ")[0] ?? userName}
             welcomeComposeKind={welcomeComposeKind}
-            onWelcomeComposeKindChange={setWelcomeComposeKind}
+            onWelcomeComposeKindChange={handleWelcomeComposeKindChange}
             welcomeSendBlocked={isWelcomeTaskSubmitting}
             onSendMessage={handleSendMessage}
             isTransitioning={isWelcomeTransitioning}
