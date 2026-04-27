@@ -25,7 +25,7 @@ import {
 } from "@/helpers/error";
 import {
   extractMessageText,
-  formatMessageContentForConversation,
+  extractPersistableUiParts,
 } from "@/helpers/message-content";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { persistAssistantFromAiSdk } from "@/helpers/persist-assistant-from-ai-sdk";
@@ -58,7 +58,7 @@ import { mapChatRequestToUiMessages } from "./map-chat-request-to-ui-messages.js
 async function persistUserOrSystemTurnForConversation(params: {
   conversationId: string;
   userId: string;
-  lastMessage: { role: string };
+  lastMessage: { role: string } & Record<string, unknown>;
   extractedText: string;
 }): Promise<void> {
   const { conversationId, userId, lastMessage, extractedText } = params;
@@ -66,7 +66,15 @@ async function persistUserOrSystemTurnForConversation(params: {
     return;
   }
 
-  const formattedContent = formatMessageContentForConversation(extractedText);
+  const uiParts = extractPersistableUiParts(lastMessage);
+  const metadata =
+    uiParts.length > 0
+      ? {
+          ui_message_v1: {
+            parts: uiParts,
+          },
+        }
+      : undefined;
 
   const scheduleTitleGeneration = await prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<Array<{ id: string }>>`
@@ -90,8 +98,9 @@ async function persistUserOrSystemTurnForConversation(params: {
       data: {
         conversationId,
         role: lastMessage.role,
-        contentType: formattedContent[0]?.type || null,
+        contentType: uiParts[0]?.type ?? null,
         contentText: extractedText,
+        metadata,
       },
     });
 

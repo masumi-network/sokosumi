@@ -16,7 +16,7 @@ describe("conversationMessageToApiContent", () => {
     ).toBe("Hello");
   });
 
-  it("places reasoning steps before output_text", () => {
+  it("places reasoning steps before the primary body part type from contentType", () => {
     expect(
       conversationMessageToApiContent({
         contentType: "output_text",
@@ -32,6 +32,38 @@ describe("conversationMessageToApiContent", () => {
       { type: "reasoning", text: "First thought" },
       { type: "reasoning", text: "Second" },
       { type: "output_text", text: "Answer" },
+    ]);
+  });
+
+  it("returns stored ui_message_v1 file parts after reasoning", () => {
+    expect(
+      conversationMessageToApiContent({
+        contentType: "file",
+        contentText: "Please review",
+        metadata: {
+          reasoning: [{ type: "reasoning", text: "Looking at the document" }],
+          ui_message_v1: {
+            parts: [
+              { type: "text", text: "Please review" },
+              {
+                type: "file",
+                url: "https://example.com/brief.pdf",
+                mediaType: "application/pdf",
+                filename: "brief.pdf",
+              },
+            ],
+          },
+        },
+      }),
+    ).toEqual([
+      { type: "reasoning", text: "Looking at the document" },
+      { type: "text", text: "Please review" },
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+        filename: "brief.pdf",
+      },
     ]);
   });
 });

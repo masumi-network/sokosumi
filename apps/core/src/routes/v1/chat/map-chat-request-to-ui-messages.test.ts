@@ -1,0 +1,75 @@
+import { describe, expect, it } from "vitest";
+
+import { mapChatRequestToUiMessages } from "./map-chat-request-to-ui-messages";
+
+describe("mapChatRequestToUiMessages", () => {
+  it("preserves text and file parts from the request payload", () => {
+    const messages = mapChatRequestToUiMessages([
+      {
+        id: "m1",
+        role: "user",
+        parts: [
+          { type: "text", text: "Please review this" },
+          {
+            type: "file",
+            url: "https://example.com/brief.pdf",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+          },
+        ],
+      },
+    ]);
+
+    expect(messages).toEqual([
+      {
+        id: "m1",
+        role: "user",
+        parts: [
+          { type: "text", text: "Please review this" },
+          {
+            type: "file",
+            url: "https://example.com/brief.pdf",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("uses an empty text part when the message has no extractable parts", () => {
+    const messages = mapChatRequestToUiMessages([{ id: "m1", role: "user" }]);
+    expect(messages[0]?.parts).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("strips reasoning parts from user messages", () => {
+    const messages = mapChatRequestToUiMessages([
+      {
+        id: "m1",
+        role: "user",
+        parts: [
+          { type: "reasoning", text: "fake" },
+          { type: "text", text: "Hi" },
+        ],
+      },
+    ]);
+    expect(messages[0]?.parts).toEqual([{ type: "text", text: "Hi" }]);
+  });
+
+  it("keeps reasoning parts on assistant messages", () => {
+    const messages = mapChatRequestToUiMessages([
+      {
+        id: "m1",
+        role: "assistant",
+        parts: [
+          { type: "reasoning", text: "thought" },
+          { type: "text", text: "Hello" },
+        ],
+      },
+    ]);
+    expect(messages[0]?.parts).toEqual([
+      { type: "reasoning", text: "thought" },
+      { type: "text", text: "Hello" },
+    ]);
+  });
+});

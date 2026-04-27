@@ -23,6 +23,34 @@ describe("convertItemsToMessages", () => {
       { type: "text", text: "Hi" },
     ]);
   });
+
+  it("maps file parts from API content arrays", () => {
+    const messages = convertItemsToMessages([
+      {
+        id: "u1",
+        role: "user",
+        createdAt: 1700000001,
+        content: [
+          { type: "text", text: "See attached" },
+          {
+            type: "file",
+            url: "https://example.com/blob.png",
+            mediaType: "image/png",
+            filename: "blob.png",
+          },
+        ],
+      },
+    ]);
+    expect(messages[0]?.parts).toEqual([
+      { type: "text", text: "See attached" },
+      {
+        type: "file",
+        url: "https://example.com/blob.png",
+        mediaType: "image/png",
+        filename: "blob.png",
+      },
+    ]);
+  });
 });
 
 describe("deduplicateMessagesById", () => {

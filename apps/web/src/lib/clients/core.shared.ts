@@ -6,6 +6,7 @@ import {
   mapCorePublicSharedResourceResponse,
 } from "@/lib/clients/core.job-share";
 import type {
+  CreateConversationMessageRequest,
   DeleteJobsByIdShareError,
   DeleteTasksByIdShareError,
   GetCoworkersData,
@@ -325,10 +326,7 @@ export function createCoreClient(getClient: GetClient) {
 
   async function addConversationMessage(
     id: string,
-    body: {
-      role: "user" | "assistant" | "system";
-      content: Array<{ type: string; text?: string }> | string;
-    },
+    body: CreateConversationMessageRequest,
   ) {
     return executeOperation(
       getClient,

@@ -1,5 +1,24 @@
 import type { UIMessage } from "ai";
 
+import type { ConversationMessage } from "@/lib/clients/generated/core/types.gen";
+
+/**
+ * Serialized conversation row from Core / server actions (JSON may widen literals).
+ * Superset of OpenAPI `ConversationMessage` for `convertItemsToMessages` input.
+ */
+export interface ConvertibleConversationMessage {
+  id: string;
+  role: string;
+  content:
+    | string
+    | ReadonlyArray<
+        | { type: "file"; url: string; mediaType: string; filename?: string }
+        | { type?: string; text?: string }
+      >;
+  createdAt: number;
+  thoughtTiming?: ConversationMessage["thoughtTiming"];
+}
+
 /**
  * Extract text content from a message in various formats (AI SDK v6, parts array, etc.)
  */
@@ -153,18 +172,42 @@ export function getThoughtTimingMsFromMessage(message: unknown): {
  * Convert Core conversation messages to UIMessage format
  */
 function partsFromApiItemContent(
-  content: Array<{ type: string; text?: string }> | string,
+  content: ConvertibleConversationMessage["content"],
 ): UIMessage["parts"] {
   if (typeof content === "string") {
     return [{ type: "text", text: content }];
   }
   const parts: UIMessage["parts"] = [];
   for (const c of content) {
+    if (
+      typeof c === "object" &&
+      c !== null &&
+      "type" in c &&
+      c.type === "file" &&
+      "url" in c &&
+      typeof (c as { url?: unknown }).url === "string" &&
+      "mediaType" in c &&
+      typeof (c as { mediaType?: unknown }).mediaType === "string"
+    ) {
+      const file = c as {
+        type: "file";
+        url: string;
+        mediaType: string;
+        filename?: string;
+      };
+      parts.push({
+        type: "file",
+        url: file.url,
+        mediaType: file.mediaType,
+        ...(file.filename !== undefined ? { filename: file.filename } : {}),
+      });
+      continue;
+    }
     if (c.type === "reasoning") {
       parts.push({ type: "reasoning", text: c.text ?? "" });
       continue;
     }
-    parts.push({ type: "text", text: c.text ?? "" });
+    parts.push({ type: "text", text: "text" in c ? (c.text ?? "") : "" });
   }
   return parts.length > 0 ? parts : [{ type: "text", text: "" }];
 }
@@ -180,16 +223,7 @@ function visibleTextFromParts(parts: UIMessage["parts"]): string {
 }
 
 export function convertItemsToMessages(
-  conversationMessages: Array<{
-    id: string;
-    role: string;
-    content: Array<{ type: string; text?: string }> | string;
-    createdAt: number;
-    thoughtTiming?: {
-      startedAtMs: number | null;
-      endedAtMs: number | null;
-    };
-  }>,
+  conversationMessages: ReadonlyArray<ConvertibleConversationMessage>,
 ): UIMessage[] {
   return conversationMessages.map((message) => {
     const parts = partsFromApiItemContent(message.content);

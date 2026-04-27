@@ -1,5 +1,21 @@
 import { z } from "@hono/zod-openapi";
 
+import {
+  chatUiFilePartSchema,
+  chatUiOutputTextPartSchema,
+  chatUiReasoningPartSchema,
+  chatUiTextPartSchema,
+  responsesApiInputTextPartSchema,
+} from "@/schemas/chat-ui-message.schema";
+
+export const conversationMessageContentPartSchema = z.union([
+  chatUiFilePartSchema,
+  chatUiTextPartSchema,
+  responsesApiInputTextPartSchema,
+  chatUiOutputTextPartSchema,
+  chatUiReasoningPartSchema,
+]);
+
 export const conversationMessageSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -11,15 +27,7 @@ export const conversationMessageSchema = z
       example: "user",
     }),
     content: z
-      .union([
-        z.string(),
-        z.array(
-          z.object({
-            type: z.string(),
-            text: z.string().optional(),
-          }),
-        ),
-      ])
+      .union([z.string(), z.array(conversationMessageContentPartSchema)])
       .openapi({
         description:
           "Message content — string for plain text, or array of typed parts",
@@ -51,15 +59,7 @@ export const createConversationMessageRequestSchema = z
       example: "user",
     }),
     content: z
-      .union([
-        z.string(),
-        z.array(
-          z.object({
-            type: z.string(),
-            text: z.string().optional(),
-          }),
-        ),
-      ])
+      .union([z.string(), z.array(conversationMessageContentPartSchema)])
       .openapi({
         description:
           "Message content — string for plain text, or array of typed parts",

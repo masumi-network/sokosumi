@@ -17,29 +17,51 @@ export const responsesApiInputTextPartSchema = z
       "Responses API easy-input text item (maps to user/assistant text in model input).",
   });
 
+const RESERVED_NON_REASONING_PART_TYPES = new Set([
+  "text",
+  "file",
+  "input_text",
+  "output_text",
+]);
+
 /**
  * AI SDK / UI message parts persisted for chat (reasoning then text in `conversationMessagesToUiMessages`).
+ * `type` is usually `reasoning` but may be provider-specific (e.g. redacted variants).
  */
-export const chatUiReasoningPartSchema = z.object({
-  type: z.literal("reasoning"),
-  text: z.string(),
-});
+export const chatUiReasoningPartSchema = z
+  .object({
+    type: z.string().optional(),
+    text: z.string(),
+  })
+  .refine((part) => !RESERVED_NON_REASONING_PART_TYPES.has(part.type ?? ""), {
+    message: "Use the dedicated schema for text or file parts.",
+  });
 
 export const chatUiTextPartSchema = z.object({
   type: z.literal("text"),
   text: z.string(),
 });
 
-/** Known part kinds plus a forward-compatible fallback for future modalities. */
+/** Assistant / Responses-style text block (same shape as `text`; accepted on ingress for compatibility). */
+export const chatUiOutputTextPartSchema = z.object({
+  type: z.literal("output_text"),
+  text: z.string(),
+});
+
+export const chatUiFilePartSchema = z.object({
+  type: z.literal("file"),
+  url: z.string().url(),
+  mediaType: z.string(),
+  filename: z.string().optional(),
+});
+
+/** Canonical persisted chat part shapes used by GET /chat and conversation history APIs. */
 export const chatUiMessagePartSchema = z.union([
-  chatUiReasoningPartSchema,
+  chatUiFilePartSchema,
   chatUiTextPartSchema,
-  z
-    .object({
-      type: z.string(),
-      text: z.string().optional(),
-    })
-    .openapi({ description: "Other or future UI message part shapes." }),
+  responsesApiInputTextPartSchema,
+  chatUiOutputTextPartSchema,
+  chatUiReasoningPartSchema,
 ]);
 
 export const chatUiThoughtTimingMetadataSchema = z.object({

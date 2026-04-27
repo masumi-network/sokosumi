@@ -11,6 +11,7 @@ import {
 import type {
   ConversationMessage,
   Conversation as CoreConversation,
+  CreateConversationMessageRequest,
 } from "@/lib/clients/generated/core/types.gen";
 import {
   type AuthenticatedRequest,
@@ -49,10 +50,10 @@ interface ListConversationsParameters extends AuthenticatedRequest {
   order?: "asc" | "desc";
 }
 
-interface AddConversationMessageParameters extends AuthenticatedRequest {
+interface AddConversationMessageParameters
+  extends AuthenticatedRequest,
+    CreateConversationMessageRequest {
   conversationId: string; // Internal database ID
-  role: "user" | "assistant" | "system";
-  content: Array<{ type: string; text?: string }> | string;
 }
 
 interface GetConversationMessagesParameters extends AuthenticatedRequest {

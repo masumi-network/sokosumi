@@ -1,3 +1,9 @@
+import {
+  buildConversationContentParts,
+  readPersistedUiPartsFromMetadata,
+  readReasoningPartsFromMetadata,
+} from "@/helpers/message-content";
+
 function readEpochMs(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -36,30 +42,32 @@ export function conversationMessageToApiContent(item: {
   contentType: string | null;
   contentText: string;
   metadata: unknown;
-}): string | Array<{ type: string; text: string }> {
-  const meta = item.metadata as {
-    reasoning?: Array<{ type?: string; text?: string }>;
-  } | null;
-
-  const reasoningBlocks = (meta?.reasoning ?? [])
-    .filter((r) => typeof r.text === "string" && r.text.trim().length > 0)
-    .map((r) => ({
-      type: r.type && r.type.trim() ? r.type.trim() : "reasoning",
-      text: r.text!.trim(),
-    }));
+}):
+  | string
+  | Array<{
+      type: string;
+      text?: string;
+      url?: string;
+      mediaType?: string;
+      filename?: string;
+    }> {
+  const reasoningParts = readReasoningPartsFromMetadata(item.metadata);
+  const persistedUiParts = readPersistedUiPartsFromMetadata(item.metadata);
 
   const hasStructured =
-    (item.contentType && item.contentType !== "") || reasoningBlocks.length > 0;
+    (item.contentType && item.contentType !== "") ||
+    reasoningParts.length > 0 ||
+    persistedUiParts.length > 0;
 
   if (!hasStructured) {
     return item.contentText;
   }
 
-  const parts: Array<{ type: string; text: string }> = [...reasoningBlocks];
-  if (item.contentType && item.contentType !== "") {
-    parts.push({ type: item.contentType, text: item.contentText });
-  } else if (item.contentText) {
-    parts.push({ type: "text", text: item.contentText });
-  }
+  const parts = buildConversationContentParts({
+    contentText: item.contentText,
+    metadata: item.metadata,
+    fallbackPrimaryContentType: item.contentType,
+  });
+
   return parts;
 }

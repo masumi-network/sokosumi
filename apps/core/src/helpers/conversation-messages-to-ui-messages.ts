@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 
 import { thoughtTimingFromMessageMetadata } from "@/helpers/conversation-message-api-content";
+import { buildConversationContentParts } from "@/helpers/message-content";
 
 /** Maps persisted conversation messages to AI SDK `UIMessage` (text + optional reasoning parts). */
 export function conversationMessagesToUiMessages(
@@ -19,21 +20,21 @@ export function conversationMessagesToUiMessages(
         ? message.role
         : "user";
 
-    const text = message.contentText ?? "";
-    const meta = message.metadata as {
-      reasoning?: Array<{ type?: string; text?: string }>;
-    } | null;
-    const reasoningBlocks = (meta?.reasoning ?? []).filter(
-      (r) => typeof r.text === "string" && r.text.trim().length > 0,
-    );
+    const rawParts = buildConversationContentParts({
+      contentText: message.contentText,
+      metadata: message.metadata,
+      includeEmptyTextFallback: true,
+    });
 
-    const parts: UIMessage["parts"] = [
-      ...reasoningBlocks.map((r) => ({
-        type: "reasoning" as const,
-        text: r.text!.trim(),
-      })),
-      { type: "text" as const, text },
-    ];
+    const parts = rawParts.map((part) => {
+      if (part.type === "file" || part.type === "text") {
+        return part;
+      }
+      if ("text" in part && typeof part.text === "string") {
+        return { type: "reasoning" as const, text: part.text };
+      }
+      return part;
+    }) as UIMessage["parts"];
 
     const timing = thoughtTimingFromMessageMetadata(message.metadata);
 
