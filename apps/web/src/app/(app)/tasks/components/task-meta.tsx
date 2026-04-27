@@ -1,13 +1,20 @@
 "use client";
 
-import { MessageSquare, UserCog } from "lucide-react";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { MessageSquare, User, UserCog } from "lucide-react";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface TaskMetaDetailsProps {
+  owner: TaskWithCoworker["user"];
   coworker: TaskWithCoworker["coworker"];
   commentsCount: TaskWithCoworker["commentsCount"];
   createdAt: TaskWithCoworker["createdAt"];
@@ -45,13 +52,51 @@ function CoworkerAvatar({
   );
 }
 
+function OwnerAvatar({
+  owner,
+  size = "sm",
+}: {
+  owner: TaskWithCoworker["user"];
+  size?: "sm" | "md";
+}) {
+  const image = owner.image ? resolveIpfsOrHttpUrl(owner.image) : null;
+  const sizeClass = size === "sm" ? "size-5" : "size-6";
+  const ownerName = owner.name.trim();
+
+  return (
+    <Avatar className={`${sizeClass} ring-background shrink-0 ring-2`}>
+      {image ? (
+        <AvatarImage
+          src={image}
+          alt={ownerName || "User"}
+          className="object-cover"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
+      <AvatarFallback className="bg-muted text-[10px] font-medium">
+        {ownerName.slice(0, 1).toUpperCase() || (
+          <User className="size-3" aria-hidden />
+        )}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 export function TaskMetaDetails({
+  owner,
   coworker,
   commentsCount,
   createdAt,
   variant = "card",
 }: TaskMetaDetailsProps) {
   const { formatShortDate } = useLocalizedDateTime();
+  const ownerName = owner.name.trim() || "—";
+  const coworkerName = coworker?.name?.trim() || "—";
+  const participantNames = coworker?.name?.trim()
+    ? `${coworkerName}, ${ownerName}`
+    : ownerName;
 
   if (variant === "list") {
     return (
@@ -75,11 +120,33 @@ export function TaskMetaDetails({
 
   return (
     <div className="border-border/50 flex items-center justify-between gap-2 border-t pt-1">
-      <div className="flex items-center gap-1.5">
-        <CoworkerAvatar coworker={coworker} />
-        <span className="text-muted-foreground max-w-[80px] truncate text-xs">
-          {coworker?.name ?? "—"}
-        </span>
+      <div
+        className="flex items-center -space-x-1"
+        aria-label={participantNames}
+        role="img"
+      >
+        {coworker ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="z-10 inline-flex">
+                <CoworkerAvatar coworker={coworker} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={6}>
+              {coworkerName}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="z-20 inline-flex">
+              <OwnerAvatar owner={owner} />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6}>
+            {ownerName}
+          </TooltipContent>
+        </Tooltip>
       </div>
       <div className="text-muted-foreground/60 flex items-center gap-2">
         {commentsCount > 0 && (
