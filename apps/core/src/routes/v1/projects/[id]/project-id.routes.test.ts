@@ -208,4 +208,21 @@ describe("POST /projects/{id}/jobs", () => {
     expect(body.data.id).toBe(PROJECT_ID);
     expect(body.data.name).toBe("P");
   });
+
+  it("does not update the job when it is already linked to this project", async () => {
+    projectFindFirstMock.mockResolvedValue(sampleProject);
+    jobFindFirstMock.mockResolvedValue({
+      id: "job_1",
+      projectId: PROJECT_ID,
+    });
+    const app = createApp();
+    mountPostProjectJob(app as unknown as OpenAPIHonoWithAuth);
+    const res = await app.request(`http://localhost/${PROJECT_ID}/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: "job_1" }),
+    });
+    expect(res.status).toBe(200);
+    expect(jobUpdateMock).not.toHaveBeenCalled();
+  });
 });

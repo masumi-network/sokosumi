@@ -80,10 +80,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("Job is already assigned to a project");
     }
 
-    await prisma.job.update({
-      where: { id: body.jobId },
-      data: { projectId },
-    });
+    if (job.projectId !== projectId) {
+      await prisma.job.update({
+        where: { id: body.jobId },
+        data: { projectId },
+      });
+    }
 
     const project = await prisma.project.findFirst({
       where: { id: projectId, workspaceId },
