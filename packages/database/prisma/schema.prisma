@@ -221,8 +221,27 @@ model Workspace {
   jobs         Job[]
   jobSchedules JobSchedule[]
   tasks        Task[]
+  projects     Project[]
 
   @@map("workspace")
+}
+
+model Project {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  jobs  Job[]
+  tasks Task[]
+
+  @@index([workspaceId])
+  @@map("project")
 }
 
 model Member {
@@ -710,11 +729,15 @@ model Job {
   taskId String?
   task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
+  projectId String?    @db.Uuid
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
   @@index([userId])
   @@index([jobType])
   @@index([jobScheduleId])
   @@index([taskId])
   @@index([workspaceId])
+  @@index([projectId])
   @@index([agentId])
   @@index([agentId, createdAt])
 }
@@ -1195,11 +1218,15 @@ model Task {
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
 
+  projectId String?    @db.Uuid
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
   @@index([organizationId])
   @@index([workspaceId])
   @@index([archivedAt])
   @@index([userId])
   @@index([userId, organizationId])
+  @@index([projectId])
   @@map("task")
 }
 
