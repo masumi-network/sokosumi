@@ -29,8 +29,7 @@ const deleteResponseSchema = z
 const route = createRoute({
   method: "delete",
   path: "/{id}",
-  description:
-    "Delete a project. Jobs and tasks linked to the project are not deleted.",
+  description: "Delete a project",
   tags: ["Projects"],
   request: {
     params: paramsSchema,
@@ -59,6 +58,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project not found");
     }
 
-    return ok(c, deleteResponseSchema.parse({ id, deleted: true as const }));
+    return ok(c, deleteResponseSchema.parse({ id, deleted: true }));
   });
 }

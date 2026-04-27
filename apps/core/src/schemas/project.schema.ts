@@ -14,12 +14,6 @@ export const projectSchema = z
     description: z.string().nullable().openapi({ example: "Notes" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    jobIds: z
-      .array(z.string())
-      .openapi({ description: "Jobs linked to this project" }),
-    taskIds: z
-      .array(z.string())
-      .openapi({ description: "Tasks linked to this project" }),
   })
   .openapi("Project");
 

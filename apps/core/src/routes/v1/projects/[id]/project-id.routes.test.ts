@@ -55,8 +55,6 @@ const sampleProject = {
   description: null,
   createdAt: new Date("2026-04-03T08:00:00.000Z"),
   updatedAt: new Date("2026-04-03T08:00:00.000Z"),
-  jobs: [] as { id: string }[],
-  tasks: [] as { id: string }[],
 };
 
 function createApp() {
@@ -189,10 +187,7 @@ describe("POST /projects/{id}/jobs", () => {
 
   it("returns updated project on success", async () => {
     addJobMock.mockResolvedValue({ ok: true });
-    findByIdInWorkspaceMock.mockResolvedValue({
-      ...sampleProject,
-      jobs: [{ id: "job_1" }],
-    });
+    findByIdInWorkspaceMock.mockResolvedValue(sampleProject);
     const app = createApp();
     mountPostProjectJob(app as unknown as OpenAPIHonoWithAuth);
     const res = await app.request(`http://localhost/${PROJECT_ID}/jobs`, {
@@ -201,7 +196,8 @@ describe("POST /projects/{id}/jobs", () => {
       body: JSON.stringify({ jobId: "job_1" }),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: { jobIds: string[] } };
-    expect(body.data.jobIds).toEqual(["job_1"]);
+    const body = (await res.json()) as { data: { id: string; name: string } };
+    expect(body.data.id).toBe(PROJECT_ID);
+    expect(body.data.name).toBe("P");
   });
 });

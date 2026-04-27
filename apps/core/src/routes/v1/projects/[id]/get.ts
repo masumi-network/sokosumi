@@ -2,7 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { mapProject } from "@/helpers/project";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -53,6 +52,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project not found");
     }
 
-    return ok(c, projectSchema.parse(mapProject(project)));
+    return ok(c, projectSchema.parse(project));
   });
 }

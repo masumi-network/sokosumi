@@ -1,24 +1,14 @@
 import type { Prisma, Project } from "@sokosumi/database";
 
-const projectWithJobsTasksInclude = {
-  jobs: { select: { id: true } },
-  tasks: { select: { id: true } },
-} satisfies Prisma.ProjectInclude;
-
-export type ProjectWithJobsTasks = Prisma.ProjectGetPayload<{
-  include: typeof projectWithJobsTasksInclude;
-}>;
-
 type Db = Prisma.TransactionClient;
 
 export async function listProjectsByWorkspace(
   workspaceId: string,
   db: Db,
-): Promise<ProjectWithJobsTasks[]> {
+): Promise<Project[]> {
   return db.project.findMany({
     where: { workspaceId },
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-    include: projectWithJobsTasksInclude,
   });
 }
 
@@ -26,10 +16,9 @@ export async function findProjectByIdInWorkspace(
   projectId: string,
   workspaceId: string,
   db: Db,
-): Promise<ProjectWithJobsTasks | null> {
+): Promise<Project | null> {
   return db.project.findFirst({
     where: { id: projectId, workspaceId },
-    include: projectWithJobsTasksInclude,
   });
 }
 

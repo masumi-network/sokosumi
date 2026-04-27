@@ -66,8 +66,6 @@ describe("GET /projects", () => {
         description: "Notes",
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         updatedAt: new Date("2026-04-01T10:00:00.000Z"),
-        jobs: [{ id: "job_a" }],
-        tasks: [],
       },
     ]);
 
@@ -76,11 +74,11 @@ describe("GET /projects", () => {
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      data: Array<{ id: string; jobIds: string[] }>;
+      data: Array<{ id: string; name: string }>;
     };
     expect(body.data).toHaveLength(1);
     expect(body.data[0]?.id).toBe("11111111-1111-4111-8111-111111111111");
-    expect(body.data[0]?.jobIds).toEqual(["job_a"]);
+    expect(body.data[0]?.name).toBe("Research");
     expect(listProjectsByWorkspaceMock).toHaveBeenCalledWith(
       WORKSPACE_CONTEXT.workspaceId,
       expect.anything(),

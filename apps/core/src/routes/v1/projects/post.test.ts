@@ -53,7 +53,7 @@ describe("POST /projects", () => {
     vi.clearAllMocks();
   });
 
-  it("creates a project and returns it with empty memberships", async () => {
+  it("creates a project and returns it", async () => {
     createMock.mockResolvedValue({
       id: "33333333-3333-4333-8333-333333333333",
       workspaceId: WORKSPACE_CONTEXT.workspaceId,
@@ -70,8 +70,6 @@ describe("POST /projects", () => {
       description: null,
       createdAt: new Date("2026-04-02T12:00:00.000Z"),
       updatedAt: new Date("2026-04-02T12:00:00.000Z"),
-      jobs: [],
-      tasks: [],
     });
 
     const app = createApp();

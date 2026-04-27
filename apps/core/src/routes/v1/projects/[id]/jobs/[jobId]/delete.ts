@@ -2,7 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { mapProject } from "@/helpers/project";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -41,7 +40,7 @@ const route = withGlobalHeaderParameters(
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(projectSchema, "Project after removal"),
+      200: jsonSuccessResponse(projectSchema, "Project"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
@@ -66,12 +65,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project or job link not found");
     }
 
-    const full = await findProjectByIdInWorkspace(
+    const project = await findProjectByIdInWorkspace(
       projectId,
       workspaceContext.workspaceId,
       prisma,
     );
+    if (!project) {
+      throw notFound("Project not found");
+    }
 
-    return ok(c, projectSchema.parse(mapProject(full!)));
+    return ok(c, projectSchema.parse(project));
   });
 }

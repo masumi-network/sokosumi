@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { mapProject } from "@/helpers/project";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -40,9 +39,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma,
     );
 
-    return ok(
-      c,
-      z.array(projectSchema).parse(projects.map((p) => mapProject(p))),
-    );
+    return ok(c, z.array(projectSchema).parse(projects));
   });
 }
