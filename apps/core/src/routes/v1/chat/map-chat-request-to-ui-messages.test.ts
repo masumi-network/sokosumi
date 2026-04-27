@@ -3,6 +3,35 @@ import { describe, expect, it } from "vitest";
 import { mapChatRequestToUiMessages } from "./map-chat-request-to-ui-messages";
 
 describe("mapChatRequestToUiMessages", () => {
+  it("prefers parts over string content when both are present (AI SDK shape)", () => {
+    const messages = mapChatRequestToUiMessages([
+      {
+        id: "m1",
+        role: "user",
+        content: "Review this",
+        parts: [
+          { type: "text", text: "Review this" },
+          {
+            type: "file",
+            url: "https://example.com/brief.pdf",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+          },
+        ],
+      },
+    ]);
+
+    expect(messages[0]?.parts).toEqual([
+      { type: "text", text: "Review this" },
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+        filename: "brief.pdf",
+      },
+    ]);
+  });
+
   it("preserves text and file parts from the request payload", () => {
     const messages = mapChatRequestToUiMessages([
       {

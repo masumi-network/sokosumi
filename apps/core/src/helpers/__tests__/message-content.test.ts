@@ -76,6 +76,31 @@ describe("extractPersistableUiParts", () => {
       }),
     ).toEqual([{ type: "text", text: "Hello" }]);
   });
+
+  it("prefers non-empty parts over string content so file parts are not dropped", () => {
+    expect(
+      extractPersistableUiParts({
+        content: "Review this",
+        parts: [
+          { type: "text", text: "Review this" },
+          {
+            type: "file",
+            url: "https://example.com/brief.pdf",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+          },
+        ],
+      }),
+    ).toEqual([
+      { type: "text", text: "Review this" },
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+        filename: "brief.pdf",
+      },
+    ]);
+  });
 });
 
 describe("extractUiMessageParts", () => {

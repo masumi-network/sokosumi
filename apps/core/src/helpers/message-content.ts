@@ -47,16 +47,30 @@ const NON_REASONING_METADATA_TYPES = new Set([
 ]);
 
 function readRawMessagePartItems(message: Record<string, unknown>): unknown[] {
-  if ("content" in message && typeof message.content === "string") {
-    return [{ type: "text", text: message.content }];
+  const content = "content" in message ? message.content : undefined;
+  const parts = "parts" in message ? message.parts : undefined;
+
+  // Non-empty array `content` wins (explicit structured payloads).
+  if (Array.isArray(content) && content.length > 0) {
+    return content;
   }
 
-  if ("content" in message && Array.isArray(message.content)) {
-    return message.content;
+  // Non-empty `parts` before string `content`: AI SDK often sends both a
+  // summary string and `parts` (text + file); string-first would drop files.
+  if (Array.isArray(parts) && parts.length > 0) {
+    return parts;
   }
 
-  if ("parts" in message && Array.isArray(message.parts)) {
-    return message.parts;
+  if (typeof content === "string") {
+    return [{ type: "text", text: content }];
+  }
+
+  if (Array.isArray(content)) {
+    return content;
+  }
+
+  if (Array.isArray(parts)) {
+    return parts;
   }
 
   return [];
