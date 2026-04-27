@@ -56,6 +56,7 @@ export function TaskListItem({
         <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
           <TaskStatusBadge status={task.status} />
           <TaskMetaDetails
+            owner={task.user}
             coworker={task.coworker}
             commentsCount={task.commentsCount}
             createdAt={task.createdAt}
