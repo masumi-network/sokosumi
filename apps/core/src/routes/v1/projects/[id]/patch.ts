@@ -5,10 +5,6 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  findProjectByIdInWorkspace,
-  updateProjectInWorkspace,
-} from "@/lib/repository";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -65,22 +61,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       updateData.description = body.description ?? null;
     }
 
-    const updated = await updateProjectInWorkspace(
-      id,
-      workspaceContext.workspaceId,
-      updateData,
-      prisma,
-    );
+    const updateResult = await prisma.project.updateMany({
+      where: { id, workspaceId: workspaceContext.workspaceId },
+      data: updateData,
+    });
 
-    if (!updated) {
+    if (updateResult.count === 0) {
       throw notFound("Project not found");
     }
 
-    const project = await findProjectByIdInWorkspace(
-      id,
-      workspaceContext.workspaceId,
-      prisma,
-    );
+    const project = await prisma.project.findFirst({
+      where: { id, workspaceId: workspaceContext.workspaceId },
+    });
     if (!project) {
       throw notFound("Project not found");
     }

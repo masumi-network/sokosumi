@@ -8,10 +8,6 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import {
-  findProjectByIdInWorkspace,
-  removeJobFromProject,
-} from "@/lib/repository";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectSchema } from "@/schemas/project.schema";
@@ -54,22 +50,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, jobId } = c.req.valid("param");
 
-    const result = await removeJobFromProject(
-      projectId,
-      workspaceContext.workspaceId,
-      jobId,
-      prisma,
-    );
+    const workspaceId = workspaceContext.workspaceId;
 
-    if (!result.ok) {
+    const projectRow = await prisma.project.findFirst({
+      where: { id: projectId, workspaceId },
+      select: { id: true },
+    });
+    if (!projectRow) {
       throw notFound("Project or job link not found");
     }
 
-    const project = await findProjectByIdInWorkspace(
-      projectId,
-      workspaceContext.workspaceId,
-      prisma,
-    );
+    const unlinkResult = await prisma.job.updateMany({
+      where: { id: jobId, projectId, workspaceId },
+      data: { projectId: null },
+    });
+    if (unlinkResult.count === 0) {
+      throw notFound("Project or job link not found");
+    }
+
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, workspaceId },
+    });
     if (!project) {
       throw notFound("Project not found");
     }

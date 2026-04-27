@@ -7,14 +7,16 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountPostProject from "./post.js";
 
-const { createMock, findByIdInWorkspaceMock } = vi.hoisted(() => ({
-  createMock: vi.fn(),
-  findByIdInWorkspaceMock: vi.fn(),
+const { projectCreateMock } = vi.hoisted(() => ({
+  projectCreateMock: vi.fn(),
 }));
 
-vi.mock("@/lib/repository", () => ({
-  createProject: createMock,
-  findProjectByIdInWorkspace: findByIdInWorkspaceMock,
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    project: {
+      create: projectCreateMock,
+    },
+  },
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -54,16 +56,7 @@ describe("POST /projects", () => {
   });
 
   it("creates a project and returns it", async () => {
-    createMock.mockResolvedValue({
-      id: "33333333-3333-4333-8333-333333333333",
-      workspaceId: WORKSPACE_CONTEXT.workspaceId,
-      name: "Alpha",
-      description: null,
-      createdAt: new Date("2026-04-02T12:00:00.000Z"),
-      updatedAt: new Date("2026-04-02T12:00:00.000Z"),
-    });
-
-    findByIdInWorkspaceMock.mockResolvedValue({
+    projectCreateMock.mockResolvedValue({
       id: "33333333-3333-4333-8333-333333333333",
       workspaceId: WORKSPACE_CONTEXT.workspaceId,
       name: "Alpha",
@@ -83,13 +76,12 @@ describe("POST /projects", () => {
     const body = (await res.json()) as { data: { id: string; name: string } };
     expect(body.data.id).toBe("33333333-3333-4333-8333-333333333333");
     expect(body.data.name).toBe("Alpha");
-    expect(createMock).toHaveBeenCalledWith(
-      {
+    expect(projectCreateMock).toHaveBeenCalledWith({
+      data: {
         workspaceId: WORKSPACE_CONTEXT.workspaceId,
         name: "Alpha",
         description: null,
       },
-      expect.anything(),
-    );
+    });
   });
 });

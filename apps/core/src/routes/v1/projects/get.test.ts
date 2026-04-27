@@ -7,12 +7,16 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountListProjects from "./get.js";
 
-const { listProjectsByWorkspaceMock } = vi.hoisted(() => ({
-  listProjectsByWorkspaceMock: vi.fn(),
+const { projectFindManyMock } = vi.hoisted(() => ({
+  projectFindManyMock: vi.fn(),
 }));
 
-vi.mock("@/lib/repository", () => ({
-  listProjectsByWorkspace: listProjectsByWorkspaceMock,
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    project: {
+      findMany: projectFindManyMock,
+    },
+  },
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -54,11 +58,11 @@ function createApp(
 describe("GET /projects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    listProjectsByWorkspaceMock.mockResolvedValue([]);
+    projectFindManyMock.mockResolvedValue([]);
   });
 
   it("returns projects for the active workspace", async () => {
-    listProjectsByWorkspaceMock.mockResolvedValue([
+    projectFindManyMock.mockResolvedValue([
       {
         id: "11111111-1111-4111-8111-111111111111",
         workspaceId: WORKSPACE_CONTEXT.workspaceId,
@@ -79,10 +83,10 @@ describe("GET /projects", () => {
     expect(body.data).toHaveLength(1);
     expect(body.data[0]?.id).toBe("11111111-1111-4111-8111-111111111111");
     expect(body.data[0]?.name).toBe("Research");
-    expect(listProjectsByWorkspaceMock).toHaveBeenCalledWith(
-      WORKSPACE_CONTEXT.workspaceId,
-      expect.anything(),
-    );
+    expect(projectFindManyMock).toHaveBeenCalledWith({
+      where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    });
   });
 
   it("returns 403 when workspace context is missing", async () => {

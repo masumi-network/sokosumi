@@ -7,7 +7,6 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { listProjectsByWorkspace } from "@/lib/repository";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectSchema } from "@/schemas/project.schema";
@@ -34,10 +33,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
 
-    const projects = await listProjectsByWorkspace(
-      workspaceContext.workspaceId,
-      prisma,
-    );
+    const projects = await prisma.project.findMany({
+      where: { workspaceId: workspaceContext.workspaceId },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    });
 
     return ok(c, z.array(projectSchema).parse(projects));
   });

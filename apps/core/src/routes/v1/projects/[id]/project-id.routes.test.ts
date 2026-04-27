@@ -11,22 +11,31 @@ import mountPostProjectJob from "./jobs/post.js";
 import mountPatchProject from "./patch.js";
 
 const {
-  findByIdInWorkspaceMock,
-  updateInWorkspaceMock,
-  deleteInWorkspaceMock,
-  addJobMock,
+  projectFindFirstMock,
+  projectUpdateManyMock,
+  projectDeleteManyMock,
+  jobFindFirstMock,
+  jobUpdateMock,
 } = vi.hoisted(() => ({
-  findByIdInWorkspaceMock: vi.fn(),
-  updateInWorkspaceMock: vi.fn(),
-  deleteInWorkspaceMock: vi.fn(),
-  addJobMock: vi.fn(),
+  projectFindFirstMock: vi.fn(),
+  projectUpdateManyMock: vi.fn(),
+  projectDeleteManyMock: vi.fn(),
+  jobFindFirstMock: vi.fn(),
+  jobUpdateMock: vi.fn(),
 }));
 
-vi.mock("@/lib/repository", () => ({
-  findProjectByIdInWorkspace: findByIdInWorkspaceMock,
-  updateProjectInWorkspace: updateInWorkspaceMock,
-  deleteProjectInWorkspace: deleteInWorkspaceMock,
-  addJobToProject: addJobMock,
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    project: {
+      findFirst: projectFindFirstMock,
+      updateMany: projectUpdateManyMock,
+      deleteMany: projectDeleteManyMock,
+    },
+    job: {
+      findFirst: jobFindFirstMock,
+      update: jobUpdateMock,
+    },
+  },
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -80,7 +89,7 @@ describe("GET /projects/{id}", () => {
   });
 
   it("returns 404 when project is missing", async () => {
-    findByIdInWorkspaceMock.mockResolvedValue(null);
+    projectFindFirstMock.mockResolvedValue(null);
     const app = createApp();
     mountGetProject(app as unknown as OpenAPIHonoWithAuth);
     const res = await app.request(`http://localhost/${UNKNOWN_PROJECT_ID}`);
@@ -88,7 +97,7 @@ describe("GET /projects/{id}", () => {
   });
 
   it("returns the project when found", async () => {
-    findByIdInWorkspaceMock.mockResolvedValue(sampleProject);
+    projectFindFirstMock.mockResolvedValue(sampleProject);
     const app = createApp();
     mountGetProject(app as unknown as OpenAPIHonoWithAuth);
     const res = await app.request(`http://localhost/${PROJECT_ID}`);
@@ -104,7 +113,7 @@ describe("PATCH /projects/{id}", () => {
   });
 
   it("returns 404 when update matches no row", async () => {
-    updateInWorkspaceMock.mockResolvedValue(null);
+    projectUpdateManyMock.mockResolvedValue({ count: 0 });
     const app = createApp();
     mountPatchProject(app as unknown as OpenAPIHonoWithAuth);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
@@ -116,11 +125,8 @@ describe("PATCH /projects/{id}", () => {
   });
 
   it("returns updated project", async () => {
-    updateInWorkspaceMock.mockResolvedValue({
-      ...sampleProject,
-      name: "New",
-    });
-    findByIdInWorkspaceMock.mockResolvedValue({
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock.mockResolvedValue({
       ...sampleProject,
       name: "New",
     });
@@ -143,7 +149,7 @@ describe("DELETE /projects/{id}", () => {
   });
 
   it("returns 404 when nothing deleted", async () => {
-    deleteInWorkspaceMock.mockResolvedValue(false);
+    projectDeleteManyMock.mockResolvedValue({ count: 0 });
     const app = createApp();
     mountDeleteProject(app as unknown as OpenAPIHonoWithAuth);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
@@ -153,7 +159,7 @@ describe("DELETE /projects/{id}", () => {
   });
 
   it("returns deleted payload", async () => {
-    deleteInWorkspaceMock.mockResolvedValue(true);
+    projectDeleteManyMock.mockResolvedValue({ count: 1 });
     const app = createApp();
     mountDeleteProject(app as unknown as OpenAPIHonoWithAuth);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
@@ -171,9 +177,10 @@ describe("POST /projects/{id}/jobs", () => {
   });
 
   it("returns 409 when job is already in a project", async () => {
-    addJobMock.mockResolvedValue({
-      ok: false,
-      reason: "job_already_in_project",
+    projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
+    jobFindFirstMock.mockResolvedValue({
+      id: "job_1",
+      projectId: "99999999-9999-4999-8999-999999999999",
     });
     const app = createApp();
     mountPostProjectJob(app as unknown as OpenAPIHonoWithAuth);
@@ -186,8 +193,9 @@ describe("POST /projects/{id}/jobs", () => {
   });
 
   it("returns updated project on success", async () => {
-    addJobMock.mockResolvedValue({ ok: true });
-    findByIdInWorkspaceMock.mockResolvedValue(sampleProject);
+    projectFindFirstMock.mockResolvedValue(sampleProject);
+    jobFindFirstMock.mockResolvedValue({ id: "job_1", projectId: null });
+    jobUpdateMock.mockResolvedValue({ id: "job_1", projectId: PROJECT_ID });
     const app = createApp();
     mountPostProjectJob(app as unknown as OpenAPIHonoWithAuth);
     const res = await app.request(`http://localhost/${PROJECT_ID}/jobs`, {

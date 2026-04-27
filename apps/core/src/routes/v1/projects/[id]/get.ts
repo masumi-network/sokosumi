@@ -5,7 +5,6 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { findProjectByIdInWorkspace } from "@/lib/repository";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectSchema } from "@/schemas/project.schema";
@@ -42,11 +41,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
-    const project = await findProjectByIdInWorkspace(
-      id,
-      workspaceContext.workspaceId,
-      prisma,
-    );
+    const project = await prisma.project.findFirst({
+      where: { id, workspaceId: workspaceContext.workspaceId },
+    });
 
     if (!project) {
       throw notFound("Project not found");

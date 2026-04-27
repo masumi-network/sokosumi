@@ -5,7 +5,6 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { deleteProjectInWorkspace } from "@/lib/repository";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 
@@ -48,13 +47,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
-    const deleted = await deleteProjectInWorkspace(
-      id,
-      workspaceContext.workspaceId,
-      prisma,
-    );
+    const deleteResult = await prisma.project.deleteMany({
+      where: { id, workspaceId: workspaceContext.workspaceId },
+    });
 
-    if (!deleted) {
+    if (deleteResult.count === 0) {
       throw notFound("Project not found");
     }
 

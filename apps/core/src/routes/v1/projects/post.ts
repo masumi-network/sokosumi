@@ -1,6 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -8,7 +7,6 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { createProject, findProjectByIdInWorkspace } from "@/lib/repository";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -45,24 +43,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 
-    const row = await createProject(
-      {
+    const row = await prisma.project.create({
+      data: {
         workspaceId: workspaceContext.workspaceId,
         name: body.name,
         description: body.description ?? null,
       },
-      prisma,
-    );
+    });
 
-    const project = await findProjectByIdInWorkspace(
-      row.id,
-      workspaceContext.workspaceId,
-      prisma,
-    );
-    if (!project) {
-      throw notFound("Project not found");
-    }
-
-    return created(c, projectSchema.parse(project));
+    return created(c, projectSchema.parse(row));
   });
 }

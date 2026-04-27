@@ -8,7 +8,6 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { addJobToProject, findProjectByIdInWorkspace } from "@/lib/repository";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -59,28 +58,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: projectId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const result = await addJobToProject(
-      projectId,
-      workspaceContext.workspaceId,
-      body.jobId,
-      prisma,
-    );
+    const workspaceId = workspaceContext.workspaceId;
 
-    if (!result.ok) {
-      if (result.reason === "project_not_found") {
-        throw notFound("Project not found");
-      }
-      if (result.reason === "job_not_found") {
-        throw notFound("Job not found");
-      }
+    const projectRow = await prisma.project.findFirst({
+      where: { id: projectId, workspaceId },
+      select: { id: true },
+    });
+    if (!projectRow) {
+      throw notFound("Project not found");
+    }
+
+    const job = await prisma.job.findFirst({
+      where: { id: body.jobId, workspaceId },
+      select: { id: true, projectId: true },
+    });
+    if (!job) {
+      throw notFound("Job not found");
+    }
+
+    if (job.projectId !== null && job.projectId !== projectId) {
       throw conflict("Job is already assigned to a project");
     }
 
-    const project = await findProjectByIdInWorkspace(
-      projectId,
-      workspaceContext.workspaceId,
-      prisma,
-    );
+    await prisma.job.update({
+      where: { id: body.jobId },
+      data: { projectId },
+    });
+
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, workspaceId },
+    });
     if (!project) {
       throw notFound("Project not found");
     }
