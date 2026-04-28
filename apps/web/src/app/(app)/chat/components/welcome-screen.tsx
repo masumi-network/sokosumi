@@ -50,7 +50,7 @@ export default function WelcomeScreen({
   showGreetingAndSuggestions = true,
   userName,
   onSendMessage,
-  welcomeComposeKind = "chat",
+  welcomeComposeKind = "task",
   onWelcomeComposeKindChange,
   welcomeSendBlocked = false,
   input,

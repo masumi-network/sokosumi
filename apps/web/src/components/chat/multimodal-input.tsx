@@ -156,7 +156,7 @@ function PureMultimodalInput({
   const activeUploadControllersRef = useRef(new Set<AbortController>());
   const [windowWidth, setWindowWidth] = useState<number | undefined>(undefined);
   const [internalComposeKind, setInternalComposeKind] =
-    useState<ChatComposeKind>("chat");
+    useState<ChatComposeKind>("task");
   const isComposeKindControlled = controlledComposeKind !== undefined;
   const composeKind = controlledComposeKind ?? internalComposeKind;
   const [taskStatus, setTaskStatus] = useState<TaskSubmitStatus>("READY");
