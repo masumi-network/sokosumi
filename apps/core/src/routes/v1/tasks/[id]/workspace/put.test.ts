@@ -309,12 +309,14 @@ describe("PUT /tasks/{id}/workspace", () => {
       },
       data: {
         workspaceId: "11111111-1111-4111-8111-111111111111",
+        projectId: null,
       },
     });
     expect(jobUpdateManyMock).toHaveBeenCalledWith({
       where: { taskId: "tsk_123" },
       data: {
         workspaceId: "11111111-1111-4111-8111-111111111111",
+        projectId: null,
       },
     });
     expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith({
@@ -517,6 +519,7 @@ describe("PUT /tasks/{id}/workspace", () => {
       where: { taskId: "tsk_123" },
       data: {
         workspaceId: "11111111-1111-4111-8111-111111111111",
+        projectId: null,
       },
     });
   });
