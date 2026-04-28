@@ -1,20 +1,9 @@
 import { z } from "@hono/zod-openapi";
 
-import {
-  chatUiFilePartSchema,
-  chatUiOutputTextPartSchema,
-  chatUiReasoningPartSchema,
-  chatUiTextPartSchema,
-  responsesApiInputTextPartSchema,
-} from "@/schemas/chat-ui-message.schema";
+import { chatMessageContentPartSchema } from "@/schemas/chat-ui-message.schema";
 
-export const conversationMessageContentPartSchema = z.union([
-  chatUiFilePartSchema,
-  chatUiTextPartSchema,
-  responsesApiInputTextPartSchema,
-  chatUiOutputTextPartSchema,
-  chatUiReasoningPartSchema,
-]);
+export const conversationMessageContentPartSchema =
+  chatMessageContentPartSchema;
 
 export const conversationMessageSchema = z
   .object({

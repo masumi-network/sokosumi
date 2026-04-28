@@ -1,24 +1,12 @@
 import { z } from "@hono/zod-openapi";
 
-import {
-  chatUiFilePartSchema,
-  chatUiOutputTextPartSchema,
-  chatUiReasoningPartSchema,
-  chatUiTextPartSchema,
-  responsesApiInputTextPartSchema,
-} from "@/schemas/chat-ui-message.schema";
+import { chatMessageContentPartSchema } from "@/schemas/chat-ui-message.schema";
 
 /** Used by Zod and POST /v1/chat (defense in depth) when `messages` is missing or empty. */
 export const AI_SDK_CHAT_MESSAGES_REQUIREMENT =
   "Provide non-empty messages, or conversationId with message and trigger submit-message.";
 
-export const chatRequestMessagePartSchema = z.union([
-  chatUiFilePartSchema,
-  chatUiTextPartSchema,
-  responsesApiInputTextPartSchema,
-  chatUiOutputTextPartSchema,
-  chatUiReasoningPartSchema,
-]);
+export const chatRequestMessagePartSchema = chatMessageContentPartSchema;
 
 export const chatRequestMessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),

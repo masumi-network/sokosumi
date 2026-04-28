@@ -65,14 +65,21 @@ export const chatUiFilePartSchema = z.object({
   filename: z.string().optional(),
 });
 
-/** Canonical persisted chat part shapes used by GET /chat and conversation history APIs. */
-export const chatUiMessagePartSchema = z.union([
+/**
+ * Shared union for typed chat body parts: POST `/v1/chat` requests, persisted
+ * conversation messages, and GET `/v1/chat` UI payloads. Extend here only once
+ * when adding a new part type.
+ */
+export const chatMessageContentPartSchema = z.union([
   chatUiFilePartSchema,
   chatUiTextPartSchema,
   responsesApiInputTextPartSchema,
   chatUiOutputTextPartSchema,
   chatUiReasoningPartSchema,
 ]);
+
+/** Alias for GET `/v1/chat` and OpenAPI; identical to `chatMessageContentPartSchema`. */
+export const chatUiMessagePartSchema = chatMessageContentPartSchema;
 
 export const chatUiThoughtTimingMetadataSchema = z.object({
   thoughtStartedAtMs: z.number(),
