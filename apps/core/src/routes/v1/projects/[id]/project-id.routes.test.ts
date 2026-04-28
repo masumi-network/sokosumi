@@ -15,43 +15,28 @@ const {
   projectUpdateManyMock,
   projectDeleteManyMock,
   jobFindFirstMock,
-  jobUpdateManyMock,
+  jobUpdateMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
-  jobUpdateManyMock: vi.fn(),
+  jobUpdateMock: vi.fn(),
 }));
 
-vi.mock("@/lib/db/prisma", () => {
-  const prismaInteractiveClient = {
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
     project: {
       findFirst: projectFindFirstMock,
+      updateMany: projectUpdateManyMock,
+      deleteMany: projectDeleteManyMock,
     },
     job: {
       findFirst: jobFindFirstMock,
-      updateMany: jobUpdateManyMock,
+      update: jobUpdateMock,
     },
-  };
-
-  return {
-    default: {
-      $transaction: async (
-        fn: (tx: typeof prismaInteractiveClient) => unknown,
-      ) => await fn(prismaInteractiveClient),
-      project: {
-        findFirst: projectFindFirstMock,
-        updateMany: projectUpdateManyMock,
-        deleteMany: projectDeleteManyMock,
-      },
-      job: {
-        findFirst: jobFindFirstMock,
-        updateMany: jobUpdateManyMock,
-      },
-    },
-  };
-});
+  },
+}));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
@@ -210,7 +195,7 @@ describe("POST /projects/{id}/jobs", () => {
   it("returns updated project on success", async () => {
     projectFindFirstMock.mockResolvedValue(sampleProject);
     jobFindFirstMock.mockResolvedValue({ id: "job_1", projectId: null });
-    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    jobUpdateMock.mockResolvedValue({});
     const app = createApp();
     mountPostProjectJob(app as unknown as OpenAPIHonoWithAuth);
     const res = await app.request(`http://localhost/${PROJECT_ID}/jobs`, {
@@ -222,12 +207,8 @@ describe("POST /projects/{id}/jobs", () => {
     const body = (await res.json()) as { data: { id: string; name: string } };
     expect(body.data.id).toBe(PROJECT_ID);
     expect(body.data.name).toBe("P");
-    expect(jobUpdateManyMock).toHaveBeenCalledWith({
-      where: {
-        id: "job_1",
-        workspaceId: WORKSPACE_ID,
-        OR: [{ projectId: null }, { projectId: PROJECT_ID }],
-      },
+    expect(jobUpdateMock).toHaveBeenCalledWith({
+      where: { id: "job_1" },
       data: {
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
@@ -249,6 +230,6 @@ describe("POST /projects/{id}/jobs", () => {
       body: JSON.stringify({ jobId: "job_1" }),
     });
     expect(res.status).toBe(200);
-    expect(jobUpdateManyMock).not.toHaveBeenCalled();
+    expect(jobUpdateMock).not.toHaveBeenCalled();
   });
 });
