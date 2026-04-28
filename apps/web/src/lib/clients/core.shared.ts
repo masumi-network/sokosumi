@@ -6,6 +6,7 @@ import {
   mapCorePublicSharedResourceResponse,
 } from "@/lib/clients/core.job-share";
 import type {
+  CreateConversationMessageRequest,
   DeleteJobsByIdShareError,
   DeleteTasksByIdShareError,
   GetCoworkersData,
@@ -89,7 +90,8 @@ export class CoreApiRequestError extends Error {
 type CoreOperationResult<TData, TError> = {
   data?: TData;
   error?: TError;
-  response: Response;
+  /** Present for HTTP outcomes; omitted when the client reports a network-level failure. */
+  response?: Response;
 };
 
 type GetClient = () => Client | Promise<Client>;
@@ -180,10 +182,10 @@ async function executeOperation<TData, TError>(
   }
 
   if (result.error || !result.data) {
-    const message = extractErrorMessage(result.error, result.response.status);
+    const message = extractErrorMessage(result.error, result.response?.status);
     throw new CoreApiRequestError(message, {
       details: result.error,
-      status: result.response.status,
+      status: result.response?.status,
     });
   }
 
@@ -325,10 +327,7 @@ export function createCoreClient(getClient: GetClient) {
 
   async function addConversationMessage(
     id: string,
-    body: {
-      role: "user" | "assistant" | "system";
-      content: Array<{ type: string; text?: string }> | string;
-    },
+    body: CreateConversationMessageRequest,
   ) {
     return executeOperation(
       getClient,

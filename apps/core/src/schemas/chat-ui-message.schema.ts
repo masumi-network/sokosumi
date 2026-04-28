@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
 
 import { LIMITS } from "@/config/constants";
+import { CHAT_UI_NON_REASONING_PART_TYPES } from "@/helpers/chat-ui-non-reasoning-part-types";
+import { isSafeRemoteUrl } from "@/helpers/safe-url";
 
 /**
  * OpenAI [Responses easy input](https://platform.openai.com/docs/guides/text)–style
@@ -19,28 +21,65 @@ export const responsesApiInputTextPartSchema = z
 
 /**
  * AI SDK / UI message parts persisted for chat (reasoning then text in `conversationMessagesToUiMessages`).
+ * `type` is usually `reasoning` but may be provider-specific (e.g. redacted variants).
+ *
+ * `type` is required so `{ text }` alone cannot match this branch of the request-part union; otherwise
+ * user/system messages would accept it as reasoning and `mapChatRequestToUiMessages` would strip it.
  */
-export const chatUiReasoningPartSchema = z.object({
-  type: z.literal("reasoning"),
-  text: z.string(),
-});
+export const chatUiReasoningPartSchema = z
+  .object({
+    type: z.string(),
+    text: z.string(),
+  })
+  .refine(
+    (part) => {
+      const t = part.type.trim();
+      return t.length > 0 && !CHAT_UI_NON_REASONING_PART_TYPES.has(t);
+    },
+    {
+      message:
+        "Reasoning parts require a non-empty type (e.g. reasoning) that is not text, file, input_text, or output_text.",
+    },
+  );
 
 export const chatUiTextPartSchema = z.object({
   type: z.literal("text"),
   text: z.string(),
 });
 
-/** Known part kinds plus a forward-compatible fallback for future modalities. */
-export const chatUiMessagePartSchema = z.union([
-  chatUiReasoningPartSchema,
+/** Assistant / Responses-style text block (same shape as `text`; accepted on ingress for compatibility). */
+export const chatUiOutputTextPartSchema = z.object({
+  type: z.literal("output_text"),
+  text: z.string(),
+});
+
+export const chatUiFilePartSchema = z.object({
+  type: z.literal("file"),
+  url: z
+    .string()
+    .url()
+    .refine((value) => isSafeRemoteUrl(value), {
+      message: "File URL must use http or https.",
+    }),
+  mediaType: z.string(),
+  filename: z.string().optional(),
+});
+
+/**
+ * Shared union for typed chat body parts: POST `/v1/chat` requests, persisted
+ * conversation messages, and GET `/v1/chat` UI payloads. Extend here only once
+ * when adding a new part type.
+ */
+export const chatMessageContentPartSchema = z.union([
+  chatUiFilePartSchema,
   chatUiTextPartSchema,
-  z
-    .object({
-      type: z.string(),
-      text: z.string().optional(),
-    })
-    .openapi({ description: "Other or future UI message part shapes." }),
+  responsesApiInputTextPartSchema,
+  chatUiOutputTextPartSchema,
+  chatUiReasoningPartSchema,
 ]);
+
+/** Alias for GET `/v1/chat` and OpenAPI; identical to `chatMessageContentPartSchema`. */
+export const chatUiMessagePartSchema = chatMessageContentPartSchema;
 
 export const chatUiThoughtTimingMetadataSchema = z.object({
   thoughtStartedAtMs: z.number(),

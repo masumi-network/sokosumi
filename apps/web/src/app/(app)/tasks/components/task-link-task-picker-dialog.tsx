@@ -14,7 +14,10 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { coreClient } from "@/lib/clients/core.browser.client";
-import type { TaskLinkRelation as TaskLinkRelationValue } from "@/lib/clients/generated/core/types.gen";
+import type {
+  GetTasksResponse,
+  TaskLinkRelation as TaskLinkRelationValue,
+} from "@/lib/clients/generated/core/types.gen";
 
 import {
   mapTaskListItemToTaskPickerTask,
@@ -84,11 +87,11 @@ export function TaskLinkTaskPickerDialog({
       setTaskPickerError(null);
 
       try {
-        const response = await coreClient.getTasks({
+        const response = (await coreClient.getTasks({
           q: query || undefined,
           cursor: cursor ?? undefined,
           limit: TASK_PICKER_PAGE_SIZE,
-        });
+        })) as GetTasksResponse;
 
         if (requestId !== taskPickerRequestIdRef.current) {
           return;
