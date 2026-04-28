@@ -1325,7 +1325,7 @@
       "EmptyState": {
         "title": "Welcome to Task Manager",
         "description": "Start by creating your first task so Elena has clear context to execute.",
-        "chatTitle": "Then use chat to refine the plan",
+        "chatTitle": "Ou utilisez le chat pour lancer une tâche",
         "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
         "getStartedTitle": "You're all set!",
         "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
