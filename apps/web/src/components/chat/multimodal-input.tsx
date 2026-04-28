@@ -9,14 +9,32 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
-
+import { toast } from "sonner";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
-import type { Coworker } from "@/app/chat/utils/types";
+import type {
+  ChatComposeKind,
+  ChatComposeSubmitOptions,
+  Coworker,
+  TaskSubmitStatus,
+} from "@/app/chat/utils/types";
+import {
+  MarkdownEditor,
+  type MarkdownEditorHandle,
+} from "@/app/tasks/components/markdown-editor";
+import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
+import { createTaskAttachmentUploadToast } from "@/app/tasks/components/task-attachment-upload-toast";
 import { CoworkerGalleryCard } from "@/components/agents/coworker-gallery-card";
+import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
+import {
+  FileUpload,
+  FileUploadDropzone,
+  FileUploadTrigger,
+} from "@/components/ui/file-upload";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -25,7 +43,15 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getCoworkerMetadataChannels } from "@/lib/utils/coworker-channels";
-
+import {
+  extractTaskAttachmentUrls,
+  formatTaskAttachmentMarkdown,
+  removeTaskAttachmentLinks,
+  sanitizeTaskAttachmentLabel,
+} from "@/lib/utils/task-attachments";
+import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
+import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
+import { ComposeKindSelector } from "./compose-kind-selector";
 import { CoworkerAvatarWithSkeleton } from "./coworker-avatar";
 import CoworkerModelSelector from "./coworker-model-selector";
 import { ArrowUpIcon, StopIcon } from "./icons";
@@ -36,6 +62,7 @@ import {
   PromptInputToolbar,
   PromptInputTools,
 } from "./prompt-input";
+import { TaskSubmitStatusSelect } from "./task-submit-status-select";
 
 interface MultimodalInputProps {
   chatId?: string;
@@ -50,7 +77,16 @@ interface MultimodalInputProps {
     message: string,
     coworker?: Coworker,
     model?: { id: string; name: string },
-  ) => void;
+    options?: ChatComposeSubmitOptions,
+  ) => boolean | Promise<boolean>;
+  /** When true, send is disabled (e.g. welcome task creation in flight). */
+  submitBlocked?: boolean;
+  /**
+   * When set (with {@link onComposeKindChange}), compose mode is controlled by the parent
+   * so it stays in sync with surrounding UI (e.g. welcome header).
+   */
+  controlledComposeKind?: ChatComposeKind;
+  onComposeKindChange?: (kind: ChatComposeKind) => void;
   onSelectModel?: (model: { id: string; name: string } | null) => void;
   selectedModel?: { id: string; name: string } | null;
   className?: string;
@@ -61,6 +97,31 @@ interface MultimodalInputProps {
   onCoworkerChange?: (coworker: Coworker) => void;
   enterSubmitsOnMobile?: boolean;
   blurOnSendOnMobile?: boolean;
+}
+
+const DEFAULT_COWORKER_SLUG = "elena";
+const TASK_MARKDOWN_EDITOR_ID = "chat-task-markdown-editor";
+
+function findDefaultCoworker(list: Coworker[] | undefined) {
+  return (
+    list?.find(
+      (coworker) =>
+        coworker.slug?.toLowerCase() === DEFAULT_COWORKER_SLUG ||
+        coworker.id?.toLowerCase() === DEFAULT_COWORKER_SLUG,
+    ) ??
+    list?.[0] ??
+    null
+  );
+}
+
+function matchesCoworker(a: Coworker | null, b: Coworker | null): boolean {
+  if (!a || !b) {
+    return false;
+  }
+
+  return (
+    a.id === b.id || a.slug === b.slug || a.id === b.slug || a.slug === b.id
+  );
 }
 
 function PureMultimodalInput({
@@ -83,21 +144,26 @@ function PureMultimodalInput({
   onCoworkerChange,
   enterSubmitsOnMobile = true,
   blurOnSendOnMobile = false,
+  submitBlocked = false,
+  controlledComposeKind,
+  onComposeKindChange,
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
+  const tNewTask = useTranslations("App.Tasks.NewTask");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
+  const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
+  const activeUploadControllersRef = useRef(new Set<AbortController>());
   const [windowWidth, setWindowWidth] = useState<number | undefined>(undefined);
-  const defaultSlug = "elena";
-  const findDefaultCoworker = (list: Coworker[] | undefined) =>
-    list?.find(
-      (c) =>
-        c.slug?.toLowerCase() === defaultSlug ||
-        c.id?.toLowerCase() === defaultSlug,
-    ) ??
-    list?.[0] ??
-    null;
+  const [internalComposeKind, setInternalComposeKind] =
+    useState<ChatComposeKind>("chat");
+  const isComposeKindControlled = controlledComposeKind !== undefined;
+  const composeKind = controlledComposeKind ?? internalComposeKind;
+  const [taskStatus, setTaskStatus] = useState<TaskSubmitStatus>("READY");
+  const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
+  const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
   const initialDefault = findDefaultCoworker(propCoworkers);
-  const [selectedCoworker, setSelectedCoworker] = useState<Coworker | null>(
+  const [preferredCoworker, setPreferredCoworker] = useState<Coworker | null>(
     propCoworker ?? (propSelectedModel ? null : initialDefault),
   );
   const [selectedModel, setSelectedModel] = useState<{
@@ -108,7 +174,7 @@ function PureMultimodalInput({
   // Sync selected agent from props when switching conversations (model vs coworker).
   useEffect(() => {
     const defaultCoworker = findDefaultCoworker(propCoworkers);
-    setSelectedCoworker(
+    setPreferredCoworker(
       propCoworker ?? (propSelectedModel ? null : defaultCoworker),
     );
   }, [propCoworker, propSelectedModel, propCoworkers]);
@@ -127,6 +193,28 @@ function PureMultimodalInput({
   }, []);
 
   const width = windowWidth;
+  const isTaskComposer = !chatId && composeKind === "task";
+  const isUploadingAttachments = uploadingAttachmentsCount > 0;
+  const taskUploadFileLabel = tNewTask("uploadFile");
+  const taskUploadFileErrorLabel = tNewTask("uploadFileError");
+  const removeAttachmentLabel = tNewTask("removeAttachment");
+  const taskUploadingFileLabel = getTaskAttachmentUploadLabelTemplate(
+    tNewTask,
+    "uploadingFile",
+  );
+  const taskUploadingFilesLabel = getTaskAttachmentUploadLabelTemplate(
+    tNewTask,
+    "uploadingFiles",
+  );
+
+  const focusTaskEditor = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const editor = document.getElementById(TASK_MARKDOWN_EDITOR_ID);
+      if (editor instanceof HTMLElement) {
+        editor.focus();
+      }
+    });
+  }, []);
 
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
@@ -135,21 +223,25 @@ function PureMultimodalInput({
   }, []);
 
   useEffect(() => {
-    if (textareaRef.current) {
+    if (!isTaskComposer && textareaRef.current) {
       adjustHeight();
     }
-  }, [adjustHeight]);
+  }, [adjustHeight, isTaskComposer]);
 
   const hasAutoFocused = useRef(false);
   useEffect(() => {
     if (!hasAutoFocused.current && width) {
       const timer = setTimeout(() => {
-        textareaRef.current?.focus();
+        if (isTaskComposer) {
+          focusTaskEditor();
+        } else {
+          textareaRef.current?.focus();
+        }
         hasAutoFocused.current = true;
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [width]);
+  }, [focusTaskEditor, isTaskComposer, width]);
 
   const resetHeight = useCallback(() => {
     if (textareaRef.current) {
@@ -191,6 +283,11 @@ function PureMultimodalInput({
       const finalValue = domValue || localStorageInput || "";
       setInput(finalValue);
       adjustHeight();
+      return;
+    }
+    // Task welcome uses MarkdownEditor only (no textarea): still hydrate draft text.
+    if (localStorageInput) {
+      setInput((prev) => (prev ? prev : localStorageInput));
     }
     // Only run once after hydration
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -204,19 +301,149 @@ function PureMultimodalInput({
     setInput(event.target.value);
   };
 
-  const submitForm = useCallback(() => {
+  const abortActiveUploads = useCallback(() => {
+    for (const controller of activeUploadControllersRef.current) {
+      controller.abort();
+    }
+    activeUploadControllersRef.current.clear();
+  }, []);
+
+  useEffect(() => abortActiveUploads, [abortActiveUploads]);
+
+  const handleAttachFiles = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+
+      const uploadToast = createTaskAttachmentUploadToast({
+        files,
+        labels: {
+          uploadingFile: taskUploadingFileLabel,
+          uploadingFiles: taskUploadingFilesLabel,
+        },
+      });
+
+      const controller = new AbortController();
+      activeUploadControllersRef.current.add(controller);
+      setUploadingAttachmentsCount((count) => count + 1);
+
+      try {
+        for (const [index, file] of files.entries()) {
+          const uploadedUrl = await uploadTaskAttachment(file, {
+            abortSignal: controller.signal,
+            onUploadProgress: (progress) => {
+              uploadToast.updateFileProgress(index, progress);
+            },
+          });
+          uploadToast.markFileComplete(index);
+
+          const safeName = sanitizeTaskAttachmentLabel(file.name, "file");
+          if (markdownEditorRef.current) {
+            markdownEditorRef.current.insertLink(safeName, uploadedUrl);
+            markdownEditorRef.current.insertText("\n");
+            continue;
+          }
+
+          const markdownLink = formatTaskAttachmentMarkdown(
+            safeName,
+            uploadedUrl,
+          );
+          setInput(
+            (prev) =>
+              `${prev}${prev.endsWith("\n") ? "" : "\n"}${markdownLink}`,
+          );
+        }
+
+        uploadToast.dismiss();
+      } catch (error) {
+        uploadToast.dismiss();
+        toast.error(
+          getUserFileUploadErrorMessage(error, taskUploadFileErrorLabel),
+        );
+      } finally {
+        activeUploadControllersRef.current.delete(controller);
+        setPendingUploadFiles([]);
+        setUploadingAttachmentsCount((count) => count - 1);
+      }
+    },
+    [
+      setInput,
+      taskUploadFileErrorLabel,
+      taskUploadingFileLabel,
+      taskUploadingFilesLabel,
+    ],
+  );
+
+  const coworkers = propCoworkers ?? [];
+  const availableCoworkers = useMemo(
+    () =>
+      composeKind === "task"
+        ? coworkers.filter((coworker) =>
+            coworker.capabilities?.includes("tasks"),
+          )
+        : coworkers,
+    [composeKind, coworkers],
+  );
+  const selectedCoworker = useMemo(() => {
+    const matchedCoworker =
+      preferredCoworker == null
+        ? null
+        : (availableCoworkers.find((coworker) =>
+            matchesCoworker(coworker, preferredCoworker),
+          ) ?? null);
+
+    return matchedCoworker ?? findDefaultCoworker(availableCoworkers);
+  }, [availableCoworkers, preferredCoworker]);
+  const attachmentUrls = useMemo(
+    () => extractTaskAttachmentUrls(input),
+    [input],
+  );
+  const canSubmit =
+    input.trim().length > 0 &&
+    status === "ready" &&
+    !submitBlocked &&
+    (composeKind === "chat" || selectedCoworker != null) &&
+    (!isTaskComposer || !isUploadingAttachments);
+  const placeholder = t(
+    composeKind === "task"
+      ? "welcomeScreen.taskPlaceholder"
+      : "welcomeScreen.placeholder",
+    {
+      coworkerSlug:
+        selectedModel?.name ??
+        selectedModel?.id ??
+        selectedCoworker?.name ??
+        selectedCoworker?.slug ??
+        selectedCoworker?.id ??
+        t("welcomeScreen.coworkerSlugFallback"),
+    },
+  );
+
+  const submitForm = useCallback(async () => {
     if (blurOnSendOnMobile && width && width < 768) {
-      textareaRef.current?.blur();
+      if (isTaskComposer) {
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+      } else {
+        textareaRef.current?.blur();
+      }
     }
 
     // Use onSendMessage if provided (for welcome screen to create conversation)
     // Otherwise use sendMessage from useChat hook
     if (onSendMessage) {
-      onSendMessage(
+      const sendResult = await onSendMessage(
         input,
         selectedCoworker ?? undefined,
         selectedModel ?? undefined,
+        {
+          kind: composeKind,
+          taskStatus,
+        },
       );
+      if (sendResult !== true) {
+        return;
+      }
     } else {
       sendMessage({ text: input } as never);
     }
@@ -226,29 +453,35 @@ function PureMultimodalInput({
     setInput("");
 
     if (width && width > 768) {
-      textareaRef.current?.focus();
+      if (isTaskComposer) {
+        focusTaskEditor();
+      } else {
+        textareaRef.current?.focus();
+      }
     }
   }, [
+    blurOnSendOnMobile,
+    composeKind,
+    focusTaskEditor,
     input,
-    setInput,
-    sendMessage,
+    isTaskComposer,
     onSendMessage,
-    setLocalStorageValue,
-    width,
     resetHeight,
     selectedCoworker,
     selectedModel,
-    blurOnSendOnMobile,
+    setInput,
+    setLocalStorageValue,
+    sendMessage,
+    taskStatus,
+    width,
   ]);
-
-  const coworkers = propCoworkers ?? [];
 
   const getCoworkerAvatarUrl = (c: Coworker): string | null =>
     getCoworkerImageUrl(c.id, c.avatar ?? undefined);
 
   const handleCoworkerSelect = useCallback(
     (coworker: Coworker) => {
-      setSelectedCoworker(coworker);
+      setPreferredCoworker(coworker);
       setSelectedModel(null); // Clear model when selecting coworker
       onSelectModel?.(null);
       onCoworkerChange?.(coworker);
@@ -267,6 +500,72 @@ function PureMultimodalInput({
       }
     },
     [onSelectModel],
+  );
+  const handleComposeKindChange = useCallback(
+    (value: string) => {
+      if (value !== "chat" && value !== "task") {
+        return;
+      }
+
+      const nextKind = value as ChatComposeKind;
+      if (nextKind === composeKind) {
+        return;
+      }
+
+      if (!isComposeKindControlled) {
+        setInternalComposeKind(nextKind);
+      }
+      onComposeKindChange?.(nextKind);
+      if (nextKind === "task") {
+        focusTaskEditor();
+      } else {
+        textareaRef.current?.focus();
+      }
+
+      if (nextKind === "task") {
+        setSelectedModel(null);
+        onSelectModel?.(null);
+        const taskCoworkers = coworkers.filter((coworker) =>
+          coworker.capabilities?.includes("tasks"),
+        );
+        const hasCurrentTaskCoworker = taskCoworkers.some((coworker) =>
+          matchesCoworker(coworker, preferredCoworker),
+        );
+        if (!hasCurrentTaskCoworker) {
+          const defaultTaskCoworker = findDefaultCoworker(taskCoworkers);
+          setPreferredCoworker(defaultTaskCoworker);
+          if (defaultTaskCoworker) {
+            onCoworkerChange?.(defaultTaskCoworker);
+          }
+        }
+        return;
+      }
+
+      if (!preferredCoworker) {
+        const defaultCoworker = findDefaultCoworker(coworkers);
+        setPreferredCoworker(defaultCoworker);
+        if (defaultCoworker) {
+          onCoworkerChange?.(defaultCoworker);
+        }
+      }
+    },
+    [
+      composeKind,
+      coworkers,
+      focusTaskEditor,
+      isComposeKindControlled,
+      onComposeKindChange,
+      onCoworkerChange,
+      onSelectModel,
+      preferredCoworker,
+    ],
+  );
+
+  const handleRemoveAttachment = useCallback(
+    (url: string) => {
+      setInput((prev) => removeTaskAttachmentLinks(prev, [url]));
+    },
+    [setInput],
   );
 
   return (
@@ -287,7 +586,7 @@ function PureMultimodalInput({
                 ))}
               </>
             ) : (
-              coworkers.slice(0, 3).map((coworker: Coworker) => (
+              availableCoworkers.slice(0, 3).map((coworker: Coworker) => (
                 <Tooltip key={coworker.id}>
                   <TooltipTrigger asChild>
                     <button
@@ -342,48 +641,120 @@ function PureMultimodalInput({
 
       <PromptInput
         data-chat-input-border-anchor
-        className="border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border p-3 transition-all duration-200"
+        className="border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border transition-all duration-200"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!input.trim() || status !== "ready") {
+          if (!canSubmit) {
             return;
           }
-          submitForm();
+          void submitForm();
         }}
       >
         <div className="flex flex-row items-start gap-1 sm:gap-2">
-          <PromptInputTextarea
-            allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
-            className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-2 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
-            data-testid="multimodal-input"
-            disableAutoResize={true}
-            maxHeight={200}
-            minHeight={44}
-            onChange={handleInput}
-            placeholder={t("welcomeScreen.placeholder", {
-              coworkerSlug:
-                selectedModel?.name ??
-                selectedModel?.id ??
-                selectedCoworker?.name ??
-                selectedCoworker?.slug ??
-                selectedCoworker?.id ??
-                t("welcomeScreen.coworkerSlugFallback"),
-            })}
-            ref={textareaRef}
-            rows={1}
-            value={input}
-          />
+          {isTaskComposer ? (
+            <FileUpload
+              value={pendingUploadFiles}
+              onValueChange={setPendingUploadFiles}
+              onAccept={(files) => {
+                void handleAttachFiles(files);
+              }}
+              multiple
+              className="w-full"
+            >
+              <FileUploadDropzone
+                className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
+                onClick={(event) => event.preventDefault()}
+              >
+                <MarkdownEditor
+                  ref={markdownEditorRef}
+                  id={TASK_MARKDOWN_EDITOR_ID}
+                  placeholder={placeholder}
+                  className="w-full border-0 bg-transparent"
+                  value={input}
+                  onChange={setInput}
+                  onSubmitShortcut={() => {
+                    if (canSubmit) {
+                      void submitForm();
+                    }
+                  }}
+                  onAttachClick={() => attachmentTriggerRef.current?.click()}
+                  attachLabel={taskUploadFileLabel}
+                  isAttachmentUploading={isUploadingAttachments}
+                  mentions={{}}
+                />
+                <FileUploadTrigger asChild>
+                  <button
+                    ref={attachmentTriggerRef}
+                    type="button"
+                    className="sr-only"
+                    aria-label={taskUploadFileLabel}
+                  >
+                    {taskUploadFileLabel}
+                  </button>
+                </FileUploadTrigger>
+              </FileUploadDropzone>
+            </FileUpload>
+          ) : (
+            <PromptInputTextarea
+              allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
+              className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
+              data-testid="multimodal-input"
+              disableAutoResize={true}
+              maxHeight={200}
+              minHeight={44}
+              onChange={handleInput}
+              placeholder={placeholder}
+              ref={textareaRef}
+              rows={1}
+              value={input}
+            />
+          )}
         </div>
-        <PromptInputToolbar className="border-top-0! border-t-0! p-0 dark:border-0 dark:border-transparent!">
-          <PromptInputTools className="gap-0 sm:gap-0.5">
+        {!chatId &&
+        composeKind === "task" &&
+        availableCoworkers.length === 0 ? (
+          <p className="text-muted-foreground px-2 pb-1 text-xs">
+            {t("noTaskCoworkers")}
+          </p>
+        ) : null}
+        {isTaskComposer && attachmentUrls.length > 0 ? (
+          <div className="flex flex-wrap gap-3 px-2 pb-1">
+            {attachmentUrls.map((url) => (
+              <FileChipMiniPreviewWithMetadata
+                key={url}
+                url={url}
+                onRemove={() => handleRemoveAttachment(url)}
+                removeLabel={removeAttachmentLabel}
+              />
+            ))}
+          </div>
+        ) : null}
+        <PromptInputToolbar className="border-top-0! border-t-0! p-3 dark:border-0 dark:border-transparent!">
+          <PromptInputTools className="flex-wrap gap-1 sm:gap-1.5">
+            {!chatId ? (
+              <ComposeKindSelector
+                value={composeKind}
+                onValueChange={handleComposeKindChange}
+              />
+            ) : null}
+            {!chatId && composeKind === "task" ? (
+              <TaskSubmitStatusSelect
+                value={taskStatus}
+                onValueChange={setTaskStatus}
+              />
+            ) : null}
             <CoworkerModelSelector
               selectedCoworker={selectedCoworker}
               selectedModel={selectedModel}
-              coworkers={coworkers}
+              coworkers={availableCoworkers}
               coworkersLoading={propCoworkersLoading}
               onSelectCoworker={handleCoworkerSelect}
               onSelectModel={handleModelSelect}
-              disabled={!!chatId}
+              disabled={
+                !!chatId ||
+                (composeKind === "task" && availableCoworkers.length === 0)
+              }
+              showModels={composeKind === "chat"}
             />
           </PromptInputTools>
 
@@ -393,7 +764,7 @@ function PureMultimodalInput({
             <PromptInputSubmit
               className="size-8 rounded-full transition-colors duration-200"
               data-testid="send-button"
-              disabled={!input.trim() || status !== "ready"}
+              disabled={!canSubmit}
               status={status}
             >
               <ArrowUpIcon size={14} />
@@ -405,36 +776,82 @@ function PureMultimodalInput({
   );
 }
 
+function areMultimodalInputPropsEqual(
+  prevProps: Readonly<MultimodalInputProps>,
+  nextProps: Readonly<MultimodalInputProps>,
+): boolean {
+  if (prevProps.input !== nextProps.input) {
+    return false;
+  }
+  if (prevProps.status !== nextProps.status) {
+    return false;
+  }
+  if (prevProps.chatId !== nextProps.chatId) {
+    return false;
+  }
+  if (prevProps.submitBlocked !== nextProps.submitBlocked) {
+    return false;
+  }
+  if (prevProps.controlledComposeKind !== nextProps.controlledComposeKind) {
+    return false;
+  }
+  if (prevProps.className !== nextProps.className) {
+    return false;
+  }
+  if (prevProps.coworkers !== nextProps.coworkers) {
+    return false;
+  }
+  if (prevProps.coworkersLoading !== nextProps.coworkersLoading) {
+    return false;
+  }
+  if (prevProps.enterSubmitsOnMobile !== nextProps.enterSubmitsOnMobile) {
+    return false;
+  }
+  if (prevProps.blurOnSendOnMobile !== nextProps.blurOnSendOnMobile) {
+    return false;
+  }
+  if (prevProps.coworker?.id !== nextProps.coworker?.id) {
+    return false;
+  }
+  if (prevProps.selectedModel?.id !== nextProps.selectedModel?.id) {
+    return false;
+  }
+  if (prevProps.setInput !== nextProps.setInput) {
+    return false;
+  }
+  if (prevProps.onSendMessage !== nextProps.onSendMessage) {
+    return false;
+  }
+  if (prevProps.sendMessage !== nextProps.sendMessage) {
+    return false;
+  }
+  if (prevProps.onComposeKindChange !== nextProps.onComposeKindChange) {
+    return false;
+  }
+  if (prevProps.onSelectModel !== nextProps.onSelectModel) {
+    return false;
+  }
+  if (prevProps.onCoworkerChange !== nextProps.onCoworkerChange) {
+    return false;
+  }
+
+  // `messages` is not read in the component body; ignore unstable `[]` from welcome shell.
+
+  if (prevProps.status === "submitted" && nextProps.status === "submitted") {
+    if (prevProps.stop !== nextProps.stop) {
+      return false;
+    }
+    if (prevProps.setMessages !== nextProps.setMessages) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export const MultimodalInput = memo(
   PureMultimodalInput,
-  (prevProps, nextProps) => {
-    if (prevProps.input !== nextProps.input) {
-      return false;
-    }
-    if (prevProps.status !== nextProps.status) {
-      return false;
-    }
-    if (prevProps.coworkers !== nextProps.coworkers) {
-      return false;
-    }
-    if (prevProps.coworkersLoading !== nextProps.coworkersLoading) {
-      return false;
-    }
-    if (prevProps.enterSubmitsOnMobile !== nextProps.enterSubmitsOnMobile) {
-      return false;
-    }
-    if (prevProps.blurOnSendOnMobile !== nextProps.blurOnSendOnMobile) {
-      return false;
-    }
-    if (prevProps.coworker?.id !== nextProps.coworker?.id) {
-      return false;
-    }
-    if (prevProps.selectedModel?.id !== nextProps.selectedModel?.id) {
-      return false;
-    }
-
-    return true;
-  },
+  areMultimodalInputPropsEqual,
 );
 
 function PureStopButton({

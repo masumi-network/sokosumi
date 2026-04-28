@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import UserCredits from "@/app/components/user-credits";
 import type { Session } from "@/lib/auth/auth";
@@ -50,9 +50,13 @@ vi.mock("../credit-cta", () => ({
   },
 }));
 
+const creditUsageMock = vi.fn((_: unknown) => (
+  <div data-testid="credit-usage" />
+));
+
 vi.mock("../credit-usage", () => ({
   __esModule: true,
-  default: () => <div data-testid="credit-usage" />,
+  default: (props: unknown) => creditUsageMock(props),
 }));
 
 vi.mock("../user-avatar", () => ({
@@ -93,6 +97,10 @@ function createCreditsResponse(plan: string | null, buffer: number) {
 }
 
 describe("UserCredits", () => {
+  beforeEach(() => {
+    creditUsageMock.mockClear();
+  });
+
   it("routes free-plan header CTA to the subscription billing tab", async () => {
     const view = await UserCredits({
       creditsData: createCreditsResponse("free", 500).data.credits,
@@ -193,6 +201,24 @@ describe("UserCredits", () => {
     expect(screen.getByTestId("user-avatar")).toHaveAttribute(
       "data-secondary-label",
       "Starter (Acme)",
+    );
+  });
+
+  it("passes the buffer balance through as extra credits", async () => {
+    const view = await UserCredits({
+      creditsData: createCreditsResponse("starter", 500).data.credits,
+      currentTimestampMs: 0,
+      organizationName: null,
+      session,
+      showAvatar: false,
+    });
+
+    render(view);
+
+    expect(creditUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extraCredits: 500,
+      }),
     );
   });
 });

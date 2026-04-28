@@ -91,7 +91,9 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   // Do not default to "free" when credits failed to load — that would show the
   // subscription-only onboarding gate (and Stripe/org work) for paid users.
   const currentPlan =
-    creditsData != null ? (creditsData.subscription?.plan ?? "free") : null;
+    creditsResult != null
+      ? (creditsResult.data.subscription?.plan ?? "free")
+      : null;
   const shouldShowFreeSubscriptionGate =
     !shouldShowOnboarding && currentPlan === "free";
   const subscriptionOnboardingGateCookie = cookieStore.get(

@@ -2,10 +2,16 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
+import { TaskStatus } from "@sokosumi/database";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { Loader2 } from "lucide-react";
-import { useParams, usePathname, useSearchParams } from "next/navigation";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -23,7 +29,18 @@ import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { useCoworkerPostRefreshAssistantPoll } from "@/app/chat/hooks/use-coworker-post-refresh-assistant-poll";
-import type { Chat, Coworker } from "@/app/chat/utils/types";
+import type {
+  Chat,
+  ChatComposeKind,
+  ChatComposeSubmitOptions,
+  Coworker,
+} from "@/app/chat/utils/types";
+import {
+  buildWelcomeComposeStoredSnapshot,
+  readWelcomeComposePreferences,
+  resolveHydratedWelcomeSelection,
+  writeWelcomeComposePreferences,
+} from "@/app/chat/utils/welcome-compose-preferences";
 import { useChatCreation } from "@/app/chat-ui/hooks/use-chat-creation";
 import { useChatSelection } from "@/app/chat-ui/hooks/use-chat-selection";
 import {
@@ -40,6 +57,7 @@ import {
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
+import { createTask } from "@/lib/actions/task/action";
 
 import MessageList from "./message-list";
 
@@ -60,6 +78,9 @@ function isConversationUuid(value: string): boolean {
 }
 
 const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
+
+/** Stable no-op for inputs that do not wire `useChat` stop; avoids breaking memo equality on `stop`. */
+function noopChatComposerStop() {}
 
 interface SlotPayload {
   conversationId: string | null;
@@ -97,6 +118,7 @@ export default function ChatInterface({
   const t = useTranslations("App.Chat.Chat");
   const params = useParams<{ conversationId?: string }>();
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isRouteDriven = navigationMode === "route";
   const isChatPath = useMemo(() => isChatShellPathname(pathname), [pathname]);
@@ -206,25 +228,130 @@ export default function ChatInterface({
         ? initialWelcomeCoworker
         : (welcomeSelectedCoworker ?? initialWelcomeCoworker);
 
-  const handleWelcomeCoworkerChange = useCallback((coworker: Coworker) => {
-    setWelcomeSelectedCoworker(coworker);
-    setWelcomeSelectedModel(null);
+  const [welcomeComposeKind, setWelcomeComposeKind] =
+    useState<ChatComposeKind>("chat");
+  const [isWelcomeTaskSubmitting, setIsWelcomeTaskSubmitting] = useState(false);
+  const welcomeTaskCreationInFlightRef = useRef(false);
+
+  const welcomePrefsHydratedRef = useRef(false);
+  const previousWelcomeCoworkerSlugRef = useRef<string | null>(
+    welcomeCoworkerSlug,
+  );
+  const welcomeSelectedCoworkerRef = useRef<Coworker | null>(null);
+  const welcomeSelectedModelRef = useRef<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const welcomeComposeKindRef = useRef<ChatComposeKind>("chat");
+  const welcomePrefsWriteSelectedChatIdRef = useRef<string | null>(null);
+  const welcomePrefsWriteWelcomeCoworkerSlugRef = useRef<string | null>(null);
+  welcomeSelectedCoworkerRef.current = welcomeSelectedCoworker;
+  welcomeSelectedModelRef.current = welcomeSelectedModel;
+  welcomeComposeKindRef.current = welcomeComposeKind;
+  welcomePrefsWriteSelectedChatIdRef.current = selectedChatId;
+  welcomePrefsWriteWelcomeCoworkerSlugRef.current = welcomeCoworkerSlug;
+
+  const writeWelcomePrefsFromRefs = useCallback(() => {
+    if (welcomePrefsWriteSelectedChatIdRef.current !== null) return;
+    if (welcomePrefsWriteWelcomeCoworkerSlugRef.current != null) return;
+    writeWelcomeComposePreferences(
+      buildWelcomeComposeStoredSnapshot({
+        composeKind: welcomeComposeKindRef.current,
+        coworker: welcomeSelectedCoworkerRef.current,
+        model: welcomeSelectedModelRef.current,
+      }),
+    );
   }, []);
+
+  const handleWelcomeComposeKindChange = useCallback(
+    (kind: ChatComposeKind) => {
+      setWelcomeComposeKind(kind);
+      welcomeComposeKindRef.current = kind;
+      writeWelcomePrefsFromRefs();
+    },
+    [writeWelcomePrefsFromRefs],
+  );
+
+  const handleWelcomeCoworkerChange = useCallback(
+    (coworker: Coworker) => {
+      setWelcomeSelectedCoworker(coworker);
+      setWelcomeSelectedModel(null);
+      welcomeSelectedCoworkerRef.current = coworker;
+      welcomeSelectedModelRef.current = null;
+      writeWelcomePrefsFromRefs();
+    },
+    [writeWelcomePrefsFromRefs],
+  );
 
   const handleWelcomeModelChange = useCallback(
     (model: { id: string; name: string } | null) => {
       setWelcomeSelectedModel(model);
-      if (model) setWelcomeSelectedCoworker(null);
+      if (model) {
+        setWelcomeSelectedCoworker(null);
+        welcomeSelectedCoworkerRef.current = null;
+      }
+      welcomeSelectedModelRef.current = model;
+      writeWelcomePrefsFromRefs();
     },
-    [],
+    [writeWelcomePrefsFromRefs],
   );
 
-  useEffect(() => {
-    if (isRouteDriven && !urlConversationId && isChatPath) {
-      setWelcomeSelectedCoworker(null);
-      setWelcomeSelectedModel(null);
+  const previousSelectedChatIdForComposeRef = useRef<string | null>(
+    selectedChatId,
+  );
+  const previousControlledConversationIdRef = useRef<string | null>(
+    controlledConversationId,
+  );
+  // Invalidate stored welcome prefs during render so the hydration
+  // `useLayoutEffect` runs before paint (avoids one frame of stale welcome UI).
+  const previousComposeSelectedChatId =
+    previousSelectedChatIdForComposeRef.current;
+  if (previousComposeSelectedChatId !== selectedChatId) {
+    if (previousComposeSelectedChatId !== null && selectedChatId === null) {
+      welcomePrefsHydratedRef.current = false;
     }
-  }, [isChatPath, isRouteDriven, urlConversationId]);
+    previousSelectedChatIdForComposeRef.current = selectedChatId;
+  }
+  if (previousWelcomeCoworkerSlugRef.current !== welcomeCoworkerSlug) {
+    welcomePrefsHydratedRef.current = false;
+    previousWelcomeCoworkerSlugRef.current = welcomeCoworkerSlug;
+  }
+
+  useLayoutEffect(() => {
+    if (selectedChatId !== null) return;
+    if (coworkers.length === 0) return;
+    if (welcomePrefsHydratedRef.current) return;
+    welcomePrefsHydratedRef.current = true;
+
+    const stored = readWelcomeComposePreferences();
+    const resolved = resolveHydratedWelcomeSelection(coworkers, stored, {
+      urlCoworkerSlug: welcomeCoworkerSlug != null,
+    });
+
+    setWelcomeComposeKind(resolved.composeKind);
+    welcomeComposeKindRef.current = resolved.composeKind;
+
+    if (welcomeCoworkerSlug != null) {
+      setWelcomeSelectedModel(null);
+      setWelcomeSelectedCoworker(null);
+      return;
+    }
+
+    if (resolved.model) {
+      setWelcomeSelectedModel(resolved.model);
+      setWelcomeSelectedCoworker(null);
+      return;
+    }
+
+    if (resolved.coworker) {
+      setWelcomeSelectedCoworker(resolved.coworker);
+      setWelcomeSelectedModel(null);
+      return;
+    }
+
+    setWelcomeSelectedCoworker(null);
+    setWelcomeSelectedModel(null);
+  }, [selectedChatId, coworkers, welcomeCoworkerSlug]);
 
   const selectedModelRef = useRef<{ id: string; name: string } | null>(null);
   const chatMessagesRef = useRef<Map<string, unknown[]>>(new Map());
@@ -241,14 +368,19 @@ export default function ChatInterface({
 
   useEffect(() => {
     if (isRouteDriven) {
+      previousControlledConversationIdRef.current = controlledConversationId;
       return;
     }
 
+    const previousControlled = previousControlledConversationIdRef.current;
     setSelectedChatId(controlledConversationId);
 
     if (controlledConversationId !== null) {
+      previousControlledConversationIdRef.current = controlledConversationId;
       return;
     }
+
+    previousControlledConversationIdRef.current = null;
 
     loadingConversationIdRef.current = null;
     currentChatIdRef.current = null;
@@ -256,8 +388,11 @@ export default function ChatInterface({
     setSelectedModel(null);
     selectedModelRef.current = null;
     setInput("");
-    setWelcomeSelectedCoworker(null);
-    setWelcomeSelectedModel(null);
+    // Only invalidate welcome hydration when leaving a conversation for welcome;
+    // initial mount with null must not clear the flag after useLayoutEffect hydrated.
+    if (previousControlled !== null) {
+      welcomePrefsHydratedRef.current = false;
+    }
   }, [controlledConversationId, isRouteDriven, setSelectedModel]);
 
   useEffect(() => {
@@ -1112,12 +1247,56 @@ export default function ChatInterface({
       messageText: string,
       coworker?: Coworker,
       model?: { id: string; name: string },
-    ) => {
-      if (!messageText.trim() || isLoading) return;
+      options?: ChatComposeSubmitOptions,
+    ): Promise<boolean> => {
+      if (!messageText.trim() || isLoading) {
+        return false;
+      }
 
       const trimmedMessage = messageText.trim();
+      const composeKind = options?.kind ?? "chat";
 
       if (!selectedChatId) {
+        if (composeKind === "task") {
+          if (welcomeTaskCreationInFlightRef.current) {
+            return false;
+          }
+
+          const selectedTaskCoworker =
+            coworker ??
+            coworkers.find((candidate) =>
+              candidate.capabilities?.includes("tasks"),
+            ) ??
+            null;
+
+          if (!selectedTaskCoworker) {
+            toast.error(t("noTaskCoworkers"));
+            return false;
+          }
+
+          welcomeTaskCreationInFlightRef.current = true;
+          setIsWelcomeTaskSubmitting(true);
+          try {
+            const result = await createTask({
+              description: trimmedMessage,
+              coworkerId: selectedTaskCoworker.id,
+              status:
+                options?.taskStatus === "DRAFT"
+                  ? TaskStatus.DRAFT
+                  : TaskStatus.READY,
+            });
+            router.push(`/tasks/${result.taskId}`);
+            return true;
+          } catch (error) {
+            console.error("Failed to create task from chat composer", error);
+            toast.error(t("taskCreationFailed"));
+            return false;
+          } finally {
+            welcomeTaskCreationInFlightRef.current = false;
+            setIsWelcomeTaskSubmitting(false);
+          }
+        }
+
         setIsWelcomeTransitioning(true);
         await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -1134,28 +1313,28 @@ export default function ChatInterface({
           if (!selectedCoworker) {
             toast.error(t("noCoworkersAvailable"));
             setIsWelcomeTransitioning(false);
-            return;
+            return false;
           }
           conversationId = await handleCoworkerSelected(selectedCoworker);
         }
 
         if (!conversationId) {
           setIsWelcomeTransitioning(false);
-          return;
+          return false;
         }
 
         if (!currentChatIdRef.current) {
           await new Promise((resolve) => setTimeout(resolve, 100));
           if (!currentChatIdRef.current) {
             setIsWelcomeTransitioning(false);
-            return;
+            return false;
           }
         }
 
         const cid = currentChatIdRef.current ?? conversationId;
         const sent = cid ? sendInConversation(cid, trimmedMessage) : false;
         if (sent) setInput("");
-        return;
+        return sent;
       }
 
       if (selectedChatId) {
@@ -1175,6 +1354,7 @@ export default function ChatInterface({
 
       const sent = sendInConversation(selectedChatId, trimmedMessage);
       if (sent) setInput("");
+      return sent;
     },
     [
       coworkers,
@@ -1187,6 +1367,7 @@ export default function ChatInterface({
       selectedModel,
       effectiveWelcomeCoworker,
       t,
+      router,
       setIsWelcomeTransitioning,
       currentChatIdRef,
       setChats,
@@ -1340,7 +1521,7 @@ export default function ChatInterface({
               <>
                 <div
                   aria-hidden
-                  className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
+                  className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-5 h-32 bg-linear-to-t to-transparent"
                 />
                 <ChatInputContainer
                   key={selectedChatId}
@@ -1349,7 +1530,7 @@ export default function ChatInterface({
                   input={input}
                   setInput={setInput}
                   status={selectedChatStatus}
-                  stop={() => {}}
+                  stop={noopChatComposerStop}
                   messages={displayedMessages}
                   setMessages={setMessagesForInput}
                   sendMessage={sendMessageForInput}
@@ -1367,6 +1548,9 @@ export default function ChatInterface({
             mobileKeyboardOptimized={mobileKeyboardOptimized}
             showGreetingAndSuggestions={showGreetingAndSuggestions}
             userName={userName?.split(" ")[0] ?? userName}
+            welcomeComposeKind={welcomeComposeKind}
+            onWelcomeComposeKindChange={handleWelcomeComposeKindChange}
+            welcomeSendBlocked={isWelcomeTaskSubmitting}
             onSendMessage={handleSendMessage}
             isTransitioning={isWelcomeTransitioning}
             input={input}
@@ -1375,7 +1559,7 @@ export default function ChatInterface({
             setMessages={() => {}}
             sendMessage={sendMessageForInput}
             status="ready"
-            stop={() => {}}
+            stop={noopChatComposerStop}
             coworkers={coworkers}
             initialCoworker={effectiveWelcomeCoworker ?? undefined}
             onCoworkerChange={handleWelcomeCoworkerChange}

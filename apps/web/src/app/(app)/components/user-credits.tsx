@@ -98,6 +98,7 @@ export default async function UserCredits({
           {showCreditUsage ? (
             <CreditUsageComponent
               creditUsage={creditUsage}
+              extraCredits={credits}
               creditsLabel={creditsLabel}
               currentTimestampMs={currentTimestampMs}
               subscriptionPeriodEndMs={subscriptionPeriodEndMs}

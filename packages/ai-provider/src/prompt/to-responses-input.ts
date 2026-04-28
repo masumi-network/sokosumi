@@ -1,53 +1,122 @@
-import type { LanguageModelV3Prompt, SharedV3Warning } from "@ai-sdk/provider";
+import {
+  InvalidPromptError,
+  type LanguageModelV3FilePart,
+  type LanguageModelV3Prompt,
+  type SharedV3Warning,
+} from "@ai-sdk/provider";
+
+interface OpenRouterResponsesInputTextItem {
+  type: "input_text";
+  text: string;
+}
+
+interface OpenRouterResponsesInputImageItem {
+  type: "input_image";
+  image_url: string;
+  detail: "auto";
+}
+
+interface OpenRouterResponsesInputFileItem {
+  type: "input_file";
+  file_data?: string;
+  file_url?: string;
+  filename?: string;
+}
 
 export type OpenRouterResponsesInputMessage = {
   type: "message";
   role: string;
-  content: Array<{ type: "input_text"; text: string }>;
+  content: Array<
+    | OpenRouterResponsesInputTextItem
+    | OpenRouterResponsesInputImageItem
+    | OpenRouterResponsesInputFileItem
+  >;
 };
 
 export function buildResponsesApiWarnings(
   prompt: LanguageModelV3Prompt,
 ): SharedV3Warning[] {
-  let sawUnsupportedFile = false;
+  const warnings: SharedV3Warning[] = [];
   for (const message of prompt) {
-    if (message.role === "system") {
+    if (message.role !== "user" && message.role !== "assistant") {
       continue;
     }
-    if (message.role === "user" || message.role === "assistant") {
-      for (const part of message.content) {
-        if (part.type === "file") {
-          sawUnsupportedFile = true;
-          break;
-        }
+    for (const part of message.content) {
+      if (part.type !== "file") {
+        continue;
+      }
+      if (message.role === "assistant") {
+        warnings.push({
+          type: "compatibility",
+          feature: "assistant file parts",
+          details:
+            "File parts on assistant messages are forwarded to the Responses input. Confirm your model endpoint accepts multimodal assistant turns.",
+        });
+      }
+      const url = toUrlString(part.data);
+      if (
+        url !== null &&
+        !url.startsWith("data:") &&
+        !isWebUrl(url) &&
+        !part.mediaType.startsWith("image/")
+      ) {
+        warnings.push({
+          type: "compatibility",
+          feature: "non-HTTP(S) file URL",
+          details: `A file part uses URL "${url.slice(0, 120)}${url.length > 120 ? "…" : ""}" as file_url. Only http(s) and data payloads are fully supported; other schemes may be rejected or mishandled by the upstream API.`,
+        });
       }
     }
   }
-  if (!sawUnsupportedFile) {
-    return [];
-  }
-  return [
-    {
-      type: "unsupported",
-      feature: "file parts",
-      details:
-        "File parts are omitted from the OpenRouter / coworker Responses input; only text is sent.",
-    },
-  ];
+  return dedupeWarnings(warnings);
 }
 
-function userAssistantText(
+function dedupeWarnings(warnings: SharedV3Warning[]): SharedV3Warning[] {
+  const seen = new Set<string>();
+  const out: SharedV3Warning[] = [];
+  for (const w of warnings) {
+    const key =
+      w.type === "other"
+        ? `other:${w.message}`
+        : `${w.type}:${w.feature}:${w.details ?? ""}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    out.push(w);
+  }
+  return out;
+}
+
+function userAssistantContent(
   message:
     | Extract<LanguageModelV3Prompt[number], { role: "user" }>
     | Extract<LanguageModelV3Prompt[number], { role: "assistant" }>,
-): string {
-  let text = "";
+): OpenRouterResponsesInputMessage["content"] {
+  const content: OpenRouterResponsesInputMessage["content"] = [];
+  let textRun = "";
+
+  const flushTextRun = () => {
+    if (textRun.trim().length > 0) {
+      content.push({ type: "input_text", text: textRun });
+    }
+    textRun = "";
+  };
+
   for (const part of message.content) {
     if (part.type === "text") {
-      text += part.text;
+      textRun += part.text;
+      continue;
+    }
+
+    if (part.type === "file") {
+      flushTextRun();
+      content.push(filePartToResponsesContent(part));
     }
   }
-  return text;
+  flushTextRun();
+
+  return content;
 }
 
 function toolMessageText(
@@ -82,24 +151,24 @@ export function promptToResponsesInput(
     }
 
     if (message.role === "user") {
-      const text = userAssistantText(message);
-      if (text.trim().length > 0) {
+      const content = userAssistantContent(message);
+      if (content.length > 0) {
         input.push({
           type: "message",
           role: "user",
-          content: [{ type: "input_text", text }],
+          content,
         });
       }
       continue;
     }
 
     if (message.role === "assistant") {
-      const text = userAssistantText(message);
-      if (text.trim().length > 0) {
+      const content = userAssistantContent(message);
+      if (content.length > 0) {
         input.push({
           type: "message",
           role: "assistant",
-          content: [{ type: "input_text", text }],
+          content,
         });
       }
       continue;
@@ -117,6 +186,156 @@ export function promptToResponsesInput(
     }
   }
   return input;
+}
+
+function filePartToResponsesContent(
+  part: LanguageModelV3FilePart,
+): OpenRouterResponsesInputImageItem | OpenRouterResponsesInputFileItem {
+  if (part.mediaType.startsWith("image/")) {
+    return {
+      type: "input_image",
+      image_url: toImageUrl(part),
+      detail: "auto",
+    };
+  }
+
+  const url = toUrlString(part.data);
+  if (url !== null && !url.startsWith("data:")) {
+    return {
+      type: "input_file",
+      file_url: url,
+      filename: part.filename,
+    };
+  }
+
+  return {
+    type: "input_file",
+    file_data: toFileData(part),
+    filename: part.filename,
+  };
+}
+
+function toImageUrl(part: LanguageModelV3FilePart): string {
+  const url = toUrlString(part.data);
+
+  if (url !== null) {
+    if (url.startsWith("data:") || isWebUrl(url)) {
+      return url;
+    }
+    throw invalidFilePartError(
+      part,
+      "Image file parts only support http(s) URLs, data URLs, or raw bytes / base64 string payloads.",
+    );
+  }
+
+  return toDataUrl(part);
+}
+
+function toFileData(part: LanguageModelV3FilePart): string {
+  if (part.data instanceof Uint8Array) {
+    return Buffer.from(part.data).toString("base64");
+  }
+
+  if (part.data instanceof URL) {
+    const url = part.data.toString();
+    if (url.startsWith("data:")) {
+      return extractBase64DataFromDataUrl(url, part);
+    }
+    throw invalidFilePartError(
+      part,
+      "URL-based file parts must be sent as file_url.",
+    );
+  }
+
+  if (typeof part.data === "string") {
+    if (isWebUrl(part.data)) {
+      throw invalidFilePartError(
+        part,
+        "URL-based file parts must be sent as file_url.",
+      );
+    }
+    if (part.data.startsWith("data:")) {
+      return extractBase64DataFromDataUrl(part.data, part);
+    }
+    return part.data;
+  }
+
+  throw invalidFilePartError(
+    part,
+    `Unsupported file data type "${typeof part.data}".`,
+  );
+}
+
+function toUrlString(data: LanguageModelV3FilePart["data"]): string | null {
+  if (data instanceof URL) {
+    return data.toString();
+  }
+
+  if (typeof data !== "string") {
+    return null;
+  }
+
+  try {
+    return new URL(data).toString();
+  } catch {
+    return null;
+  }
+}
+
+function isWebUrl(value: string): boolean {
+  return value.startsWith("http://") || value.startsWith("https://");
+}
+
+function toDataUrl(part: LanguageModelV3FilePart): string {
+  if (part.data instanceof Uint8Array) {
+    return `data:${part.mediaType};base64,${Buffer.from(part.data).toString("base64")}`;
+  }
+
+  if (typeof part.data === "string") {
+    if (part.data.startsWith("data:")) {
+      return part.data;
+    }
+    if (isWebUrl(part.data)) {
+      return part.data;
+    }
+    return `data:${part.mediaType};base64,${part.data}`;
+  }
+
+  if (part.data instanceof URL) {
+    return part.data.toString();
+  }
+
+  throw invalidFilePartError(
+    part,
+    `Unsupported image data type "${typeof part.data}".`,
+  );
+}
+
+function extractBase64DataFromDataUrl(
+  value: string,
+  part: LanguageModelV3FilePart,
+): string {
+  // RFC 2397: mediatype may be empty (`data:;base64,...` is valid).
+  const match = /^data:[^;,]*(?:;[^;,=]+=[^;,]+)*(;base64)?,(.*)$/i.exec(value);
+
+  if (match?.[1] !== ";base64") {
+    throw invalidFilePartError(
+      part,
+      "Only base64 data URLs are supported for file inputs.",
+    );
+  }
+
+  return match[2] ?? "";
+}
+
+function invalidFilePartError(
+  part: LanguageModelV3FilePart,
+  reason: string,
+): InvalidPromptError {
+  return new InvalidPromptError({
+    prompt: part,
+    message: `Sokosumi provider: cannot map file part (${part.mediaType}) to Responses API input. ${reason}`,
+  });
 }
 
 export function lastTurnToResponsesInput(

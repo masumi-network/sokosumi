@@ -4,7 +4,10 @@ import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import type { Dispatch, SetStateAction } from "react";
 
-import type { Coworker } from "@/app/chat/utils/types";
+import type {
+  ChatComposeSubmitOptions,
+  Coworker,
+} from "@/app/chat/utils/types";
 import { MultimodalInput } from "@/components/chat/multimodal-input";
 
 interface ChatInputContainerProps {
@@ -20,7 +23,8 @@ interface ChatInputContainerProps {
     message: string,
     coworker?: Coworker,
     model?: { id: string; name: string },
-  ) => void;
+    options?: ChatComposeSubmitOptions,
+  ) => boolean | Promise<boolean>;
   selectedModel: { id: string; name: string } | null;
   onSelectModel: (model: { id: string; name: string } | null) => void;
   selectedChatCoworker?: Coworker;

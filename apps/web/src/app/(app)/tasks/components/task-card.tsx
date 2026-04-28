@@ -46,13 +46,16 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
               <TaskStatusBadge status={task.status} />
             </div>
 
-            {task.descriptionPlain || task.description ? (
-              <p className="text-muted-foreground/80 line-clamp-2 text-xs leading-relaxed break-all">
-                {task.descriptionPlain ?? task.description}
-              </p>
-            ) : null}
+            <div className="space-y-1.5">
+              {task.descriptionPlain || task.description ? (
+                <p className="text-muted-foreground/80 line-clamp-2 text-xs leading-relaxed break-all">
+                  {task.descriptionPlain ?? task.description}
+                </p>
+              ) : null}
+            </div>
 
             <TaskMetaDetails
+              owner={task.user}
               coworker={task.coworker}
               commentsCount={task.commentsCount}
               createdAt={task.createdAt}

@@ -103,6 +103,7 @@ export function mapTaskToTaskWithCoworker(
     name: task.name,
     status: task.status,
     userId: task.userId,
+    user: task.user,
     createdAt,
     updatedAt,
     jobsCount: task.jobs.length,
