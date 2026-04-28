@@ -66,9 +66,27 @@ describe("buildConversationContentParts", () => {
       }),
     ).toEqual([{ type: "output_text", text: "" }]);
   });
+
+  it("falls back to an empty text part for file contentType without ui_message_v1 parts", () => {
+    expect(
+      buildConversationContentParts({
+        contentText: "",
+        metadata: null,
+        fallbackPrimaryContentType: "file",
+      }),
+    ).toEqual([{ type: "text", text: "" }]);
+  });
 });
 
 describe("extractPersistableUiParts", () => {
+  it("does not synthesize ui_message_v1 parts from plain string content", () => {
+    expect(
+      extractPersistableUiParts({
+        content: "Hello",
+      }),
+    ).toEqual([]);
+  });
+
   it("normalizes input_text to a persistable text part", () => {
     expect(
       extractPersistableUiParts({

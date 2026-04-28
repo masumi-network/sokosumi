@@ -16,6 +16,20 @@ describe("conversationMessageToApiContent", () => {
     ).toBe("Hello");
   });
 
+  it("returns plain string for legacy metadata that only mirrors plain text", () => {
+    expect(
+      conversationMessageToApiContent({
+        contentType: null,
+        contentText: "Hello",
+        metadata: {
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Hello" }],
+          },
+        },
+      }),
+    ).toBe("Hello");
+  });
+
   it("places reasoning steps before the primary body part type from contentType", () => {
     expect(
       conversationMessageToApiContent({
@@ -65,6 +79,26 @@ describe("conversationMessageToApiContent", () => {
         filename: "brief.pdf",
       },
     ]);
+  });
+
+  it("falls back to a text body when file contentType has no persisted file metadata", () => {
+    expect(
+      conversationMessageToApiContent({
+        contentType: "file",
+        contentText: "",
+        metadata: null,
+      }),
+    ).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("returns plain string when contentType is blank after trimming", () => {
+    expect(
+      conversationMessageToApiContent({
+        contentType: "   ",
+        contentText: "",
+        metadata: null,
+      }),
+    ).toBe("");
   });
 });
 

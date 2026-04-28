@@ -15,6 +15,24 @@ function readEpochMs(value: unknown): number | null {
   return null;
 }
 
+function isLegacyPlainTextMetadataShape(params: {
+  contentType: string | null;
+  contentText: string;
+  reasoningParts: Array<{ type: string; text: string }>;
+  persistedUiParts: Array<{ type: "text" | "file"; text?: string }>;
+}): boolean {
+  const { contentType, contentText, reasoningParts, persistedUiParts } = params;
+  if (contentType && contentType !== "") {
+    return false;
+  }
+  if (reasoningParts.length > 0 || persistedUiParts.length !== 1) {
+    return false;
+  }
+
+  const [singlePart] = persistedUiParts;
+  return singlePart?.type === "text" && singlePart.text === contentText;
+}
+
 /** Reads persisted `metadata.thought_timing_ms` for API clients. */
 export function thoughtTimingFromMessageMetadata(metadata: unknown):
   | {
@@ -54,12 +72,14 @@ export function conversationMessageToApiContent(item: {
   const reasoningParts = readReasoningPartsFromMetadata(item.metadata);
   const persistedUiParts = readPersistedUiPartsFromMetadata(item.metadata);
 
-  const hasStructured =
-    (item.contentType && item.contentType !== "") ||
-    reasoningParts.length > 0 ||
-    persistedUiParts.length > 0;
-
-  if (!hasStructured) {
+  if (
+    isLegacyPlainTextMetadataShape({
+      contentType: item.contentType,
+      contentText: item.contentText,
+      reasoningParts,
+      persistedUiParts,
+    })
+  ) {
     return item.contentText;
   }
 
@@ -67,7 +87,21 @@ export function conversationMessageToApiContent(item: {
     contentText: item.contentText,
     metadata: item.metadata,
     fallbackPrimaryContentType: item.contentType,
+    reasoningParts,
+    storedUiParts: persistedUiParts,
   });
+
+  const hasStructuredContentType =
+    typeof item.contentType === "string" && item.contentType.trim().length > 0;
+  const hasStructured =
+    parts.length > 0 &&
+    (hasStructuredContentType ||
+      reasoningParts.length > 0 ||
+      persistedUiParts.length > 0);
+
+  if (!hasStructured) {
+    return item.contentText;
+  }
 
   return parts;
 }

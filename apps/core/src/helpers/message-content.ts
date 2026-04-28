@@ -76,6 +76,33 @@ function readRawMessagePartItems(message: Record<string, unknown>): unknown[] {
   return [];
 }
 
+function readPersistableUiPartItems(
+  message: Record<string, unknown>,
+): unknown[] {
+  const content = "content" in message ? message.content : undefined;
+  const parts = "parts" in message ? message.parts : undefined;
+
+  // Structured content takes precedence; avoid promoting plain string content
+  // into synthetic metadata parts so legacy string responses stay unchanged.
+  if (Array.isArray(content) && content.length > 0) {
+    return content;
+  }
+
+  if (Array.isArray(parts) && parts.length > 0) {
+    return parts;
+  }
+
+  if (Array.isArray(content)) {
+    return content;
+  }
+
+  if (Array.isArray(parts)) {
+    return parts;
+  }
+
+  return [];
+}
+
 function normalizeTextPart(
   part: Record<string, unknown>,
 ): PersistedChatUiTextPart | null {
@@ -217,7 +244,7 @@ export function extractMessageText(message: Record<string, unknown>): string {
 export function extractPersistableUiParts(
   message: Record<string, unknown>,
 ): PersistedChatUiPart[] {
-  return readRawMessagePartItems(message)
+  return readPersistableUiPartItems(message)
     .map((part) => normalizePersistedChatUiPart(part))
     .filter((part): part is PersistedChatUiPart => part !== null);
 }
@@ -268,16 +295,22 @@ export function buildConversationContentParts(params: {
   includeEmptyTextFallback?: boolean;
   /** When set (e.g. DB `contentType`), echoed for the synthesized body part instead of `text`. */
   fallbackPrimaryContentType?: string | null;
+  reasoningParts?: PersistedChatUiReasoningPart[];
+  storedUiParts?: PersistedChatUiPart[];
 }): PersistedConversationContentPart[] {
   const {
     contentText,
     metadata,
     includeEmptyTextFallback = false,
     fallbackPrimaryContentType,
+    reasoningParts: providedReasoningParts,
+    storedUiParts: providedStoredUiParts,
   } = params;
 
-  const reasoningParts = readReasoningPartsFromMetadata(metadata);
-  const storedUiParts = readPersistedUiPartsFromMetadata(metadata);
+  const reasoningParts =
+    providedReasoningParts ?? readReasoningPartsFromMetadata(metadata);
+  const storedUiParts =
+    providedStoredUiParts ?? readPersistedUiPartsFromMetadata(metadata);
   const hasTextPart = storedUiParts.some((part) => part.type === "text");
   const text = contentText ?? "";
 
@@ -291,9 +324,7 @@ export function buildConversationContentParts(params: {
     !hasTextPart &&
     (text.length > 0 ||
       includeEmptyTextFallback ||
-      (trimmedFallback !== undefined &&
-        trimmedFallback !== "" &&
-        trimmedFallback !== "file"));
+      (trimmedFallback !== undefined && trimmedFallback !== ""));
 
   if (shouldAddPrimaryBody) {
     parts.push(syntheticPrimaryBodyPart(text, fallbackPrimaryContentType));
