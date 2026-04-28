@@ -48,7 +48,16 @@ export function conversationMessagesToUiMessages(
       includeEmptyTextFallback: true,
     });
 
-    const parts = assistantContentPartsToAiSdkUiParts(rawParts);
+    const partsForRole =
+      validRole === "assistant"
+        ? assistantContentPartsToAiSdkUiParts(rawParts)
+        : (rawParts.filter(
+            (p) => p.type === "text" || p.type === "file",
+          ) as UIMessage["parts"]);
+    const parts =
+      partsForRole.length > 0
+        ? partsForRole
+        : ([{ type: "text" as const, text: "" }] satisfies UIMessage["parts"]);
 
     const timing = thoughtTimingFromMessageMetadata(message.metadata);
 

@@ -71,4 +71,23 @@ describe("conversationMessagesToUiMessages", () => {
 
     await expect(validateUIMessages({ messages })).resolves.toBeDefined();
   });
+
+  it("strips reasoning metadata from user messages (parity with mapChatRequestToUiMessages)", async () => {
+    const messages = conversationMessagesToUiMessages([
+      {
+        id: "m1",
+        role: "user",
+        contentText: "Hi",
+        metadata: {
+          reasoning: [{ type: "reasoning", text: "corrupt or migrated" }],
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Hi" }],
+          },
+        },
+      },
+    ]);
+
+    expect(messages[0]?.parts).toEqual([{ type: "text", text: "Hi" }]);
+    await expect(validateUIMessages({ messages })).resolves.toBeDefined();
+  });
 });

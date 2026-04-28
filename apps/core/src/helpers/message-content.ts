@@ -97,7 +97,9 @@ function readMessagePartItems(
   const parts = "parts" in message ? message.parts : undefined;
 
   if (Array.isArray(content) && content.length > 0) {
-    return mergeStringContentWhenNoTextLikeParts(content, content);
+    // `mergeStringContentWhenNoTextLikeParts` only prepends when the second arg is
+    // a non-empty string; passing the same array as both args was always a no-op.
+    return content;
   }
 
   if (Array.isArray(parts) && parts.length > 0) {
@@ -109,7 +111,7 @@ function readMessagePartItems(
   }
 
   if (Array.isArray(content)) {
-    return mergeStringContentWhenNoTextLikeParts(content, content);
+    return content;
   }
 
   if (Array.isArray(parts)) {
