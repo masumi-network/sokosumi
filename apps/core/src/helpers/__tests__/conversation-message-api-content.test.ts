@@ -91,6 +91,34 @@ describe("conversationMessageToApiContent", () => {
     ).toEqual([{ type: "text", text: "" }]);
   });
 
+  it("does not append an empty text part when persisted ui is file-only", () => {
+    expect(
+      conversationMessageToApiContent({
+        contentType: "file",
+        contentText: "",
+        metadata: {
+          ui_message_v1: {
+            parts: [
+              {
+                type: "file",
+                url: "https://example.com/brief.pdf",
+                mediaType: "application/pdf",
+                filename: "brief.pdf",
+              },
+            ],
+          },
+        },
+      }),
+    ).toEqual([
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+        filename: "brief.pdf",
+      },
+    ]);
+  });
+
   it("returns plain string when contentType is blank after trimming", () => {
     expect(
       conversationMessageToApiContent({

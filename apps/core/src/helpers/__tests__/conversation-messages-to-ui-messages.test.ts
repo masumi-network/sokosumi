@@ -38,4 +38,37 @@ describe("conversationMessagesToUiMessages", () => {
 
     await expect(validateUIMessages({ messages })).resolves.toBeDefined();
   });
+
+  it("rehydrates file-only metadata without a trailing empty text part", async () => {
+    const messages = conversationMessagesToUiMessages([
+      {
+        id: "m1",
+        role: "user",
+        contentText: "",
+        metadata: {
+          ui_message_v1: {
+            parts: [
+              {
+                type: "file",
+                url: "https://example.com/brief.pdf",
+                mediaType: "application/pdf",
+                filename: "brief.pdf",
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    expect(messages[0]?.parts).toEqual([
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+        filename: "brief.pdf",
+      },
+    ]);
+
+    await expect(validateUIMessages({ messages })).resolves.toBeDefined();
+  });
 });

@@ -76,6 +76,34 @@ describe("buildConversationContentParts", () => {
       }),
     ).toEqual([{ type: "text", text: "" }]);
   });
+
+  it("does not append an empty text part when metadata is file-only and contentType is file", () => {
+    expect(
+      buildConversationContentParts({
+        contentText: "",
+        metadata: {
+          ui_message_v1: {
+            parts: [
+              {
+                type: "file",
+                url: "https://example.com/brief.pdf",
+                mediaType: "application/pdf",
+                filename: "brief.pdf",
+              },
+            ],
+          },
+        },
+        fallbackPrimaryContentType: "file",
+      }),
+    ).toEqual([
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+        filename: "brief.pdf",
+      },
+    ]);
+  });
 });
 
 describe("extractPersistableUiParts", () => {

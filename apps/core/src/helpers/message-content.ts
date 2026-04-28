@@ -303,8 +303,18 @@ export function buildConversationContentParts(params: {
   ];
 
   const trimmedFallback = fallbackPrimaryContentType?.trim();
+  const hasFilePart = storedUiParts.some((part) => part.type === "file");
+  /** Empty synthetic `{ type: "text", text: "" }` is redundant when files already carry the body. */
+  const wouldAddRedundantEmptyTextAfterFiles =
+    text.length === 0 &&
+    hasFilePart &&
+    (!trimmedFallback ||
+      trimmedFallback === "file" ||
+      trimmedFallback === "text");
+
   const shouldAddPrimaryBody =
     !hasTextPart &&
+    !wouldAddRedundantEmptyTextAfterFiles &&
     (text.length > 0 ||
       includeEmptyTextFallback ||
       (trimmedFallback !== undefined && trimmedFallback !== ""));
