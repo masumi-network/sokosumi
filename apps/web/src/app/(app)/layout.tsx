@@ -16,7 +16,6 @@ import QueryProvider from "@/contexts/query-provider";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
-import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import {
@@ -63,7 +62,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     shouldShowOnboarding,
     pendingNoticesResult,
     activeOrganization,
-    creditsResultRaw,
+    creditsResult,
     coworkersResult,
   ] = await Promise.all([
     userService.showOnboarding(session),
@@ -72,7 +71,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers("chat").catch(() => []),
   ]);
-  const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
   const pendingNotices = pendingNoticesResult.ok
     ? pendingNoticesResult.data

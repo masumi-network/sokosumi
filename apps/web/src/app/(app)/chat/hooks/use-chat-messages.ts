@@ -4,15 +4,24 @@ import type { UIMessage } from "ai";
 import { useCallback, useEffect, useRef } from "react";
 
 import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
-import {
-  type ConversationWithMessages,
-  getConversationMessages,
-} from "@/lib/actions/conversation/core-api-actions";
-import type { ConversationMessage } from "@/lib/clients/generated/core/types.gen";
+import { getConversationMessages } from "@/lib/actions/conversation/core-api-actions";
 
 interface UseChatMessagesProps {
   selectedChatId: string | null;
-  selectedConversation: ConversationWithMessages | null;
+  selectedConversation: {
+    id: string;
+    messages?: Array<{
+      id: string;
+      role: string;
+      content: Array<{ type: string; text?: string }> | string;
+      createdAt: number;
+      thoughtTiming?: {
+        startedAtMs: number | null;
+        endedAtMs: number | null;
+      };
+    }>;
+    metadata?: Record<string, unknown> | null;
+  } | null;
   setMessagesForConversation: (convId: string, messages: UIMessage[]) => void;
   previousChatIdRef: React.MutableRefObject<string | null>;
   messagesChatIdRef: React.MutableRefObject<string | null>;
@@ -82,7 +91,16 @@ export function useChatMessages({
           | {
               ok: true;
               data: {
-                messages: ConversationMessage[];
+                messages: Array<{
+                  id: string;
+                  role: string;
+                  content: Array<{ type: string; text?: string }> | string;
+                  createdAt: number;
+                  thoughtTiming?: {
+                    startedAtMs: number | null;
+                    endedAtMs: number | null;
+                  };
+                }>;
                 pagination: {
                   cursor: string | null;
                   limit: number;
@@ -112,7 +130,16 @@ export function useChatMessages({
           });
 
           const resultAny = rawItemsResult as SerializedResult;
-          let conversationMessages: ConversationMessage[] | null = null;
+          let conversationMessages: Array<{
+            id: string;
+            role: string;
+            content: Array<{ type: string; text?: string }> | string;
+            createdAt: number;
+            thoughtTiming?: {
+              startedAtMs: number | null;
+              endedAtMs: number | null;
+            };
+          }> | null = null;
 
           if (
             resultAny &&
@@ -131,7 +158,16 @@ export function useChatMessages({
           ) {
             if (resultAny.isOk() && "value" in resultAny) {
               const value = resultAny.value as {
-                messages: ConversationMessage[];
+                messages: Array<{
+                  id: string;
+                  role: string;
+                  content: Array<{ type: string; text?: string }> | string;
+                  createdAt: number;
+                  thoughtTiming?: {
+                    startedAtMs: number | null;
+                    endedAtMs: number | null;
+                  };
+                }>;
               };
               conversationMessages = value.messages;
             }
@@ -156,7 +192,16 @@ export function useChatMessages({
                     limit: 100,
                   });
                   const retryResultAny = retryResult as SerializedResult;
-                  let retryItems: ConversationMessage[] | null = null;
+                  let retryItems: Array<{
+                    id: string;
+                    role: string;
+                    content: Array<{ type: string; text?: string }> | string;
+                    createdAt: number;
+                    thoughtTiming?: {
+                      startedAtMs: number | null;
+                      endedAtMs: number | null;
+                    };
+                  }> | null = null;
 
                   if (
                     retryResultAny &&
@@ -175,7 +220,18 @@ export function useChatMessages({
                   ) {
                     if (retryResultAny.isOk() && "value" in retryResultAny) {
                       const value = retryResultAny.value as {
-                        messages: ConversationMessage[];
+                        messages: Array<{
+                          id: string;
+                          role: string;
+                          content:
+                            | Array<{ type: string; text?: string }>
+                            | string;
+                          createdAt: number;
+                          thoughtTiming?: {
+                            startedAtMs: number | null;
+                            endedAtMs: number | null;
+                          };
+                        }>;
                       };
                       retryItems = value.messages;
                     }

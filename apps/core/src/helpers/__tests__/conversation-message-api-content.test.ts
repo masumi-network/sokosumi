@@ -16,21 +16,7 @@ describe("conversationMessageToApiContent", () => {
     ).toBe("Hello");
   });
 
-  it("returns plain string for legacy metadata that only mirrors plain text", () => {
-    expect(
-      conversationMessageToApiContent({
-        contentType: null,
-        contentText: "Hello",
-        metadata: {
-          ui_message_v1: {
-            parts: [{ type: "text", text: "Hello" }],
-          },
-        },
-      }),
-    ).toBe("Hello");
-  });
-
-  it("places reasoning steps before the primary body part type from contentType", () => {
+  it("places reasoning steps before output_text", () => {
     expect(
       conversationMessageToApiContent({
         contentType: "output_text",
@@ -47,104 +33,6 @@ describe("conversationMessageToApiContent", () => {
       { type: "reasoning", text: "Second" },
       { type: "output_text", text: "Answer" },
     ]);
-  });
-
-  it("round-trips reasoning plus output_text stored in ui_message_v1", () => {
-    expect(
-      conversationMessageToApiContent({
-        contentType: "output_text",
-        contentText: "Answer",
-        metadata: {
-          reasoning: [{ type: "reasoning", text: "Step A" }],
-          ui_message_v1: {
-            parts: [{ type: "output_text", text: "Answer" }],
-          },
-        },
-      }),
-    ).toEqual([
-      { type: "reasoning", text: "Step A" },
-      { type: "output_text", text: "Answer" },
-    ]);
-  });
-
-  it("returns stored ui_message_v1 file parts after reasoning", () => {
-    expect(
-      conversationMessageToApiContent({
-        contentType: "file",
-        contentText: "Please review",
-        metadata: {
-          reasoning: [{ type: "reasoning", text: "Looking at the document" }],
-          ui_message_v1: {
-            parts: [
-              { type: "text", text: "Please review" },
-              {
-                type: "file",
-                url: "https://example.com/brief.pdf",
-                mediaType: "application/pdf",
-                filename: "brief.pdf",
-              },
-            ],
-          },
-        },
-      }),
-    ).toEqual([
-      { type: "reasoning", text: "Looking at the document" },
-      { type: "text", text: "Please review" },
-      {
-        type: "file",
-        url: "https://example.com/brief.pdf",
-        mediaType: "application/pdf",
-        filename: "brief.pdf",
-      },
-    ]);
-  });
-
-  it("falls back to a text body when file contentType has no persisted file metadata", () => {
-    expect(
-      conversationMessageToApiContent({
-        contentType: "file",
-        contentText: "",
-        metadata: null,
-      }),
-    ).toEqual([{ type: "text", text: "" }]);
-  });
-
-  it("does not append an empty text part when persisted ui is file-only", () => {
-    expect(
-      conversationMessageToApiContent({
-        contentType: "file",
-        contentText: "",
-        metadata: {
-          ui_message_v1: {
-            parts: [
-              {
-                type: "file",
-                url: "https://example.com/brief.pdf",
-                mediaType: "application/pdf",
-                filename: "brief.pdf",
-              },
-            ],
-          },
-        },
-      }),
-    ).toEqual([
-      {
-        type: "file",
-        url: "https://example.com/brief.pdf",
-        mediaType: "application/pdf",
-        filename: "brief.pdf",
-      },
-    ]);
-  });
-
-  it("returns plain string when contentType is blank after trimming", () => {
-    expect(
-      conversationMessageToApiContent({
-        contentType: "   ",
-        contentText: "",
-        metadata: null,
-      }),
-    ).toBe("");
   });
 });
 

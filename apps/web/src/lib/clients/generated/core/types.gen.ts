@@ -307,22 +307,14 @@ export type ChatUiMessage = {
     id: string;
     role: 'user' | 'assistant' | 'system';
     parts: Array<{
-        type: 'file';
-        url: string;
-        mediaType: string;
-        filename?: string;
+        type: 'reasoning';
+        text: string;
     } | {
         type: 'text';
         text: string;
     } | {
-        type: 'input_text';
-        text: string;
-    } | {
-        type: 'output_text';
-        text: string;
-    } | {
         type: string;
-        text: string;
+        text?: string;
     }>;
     metadata?: {
         thoughtStartedAtMs: number;
@@ -411,22 +403,8 @@ export type ConversationMessage = {
      * Message content — string for plain text, or array of typed parts
      */
     content: string | Array<{
-        type: 'file';
-        url: string;
-        mediaType: string;
-        filename?: string;
-    } | {
-        type: 'text';
-        text: string;
-    } | {
-        type: 'input_text';
-        text: string;
-    } | {
-        type: 'output_text';
-        text: string;
-    } | {
         type: string;
-        text: string;
+        text?: string;
     }>;
     /**
      * Unix timestamp in seconds
@@ -450,22 +428,8 @@ export type CreateConversationMessageRequest = {
      * Message content — string for plain text, or array of typed parts
      */
     content: string | Array<{
-        type: 'file';
-        url: string;
-        mediaType: string;
-        filename?: string;
-    } | {
-        type: 'text';
-        text: string;
-    } | {
-        type: 'input_text';
-        text: string;
-    } | {
-        type: 'output_text';
-        text: string;
-    } | {
         type: string;
-        text: string;
+        text?: string;
     }>;
 };
 
@@ -3662,80 +3626,24 @@ export type PostChatData = {
         messages?: Array<{
             role: 'user' | 'assistant' | 'system';
             parts?: Array<{
-                type: 'file';
-                url: string;
-                mediaType: string;
-                filename?: string;
-            } | {
-                type: 'text';
-                text: string;
-            } | {
-                type: 'input_text';
-                text: string;
-            } | {
-                type: 'output_text';
-                text: string;
-            } | {
                 type: string;
-                text: string;
+                text?: string;
             }>;
             content?: string | Array<{
-                type: 'file';
-                url: string;
-                mediaType: string;
-                filename?: string;
-            } | {
-                type: 'text';
-                text: string;
-            } | {
-                type: 'input_text';
-                text: string;
-            } | {
-                type: 'output_text';
-                text: string;
-            } | {
                 type: string;
-                text: string;
+                text?: string;
             }>;
             id?: string;
         }>;
         message?: {
             role: 'user' | 'assistant' | 'system';
             parts?: Array<{
-                type: 'file';
-                url: string;
-                mediaType: string;
-                filename?: string;
-            } | {
-                type: 'text';
-                text: string;
-            } | {
-                type: 'input_text';
-                text: string;
-            } | {
-                type: 'output_text';
-                text: string;
-            } | {
                 type: string;
-                text: string;
+                text?: string;
             }>;
             content?: string | Array<{
-                type: 'file';
-                url: string;
-                mediaType: string;
-                filename?: string;
-            } | {
-                type: 'text';
-                text: string;
-            } | {
-                type: 'input_text';
-                text: string;
-            } | {
-                type: 'output_text';
-                text: string;
-            } | {
                 type: string;
-                text: string;
+                text?: string;
             }>;
             id?: string;
         };

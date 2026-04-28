@@ -1,13 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { openrouterClient } from "@/clients/openrouter.client";
-import { conversationMessageToApiContent } from "@/helpers/conversation-message-api-content";
 import { notFound } from "@/helpers/error";
-import {
-  extractMessageText,
-  extractPersistableUiParts,
-  extractReasoningPartsFromMessage,
-} from "@/helpers/message-content";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -80,20 +74,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const messagePayload = { content: body.content };
-    const contentText = extractMessageText(messagePayload);
-    const uiParts = extractPersistableUiParts(messagePayload);
-    const reasoningParts = extractReasoningPartsFromMessage(messagePayload);
-    const contentType = uiParts[0]?.type ?? null;
-    const metadata =
-      reasoningParts.length > 0 || uiParts.length > 0
-        ? {
-            ...(reasoningParts.length > 0 ? { reasoning: reasoningParts } : {}),
-            ...(uiParts.length > 0
-              ? { ui_message_v1: { parts: uiParts } }
-              : {}),
-          }
-        : undefined;
+    let contentText: string;
+    let contentType: string | null = null;
+
+    if (typeof body.content === "string") {
+      contentText = body.content;
+    } else if (Array.isArray(body.content) && body.content.length > 0) {
+      contentText =
+        body.content
+          .map((item) => item.text || "")
+          .filter(Boolean)
+          .join("") || "";
+      contentType = body.content[0]?.type || null;
+    } else {
+      contentText = "";
+    }
 
     const { item, shouldGenerateTitle, conversationId } =
       await prisma.$transaction(async (tx) => {
@@ -118,7 +113,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             role: body.role,
             contentType,
             contentText,
-            metadata,
           },
         });
 
@@ -142,11 +136,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    const content = conversationMessageToApiContent({
-      contentType: item.contentType,
-      contentText: item.contentText,
-      metadata: item.metadata,
-    });
+    const content: string | Array<{ type: string; text: string }> =
+      item.contentType && item.contentType !== ""
+        ? [{ type: item.contentType, text: item.contentText }]
+        : item.contentText;
 
     const response = {
       id: item.id,

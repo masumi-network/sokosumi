@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { convertItemsToMessages } from "@/lib/chat/conversation-api-to-ui-messages";
-
 import {
+  convertItemsToMessages,
   deduplicateMessagesById,
   extractMessageContent,
   extractReasoningStepMessages,
@@ -173,6 +172,45 @@ describe("mergeAssistantThoughtMetadataFromDb", () => {
     expect(merged[0]).toMatchObject({
       id: "asst-1",
       metadata: { thoughtStartedAtMs: 10, thoughtEndedAtMs: 50 },
+    });
+  });
+});
+
+describe("convertItemsToMessages", () => {
+  it("maps API content arrays with reasoning then assistant text", () => {
+    const messages = convertItemsToMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        createdAt: 1700000000,
+        content: [
+          { type: "reasoning", text: "Think" },
+          { type: "output_text", text: "Hi" },
+        ],
+      },
+    ]);
+    expect(messages[0]?.parts).toEqual([
+      { type: "reasoning", text: "Think" },
+      { type: "text", text: "Hi" },
+    ]);
+  });
+
+  it("attaches thought timing metadata when the API item includes thoughtTiming", () => {
+    const messages = convertItemsToMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        createdAt: 1700000000,
+        content: [{ type: "output_text", text: "Hi" }],
+        thoughtTiming: {
+          startedAtMs: 1000,
+          endedAtMs: 5000,
+        },
+      },
+    ]);
+    expect(messages[0]?.metadata).toEqual({
+      thoughtStartedAtMs: 1000,
+      thoughtEndedAtMs: 5000,
     });
   });
 });
