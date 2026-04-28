@@ -207,6 +207,13 @@ describe("POST /projects/{id}/jobs", () => {
     const body = (await res.json()) as { data: { id: string; name: string } };
     expect(body.data.id).toBe(PROJECT_ID);
     expect(body.data.name).toBe("P");
+    expect(jobUpdateMock).toHaveBeenCalledWith({
+      where: { id: "job_1" },
+      data: {
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+      },
+    });
   });
 
   it("does not update the job when it is already linked to this project", async () => {

@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { assignJobToProject } from "@/helpers/project-placement";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -81,9 +81,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (job.projectId !== projectId) {
-      await prisma.job.update({
-        where: { id: body.jobId },
-        data: { projectId },
+      await assignJobToProject(prisma, {
+        jobId: body.jobId,
+        projectId,
       });
     }
 

@@ -241,6 +241,7 @@ describe("PUT /jobs/{id}/workspace", () => {
       },
       data: {
         workspaceId: "11111111-1111-4111-8111-111111111111",
+        projectId: null,
       },
     });
   });

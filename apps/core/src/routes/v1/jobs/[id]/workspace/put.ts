@@ -127,6 +127,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
           data: {
             workspaceId: workspace.id,
+            projectId: null,
           },
         });
 
