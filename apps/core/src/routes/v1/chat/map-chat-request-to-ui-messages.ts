@@ -1,6 +1,7 @@
 import type { z } from "@hono/zod-openapi";
 import type { UIMessage } from "ai";
 
+import { assistantContentPartsToAiSdkUiParts } from "@/helpers/conversation-messages-to-ui-messages";
 import { extractUiMessageParts } from "@/helpers/message-content";
 import { chatRequestMessageSchema } from "@/schemas/chat-request.schema.js";
 
@@ -13,7 +14,7 @@ export function mapChatRequestToUiMessages(
     const extracted = extractUiMessageParts(m as Record<string, unknown>);
     const partsForRole =
       m.role === "assistant"
-        ? extracted
+        ? assistantContentPartsToAiSdkUiParts(extracted)
         : extracted.filter((p) => p.type === "text" || p.type === "file");
     const parts =
       partsForRole.length > 0

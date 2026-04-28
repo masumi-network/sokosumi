@@ -1,7 +1,29 @@
 import type { UIMessage } from "ai";
 
 import { thoughtTimingFromMessageMetadata } from "@/helpers/conversation-message-api-content";
-import { buildConversationContentParts } from "@/helpers/message-content";
+import {
+  buildConversationContentParts,
+  type PersistedConversationContentPart,
+} from "@/helpers/message-content";
+
+/**
+ * Coerce assistant body parts to AI SDK `UIMessage` parts: non-text/file segments
+ * with `text` become `{ type: "reasoning", text }` so provider-specific labels
+ * (e.g. `redacted_reasoning`) pass `validateUIMessages`.
+ */
+export function assistantContentPartsToAiSdkUiParts(
+  rawParts: PersistedConversationContentPart[],
+): UIMessage["parts"] {
+  return rawParts.map((part) => {
+    if (part.type === "file" || part.type === "text") {
+      return part;
+    }
+    if ("text" in part && typeof part.text === "string") {
+      return { type: "reasoning" as const, text: part.text };
+    }
+    return part;
+  }) as UIMessage["parts"];
+}
 
 /** Maps persisted conversation messages to AI SDK `UIMessage` (text + optional reasoning parts). */
 export function conversationMessagesToUiMessages(
@@ -26,15 +48,7 @@ export function conversationMessagesToUiMessages(
       includeEmptyTextFallback: true,
     });
 
-    const parts = rawParts.map((part) => {
-      if (part.type === "file" || part.type === "text") {
-        return part;
-      }
-      if ("text" in part && typeof part.text === "string") {
-        return { type: "reasoning" as const, text: part.text };
-      }
-      return part;
-    }) as UIMessage["parts"];
+    const parts = assistantContentPartsToAiSdkUiParts(rawParts);
 
     const timing = thoughtTimingFromMessageMetadata(message.metadata);
 
