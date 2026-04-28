@@ -84,7 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { id: body.jobId },
         data: {
           projectId,
-          workspaceId: project.workspaceId,
+          workspaceId,
         },
       });
     }
