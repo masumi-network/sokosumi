@@ -1,3 +1,4 @@
+import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
 
 import type { ConversationMessage } from "@/lib/clients/generated/core/types.gen";
@@ -203,8 +204,11 @@ function partsFromApiItemContent(
       });
       continue;
     }
-    if (c.type === "reasoning") {
-      parts.push({ type: "reasoning", text: c.text ?? "" });
+    if (isChatUiProviderReasoningPartType(c.type)) {
+      parts.push({
+        type: "reasoning",
+        text: "text" in c ? (c.text ?? "") : "",
+      });
       continue;
     }
     parts.push({ type: "text", text: "text" in c ? (c.text ?? "") : "" });

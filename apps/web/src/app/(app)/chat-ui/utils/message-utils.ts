@@ -1,3 +1,4 @@
+import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
 
 import { getReasoningStepDisplayText } from "./reasoning-generic-labels";
@@ -202,18 +203,64 @@ export function deduplicateMessagesById<T extends { id?: string }>(
 }
 
 function partsFromApiItemContent(
-  content: Array<{ type: string; text?: string }> | string,
+  content:
+    | string
+    | ReadonlyArray<
+        | { type: string; text?: string }
+        | {
+            type: "file";
+            url: string;
+            mediaType: string;
+            filename?: string;
+          }
+      >,
 ): UIMessage["parts"] {
   if (typeof content === "string") {
     return [{ type: "text", text: content }];
   }
   const parts: UIMessage["parts"] = [];
   for (const c of content) {
-    if (c.type === "reasoning") {
-      parts.push({ type: "reasoning", text: c.text ?? "" });
+    if (
+      typeof c === "object" &&
+      c !== null &&
+      "type" in c &&
+      c.type === "file" &&
+      "url" in c &&
+      typeof (c as { url?: unknown }).url === "string" &&
+      "mediaType" in c &&
+      typeof (c as { mediaType?: unknown }).mediaType === "string"
+    ) {
+      const file = c as {
+        type: "file";
+        url: string;
+        mediaType: string;
+        filename?: string;
+      };
+      parts.push({
+        type: "file",
+        url: file.url,
+        mediaType: file.mediaType,
+        ...(file.filename !== undefined ? { filename: file.filename } : {}),
+      });
       continue;
     }
-    parts.push({ type: "text", text: c.text ?? "" });
+    if (isChatUiProviderReasoningPartType((c as { type?: unknown }).type)) {
+      parts.push({
+        type: "reasoning",
+        text:
+          "text" in c && typeof (c as { text?: unknown }).text === "string"
+            ? (c as { text: string }).text
+            : "",
+      });
+      continue;
+    }
+    parts.push({
+      type: "text",
+      text:
+        "text" in c && typeof (c as { text?: unknown }).text === "string"
+          ? (c as { text: string }).text
+          : "",
+    });
   }
   return parts.length > 0 ? parts : [{ type: "text", text: "" }];
 }
@@ -232,7 +279,17 @@ export function convertItemsToMessages(
   items: Array<{
     id: string;
     role: string;
-    content: Array<{ type: string; text?: string }> | string;
+    content:
+      | string
+      | ReadonlyArray<
+          | { type: string; text?: string }
+          | {
+              type: "file";
+              url: string;
+              mediaType: string;
+              filename?: string;
+            }
+        >;
     createdAt: number;
     thoughtTiming?: {
       startedAtMs: number | null;

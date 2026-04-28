@@ -195,6 +195,24 @@ describe("convertItemsToMessages", () => {
     ]);
   });
 
+  it("maps provider-specific reasoning types to reasoning parts, not visible text", () => {
+    const messages = convertItemsToMessages([
+      {
+        id: "a2",
+        role: "assistant",
+        createdAt: 1700000000,
+        content: [
+          { type: "redacted_reasoning", text: "[hidden]" },
+          { type: "output_text", text: "Hi" },
+        ],
+      },
+    ]);
+    expect(messages[0]?.parts).toEqual([
+      { type: "reasoning", text: "[hidden]" },
+      { type: "text", text: "Hi" },
+    ]);
+  });
+
   it("attaches thought timing metadata when the API item includes thoughtTiming", () => {
     const messages = convertItemsToMessages([
       {
