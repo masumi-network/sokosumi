@@ -52,11 +52,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const workspaceId = workspaceContext.workspaceId;
 
-    const projectRow = await prisma.project.findFirst({
+    const project = await prisma.project.findFirst({
       where: { id: projectId, workspaceId },
-      select: { id: true },
     });
-    if (!projectRow) {
+    if (!project) {
       throw notFound("Project or task link not found");
     }
 
@@ -66,13 +65,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
     if (unlinkResult.count === 0) {
       throw notFound("Project or task link not found");
-    }
-
-    const project = await prisma.project.findFirst({
-      where: { id: projectId, workspaceId },
-    });
-    if (!project) {
-      throw notFound("Project not found");
     }
 
     return ok(c, projectSchema.parse(project));

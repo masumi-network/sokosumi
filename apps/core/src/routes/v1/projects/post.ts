@@ -43,7 +43,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 
-    const row = await prisma.project.create({
+    const project = await prisma.project.create({
       data: {
         workspaceId: workspaceContext.workspaceId,
         name: body.name,
@@ -51,6 +51,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     });
 
-    return created(c, projectSchema.parse(row));
+    return created(c, projectSchema.parse(project));
   });
 }
