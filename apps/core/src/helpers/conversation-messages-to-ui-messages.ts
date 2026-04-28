@@ -28,6 +28,23 @@ export function assistantContentPartsToAiSdkUiParts(
   }) as UIMessage["parts"];
 }
 
+/**
+ * For user/system messages: keep only `text`, `file`, and `output_text` parts (strip
+ * reasoning and other segments), then coerce `output_text` to AI SDK `text`.
+ * Must stay in sync with how inbound chat requests are mapped for non-assistant roles.
+ */
+export function nonAssistantContentPartsToAiSdkUiParts(
+  rawParts: PersistedConversationContentPart[],
+): UIMessage["parts"] {
+  return rawParts
+    .filter(
+      (p) => p.type === "text" || p.type === "file" || p.type === "output_text",
+    )
+    .map((p) =>
+      p.type === "output_text" ? { type: "text" as const, text: p.text } : p,
+    ) as UIMessage["parts"];
+}
+
 /** Maps persisted conversation messages to AI SDK `UIMessage` (text + optional reasoning parts). */
 export function conversationMessagesToUiMessages(
   messages: Array<{
@@ -54,18 +71,7 @@ export function conversationMessagesToUiMessages(
     const partsForRole =
       validRole === "assistant"
         ? assistantContentPartsToAiSdkUiParts(rawParts)
-        : (rawParts
-            .filter(
-              (p) =>
-                p.type === "text" ||
-                p.type === "file" ||
-                p.type === "output_text",
-            )
-            .map((p) =>
-              p.type === "output_text"
-                ? { type: "text" as const, text: p.text }
-                : p,
-            ) as UIMessage["parts"]);
+        : nonAssistantContentPartsToAiSdkUiParts(rawParts);
     const parts =
       partsForRole.length > 0
         ? partsForRole

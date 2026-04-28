@@ -1,19 +1,4 @@
-import {
-  type ConvertibleConversationApiMessage,
-  convertItemsToMessages,
-} from "@/lib/chat/conversation-api-to-ui-messages";
-import type { ConversationMessage } from "@/lib/clients/generated/core/types.gen";
-
-/**
- * Serialized conversation row from Core / server actions (JSON may widen literals).
- * Superset of OpenAPI `ConversationMessage` for `convertItemsToMessages` input.
- */
-export type ConvertibleConversationMessage = Omit<
-  ConvertibleConversationApiMessage,
-  "thoughtTiming"
-> & {
-  thoughtTiming?: ConversationMessage["thoughtTiming"];
-};
+import { convertItemsToMessages } from "@/lib/chat/conversation-api-to-ui-messages";
 
 export { convertItemsToMessages };
 
