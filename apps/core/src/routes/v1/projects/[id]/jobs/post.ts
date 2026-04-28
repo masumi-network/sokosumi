@@ -1,4 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { Prisma } from "@sokosumi/database";
+
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { assignJobToProject } from "@/helpers/project-placement";
@@ -60,39 +62,48 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const workspaceId = workspaceContext.workspaceId;
 
-    const projectRow = await prisma.project.findFirst({
-      where: { id: projectId, workspaceId },
-      select: { id: true },
-    });
-    if (!projectRow) {
-      throw notFound("Project not found");
-    }
+    const project = await prisma.$transaction(
+      async (tx) => {
+        const projectRow = await tx.project.findFirst({
+          where: { id: projectId, workspaceId },
+          select: { id: true },
+        });
+        if (!projectRow) {
+          throw notFound("Project not found");
+        }
 
-    const job = await prisma.job.findFirst({
-      where: { id: body.jobId, workspaceId },
-      select: { id: true, projectId: true },
-    });
-    if (!job) {
-      throw notFound("Job not found");
-    }
+        const job = await tx.job.findFirst({
+          where: { id: body.jobId, workspaceId },
+          select: { id: true, projectId: true },
+        });
+        if (!job) {
+          throw notFound("Job not found");
+        }
 
-    if (job.projectId !== null && job.projectId !== projectId) {
-      throw conflict("Job is already assigned to a project");
-    }
+        if (job.projectId !== null && job.projectId !== projectId) {
+          throw conflict("Job is already assigned to a project");
+        }
 
-    if (job.projectId !== projectId) {
-      await assignJobToProject(prisma, {
-        jobId: body.jobId,
-        projectId,
-      });
-    }
+        if (job.projectId !== projectId) {
+          await assignJobToProject(tx, {
+            jobId: body.jobId,
+            projectId,
+            workspaceId,
+          });
+        }
 
-    const project = await prisma.project.findFirst({
-      where: { id: projectId, workspaceId },
-    });
-    if (!project) {
-      throw notFound("Project not found");
-    }
+        const fullProject = await tx.project.findFirst({
+          where: { id: projectId, workspaceId },
+        });
+        if (!fullProject) {
+          throw notFound("Project not found");
+        }
+        return fullProject;
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
 
     return ok(c, projectSchema.parse(project));
   });
