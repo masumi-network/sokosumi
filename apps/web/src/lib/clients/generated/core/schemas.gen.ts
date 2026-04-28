@@ -1273,6 +1273,7 @@ export const ChatUiMessageSchema = {
                             }
                         },
                         required: [
+                            'type',
                             'text'
                         ]
                     }
@@ -1546,6 +1547,7 @@ export const ConversationMessageSchema = {
                                     }
                                 },
                                 required: [
+                                    'type',
                                     'text'
                                 ]
                             }
@@ -1706,6 +1708,7 @@ export const CreateConversationMessageRequestSchema = {
                                     }
                                 },
                                 required: [
+                                    'type',
                                     'text'
                                 ]
                             }

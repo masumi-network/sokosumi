@@ -321,7 +321,7 @@ export type ChatUiMessage = {
         type: 'output_text';
         text: string;
     } | {
-        type?: string;
+        type: string;
         text: string;
     }>;
     metadata?: {
@@ -425,7 +425,7 @@ export type ConversationMessage = {
         type: 'output_text';
         text: string;
     } | {
-        type?: string;
+        type: string;
         text: string;
     }>;
     /**
@@ -464,7 +464,7 @@ export type CreateConversationMessageRequest = {
         type: 'output_text';
         text: string;
     } | {
-        type?: string;
+        type: string;
         text: string;
     }>;
 };
@@ -3676,7 +3676,7 @@ export type PostChatData = {
                 type: 'output_text';
                 text: string;
             } | {
-                type?: string;
+                type: string;
                 text: string;
             }>;
             content?: string | Array<{
@@ -3694,7 +3694,7 @@ export type PostChatData = {
                 type: 'output_text';
                 text: string;
             } | {
-                type?: string;
+                type: string;
                 text: string;
             }>;
             id?: string;
@@ -3716,7 +3716,7 @@ export type PostChatData = {
                 type: 'output_text';
                 text: string;
             } | {
-                type?: string;
+                type: string;
                 text: string;
             }>;
             content?: string | Array<{
@@ -3734,7 +3734,7 @@ export type PostChatData = {
                 type: 'output_text';
                 text: string;
             } | {
-                type?: string;
+                type: string;
                 text: string;
             }>;
             id?: string;
