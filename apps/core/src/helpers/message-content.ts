@@ -42,10 +42,48 @@ interface ConversationMessageMetadataShape {
 
 const TEXT_LIKE_PART_TYPES = new Set(["text", "input_text", "output_text"]);
 
+function messageHasTextLikePart(items: unknown[]): boolean {
+  for (const part of items) {
+    if (!part || typeof part !== "object") {
+      continue;
+    }
+
+    if (normalizeTextPart(part as Record<string, unknown>)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * When structured `content` / `parts` win precedence but carry no
+ * text-like segments (e.g. file-only `parts`), keep parallel string `content`
+ * as a leading synthetic text part so prompts are not dropped.
+ */
+function mergeStringContentWhenNoTextLikeParts(
+  items: unknown[],
+  content: unknown,
+): unknown[] {
+  if (
+    items.length === 0 ||
+    typeof content !== "string" ||
+    content.trim().length === 0 ||
+    messageHasTextLikePart(items)
+  ) {
+    return items;
+  }
+
+  return [{ type: "text", text: content }, ...items];
+}
+
 /**
  * Shared precedence for reading `content` / `parts` from AI SDK–shaped
  * messages. Non-empty structured arrays win; non-empty `parts` beats string
  * `content` so file parts are not dropped. Empty arrays are fallbacks.
+ *
+ * String `content` is merged ahead of structured items when those items omit
+ * any text-like part (attachment-only arrays).
  *
  * @param stringContent - `"synthetic-text-part"` wraps string `content` for
  *   downstream normalization (e.g. `extractMessageText`). `"omit"` skips
@@ -59,11 +97,11 @@ function readMessagePartItems(
   const parts = "parts" in message ? message.parts : undefined;
 
   if (Array.isArray(content) && content.length > 0) {
-    return content;
+    return mergeStringContentWhenNoTextLikeParts(content, content);
   }
 
   if (Array.isArray(parts) && parts.length > 0) {
-    return parts;
+    return mergeStringContentWhenNoTextLikeParts(parts, content);
   }
 
   if (stringContent === "synthetic-text-part" && typeof content === "string") {
@@ -71,11 +109,11 @@ function readMessagePartItems(
   }
 
   if (Array.isArray(content)) {
-    return content;
+    return mergeStringContentWhenNoTextLikeParts(content, content);
   }
 
   if (Array.isArray(parts)) {
-    return parts;
+    return mergeStringContentWhenNoTextLikeParts(parts, content);
   }
 
   return [];

@@ -34,6 +34,21 @@ describe("readRawMessagePartItems (via extractMessageText)", () => {
       }),
     ).toBe("Hi");
   });
+
+  it("keeps string content when parts are attachment-only", () => {
+    expect(
+      extractMessageText({
+        content: "Summarize this",
+        parts: [
+          {
+            type: "file",
+            url: "https://example.com/brief.pdf",
+            mediaType: "application/pdf",
+          },
+        ],
+      }),
+    ).toBe("Summarize this");
+  });
 });
 
 describe("readReasoningPartsFromMetadata", () => {
@@ -148,6 +163,30 @@ describe("extractPersistableUiParts", () => {
     ]);
   });
 
+  it("prepends string content as text when parts are file-only", () => {
+    expect(
+      extractPersistableUiParts({
+        content: "Summarize this",
+        parts: [
+          {
+            type: "file",
+            url: "https://example.com/brief.pdf",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+          },
+        ],
+      }),
+    ).toEqual([
+      { type: "text", text: "Summarize this" },
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+        filename: "brief.pdf",
+      },
+    ]);
+  });
+
   it("drops file parts with unsafe schemes", () => {
     expect(
       extractPersistableUiParts({
@@ -195,6 +234,28 @@ describe("extractUiMessageParts", () => {
     ).toEqual([
       { type: "reasoning", text: "thinking" },
       { type: "text", text: "Hi" },
+    ]);
+  });
+
+  it("prepends string content before file-only parts for the model body", () => {
+    expect(
+      extractUiMessageParts({
+        content: "Summarize this",
+        parts: [
+          {
+            type: "file",
+            url: "https://example.com/brief.pdf",
+            mediaType: "application/pdf",
+          },
+        ],
+      }),
+    ).toEqual([
+      { type: "text", text: "Summarize this" },
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+      },
     ]);
   });
 });
