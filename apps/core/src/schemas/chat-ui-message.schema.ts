@@ -22,15 +22,25 @@ export const responsesApiInputTextPartSchema = z
 /**
  * AI SDK / UI message parts persisted for chat (reasoning then text in `conversationMessagesToUiMessages`).
  * `type` is usually `reasoning` but may be provider-specific (e.g. redacted variants).
+ *
+ * `type` is required so `{ text }` alone cannot match this branch of the request-part union; otherwise
+ * user/system messages would accept it as reasoning and `mapChatRequestToUiMessages` would strip it.
  */
 export const chatUiReasoningPartSchema = z
   .object({
-    type: z.string().optional(),
+    type: z.string(),
     text: z.string(),
   })
-  .refine((part) => !CHAT_UI_NON_REASONING_PART_TYPES.has(part.type ?? ""), {
-    message: "Use the dedicated schema for text or file parts.",
-  });
+  .refine(
+    (part) => {
+      const t = part.type.trim();
+      return t.length > 0 && !CHAT_UI_NON_REASONING_PART_TYPES.has(t);
+    },
+    {
+      message:
+        "Reasoning parts require a non-empty type (e.g. reasoning) that is not text, file, input_text, or output_text.",
+    },
+  );
 
 export const chatUiTextPartSchema = z.object({
   type: z.literal("text"),

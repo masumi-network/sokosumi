@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { chatUiFilePartSchema } from "./chat-ui-message.schema";
+import { chatRequestMessagePartSchema } from "@/schemas/chat-request.schema";
+
+import {
+  chatUiFilePartSchema,
+  chatUiReasoningPartSchema,
+} from "./chat-ui-message.schema";
 
 describe("chatUiFilePartSchema", () => {
   it("accepts https file URLs", () => {
@@ -41,6 +46,51 @@ describe("chatUiFilePartSchema", () => {
         url: "file:///etc/passwd",
         mediaType: "text/plain",
       }),
+    ).toThrow();
+  });
+});
+
+describe("chatUiReasoningPartSchema", () => {
+  it("rejects parts with only text (missing type)", () => {
+    expect(() => chatUiReasoningPartSchema.parse({ text: "hello" })).toThrow();
+  });
+
+  it("rejects blank or whitespace-only type", () => {
+    expect(() =>
+      chatUiReasoningPartSchema.parse({ type: "", text: "x" }),
+    ).toThrow();
+    expect(() =>
+      chatUiReasoningPartSchema.parse({ type: "   ", text: "x" }),
+    ).toThrow();
+  });
+
+  it("accepts explicit reasoning and provider-specific types", () => {
+    expect(
+      chatUiReasoningPartSchema.parse({
+        type: "reasoning",
+        text: "thinking",
+      }),
+    ).toEqual({ type: "reasoning", text: "thinking" });
+
+    expect(
+      chatUiReasoningPartSchema.parse({
+        type: "redacted_reasoning",
+        text: "hidden",
+      }),
+    ).toEqual({ type: "redacted_reasoning", text: "hidden" });
+  });
+
+  it("rejects reserved body part types", () => {
+    expect(() =>
+      chatUiReasoningPartSchema.parse({ type: "text", text: "x" }),
+    ).toThrow();
+  });
+});
+
+describe("chatRequestMessagePartSchema (union)", () => {
+  it("rejects ambiguous { text } objects so they are not classified as reasoning", () => {
+    expect(() =>
+      chatRequestMessagePartSchema.parse({ text: "hello" }),
     ).toThrow();
   });
 });

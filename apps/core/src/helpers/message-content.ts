@@ -42,22 +42,31 @@ interface ConversationMessageMetadataShape {
 
 const TEXT_LIKE_PART_TYPES = new Set(["text", "input_text", "output_text"]);
 
-function readRawMessagePartItems(message: Record<string, unknown>): unknown[] {
+/**
+ * Shared precedence for reading `content` / `parts` from AI SDK–shaped
+ * messages. Non-empty structured arrays win; non-empty `parts` beats string
+ * `content` so file parts are not dropped. Empty arrays are fallbacks.
+ *
+ * @param stringContent - `"synthetic-text-part"` wraps string `content` for
+ *   downstream normalization (e.g. `extractMessageText`). `"omit"` skips
+ *   string promotion so persistable UI metadata does not mirror plain strings.
+ */
+function readMessagePartItems(
+  message: Record<string, unknown>,
+  stringContent: "synthetic-text-part" | "omit",
+): unknown[] {
   const content = "content" in message ? message.content : undefined;
   const parts = "parts" in message ? message.parts : undefined;
 
-  // Non-empty array `content` wins (explicit structured payloads).
   if (Array.isArray(content) && content.length > 0) {
     return content;
   }
 
-  // Non-empty `parts` before string `content`: AI SDK often sends both a
-  // summary string and `parts` (text + file); string-first would drop files.
   if (Array.isArray(parts) && parts.length > 0) {
     return parts;
   }
 
-  if (typeof content === "string") {
+  if (stringContent === "synthetic-text-part" && typeof content === "string") {
     return [{ type: "text", text: content }];
   }
 
@@ -72,31 +81,14 @@ function readRawMessagePartItems(message: Record<string, unknown>): unknown[] {
   return [];
 }
 
+function readRawMessagePartItems(message: Record<string, unknown>): unknown[] {
+  return readMessagePartItems(message, "synthetic-text-part");
+}
+
 function readPersistableUiPartItems(
   message: Record<string, unknown>,
 ): unknown[] {
-  const content = "content" in message ? message.content : undefined;
-  const parts = "parts" in message ? message.parts : undefined;
-
-  // Structured content takes precedence; avoid promoting plain string content
-  // into synthetic metadata parts so legacy string responses stay unchanged.
-  if (Array.isArray(content) && content.length > 0) {
-    return content;
-  }
-
-  if (Array.isArray(parts) && parts.length > 0) {
-    return parts;
-  }
-
-  if (Array.isArray(content)) {
-    return content;
-  }
-
-  if (Array.isArray(parts)) {
-    return parts;
-  }
-
-  return [];
+  return readMessagePartItems(message, "omit");
 }
 
 function normalizeTextPart(
