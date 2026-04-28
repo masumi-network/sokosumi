@@ -49,6 +49,24 @@ describe("conversationMessageToApiContent", () => {
     ]);
   });
 
+  it("round-trips reasoning plus output_text stored in ui_message_v1", () => {
+    expect(
+      conversationMessageToApiContent({
+        contentType: "output_text",
+        contentText: "Answer",
+        metadata: {
+          reasoning: [{ type: "reasoning", text: "Step A" }],
+          ui_message_v1: {
+            parts: [{ type: "output_text", text: "Answer" }],
+          },
+        },
+      }),
+    ).toEqual([
+      { type: "reasoning", text: "Step A" },
+      { type: "output_text", text: "Answer" },
+    ]);
+  });
+
   it("returns stored ui_message_v1 file parts after reasoning", () => {
     expect(
       conversationMessageToApiContent({

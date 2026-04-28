@@ -19,7 +19,7 @@ function isLegacyPlainTextMetadataShape(params: {
   contentType: string | null;
   contentText: string;
   reasoningParts: Array<{ type: string; text: string }>;
-  persistedUiParts: Array<{ type: "text" | "file"; text?: string }>;
+  persistedUiParts: Array<{ type: string; text?: string }>;
 }): boolean {
   const { contentType, contentText, reasoningParts, persistedUiParts } = params;
   if (contentType && contentType !== "") {

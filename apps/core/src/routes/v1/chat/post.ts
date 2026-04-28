@@ -26,6 +26,7 @@ import {
 import {
   extractMessageText,
   extractPersistableUiParts,
+  extractReasoningPartsFromMessage,
 } from "@/helpers/message-content";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { persistAssistantFromAiSdk } from "@/helpers/persist-assistant-from-ai-sdk";
@@ -66,13 +67,13 @@ async function persistUserOrSystemTurnForConversation(params: {
     return;
   }
 
+  const reasoningParts = extractReasoningPartsFromMessage(lastMessage);
   const uiParts = extractPersistableUiParts(lastMessage);
   const metadata =
-    uiParts.length > 0
+    reasoningParts.length > 0 || uiParts.length > 0
       ? {
-          ui_message_v1: {
-            parts: uiParts,
-          },
+          ...(reasoningParts.length > 0 ? { reasoning: reasoningParts } : {}),
+          ...(uiParts.length > 0 ? { ui_message_v1: { parts: uiParts } } : {}),
         }
       : undefined;
 

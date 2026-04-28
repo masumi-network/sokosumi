@@ -18,8 +18,15 @@ export interface PersistedChatUiFilePart {
   filename?: string;
 }
 
+/** Assistant / Responses-style body text; preserved in `ui_message_v1` for API round-trip. */
+export interface PersistedChatUiOutputTextPart {
+  type: "output_text";
+  text: string;
+}
+
 export type PersistedChatUiPart =
   | PersistedChatUiTextPart
+  | PersistedChatUiOutputTextPart
   | PersistedChatUiFilePart;
 
 /** Primary assistant body may echo persisted `contentType` (e.g. `output_text`). */
@@ -210,6 +217,16 @@ function normalizeReasoningPart(
   };
 }
 
+function normalizePersistedOutputTextPart(
+  record: Record<string, unknown>,
+): PersistedChatUiOutputTextPart | null {
+  if (record.type !== "output_text" || typeof record.text !== "string") {
+    return null;
+  }
+
+  return { type: "output_text", text: record.text };
+}
+
 function normalizePersistedChatUiPart(
   part: unknown,
 ): PersistedChatUiPart | null {
@@ -219,7 +236,11 @@ function normalizePersistedChatUiPart(
 
   const record = part as Record<string, unknown>;
 
-  return normalizeTextPart(record) ?? normalizeFilePart(record);
+  return (
+    normalizePersistedOutputTextPart(record) ??
+    normalizeTextPart(record) ??
+    normalizeFilePart(record)
+  );
 }
 
 function normalizeConversationContentPart(
@@ -270,6 +291,19 @@ export function extractPersistableUiParts(
   return readPersistableUiPartItems(message)
     .map((part) => normalizePersistedChatUiPart(part))
     .filter((part): part is PersistedChatUiPart => part !== null);
+}
+
+/** Reasoning segments from structured `content` / `parts` (for persisting `metadata.reasoning`). */
+export function extractReasoningPartsFromMessage(
+  message: Record<string, unknown>,
+): PersistedChatUiReasoningPart[] {
+  return readRawMessagePartItems(message)
+    .map((part) =>
+      part && typeof part === "object"
+        ? normalizeReasoningPart(part as Record<string, unknown>)
+        : null,
+    )
+    .filter((part): part is PersistedChatUiReasoningPart => part !== null);
 }
 
 export function extractUiMessageParts(
@@ -334,7 +368,9 @@ export function buildConversationContentParts(params: {
     providedReasoningParts ?? readReasoningPartsFromMetadata(metadata);
   const storedUiParts =
     providedStoredUiParts ?? readPersistedUiPartsFromMetadata(metadata);
-  const hasTextPart = storedUiParts.some((part) => part.type === "text");
+  const hasTextPart = storedUiParts.some(
+    (part) => part.type === "text" || part.type === "output_text",
+  );
   const text = contentText ?? "";
 
   const parts: PersistedConversationContentPart[] = [
@@ -350,7 +386,8 @@ export function buildConversationContentParts(params: {
     hasFilePart &&
     (!trimmedFallback ||
       trimmedFallback === "file" ||
-      trimmedFallback === "text");
+      trimmedFallback === "text" ||
+      trimmedFallback === "output_text");
 
   const shouldAddPrimaryBody =
     !hasTextPart &&

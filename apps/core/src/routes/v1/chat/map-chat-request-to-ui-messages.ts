@@ -15,7 +15,18 @@ export function mapChatRequestToUiMessages(
     const partsForRole =
       m.role === "assistant"
         ? assistantContentPartsToAiSdkUiParts(extracted)
-        : extracted.filter((p) => p.type === "text" || p.type === "file");
+        : extracted
+            .filter(
+              (p) =>
+                p.type === "text" ||
+                p.type === "file" ||
+                p.type === "output_text",
+            )
+            .map((p) =>
+              p.type === "output_text"
+                ? { type: "text" as const, text: p.text }
+                : p,
+            );
     const parts =
       partsForRole.length > 0
         ? partsForRole

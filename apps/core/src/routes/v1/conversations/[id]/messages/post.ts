@@ -6,6 +6,7 @@ import { notFound } from "@/helpers/error";
 import {
   extractMessageText,
   extractPersistableUiParts,
+  extractReasoningPartsFromMessage,
 } from "@/helpers/message-content";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -79,19 +80,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const contentText = extractMessageText({
-      content: body.content,
-    });
-    const uiParts = extractPersistableUiParts({
-      content: body.content,
-    });
+    const messagePayload = { content: body.content };
+    const contentText = extractMessageText(messagePayload);
+    const uiParts = extractPersistableUiParts(messagePayload);
+    const reasoningParts = extractReasoningPartsFromMessage(messagePayload);
     const contentType = uiParts[0]?.type ?? null;
     const metadata =
-      uiParts.length > 0
+      reasoningParts.length > 0 || uiParts.length > 0
         ? {
-            ui_message_v1: {
-              parts: uiParts,
-            },
+            ...(reasoningParts.length > 0 ? { reasoning: reasoningParts } : {}),
+            ...(uiParts.length > 0
+              ? { ui_message_v1: { parts: uiParts } }
+              : {}),
           }
         : undefined;
 

@@ -4,6 +4,7 @@ import {
   buildConversationContentParts,
   extractMessageText,
   extractPersistableUiParts,
+  extractReasoningPartsFromMessage,
   extractUiMessageParts,
   readReasoningPartsFromMetadata,
 } from "../message-content";
@@ -58,6 +59,19 @@ describe("readReasoningPartsFromMetadata", () => {
         reasoning: [{ type: "redacted_reasoning", text: "  hidden  " }],
       }),
     ).toEqual([{ type: "redacted_reasoning", text: "hidden" }]);
+  });
+});
+
+describe("extractReasoningPartsFromMessage", () => {
+  it("collects reasoning from structured content without mixing text parts", () => {
+    expect(
+      extractReasoningPartsFromMessage({
+        content: [
+          { type: "reasoning", text: "Step one" },
+          { type: "output_text", text: "Done" },
+        ],
+      }),
+    ).toEqual([{ type: "reasoning", text: "Step one" }]);
   });
 });
 
@@ -136,6 +150,17 @@ describe("extractPersistableUiParts", () => {
         content: [{ type: "input_text", text: "Hello" }],
       }),
     ).toEqual([{ type: "text", text: "Hello" }]);
+  });
+
+  it("preserves output_text parts for storage round-trip", () => {
+    expect(
+      extractPersistableUiParts({
+        content: [
+          { type: "reasoning", text: "thinking" },
+          { type: "output_text", text: "Final answer" },
+        ],
+      }),
+    ).toEqual([{ type: "output_text", text: "Final answer" }]);
   });
 
   it("prefers non-empty parts over string content so file parts are not dropped", () => {

@@ -18,6 +18,9 @@ export function assistantContentPartsToAiSdkUiParts(
     if (part.type === "file" || part.type === "text") {
       return part;
     }
+    if (part.type === "output_text") {
+      return { type: "text" as const, text: part.text };
+    }
     if ("text" in part && typeof part.text === "string") {
       return { type: "reasoning" as const, text: part.text };
     }
@@ -51,9 +54,18 @@ export function conversationMessagesToUiMessages(
     const partsForRole =
       validRole === "assistant"
         ? assistantContentPartsToAiSdkUiParts(rawParts)
-        : (rawParts.filter(
-            (p) => p.type === "text" || p.type === "file",
-          ) as UIMessage["parts"]);
+        : (rawParts
+            .filter(
+              (p) =>
+                p.type === "text" ||
+                p.type === "file" ||
+                p.type === "output_text",
+            )
+            .map((p) =>
+              p.type === "output_text"
+                ? { type: "text" as const, text: p.text }
+                : p,
+            ) as UIMessage["parts"]);
     const parts =
       partsForRole.length > 0
         ? partsForRole
