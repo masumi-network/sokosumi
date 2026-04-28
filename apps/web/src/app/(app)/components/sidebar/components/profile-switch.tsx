@@ -4,6 +4,10 @@ import { Suspense } from "react";
 
 import type { Session } from "@/lib/auth/auth";
 import { coreClient } from "@/lib/clients/core.client";
+import type {
+  GetUsersByIdCreditsResponse,
+  GetUsersByIdOrganizationsResponse,
+} from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 
 import ProfileSwitchClient from "./profile-switch.client";
@@ -44,7 +48,9 @@ async function ProfileSwitchInner({ session }: ProfileSwitchProps) {
       await Promise.allSettled([
         userService.getMyMembersWithOrganizations(),
         coreClient.getMyCredits(),
-        activeOrganizationId ? coreClient.getMyOrganizations() : null,
+        activeOrganizationId
+          ? coreClient.getMyOrganizations()
+          : Promise.resolve(null),
       ]);
 
     if (membersResult.status === "fulfilled") {
@@ -52,15 +58,18 @@ async function ProfileSwitchInner({ session }: ProfileSwitchProps) {
     }
 
     if (creditsResult.status === "fulfilled") {
-      currentPlan = creditsResult.value.data.subscription?.plan ?? "free";
+      const credits = creditsResult.value as GetUsersByIdCreditsResponse;
+      currentPlan = credits.data.subscription?.plan ?? "free";
     }
 
     if (
       activeOrganizationId &&
       organizationsResult.status === "fulfilled" &&
-      organizationsResult.value?.data
+      organizationsResult.value
     ) {
-      const foundOrganization = organizationsResult.value.data.find(
+      const organizations =
+        organizationsResult.value as GetUsersByIdOrganizationsResponse;
+      const foundOrganization = organizations.data.find(
         (organization) => organization.id === activeOrganizationId,
       );
 
