@@ -1,6 +1,5 @@
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
-import { TaskCardOwner } from "./task-card-owner";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
@@ -53,10 +52,10 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
                   {task.descriptionPlain ?? task.description}
                 </p>
               ) : null}
-              <TaskCardOwner user={task.user} />
             </div>
 
             <TaskMetaDetails
+              owner={task.user}
               coworker={task.coworker}
               commentsCount={task.commentsCount}
               createdAt={task.createdAt}
