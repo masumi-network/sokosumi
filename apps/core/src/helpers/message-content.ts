@@ -1,3 +1,6 @@
+import { CHAT_UI_NON_REASONING_PART_TYPES } from "@/helpers/chat-ui-non-reasoning-part-types";
+import { isSafeRemoteUrl, normalizeSafeRemoteUrl } from "@/helpers/safe-url";
+
 export interface PersistedChatUiReasoningPart {
   type: string;
   text: string;
@@ -38,13 +41,6 @@ interface ConversationMessageMetadataShape {
 }
 
 const TEXT_LIKE_PART_TYPES = new Set(["text", "input_text", "output_text"]);
-
-const NON_REASONING_METADATA_TYPES = new Set([
-  "text",
-  "file",
-  "input_text",
-  "output_text",
-]);
 
 function readRawMessagePartItems(message: Record<string, unknown>): unknown[] {
   const content = "content" in message ? message.content : undefined;
@@ -119,16 +115,6 @@ function normalizeTextPart(
   };
 }
 
-function isUrlString(value: string): boolean {
-  try {
-    // Use the platform URL parser so persisted metadata only stores absolute URLs.
-    void new URL(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function normalizeFilePart(
   part: Record<string, unknown>,
 ): PersistedChatUiFilePart | null {
@@ -139,11 +125,16 @@ function normalizeFilePart(
   const rawUrl =
     typeof part.url === "string"
       ? part.url
-      : typeof part.data === "string" && isUrlString(part.data)
+      : typeof part.data === "string" && isSafeRemoteUrl(part.data)
         ? part.data
         : null;
 
-  if (!rawUrl || !isUrlString(rawUrl)) {
+  if (!rawUrl) {
+    return null;
+  }
+
+  const normalizedUrl = normalizeSafeRemoteUrl(rawUrl);
+  if (!normalizedUrl) {
     return null;
   }
 
@@ -154,7 +145,7 @@ function normalizeFilePart(
 
   return {
     type: "file",
-    url: rawUrl,
+    url: normalizedUrl,
     mediaType: part.mediaType,
     ...(filename ? { filename } : {}),
   };
@@ -175,7 +166,7 @@ function normalizeReasoningPart(
   const rawType =
     "type" in part && typeof part.type === "string" ? part.type.trim() : "";
 
-  if (NON_REASONING_METADATA_TYPES.has(rawType)) {
+  if (CHAT_UI_NON_REASONING_PART_TYPES.has(rawType)) {
     return null;
   }
 

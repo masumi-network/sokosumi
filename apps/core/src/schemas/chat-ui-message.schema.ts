@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
 
 import { LIMITS } from "@/config/constants";
+import { CHAT_UI_NON_REASONING_PART_TYPES } from "@/helpers/chat-ui-non-reasoning-part-types";
+import { isSafeRemoteUrl } from "@/helpers/safe-url";
 
 /**
  * OpenAI [Responses easy input](https://platform.openai.com/docs/guides/text)–style
@@ -17,13 +19,6 @@ export const responsesApiInputTextPartSchema = z
       "Responses API easy-input text item (maps to user/assistant text in model input).",
   });
 
-const RESERVED_NON_REASONING_PART_TYPES = new Set([
-  "text",
-  "file",
-  "input_text",
-  "output_text",
-]);
-
 /**
  * AI SDK / UI message parts persisted for chat (reasoning then text in `conversationMessagesToUiMessages`).
  * `type` is usually `reasoning` but may be provider-specific (e.g. redacted variants).
@@ -33,7 +28,7 @@ export const chatUiReasoningPartSchema = z
     type: z.string().optional(),
     text: z.string(),
   })
-  .refine((part) => !RESERVED_NON_REASONING_PART_TYPES.has(part.type ?? ""), {
+  .refine((part) => !CHAT_UI_NON_REASONING_PART_TYPES.has(part.type ?? ""), {
     message: "Use the dedicated schema for text or file parts.",
   });
 
@@ -50,7 +45,12 @@ export const chatUiOutputTextPartSchema = z.object({
 
 export const chatUiFilePartSchema = z.object({
   type: z.literal("file"),
-  url: z.string().url(),
+  url: z
+    .string()
+    .url()
+    .refine((value) => isSafeRemoteUrl(value), {
+      message: "File URL must use http or https.",
+    }),
   mediaType: z.string(),
   filename: z.string().optional(),
 });

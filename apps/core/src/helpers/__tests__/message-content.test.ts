@@ -119,6 +119,40 @@ describe("extractPersistableUiParts", () => {
       },
     ]);
   });
+
+  it("drops file parts with unsafe schemes", () => {
+    expect(
+      extractPersistableUiParts({
+        parts: [
+          {
+            type: "file",
+            url: "javascript:alert(document.cookie)",
+            mediaType: "text/html",
+          },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps safe https file parts", () => {
+    expect(
+      extractPersistableUiParts({
+        parts: [
+          {
+            type: "file",
+            url: "https://example.com/brief.pdf",
+            mediaType: "application/pdf",
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        type: "file",
+        url: "https://example.com/brief.pdf",
+        mediaType: "application/pdf",
+      },
+    ]);
+  });
 });
 
 describe("extractUiMessageParts", () => {
