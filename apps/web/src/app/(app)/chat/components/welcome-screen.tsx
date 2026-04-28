@@ -87,7 +87,9 @@ export default function WelcomeScreen({
 
   function handleSuggestionClick(text: string) {
     if (!text.trim() || !initialCoworker) return;
-    void onSendMessage(text.trim(), initialCoworker);
+    void onSendMessage(text.trim(), initialCoworker, undefined, {
+      kind: "chat",
+    });
   }
 
   const isTaskWelcomeHeader = welcomeComposeKind === "task";
