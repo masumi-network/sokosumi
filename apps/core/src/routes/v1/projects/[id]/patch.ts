@@ -4,7 +4,10 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -22,29 +25,31 @@ const paramsSchema = z.object({
     }),
 });
 
-const route = createRoute({
-  method: "patch",
-  path: "/{id}",
-  description: "Rename or update a project description",
-  tags: ["Projects"],
-  request: {
-    params: paramsSchema,
-    body: {
-      content: {
-        "application/json": {
-          schema: patchProjectRequestSchema,
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "patch",
+    path: "/{id}",
+    description: "Rename or update a project description",
+    tags: ["Projects"],
+    request: {
+      params: paramsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: patchProjectRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(projectSchema, "Updated project"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(projectSchema, "Updated project"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

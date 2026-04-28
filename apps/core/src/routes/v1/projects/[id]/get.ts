@@ -4,7 +4,10 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectSchema } from "@/schemas/project.schema";
@@ -19,21 +22,23 @@ const paramsSchema = z.object({
     }),
 });
 
-const route = createRoute({
-  method: "get",
-  path: "/{id}",
-  description: "Get a project by id",
-  tags: ["Projects"],
-  request: {
-    params: paramsSchema,
-  },
-  responses: {
-    200: jsonSuccessResponse(projectSchema, "Project"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-  },
-});
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/{id}",
+    description: "Get a project by id",
+    tags: ["Projects"],
+    request: {
+      params: paramsSchema,
+    },
+    responses: {
+      200: jsonSuccessResponse(projectSchema, "Project"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
