@@ -283,4 +283,18 @@ describe("extractUiMessageParts", () => {
       },
     ]);
   });
+
+  it("preserves output_text parts instead of coercing them to text", () => {
+    expect(
+      extractUiMessageParts({
+        content: [
+          { type: "reasoning", text: "Step" },
+          { type: "output_text", text: "Answer" },
+        ],
+      }),
+    ).toEqual([
+      { type: "reasoning", text: "Step" },
+      { type: "output_text", text: "Answer" },
+    ]);
+  });
 });

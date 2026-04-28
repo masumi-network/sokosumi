@@ -103,6 +103,23 @@ describe("mapChatRequestToUiMessages", () => {
     ]);
   });
 
+  it("maps assistant output_text parts to AI SDK text after extraction", () => {
+    const messages = mapChatRequestToUiMessages([
+      {
+        id: "m1",
+        role: "assistant",
+        parts: [
+          { type: "reasoning", text: "thinking" },
+          { type: "output_text", text: "Final answer" },
+        ],
+      },
+    ]);
+    expect(messages[0]?.parts).toEqual([
+      { type: "reasoning", text: "thinking" },
+      { type: "text", text: "Final answer" },
+    ]);
+  });
+
   it("normalizes provider-specific assistant reasoning labels to type reasoning for AI SDK validation", async () => {
     const messages = mapChatRequestToUiMessages([
       {

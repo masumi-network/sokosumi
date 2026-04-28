@@ -254,6 +254,7 @@ function normalizeConversationContentPart(
 
   return (
     normalizeReasoningPart(record) ??
+    normalizePersistedOutputTextPart(record) ??
     normalizeTextPart(record) ??
     normalizeFilePart(record)
   );

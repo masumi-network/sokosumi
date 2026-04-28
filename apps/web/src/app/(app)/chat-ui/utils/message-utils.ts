@@ -1,7 +1,10 @@
-import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
 
+import { convertItemsToMessages } from "@/lib/chat/conversation-api-to-ui-messages";
+
 import { getReasoningStepDisplayText } from "./reasoning-generic-labels";
+
+export { convertItemsToMessages };
 
 function appendVisibleTextFromPart(part: Record<string, unknown>): string {
   if (part.type !== "text") {
@@ -199,133 +202,5 @@ export function deduplicateMessagesById<T extends { id?: string }>(
     if (seen.has(id)) return false;
     seen.add(id);
     return true;
-  });
-}
-
-function partsFromApiItemContent(
-  content:
-    | string
-    | ReadonlyArray<
-        | { type: string; text?: string }
-        | {
-            type: "file";
-            url: string;
-            mediaType: string;
-            filename?: string;
-          }
-      >,
-): UIMessage["parts"] {
-  if (typeof content === "string") {
-    return [{ type: "text", text: content }];
-  }
-  const parts: UIMessage["parts"] = [];
-  for (const c of content) {
-    if (
-      typeof c === "object" &&
-      c !== null &&
-      "type" in c &&
-      c.type === "file" &&
-      "url" in c &&
-      typeof (c as { url?: unknown }).url === "string" &&
-      "mediaType" in c &&
-      typeof (c as { mediaType?: unknown }).mediaType === "string"
-    ) {
-      const file = c as {
-        type: "file";
-        url: string;
-        mediaType: string;
-        filename?: string;
-      };
-      parts.push({
-        type: "file",
-        url: file.url,
-        mediaType: file.mediaType,
-        ...(file.filename !== undefined ? { filename: file.filename } : {}),
-      });
-      continue;
-    }
-    if (isChatUiProviderReasoningPartType((c as { type?: unknown }).type)) {
-      parts.push({
-        type: "reasoning",
-        text:
-          "text" in c && typeof (c as { text?: unknown }).text === "string"
-            ? (c as { text: string }).text
-            : "",
-      });
-      continue;
-    }
-    parts.push({
-      type: "text",
-      text:
-        "text" in c && typeof (c as { text?: unknown }).text === "string"
-          ? (c as { text: string }).text
-          : "",
-    });
-  }
-  return parts.length > 0 ? parts : [{ type: "text", text: "" }];
-}
-
-function visibleTextFromParts(parts: UIMessage["parts"]): string {
-  return parts
-    .filter(
-      (p): p is { type: "text"; text: string } =>
-        p.type === "text" && "text" in p,
-    )
-    .map((p) => p.text)
-    .join("");
-}
-
-export function convertItemsToMessages(
-  items: Array<{
-    id: string;
-    role: string;
-    content:
-      | string
-      | ReadonlyArray<
-          | { type: string; text?: string }
-          | {
-              type: "file";
-              url: string;
-              mediaType: string;
-              filename?: string;
-            }
-        >;
-    createdAt: number;
-    thoughtTiming?: {
-      startedAtMs: number | null;
-      endedAtMs: number | null;
-    };
-  }>,
-): UIMessage[] {
-  return items.map((item) => {
-    const parts = partsFromApiItemContent(item.content);
-    const visibleText = visibleTextFromParts(parts);
-
-    const validRole: "assistant" | "user" | "system" =
-      item.role === "assistant" ||
-      item.role === "user" ||
-      item.role === "system"
-        ? (item.role as "assistant" | "user" | "system")
-        : "user";
-
-    const timing = item.thoughtTiming;
-    const hasCompleteThoughtTiming =
-      timing != null && timing.startedAtMs != null && timing.endedAtMs != null;
-
-    return {
-      id: item.id,
-      role: validRole,
-      parts,
-      content: visibleText,
-      createdAt: new Date(item.createdAt * 1000),
-      ...(hasCompleteThoughtTiming
-        ? {
-            metadata: {
-              thoughtStartedAtMs: timing.startedAtMs,
-              thoughtEndedAtMs: timing.endedAtMs,
-            },
-          }
-        : {}),
-    };
   });
 }

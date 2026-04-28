@@ -1,24 +1,21 @@
-import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
-import type { UIMessage } from "ai";
-
+import {
+  type ConvertibleConversationApiMessage,
+  convertItemsToMessages,
+} from "@/lib/chat/conversation-api-to-ui-messages";
 import type { ConversationMessage } from "@/lib/clients/generated/core/types.gen";
 
 /**
  * Serialized conversation row from Core / server actions (JSON may widen literals).
  * Superset of OpenAPI `ConversationMessage` for `convertItemsToMessages` input.
  */
-export interface ConvertibleConversationMessage {
-  id: string;
-  role: string;
-  content:
-    | string
-    | ReadonlyArray<
-        | { type: "file"; url: string; mediaType: string; filename?: string }
-        | { type?: string; text?: string }
-      >;
-  createdAt: number;
+export type ConvertibleConversationMessage = Omit<
+  ConvertibleConversationApiMessage,
+  "thoughtTiming"
+> & {
   thoughtTiming?: ConversationMessage["thoughtTiming"];
-}
+};
+
+export { convertItemsToMessages };
 
 /**
  * Extract text content from a message in various formats (AI SDK v6, parts array, etc.)
@@ -167,97 +164,4 @@ export function getThoughtTimingMsFromMessage(message: unknown): {
   const started = readEpochMsFromUnknown(m.thoughtStartedAtMs) ?? nestedStart;
   const ended = readEpochMsFromUnknown(m.thoughtEndedAtMs) ?? nestedEnd;
   return { startedAtMs: started, endedAtMs: ended };
-}
-
-/**
- * Convert Core conversation messages to UIMessage format
- */
-function partsFromApiItemContent(
-  content: ConvertibleConversationMessage["content"],
-): UIMessage["parts"] {
-  if (typeof content === "string") {
-    return [{ type: "text", text: content }];
-  }
-  const parts: UIMessage["parts"] = [];
-  for (const c of content) {
-    if (
-      typeof c === "object" &&
-      c !== null &&
-      "type" in c &&
-      c.type === "file" &&
-      "url" in c &&
-      typeof (c as { url?: unknown }).url === "string" &&
-      "mediaType" in c &&
-      typeof (c as { mediaType?: unknown }).mediaType === "string"
-    ) {
-      const file = c as {
-        type: "file";
-        url: string;
-        mediaType: string;
-        filename?: string;
-      };
-      parts.push({
-        type: "file",
-        url: file.url,
-        mediaType: file.mediaType,
-        ...(file.filename !== undefined ? { filename: file.filename } : {}),
-      });
-      continue;
-    }
-    if (isChatUiProviderReasoningPartType(c.type)) {
-      parts.push({
-        type: "reasoning",
-        text: "text" in c ? (c.text ?? "") : "",
-      });
-      continue;
-    }
-    parts.push({ type: "text", text: "text" in c ? (c.text ?? "") : "" });
-  }
-  return parts.length > 0 ? parts : [{ type: "text", text: "" }];
-}
-
-function visibleTextFromParts(parts: UIMessage["parts"]): string {
-  return parts
-    .filter(
-      (p): p is { type: "text"; text: string } =>
-        p.type === "text" && "text" in p,
-    )
-    .map((p) => p.text)
-    .join("");
-}
-
-export function convertItemsToMessages(
-  conversationMessages: ReadonlyArray<ConvertibleConversationMessage>,
-): UIMessage[] {
-  return conversationMessages.map((message) => {
-    const parts = partsFromApiItemContent(message.content);
-    const visibleText = visibleTextFromParts(parts);
-
-    const validRole: "assistant" | "user" | "system" =
-      message.role === "assistant" ||
-      message.role === "user" ||
-      message.role === "system"
-        ? (message.role as "assistant" | "user" | "system")
-        : "user";
-
-    const timing = message.thoughtTiming;
-    const hasCompleteThoughtTiming =
-      timing != null && timing.startedAtMs != null && timing.endedAtMs != null;
-
-    return {
-      id: message.id,
-      role: validRole,
-      parts,
-      content: visibleText,
-      createdAt: new Date(message.createdAt * 1000),
-      ...(hasCompleteThoughtTiming
-        ? {
-            metadata: {
-              thoughtStartedAtMs: timing.startedAtMs,
-              thoughtEndedAtMs: timing.endedAtMs,
-            },
-          }
-        : {}),
-    };
-  });
 }
