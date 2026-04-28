@@ -2,25 +2,33 @@ packages:
   - apps/*
   - packages/*
 
-ignoredBuiltDependencies:
-  - "@parcel/watcher"
-  - "@prisma/client"
-  - "@prisma/engines"
-  - "@sentry-internal/node-cpu-profiler"
-  - "@sentry/cli"
-  - "@swc/core"
-  - "@tailwindcss/oxide"
-  - "@vercel/speed-insights"
-  - better-sqlite3
-  - esbuild
-  - puppeteer
-  - puppeteer-core
-  - sharp
-  - unrs-resolver
-  - vue-demi
+fetchTimeout: 300000
+fetchRetries: 5
+fetchRetryMintimeout: 15000
+fetchRetryMaxtimeout: 120000
+networkConcurrency: 8
 
-onlyBuiltDependencies:
-  - prisma
+overrides:
+  lodash: 4.18.1
+  zod: 4.3.6
+
+allowBuilds:
+  prisma: true
+  "@parcel/watcher": false
+  "@prisma/client": false
+  "@prisma/engines": false
+  "@sentry-internal/node-cpu-profiler": false
+  "@sentry/cli": false
+  "@swc/core": false
+  "@tailwindcss/oxide": false
+  "@vercel/speed-insights": false
+  better-sqlite3: false
+  esbuild: false
+  puppeteer: false
+  puppeteer-core: false
+  sharp: false
+  unrs-resolver: false
+  vue-demi: false
 
 publicHoistPattern:
   - bun-types
