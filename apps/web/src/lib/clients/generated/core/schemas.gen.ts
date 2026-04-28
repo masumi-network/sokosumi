@@ -2204,6 +2204,140 @@ export const UserSchema = {
     ]
 } as const;
 
+export const ProjectSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            example: 'Q1 research'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Notes'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'workspaceId',
+        'name',
+        'description',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const CreateProjectRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200,
+            example: 'Q1 research'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 10000,
+            example: 'Optional description'
+        }
+    },
+    required: [
+        'name'
+    ]
+} as const;
+
+export const AddProjectJobRequestSchema = {
+    type: 'object',
+    properties: {
+        jobId: {
+            type: 'string',
+            minLength: 1,
+            example: 'job_abc'
+        }
+    },
+    required: [
+        'jobId'
+    ]
+} as const;
+
+export const AddProjectTaskRequestSchema = {
+    type: 'object',
+    properties: {
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            example: 'tsk_abc'
+        }
+    },
+    required: [
+        'taskId'
+    ]
+} as const;
+
+export const PatchProjectRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 10000
+        }
+    }
+} as const;
+
+export const ProjectDeletedSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        deleted: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'id',
+        'deleted'
+    ]
+} as const;
+
 export const JobSchema = {
     type: 'object',
     properties: {
