@@ -1,7 +1,4 @@
 /* eslint-disable no-restricted-properties */
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { withSentryConfig } from "@sentry/nextjs";
 import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";
@@ -13,13 +10,6 @@ import {
   normalizeCoreApiBaseUrl,
 } from "./src/lib/clients/utils/core-api-base-url.shared";
 
-/** Repo root (parent of `apps/`). Required so Turbopack resolves `workspace:*` deps under `packages/`. */
-const monorepoRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-);
-
 const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
   withRelatedProject({
     projectName: getCoreRelatedProjectName(
@@ -30,9 +20,6 @@ const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
 );
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    root: monorepoRoot,
-  },
   env: {
     NEXT_PUBLIC_NETWORK: process.env.NETWORK,
     NEXT_PUBLIC_CORE_APP_BASE_URL: browserCoreApiBaseUrl,
