@@ -52,8 +52,8 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       expect(headers["X-Delegation-User-Id"]).toBe("user-1");
       expect(headers["X-Coworker-Slug"]).toBe("agent");
       expect(headers["X-Delegation-Organization-Id"]).toBe("org-1");
-      expect(headers["X-Sokosumi-User-Id"]).toBeUndefined();
-      expect(headers["X-Sokosumi-Organization-Id"]).toBeUndefined();
+      expect(headers["X-Sokosumi-User-Id"]).toBe("user-1");
+      expect(headers["X-Sokosumi-Organization-Id"]).toBe("org-1");
       return new Response(
         new ReadableStream({
           start(controller) {
@@ -112,7 +112,8 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       expect(headers["X-Delegation-User-Id"]).toBe("user-1");
       expect(headers["X-Coworker-Slug"]).toBe("agent");
       expect(headers["X-Delegation-Organization-Id"]).toBeUndefined();
-      expect(headers["X-Sokosumi-User-Id"]).toBeUndefined();
+      expect(headers["X-Sokosumi-User-Id"]).toBe("user-1");
+      expect(headers["X-Sokosumi-Organization-Id"]).toBeUndefined();
       if (call === 1) {
         expect(body.conversation_id).toBe("conv_bad");
         return new Response("invalid_conversation_id", { status: 400 });
