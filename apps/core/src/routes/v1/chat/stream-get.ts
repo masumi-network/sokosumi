@@ -16,7 +16,7 @@ import {
   getResumableUiStreamContext,
   isUiStreamResumptionConfigured,
 } from "@/lib/resumable-ui-stream-context";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 
 const route = createRoute({
   method: "get",
@@ -55,13 +55,13 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(withGlobalHeaderParameters(route), async (c) => {
-    const authContext = requireUserAuthContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { conversationId } = c.req.valid("param");
 
     const conversation = await prisma.conversation.findFirst({
       where: {
         id: conversationId,
-        userId: authContext.userId,
+        userId: userContext.userId,
         archivedAt: null,
       },
       select: { id: true, metadata: true },
@@ -86,7 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (resumed == null) {
       void clearActiveUiStreamIdInMetadata({
         conversationId,
-        userId: authContext.userId,
+        userId: userContext.userId,
       }).catch((error) => {
         console.error(
           "Failed to clear stale active UI stream id after resume miss:",

@@ -40,7 +40,14 @@ vi.mock("@/helpers/active-ui-stream-metadata", () => ({
   clearActiveUiStreamIdInMetadata: clearActiveUiStreamIdInMetadataMock,
 }));
 
-function createApp() {
+function createApp(
+  authContext: AuthVariables["authContext"] = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>({
@@ -49,12 +56,7 @@ function createApp() {
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     return await next();
   });
 
@@ -147,5 +149,32 @@ describe("GET /chat/stream/:conversationId", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/event-stream");
     expect(resumeExistingStreamMock).toHaveBeenCalledWith("stream_1");
+  });
+
+  it("allows delegated coworker auth to resume the delegated user's stream", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { active_ui_stream_id: "stream_1" },
+    });
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "delegated_user_123",
+        organizationId: "delegated_org_123",
+      },
+    });
+    const response = await app.request(`http://localhost/stream/${cid}`);
+
+    expect(response.status).toBe(200);
+    expect(conversationFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: cid,
+        userId: "delegated_user_123",
+        archivedAt: null,
+      },
+      select: { id: true, metadata: true },
+    });
   });
 });
