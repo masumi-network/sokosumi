@@ -30,7 +30,7 @@ describe("coworker-conversation", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("POSTs /conversations with metadata and Sokosumi headers", async () => {
+  it("POSTs /conversations with metadata and delegation headers", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -52,16 +52,18 @@ describe("coworker-conversation", () => {
         method: "POST",
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          "X-Sokosumi-User-Id": "user_1",
+          "X-Delegation-User-Id": "user_1",
           "X-Coworker-Slug": "ops-agent",
-          "X-Sokosumi-Organization-Id": "org_1",
+          "X-Delegation-Organization-Id": "org_1",
         }),
       }),
     );
     const [, initWithOrg] = fetchMock.mock.calls[0] as [
       string,
-      { body: string },
+      { headers: Record<string, string>; body: string },
     ];
+    expect(initWithOrg.headers["X-Sokosumi-User-Id"]).toBeUndefined();
+    expect(initWithOrg.headers["X-Sokosumi-Organization-Id"]).toBeUndefined();
     expect(JSON.parse(initWithOrg.body)).toEqual({
       metadata: {
         sokosumi_user_id: "user_1",
@@ -93,7 +95,8 @@ describe("coworker-conversation", () => {
       string,
       { headers: Record<string, string>; body: string },
     ];
-    expect(init.headers["X-Sokosumi-Organization-Id"]).toBeUndefined();
+    expect(init.headers["X-Sokosumi-User-Id"]).toBeUndefined();
+    expect(init.headers["X-Delegation-Organization-Id"]).toBeUndefined();
     expect(JSON.parse(init.body)).toEqual({
       metadata: {
         sokosumi_user_id: "user_1",

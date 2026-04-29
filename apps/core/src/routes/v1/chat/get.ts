@@ -15,7 +15,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import {
   getChatUiMessagesQuerySchema,
   getChatUiMessagesResponseDataSchema,
@@ -67,14 +67,14 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(withGlobalHeaderParameters(route), async (c) => {
     try {
-      const authContext = requireUserAuthContext(c.var.authContext);
+      const userContext = requireUserContext(c.var.authContext);
       const query = c.req.valid("query");
       const { conversationId } = query;
 
       const conversation = await prisma.conversation.findFirst({
         where: {
           id: conversationId,
-          userId: authContext.userId,
+          userId: userContext.userId,
           archivedAt: null,
         },
         select: { id: true },

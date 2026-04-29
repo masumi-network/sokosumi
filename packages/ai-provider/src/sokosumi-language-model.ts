@@ -271,11 +271,16 @@ async function streamCoworker(
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    // keep both delegation headers for now to avoid breaking changes
     "X-Sokosumi-User-Id": sokosumiOpts.sokosumiUserId ?? "",
+    "X-Delegation-User-Id": sokosumiOpts.sokosumiUserId ?? "",
     "X-Coworker-Slug": sokosumiOpts.coworkerSlug ?? "",
   };
   if (sokosumiOpts.sokosumiOrganizationId?.trim()) {
+    // keep both delegation headers for now to avoid breaking changes
     headers["X-Sokosumi-Organization-Id"] =
+      sokosumiOpts.sokosumiOrganizationId.trim();
+    headers["X-Delegation-Organization-Id"] =
       sokosumiOpts.sokosumiOrganizationId.trim();
   }
   if (options.headers) {

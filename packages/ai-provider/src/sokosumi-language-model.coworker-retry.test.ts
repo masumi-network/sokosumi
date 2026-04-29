@@ -39,6 +39,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
     globalThis.fetch = vi.fn(async (_url, init) => {
       call++;
       const body = init?.body ? JSON.parse(String(init.body)) : {};
+      const headers = (init?.headers ?? {}) as Record<string, string>;
       expect(body.conversation_id).toBe("conv_abc");
       expect(body.previous_response_id).toBeUndefined();
       expect(body.input).toEqual([
@@ -48,6 +49,11 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           content: [{ type: "input_text", text: "Only last" }],
         },
       ]);
+      expect(headers["X-Delegation-User-Id"]).toBe("user-1");
+      expect(headers["X-Coworker-Slug"]).toBe("agent");
+      expect(headers["X-Delegation-Organization-Id"]).toBe("org-1");
+      expect(headers["X-Sokosumi-User-Id"]).toBeUndefined();
+      expect(headers["X-Sokosumi-Organization-Id"]).toBeUndefined();
       return new Response(
         new ReadableStream({
           start(controller) {
@@ -86,6 +92,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           coworkerBaseUrl: "https://cow.example/api",
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
+          sokosumiOrganizationId: "org-1",
           previousResponseId: "resp_old",
           providerConversationId: "conv_abc",
         },
@@ -101,6 +108,11 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
     globalThis.fetch = vi.fn(async (_url, init) => {
       call++;
       const body = init?.body ? JSON.parse(String(init.body)) : {};
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      expect(headers["X-Delegation-User-Id"]).toBe("user-1");
+      expect(headers["X-Coworker-Slug"]).toBe("agent");
+      expect(headers["X-Delegation-Organization-Id"]).toBeUndefined();
+      expect(headers["X-Sokosumi-User-Id"]).toBeUndefined();
       if (call === 1) {
         expect(body.conversation_id).toBe("conv_bad");
         return new Response("invalid_conversation_id", { status: 400 });
