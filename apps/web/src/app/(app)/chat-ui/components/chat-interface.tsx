@@ -229,7 +229,7 @@ export default function ChatInterface({
         : (welcomeSelectedCoworker ?? initialWelcomeCoworker);
 
   const [welcomeComposeKind, setWelcomeComposeKind] =
-    useState<ChatComposeKind>("chat");
+    useState<ChatComposeKind>("task");
   const [isWelcomeTaskSubmitting, setIsWelcomeTaskSubmitting] = useState(false);
   const welcomeTaskCreationInFlightRef = useRef(false);
 
@@ -242,7 +242,7 @@ export default function ChatInterface({
     id: string;
     name: string;
   } | null>(null);
-  const welcomeComposeKindRef = useRef<ChatComposeKind>("chat");
+  const welcomeComposeKindRef = useRef<ChatComposeKind>("task");
   const welcomePrefsWriteSelectedChatIdRef = useRef<string | null>(null);
   const welcomePrefsWriteWelcomeCoworkerSlugRef = useRef<string | null>(null);
   welcomeSelectedCoworkerRef.current = welcomeSelectedCoworker;
@@ -1254,7 +1254,7 @@ export default function ChatInterface({
       }
 
       const trimmedMessage = messageText.trim();
-      const composeKind = options?.kind ?? "chat";
+      const composeKind = options?.kind ?? "task";
 
       if (!selectedChatId) {
         if (composeKind === "task") {

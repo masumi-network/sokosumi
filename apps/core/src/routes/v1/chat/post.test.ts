@@ -119,9 +119,14 @@ vi.mock("@/lib/resumable-ui-stream-context", () => ({
 }));
 
 function createApp({
-  organizationId = null,
+  authContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  },
 }: {
-  organizationId?: string | null;
+  authContext?: AuthVariables["authContext"];
 } = {}) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
@@ -131,12 +136,7 @@ function createApp({
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     return await next();
   });
 
@@ -278,6 +278,95 @@ describe("POST /chat", () => {
     expect(streamTextMock).not.toHaveBeenCalled();
   });
 
+  it("accepts delegated coworker auth and uses the delegated user context", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { coworker_slug: "ops-agent" },
+      providerConversationId: null,
+    });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+
+    const app = createApp({
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        delegation: {
+          userId: "delegated_user_123",
+          organizationId: "delegated_org_123",
+        },
+      },
+    });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(conversationFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: cid,
+          userId: "delegated_user_123",
+        }),
+      }),
+    );
+    expect(createCoworkerConversationMock).toHaveBeenCalledWith({
+      responsesApiBaseUrl: "https://responses.example.com/v1",
+      sokosumiUserId: "delegated_user_123",
+      sokosumiOrganizationId: "delegated_org_123",
+      coworkerSlug: "ops-agent",
+      sokosumiConversationId: cid,
+    });
+    expect(conversationUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: cid,
+        userId: "delegated_user_123",
+        providerConversationId: null,
+      },
+      data: { providerConversationId: "conv_test_1" },
+    });
+    const args = streamTextMock.mock.calls[0]![0] as {
+      providerOptions?: {
+        sokosumi?: {
+          sokosumiUserId?: string | null;
+          sokosumiOrganizationId?: string | null;
+        };
+      };
+    };
+    expect(args.providerOptions?.sokosumi?.sokosumiUserId).toBe(
+      "delegated_user_123",
+    );
+    expect(args.providerOptions?.sokosumi?.sokosumiOrganizationId).toBe(
+      "delegated_org_123",
+    );
+  });
+
+  it("rejects coworker auth without delegation headers for user-scoped chat", async () => {
+    const app = createApp({
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_123",
+      },
+    });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(conversationFindFirstMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
   it("returns 503 when OpenRouter chat key is missing for model chat", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({
       id: "550e8400-e29b-41d4-a716-446655440000",
@@ -354,7 +443,14 @@ describe("POST /chat", () => {
     });
     coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
 
-    const app = createApp({ organizationId: "org_1" });
+    const app = createApp({
+      authContext: {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_1",
+        role: "user",
+      },
+    });
     const response = await app.request("http://localhost/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -408,7 +504,14 @@ describe("POST /chat", () => {
     });
     coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
 
-    const app = createApp({ organizationId: "org_1" });
+    const app = createApp({
+      authContext: {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_1",
+        role: "user",
+      },
+    });
     const response = await app.request("http://localhost/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -510,6 +613,33 @@ describe("POST /chat", () => {
     });
 
     expect(response.status).toBe(403);
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when creating the remote coworker conversation fails", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { coworker_slug: "ops-agent" },
+      providerConversationId: null,
+    });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+    createCoworkerConversationMock.mockRejectedValueOnce(
+      new Error("upstream unavailable"),
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(503);
     expect(streamTextMock).not.toHaveBeenCalled();
   });
 

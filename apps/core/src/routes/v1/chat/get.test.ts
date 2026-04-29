@@ -35,7 +35,14 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp() {
+function createApp(
+  authContext: AuthVariables["authContext"] = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>({
@@ -44,12 +51,7 @@ function createApp() {
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     return await next();
   });
 
@@ -103,6 +105,36 @@ describe("GET /chat", () => {
     expect(body.data.messages[1]?.role).toBe("assistant");
     expect(body.meta.pagination.total).toBe(2);
     expect(body.meta.pagination.nextCursor).toBeNull();
+  });
+
+  it("allows delegated coworker auth to read the delegated user's chat", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
+    conversationMessageCountMock.mockResolvedValueOnce(1);
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      { id: "m1", role: "user", contentText: "Hi" },
+    ]);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "delegated_user_123",
+        organizationId: "delegated_org_123",
+      },
+    });
+    const response = await app.request(
+      `http://localhost/?conversationId=${cid}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(conversationFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: cid,
+        userId: "delegated_user_123",
+        archivedAt: null,
+      },
+      select: { id: true },
+    });
   });
 
   it("includes stored reasoning parts before assistant text", async () => {
