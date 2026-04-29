@@ -93,9 +93,16 @@ export function resolveHydratedWelcomeSelection(
   coworker: Coworker | null;
   model: { id: string; name: string } | null;
 } {
-  const defaultCompose: ChatComposeKind = "chat";
+  const defaultCompose: ChatComposeKind = "task";
   if (!stored) {
-    return { composeKind: defaultCompose, coworker: null, model: null };
+    return {
+      composeKind: defaultCompose,
+      coworker:
+        defaultCompose === "task"
+          ? firstCoworkerWithTasksCapability(coworkers)
+          : null,
+      model: null,
+    };
   }
 
   const composeKind: ChatComposeKind = isChatComposeKind(stored.composeKind)

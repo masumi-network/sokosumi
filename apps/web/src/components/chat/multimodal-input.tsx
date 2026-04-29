@@ -156,9 +156,11 @@ function PureMultimodalInput({
   const activeUploadControllersRef = useRef(new Set<AbortController>());
   const [windowWidth, setWindowWidth] = useState<number | undefined>(undefined);
   const [internalComposeKind, setInternalComposeKind] =
-    useState<ChatComposeKind>("chat");
+    useState<ChatComposeKind>("task");
   const isComposeKindControlled = controlledComposeKind !== undefined;
-  const composeKind = controlledComposeKind ?? internalComposeKind;
+  // Compose-kind toggle is hidden when `chatId` is set; force chat so task-only state cannot block send.
+  const storedComposeKind = controlledComposeKind ?? internalComposeKind;
+  const composeKind: ChatComposeKind = chatId ? "chat" : storedComposeKind;
   const [taskStatus, setTaskStatus] = useState<TaskSubmitStatus>("READY");
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);

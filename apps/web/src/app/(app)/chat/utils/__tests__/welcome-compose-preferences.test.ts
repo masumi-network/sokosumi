@@ -138,8 +138,8 @@ describe("resolveHydratedWelcomeSelection", () => {
         urlCoworkerSlug: false,
       }),
     ).toEqual({
-      composeKind: "chat",
-      coworker: null,
+      composeKind: "task",
+      coworker: coworkers[0],
       model: null,
     });
   });

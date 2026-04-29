@@ -13,6 +13,14 @@ overrides:
   zod: 4.3.6
 
 allowBuilds:
+  # pnpm 11: workspace prepare scripts are blocked unless listed (strictDepBuilds).
+  # These packages compile to dist/ on install; without them, Next/Turbopack cannot resolve exports.
+  "@sokosumi/ai-provider": true
+  "@sokosumi/chat": true
+  "@sokosumi/database": true
+  "@sokosumi/email": true
+  "@sokosumi/masumi": true
+  "@sokosumi/utils": true
   prisma: true
   "@parcel/watcher": false
   "@prisma/client": false
