@@ -433,7 +433,7 @@ function PureMultimodalInput({
       }
     }
 
-    const chatMessage = { text: input } as ChatSendMessage;
+    const chatMessage = { text: input.trim() } as ChatSendMessage;
 
     // Use onSendMessage if provided (for welcome screen to create conversation)
     // Otherwise use sendMessage from useChat hook

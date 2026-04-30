@@ -98,8 +98,35 @@ function hasSendMessageContent(message: ChatComposeMessage): boolean {
 }
 
 function toChatSendMessage(message: ChatComposeMessage): ChatSendMessage {
-  if (typeof message !== "string") return message;
-  return { text: message.trim() } as ChatSendMessage;
+  if (typeof message === "string") {
+    return { text: message.trim() } as ChatSendMessage;
+  }
+
+  const m = message as Record<string, unknown>;
+  const hasText = typeof m.text === "string";
+  const hasParts = Array.isArray(m.parts);
+  if (!hasText && !hasParts) {
+    return message;
+  }
+
+  const next: Record<string, unknown> = { ...m };
+  if (hasText) {
+    next.text = (m.text as string).trim();
+  }
+  if (hasParts) {
+    next.parts = (m.parts as unknown[]).map((part: unknown) => {
+      if (!part || typeof part !== "object") return part;
+      const p = part as Record<string, unknown>;
+      if (p.type !== "text") return part;
+      if (typeof p.text === "string") return { ...p, text: p.text.trim() };
+      if (typeof p.content === "string") {
+        return { ...p, content: p.content.trim() };
+      }
+      return part;
+    });
+  }
+
+  return next as ChatSendMessage;
 }
 
 function buildResendMessage(message: UIMessage): ChatSendMessage | null {
@@ -1032,6 +1059,7 @@ export default function ChatInterface({
 
   const sendInConversation = useCallback(
     (conversationId: string, message: ChatSendMessage): boolean => {
+      const payload = toChatSendMessage(message);
       let slot = conversationToSlot.get(conversationId);
       if (slot === undefined) {
         const freeSlot = getOrAssignSlot(conversationId);
@@ -1067,11 +1095,11 @@ export default function ChatInterface({
         );
         const slotToSend = slot;
         queueMicrotask(() => {
-          sendMessageSlots[slotToSend](message);
+          sendMessageSlots[slotToSend](payload);
         });
         return true;
       }
-      sendMessageSlots[slot](message);
+      sendMessageSlots[slot](payload);
       return true;
     },
     [
