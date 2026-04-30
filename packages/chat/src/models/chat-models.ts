@@ -7,10 +7,10 @@ export interface ChatModel {
 
 export const CHAT_MODELS = [
   {
-    id: "mimo-v2-pro",
-    name: "MiMo-V2-Pro",
+    id: "mimo-v2-5-pro",
+    name: "MiMo V2.5 Pro",
     iconProvider: "xiaomi",
-    openRouterId: "xiaomi/mimo-v2-pro",
+    openRouterId: "xiaomi/mimo-v2.5-pro",
   },
   {
     id: "kimi-k2-6",
@@ -57,7 +57,6 @@ export const DEFAULT_CHAT_MODEL_ID: ChatModelId = "gpt-5-4";
 const CHAT_MODEL_MAP = new Map<string, string>([
   ...CHAT_MODELS.map((model) => [model.id, model.openRouterId] as const),
   // Keep persisted selections working after model upgrades.
-  ["minimax-m2-5", "xiaomi/mimo-v2-pro"],
   ["kimi-k2-5", "moonshotai/kimi-k2.6"],
   ["deepseek-v3-2", "deepseek/deepseek-v4-pro"],
   ["gpt-5-2", "openai/gpt-5.4"],
