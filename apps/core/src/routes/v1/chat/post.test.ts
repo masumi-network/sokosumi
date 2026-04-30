@@ -347,6 +347,71 @@ describe("POST /chat", () => {
     );
   });
 
+  it("rejects attachment-only system messages for coworker chats", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { coworker_slug: "ops-agent" },
+      providerConversationId: null,
+    });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [
+          {
+            role: "system",
+            parts: [
+              {
+                type: "file",
+                url: "https://example.com/brief.pdf",
+                mediaType: "application/pdf",
+                filename: "brief.pdf",
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts coworker chat when the last user message uses string content only", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { coworker_slug: "ops-agent" },
+      providerConversationId: "conv_remote_1",
+    });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [{ role: "user", content: "Hello from string content" }],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(streamTextMock).toHaveBeenCalledOnce();
+    const call = streamTextMock.mock.calls[0]![0] as {
+      providerOptions?: { sokosumi?: { mode?: string } };
+    };
+    expect(call.providerOptions?.sokosumi?.mode).toBe("coworker");
+  });
+
   it("rejects coworker auth without delegation headers for user-scoped chat", async () => {
     const app = createApp({
       authContext: {

@@ -294,6 +294,65 @@ export function extractPersistableUiParts(
     .filter((part): part is PersistedChatUiPart => part !== null);
 }
 
+export function hasModelVisibleMessageContent(
+  message: Record<string, unknown>,
+): boolean {
+  if (extractMessageText(message).trim().length > 0) {
+    return true;
+  }
+
+  return extractPersistableUiParts(message).some((part) => {
+    if (part.type === "file") {
+      return true;
+    }
+
+    return part.text.trim().length > 0;
+  });
+}
+
+function buildTitleSourceFromFilePart(part: PersistedChatUiFilePart): string {
+  const filename = part.filename?.trim();
+  if (filename) {
+    return filename;
+  }
+
+  if (part.mediaType.toLowerCase().startsWith("image/")) {
+    return "Image message";
+  }
+
+  try {
+    const url = new URL(part.url);
+    const lastPathSegment = url.pathname.split("/").filter(Boolean).pop();
+    return lastPathSegment && lastPathSegment.length > 0
+      ? lastPathSegment
+      : url.hostname;
+  } catch {
+    return "File message";
+  }
+}
+
+export function buildMessageTitleSource(
+  message: Record<string, unknown>,
+): string | null {
+  const extractedText = extractMessageText(message).trim();
+  if (extractedText.length > 0) {
+    return extractedText;
+  }
+
+  for (const uiPart of extractPersistableUiParts(message)) {
+    if (uiPart.type === "file") {
+      return buildTitleSourceFromFilePart(uiPart);
+    }
+
+    const partText = uiPart.text.trim();
+    if (partText.length > 0) {
+      return partText;
+    }
+  }
+
+  return null;
+}
+
 /** Reasoning segments from structured `content` / `parts` (for persisting `metadata.reasoning`). */
 export function extractReasoningPartsFromMessage(
   message: Record<string, unknown>,

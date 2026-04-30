@@ -24,9 +24,11 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import {
+  buildMessageTitleSource,
   extractMessageText,
   extractPersistableUiParts,
   extractReasoningPartsFromMessage,
+  hasModelVisibleMessageContent,
 } from "@/helpers/message-content";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { persistAssistantFromAiSdk } from "@/helpers/persist-assistant-from-ai-sdk";
@@ -69,6 +71,7 @@ async function persistUserOrSystemTurnForConversation(params: {
 
   const reasoningParts = extractReasoningPartsFromMessage(lastMessage);
   const uiParts = extractPersistableUiParts(lastMessage);
+  const titleSource = buildMessageTitleSource(lastMessage);
   const metadata =
     reasoningParts.length > 0 || uiParts.length > 0
       ? {
@@ -93,7 +96,7 @@ async function persistUserOrSystemTurnForConversation(params: {
     const isFirstUserMessage =
       itemCountBefore === 0 &&
       lastMessage.role === "user" &&
-      extractedText.trim().length > 0;
+      titleSource !== null;
 
     await tx.conversationMessage.create({
       data: {
@@ -112,8 +115,9 @@ async function persistUserOrSystemTurnForConversation(params: {
     waitUntil(
       (async () => {
         try {
-          const generatedTitle =
-            await openrouterClient.generateChatTitle(extractedText);
+          const generatedTitle = await openrouterClient.generateChatTitle(
+            titleSource ?? extractedText,
+          );
           if (generatedTitle) {
             await prisma.conversation.update({
               where: { id: conversationId },
@@ -248,6 +252,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               return extractMessageText(lastMessage as Record<string, unknown>);
             })()
           : null;
+      const lastMessageHasCoworkerCompatibleContent =
+        incomingLast &&
+        (incomingLast.role === "user" || incomingLast.role === "system")
+          ? incomingLast.role === "user"
+            ? hasModelVisibleMessageContent(
+                incomingLast as Record<string, unknown>,
+              )
+            : (lastUserMessageText?.trim().length ?? 0) > 0
+          : false;
 
       const metadata = (conversation?.metadata ?? null) as Record<
         string,
@@ -283,9 +296,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const useCoworker = Boolean(internalConversationId) && Boolean(coworker);
 
       if (useCoworker) {
-        if (lastUserMessageText === null || lastUserMessageText.trim() === "") {
+        if (!lastMessageHasCoworkerCompatibleContent) {
           throw badRequest(
-            "Coworker chat requires a user or system message to respond to; send at least one message with text.",
+            "Coworker chat requires a user or system message to respond to; send a user message with text or an attachment, or a system message with text.",
           );
         }
         if (!coworker?.baseURL?.trim()) {
