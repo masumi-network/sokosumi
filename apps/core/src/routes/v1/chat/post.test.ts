@@ -347,6 +347,43 @@ describe("POST /chat", () => {
     );
   });
 
+  it("rejects attachment-only system messages for coworker chats", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { coworker_slug: "ops-agent" },
+      providerConversationId: null,
+    });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [
+          {
+            role: "system",
+            parts: [
+              {
+                type: "file",
+                url: "https://example.com/brief.pdf",
+                mediaType: "application/pdf",
+                filename: "brief.pdf",
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
   it("rejects coworker auth without delegation headers for user-scoped chat", async () => {
     const app = createApp({
       authContext: {

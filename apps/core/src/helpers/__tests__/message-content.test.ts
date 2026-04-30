@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildConversationContentParts,
+  buildMessageTitleSource,
   extractMessageText,
   extractPersistableUiParts,
   extractReasoningPartsFromMessage,
   extractUiMessageParts,
+  hasModelVisibleMessageContent,
   readReasoningPartsFromMetadata,
 } from "../message-content";
 
@@ -244,6 +246,92 @@ describe("extractPersistableUiParts", () => {
         mediaType: "application/pdf",
       },
     ]);
+  });
+});
+
+describe("hasModelVisibleMessageContent", () => {
+  it("returns true for attachment-only file messages", () => {
+    expect(
+      hasModelVisibleMessageContent({
+        parts: [
+          {
+            type: "file",
+            url: "https://example.com/brief.pdf",
+            mediaType: "application/pdf",
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for blank text-only messages", () => {
+    expect(
+      hasModelVisibleMessageContent({
+        parts: [{ type: "text", text: "   " }],
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("buildMessageTitleSource", () => {
+  it("prefers extracted text when present", () => {
+    expect(
+      buildMessageTitleSource({
+        content: "Summarize this image",
+        parts: [
+          {
+            type: "file",
+            url: "https://example.com/cat.png",
+            mediaType: "image/png",
+          },
+        ],
+      }),
+    ).toBe("Summarize this image");
+  });
+
+  it("falls back to the first attachment filename", () => {
+    expect(
+      buildMessageTitleSource({
+        parts: [
+          {
+            type: "file",
+            url: "https://example.com/uploads/brief.pdf",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+          },
+        ],
+      }),
+    ).toBe("brief.pdf");
+  });
+
+  it("skips blank text parts before attachment fallbacks", () => {
+    expect(
+      buildMessageTitleSource({
+        parts: [
+          { type: "text", text: "   " },
+          {
+            type: "file",
+            url: "https://example.com/uploads/brief.pdf",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+          },
+        ],
+      }),
+    ).toBe("brief.pdf");
+  });
+
+  it("uses an image fallback label when no filename is available", () => {
+    expect(
+      buildMessageTitleSource({
+        parts: [
+          {
+            type: "file",
+            url: "https://example.com/uploads/cat.png",
+            mediaType: "image/png",
+          },
+        ],
+      }),
+    ).toBe("Image message");
   });
 });
 
