@@ -1447,7 +1447,9 @@ export default function ChatInterface({
     (message?: ChatSendMessage) => {
       const cid = selectedChatId ?? currentChatIdRef.current;
       if (!cid) return Promise.resolve();
-      if (message) sendInConversation(cid, message);
+      if (message && hasSendMessageContent(message)) {
+        sendInConversation(cid, message);
+      }
       return Promise.resolve();
     },
     [selectedChatId, sendInConversation],
