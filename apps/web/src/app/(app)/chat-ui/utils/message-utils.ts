@@ -23,6 +23,19 @@ function appendVisibleTextFromPart(part: Record<string, unknown>): string {
   return "";
 }
 
+function hasMeaningfulUiPart(part: unknown): boolean {
+  if (!part || typeof part !== "object") {
+    return false;
+  }
+
+  const record = part as Record<string, unknown>;
+  if (record.type === "file") {
+    return true;
+  }
+
+  return appendVisibleTextFromPart(record).trim().length > 0;
+}
+
 /** Visible assistant text only (text parts only; excludes reasoning, tools, etc.). */
 export function extractMessageContent(message: unknown): string {
   const messageAny = message as Record<string, unknown>;
@@ -75,6 +88,16 @@ export function extractMessageContent(message: unknown): string {
   }
 
   return content.trim();
+}
+
+export function hasMessageTextOrFileParts(message: unknown): boolean {
+  const messageAny = message as Record<string, unknown>;
+  const parts = messageAny.parts;
+  if (!Array.isArray(parts)) {
+    return false;
+  }
+
+  return parts.some((part) => hasMeaningfulUiPart(part));
 }
 
 /** Reasoning parts from a UIMessage (for ThoughtSummaryBar / loaders). */

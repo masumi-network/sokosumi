@@ -25,6 +25,7 @@ import {
   extractMessageContent,
   extractReasoningStepMessages,
   getThoughtTimingMsFromMessage,
+  hasMessageTextOrFileParts,
 } from "@/app/chat-ui/utils/message-utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -72,7 +73,7 @@ interface MessageListProps {
   reasoningStartedAt?: number;
   reasoningEndedAt?: number;
   isCoworker?: boolean;
-  onResendLastMessage?: (lastUserMessageText: string) => void;
+  onResendLastMessage?: (lastUserMessage: UIMessage) => void;
   userTailRecoveryFailed?: boolean;
 }
 
@@ -184,26 +185,33 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const modelName = selectedChat?.model?.name;
     const modelId = selectedChat?.model?.id;
 
-    const lastUserMessageText = (() => {
+    const lastUserMessage = (() => {
       for (let i = messagesWithTimestamps.length - 1; i >= 0; i--) {
         const msg = messagesWithTimestamps[i];
         if ((msg.role as string) === "user") {
-          const text = extractMessageContent(msg).trim();
-          if (text) return text;
-          return "";
+          return msg;
         }
       }
-      return "";
+      return null;
     })();
+    const lastUserMessageText = lastUserMessage
+      ? extractMessageContent(lastUserMessage).trim()
+      : "";
+    const lastUserMessageHasParts =
+      lastUserMessage != null && hasMessageTextOrFileParts(lastUserMessage);
+    const lastUserMessageHasContent =
+      lastUserMessageText.length > 0 || lastUserMessageHasParts;
 
     const showUserTailRecoveryError =
       userTailRecoveryFailed &&
       lastMessage?.role === "user" &&
-      Boolean(lastUserMessageText);
+      lastUserMessageHasContent;
     const showPendingOrTailError =
       showPendingError || showUserTailRecoveryError;
     const canResendPendingOrTail = Boolean(
-      showPendingOrTailError && onResendLastMessage && lastUserMessageText,
+      showPendingOrTailError &&
+        onResendLastMessage &&
+        lastUserMessageHasContent,
     );
 
     const pendingErrorMessage = t("pendingResponseFailed");
@@ -228,7 +236,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           {canResendPendingOrTail && (
             <Button
               className="bg-foreground text-background hover:bg-foreground/90 w-fit"
-              onClick={() => onResendLastMessage?.(lastUserMessageText)}
+              onClick={() => {
+                if (lastUserMessage) onResendLastMessage?.(lastUserMessage);
+              }}
               size="sm"
             >
               {t("resend")}
@@ -378,7 +388,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     return (
       <div
         ref={setWrapperRef}
-        className="absolute inset-x-0 top-0 bottom-[8rem] overflow-hidden"
+        className="absolute inset-x-0 top-0 bottom-32 overflow-hidden"
       >
         <div
           ref={scrollContainerRef}

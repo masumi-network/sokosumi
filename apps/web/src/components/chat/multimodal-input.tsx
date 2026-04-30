@@ -17,7 +17,9 @@ import { toast } from "sonner";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type {
   ChatComposeKind,
+  ChatComposeMessage,
   ChatComposeSubmitOptions,
+  ChatSendMessage,
   Coworker,
   TaskSubmitStatus,
 } from "@/app/chat/utils/types";
@@ -74,7 +76,7 @@ interface MultimodalInputProps {
   setMessages: UseChatHelpers<UIMessage>["setMessages"];
   sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
   onSendMessage?: (
-    message: string,
+    message: ChatComposeMessage,
     coworker?: Coworker,
     model?: { id: string; name: string },
     options?: ChatComposeSubmitOptions,
@@ -431,11 +433,13 @@ function PureMultimodalInput({
       }
     }
 
+    const sendPayload = { text: input.trim() } as ChatSendMessage;
+
     // Use onSendMessage if provided (for welcome screen to create conversation)
     // Otherwise use sendMessage from useChat hook
     if (onSendMessage) {
       const sendResult = await onSendMessage(
-        input,
+        sendPayload,
         selectedCoworker ?? undefined,
         selectedModel ?? undefined,
         {
@@ -447,7 +451,7 @@ function PureMultimodalInput({
         return;
       }
     } else {
-      sendMessage({ text: input } as never);
+      sendMessage(sendPayload);
     }
 
     setLocalStorageValue("chat-input", "");

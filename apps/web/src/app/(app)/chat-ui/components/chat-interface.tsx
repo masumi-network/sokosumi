@@ -32,7 +32,9 @@ import { useCoworkerPostRefreshAssistantPoll } from "@/app/chat/hooks/use-cowork
 import type {
   Chat,
   ChatComposeKind,
+  ChatComposeMessage,
   ChatComposeSubmitOptions,
+  ChatSendMessage,
   Coworker,
 } from "@/app/chat/utils/types";
 import {
@@ -52,6 +54,7 @@ import {
 import {
   extractMessageContent,
   extractReasoningStepMessages,
+  hasMessageTextOrFileParts,
   mergeAssistantThoughtMetadataFromDb,
 } from "@/app/chat-ui/utils/message-utils";
 import { useConversationsContext } from "@/contexts/conversations-context";
@@ -81,6 +84,59 @@ const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
 
 /** Stable no-op for inputs that do not wire `useChat` stop; avoids breaking memo equality on `stop`. */
 function noopChatComposerStop() {}
+
+function getSendMessageText(message: ChatComposeMessage): string {
+  if (typeof message === "string") return message.trim();
+  return extractMessageContent(message).trim();
+}
+
+function hasSendMessageContent(message: ChatComposeMessage): boolean {
+  if (getSendMessageText(message).length > 0) return true;
+  return typeof message === "string"
+    ? false
+    : hasMessageTextOrFileParts(message);
+}
+
+function toChatSendMessage(message: ChatComposeMessage): ChatSendMessage {
+  if (typeof message === "string") {
+    return { text: message.trim() } as ChatSendMessage;
+  }
+
+  const m = message as Record<string, unknown>;
+  const hasText = typeof m.text === "string";
+  const hasParts = Array.isArray(m.parts);
+  if (!hasText && !hasParts) {
+    return message;
+  }
+
+  const next: Record<string, unknown> = { ...m };
+  if (hasText) {
+    next.text = (m.text as string).trim();
+  }
+  if (hasParts) {
+    next.parts = (m.parts as unknown[]).map((part: unknown) => {
+      if (!part || typeof part !== "object") return part;
+      const p = part as Record<string, unknown>;
+      if (p.type !== "text") return part;
+      if (typeof p.text === "string") return { ...p, text: p.text.trim() };
+      if (typeof p.content === "string") {
+        return { ...p, content: p.content.trim() };
+      }
+      return part;
+    });
+  }
+
+  return next as ChatSendMessage;
+}
+
+function buildResendMessage(message: UIMessage): ChatSendMessage | null {
+  if (hasMessageTextOrFileParts(message)) {
+    return { parts: message.parts } as ChatSendMessage;
+  }
+
+  const text = extractMessageContent(message).trim();
+  return text ? ({ text } as ChatSendMessage) : null;
+}
 
 interface SlotPayload {
   conversationId: string | null;
@@ -1002,7 +1058,8 @@ export default function ChatInterface({
   ]);
 
   const sendInConversation = useCallback(
-    (conversationId: string, text: string): boolean => {
+    (conversationId: string, message: ChatSendMessage): boolean => {
+      const payload = toChatSendMessage(message);
       let slot = conversationToSlot.get(conversationId);
       if (slot === undefined) {
         const freeSlot = getOrAssignSlot(conversationId);
@@ -1038,11 +1095,11 @@ export default function ChatInterface({
         );
         const slotToSend = slot;
         queueMicrotask(() => {
-          sendMessageSlots[slotToSend]({ text });
+          sendMessageSlots[slotToSend](payload);
         });
         return true;
       }
-      sendMessageSlots[slot]({ text });
+      sendMessageSlots[slot](payload);
       return true;
     },
     [
@@ -1244,20 +1301,25 @@ export default function ChatInterface({
 
   const handleSendMessage = useCallback(
     async (
-      messageText: string,
+      message: ChatComposeMessage,
       coworker?: Coworker,
       model?: { id: string; name: string },
       options?: ChatComposeSubmitOptions,
     ): Promise<boolean> => {
-      if (!messageText.trim() || isLoading) {
+      if (!hasSendMessageContent(message) || isLoading) {
         return false;
       }
 
-      const trimmedMessage = messageText.trim();
+      const messageText = getSendMessageText(message);
+      const sendPayload = toChatSendMessage(message);
       const composeKind = options?.kind ?? "task";
 
       if (!selectedChatId) {
         if (composeKind === "task") {
+          if (!messageText) {
+            return false;
+          }
+
           if (welcomeTaskCreationInFlightRef.current) {
             return false;
           }
@@ -1278,7 +1340,7 @@ export default function ChatInterface({
           setIsWelcomeTaskSubmitting(true);
           try {
             const result = await createTask({
-              description: trimmedMessage,
+              description: messageText,
               coworkerId: selectedTaskCoworker.id,
               status:
                 options?.taskStatus === "DRAFT"
@@ -1332,7 +1394,7 @@ export default function ChatInterface({
         }
 
         const cid = currentChatIdRef.current ?? conversationId;
-        const sent = cid ? sendInConversation(cid, trimmedMessage) : false;
+        const sent = cid ? sendInConversation(cid, sendPayload) : false;
         if (sent) setInput("");
         return sent;
       }
@@ -1352,7 +1414,7 @@ export default function ChatInterface({
         );
       }
 
-      const sent = sendInConversation(selectedChatId, trimmedMessage);
+      const sent = sendInConversation(selectedChatId, sendPayload);
       if (sent) setInput("");
       return sent;
     },
@@ -1382,17 +1444,12 @@ export default function ChatInterface({
   }, [selectedChatId, conversationToSlot, slotStatuses]);
 
   const sendMessageForInput = useCallback(
-    (message?: { text?: string } | { parts?: unknown[] } | UIMessage) => {
+    (message?: ChatSendMessage) => {
       const cid = selectedChatId ?? currentChatIdRef.current;
       if (!cid) return Promise.resolve();
-      const text =
-        message &&
-        typeof message === "object" &&
-        "text" in message &&
-        typeof (message as { text?: string }).text === "string"
-          ? (message as { text: string }).text
-          : undefined;
-      if (text) sendInConversation(cid, text);
+      if (message && hasSendMessageContent(message)) {
+        sendInConversation(cid, message);
+      }
       return Promise.resolve();
     },
     [selectedChatId, sendInConversation],
@@ -1411,8 +1468,10 @@ export default function ChatInterface({
   );
 
   const handleResendLastMessage = useCallback(
-    async (text: string) => {
-      if (!selectedChatId || !text.trim()) return;
+    async (message: UIMessage) => {
+      if (!selectedChatId) return;
+      const sendPayload = buildResendMessage(message);
+      if (!sendPayload) return;
       const list = await refreshConversations();
       const conv = list?.find((c) => c.id === selectedChatId);
       const pid = readPreviousResponseIdFromMetadata(
@@ -1421,7 +1480,7 @@ export default function ChatInterface({
       if (pid) {
         resendPreviousResponseIdOverrideRef.current.set(selectedChatId, pid);
       }
-      sendInConversation(selectedChatId, text.trim());
+      sendInConversation(selectedChatId, sendPayload);
     },
     [selectedChatId, sendInConversation, refreshConversations],
   );
