@@ -7,6 +7,7 @@ import {
   extractMessageContent,
   extractReasoningStepMessages,
   getThoughtTimingMsFromMessage,
+  hasMessageTextOrFileParts,
   mergeAssistantThoughtMetadataFromDb,
 } from "../message-utils";
 
@@ -67,6 +68,35 @@ describe("extractMessageContent", () => {
         content: [{ type: "text" as const, text: "visible" }],
       }),
     ).toBe("visible");
+  });
+});
+
+describe("hasMessageTextOrFileParts", () => {
+  it("returns false for synthetic empty text fallback parts", () => {
+    expect(
+      hasMessageTextOrFileParts({
+        id: "u1",
+        role: "user" as const,
+        parts: [{ type: "text" as const, text: "" }],
+      }),
+    ).toBe(false);
+  });
+
+  it("returns true for file-only user messages", () => {
+    expect(
+      hasMessageTextOrFileParts({
+        id: "u2",
+        role: "user" as const,
+        parts: [
+          {
+            type: "file" as const,
+            url: "https://example.com/brief.pdf",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+          },
+        ],
+      }),
+    ).toBe(true);
   });
 });
 

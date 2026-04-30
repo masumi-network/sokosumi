@@ -5,6 +5,7 @@ import type { UIMessage } from "ai";
 import type { Dispatch, SetStateAction } from "react";
 
 import type {
+  ChatComposeMessage,
   ChatComposeSubmitOptions,
   Coworker,
 } from "@/app/chat/utils/types";
@@ -20,7 +21,7 @@ interface ChatInputContainerProps {
   setMessages: UseChatHelpers<UIMessage>["setMessages"];
   sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
   onSendMessage: (
-    message: string,
+    message: ChatComposeMessage,
     coworker?: Coworker,
     model?: { id: string; name: string },
     options?: ChatComposeSubmitOptions,
