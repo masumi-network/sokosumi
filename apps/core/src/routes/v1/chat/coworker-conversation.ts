@@ -23,16 +23,11 @@ export async function createCoworkerConversation(
   const url = `${base}/conversations`;
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
-    // keep both delegation headers for now to avoid breaking changes
     "X-Sokosumi-User-Id": options.sokosumiUserId,
-    "X-Delegation-User-Id": options.sokosumiUserId,
     "X-Coworker-Slug": options.coworkerSlug,
   };
   if (options.sokosumiOrganizationId) {
-    // keep both delegation headers for now to avoid breaking changes
     requestHeaders["X-Sokosumi-Organization-Id"] =
-      options.sokosumiOrganizationId;
-    requestHeaders["X-Delegation-Organization-Id"] =
       options.sokosumiOrganizationId;
   }
 

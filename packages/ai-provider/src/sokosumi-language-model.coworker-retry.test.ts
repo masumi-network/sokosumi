@@ -49,9 +49,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           content: [{ type: "input_text", text: "Only last" }],
         },
       ]);
-      expect(headers["X-Delegation-User-Id"]).toBe("user-1");
       expect(headers["X-Coworker-Slug"]).toBe("agent");
-      expect(headers["X-Delegation-Organization-Id"]).toBe("org-1");
       expect(headers["X-Sokosumi-User-Id"]).toBe("user-1");
       expect(headers["X-Sokosumi-Organization-Id"]).toBe("org-1");
       return new Response(
@@ -109,9 +107,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       call++;
       const body = init?.body ? JSON.parse(String(init.body)) : {};
       const headers = (init?.headers ?? {}) as Record<string, string>;
-      expect(headers["X-Delegation-User-Id"]).toBe("user-1");
       expect(headers["X-Coworker-Slug"]).toBe("agent");
-      expect(headers["X-Delegation-Organization-Id"]).toBeUndefined();
       expect(headers["X-Sokosumi-User-Id"]).toBe("user-1");
       expect(headers["X-Sokosumi-Organization-Id"]).toBeUndefined();
       if (call === 1) {
