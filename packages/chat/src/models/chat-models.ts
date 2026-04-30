@@ -7,16 +7,16 @@ export interface ChatModel {
 
 export const CHAT_MODELS = [
   {
-    id: "minimax-m2-5",
-    name: "MiniMax M2.5",
-    iconProvider: "minimax",
-    openRouterId: "minimax/minimax-m2.5",
+    id: "mimo-v2-pro",
+    name: "MiMo-V2-Pro",
+    iconProvider: "xiaomi",
+    openRouterId: "xiaomi/mimo-v2-pro",
   },
   {
-    id: "kimi-k2-5",
-    name: "Kimi K2.5",
+    id: "kimi-k2-6",
+    name: "Kimi K2.6",
     iconProvider: "moonshot",
-    openRouterId: "moonshotai/kimi-k2.5",
+    openRouterId: "moonshotai/kimi-k2.6",
   },
   {
     id: "gemini-3-flash-preview",
@@ -25,10 +25,10 @@ export const CHAT_MODELS = [
     openRouterId: "google/gemini-3-flash-preview",
   },
   {
-    id: "deepseek-v3-2",
-    name: "DeepSeek V3.2",
+    id: "deepseek-v4-pro",
+    name: "DeepSeek V4 Pro",
     iconProvider: "deepseek",
-    openRouterId: "deepseek/deepseek-v3.2",
+    openRouterId: "deepseek/deepseek-v4-pro",
   },
   {
     id: "claude-opus-4-7",
@@ -43,19 +43,24 @@ export const CHAT_MODELS = [
     openRouterId: "x-ai/grok-4.1-fast",
   },
   {
-    id: "gpt-5-2",
-    name: "GPT-5.2",
+    id: "gpt-5-4",
+    name: "GPT-5.4",
     iconProvider: "openai",
-    openRouterId: "openai/gpt-5.2",
+    openRouterId: "openai/gpt-5.4",
   },
 ] as const satisfies ReadonlyArray<ChatModel>;
 
 export type ChatModelId = (typeof CHAT_MODELS)[number]["id"];
 
-export const DEFAULT_CHAT_MODEL_ID: ChatModelId = "gpt-5-2";
+export const DEFAULT_CHAT_MODEL_ID: ChatModelId = "gpt-5-4";
 
 const CHAT_MODEL_MAP = new Map<string, string>([
   ...CHAT_MODELS.map((model) => [model.id, model.openRouterId] as const),
+  // Keep persisted selections working after model upgrades.
+  ["minimax-m2-5", "xiaomi/mimo-v2-pro"],
+  ["kimi-k2-5", "moonshotai/kimi-k2.6"],
+  ["deepseek-v3-2", "deepseek/deepseek-v4-pro"],
+  ["gpt-5-2", "openai/gpt-5.4"],
   // Keep persisted Opus 4.6 selections working after the model upgrade.
   ["claude-opus-4-6", "anthropic/claude-opus-4.7"],
   ["gpt4o", "openai/gpt-4o"],
@@ -73,7 +78,7 @@ function getDefaultOpenRouterModelId(): string {
     (model) => model.id === DEFAULT_CHAT_MODEL_ID,
   );
 
-  return defaultModel?.openRouterId ?? "openai/gpt-5.2";
+  return defaultModel?.openRouterId ?? "openai/gpt-5.4";
 }
 
 export function getModelIdentifier(modelId: string | null): string {
