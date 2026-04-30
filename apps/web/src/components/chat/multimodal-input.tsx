@@ -433,13 +433,13 @@ function PureMultimodalInput({
       }
     }
 
-    const chatMessage = { text: input.trim() } as ChatSendMessage;
+    const sendPayload = { text: input.trim() } as ChatSendMessage;
 
     // Use onSendMessage if provided (for welcome screen to create conversation)
     // Otherwise use sendMessage from useChat hook
     if (onSendMessage) {
       const sendResult = await onSendMessage(
-        composeKind === "chat" ? chatMessage : input,
+        sendPayload,
         selectedCoworker ?? undefined,
         selectedModel ?? undefined,
         {
@@ -451,7 +451,7 @@ function PureMultimodalInput({
         return;
       }
     } else {
-      sendMessage(chatMessage);
+      sendMessage(sendPayload);
     }
 
     setLocalStorageValue("chat-input", "");
