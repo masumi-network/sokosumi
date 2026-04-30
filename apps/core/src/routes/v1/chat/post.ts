@@ -28,6 +28,7 @@ import {
   extractMessageText,
   extractPersistableUiParts,
   extractReasoningPartsFromMessage,
+  hasModelVisibleMessageContent,
 } from "@/helpers/message-content";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { persistAssistantFromAiSdk } from "@/helpers/persist-assistant-from-ai-sdk";
@@ -255,10 +256,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         incomingLast &&
         (incomingLast.role === "user" || incomingLast.role === "system")
           ? incomingLast.role === "user"
-            ? extractPersistableUiParts(
+            ? hasModelVisibleMessageContent(
                 incomingLast as Record<string, unknown>,
-              ).some((part) =>
-                part.type === "file" ? true : part.text.trim().length > 0,
               )
             : (lastUserMessageText?.trim().length ?? 0) > 0
           : false;
