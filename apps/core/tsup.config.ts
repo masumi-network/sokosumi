@@ -8,6 +8,14 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   dts: false,
+  noExternal: [
+    "@sokosumi/ai-provider",
+    "@sokosumi/chat",
+    "@sokosumi/database",
+    "@sokosumi/email",
+    "@sokosumi/masumi",
+    "@sokosumi/utils",
+  ],
   esbuildOptions(options) {
     options.alias = {
       "@": "./src",
