@@ -7,9 +7,9 @@ describe("chat models", () => {
     expect(CHAT_MODELS).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "mimo-v2-pro",
-          name: "MiMo-V2-Pro",
-          openRouterId: "xiaomi/mimo-v2-pro",
+          id: "mimo-v2-5-pro",
+          name: "MiMo V2.5 Pro",
+          openRouterId: "xiaomi/mimo-v2.5-pro",
         }),
         expect.objectContaining({
           id: "kimi-k2-6",
@@ -49,7 +49,6 @@ describe("chat models", () => {
   });
 
   it("maps upgraded legacy model ids to current OpenRouter slugs", () => {
-    expect(getModelIdentifier("minimax-m2-5")).toBe("xiaomi/mimo-v2-pro");
     expect(getModelIdentifier("kimi-k2-5")).toBe("moonshotai/kimi-k2.6");
     expect(getModelIdentifier("deepseek-v3-2")).toBe(
       "deepseek/deepseek-v4-pro",
