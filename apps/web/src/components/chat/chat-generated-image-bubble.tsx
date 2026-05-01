@@ -1,5 +1,6 @@
 "use client";
 
+import { getExtensionFromUrl } from "@sokosumi/utils";
 import { Download, ImageOff } from "lucide-react";
 import { useState } from "react";
 
@@ -13,11 +14,37 @@ interface ChatGeneratedImageBubbleProps {
   src?: string;
 }
 
-function getGeneratedImageDownloadFilename(src: string): string {
-  const mediaType = src.match(/^data:image\/([^;]+);base64,/)?.[1];
-  const extension = mediaType === "jpeg" ? "jpg" : (mediaType ?? "png");
+const DOWNLOAD_IMAGE_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "bmp",
+  "svg",
+]);
 
-  return `generated-image.${extension.replace("+xml", "")}`;
+function fileExtensionForGeneratedImageDownload(src: string): string {
+  const dataSubtype = src.match(/^data:image\/([^;]+);base64,/)?.[1];
+  if (dataSubtype) {
+    const ext =
+      dataSubtype === "jpeg" ? "jpg" : dataSubtype.replace("+xml", "");
+    return ext.length > 0 ? ext : "png";
+  }
+
+  const fromUrl = getExtensionFromUrl(src).toLowerCase();
+  if (fromUrl === "jpeg" || fromUrl === "jpg") {
+    return "jpg";
+  }
+  if (DOWNLOAD_IMAGE_EXTENSIONS.has(fromUrl)) {
+    return fromUrl;
+  }
+
+  return "png";
+}
+
+function getGeneratedImageDownloadFilename(src: string): string {
+  return `generated-image.${fileExtensionForGeneratedImageDownload(src)}`;
 }
 
 export function ChatGeneratedImageBubble({

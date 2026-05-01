@@ -50,4 +50,42 @@ describe("ChatGeneratedImageBubble", () => {
     expect(link).toHaveAttribute("href", "data:image/jpeg;base64,abc123==");
     expect(link).toHaveAttribute("download", "generated-image.jpg");
   });
+
+  it("uses the URL path extension for persisted HTTPS blob image src", () => {
+    render(
+      <ChatGeneratedImageBubble
+        alt="Generated image"
+        downloadLabel="Download generated image"
+        src="https://blob.example.com/uploads/generated-abc123.webp"
+      />,
+    );
+
+    const image = screen.getByRole("img", { name: "Generated image" });
+    fireEvent.load(image);
+
+    const link = screen.getByRole("link", {
+      name: "Download generated image",
+    });
+
+    expect(link).toHaveAttribute("download", "generated-image.webp");
+  });
+
+  it("uses svg extension for HTTPS URLs ending in .svg", () => {
+    render(
+      <ChatGeneratedImageBubble
+        alt="Generated image"
+        downloadLabel="Download generated image"
+        src="https://blob.example.com/path/generated-hash.svg"
+      />,
+    );
+
+    const image = screen.getByRole("img", { name: "Generated image" });
+    fireEvent.load(image);
+
+    const link = screen.getByRole("link", {
+      name: "Download generated image",
+    });
+
+    expect(link).toHaveAttribute("download", "generated-image.svg");
+  });
 });

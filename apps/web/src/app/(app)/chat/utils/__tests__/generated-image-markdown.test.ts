@@ -41,6 +41,17 @@ describe("clampRevealLengthForMarkdownDataImages", () => {
       imageEnd,
     );
   });
+
+  it("does not treat a parenthesis inside alt text as the url closing paren", () => {
+    const image = "![caption with ) char](data:image/png;base64,AAA==)";
+    const content = `Before ${image} after`;
+    const desiredLength = content.indexOf("AAA") + 2;
+    const imageEnd = content.lastIndexOf(")") + 1;
+
+    expect(clampRevealLengthForMarkdownDataImages(content, desiredLength)).toBe(
+      imageEnd,
+    );
+  });
 });
 
 describe("parseMarkdownWithDataImageSegments", () => {

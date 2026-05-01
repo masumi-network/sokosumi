@@ -45,6 +45,29 @@ function findPendingDataImageTail(content: string) {
   };
 }
 
+/**
+ * Markdown image syntax is `![alt](url)`. Alt text cannot contain `]` in our
+ * matchers (`[^\]\n]*`), so the URL's closing `)` is the first `)` after
+ * `](`, not the first `)` after `![` (alt may contain `)`).
+ */
+function findMarkdownImageUrlClosingParenIndex(
+  fullContent: string,
+  imageBangIndex: number,
+): number {
+  const afterOpenBracket = imageBangIndex + 2;
+  if (afterOpenBracket > fullContent.length) {
+    return -1;
+  }
+  const altEnd = fullContent.indexOf("]", afterOpenBracket);
+  if (altEnd === -1) {
+    return -1;
+  }
+  if (fullContent.charCodeAt(altEnd + 1) !== 40 /* ( */) {
+    return -1;
+  }
+  return fullContent.indexOf(")", altEnd + 2);
+}
+
 export function clampRevealLengthForMarkdownDataImages(
   fullContent: string,
   desiredLength: number,
@@ -63,7 +86,10 @@ export function clampRevealLengthForMarkdownDataImages(
       continue;
     }
 
-    const closingParenIndex = fullContent.indexOf(")", start);
+    const closingParenIndex = findMarkdownImageUrlClosingParenIndex(
+      fullContent,
+      start,
+    );
 
     if (closingParenIndex === -1) {
       return start;
