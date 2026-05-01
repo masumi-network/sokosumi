@@ -1,31 +1,13 @@
 import { convertItemsToMessages } from "@/lib/chat/conversation-api-to-ui-messages";
 
 export {
+  deduplicateMessagesById,
   extractMessageContent,
   getMessageFileParts,
   hasMessageTextOrFileParts,
   type MessageFilePart,
 } from "@/app/chat-ui/utils/message-utils";
 export { convertItemsToMessages };
-
-/**
- * Deduplicate messages by id (first occurrence wins). Prevents duplicate display
- * when recovery or API returns the same item more than once.
- */
-export function deduplicateMessagesById<T extends { id?: string }>(
-  messages: T[],
-): T[] {
-  const seen = new Set<string>();
-  return messages.filter((m) => {
-    const id = m.id?.trim() ?? "";
-    if (!id) {
-      return true;
-    }
-    if (seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
-}
 
 function readEpochMsFromUnknown(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
