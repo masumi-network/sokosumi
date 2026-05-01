@@ -127,9 +127,10 @@ export default function ChatMessage({
   };
 
   const showStreamingDotsOnly = isAssistantStreaming && !hasDisplayContent;
+  /** Same source as `assistantContentSegments` so OAuth CTA matches visible markdown. */
   const oauthAuthorizationUrl = isUser
     ? null
-    : extractOAuthAuthorizationUrl(content);
+    : extractOAuthAuthorizationUrl(displayContent);
   const assistantContentSegments = isUser
     ? []
     : parseMarkdownWithDataImageSegments(displayContent);
