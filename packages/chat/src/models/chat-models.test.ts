@@ -4,6 +4,7 @@ import {
   CHAT_MODELS,
   chatModelSupportsImageGeneration,
   chatModelSupportsImageInput,
+  chatModelSupportsWebSearch,
   getChatModelImageGenerationOpenRouterId,
   getModelIdentifier,
 } from "./chat-models.js";
@@ -17,6 +18,7 @@ describe("chat models", () => {
           name: "MiMo V2.5 Pro",
           openRouterId: "xiaomi/mimo-v2.5-pro",
           inputModalities: ["text"],
+          webSearch: true,
         }),
         expect.objectContaining({
           id: "kimi-k2-6",
@@ -35,6 +37,7 @@ describe("chat models", () => {
           name: "GPT-5.4",
           openRouterId: "openai/gpt-5.4",
           inputModalities: ["text", "image"],
+          webSearch: true,
           imageGenerationOpenRouterId: "openai/gpt-5.4-image-2",
         }),
       ]),
@@ -101,5 +104,19 @@ describe("chat models", () => {
     expect(chatModelSupportsImageInput("gpt-4o")).toBe(true);
     expect(chatModelSupportsImageInput("gpt-4")).toBe(false);
     expect(chatModelSupportsImageInput("mixtral-8x22b")).toBe(false);
+  });
+
+  it("reports web search support per catalog and legacy ids", () => {
+    expect(chatModelSupportsWebSearch("mimo-v2-5-pro")).toBe(true);
+    expect(chatModelSupportsWebSearch("deepseek-v4-pro")).toBe(true);
+    expect(chatModelSupportsWebSearch("kimi-k2-6")).toBe(true);
+    expect(chatModelSupportsWebSearch("gpt-5-4")).toBe(true);
+    expect(chatModelSupportsWebSearch(null)).toBe(true);
+    expect(chatModelSupportsWebSearch("kimi-k2-5")).toBe(true);
+    expect(chatModelSupportsWebSearch("deepseek-v3-2")).toBe(true);
+    expect(chatModelSupportsWebSearch("gpt-4o")).toBe(true);
+    expect(chatModelSupportsWebSearch("gpt-4")).toBe(true);
+    expect(chatModelSupportsWebSearch("mixtral-8x22b")).toBe(true);
+    expect(chatModelSupportsWebSearch("unknown-model")).toBe(true);
   });
 });

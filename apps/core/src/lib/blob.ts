@@ -194,7 +194,13 @@ export interface UploadedGeneratedChatImage {
 
 function imageExtensionFromDataUriMatch(match: RegExpMatchArray): string {
   const extension = match[1];
-  return extension === "jpeg" ? "jpg" : extension;
+  if (extension === "jpeg") {
+    return "jpg";
+  }
+  if (extension === "svg+xml") {
+    return "svg";
+  }
+  return extension;
 }
 
 /**

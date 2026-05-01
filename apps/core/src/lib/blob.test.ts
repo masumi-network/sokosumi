@@ -1,16 +1,29 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createUserFileUploadSession, listUserUploads } from "./blob";
+import {
+  createUserFileUploadSession,
+  listUserUploads,
+  uploadGeneratedChatImage,
+} from "./blob";
 
-const { listMock, generateClientTokenFromReadWriteTokenMock } = vi.hoisted(
-  () => ({
-    listMock: vi.fn(),
-    generateClientTokenFromReadWriteTokenMock: vi.fn(),
-  }),
-);
+const {
+  listMock,
+  putMock,
+  generateClientTokenFromReadWriteTokenMock,
+  getEnvMock,
+} = vi.hoisted(() => ({
+  listMock: vi.fn(),
+  putMock: vi.fn(),
+  generateClientTokenFromReadWriteTokenMock: vi.fn(),
+  getEnvMock: vi.fn(() => ({})),
+}));
+
+vi.mock("@/config/env", () => ({
+  getEnv: getEnvMock,
+}));
 
 vi.mock("@vercel/blob", () => ({
-  put: vi.fn(),
+  put: putMock,
   list: listMock,
 }));
 
@@ -212,6 +225,35 @@ describe("listUserUploads", () => {
 
     await expect(listUserUploads("user_123", "token_123")).rejects.toThrow(
       "Blob list pagination is invalid: hasMore=true without cursor",
+    );
+  });
+});
+
+describe("uploadGeneratedChatImage", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("uses a .svg file extension for SVG data URLs (not .svg+xml)", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/generated.svg",
+    });
+
+    const dataUrl = `data:image/svg+xml;base64,${Buffer.from("<svg/>").toString("base64")}`;
+    const result = await uploadGeneratedChatImage({
+      dataUrl,
+      userId: "user_1",
+      conversationId: "conv_1",
+    });
+
+    expect(result?.mediaType).toBe("image/svg+xml");
+    expect(result?.filename).toMatch(/^generated-[a-f0-9]+\.svg$/);
+    const pathnameArg = putMock.mock.calls[0]?.[0];
+    expect(pathnameArg).toMatch(/\.svg$/);
+    expect(pathnameArg).not.toContain("svg+xml");
+    expect(putMock.mock.calls[0]?.[2]).toEqual(
+      expect.objectContaining({ contentType: "image/svg+xml" }),
     );
   });
 });

@@ -7,6 +7,7 @@ export interface ChatModel {
   iconProvider: string;
   openRouterId: string;
   inputModalities: readonly ChatInputModality[];
+  webSearch: boolean;
   /** OpenRouter slug used by the openrouter:image_generation server tool. */
   imageGenerationOpenRouterId?: string;
 }
@@ -18,6 +19,7 @@ export const CHAT_MODELS = [
     iconProvider: "xiaomi",
     openRouterId: "xiaomi/mimo-v2.5-pro",
     inputModalities: ["text"] as const,
+    webSearch: true,
   },
   {
     id: "kimi-k2-6",
@@ -25,6 +27,7 @@ export const CHAT_MODELS = [
     iconProvider: "moonshot",
     openRouterId: "moonshotai/kimi-k2.6",
     inputModalities: ["text", "image"] as const,
+    webSearch: true,
   },
   {
     id: "gemini-3-flash-preview",
@@ -32,6 +35,7 @@ export const CHAT_MODELS = [
     iconProvider: "google",
     openRouterId: "google/gemini-3-flash-preview",
     inputModalities: ["text", "image"] as const,
+    webSearch: true,
     imageGenerationOpenRouterId: "google/gemini-3.1-flash-image-preview",
   },
   {
@@ -40,6 +44,7 @@ export const CHAT_MODELS = [
     iconProvider: "deepseek",
     openRouterId: "deepseek/deepseek-v4-pro",
     inputModalities: ["text"] as const,
+    webSearch: true,
   },
   {
     id: "claude-opus-4-7",
@@ -47,6 +52,7 @@ export const CHAT_MODELS = [
     iconProvider: "anthropic",
     openRouterId: "anthropic/claude-opus-4.7",
     inputModalities: ["text", "image"] as const,
+    webSearch: true,
   },
   {
     id: "grok-4-1-fast",
@@ -54,6 +60,7 @@ export const CHAT_MODELS = [
     iconProvider: "xai",
     openRouterId: "x-ai/grok-4.1-fast",
     inputModalities: ["text", "image"] as const,
+    webSearch: true,
   },
   {
     id: "gpt-5-4",
@@ -61,6 +68,7 @@ export const CHAT_MODELS = [
     iconProvider: "openai",
     openRouterId: "openai/gpt-5.4",
     inputModalities: ["text", "image"] as const,
+    webSearch: true,
     imageGenerationOpenRouterId: "openai/gpt-5.4-image-2",
   },
 ] as const satisfies ReadonlyArray<ChatModel>;
@@ -110,6 +118,17 @@ const LEGACY_OPENROUTER_IMAGE_INPUT = new Map<string, boolean>([
   ["mistralai/mixtral-8x7b-instruct", false],
 ]);
 
+/** Legacy OpenRouter slugs not listed in {@link CHAT_MODELS}. */
+const LEGACY_OPENROUTER_WEB_SEARCH = new Map<string, boolean>([
+  ["openai/gpt-4o", true],
+  ["openai/gpt-4o-mini", true],
+  ["openai/gpt-4", true],
+  ["google/gemini-2.0-flash-001", true],
+  ["google/gemini-2.5-pro", true],
+  ["mistralai/mixtral-8x22b-instruct", true],
+  ["mistralai/mixtral-8x7b-instruct", true],
+]);
+
 export function chatModelSupportsImageInput(modelId: string | null): boolean {
   const effectiveId = modelId ?? DEFAULT_CHAT_MODEL_ID;
   const fromCatalog = CHAT_MODELS.find((m) => m.id === effectiveId);
@@ -157,6 +176,21 @@ export function chatModelSupportsImageGeneration(
   modelId: string | null,
 ): boolean {
   return getChatModelImageGenerationOpenRouterId(modelId) !== null;
+}
+
+export function chatModelSupportsWebSearch(modelId: string | null): boolean {
+  const effectiveId = modelId ?? DEFAULT_CHAT_MODEL_ID;
+  const currentModel = findCurrentCatalogModel(effectiveId);
+  if (currentModel) {
+    return currentModel.webSearch;
+  }
+
+  const openRouterSlug = CHAT_MODEL_MAP.get(effectiveId);
+  if (!openRouterSlug) {
+    return chatModelSupportsWebSearch(null);
+  }
+
+  return LEGACY_OPENROUTER_WEB_SEARCH.get(openRouterSlug) ?? false;
 }
 
 function getDefaultOpenRouterModelId(): string {

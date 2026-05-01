@@ -1,6 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
-import { getChatModelImageGenerationOpenRouterId } from "@sokosumi/chat";
+import {
+  chatModelSupportsWebSearch,
+  getChatModelImageGenerationOpenRouterId,
+} from "@sokosumi/chat";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
@@ -182,7 +185,13 @@ async function prepareAssistantFinishForPersistence(params: {
   text: string;
   userId: string;
   conversationId: string;
+  /** When false, leave assistant text unchanged (normal chat may include `![](https://…)`). */
+  extractGeneratedImagesFromMarkdown: boolean;
 }): Promise<{ text: string; uiParts?: PersistedChatUiPart[] }> {
+  if (!params.extractGeneratedImagesFromMarkdown) {
+    return { text: params.text };
+  }
+
   const { strippedText, imageUrls } = extractGeneratedImageMarkdown(
     params.text,
   );
@@ -688,6 +697,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         return null;
       })();
+      const webSearchEnabled =
+        !useCoworker && chatModelSupportsWebSearch(selectedModel);
 
       const sokosumiProviderOptions: SokosumiProviderCallOptions = {
         mode: useCoworker ? "coworker" : "openrouter",
@@ -700,6 +711,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? providerConversationId
           : null,
         imageGenerationModel,
+        webSearchEnabled,
         onResponseStarted: async (responseId: string) => {
           responsesApiResponseIdRef.current = responseId;
           if (!internalConversationId || !coworker) {
@@ -795,6 +807,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 text: finishEvent.text,
                 conversationId: internalConversationId,
                 userId: userContext.userId,
+                extractGeneratedImagesFromMarkdown: imageGeneration === true,
               });
             await persistAssistantFromAiSdk({
               conversationId: internalConversationId,

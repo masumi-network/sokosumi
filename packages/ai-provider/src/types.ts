@@ -1,3 +1,5 @@
+export type OpenRouterWebSearchParameters = Record<string, unknown>;
+
 export interface SokosumiProviderCallOptions {
   mode: "openrouter" | "coworker";
   coworkerBaseUrl?: string | null;
@@ -7,6 +9,8 @@ export interface SokosumiProviderCallOptions {
   previousResponseId?: string | null;
   providerConversationId?: string | null;
   imageGenerationModel?: string | null;
+  webSearchEnabled?: boolean;
+  webSearchParameters?: OpenRouterWebSearchParameters | null;
   onResponseStarted?: (responseId: string) => void | Promise<void>;
   onResponseCompleted?: (responseId: string) => void | Promise<void>;
   onInvalidPreviousResponseId?: () => void | Promise<void>;

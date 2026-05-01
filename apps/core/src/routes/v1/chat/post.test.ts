@@ -504,9 +504,12 @@ describe("POST /chat", () => {
     expect(response.status).toBe(200);
     expect(streamTextMock).toHaveBeenCalledOnce();
     const call = streamTextMock.mock.calls[0]![0] as {
-      providerOptions?: { sokosumi?: { mode?: string } };
+      providerOptions?: {
+        sokosumi?: { mode?: string; webSearchEnabled?: boolean };
+      };
     };
     expect(call.providerOptions?.sokosumi?.mode).toBe("openrouter");
+    expect(call.providerOptions?.sokosumi?.webSearchEnabled).toBe(true);
   });
 
   it("wires onInvalidProviderConversationId for coworker Conversations mode", async () => {
@@ -664,6 +667,69 @@ describe("POST /chat", () => {
     expect(uiArg).toHaveLength(2);
     expect(uiArg[0]?.parts?.[0]?.text).toBe("Earlier");
     expect(uiArg[1]?.parts?.[0]?.text).toBe("Next");
+  });
+
+  it("does not strip markdown images from assistant finish when image generation is off", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: { model_id: "claude-opus-4-6" },
+      })
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: null,
+      });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Earlier",
+      },
+      {
+        id: "message-2",
+        role: "user",
+        contentText: "Show me a diagram link",
+      },
+    ]);
+
+    const app = createApp();
+    const finishText =
+      "See this chart.\n\n![diagram](https://example.com/chart.png)\n";
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        trigger: "submit-message",
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "Show me a diagram link" }],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: {
+        text: string;
+        reasoning?: unknown[];
+      }) => Promise<void>;
+    };
+    await streamCall.onFinish({
+      text: finishText,
+      reasoning: [],
+    });
+
+    expect(uploadGeneratedChatImageMock).not.toHaveBeenCalled();
+    expect(conversationMessageCreateMock).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        role: "assistant",
+        contentText: finishText,
+        metadata: undefined,
+      }),
+    });
   });
 
   it("persists image generation intent on submitted user messages", async () => {
