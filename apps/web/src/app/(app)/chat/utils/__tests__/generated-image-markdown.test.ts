@@ -13,13 +13,25 @@ describe("clampRevealLengthForMarkdownDataImages", () => {
     expect(clampRevealLengthForMarkdownDataImages("Plain text", 5)).toBe(5);
   });
 
-  it("advances to the end of a complete image when the reveal lands inside it", () => {
+  it("holds at the start of a complete image when the reveal lands inside it", () => {
     const content = `Before ${pngImage} after`;
     const desiredLength = content.indexOf("abc123") + 2;
-    const imageEnd = content.indexOf(")") + 1;
+    const imageStart = content.indexOf("![");
 
     expect(clampRevealLengthForMarkdownDataImages(content, desiredLength)).toBe(
+      imageStart,
+    );
+  });
+
+  it("returns the reveal length once it reaches past the closing paren", () => {
+    const content = `Before ${pngImage} after`;
+    const imageEnd = content.indexOf(")") + 1;
+
+    expect(clampRevealLengthForMarkdownDataImages(content, imageEnd)).toBe(
       imageEnd,
+    );
+    expect(clampRevealLengthForMarkdownDataImages(content, imageEnd + 5)).toBe(
+      imageEnd + 5,
     );
   });
 
@@ -35,10 +47,10 @@ describe("clampRevealLengthForMarkdownDataImages", () => {
   it("handles multiple images independently", () => {
     const content = `${pngImage}\n\nBetween\n\n${jpegImage}`;
     const desiredLength = content.lastIndexOf("def456") + 3;
-    const imageEnd = content.lastIndexOf(")") + 1;
+    const secondImageStart = content.indexOf(jpegImage);
 
     expect(clampRevealLengthForMarkdownDataImages(content, desiredLength)).toBe(
-      imageEnd,
+      secondImageStart,
     );
   });
 
@@ -55,10 +67,10 @@ describe("clampRevealLengthForMarkdownDataImages", () => {
     const image = "![caption with ) char](data:image/png;base64,AAA==)";
     const content = `Before ${image} after`;
     const desiredLength = content.indexOf("AAA") + 2;
-    const imageEnd = content.lastIndexOf(")") + 1;
+    const imageStart = content.indexOf("![caption with ) char]");
 
     expect(clampRevealLengthForMarkdownDataImages(content, desiredLength)).toBe(
-      imageEnd,
+      imageStart,
     );
   });
 });

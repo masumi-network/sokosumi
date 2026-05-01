@@ -101,7 +101,7 @@ export function clampRevealLengthForMarkdownDataImages(
     const end = closingParenIndex + 1;
 
     if (safeDesiredLength < end) {
-      return end;
+      return start;
     }
   }
 
