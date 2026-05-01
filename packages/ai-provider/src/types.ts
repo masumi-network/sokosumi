@@ -6,6 +6,7 @@ export interface SokosumiProviderCallOptions {
   sokosumiOrganizationId?: string | null;
   previousResponseId?: string | null;
   providerConversationId?: string | null;
+  imageGenerationModel?: string | null;
   onResponseStarted?: (responseId: string) => void | Promise<void>;
   onResponseCompleted?: (responseId: string) => void | Promise<void>;
   onInvalidPreviousResponseId?: () => void | Promise<void>;

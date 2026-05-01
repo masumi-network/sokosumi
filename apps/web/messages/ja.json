@@ -1213,6 +1213,16 @@
         "comingSoon": "近日公開",
         "agenticCoworkers": "エージェント型AI同僚",
         "models": "モデル",
+        "supportsImageAttachments": "Supports image attachments",
+        "attachmentMenu": {
+          "trigger": "Add",
+          "uploadFile": "Upload file",
+          "createImage": "Create image"
+        },
+        "createImageChip": {
+          "label": "Create image",
+          "remove": "Remove create image"
+        },
         "ConversationsSidebar": {
           "searchPlaceholder": "会話を検索...",
           "clearSearch": "検索をクリア",
@@ -1233,6 +1243,7 @@
         "modelAlt": "モデル",
         "coworkerAlt": "同僚",
         "userAvatarAlt": "ユーザーのアバター",
+        "downloadGeneratedImage": "生成画像をダウンロード",
         "expandPrompt": "メッセージ全文を表示",
         "collapsePrompt": "折りたたむ",
         "authorize": "承認",

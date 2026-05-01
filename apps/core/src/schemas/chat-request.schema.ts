@@ -28,6 +28,7 @@ export const aiSdkChatRequestSchema = z
     conversationId: z.string().uuid().optional(),
     previousResponseId: z.string().optional(),
     model: z.string().nullable().optional(),
+    imageGeneration: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const useServerHistory =

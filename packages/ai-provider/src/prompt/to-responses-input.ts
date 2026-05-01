@@ -210,7 +210,7 @@ function filePartToResponsesContent(
 
   return {
     type: "input_file",
-    file_data: toFileData(part),
+    file_data: toResponsesInputFileData(part),
     filename: part.filename,
   };
 }
@@ -231,15 +231,22 @@ function toImageUrl(part: LanguageModelV3FilePart): string {
   return toDataUrl(part);
 }
 
-function toFileData(part: LanguageModelV3FilePart): string {
+/**
+ * Inline `file_data` for OpenRouter/OpenAI Responses `input_file`.
+ * Providers (e.g. Azure) expect PDFs and similar blobs as full data URLs
+ * (`data:application/pdf;base64,...`), not raw base64 — see OpenRouter PDF docs
+ * and OpenAI file-input guides.
+ */
+function toResponsesInputFileData(part: LanguageModelV3FilePart): string {
   if (part.data instanceof Uint8Array) {
-    return Buffer.from(part.data).toString("base64");
+    return `data:${part.mediaType};base64,${Buffer.from(part.data).toString("base64")}`;
   }
 
   if (part.data instanceof URL) {
     const url = part.data.toString();
     if (url.startsWith("data:")) {
-      return extractBase64DataFromDataUrl(url, part);
+      extractBase64DataFromDataUrl(url, part);
+      return url;
     }
     throw invalidFilePartError(
       part,
@@ -255,9 +262,10 @@ function toFileData(part: LanguageModelV3FilePart): string {
       );
     }
     if (part.data.startsWith("data:")) {
-      return extractBase64DataFromDataUrl(part.data, part);
+      extractBase64DataFromDataUrl(part.data, part);
+      return part.data;
     }
-    return part.data;
+    return `data:${part.mediaType};base64,${part.data}`;
   }
 
   throw invalidFilePartError(

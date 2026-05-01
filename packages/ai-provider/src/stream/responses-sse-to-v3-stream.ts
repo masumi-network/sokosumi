@@ -44,10 +44,52 @@ type SseChunk = {
   id?: string;
   item_id?: string;
   status?: string;
-  item?: { type?: string; id?: string };
-  response?: { id?: string };
+  item?: { type?: string; id?: string } & Record<string, unknown>;
+  response?: { id?: string } & Record<string, unknown>;
   output?: unknown;
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function collectImageUrls(value: unknown, seen = new Set<unknown>()): string[] {
+  if (typeof value === "string" && value.trim()) {
+    try {
+      return collectImageUrls(JSON.parse(value), seen);
+    } catch {
+      return [];
+    }
+  }
+
+  if (!value || typeof value !== "object" || seen.has(value)) {
+    return [];
+  }
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectImageUrls(item, seen));
+  }
+
+  const record = value as Record<string, unknown>;
+  const urls: string[] = [];
+  if (typeof record.imageUrl === "string" && record.imageUrl.trim()) {
+    urls.push(record.imageUrl.trim());
+  }
+
+  if (isRecord(record.image_url)) {
+    const nestedUrl = record.image_url.url;
+    if (typeof nestedUrl === "string" && nestedUrl.trim()) {
+      urls.push(nestedUrl.trim());
+    }
+  }
+
+  for (const nested of Object.values(record)) {
+    urls.push(...collectImageUrls(nested, seen));
+  }
+
+  return urls;
+}
 
 export function createResponsesSseToV3Stream(
   body: ReadableStream<Uint8Array>,
@@ -71,6 +113,7 @@ export function createResponsesSseToV3Stream(
       let onResponseCompletedEmitted = false;
       const reasoningAccumulator: Record<string, string> = {};
       const reasoningStarted = new Set<string>();
+      const emittedImageUrls = new Set<string>();
       let needNewlineBeforeNextDelta = false;
 
       function closeWithFinish() {
@@ -111,6 +154,16 @@ export function createResponsesSseToV3Stream(
           id: TEXT_BLOCK_ID,
           delta,
         });
+      }
+
+      function emitImageUrls(value: unknown) {
+        for (const imageUrl of collectImageUrls(value)) {
+          if (emittedImageUrls.has(imageUrl)) {
+            continue;
+          }
+          emittedImageUrls.add(imageUrl);
+          emitTextDelta(`\n\n![Generated image](${imageUrl})\n\n`);
+        }
       }
 
       function ensureReasoningStart(id: string) {
@@ -191,6 +244,7 @@ export function createResponsesSseToV3Stream(
             emitReasoningDelta(itemId, next);
           }
         } else if (chunk.type === "response.output_item.done") {
+          emitImageUrls(chunk.item);
           const itemId =
             typeof chunk.item?.id === "string" ? chunk.item.id : undefined;
           if (itemId && chunk.item?.type === "reasoning") {
@@ -231,6 +285,9 @@ export function createResponsesSseToV3Stream(
           emitTextDelta(toSend);
           return false;
         }
+
+        emitImageUrls(chunk.output);
+        emitImageUrls(chunk.response);
 
         const isCompletionSignal =
           chunk.type === "response.completed" ||
@@ -301,6 +358,7 @@ export function createResponsesSseToV3Stream(
                 ensureTextStart();
                 emitTextDelta(text);
               }
+              emitImageUrls(parsed.output);
               const tailCompletionId =
                 typeof parsed.id === "string" ? parsed.id : lastKnownResponseId;
               if (

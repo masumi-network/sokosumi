@@ -7,8 +7,11 @@ import { useEffect, useRef, useState } from "react";
 import { useStreamingContent } from "@/app/chat/hooks/use-streaming-content";
 import { useStreamingPaused } from "@/app/chat/hooks/use-streaming-paused";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import { parseMarkdownWithDataImageSegments } from "@/app/chat/utils/generated-image-markdown";
 import { extractOAuthAuthorizationUrl } from "@/app/chat/utils/oauth-link";
+import { ChatGeneratedImageBubble } from "@/components/chat/chat-generated-image-bubble";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
+import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -20,9 +23,17 @@ import { cn } from "@/lib/utils";
 
 import { ChatOAuthAuthenticateCta } from "./chat-oauth-authenticate-cta";
 
+interface MessageFilePart {
+  type: "file";
+  url: string;
+  mediaType: string;
+  filename?: string;
+}
+
 interface ChatMessageProps {
   role: "user" | "assistant" | "system";
   content: string;
+  fileParts?: MessageFilePart[];
   userImageUrl?: string;
   userName?: string;
   createdAt?: Date;
@@ -37,6 +48,7 @@ interface ChatMessageProps {
 export default function ChatMessage({
   role,
   content,
+  fileParts = [],
   userImageUrl,
   userName,
   createdAt,
@@ -53,6 +65,8 @@ export default function ChatMessage({
   const isAssistantStreaming = !isUser && isStreaming;
   const displayContent = useStreamingContent(content, isAssistantStreaming);
   const isPaused = useStreamingPaused(content, isAssistantStreaming);
+  const hasDisplayContent = displayContent.trim().length > 0;
+  const hasFileParts = fileParts.length > 0;
 
   const [isPromptExpanded, setIsPromptExpanded] = useState(false);
   const [showPromptToggle, setShowPromptToggle] = useState(false);
@@ -108,11 +122,13 @@ export default function ChatMessage({
     );
   };
 
-  const showStreamingDotsOnly =
-    isAssistantStreaming && !(displayContent && displayContent.trim());
+  const showStreamingDotsOnly = isAssistantStreaming && !hasDisplayContent;
   const oauthAuthorizationUrl = isUser
     ? null
     : extractOAuthAuthorizationUrl(content);
+  const assistantContentSegments = isUser
+    ? []
+    : parseMarkdownWithDataImageSegments(displayContent);
 
   return (
     <div
@@ -178,15 +194,30 @@ export default function ChatMessage({
                 )}
                 style={{ fontSize: "0.875rem" }}
               >
-                {displayContent && displayContent.trim() ? (
+                {hasDisplayContent || hasFileParts ? (
                   isUser ? (
                     <>
-                      <div
-                        ref={userContentRef}
-                        className={cn(!isPromptExpanded && "line-clamp-3")}
-                      >
-                        <Markdown>{displayContent}</Markdown>
-                      </div>
+                      {hasFileParts ? (
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {fileParts.map((part) => (
+                            <FileChipMiniPreviewWithMetadata
+                              key={part.url}
+                              url={part.url}
+                              fileName={part.filename}
+                              mediaType={part.mediaType}
+                              sizeClass="size-24"
+                            />
+                          ))}
+                        </div>
+                      ) : null}
+                      {hasDisplayContent ? (
+                        <div
+                          ref={userContentRef}
+                          className={cn(!isPromptExpanded && "line-clamp-3")}
+                        >
+                          <Markdown>{displayContent}</Markdown>
+                        </div>
+                      ) : null}
                       {(showPromptToggle || isPromptExpanded) && (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -221,7 +252,42 @@ export default function ChatMessage({
                       )}
                     </>
                   ) : (
-                    <Markdown>{displayContent}</Markdown>
+                    <>
+                      {assistantContentSegments.map((segment, index) => {
+                        if (segment.type === "text") {
+                          if (segment.text.trim().length === 0) return null;
+                          return (
+                            <Markdown key={`text-${index}`}>
+                              {segment.text}
+                            </Markdown>
+                          );
+                        }
+
+                        return (
+                          <ChatGeneratedImageBubble
+                            key={`image-${index}`}
+                            alt={segment.alt}
+                            downloadLabel={t("downloadGeneratedImage")}
+                            src={
+                              segment.type === "image" ? segment.src : undefined
+                            }
+                          />
+                        );
+                      })}
+                      {hasFileParts ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {fileParts.map((part) => (
+                            <FileChipMiniPreviewWithMetadata
+                              key={part.url}
+                              url={part.url}
+                              fileName={part.filename}
+                              mediaType={part.mediaType}
+                              sizeClass="size-20"
+                            />
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
                   )
                 ) : isAssistantStreaming ? (
                   <span className="reasoning-text-shine text-sm leading-5">

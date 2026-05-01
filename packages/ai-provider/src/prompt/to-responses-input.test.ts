@@ -102,7 +102,7 @@ describe("promptToResponsesInput", () => {
           },
           {
             type: "input_file",
-            file_data: "JVBERi0xLjcK",
+            file_data: "data:application/pdf;base64,JVBERi0xLjcK",
             filename: "brief.pdf",
           },
         ],
@@ -138,12 +138,12 @@ describe("promptToResponsesInput", () => {
         content: [
           {
             type: "input_file",
-            file_data: "SGVsbG8=",
+            file_data: "data:;base64,SGVsbG8=",
             filename: "blob.bin",
           },
           {
             type: "input_file",
-            file_data: "JVBERi0xLjcK",
+            file_data: "data:;base64,JVBERi0xLjcK",
             filename: "from-url.pdf",
           },
         ],

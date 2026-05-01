@@ -1,7 +1,13 @@
 "use client";
 
 import type { UseChatHelpers } from "@ai-sdk/react";
+import {
+  chatModelSupportsImageGeneration,
+  chatModelSupportsImageInput,
+} from "@sokosumi/chat";
+import { resolveUserUploadContentType } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
+import { ImagePlus, Paperclip, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type Dispatch,
@@ -33,6 +39,12 @@ import { CoworkerGalleryCard } from "@/components/agents/coworker-gallery-card";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   FileUpload,
   FileUploadDropzone,
   FileUploadTrigger,
@@ -52,7 +64,11 @@ import {
   sanitizeTaskAttachmentLabel,
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
-import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
+import {
+  getUserFileUploadErrorMessage,
+  type UserFileUploadProgress,
+  uploadUserFileDirect,
+} from "@/lib/utils/user-file-upload.client";
 import { ComposeKindSelector } from "./compose-kind-selector";
 import { CoworkerAvatarWithSkeleton } from "./coworker-avatar";
 import CoworkerModelSelector from "./coworker-model-selector";
@@ -104,6 +120,8 @@ interface MultimodalInputProps {
 const DEFAULT_COWORKER_SLUG = "elena";
 const TASK_MARKDOWN_EDITOR_ID = "chat-task-markdown-editor";
 
+type ChatFilePart = Extract<UIMessage["parts"][number], { type: "file" }>;
+
 function findDefaultCoworker(list: Coworker[] | undefined) {
   return (
     list?.find(
@@ -124,6 +142,19 @@ function matchesCoworker(a: Coworker | null, b: Coworker | null): boolean {
   return (
     a.id === b.id || a.slug === b.slug || a.id === b.slug || a.slug === b.id
   );
+}
+
+function buildChatMessagePayload(
+  text: string,
+  fileParts: ChatFilePart[],
+): ChatSendMessage {
+  const trimmedText = text.trim();
+  const parts: UIMessage["parts"] = [
+    ...(trimmedText ? [{ type: "text" as const, text: trimmedText }] : []),
+    ...fileParts,
+  ];
+
+  return { parts } as ChatSendMessage;
 }
 
 function PureMultimodalInput({
@@ -165,6 +196,8 @@ function PureMultimodalInput({
   const composeKind: ChatComposeKind = chatId ? "chat" : storedComposeKind;
   const [taskStatus, setTaskStatus] = useState<TaskSubmitStatus>("READY");
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
+  const [chatFileParts, setChatFileParts] = useState<ChatFilePart[]>([]);
+  const [imageGenerationEnabled, setImageGenerationEnabled] = useState(false);
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
   const initialDefault = findDefaultCoworker(propCoworkers);
   const [preferredCoworker, setPreferredCoworker] = useState<Coworker | null>(
@@ -198,8 +231,25 @@ function PureMultimodalInput({
 
   const width = windowWidth;
   const isTaskComposer = !chatId && composeKind === "task";
+  const supportsChatImageInput = useMemo(
+    () => chatModelSupportsImageInput(selectedModel?.id ?? null),
+    [selectedModel?.id],
+  );
+  const supportsImageGeneration = useMemo(
+    () =>
+      selectedModel?.id
+        ? chatModelSupportsImageGeneration(selectedModel.id)
+        : false,
+    [selectedModel?.id],
+  );
+  const hasChatFileParts = !isTaskComposer && chatFileParts.length > 0;
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const taskUploadFileLabel = tNewTask("uploadFile");
+  const attachmentMenuTriggerLabel = t("attachmentMenu.trigger");
+  const uploadFileMenuLabel = t("attachmentMenu.uploadFile");
+  const createImageMenuLabel = t("attachmentMenu.createImage");
+  const createImageChipLabel = t("createImageChip.label");
+  const removeCreateImageLabel = t("createImageChip.remove");
   const taskUploadFileErrorLabel = tNewTask("uploadFileError");
   const removeAttachmentLabel = tNewTask("removeAttachment");
   const taskUploadingFileLabel = getTaskAttachmentUploadLabelTemplate(
@@ -314,9 +364,27 @@ function PureMultimodalInput({
 
   useEffect(() => abortActiveUploads, [abortActiveUploads]);
 
+  useEffect(() => {
+    if (!supportsChatImageInput) {
+      setChatFileParts([]);
+    }
+  }, [supportsChatImageInput]);
+
+  useEffect(() => {
+    if (!supportsImageGeneration) {
+      setImageGenerationEnabled(false);
+    }
+  }, [supportsImageGeneration]);
+
   const handleAttachFiles = useCallback(
     async (files: File[]) => {
       if (files.length === 0) return;
+      if (
+        composeKind === "chat" &&
+        (!supportsChatImageInput || imageGenerationEnabled)
+      ) {
+        return;
+      }
 
       const uploadToast = createTaskAttachmentUploadToast({
         files,
@@ -332,12 +400,33 @@ function PureMultimodalInput({
 
       try {
         for (const [index, file] of files.entries()) {
-          const uploadedUrl = await uploadTaskAttachment(file, {
+          const uploadOptions = {
             abortSignal: controller.signal,
-            onUploadProgress: (progress) => {
+            onUploadProgress: (progress: UserFileUploadProgress) => {
               uploadToast.updateFileProgress(index, progress);
             },
-          });
+          };
+
+          if (composeKind === "chat") {
+            const mediaType = resolveUserUploadContentType(
+              file.name,
+              file.type,
+            );
+            const uploaded = await uploadUserFileDirect(file, uploadOptions);
+            uploadToast.markFileComplete(index);
+            setChatFileParts((parts) => [
+              ...parts,
+              {
+                type: "file",
+                url: uploaded.publicUrl,
+                mediaType: mediaType ?? file.type,
+                filename: sanitizeTaskAttachmentLabel(file.name, "file"),
+              },
+            ]);
+            continue;
+          }
+
+          const uploadedUrl = await uploadTaskAttachment(file, uploadOptions);
           uploadToast.markFileComplete(index);
 
           const safeName = sanitizeTaskAttachmentLabel(file.name, "file");
@@ -370,7 +459,10 @@ function PureMultimodalInput({
       }
     },
     [
+      composeKind,
+      imageGenerationEnabled,
       setInput,
+      supportsChatImageInput,
       taskUploadFileErrorLabel,
       taskUploadingFileLabel,
       taskUploadingFilesLabel,
@@ -401,12 +493,15 @@ function PureMultimodalInput({
     () => extractTaskAttachmentUrls(input),
     [input],
   );
+  const canSubmitContent = imageGenerationEnabled
+    ? input.trim().length > 0
+    : input.trim().length > 0 || hasChatFileParts;
   const canSubmit =
-    input.trim().length > 0 &&
+    canSubmitContent &&
     status === "ready" &&
     !submitBlocked &&
     (composeKind === "chat" || selectedCoworker != null) &&
-    (!isTaskComposer || !isUploadingAttachments);
+    !isUploadingAttachments;
   const placeholder = t(
     composeKind === "task"
       ? "welcomeScreen.taskPlaceholder"
@@ -433,7 +528,10 @@ function PureMultimodalInput({
       }
     }
 
-    const sendPayload = { text: input.trim() } as ChatSendMessage;
+    const sendPayload =
+      composeKind === "chat"
+        ? buildChatMessagePayload(input, chatFileParts)
+        : ({ text: input.trim() } as ChatSendMessage);
 
     // Use onSendMessage if provided (for welcome screen to create conversation)
     // Otherwise use sendMessage from useChat hook
@@ -445,18 +543,26 @@ function PureMultimodalInput({
         {
           kind: composeKind,
           taskStatus,
+          imageGeneration: imageGenerationEnabled,
         },
       );
       if (sendResult !== true) {
         return;
       }
     } else {
-      sendMessage(sendPayload);
+      sendMessage(
+        sendPayload,
+        imageGenerationEnabled
+          ? { body: { imageGeneration: true } }
+          : undefined,
+      );
     }
 
     setLocalStorageValue("chat-input", "");
     resetHeight();
     setInput("");
+    setChatFileParts([]);
+    setImageGenerationEnabled(false);
 
     if (width && width > 768) {
       if (isTaskComposer) {
@@ -467,8 +573,10 @@ function PureMultimodalInput({
     }
   }, [
     blurOnSendOnMobile,
+    chatFileParts,
     composeKind,
     focusTaskEditor,
+    imageGenerationEnabled,
     input,
     isTaskComposer,
     onSendMessage,
@@ -573,6 +681,21 @@ function PureMultimodalInput({
     },
     [setInput],
   );
+
+  const handleRemoveChatAttachment = useCallback((url: string) => {
+    setChatFileParts((parts) => parts.filter((part) => part.url !== url));
+  }, []);
+
+  const handleEnableImageGeneration = useCallback(() => {
+    if (!supportsImageGeneration || hasChatFileParts) {
+      return;
+    }
+    setImageGenerationEnabled(true);
+  }, [hasChatFileParts, supportsImageGeneration]);
+
+  const showAttachmentMenu =
+    composeKind === "chat" &&
+    (supportsChatImageInput || supportsImageGeneration);
 
   return (
     <div className={cn("relative flex w-full flex-col gap-4", className)}>
@@ -700,6 +823,44 @@ function PureMultimodalInput({
                 </FileUploadTrigger>
               </FileUploadDropzone>
             </FileUpload>
+          ) : supportsChatImageInput ? (
+            <FileUpload
+              value={pendingUploadFiles}
+              onValueChange={setPendingUploadFiles}
+              onAccept={(files) => {
+                void handleAttachFiles(files);
+              }}
+              multiple
+              disabled={isUploadingAttachments}
+              className="w-full"
+            >
+              <FileUploadDropzone className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent">
+                <PromptInputTextarea
+                  allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
+                  className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
+                  data-testid="multimodal-input"
+                  disableAutoResize={true}
+                  maxHeight={200}
+                  minHeight={44}
+                  onClick={(event) => event.stopPropagation()}
+                  onChange={handleInput}
+                  placeholder={placeholder}
+                  ref={textareaRef}
+                  rows={1}
+                  value={input}
+                />
+                <FileUploadTrigger asChild>
+                  <button
+                    ref={attachmentTriggerRef}
+                    type="button"
+                    className="sr-only"
+                    aria-label={taskUploadFileLabel}
+                  >
+                    {taskUploadFileLabel}
+                  </button>
+                </FileUploadTrigger>
+              </FileUploadDropzone>
+            </FileUpload>
           ) : (
             <PromptInputTextarea
               allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
@@ -708,6 +869,7 @@ function PureMultimodalInput({
               disableAutoResize={true}
               maxHeight={200}
               minHeight={44}
+              onClick={(event) => event.stopPropagation()}
               onChange={handleInput}
               placeholder={placeholder}
               ref={textareaRef}
@@ -735,8 +897,79 @@ function PureMultimodalInput({
             ))}
           </div>
         ) : null}
+        {!isTaskComposer &&
+        (chatFileParts.length > 0 || imageGenerationEnabled) ? (
+          <div className="flex flex-wrap gap-3 px-2 pb-1">
+            {chatFileParts.map((part) => (
+              <FileChipMiniPreviewWithMetadata
+                key={part.url}
+                url={part.url}
+                fileName={part.filename}
+                onRemove={() => handleRemoveChatAttachment(part.url)}
+                removeLabel={removeAttachmentLabel}
+              />
+            ))}
+            {imageGenerationEnabled ? (
+              <div className="bg-muted text-foreground flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs">
+                <ImagePlus className="text-muted-foreground size-3.5" />
+                <span>{createImageChipLabel}</span>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground rounded-full p-0.5 transition-colors"
+                  aria-label={removeCreateImageLabel}
+                  onClick={() => setImageGenerationEnabled(false)}
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <PromptInputToolbar className="border-top-0! border-t-0! p-3 dark:border-0 dark:border-transparent!">
           <PromptInputTools className="flex-wrap gap-1 sm:gap-1.5">
+            {showAttachmentMenu ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="size-8 rounded-full! p-0"
+                    disabled={isUploadingAttachments}
+                    title={attachmentMenuTriggerLabel}
+                    aria-label={attachmentMenuTriggerLabel}
+                  >
+                    <Plus className="size-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top" sideOffset={8}>
+                  {supportsChatImageInput ? (
+                    <DropdownMenuItem
+                      disabled={
+                        isUploadingAttachments || imageGenerationEnabled
+                      }
+                      onSelect={() => attachmentTriggerRef.current?.click()}
+                    >
+                      <Paperclip className="size-4" />
+                      {uploadFileMenuLabel}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {supportsImageGeneration ? (
+                    <DropdownMenuItem
+                      disabled={
+                        isUploadingAttachments ||
+                        hasChatFileParts ||
+                        imageGenerationEnabled
+                      }
+                      onSelect={handleEnableImageGeneration}
+                    >
+                      <ImagePlus className="size-4" />
+                      {createImageMenuLabel}
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
             {!chatId ? (
               <ComposeKindSelector
                 value={composeKind}

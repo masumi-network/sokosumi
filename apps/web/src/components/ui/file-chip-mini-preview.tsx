@@ -16,6 +16,7 @@ import { getExtensionFromUrl, isImageUrl } from "@sokosumi/utils";
 export interface FileChipMiniPreviewProps {
   url: string;
   fileName?: string | null;
+  mediaType?: string | null;
   size?: number | bigint | null;
   className?: string;
   sizeClass?: string;
@@ -26,6 +27,7 @@ export interface FileChipMiniPreviewProps {
 export function FileChipMiniPreview({
   url,
   fileName,
+  mediaType,
   size,
   className,
   sizeClass = "size-20",
@@ -33,8 +35,11 @@ export function FileChipMiniPreview({
   removeLabel = "Remove file",
 }: FileChipMiniPreviewProps) {
   const resolvedFileName = fileName ?? url.split("/").pop() ?? url;
-  const isImage = isImageUrl(url);
-  const extension = getExtensionFromUrl(url);
+  const isImage =
+    mediaType?.toLowerCase().startsWith("image/") ||
+    isImageUrl(url) ||
+    (fileName ? isImageUrl(fileName) : false);
+  const extension = getExtensionFromUrl(fileName ?? url);
   const prettySize = formatBytes(size);
 
   return (

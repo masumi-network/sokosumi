@@ -1058,7 +1058,11 @@ export default function ChatInterface({
   ]);
 
   const sendInConversation = useCallback(
-    (conversationId: string, message: ChatSendMessage): boolean => {
+    (
+      conversationId: string,
+      message: ChatSendMessage,
+      sendOptions?: Parameters<UseChatHelpers<UIMessage>["sendMessage"]>[1],
+    ): boolean => {
       const payload = toChatSendMessage(message);
       let slot = conversationToSlot.get(conversationId);
       if (slot === undefined) {
@@ -1095,11 +1099,11 @@ export default function ChatInterface({
         );
         const slotToSend = slot;
         queueMicrotask(() => {
-          sendMessageSlots[slotToSend](payload);
+          sendMessageSlots[slotToSend](payload, sendOptions);
         });
         return true;
       }
-      sendMessageSlots[slot](payload);
+      sendMessageSlots[slot](payload, sendOptions);
       return true;
     },
     [
@@ -1313,6 +1317,9 @@ export default function ChatInterface({
       const messageText = getSendMessageText(message);
       const sendPayload = toChatSendMessage(message);
       const composeKind = options?.kind ?? "task";
+      const sendOptions = options?.imageGeneration
+        ? { body: { imageGeneration: true } }
+        : undefined;
 
       if (!selectedChatId) {
         if (composeKind === "task") {
@@ -1394,7 +1401,9 @@ export default function ChatInterface({
         }
 
         const cid = currentChatIdRef.current ?? conversationId;
-        const sent = cid ? sendInConversation(cid, sendPayload) : false;
+        const sent = cid
+          ? sendInConversation(cid, sendPayload, sendOptions)
+          : false;
         if (sent) setInput("");
         return sent;
       }
@@ -1414,7 +1423,7 @@ export default function ChatInterface({
         );
       }
 
-      const sent = sendInConversation(selectedChatId, sendPayload);
+      const sent = sendInConversation(selectedChatId, sendPayload, sendOptions);
       if (sent) setInput("");
       return sent;
     },

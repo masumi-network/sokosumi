@@ -14,6 +14,7 @@ export type ChatComposeMessage = string | ChatSendMessage;
 export interface ChatComposeSubmitOptions {
   kind: ChatComposeKind;
   taskStatus?: TaskSubmitStatus;
+  imageGeneration?: boolean;
 }
 
 export interface Coworker {

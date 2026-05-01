@@ -67,6 +67,34 @@ describe("convertItemsToMessages", () => {
     ]);
   });
 
+  it("keeps file-only API content as renderable parts after hydration", () => {
+    const messages = convertItemsToMessages([
+      {
+        id: "u2",
+        role: "user",
+        createdAt: 1700000001,
+        content: [
+          {
+            type: "file",
+            url: "https://example.com/image.png",
+            mediaType: "image/png",
+            filename: "image.png",
+          },
+        ],
+      },
+    ]);
+
+    expect((messages[0] as { content?: string } | undefined)?.content).toBe("");
+    expect(messages[0]?.parts).toEqual([
+      {
+        type: "file",
+        url: "https://example.com/image.png",
+        mediaType: "image/png",
+        filename: "image.png",
+      },
+    ]);
+  });
+
   it("attaches thought timing metadata when the API item includes thoughtTiming", () => {
     const messages = convertItemsToMessages([
       {

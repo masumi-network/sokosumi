@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
+import { getChatModelImageGenerationOpenRouterId } from "@sokosumi/chat";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
@@ -190,6 +191,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         message: singleMessage,
         conversationId,
         model,
+        imageGeneration,
         trigger,
         previousResponseId: previousResponseIdFromRequest,
       } = c.req.valid("json");
@@ -294,6 +296,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const useCoworker = Boolean(internalConversationId) && Boolean(coworker);
+      let imageGenerationModel: string | null = null;
+
+      if (imageGeneration) {
+        if (useCoworker) {
+          throw badRequest(
+            "Image generation is only available for supported chat models.",
+          );
+        }
+
+        imageGenerationModel =
+          getChatModelImageGenerationOpenRouterId(selectedModel);
+        if (!imageGenerationModel) {
+          throw badRequest("Selected model does not support image generation.");
+        }
+      }
 
       if (useCoworker) {
         if (!lastMessageHasCoworkerCompatibleContent) {
@@ -504,6 +521,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         providerConversationId: coworkerConversationsMode
           ? providerConversationId
           : null,
+        imageGenerationModel,
         onResponseStarted: async (responseId: string) => {
           responsesApiResponseIdRef.current = responseId;
           if (!internalConversationId || !coworker) {

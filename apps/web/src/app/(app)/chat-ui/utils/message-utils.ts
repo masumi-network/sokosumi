@@ -6,8 +6,21 @@ import { getReasoningStepDisplayText } from "./reasoning-generic-labels";
 
 export { convertItemsToMessages };
 
+export type MessageFilePart = Extract<
+  UIMessage["parts"][number],
+  { type: "file" }
+>;
+
+const VISIBLE_TEXT_PART_TYPES = new Set(["text", "input_text", "output_text"]);
+
+function readMessagePartArrays(message: Record<string, unknown>): unknown[] {
+  const contentParts = Array.isArray(message.content) ? message.content : [];
+  const uiParts = Array.isArray(message.parts) ? message.parts : [];
+  return [...contentParts, ...uiParts];
+}
+
 function appendVisibleTextFromPart(part: Record<string, unknown>): string {
-  if (part.type !== "text") {
+  if (!VISIBLE_TEXT_PART_TYPES.has(String(part.type))) {
     return "";
   }
   if ("text" in part && part.text !== null && part.text !== undefined) {
@@ -23,13 +36,37 @@ function appendVisibleTextFromPart(part: Record<string, unknown>): string {
   return "";
 }
 
+function normalizeFilePart(part: unknown): MessageFilePart | null {
+  if (!part || typeof part !== "object") {
+    return null;
+  }
+
+  const record = part as Record<string, unknown>;
+  if (
+    record.type !== "file" ||
+    typeof record.url !== "string" ||
+    typeof record.mediaType !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    type: "file",
+    url: record.url,
+    mediaType: record.mediaType,
+    ...(typeof record.filename === "string" && record.filename.trim()
+      ? { filename: record.filename }
+      : {}),
+  } satisfies MessageFilePart;
+}
+
 function hasMeaningfulUiPart(part: unknown): boolean {
   if (!part || typeof part !== "object") {
     return false;
   }
 
   const record = part as Record<string, unknown>;
-  if (record.type === "file") {
+  if (normalizeFilePart(record)) {
     return true;
   }
 
@@ -90,14 +127,18 @@ export function extractMessageContent(message: unknown): string {
   return content.trim();
 }
 
+export function getMessageFileParts(message: unknown): MessageFilePart[] {
+  const messageAny = message as Record<string, unknown>;
+  return readMessagePartArrays(messageAny)
+    .map((part) => normalizeFilePart(part))
+    .filter((part): part is MessageFilePart => part !== null);
+}
+
 export function hasMessageTextOrFileParts(message: unknown): boolean {
   const messageAny = message as Record<string, unknown>;
-  const parts = messageAny.parts;
-  if (!Array.isArray(parts)) {
-    return false;
-  }
-
-  return parts.some((part) => hasMeaningfulUiPart(part));
+  return readMessagePartArrays(messageAny).some((part) =>
+    hasMeaningfulUiPart(part),
+  );
 }
 
 /** Reasoning parts from a UIMessage (for ThoughtSummaryBar / loaders). */

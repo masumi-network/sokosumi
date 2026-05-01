@@ -136,7 +136,19 @@ export function createSokosumiLanguageModel(
       );
     }
 
-    return streamCoworker(promptWarnings, sokosumiOpts, options);
+    const coworkerWarnings = sokosumiOpts.imageGenerationModel
+      ? [
+          ...promptWarnings,
+          {
+            type: "compatibility" as const,
+            feature: "openrouter:image_generation",
+            details:
+              "Image generation server tools are only forwarded in OpenRouter mode.",
+          },
+        ]
+      : promptWarnings;
+
+    return streamCoworker(coworkerWarnings, sokosumiOpts, options);
   }
 
   return {
@@ -172,6 +184,19 @@ async function streamOpenRouter(
     input: responsesInput,
     stream: true,
     max_output_tokens: config.openRouterMaxOutputTokens ?? 4096,
+    ...(sokosumiOpts.imageGenerationModel
+      ? {
+          tools: [
+            {
+              type: "openrouter:image_generation",
+              parameters: {
+                model: sokosumiOpts.imageGenerationModel,
+                quality: "high",
+              },
+            },
+          ],
+        }
+      : {}),
   };
 
   const response = await fetch(OPENROUTER_RESPONSES_URL, {

@@ -260,4 +260,68 @@ describe("createResponsesSseToV3Stream", () => {
 
     expect(completedIds).toEqual(["resp_tail_id"]);
   });
+
+  it("emits image generation tool results as markdown image text", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_image"}}',
+      'data: {"type":"response.output_text.delta","delta":"Here is the image:"}',
+      'data: {"type":"response.output_item.done","item":{"type":"function_call_output","output":{"status":"ok","imageUrl":"https://example.com/generated.png"}}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_image"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).toContain("Here is the image:");
+    expect(text).toContain(
+      "![Generated image](https://example.com/generated.png)",
+    );
+  });
+
+  it("emits image generation tool results when output is a JSON string", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_image_string"}}',
+      'data: {"type":"response.output_item.done","item":{"type":"function_call_output","output":"{\\"status\\":\\"ok\\",\\"imageUrl\\":\\"https://example.com/generated-string.png\\"}"}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_image_string"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).toContain(
+      "![Generated image](https://example.com/generated-string.png)",
+    );
+  });
 });

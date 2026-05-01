@@ -1213,6 +1213,16 @@
         "comingSoon": "Coming Soon",
         "agenticCoworkers": "Agentic Coworkers",
         "models": "Models",
+        "supportsImageAttachments": "Supports image attachments",
+        "attachmentMenu": {
+          "trigger": "Add",
+          "uploadFile": "Upload file",
+          "createImage": "Create image"
+        },
+        "createImageChip": {
+          "label": "Create image",
+          "remove": "Remove create image"
+        },
         "ConversationsSidebar": {
           "searchPlaceholder": "Search conversations...",
           "clearSearch": "Clear search",
@@ -1233,6 +1243,7 @@
         "modelAlt": "Model",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "User avatar",
+        "downloadGeneratedImage": "Download generated image",
         "expandPrompt": "Show full message",
         "collapsePrompt": "Show less",
         "authorize": "Authorize",

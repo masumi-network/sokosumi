@@ -1,7 +1,7 @@
 "use client";
 
-import { CHAT_MODELS } from "@sokosumi/chat";
-import { ChevronDown } from "lucide-react";
+import { CHAT_MODELS, chatModelSupportsImageInput } from "@sokosumi/chat";
+import { ChevronDown, Image as ImageIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -23,6 +23,7 @@ interface Model {
   id: string;
   name: string;
   icon?: React.ReactNode;
+  supportsImageInput?: boolean;
 }
 
 interface CoworkerModelSelectorProps {
@@ -73,6 +74,7 @@ export default function CoworkerModelSelector({
   const models: Model[] = CHAT_MODELS.map((model) => ({
     id: model.id,
     name: model.name,
+    supportsImageInput: chatModelSupportsImageInput(model.id),
   }));
 
   const getCoworkerAvatarUrl = (c: Coworker): string | null =>
@@ -224,6 +226,12 @@ export default function CoworkerModelSelector({
                   >
                     <ModelIcon modelId={model.id} modelName={model.name} />
                     <span className="flex-1 text-left">{model.name}</span>
+                    {model.supportsImageInput ? (
+                      <ImageIcon
+                        className="text-muted-foreground size-3.5 shrink-0"
+                        aria-label={t("supportsImageAttachments")}
+                      />
+                    ) : null}
                   </button>
                 ))}
               </div>
