@@ -159,6 +159,25 @@ describe("getMessageFileParts", () => {
       },
     ]);
   });
+
+  it("dedupes the same file URL when it appears in both array content and parts", () => {
+    const url = "https://blob.example.com/generated.png";
+    const file = {
+      type: "file" as const,
+      url,
+      mediaType: "image/png" as const,
+      filename: "generated.png",
+    };
+    const message = {
+      id: "asst-dup",
+      role: "assistant" as const,
+      content: [{ type: "output_text" as const, text: "Caption." }, file],
+      parts: [{ type: "text" as const, text: "Caption." }, file],
+    };
+
+    expect(getMessageFileParts(message)).toEqual([file]);
+    expect(hasMessageTextOrFileParts(message)).toBe(true);
+  });
 });
 
 describe("extractReasoningStepMessages", () => {

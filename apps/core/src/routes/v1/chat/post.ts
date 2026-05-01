@@ -540,7 +540,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
             lastMessage: incomingLast,
             extractedText: lastUserMessageText ?? "",
-            imageGeneration: imageGeneration === true,
+            ...(imageGeneration === true ? { imageGeneration: true } : {}),
           });
         }
 
@@ -580,7 +580,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
             lastMessage: incomingLast,
             extractedText: lastUserMessageText ?? "",
-            imageGeneration: imageGeneration === true,
+            ...(imageGeneration === true ? { imageGeneration: true } : {}),
           });
         }
       }

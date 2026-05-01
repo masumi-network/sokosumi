@@ -127,10 +127,13 @@ export default function ChatMessage({
   };
 
   const showStreamingDotsOnly = isAssistantStreaming && !hasDisplayContent;
-  /** Same source as `assistantContentSegments` so OAuth CTA matches visible markdown. */
+  /**
+   * OAuth URL must be read from full `content`, not `displayContent` (progressive
+   * reveal). Otherwise the authorize CTA only appears after the reveal catches up.
+   */
   const oauthAuthorizationUrl = isUser
     ? null
-    : extractOAuthAuthorizationUrl(displayContent);
+    : extractOAuthAuthorizationUrl(content);
   const assistantContentSegments = isUser
     ? []
     : parseMarkdownWithDataImageSegments(displayContent);

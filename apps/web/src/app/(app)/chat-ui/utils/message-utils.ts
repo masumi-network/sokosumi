@@ -13,12 +13,6 @@ export type MessageFilePart = Extract<
 
 const VISIBLE_TEXT_PART_TYPES = new Set(["text", "input_text", "output_text"]);
 
-function readMessagePartArrays(message: Record<string, unknown>): unknown[] {
-  const contentParts = Array.isArray(message.content) ? message.content : [];
-  const uiParts = Array.isArray(message.parts) ? message.parts : [];
-  return [...contentParts, ...uiParts];
-}
-
 function appendVisibleTextFromPart(part: Record<string, unknown>): string {
   if (!VISIBLE_TEXT_PART_TYPES.has(String(part.type))) {
     return "";
@@ -58,6 +52,32 @@ function normalizeFilePart(part: unknown): MessageFilePart | null {
       ? { filename: record.filename }
       : {}),
   } satisfies MessageFilePart;
+}
+
+/**
+ * When both legacy array `content` and `parts` are present, the same file
+ * attachment can appear twice; keep first occurrence by URL.
+ */
+function dedupeFilePartsByUrlInMergedParts(parts: unknown[]): unknown[] {
+  const seenFileUrls = new Set<string>();
+  const out: unknown[] = [];
+  for (const part of parts) {
+    const file = normalizeFilePart(part);
+    if (file != null) {
+      if (seenFileUrls.has(file.url)) {
+        continue;
+      }
+      seenFileUrls.add(file.url);
+    }
+    out.push(part);
+  }
+  return out;
+}
+
+function readMessagePartArrays(message: Record<string, unknown>): unknown[] {
+  const contentParts = Array.isArray(message.content) ? message.content : [];
+  const uiParts = Array.isArray(message.parts) ? message.parts : [];
+  return dedupeFilePartsByUrlInMergedParts([...contentParts, ...uiParts]);
 }
 
 function hasMeaningfulUiPart(part: unknown): boolean {
