@@ -14,6 +14,12 @@ export const chatRequestMessageSchema = z.object({
   content: z
     .union([z.string(), z.array(chatRequestMessagePartSchema)])
     .optional(),
+  metadata: z
+    .object({
+      imageGeneration: z.boolean().optional(),
+    })
+    .passthrough()
+    .optional(),
   id: z.string().optional(),
 });
 

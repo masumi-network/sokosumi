@@ -10,6 +10,8 @@ import { extractTextFromCompletedOutput } from "../completed-output-text.js";
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
 const TEXT_BLOCK_ID = "sokosumi-output-text";
+const DATA_IMAGE_URL_REGEX =
+  /^data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,/i;
 
 export function emptyUsage(): LanguageModelV3Usage {
   return {
@@ -51,6 +53,19 @@ type SseChunk = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPreviewableImageUrl(imageUrl: string): boolean {
+  if (DATA_IMAGE_URL_REGEX.test(imageUrl)) {
+    return true;
+  }
+
+  try {
+    const protocol = new URL(imageUrl).protocol;
+    return protocol === "https:" || protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 function collectImageUrls(value: unknown, seen = new Set<unknown>()): string[] {
@@ -113,7 +128,8 @@ export function createResponsesSseToV3Stream(
       let onResponseCompletedEmitted = false;
       const reasoningAccumulator: Record<string, string> = {};
       const reasoningStarted = new Set<string>();
-      const emittedImageUrls = new Set<string>();
+      const emittedImageKeys = new Set<string>();
+      const emittedImageUrlsFromItems = new Set<string>();
       let needNewlineBeforeNextDelta = false;
 
       function closeWithFinish() {
@@ -156,12 +172,31 @@ export function createResponsesSseToV3Stream(
         });
       }
 
-      function emitImageUrls(value: unknown) {
+      function emitImageUrls(
+        value: unknown,
+        scopeKey: string,
+        source: "item" | "aggregate",
+      ) {
         for (const imageUrl of collectImageUrls(value)) {
-          if (emittedImageUrls.has(imageUrl)) {
+          if (!isPreviewableImageUrl(imageUrl)) {
             continue;
           }
-          emittedImageUrls.add(imageUrl);
+          if (
+            source === "aggregate" &&
+            emittedImageUrlsFromItems.has(imageUrl)
+          ) {
+            continue;
+          }
+          const key = `${scopeKey}:${imageUrl}`;
+          if (emittedImageKeys.has(key)) {
+            continue;
+          }
+          emittedImageKeys.add(key);
+          if (source === "item") {
+            emittedImageUrlsFromItems.add(imageUrl);
+          }
+          // Transient live preview only. Core persists these image URLs as
+          // structured file parts and strips the markdown from contentText.
           emitTextDelta(`\n\n![Generated image](${imageUrl})\n\n`);
         }
       }
@@ -244,9 +279,9 @@ export function createResponsesSseToV3Stream(
             emitReasoningDelta(itemId, next);
           }
         } else if (chunk.type === "response.output_item.done") {
-          emitImageUrls(chunk.item);
           const itemId =
             typeof chunk.item?.id === "string" ? chunk.item.id : undefined;
+          emitImageUrls(chunk.item, itemId ?? "item", "item");
           if (itemId && chunk.item?.type === "reasoning") {
             delete reasoningAccumulator[itemId];
             if (reasoningStarted.has(itemId)) {
@@ -286,8 +321,9 @@ export function createResponsesSseToV3Stream(
           return false;
         }
 
-        emitImageUrls(chunk.output);
-        emitImageUrls(chunk.response);
+        const aggregateScope = responseId ?? lastKnownResponseId ?? "response";
+        emitImageUrls(chunk.output, aggregateScope, "aggregate");
+        emitImageUrls(chunk.response, aggregateScope, "aggregate");
 
         const isCompletionSignal =
           chunk.type === "response.completed" ||
@@ -358,7 +394,8 @@ export function createResponsesSseToV3Stream(
                 ensureTextStart();
                 emitTextDelta(text);
               }
-              emitImageUrls(parsed.output);
+              const aggregateScope = parsed.id ?? lastKnownResponseId ?? "tail";
+              emitImageUrls(parsed.output, aggregateScope, "aggregate");
               const tailCompletionId =
                 typeof parsed.id === "string" ? parsed.id : lastKnownResponseId;
               if (

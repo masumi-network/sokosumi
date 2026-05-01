@@ -67,6 +67,52 @@ describe("convertItemsToMessages", () => {
     ]);
   });
 
+  it("maps assistant generated image file parts from API content arrays", () => {
+    const messages = convertItemsToMessages([
+      {
+        id: "a3",
+        role: "assistant",
+        createdAt: 1700000001,
+        content: [
+          { type: "output_text", text: "Here's the generated image." },
+          {
+            type: "file",
+            url: "https://blob.example.com/generated.png",
+            mediaType: "image/png",
+            filename: "generated.png",
+          },
+        ],
+      },
+    ]);
+
+    expect(messages[0]?.parts).toEqual([
+      { type: "text", text: "Here's the generated image." },
+      {
+        type: "file",
+        url: "https://blob.example.com/generated.png",
+        mediaType: "image/png",
+        filename: "generated.png",
+      },
+    ]);
+    expect((messages[0] as { content?: string } | undefined)?.content).toBe(
+      "Here's the generated image.",
+    );
+  });
+
+  it("maps image generation metadata onto user messages", () => {
+    const messages = convertItemsToMessages([
+      {
+        id: "u3",
+        role: "user",
+        createdAt: 1700000001,
+        content: [{ type: "text", text: "Make an image" }],
+        metadata: { imageGeneration: true },
+      },
+    ]);
+
+    expect(messages[0]?.metadata).toEqual({ imageGeneration: true });
+  });
+
   it("keeps file-only API content as renderable parts after hydration", () => {
     const messages = convertItemsToMessages([
       {

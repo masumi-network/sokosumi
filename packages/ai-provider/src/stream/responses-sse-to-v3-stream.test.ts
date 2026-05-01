@@ -261,7 +261,7 @@ describe("createResponsesSseToV3Stream", () => {
     expect(completedIds).toEqual(["resp_tail_id"]);
   });
 
-  it("emits image generation tool results as markdown image text", async () => {
+  it("emits image generation tool results as transient markdown image text", async () => {
     const body = encodeSse([
       "event: response.created",
       'data: {"type":"response.created","response":{"id":"resp_image"}}',
@@ -294,6 +294,66 @@ describe("createResponsesSseToV3Stream", () => {
     );
   });
 
+  it("emits data image tool results for live preview", async () => {
+    const dataUrl = "data:image/png;base64,aGVsbG8=";
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_data_image"}}',
+      `data: {"type":"response.output_item.done","item":{"type":"function_call_output","output":{"status":"ok","imageUrl":"${dataUrl}"}}}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_data_image"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).toContain(`![Generated image](${dataUrl})`);
+  });
+
+  it("does not emit non-previewable image URL strings", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_invalid_image"}}',
+      'data: {"type":"response.output_item.done","item":{"type":"function_call_output","output":{"status":"ok","imageUrl":"not-a-url"}}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_invalid_image"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).not.toContain("![Generated image]");
+    expect(text).not.toContain("not-a-url");
+  });
+
   it("emits image generation tool results when output is a JSON string", async () => {
     const body = encodeSse([
       "event: response.created",
@@ -323,5 +383,37 @@ describe("createResponsesSseToV3Stream", () => {
     expect(text).toContain(
       "![Generated image](https://example.com/generated-string.png)",
     );
+  });
+
+  it("emits the same image URL again for distinct output items", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_reused_image"}}',
+      'data: {"type":"response.output_item.done","item":{"id":"item_1","type":"function_call_output","output":{"imageUrl":"https://example.com/reused.png"}}}',
+      'data: {"type":"response.output_item.done","item":{"id":"item_2","type":"function_call_output","output":{"imageUrl":"https://example.com/reused.png"}}}',
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_reused_image","output":[{"imageUrl":"https://example.com/reused.png"}]}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(
+      text.match(/!\[Generated image\]\(https:\/\/example\.com\/reused\.png\)/g)
+        ?.length,
+    ).toBe(2);
   });
 });

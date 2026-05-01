@@ -142,7 +142,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         ? extractMessageContent(lastMessage)
         : "";
     const lastAssistantHasNoContent =
-      lastMessage?.role === "assistant" && !lastMessageContent.trim();
+      lastMessage?.role === "assistant" &&
+      !lastMessageContent.trim() &&
+      !hasMessageTextOrFileParts(lastMessage);
     const showStreamReasoningInLastAssistantRow =
       isCoworker &&
       isLoading &&

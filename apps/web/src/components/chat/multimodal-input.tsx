@@ -379,10 +379,7 @@ function PureMultimodalInput({
   const handleAttachFiles = useCallback(
     async (files: File[]) => {
       if (files.length === 0) return;
-      if (
-        composeKind === "chat" &&
-        (!supportsChatImageInput || imageGenerationEnabled)
-      ) {
+      if (composeKind === "chat" && !supportsChatImageInput) {
         return;
       }
 
@@ -460,7 +457,6 @@ function PureMultimodalInput({
     },
     [
       composeKind,
-      imageGenerationEnabled,
       setInput,
       supportsChatImageInput,
       taskUploadFileErrorLabel,
@@ -493,9 +489,7 @@ function PureMultimodalInput({
     () => extractTaskAttachmentUrls(input),
     [input],
   );
-  const canSubmitContent = imageGenerationEnabled
-    ? input.trim().length > 0
-    : input.trim().length > 0 || hasChatFileParts;
+  const canSubmitContent = input.trim().length > 0 || hasChatFileParts;
   const canSubmit =
     canSubmitContent &&
     status === "ready" &&
@@ -687,11 +681,11 @@ function PureMultimodalInput({
   }, []);
 
   const handleEnableImageGeneration = useCallback(() => {
-    if (!supportsImageGeneration || hasChatFileParts) {
+    if (!supportsImageGeneration) {
       return;
     }
     setImageGenerationEnabled(true);
-  }, [hasChatFileParts, supportsImageGeneration]);
+  }, [supportsImageGeneration]);
 
   const showAttachmentMenu =
     composeKind === "chat" &&
@@ -945,9 +939,7 @@ function PureMultimodalInput({
                 <DropdownMenuContent align="start" side="top" sideOffset={8}>
                   {supportsChatImageInput ? (
                     <DropdownMenuItem
-                      disabled={
-                        isUploadingAttachments || imageGenerationEnabled
-                      }
+                      disabled={isUploadingAttachments}
                       onSelect={() => attachmentTriggerRef.current?.click()}
                     >
                       <Paperclip className="size-4" />
@@ -957,9 +949,7 @@ function PureMultimodalInput({
                   {supportsImageGeneration ? (
                     <DropdownMenuItem
                       disabled={
-                        isUploadingAttachments ||
-                        hasChatFileParts ||
-                        imageGenerationEnabled
+                        isUploadingAttachments || imageGenerationEnabled
                       }
                       onSelect={handleEnableImageGeneration}
                     >

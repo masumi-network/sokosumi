@@ -139,7 +139,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         ? extractMessageContent(lastMessage)
         : "";
     const lastAssistantHasNoContent =
-      lastMessage?.role === "assistant" && !lastMessageContent.trim();
+      lastMessage?.role === "assistant" &&
+      !lastMessageContent.trim() &&
+      !hasMessageTextOrFileParts(lastMessage);
     const showPendingErrorForEmptyAssistant =
       lastMessage?.role === "assistant" &&
       lastAssistantHasNoContent &&
@@ -195,10 +197,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       (lastUserMessage != null && hasMessageTextOrFileParts(lastUserMessage));
 
     const canResend = Boolean(
-      showPendingError &&
-        onResendLastMessage &&
-        lastUserMessageText &&
-        lastUserMessageHasContent,
+      showPendingError && onResendLastMessage && lastUserMessageHasContent,
     );
 
     const pendingErrorMessage = t("pendingResponseFailed");

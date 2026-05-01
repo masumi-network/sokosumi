@@ -115,6 +115,22 @@ describe("hasMessageTextOrFileParts", () => {
       }),
     ).toBe(true);
   });
+
+  it("returns true for file-only assistant image messages", () => {
+    expect(
+      hasMessageTextOrFileParts({
+        id: "a-file",
+        role: "assistant" as const,
+        parts: [
+          {
+            type: "file" as const,
+            url: "https://example.com/generated.png",
+            mediaType: "image/png",
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("getMessageFileParts", () => {

@@ -45,6 +45,10 @@ interface ChatMessageProps {
   isStreaming?: boolean;
 }
 
+function isImageFilePart(part: MessageFilePart): boolean {
+  return part.mediaType.toLowerCase().startsWith("image/");
+}
+
 export default function ChatMessage({
   role,
   content,
@@ -129,6 +133,12 @@ export default function ChatMessage({
   const assistantContentSegments = isUser
     ? []
     : parseMarkdownWithDataImageSegments(displayContent);
+  const assistantImageFileParts = isUser
+    ? []
+    : fileParts.filter(isImageFilePart);
+  const assistantOtherFileParts = isUser
+    ? []
+    : fileParts.filter((part) => !isImageFilePart(part));
 
   return (
     <div
@@ -276,7 +286,15 @@ export default function ChatMessage({
                       })}
                       {hasFileParts ? (
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {fileParts.map((part) => (
+                          {assistantImageFileParts.map((part) => (
+                            <ChatGeneratedImageBubble
+                              key={part.url}
+                              alt={part.filename ?? t("downloadGeneratedImage")}
+                              downloadLabel={t("downloadGeneratedImage")}
+                              src={part.url}
+                            />
+                          ))}
+                          {assistantOtherFileParts.map((part) => (
                             <FileChipMiniPreviewWithMetadata
                               key={part.url}
                               url={part.url}

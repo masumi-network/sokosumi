@@ -1,6 +1,9 @@
 import type { UIMessage } from "ai";
 
-import { thoughtTimingFromMessageMetadata } from "@/helpers/conversation-message-api-content";
+import {
+  imageGenerationFromMessageMetadata,
+  thoughtTimingFromMessageMetadata,
+} from "@/helpers/conversation-message-api-content";
 import {
   buildConversationContentParts,
   type PersistedConversationContentPart,
@@ -78,19 +81,27 @@ export function conversationMessagesToUiMessages(
         : ([{ type: "text" as const, text: "" }] satisfies UIMessage["parts"]);
 
     const timing = thoughtTimingFromMessageMetadata(message.metadata);
+    const isImageGeneration =
+      validRole === "user" &&
+      imageGenerationFromMessageMetadata(message.metadata);
+    const metadata =
+      timing != null || isImageGeneration
+        ? {
+            ...(timing != null
+              ? {
+                  thoughtStartedAtMs: timing.startedAtMs,
+                  thoughtEndedAtMs: timing.endedAtMs,
+                }
+              : {}),
+            ...(isImageGeneration ? { imageGeneration: true } : {}),
+          }
+        : undefined;
 
     return {
       id: message.id,
       role: validRole,
       parts,
-      ...(timing != null
-        ? {
-            metadata: {
-              thoughtStartedAtMs: timing.startedAtMs,
-              thoughtEndedAtMs: timing.endedAtMs,
-            },
-          }
-        : {}),
+      ...(metadata != null ? { metadata } : {}),
     };
   });
 }

@@ -4,6 +4,41 @@ import { describe, expect, it } from "vitest";
 import { conversationMessagesToUiMessages } from "../conversation-messages-to-ui-messages";
 
 describe("conversationMessagesToUiMessages", () => {
+  it("rehydrates assistant generated image file parts from metadata", async () => {
+    const messages = conversationMessagesToUiMessages([
+      {
+        id: "m1",
+        role: "assistant",
+        contentText: "Here's the generated image.",
+        metadata: {
+          ui_message_v1: {
+            parts: [
+              { type: "output_text", text: "Here's the generated image." },
+              {
+                type: "file",
+                url: "https://blob.example.com/generated.png",
+                mediaType: "image/png",
+                filename: "generated.png",
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    expect(messages[0]?.parts).toEqual([
+      { type: "text", text: "Here's the generated image." },
+      {
+        type: "file",
+        url: "https://blob.example.com/generated.png",
+        mediaType: "image/png",
+        filename: "generated.png",
+      },
+    ]);
+
+    await expect(validateUIMessages({ messages })).resolves.toBeDefined();
+  });
+
   it("rehydrates stored text and file ui parts from metadata", async () => {
     const messages = conversationMessagesToUiMessages([
       {
@@ -88,6 +123,25 @@ describe("conversationMessagesToUiMessages", () => {
     ]);
 
     expect(messages[0]?.parts).toEqual([{ type: "text", text: "Hi" }]);
+    await expect(validateUIMessages({ messages })).resolves.toBeDefined();
+  });
+
+  it("rehydrates image generation intent from user message metadata", async () => {
+    const messages = conversationMessagesToUiMessages([
+      {
+        id: "m1",
+        role: "user",
+        contentText: "Make an image",
+        metadata: {
+          image_generation: true,
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Make an image" }],
+          },
+        },
+      },
+    ]);
+
+    expect(messages[0]?.metadata).toEqual({ imageGeneration: true });
     await expect(validateUIMessages({ messages })).resolves.toBeDefined();
   });
 });
