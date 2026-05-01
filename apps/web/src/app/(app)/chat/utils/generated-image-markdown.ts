@@ -82,8 +82,11 @@ export function clampRevealLengthForMarkdownDataImages(
   while ((match = regex.exec(fullContent)) !== null) {
     const start = match.index;
 
+    // `exec` yields non-overlapping matches in ascending index order. If the
+    // reveal end lies at or before this image's `![`, we're not inside any
+    // later image either, so the desired length is already safe.
     if (safeDesiredLength <= start) {
-      continue;
+      return safeDesiredLength;
     }
 
     const closingParenIndex = findMarkdownImageUrlClosingParenIndex(

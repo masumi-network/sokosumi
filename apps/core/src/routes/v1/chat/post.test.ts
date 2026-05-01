@@ -940,6 +940,75 @@ describe("POST /chat", () => {
     infoSpy.mockRestore();
   });
 
+  it("persists a fallback caption when upload fails and the assistant reply was image-only", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    const dataUrl = "data:image/png;base64,aGVsbG8=";
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: { model_id: "gpt-5-4" },
+      })
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: null,
+      });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Make an image",
+        metadata: {
+          image_generation: true,
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Make an image" }],
+          },
+        },
+      },
+    ]);
+    uploadGeneratedChatImageMock.mockResolvedValueOnce(null);
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        trigger: "submit-message",
+        imageGeneration: true,
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "Make an image" }],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: {
+        text: string;
+        reasoning?: unknown[];
+      }) => Promise<void>;
+    };
+    await streamCall.onFinish({
+      text: `![Generated image](${dataUrl})\n`,
+      reasoning: [],
+    });
+
+    expect(conversationMessageCreateMock).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        role: "assistant",
+        contentText:
+          "The generated image could not be saved. Try generating again.",
+      }),
+    });
+    expect(
+      JSON.stringify(conversationMessageCreateMock.mock.calls.at(-1)),
+    ).not.toContain("data:image/png;base64");
+    infoSpy.mockRestore();
+  });
+
   it("returns 403 when coworker chat is unavailable", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({
       id: "550e8400-e29b-41d4-a716-446655440000",

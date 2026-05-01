@@ -42,6 +42,15 @@ describe("clampRevealLengthForMarkdownDataImages", () => {
     );
   });
 
+  it("returns desired length when reveal stops in text before a later image", () => {
+    const content = `${pngImage}\n\nBetween\n\n${jpegImage}`;
+    const desiredLength = content.indexOf("Between") + 3;
+
+    expect(clampRevealLengthForMarkdownDataImages(content, desiredLength)).toBe(
+      desiredLength,
+    );
+  });
+
   it("does not treat a parenthesis inside alt text as the url closing paren", () => {
     const image = "![caption with ) char](data:image/png;base64,AAA==)";
     const content = `Before ${image} after`;

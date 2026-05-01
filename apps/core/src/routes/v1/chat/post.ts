@@ -69,6 +69,10 @@ import { mapChatRequestToUiMessages } from "./map-chat-request-to-ui-messages.js
 const GENERATED_IMAGE_MARKDOWN_REGEX =
   /!\[[^\]\n]*\]\((data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,[^)]+|https?:\/\/[^)\s]+)\)/gi;
 
+/** Shown when image markdown was stripped but blob upload failed and there is no caption left. */
+const ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK =
+  "The generated image could not be saved. Try generating again.";
+
 const IMAGE_MEDIA_TYPE_BY_EXTENSION: Record<string, string> = {
   bmp: "image/bmp",
   gif: "image/gif",
@@ -205,20 +209,33 @@ async function prepareAssistantFinishForPersistence(params: {
     conversationId: params.conversationId,
   });
 
-  return {
-    text: strippedText,
-    uiParts:
-      fileParts.length > 0
-        ? [
-            ...(strippedText
-              ? ([
-                  { type: "text", text: strippedText },
-                ] satisfies PersistedChatUiPart[])
-              : []),
-            ...fileParts,
-          ]
-        : undefined,
-  };
+  if (fileParts.length > 0) {
+    return {
+      text: strippedText,
+      uiParts: [
+        ...(strippedText
+          ? ([
+              { type: "text", text: strippedText },
+            ] satisfies PersistedChatUiPart[])
+          : []),
+        ...fileParts,
+      ],
+    };
+  }
+
+  const hadDataImageUrl = imageUrls.some((url) =>
+    url.startsWith("data:image/"),
+  );
+
+  if (!hadDataImageUrl) {
+    return { text: params.text };
+  }
+
+  if (strippedText.trim().length === 0) {
+    return { text: ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK };
+  }
+
+  return { text: strippedText };
 }
 
 async function persistUserOrSystemTurnForConversation(params: {
