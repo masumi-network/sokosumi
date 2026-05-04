@@ -1101,6 +1101,254 @@ describe("POST /chat", () => {
     infoSpy.mockRestore();
   });
 
+  it("strips ReAct JSON from persisted assistant text and stores thought as reasoning", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: { model_id: "gpt-5-4" },
+      })
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: null,
+      });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Make an image",
+        metadata: {
+          image_generation: true,
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Make an image" }],
+          },
+        },
+      },
+    ]);
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const reactEnvelope = JSON.stringify({
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A calm robot"}',
+      thought: "I should generate an image for the user.",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        trigger: "submit-message",
+        imageGeneration: true,
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "Make an image" }],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: {
+        text: string;
+        reasoning?: unknown[];
+      }) => Promise<void>;
+    };
+    await streamCall.onFinish({
+      text: `${reactEnvelope}\n\nHere is the result.`,
+      reasoning: [],
+    });
+
+    expect(conversationMessageCreateMock).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        role: "assistant",
+        contentText: "Here is the result.",
+        metadata: {
+          reasoning: [
+            {
+              type: "reasoning",
+              text: "I should generate an image for the user.",
+            },
+          ],
+        },
+      }),
+    });
+    expect(
+      JSON.stringify(conversationMessageCreateMock.mock.calls.at(-1)),
+    ).not.toContain("openrouter_image_generation");
+    infoSpy.mockRestore();
+  });
+
+  it("persists an unavailable fallback when Gemini emits only a ReAct image envelope", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: { model_id: "gemini-3-flash-preview" },
+      })
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: null,
+      });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Make an image",
+        metadata: {
+          image_generation: true,
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Make an image" }],
+          },
+        },
+      },
+    ]);
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const reactEnvelope = JSON.stringify({
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A calm robot"}',
+      thought: "I should generate an image for the user.",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        trigger: "submit-message",
+        imageGeneration: true,
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "Make an image" }],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: {
+        text: string;
+        reasoning?: unknown[];
+      }) => Promise<void>;
+    };
+    await streamCall.onFinish({
+      text: reactEnvelope,
+      reasoning: [],
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Image generation requested but no image was returned",
+      { modelId: "gemini-3-flash-preview" },
+    );
+    expect(conversationMessageCreateMock).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        role: "assistant",
+        contentText:
+          "The image generation tool did not return an image. Try generating again.",
+        metadata: {
+          reasoning: [
+            {
+              type: "reasoning",
+              text: "I should generate an image for the user.",
+            },
+          ],
+        },
+      }),
+    });
+    expect(
+      JSON.stringify(conversationMessageCreateMock.mock.calls.at(-1)),
+    ).not.toContain("openrouter_image_generation");
+    infoSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  it("persists an unavailable fallback when the stream stripped the ReAct envelope", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: { model_id: "gemini-3-flash-preview" },
+      })
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: null,
+      });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Make an image",
+        metadata: {
+          image_generation: true,
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Make an image" }],
+          },
+        },
+      },
+    ]);
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        trigger: "submit-message",
+        imageGeneration: true,
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "Make an image" }],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: {
+        text: string;
+        reasoning?: unknown[];
+      }) => Promise<void>;
+    };
+    await streamCall.onFinish({
+      text: "",
+      reasoning: [
+        {
+          type: "reasoning",
+          text: "I should generate an image for the user.",
+        },
+      ],
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Image generation requested but no image was returned",
+      { modelId: "gemini-3-flash-preview" },
+    );
+    expect(conversationMessageCreateMock).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        role: "assistant",
+        contentText:
+          "The image generation tool did not return an image. Try generating again.",
+        metadata: {
+          reasoning: [
+            {
+              type: "reasoning",
+              text: "I should generate an image for the user.",
+            },
+          ],
+        },
+      }),
+    });
+    infoSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
   it("returns 403 when coworker chat is unavailable", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({
       id: "550e8400-e29b-41d4-a716-446655440000",

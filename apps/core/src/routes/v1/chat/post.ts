@@ -76,6 +76,12 @@ const GENERATED_IMAGE_MARKDOWN_REGEX =
 const ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK =
   "The generated image could not be saved. Try generating again.";
 
+/** Shown when a model describes image tool use but never returns an image. */
+const ASSISTANT_GENERATED_IMAGE_UNAVAILABLE_FALLBACK =
+  "The image generation tool did not return an image. Try generating again.";
+
+const REACT_IMAGE_GENERATION_ACTION = "openrouter_image_generation";
+
 const IMAGE_MEDIA_TYPE_BY_EXTENSION: Record<string, string> = {
   bmp: "image/bmp",
   gif: "image/gif",
@@ -145,6 +151,124 @@ function extractGeneratedImageMarkdown(text: string): {
   };
 }
 
+function findJsonObjectEnd(text: string, startIndex: number): number {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = startIndex; i < text.length; i += 1) {
+    const char = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return i + 1;
+      }
+    }
+  }
+
+  return -1;
+}
+
+function parseReactEnvelopeJson(rawJson: string, trailing: string) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson) as unknown;
+  } catch {
+    return null;
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return null;
+  }
+
+  const record = parsed as Record<string, unknown>;
+  const hadEnvelope =
+    record.action === REACT_IMAGE_GENERATION_ACTION && "action_input" in record;
+  if (!hadEnvelope) {
+    return null;
+  }
+
+  return {
+    strippedText: trailing
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim(),
+    thought: typeof record.thought === "string" ? record.thought.trim() : null,
+    hadEnvelope: true,
+  };
+}
+
+function extractReactEnvelope(text: string): {
+  strippedText: string;
+  thought: string | null;
+  hadEnvelope: boolean;
+} {
+  const firstNonWhitespaceIndex = text.search(/\S/);
+  if (firstNonWhitespaceIndex === -1) {
+    return { strippedText: text, thought: null, hadEnvelope: false };
+  }
+
+  const leading = text.slice(firstNonWhitespaceIndex);
+  const fenceMatch = /^```json[ \t]*(?:\r?\n|$)/i.exec(leading);
+
+  if (fenceMatch) {
+    const jsonStart = firstNonWhitespaceIndex + fenceMatch[0].length;
+    const closingFenceIndex = text.indexOf("```", jsonStart);
+    if (closingFenceIndex === -1) {
+      return { strippedText: text, thought: null, hadEnvelope: false };
+    }
+
+    const extracted = parseReactEnvelopeJson(
+      text.slice(jsonStart, closingFenceIndex).trim(),
+      text.slice(closingFenceIndex + 3),
+    );
+    return (
+      extracted ?? { strippedText: text, thought: null, hadEnvelope: false }
+    );
+  }
+
+  if (text[firstNonWhitespaceIndex] !== "{") {
+    return { strippedText: text, thought: null, hadEnvelope: false };
+  }
+
+  const jsonEnd = findJsonObjectEnd(text, firstNonWhitespaceIndex);
+  if (jsonEnd === -1) {
+    return { strippedText: text, thought: null, hadEnvelope: false };
+  }
+
+  const extracted = parseReactEnvelopeJson(
+    text.slice(firstNonWhitespaceIndex, jsonEnd),
+    text.slice(jsonEnd),
+  );
+  return extracted ?? { strippedText: text, thought: null, hadEnvelope: false };
+}
+
 async function buildGeneratedImageFileParts(params: {
   imageUrls: string[];
   userId: string;
@@ -192,18 +316,47 @@ async function prepareAssistantFinishForPersistence(params: {
   text: string;
   userId: string;
   conversationId: string;
+  modelId: string | null;
   /** When false, leave assistant text unchanged (normal chat may include `![](https://…)`). */
   extractGeneratedImagesFromMarkdown: boolean;
-}): Promise<{ text: string; uiParts?: PersistedChatUiPart[] }> {
+}): Promise<{
+  text: string;
+  uiParts?: PersistedChatUiPart[];
+  reactThought?: string;
+}> {
+  const imageExtraction = params.extractGeneratedImagesFromMarkdown
+    ? extractGeneratedImageMarkdown(params.text)
+    : { strippedText: params.text, imageUrls: [] };
+  const {
+    strippedText: textWithoutReactEnvelope,
+    thought,
+    hadEnvelope,
+  } = extractReactEnvelope(imageExtraction.strippedText);
+  const reactThought = thought?.trim() ? thought : undefined;
+
   if (!params.extractGeneratedImagesFromMarkdown) {
-    return { text: params.text };
+    return {
+      text: hadEnvelope ? textWithoutReactEnvelope : params.text,
+      reactThought,
+    };
   }
 
-  const { strippedText, imageUrls } = extractGeneratedImageMarkdown(
-    params.text,
-  );
+  const { imageUrls } = imageExtraction;
   if (imageUrls.length === 0) {
-    return { text: params.text };
+    const visibleText = hadEnvelope ? textWithoutReactEnvelope : params.text;
+    if (visibleText.trim().length === 0) {
+      console.warn("Image generation requested but no image was returned", {
+        modelId: params.modelId,
+      });
+      return {
+        text: ASSISTANT_GENERATED_IMAGE_UNAVAILABLE_FALLBACK,
+        reactThought,
+      };
+    }
+    return {
+      text: visibleText,
+      reactThought,
+    };
   }
 
   const fileParts = await buildGeneratedImageFileParts({
@@ -214,11 +367,12 @@ async function prepareAssistantFinishForPersistence(params: {
 
   if (fileParts.length > 0) {
     return {
-      text: strippedText,
+      text: textWithoutReactEnvelope,
+      reactThought,
       uiParts: [
-        ...(strippedText
+        ...(textWithoutReactEnvelope
           ? ([
-              { type: "text", text: strippedText },
+              { type: "text", text: textWithoutReactEnvelope },
             ] satisfies PersistedChatUiPart[])
           : []),
         ...fileParts,
@@ -231,14 +385,20 @@ async function prepareAssistantFinishForPersistence(params: {
   );
 
   if (!hadDataImageUrl) {
-    return { text: params.text };
+    return {
+      text: hadEnvelope ? textWithoutReactEnvelope : params.text,
+      reactThought,
+    };
   }
 
-  if (strippedText.trim().length === 0) {
-    return { text: ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK };
+  if (textWithoutReactEnvelope.trim().length === 0) {
+    return {
+      text: ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK,
+      reactThought,
+    };
   }
 
-  return { text: strippedText };
+  return { text: textWithoutReactEnvelope, reactThought };
 }
 
 async function persistUserOrSystemTurnForConversation(params: {
@@ -827,14 +987,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 text: finishEvent.text,
                 conversationId: internalConversationId,
                 userId: userContext.userId,
+                modelId: selectedModel,
                 extractGeneratedImagesFromMarkdown: imageGeneration === true,
               });
+            const reasoning = [
+              ...(preparedAssistantMessage.reactThought
+                ? [
+                    {
+                      type: "reasoning",
+                      text: preparedAssistantMessage.reactThought,
+                    },
+                  ]
+                : []),
+              ...(Array.isArray(finishEvent.reasoning)
+                ? finishEvent.reasoning
+                : []),
+            ];
             await persistAssistantFromAiSdk({
               conversationId: internalConversationId,
               userId: userContext.userId,
               text: preparedAssistantMessage.text,
               responsesApiResponseId: responsesApiResponseIdRef.current,
-              reasoning: useCoworker ? finishEvent.reasoning : undefined,
+              reasoning: reasoning.length > 0 ? reasoning : undefined,
               thoughtTiming,
               uiParts: preparedAssistantMessage.uiParts,
             });

@@ -24,6 +24,10 @@ import {
 import type { CreateSokosumiOptions } from "./types.js";
 
 const OPENROUTER_RESPONSES_URL = "https://openrouter.ai/api/v1/responses";
+const SOKOSUMI_SUPPORTED_URL_PATTERNS: Record<string, RegExp[]> = {
+  // The Responses API mapping forwards these as image_url/file_url or inline data.
+  "*": [/^https?:\/\//i, /^data:/i],
+};
 
 export type SokosumiLanguageModel = LanguageModelV3 & {
   readonly provider: "sokosumi";
@@ -167,7 +171,7 @@ export function createSokosumiLanguageModel(
     specificationVersion: "v3",
     provider: "sokosumi",
     modelId: modelIdForLanguageModel,
-    supportedUrls: {},
+    supportedUrls: SOKOSUMI_SUPPORTED_URL_PATTERNS,
     doGenerate,
     doStream,
   };

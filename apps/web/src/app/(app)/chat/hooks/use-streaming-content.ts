@@ -6,7 +6,10 @@ import {
   isDocumentHidden,
   useDocumentVisibilityState,
 } from "@/app/chat/hooks/document-visibility";
-import { clampRevealLengthForMarkdownDataImages } from "@/app/chat/utils/generated-image-markdown";
+import {
+  advanceRevealPastCompletedDataImages,
+  clampRevealLengthForMarkdownDataImages,
+} from "@/app/chat/utils/generated-image-markdown";
 
 const CHARS_PER_SECOND = 128;
 const CATCH_UP_THRESHOLD = 6;
@@ -19,6 +22,7 @@ export function useStreamingContent(
 
   const [revealedLength, setRevealedLength] = useState(0);
   const [hasAnimated, setHasAnimated] = useState(false);
+  const contentRef = useRef(content);
   const contentLengthRef = useRef(content.length);
   const lastTimeRef = useRef<number | null>(null);
   const pendingCharsRef = useRef(0);
@@ -27,10 +31,11 @@ export function useStreamingContent(
   const rafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
+    contentRef.current = content;
     contentLengthRef.current = content.length;
     isStreamingRef.current = isStreaming;
     revealedLengthRef.current = revealedLength;
-  }, [content.length, isStreaming, revealedLength]);
+  }, [content, isStreaming, revealedLength]);
 
   useEffect(() => {
     if (content.length < revealedLength) {
@@ -126,8 +131,15 @@ export function useStreamingContent(
         if (toAdd > 0) {
           pendingCharsRef.current -= toAdd;
           const next = current + toAdd;
-          revealedLengthRef.current = next;
-          return next;
+          const skipped = advanceRevealPastCompletedDataImages(
+            contentRef.current,
+            next,
+          );
+          if (skipped > next) {
+            pendingCharsRef.current = 0;
+          }
+          revealedLengthRef.current = skipped;
+          return skipped;
         }
         revealedLengthRef.current = current;
         return current;

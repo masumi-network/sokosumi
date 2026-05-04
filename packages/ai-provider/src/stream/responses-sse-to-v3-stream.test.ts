@@ -12,6 +12,29 @@ function encodeSse(lines: string[]): ReadableStream<Uint8Array> {
   });
 }
 
+async function collectStreamTextAndReasoning(
+  stream: ReturnType<typeof createResponsesSseToV3Stream>,
+): Promise<{ text: string; reasoning: Record<string, string> }> {
+  const reader = stream.getReader();
+  let text = "";
+  const reasoning: Record<string, string> = {};
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value || typeof value !== "object" || !("type" in value)) continue;
+
+    if (value.type === "text-delta") {
+      text += value.delta;
+    }
+    if (value.type === "reasoning-delta") {
+      reasoning[value.id] = `${reasoning[value.id] ?? ""}${value.delta}`;
+    }
+  }
+
+  return { text, reasoning };
+}
+
 describe("createResponsesSseToV3Stream", () => {
   it("does not emit synthetic prelude reasoning (avoids UIMessage start/end mismatch)", async () => {
     const body = encodeSse([
@@ -110,6 +133,61 @@ describe("createResponsesSseToV3Stream", () => {
     expect(rsStartIdx).toBeGreaterThanOrEqual(0);
     expect(rsEndIdx).toBeGreaterThan(rsStartIdx);
     expect(rsStartIdx).toBeGreaterThan(textStartIdx);
+  });
+
+  it("emits reasoning summary deltas without synthetic status text", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_reasoning_delta"}}',
+      'data: {"type":"response.output_item.added","item":{"type":"reasoning","id":"rs_delta"}}',
+      'data: {"type":"response.reasoning_summary_text.delta","item_id":"rs_delta","delta":"I will inspect the request."}',
+      'data: {"type":"response.output_item.done","item":{"type":"reasoning","id":"rs_delta"}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_reasoning_delta"}}',
+      "data: [DONE]",
+    ]);
+
+    const { reasoning } = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(reasoning.rs_delta).toBe("I will inspect the request.");
+  });
+
+  it("emits reasoning from completed item summary when deltas are absent", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_reasoning_done"}}',
+      'data: {"type":"response.output_item.added","item":{"type":"reasoning","id":"rs_done"}}',
+      'data: {"type":"response.output_item.done","item":{"type":"reasoning","id":"rs_done","summary":[{"type":"summary_text","text":"I checked the structured summary."}]}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_reasoning_done"}}',
+      "data: [DONE]",
+    ]);
+
+    const { reasoning } = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(reasoning.rs_done).toBe("I checked the structured summary.");
+  });
+
+  it("ignores non-summary text fields in completed reasoning items", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_reasoning_shape"}}',
+      'data: {"type":"response.output_item.added","item":{"type":"reasoning","id":"rs_shape"}}',
+      'data: {"type":"response.output_item.done","item":{"type":"reasoning","id":"rs_shape","summary":[{"type":"metadata","text":"contain"},{"type":"summary_text","text":"I created the final answer."}]}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_reasoning_shape"}}',
+      "data: [DONE]",
+    ]);
+
+    const { reasoning } = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(reasoning.rs_shape).toBe("I created the final answer.");
   });
 
   it("awaits async onResponseCompleted before emitting finish", async () => {
@@ -292,6 +370,190 @@ describe("createResponsesSseToV3Stream", () => {
     expect(text).toContain(
       "![Generated image](https://example.com/generated.png)",
     );
+  });
+
+  it("suppresses ReAct JSON and emits thought as reasoning", async () => {
+    const envelope = {
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A fox"}',
+      thought: "I should generate the image now.",
+    };
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_react_json"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: JSON.stringify(envelope),
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_react_json"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(text).toBe("");
+    expect(reasoning["react-thought"]).toBe("I should generate the image now.");
+  });
+
+  it("suppresses a ReAct envelope and keeps trailing assistant text visible", async () => {
+    const envelope = {
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A cat"}',
+      thought: "I will call the image tool.",
+    };
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_react_tail"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: `${JSON.stringify(envelope)}\n\nHere is the result.`,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_react_tail"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(text).toBe("\n\nHere is the result.");
+    expect(text).not.toContain("openrouter_image_generation");
+    expect(reasoning["react-thought"]).toBe("I will call the image tool.");
+  });
+
+  it("suppresses fenced ReAct JSON and keeps trailing assistant text visible", async () => {
+    const envelope = {
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A dog"}',
+      thought: "I will generate this image.",
+    };
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_react_fenced"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: `\`\`\`json\n${JSON.stringify(envelope)}\n\`\`\`\n\nDone.`,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_react_fenced"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(text).toBe("\n\nDone.");
+    expect(text).not.toContain("openrouter_image_generation");
+    expect(reasoning["react-thought"]).toBe("I will generate this image.");
+  });
+
+  it("suppresses fenced ReAct JSON split across prefix deltas", async () => {
+    const envelope = {
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A dog"}',
+      thought: "I will generate this image.",
+    };
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_react_fenced_split"}}',
+      'data: {"type":"response.output_text.delta","delta":"```"}',
+      'data: {"type":"response.output_text.delta","delta":"j"}',
+      'data: {"type":"response.output_text.delta","delta":"son\\n"}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: `${JSON.stringify(envelope)}\n\`\`\`\n\nDone.`,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_react_fenced_split"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(text).toBe("\n\nDone.");
+    expect(text).not.toContain("openrouter_image_generation");
+    expect(reasoning["react-thought"]).toBe("I will generate this image.");
+  });
+
+  it("passes plain JSON text through when it is not a ReAct envelope", async () => {
+    const plainJson = '{"answer":42,"label":"not a tool call"}';
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_plain_json"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: plainJson,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_plain_json"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(text).toBe(plainJson);
+    expect(reasoning["react-thought"]).toBeUndefined();
+  });
+
+  it("passes action-shaped JSON through when it is not the image tool envelope", async () => {
+    const plainJson = '{"action":"email","subject":"not a tool call"}';
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_action_json"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: plainJson,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_action_json"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(text).toBe(plainJson);
+    expect(reasoning["react-thought"]).toBeUndefined();
+  });
+
+  it("suppresses ReAct JSON while preserving function_call_output image previews", async () => {
+    const envelope = {
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A robot"}',
+      thought: "I will generate an image.",
+    };
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_react_image"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: JSON.stringify(envelope),
+      })}`,
+      'data: {"type":"response.output_item.done","item":{"type":"function_call_output","output":{"status":"ok","imageUrl":"https://example.com/generated-react.png"}}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_react_image"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(text).toContain(
+      "![Generated image](https://example.com/generated-react.png)",
+    );
+    expect(text).not.toContain("openrouter_image_generation");
+    expect(reasoning["react-thought"]).toBe("I will generate an image.");
   });
 
   it("emits data image tool results for live preview", async () => {
