@@ -1,12 +1,20 @@
+import type { UseChatHelpers } from "@ai-sdk/react";
+import type { UIMessage } from "ai";
+
 import type { CoworkerMetadata } from "@/lib/clients/generated/core/types.gen";
 
 export type ChatStatus = "active" | "awaiting" | "resolved";
 export type ChatComposeKind = "chat" | "task";
 export type TaskSubmitStatus = "DRAFT" | "READY";
+export type ChatSendMessage = Parameters<
+  UseChatHelpers<UIMessage>["sendMessage"]
+>[0];
+export type ChatComposeMessage = string | ChatSendMessage;
 
 export interface ChatComposeSubmitOptions {
   kind: ChatComposeKind;
   taskStatus?: TaskSubmitStatus;
+  imageGeneration?: boolean;
 }
 
 export interface Coworker {

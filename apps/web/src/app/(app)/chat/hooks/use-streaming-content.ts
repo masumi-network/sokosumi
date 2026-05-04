@@ -6,6 +6,7 @@ import {
   isDocumentHidden,
   useDocumentVisibilityState,
 } from "@/app/chat/hooks/document-visibility";
+import { clampRevealLengthForMarkdownDataImages } from "@/app/chat/utils/generated-image-markdown";
 
 const CHARS_PER_SECOND = 128;
 const CATCH_UP_THRESHOLD = 6;
@@ -153,5 +154,8 @@ export function useStreamingContent(
   ) {
     return content;
   }
-  return content.slice(0, revealedLength);
+  return content.slice(
+    0,
+    clampRevealLengthForMarkdownDataImages(content, revealedLength),
+  );
 }

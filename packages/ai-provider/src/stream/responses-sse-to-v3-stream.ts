@@ -10,6 +10,8 @@ import { extractTextFromCompletedOutput } from "../completed-output-text.js";
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
 const TEXT_BLOCK_ID = "sokosumi-output-text";
+const DATA_IMAGE_URL_REGEX =
+  /^data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,/i;
 
 export function emptyUsage(): LanguageModelV3Usage {
   return {
@@ -44,10 +46,101 @@ type SseChunk = {
   id?: string;
   item_id?: string;
   status?: string;
-  item?: { type?: string; id?: string };
-  response?: { id?: string };
+  item?: { type?: string; id?: string } & Record<string, unknown>;
+  response?: { id?: string } & Record<string, unknown>;
   output?: unknown;
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPreviewableImageUrl(imageUrl: string): boolean {
+  if (DATA_IMAGE_URL_REGEX.test(imageUrl)) {
+    return true;
+  }
+
+  try {
+    const protocol = new URL(imageUrl).protocol;
+    return protocol === "https:" || protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Walks objects/arrays for image tool payload shapes (`imageUrl`, nested
+ * `image_url.url`). Does **not** JSON.parse string values: assistant text may
+ * be valid JSON (e.g. `{"imageUrl":"…"}`) and must not become synthetic image
+ * markdown.
+ */
+function collectImageUrlsFromObjectGraph(
+  value: unknown,
+  seen = new Set<unknown>(),
+): string[] {
+  if (typeof value === "string") {
+    return [];
+  }
+
+  if (!value || typeof value !== "object" || seen.has(value)) {
+    return [];
+  }
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectImageUrlsFromObjectGraph(item, seen));
+  }
+
+  const record = value as Record<string, unknown>;
+  const urls: string[] = [];
+  if (typeof record.imageUrl === "string" && record.imageUrl.trim()) {
+    urls.push(record.imageUrl.trim());
+  }
+
+  if (isRecord(record.image_url)) {
+    const nestedUrl = record.image_url.url;
+    if (typeof nestedUrl === "string" && nestedUrl.trim()) {
+      urls.push(nestedUrl.trim());
+    }
+  }
+
+  for (const nested of Object.values(record)) {
+    urls.push(...collectImageUrlsFromObjectGraph(nested, seen));
+  }
+
+  return urls;
+}
+
+function tryParseJsonObjectOrArrayString(raw: string): unknown | undefined {
+  const t = raw.trim();
+  if (
+    !(t.startsWith("{") && t.endsWith("}")) &&
+    !(t.startsWith("[") && t.endsWith("]"))
+  ) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+/** `function_call_output.output` may be a JSON string; parse at most once here. */
+function collectImageUrlsFromFunctionCallOutput(
+  output: unknown,
+  seen = new Set<unknown>(),
+): string[] {
+  let root: unknown = output;
+  if (typeof output === "string" && output.trim()) {
+    const parsed = tryParseJsonObjectOrArrayString(output);
+    root = parsed !== undefined ? parsed : output;
+  }
+  if (typeof root === "string") {
+    return [];
+  }
+  return collectImageUrlsFromObjectGraph(root, seen);
+}
 
 export function createResponsesSseToV3Stream(
   body: ReadableStream<Uint8Array>,
@@ -71,6 +164,8 @@ export function createResponsesSseToV3Stream(
       let onResponseCompletedEmitted = false;
       const reasoningAccumulator: Record<string, string> = {};
       const reasoningStarted = new Set<string>();
+      const emittedImageKeys = new Set<string>();
+      const emittedImageUrlsFromItems = new Set<string>();
       let needNewlineBeforeNextDelta = false;
 
       function closeWithFinish() {
@@ -111,6 +206,35 @@ export function createResponsesSseToV3Stream(
           id: TEXT_BLOCK_ID,
           delta,
         });
+      }
+
+      function emitCollectedImageUrls(
+        imageUrls: string[],
+        scopeKey: string,
+        source: "item" | "aggregate",
+      ) {
+        for (const imageUrl of imageUrls) {
+          if (!isPreviewableImageUrl(imageUrl)) {
+            continue;
+          }
+          if (
+            source === "aggregate" &&
+            emittedImageUrlsFromItems.has(imageUrl)
+          ) {
+            continue;
+          }
+          const key = `${scopeKey}:${imageUrl}`;
+          if (emittedImageKeys.has(key)) {
+            continue;
+          }
+          emittedImageKeys.add(key);
+          if (source === "item") {
+            emittedImageUrlsFromItems.add(imageUrl);
+          }
+          // Transient live preview only. Core persists these image URLs as
+          // structured file parts and strips the markdown from contentText.
+          emitTextDelta(`\n\n![Generated image](${imageUrl})\n\n`);
+        }
       }
 
       function ensureReasoningStart(id: string) {
@@ -193,6 +317,18 @@ export function createResponsesSseToV3Stream(
         } else if (chunk.type === "response.output_item.done") {
           const itemId =
             typeof chunk.item?.id === "string" ? chunk.item.id : undefined;
+          const item = chunk.item;
+          if (item?.type === "function_call_output") {
+            const output =
+              item && "output" in item
+                ? (item as Record<string, unknown>).output
+                : undefined;
+            emitCollectedImageUrls(
+              collectImageUrlsFromFunctionCallOutput(output),
+              itemId ?? "item",
+              "item",
+            );
+          }
           if (itemId && chunk.item?.type === "reasoning") {
             delete reasoningAccumulator[itemId];
             if (reasoningStarted.has(itemId)) {
@@ -231,6 +367,18 @@ export function createResponsesSseToV3Stream(
           emitTextDelta(toSend);
           return false;
         }
+
+        const aggregateScope = responseId ?? lastKnownResponseId ?? "response";
+        emitCollectedImageUrls(
+          collectImageUrlsFromObjectGraph(chunk.output),
+          aggregateScope,
+          "aggregate",
+        );
+        emitCollectedImageUrls(
+          collectImageUrlsFromObjectGraph(chunk.response),
+          aggregateScope,
+          "aggregate",
+        );
 
         const isCompletionSignal =
           chunk.type === "response.completed" ||
@@ -301,6 +449,12 @@ export function createResponsesSseToV3Stream(
                 ensureTextStart();
                 emitTextDelta(text);
               }
+              const aggregateScope = parsed.id ?? lastKnownResponseId ?? "tail";
+              emitCollectedImageUrls(
+                collectImageUrlsFromObjectGraph(parsed.output),
+                aggregateScope,
+                "aggregate",
+              );
               const tailCompletionId =
                 typeof parsed.id === "string" ? parsed.id : lastKnownResponseId;
               if (

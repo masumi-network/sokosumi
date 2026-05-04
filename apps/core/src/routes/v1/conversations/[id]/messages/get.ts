@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import {
   conversationMessageToApiContent,
+  imageGenerationFromMessageMetadata,
   thoughtTimingFromMessageMetadata,
 } from "@/helpers/conversation-message-api-content";
 import { internalServerError, notFound } from "@/helpers/error";
@@ -127,6 +128,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           metadata: item.metadata,
         });
         const thoughtTiming = thoughtTimingFromMessageMetadata(item.metadata);
+        const isImageGeneration =
+          item.role === "user" &&
+          imageGenerationFromMessageMetadata(item.metadata);
+        const metadata = isImageGeneration
+          ? { imageGeneration: true }
+          : undefined;
 
         return {
           id: item.id,
@@ -134,6 +141,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           content,
           createdAt: Math.floor(item.createdAt.getTime() / 1000),
           ...(thoughtTiming != null ? { thoughtTiming } : {}),
+          ...(metadata != null ? { metadata } : {}),
         };
       });
 

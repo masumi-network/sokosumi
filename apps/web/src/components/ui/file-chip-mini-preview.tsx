@@ -16,6 +16,7 @@ import { getExtensionFromUrl, isImageUrl } from "@sokosumi/utils";
 export interface FileChipMiniPreviewProps {
   url: string;
   fileName?: string | null;
+  mediaType?: string | null;
   size?: number | bigint | null;
   className?: string;
   sizeClass?: string;
@@ -26,6 +27,7 @@ export interface FileChipMiniPreviewProps {
 export function FileChipMiniPreview({
   url,
   fileName,
+  mediaType,
   size,
   className,
   sizeClass = "size-20",
@@ -33,12 +35,15 @@ export function FileChipMiniPreview({
   removeLabel = "Remove file",
 }: FileChipMiniPreviewProps) {
   const resolvedFileName = fileName ?? url.split("/").pop() ?? url;
-  const isImage = isImageUrl(url);
-  const extension = getExtensionFromUrl(url);
+  const isImage =
+    mediaType?.toLowerCase().startsWith("image/") ||
+    isImageUrl(url) ||
+    (fileName ? isImageUrl(fileName) : false);
+  const extension = getExtensionFromUrl(fileName ?? url);
   const prettySize = formatBytes(size);
 
   return (
-    <div className={cn("relative inline-flex", className)}>
+    <div className={cn("not-prose relative inline-flex", className)}>
       <Tooltip>
         <TooltipTrigger asChild>
           <a
@@ -46,18 +51,20 @@ export function FileChipMiniPreview({
             target="_blank"
             rel="noreferrer noopener"
             className={cn(
-              "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative inline-flex overflow-hidden rounded-xl border outline-none transition",
+              "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 overflow-hidden rounded-xl border outline-none transition",
               sizeClass,
             )}
           >
             {isImage ? (
-              <Image
-                src={url}
-                alt={resolvedFileName}
-                fill
-                sizes="80px"
-                className="object-cover"
-              />
+              <div className="relative size-full overflow-hidden">
+                  <Image
+                    src={url}
+                    alt={resolvedFileName}
+                    fill
+                    sizes="96px"
+                    className="object-cover object-center"
+                  />
+              </div>
             ) : (
               <div className="text-muted-foreground flex size-full items-center justify-center">
                 <div className="flex size-8 items-center justify-center rounded-md">

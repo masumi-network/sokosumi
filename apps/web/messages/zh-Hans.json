@@ -1213,6 +1213,17 @@
         "comingSoon": "即将推出",
         "agenticCoworkers": "智能协作伙伴",
         "models": "模型",
+        "supportsImageAttachments": "Supports image attachments",
+        "supportsImageGeneration": "可生成图片",
+        "attachmentMenu": {
+          "trigger": "Add",
+          "uploadFile": "Upload file",
+          "createImage": "Create image"
+        },
+        "createImageChip": {
+          "label": "Create image",
+          "remove": "Remove create image"
+        },
         "ConversationsSidebar": {
           "searchPlaceholder": "搜索对话...",
           "clearSearch": "清除搜索",
@@ -1233,6 +1244,7 @@
         "modelAlt": "模型",
         "coworkerAlt": "协作伙伴",
         "userAvatarAlt": "用户头像",
+        "downloadGeneratedImage": "下载生成的图片",
         "expandPrompt": "显示完整消息",
         "collapsePrompt": "收起",
         "authorize": "授权",

@@ -14,6 +14,12 @@ export const chatRequestMessageSchema = z.object({
   content: z
     .union([z.string(), z.array(chatRequestMessagePartSchema)])
     .optional(),
+  metadata: z
+    .object({
+      imageGeneration: z.boolean().optional(),
+    })
+    .passthrough()
+    .optional(),
   id: z.string().optional(),
 });
 
@@ -28,6 +34,7 @@ export const aiSdkChatRequestSchema = z
     conversationId: z.string().uuid().optional(),
     previousResponseId: z.string().optional(),
     model: z.string().nullable().optional(),
+    imageGeneration: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const useServerHistory =

@@ -260,4 +260,233 @@ describe("createResponsesSseToV3Stream", () => {
 
     expect(completedIds).toEqual(["resp_tail_id"]);
   });
+
+  it("emits image generation tool results as transient markdown image text", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_image"}}',
+      'data: {"type":"response.output_text.delta","delta":"Here is the image:"}',
+      'data: {"type":"response.output_item.done","item":{"type":"function_call_output","output":{"status":"ok","imageUrl":"https://example.com/generated.png"}}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_image"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).toContain("Here is the image:");
+    expect(text).toContain(
+      "![Generated image](https://example.com/generated.png)",
+    );
+  });
+
+  it("emits data image tool results for live preview", async () => {
+    const dataUrl = "data:image/png;base64,aGVsbG8=";
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_data_image"}}',
+      `data: {"type":"response.output_item.done","item":{"type":"function_call_output","output":{"status":"ok","imageUrl":"${dataUrl}"}}}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_data_image"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).toContain(`![Generated image](${dataUrl})`);
+  });
+
+  it("does not emit non-previewable image URL strings", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_invalid_image"}}',
+      'data: {"type":"response.output_item.done","item":{"type":"function_call_output","output":{"status":"ok","imageUrl":"not-a-url"}}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_invalid_image"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).not.toContain("![Generated image]");
+    expect(text).not.toContain("not-a-url");
+  });
+
+  it("does not inject image markdown when assistant streams JSON text containing imageUrl", async () => {
+    const jsonLine =
+      '{"imageUrl":"https://example.com/structured-reply.json","answer":42}';
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_json_assistant"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: jsonLine,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_json_assistant"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).toContain(jsonLine);
+    expect(text).not.toContain("![Generated image]");
+  });
+
+  it("does not inject image markdown for message output_item.done with JSON in output_text", async () => {
+    const jsonLine =
+      '{"imageUrl":"https://example.com/not-a-generated-preview.png"}';
+    const item = {
+      type: "message",
+      id: "msg_json",
+      role: "assistant",
+      content: [{ type: "output_text", text: jsonLine }],
+    };
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_msg_item"}}',
+      `data: {"type":"response.output_item.done","item":${JSON.stringify(item)}}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_msg_item"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).not.toContain("![Generated image]");
+    expect(text).not.toContain("not-a-generated-preview.png");
+  });
+
+  it("emits image generation tool results when output is a JSON string", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_image_string"}}',
+      'data: {"type":"response.output_item.done","item":{"type":"function_call_output","output":"{\\"status\\":\\"ok\\",\\"imageUrl\\":\\"https://example.com/generated-string.png\\"}"}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_image_string"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).toContain(
+      "![Generated image](https://example.com/generated-string.png)",
+    );
+  });
+
+  it("emits the same image URL again for distinct output items", async () => {
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_reused_image"}}',
+      'data: {"type":"response.output_item.done","item":{"id":"item_1","type":"function_call_output","output":{"imageUrl":"https://example.com/reused.png"}}}',
+      'data: {"type":"response.output_item.done","item":{"id":"item_2","type":"function_call_output","output":{"imageUrl":"https://example.com/reused.png"}}}',
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_reused_image","output":[{"imageUrl":"https://example.com/reused.png"}]}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(
+      text.match(/!\[Generated image\]\(https:\/\/example\.com\/reused\.png\)/g)
+        ?.length,
+    ).toBe(2);
+  });
 });

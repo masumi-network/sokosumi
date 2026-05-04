@@ -73,13 +73,13 @@ describe("writeWelcomeComposePreferences", () => {
   it("round-trips through readWelcomeComposePreferences", () => {
     writeWelcomeComposePreferences({
       composeKind: "chat",
-      modelId: "kimi-k2-5",
+      modelId: "kimi-k2-6",
       coworkerSlugOrId: null,
     });
     expect(readWelcomeComposePreferences()).toMatchObject({
       v: 1,
       composeKind: "chat",
-      modelId: "kimi-k2-5",
+      modelId: "kimi-k2-6",
       coworkerSlugOrId: null,
     });
   });
@@ -91,7 +91,7 @@ describe("buildWelcomeComposeStoredSnapshot", () => {
       buildWelcomeComposeStoredSnapshot({
         composeKind: "task",
         coworker: baseCoworker(),
-        model: { id: "kimi-k2-5", name: "Kimi" },
+        model: { id: "kimi-k2-6", name: "Kimi" },
       }).modelId,
     ).toBeNull();
   });
@@ -148,7 +148,7 @@ describe("resolveHydratedWelcomeSelection", () => {
     const stored = {
       v: 1 as const,
       composeKind: "chat" as const,
-      modelId: "kimi-k2-5",
+      modelId: "kimi-k2-6",
       coworkerSlugOrId: "alex",
     };
     const r = resolveHydratedWelcomeSelection(coworkers, stored, {
@@ -156,7 +156,7 @@ describe("resolveHydratedWelcomeSelection", () => {
     });
     expect(r.composeKind).toBe("chat");
     expect(r.coworker).toBeNull();
-    expect(r.model).toEqual({ id: "kimi-k2-5", name: "Kimi K2.5" });
+    expect(r.model).toEqual({ id: "kimi-k2-6", name: "Kimi K2.6" });
   });
 
   it("when urlCoworkerSlug is true, keeps composeKind but clears model and coworker", () => {

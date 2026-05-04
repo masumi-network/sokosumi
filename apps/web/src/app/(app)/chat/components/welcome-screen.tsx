@@ -7,6 +7,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type {
   ChatComposeKind,
+  ChatComposeMessage,
   ChatComposeSubmitOptions,
   Coworker,
 } from "@/app/chat/utils/types";
@@ -21,7 +22,7 @@ interface WelcomeScreenProps {
   showGreetingAndSuggestions?: boolean;
   userName?: string;
   onSendMessage: (
-    message: string,
+    message: ChatComposeMessage,
     coworker?: Coworker,
     model?: { id: string; name: string },
     options?: ChatComposeSubmitOptions,

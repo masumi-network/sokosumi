@@ -136,7 +136,31 @@ export function createSokosumiLanguageModel(
       );
     }
 
-    return streamCoworker(promptWarnings, sokosumiOpts, options);
+    const coworkerWarnings = [
+      ...promptWarnings,
+      ...(sokosumiOpts.imageGenerationModel
+        ? [
+            {
+              type: "compatibility" as const,
+              feature: "openrouter:image_generation",
+              details:
+                "Image generation server tools are only forwarded in OpenRouter mode.",
+            },
+          ]
+        : []),
+      ...(sokosumiOpts.webSearchEnabled
+        ? [
+            {
+              type: "compatibility" as const,
+              feature: "openrouter:web_search",
+              details:
+                "Web search server tools are only forwarded in OpenRouter mode.",
+            },
+          ]
+        : []),
+    ];
+
+    return streamCoworker(coworkerWarnings, sokosumiOpts, options);
   }
 
   return {
@@ -167,11 +191,31 @@ async function streamOpenRouter(
   }
 
   const modelIdentifier = getModelIdentifier(modelId);
+  const tools: Array<Record<string, unknown>> = [];
+  if (sokosumiOpts.webSearchEnabled) {
+    tools.push({
+      type: "openrouter:web_search",
+      ...(sokosumiOpts.webSearchParameters
+        ? { parameters: sokosumiOpts.webSearchParameters }
+        : {}),
+    });
+  }
+  if (sokosumiOpts.imageGenerationModel) {
+    tools.push({
+      type: "openrouter:image_generation",
+      parameters: {
+        model: sokosumiOpts.imageGenerationModel,
+        quality: "high",
+      },
+    });
+  }
+
   const requestBody = {
     model: modelIdentifier,
     input: responsesInput,
     stream: true,
     max_output_tokens: config.openRouterMaxOutputTokens ?? 4096,
+    ...(tools.length > 0 ? { tools } : {}),
   };
 
   const response = await fetch(OPENROUTER_RESPONSES_URL, {
@@ -271,16 +315,11 @@ async function streamCoworker(
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    // keep both delegation headers for now to avoid breaking changes
     "X-Sokosumi-User-Id": sokosumiOpts.sokosumiUserId ?? "",
-    "X-Delegation-User-Id": sokosumiOpts.sokosumiUserId ?? "",
     "X-Coworker-Slug": sokosumiOpts.coworkerSlug ?? "",
   };
   if (sokosumiOpts.sokosumiOrganizationId?.trim()) {
-    // keep both delegation headers for now to avoid breaking changes
     headers["X-Sokosumi-Organization-Id"] =
-      sokosumiOpts.sokosumiOrganizationId.trim();
-    headers["X-Delegation-Organization-Id"] =
       sokosumiOpts.sokosumiOrganizationId.trim();
   }
   if (options.headers) {

@@ -17,6 +17,13 @@ type ListBlobItem = Awaited<ReturnType<typeof list>>["blobs"][number];
 const USER_UPLOAD_ACCESS = "public" as const;
 const USER_UPLOAD_ADD_RANDOM_SUFFIX = true as const;
 const USER_UPLOAD_SESSION_TTL_MS = 15 * 60 * 1000;
+const IMAGE_DATA_URI_REGEX =
+  /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/i;
+
+/** True when `value` is a supported generated-chat image data URI (case-insensitive scheme and subtype). */
+export function isGeneratedChatImageDataUri(value: string): boolean {
+  return IMAGE_DATA_URI_REGEX.test(value.trimStart());
+}
 
 function toBlobFile(data: {
   url: string;
@@ -133,9 +140,7 @@ export async function uploadProfileImage(
 ): Promise<string | null> {
   const env = getEnv();
 
-  const dataUriRegex =
-    /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
-  const dataUriMatch = base64Image.match(dataUriRegex);
+  const dataUriMatch = base64Image.match(IMAGE_DATA_URI_REGEX);
 
   if (!dataUriMatch) {
     return null;
@@ -150,7 +155,7 @@ export async function uploadProfileImage(
 
   // Extract the base64 encoded image data
   const imageData = Buffer.from(
-    base64Image.replace(dataUriRegex, ""),
+    base64Image.replace(IMAGE_DATA_URI_REGEX, ""),
     "base64",
   );
 
@@ -159,8 +164,8 @@ export async function uploadProfileImage(
     .update(imageData)
     .digest("hex");
 
-  // Extract MIME type from data URI (e.g., "image/jpeg")
-  const mimeType = `image/${dataUriMatch[1]}`;
+  // Extract MIME type from data URI (e.g., "image/jpeg"); subtype lowercased for /i regex.
+  const mimeType = `image/${dataUriMatch[1]!.toLowerCase()}`;
 
   // Upload new blob with hash as filename
   try {
@@ -180,6 +185,87 @@ export async function uploadProfileImage(
     Sentry.captureException(error, {
       tags: {
         function: "uploadProfileImage",
+      },
+    });
+    return null;
+  }
+}
+
+export interface UploadedGeneratedChatImage {
+  url: string;
+  mediaType: string;
+  filename: string;
+}
+
+function imageExtensionFromDataUriMatch(match: RegExpMatchArray): string {
+  const extension = match[1]!.toLowerCase();
+  if (extension === "jpeg") {
+    return "jpg";
+  }
+  if (extension === "svg+xml") {
+    return "svg";
+  }
+  return extension;
+}
+
+/**
+ * Uploads a generated chat image data URL so persisted assistant messages can
+ * reference a small HTTPS file part instead of replaying base64 in text.
+ */
+export async function uploadGeneratedChatImage(params: {
+  dataUrl: string;
+  userId: string;
+  conversationId: string;
+}): Promise<UploadedGeneratedChatImage | null> {
+  const env = getEnv();
+  const trimmedDataUrl = params.dataUrl.trimStart();
+  const dataUriMatch = trimmedDataUrl.match(IMAGE_DATA_URI_REGEX);
+
+  if (!dataUriMatch) {
+    return null;
+  }
+
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    console.warn(
+      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping generated chat image upload",
+    );
+    return null;
+  }
+
+  const imageData = Buffer.from(
+    trimmedDataUrl.replace(IMAGE_DATA_URI_REGEX, "").replace(/\s/g, ""),
+    "base64",
+  );
+  const imageHash = crypto
+    .createHash(CRYPTO.IMAGE_HASH_ALGORITHM)
+    .update(imageData)
+    .digest("hex");
+  const extension = imageExtensionFromDataUriMatch(dataUriMatch);
+  const mediaType = `image/${dataUriMatch[1]!.toLowerCase()}`;
+  const filename = `generated-${imageHash}.${extension}`;
+
+  try {
+    const blob = await put(
+      `${STORAGE.IMAGES_UPLOAD_DIR}/generated/${params.userId}/${params.conversationId}/${filename}`,
+      imageData,
+      {
+        access: "public",
+        contentType: mediaType,
+        token: env.BLOB_READ_WRITE_TOKEN,
+        allowOverwrite: true,
+        addRandomSuffix: false,
+      },
+    );
+
+    return {
+      url: blob.url,
+      mediaType,
+      filename,
+    };
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "uploadGeneratedChatImage",
       },
     });
     return null;

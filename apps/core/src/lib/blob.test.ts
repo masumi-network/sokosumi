@@ -1,16 +1,30 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createUserFileUploadSession, listUserUploads } from "./blob";
+import {
+  createUserFileUploadSession,
+  listUserUploads,
+  uploadGeneratedChatImage,
+  uploadProfileImage,
+} from "./blob";
 
-const { listMock, generateClientTokenFromReadWriteTokenMock } = vi.hoisted(
-  () => ({
-    listMock: vi.fn(),
-    generateClientTokenFromReadWriteTokenMock: vi.fn(),
-  }),
-);
+const {
+  listMock,
+  putMock,
+  generateClientTokenFromReadWriteTokenMock,
+  getEnvMock,
+} = vi.hoisted(() => ({
+  listMock: vi.fn(),
+  putMock: vi.fn(),
+  generateClientTokenFromReadWriteTokenMock: vi.fn(),
+  getEnvMock: vi.fn(() => ({})),
+}));
+
+vi.mock("@/config/env", () => ({
+  getEnv: getEnvMock,
+}));
 
 vi.mock("@vercel/blob", () => ({
-  put: vi.fn(),
+  put: putMock,
   list: listMock,
 }));
 
@@ -212,6 +226,73 @@ describe("listUserUploads", () => {
 
     await expect(listUserUploads("user_123", "token_123")).rejects.toThrow(
       "Blob list pagination is invalid: hasMore=true without cursor",
+    );
+  });
+});
+
+describe("uploadProfileImage", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("sends a canonical lowercase image contentType for case-variant data URIs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/profile-hash.png",
+    });
+
+    const dataUrl = `Data:Image/PNG;Base64,${Buffer.from("hello").toString("base64")}`;
+    const url = await uploadProfileImage(dataUrl);
+
+    expect(url).toBe("https://blob.example/profile-hash.png");
+    expect(putMock.mock.calls[0]?.[2]).toEqual(
+      expect.objectContaining({ contentType: "image/png" }),
+    );
+  });
+});
+
+describe("uploadGeneratedChatImage", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("accepts case-variant scheme, subtype, and base64 keyword in data URIs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/generated.png",
+    });
+
+    const dataUrl = `Data:Image/PNG;Base64,${Buffer.from("hello").toString("base64")}`;
+    const result = await uploadGeneratedChatImage({
+      dataUrl,
+      userId: "user_1",
+      conversationId: "conv_1",
+    });
+
+    expect(result?.mediaType).toBe("image/png");
+    expect(result?.url).toBe("https://blob.example/generated.png");
+  });
+
+  it("uses a .svg file extension for SVG data URLs (not .svg+xml)", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/generated.svg",
+    });
+
+    const dataUrl = `data:image/svg+xml;base64,${Buffer.from("<svg/>").toString("base64")}`;
+    const result = await uploadGeneratedChatImage({
+      dataUrl,
+      userId: "user_1",
+      conversationId: "conv_1",
+    });
+
+    expect(result?.mediaType).toBe("image/svg+xml");
+    expect(result?.filename).toMatch(/^generated-[a-f0-9]+\.svg$/);
+    const pathnameArg = putMock.mock.calls[0]?.[0];
+    expect(pathnameArg).toMatch(/\.svg$/);
+    expect(pathnameArg).not.toContain("svg+xml");
+    expect(putMock.mock.calls[0]?.[2]).toEqual(
+      expect.objectContaining({ contentType: "image/svg+xml" }),
     );
   });
 });

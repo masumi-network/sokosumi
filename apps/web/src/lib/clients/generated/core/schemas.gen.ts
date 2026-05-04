@@ -1288,12 +1288,11 @@ export const ChatUiMessageSchema = {
                 },
                 thoughtEndedAtMs: {
                     type: 'number'
+                },
+                imageGeneration: {
+                    type: 'boolean'
                 }
-            },
-            required: [
-                'thoughtStartedAtMs',
-                'thoughtEndedAtMs'
-            ]
+            }
         }
     },
     required: [
@@ -1584,6 +1583,21 @@ export const ConversationMessageSchema = {
                 'endedAtMs'
             ],
             description: 'Wall-clock thought phase (ms since epoch), when persisted for coworker reasoning'
+        },
+        metadata: {
+            type: 'object',
+            properties: {
+                thoughtStartedAtMs: {
+                    type: 'number'
+                },
+                thoughtEndedAtMs: {
+                    type: 'number'
+                },
+                imageGeneration: {
+                    type: 'boolean'
+                }
+            },
+            description: 'UI message metadata, including whether a user turn requested image generation.'
         }
     },
     required: [
