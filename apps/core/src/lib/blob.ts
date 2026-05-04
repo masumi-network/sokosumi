@@ -164,8 +164,8 @@ export async function uploadProfileImage(
     .update(imageData)
     .digest("hex");
 
-  // Extract MIME type from data URI (e.g., "image/jpeg")
-  const mimeType = `image/${dataUriMatch[1]}`;
+  // Extract MIME type from data URI (e.g., "image/jpeg"); subtype lowercased for /i regex.
+  const mimeType = `image/${dataUriMatch[1]!.toLowerCase()}`;
 
   // Upload new blob with hash as filename
   try {

@@ -4,6 +4,7 @@ import {
   createUserFileUploadSession,
   listUserUploads,
   uploadGeneratedChatImage,
+  uploadProfileImage,
 } from "./blob";
 
 const {
@@ -225,6 +226,27 @@ describe("listUserUploads", () => {
 
     await expect(listUserUploads("user_123", "token_123")).rejects.toThrow(
       "Blob list pagination is invalid: hasMore=true without cursor",
+    );
+  });
+});
+
+describe("uploadProfileImage", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("sends a canonical lowercase image contentType for case-variant data URIs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/profile-hash.png",
+    });
+
+    const dataUrl = `Data:Image/PNG;Base64,${Buffer.from("hello").toString("base64")}`;
+    const url = await uploadProfileImage(dataUrl);
+
+    expect(url).toBe("https://blob.example/profile-hash.png");
+    expect(putMock.mock.calls[0]?.[2]).toEqual(
+      expect.objectContaining({ contentType: "image/png" }),
     );
   });
 });
