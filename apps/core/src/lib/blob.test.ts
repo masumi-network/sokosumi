@@ -234,6 +234,23 @@ describe("uploadGeneratedChatImage", () => {
     vi.resetAllMocks();
   });
 
+  it("accepts case-variant scheme, subtype, and base64 keyword in data URIs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/generated.png",
+    });
+
+    const dataUrl = `Data:Image/PNG;Base64,${Buffer.from("hello").toString("base64")}`;
+    const result = await uploadGeneratedChatImage({
+      dataUrl,
+      userId: "user_1",
+      conversationId: "conv_1",
+    });
+
+    expect(result?.mediaType).toBe("image/png");
+    expect(result?.url).toBe("https://blob.example/generated.png");
+  });
+
   it("uses a .svg file extension for SVG data URLs (not .svg+xml)", async () => {
     getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
     putMock.mockResolvedValue({

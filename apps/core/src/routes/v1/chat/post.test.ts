@@ -120,10 +120,14 @@ vi.mock("@/lib/resumable-ui-stream-context", () => ({
   })),
 }));
 
-vi.mock("@/lib/blob", () => ({
-  uploadGeneratedChatImage: (...args: unknown[]) =>
-    uploadGeneratedChatImageMock(...args),
-}));
+vi.mock("@/lib/blob", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/blob")>();
+  return {
+    ...actual,
+    uploadGeneratedChatImage: (...args: unknown[]) =>
+      uploadGeneratedChatImageMock(...args),
+  };
+});
 
 function createApp({
   authContext = {
@@ -858,6 +862,94 @@ describe("POST /chat", () => {
           ui_message_v1: {
             parts: [
               { type: "text", text: "Here you go." },
+              {
+                type: "file",
+                url: "https://blob.example.com/generated.png",
+                mediaType: "image/png",
+                filename: "generated.png",
+              },
+            ],
+          },
+        },
+      }),
+    });
+    infoSpy.mockRestore();
+  });
+
+  it("uploads case-variant data image markdown when another remote image yields file parts", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    const dataUrl = "Data:Image/PNG;Base64,aGVsbG8=";
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: { model_id: "gpt-5-4" },
+      })
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: null,
+      });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Make images",
+        metadata: {
+          image_generation: true,
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Make images" }],
+          },
+        },
+      },
+    ]);
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        trigger: "submit-message",
+        imageGeneration: true,
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "Make images" }],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: {
+        text: string;
+        reasoning?: unknown[];
+      }) => Promise<void>;
+    };
+    await streamCall.onFinish({
+      text: `Here.\n\n![remote](https://example.com/chart.png)\n![gen](${dataUrl})\n`,
+      reasoning: [],
+    });
+
+    expect(uploadGeneratedChatImageMock).toHaveBeenCalledWith({
+      dataUrl,
+      userId: "user_123",
+      conversationId: cid,
+    });
+    expect(conversationMessageCreateMock).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        role: "assistant",
+        contentText: "Here.",
+        metadata: {
+          ui_message_v1: {
+            parts: [
+              { type: "text", text: "Here." },
+              {
+                type: "file",
+                url: "https://example.com/chart.png",
+                mediaType: "image/png",
+                filename: "chart.png",
+              },
               {
                 type: "file",
                 url: "https://blob.example.com/generated.png",

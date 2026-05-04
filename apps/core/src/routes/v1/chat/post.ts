@@ -43,7 +43,10 @@ import {
   persistPendingResponseId,
 } from "@/helpers/persist-pending-response-id";
 import { normalizeSafeRemoteUrl } from "@/helpers/safe-url";
-import { uploadGeneratedChatImage } from "@/lib/blob";
+import {
+  isGeneratedChatImageDataUri,
+  uploadGeneratedChatImage,
+} from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -150,7 +153,7 @@ async function buildGeneratedImageFileParts(params: {
   const parts: PersistedChatUiFilePart[] = [];
 
   for (const imageUrl of params.imageUrls) {
-    if (imageUrl.startsWith("data:image/")) {
+    if (isGeneratedChatImageDataUri(imageUrl)) {
       const uploaded = await uploadGeneratedChatImage({
         dataUrl: imageUrl,
         userId: params.userId,
@@ -224,7 +227,7 @@ async function prepareAssistantFinishForPersistence(params: {
   }
 
   const hadDataImageUrl = imageUrls.some((url) =>
-    url.startsWith("data:image/"),
+    isGeneratedChatImageDataUri(url),
   );
 
   if (!hadDataImageUrl) {

@@ -18,7 +18,12 @@ const USER_UPLOAD_ACCESS = "public" as const;
 const USER_UPLOAD_ADD_RANDOM_SUFFIX = true as const;
 const USER_UPLOAD_SESSION_TTL_MS = 15 * 60 * 1000;
 const IMAGE_DATA_URI_REGEX =
-  /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
+  /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/i;
+
+/** True when `value` is a supported generated-chat image data URI (case-insensitive scheme and subtype). */
+export function isGeneratedChatImageDataUri(value: string): boolean {
+  return IMAGE_DATA_URI_REGEX.test(value.trimStart());
+}
 
 function toBlobFile(data: {
   url: string;
@@ -193,7 +198,7 @@ export interface UploadedGeneratedChatImage {
 }
 
 function imageExtensionFromDataUriMatch(match: RegExpMatchArray): string {
-  const extension = match[1];
+  const extension = match[1]!.toLowerCase();
   if (extension === "jpeg") {
     return "jpg";
   }
@@ -213,7 +218,8 @@ export async function uploadGeneratedChatImage(params: {
   conversationId: string;
 }): Promise<UploadedGeneratedChatImage | null> {
   const env = getEnv();
-  const dataUriMatch = params.dataUrl.match(IMAGE_DATA_URI_REGEX);
+  const trimmedDataUrl = params.dataUrl.trimStart();
+  const dataUriMatch = trimmedDataUrl.match(IMAGE_DATA_URI_REGEX);
 
   if (!dataUriMatch) {
     return null;
@@ -227,7 +233,7 @@ export async function uploadGeneratedChatImage(params: {
   }
 
   const imageData = Buffer.from(
-    params.dataUrl.replace(IMAGE_DATA_URI_REGEX, "").replace(/\s/g, ""),
+    trimmedDataUrl.replace(IMAGE_DATA_URI_REGEX, "").replace(/\s/g, ""),
     "base64",
   );
   const imageHash = crypto
@@ -235,7 +241,7 @@ export async function uploadGeneratedChatImage(params: {
     .update(imageData)
     .digest("hex");
   const extension = imageExtensionFromDataUriMatch(dataUriMatch);
-  const mediaType = `image/${dataUriMatch[1]}`;
+  const mediaType = `image/${dataUriMatch[1]!.toLowerCase()}`;
   const filename = `generated-${imageHash}.${extension}`;
 
   try {
