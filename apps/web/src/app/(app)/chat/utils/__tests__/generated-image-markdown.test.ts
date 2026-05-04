@@ -44,6 +44,15 @@ describe("clampRevealLengthForMarkdownDataImages", () => {
     ).toBe(imageStart);
   });
 
+  it("retreats before an incomplete case-variant data URI while streaming", () => {
+    const content = "Before ![Generated image](Data:Image/PNG;Base64,abc";
+    const imageStart = content.indexOf("![");
+
+    expect(
+      clampRevealLengthForMarkdownDataImages(content, content.length),
+    ).toBe(imageStart);
+  });
+
   it("handles multiple images independently", () => {
     const content = `${pngImage}\n\nBetween\n\n${jpegImage}`;
     const desiredLength = content.lastIndexOf("def456") + 3;
@@ -104,6 +113,30 @@ describe("parseMarkdownWithDataImageSegments", () => {
 
   it("turns a trailing incomplete data image into a pending image segment", () => {
     const content = "Before\n\n![Generated image](data:image/png;base64,abc";
+
+    expect(parseMarkdownWithDataImageSegments(content)).toEqual([
+      { type: "text", text: "Before\n\n" },
+      { type: "pending-image", alt: "Generated image" },
+    ]);
+  });
+
+  it("parses a complete case-variant data URI markdown image", () => {
+    const dataUrl = "Data:Image/PNG;Base64,abc123==";
+    expect(
+      parseMarkdownWithDataImageSegments(`Caption\n\n![x](${dataUrl})\n`),
+    ).toEqual([
+      { type: "text", text: "Caption\n\n" },
+      {
+        type: "image",
+        alt: "x",
+        src: dataUrl,
+      },
+      { type: "text", text: "\n" },
+    ]);
+  });
+
+  it("treats a trailing incomplete case-variant data uri as pending", () => {
+    const content = "Before\n\n![Generated image](Data:Image/PNG;Base64,abc";
 
     expect(parseMarkdownWithDataImageSegments(content)).toEqual([
       { type: "text", text: "Before\n\n" },

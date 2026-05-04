@@ -1,11 +1,11 @@
 const DATA_IMAGE_MARKDOWN_START_REGEX =
-  /!\[[^\]\n]*\]\(data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,/g;
+  /!\[[^\]\n]*\]\(data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,/gi;
 
 const COMPLETE_DATA_IMAGE_MARKDOWN_REGEX =
-  /!\[([^\]\n]*)\]\((data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,[A-Za-z0-9+/=\s]+)\)/g;
+  /!\[([^\]\n]*)\]\((data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,[A-Za-z0-9+/=\s]+)\)/gi;
 
 const PENDING_DATA_IMAGE_MARKDOWN_REGEX =
-  /!\[([^\]\n]*)\]\(data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,[A-Za-z0-9+/=\s]*$/;
+  /!\[([^\]\n]*)\]\(data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,[A-Za-z0-9+/=\s]*$/i;
 
 export interface GeneratedImageTextSegment {
   type: "text";
