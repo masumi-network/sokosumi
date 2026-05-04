@@ -55,6 +55,11 @@ export function thoughtTimingFromMessageMetadata(metadata: unknown):
   return undefined;
 }
 
+export function imageGenerationFromMessageMetadata(metadata: unknown): boolean {
+  const meta = metadata as { image_generation?: unknown } | null;
+  return meta?.image_generation === true;
+}
+
 /** Builds paginated message `content`; reasoning entries precede final assistant text. */
 export function conversationMessageToApiContent(item: {
   contentType: string | null;

@@ -23,6 +23,9 @@ export interface ConvertibleConversationApiMessage {
   role: string;
   content: ConversationApiMessageContent;
   createdAt: number;
+  metadata?: {
+    imageGeneration?: boolean;
+  };
   thoughtTiming?: {
     startedAtMs: number | null;
     endedAtMs: number | null;
@@ -118,8 +121,22 @@ export function convertItemsToMessages(
         : "user";
 
     const timing = message.thoughtTiming;
+    const isImageGeneration =
+      validRole === "user" && message.metadata?.imageGeneration === true;
     const hasCompleteThoughtTiming =
       timing != null && timing.startedAtMs != null && timing.endedAtMs != null;
+    const metadata =
+      hasCompleteThoughtTiming || isImageGeneration
+        ? {
+            ...(hasCompleteThoughtTiming
+              ? {
+                  thoughtStartedAtMs: timing.startedAtMs,
+                  thoughtEndedAtMs: timing.endedAtMs,
+                }
+              : {}),
+            ...(isImageGeneration ? { imageGeneration: true } : {}),
+          }
+        : undefined;
 
     return {
       id: message.id,
@@ -127,14 +144,7 @@ export function convertItemsToMessages(
       parts,
       content: visibleText,
       createdAt: new Date(message.createdAt * 1000),
-      ...(hasCompleteThoughtTiming
-        ? {
-            metadata: {
-              thoughtStartedAtMs: timing.startedAtMs,
-              thoughtEndedAtMs: timing.endedAtMs,
-            },
-          }
-        : {}),
+      ...(metadata != null ? { metadata } : {}),
     };
   });
 }

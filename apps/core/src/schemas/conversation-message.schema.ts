@@ -1,6 +1,9 @@
 import { z } from "@hono/zod-openapi";
 
-import { chatMessageContentPartSchema } from "@/schemas/chat-ui-message.schema";
+import {
+  chatMessageContentPartSchema,
+  chatUiMessageMetadataSchema,
+} from "@/schemas/chat-ui-message.schema";
 
 export const conversationMessageContentPartSchema =
   chatMessageContentPartSchema;
@@ -36,6 +39,10 @@ export const conversationMessageSchema = z
         description:
           "Wall-clock thought phase (ms since epoch), when persisted for coworker reasoning",
       }),
+    metadata: chatUiMessageMetadataSchema.optional().openapi({
+      description:
+        "UI message metadata, including whether a user turn requested image generation.",
+    }),
   })
   .openapi("ConversationMessage");
 

@@ -86,6 +86,12 @@ export const chatUiThoughtTimingMetadataSchema = z.object({
   thoughtEndedAtMs: z.number(),
 });
 
+export const chatUiMessageMetadataSchema = chatUiThoughtTimingMetadataSchema
+  .partial()
+  .extend({
+    imageGeneration: z.boolean().optional(),
+  });
+
 /**
  * AI SDK `UIMessage`-compatible object returned by GET /v1/chat (`data.messages`).
  * Aligns with OpenAI-style roles and text-shaped content parts.
@@ -95,7 +101,7 @@ export const chatUiMessageSchema = z
     id: z.string(),
     role: z.enum(["user", "assistant", "system"]),
     parts: z.array(chatUiMessagePartSchema),
-    metadata: chatUiThoughtTimingMetadataSchema.optional(),
+    metadata: chatUiMessageMetadataSchema.optional(),
   })
   .openapi("ChatUiMessage");
 

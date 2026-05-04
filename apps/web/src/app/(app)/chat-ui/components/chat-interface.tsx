@@ -150,6 +150,38 @@ function readPreviousResponseIdFromMetadata(
   return typeof p === "string" && p.trim().length > 0 ? p.trim() : undefined;
 }
 
+function readImageGenerationFromMessage(message: UIMessage): boolean {
+  const metadata = (message as { metadata?: unknown }).metadata;
+  return (
+    metadata != null &&
+    typeof metadata === "object" &&
+    (metadata as Record<string, unknown>).imageGeneration === true
+  );
+}
+
+function withImageGenerationMetadata(
+  message: ChatSendMessage,
+  imageGeneration: boolean,
+): ChatSendMessage {
+  if (!imageGeneration || typeof message !== "object" || message == null) {
+    return message;
+  }
+
+  const record = message as Record<string, unknown>;
+  const metadata =
+    record.metadata != null && typeof record.metadata === "object"
+      ? (record.metadata as Record<string, unknown>)
+      : {};
+
+  return {
+    ...record,
+    metadata: {
+      ...metadata,
+      imageGeneration: true,
+    },
+  } as ChatSendMessage;
+}
+
 interface ChatInterfaceProps {
   mobileKeyboardOptimized?: boolean;
   showGreetingAndSuggestions?: boolean;
@@ -1058,7 +1090,11 @@ export default function ChatInterface({
   ]);
 
   const sendInConversation = useCallback(
-    (conversationId: string, message: ChatSendMessage): boolean => {
+    (
+      conversationId: string,
+      message: ChatSendMessage,
+      sendOptions?: Parameters<UseChatHelpers<UIMessage>["sendMessage"]>[1],
+    ): boolean => {
       const payload = toChatSendMessage(message);
       let slot = conversationToSlot.get(conversationId);
       if (slot === undefined) {
@@ -1095,11 +1131,11 @@ export default function ChatInterface({
         );
         const slotToSend = slot;
         queueMicrotask(() => {
-          sendMessageSlots[slotToSend](payload);
+          sendMessageSlots[slotToSend](payload, sendOptions);
         });
         return true;
       }
-      sendMessageSlots[slot](payload);
+      sendMessageSlots[slot](payload, sendOptions);
       return true;
     },
     [
@@ -1311,8 +1347,14 @@ export default function ChatInterface({
       }
 
       const messageText = getSendMessageText(message);
-      const sendPayload = toChatSendMessage(message);
+      const sendPayload = withImageGenerationMetadata(
+        toChatSendMessage(message),
+        options?.imageGeneration === true,
+      );
       const composeKind = options?.kind ?? "task";
+      const sendOptions = options?.imageGeneration
+        ? { body: { imageGeneration: true } }
+        : undefined;
 
       if (!selectedChatId) {
         if (composeKind === "task") {
@@ -1394,7 +1436,9 @@ export default function ChatInterface({
         }
 
         const cid = currentChatIdRef.current ?? conversationId;
-        const sent = cid ? sendInConversation(cid, sendPayload) : false;
+        const sent = cid
+          ? sendInConversation(cid, sendPayload, sendOptions)
+          : false;
         if (sent) setInput("");
         return sent;
       }
@@ -1414,7 +1458,7 @@ export default function ChatInterface({
         );
       }
 
-      const sent = sendInConversation(selectedChatId, sendPayload);
+      const sent = sendInConversation(selectedChatId, sendPayload, sendOptions);
       if (sent) setInput("");
       return sent;
     },
@@ -1470,8 +1514,13 @@ export default function ChatInterface({
   const handleResendLastMessage = useCallback(
     async (message: UIMessage) => {
       if (!selectedChatId) return;
-      const sendPayload = buildResendMessage(message);
-      if (!sendPayload) return;
+      const isImageGeneration = readImageGenerationFromMessage(message);
+      const resendPayload = buildResendMessage(message);
+      if (!resendPayload) return;
+      const sendPayload = withImageGenerationMetadata(
+        resendPayload,
+        isImageGeneration,
+      );
       const list = await refreshConversations();
       const conv = list?.find((c) => c.id === selectedChatId);
       const pid = readPreviousResponseIdFromMetadata(
@@ -1480,7 +1529,11 @@ export default function ChatInterface({
       if (pid) {
         resendPreviousResponseIdOverrideRef.current.set(selectedChatId, pid);
       }
-      sendInConversation(selectedChatId, sendPayload);
+      sendInConversation(
+        selectedChatId,
+        sendPayload,
+        isImageGeneration ? { body: { imageGeneration: true } } : undefined,
+      );
     },
     [selectedChatId, sendInConversation, refreshConversations],
   );

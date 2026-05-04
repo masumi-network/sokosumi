@@ -98,6 +98,7 @@ export function FileChipWithMetadata({
 export function FileChipMiniPreviewWithMetadata({
   url,
   fileName,
+  mediaType,
   ...props
 }: Omit<FileChipMiniPreviewProps, "fileName"> & { fileName?: string | null }) {
   const metadata = useFileHeadMetadata(url);
@@ -106,6 +107,7 @@ export function FileChipMiniPreviewWithMetadata({
     <FileChipMiniPreview
       url={url}
       fileName={fileName ?? metadata?.fileName}
+      mediaType={mediaType ?? metadata?.contentType}
       size={metadata?.size}
       {...props}
     />

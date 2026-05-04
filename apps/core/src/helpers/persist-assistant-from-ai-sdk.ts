@@ -1,5 +1,6 @@
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import type { PersistedChatUiPart } from "./message-content";
 
 function reasoningPartsToMetadata(
   reasoning: unknown,
@@ -25,6 +26,7 @@ function reasoningPartsToMetadata(
 function buildAssistantMessageMetadata(
   reasoningSteps: Array<{ type: string; text: string }> | undefined,
   thoughtTiming: { startedAtMs: number; endedAtMs: number } | undefined,
+  uiParts: PersistedChatUiPart[] | undefined,
 ): Record<string, unknown> | undefined {
   const out: Record<string, unknown> = {};
   if (reasoningSteps && reasoningSteps.length > 0) {
@@ -40,6 +42,31 @@ function buildAssistantMessageMetadata(
       end: thoughtTiming.endedAtMs,
     };
   }
+  if (uiParts && uiParts.length > 0) {
+    /**
+     * Persisted assistant UI payload, version 1:
+     * {
+     *   "ui_message_v1": {
+     *     "parts": [
+     *       { "type": "text", "text": "Caption shown to the model and user" },
+     *       {
+     *         "type": "file",
+     *         "url": "https://...blob.vercel-storage.com/generated.png",
+     *         "mediaType": "image/png",
+     *         "filename": "generated.png"
+     *       }
+     *     ]
+     *   }
+     * }
+     *
+     * `contentText` remains the slim caption. Generated images live here as
+     * file parts with blob URLs so conversation reloads do not replay base64
+     * data inside text context.
+     */
+    out.ui_message_v1 = {
+      parts: uiParts,
+    };
+  }
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -50,6 +77,7 @@ export async function persistAssistantFromAiSdk(params: {
   responsesApiResponseId: string | null;
   reasoning?: unknown;
   thoughtTiming?: { startedAtMs: number; endedAtMs: number };
+  uiParts?: PersistedChatUiPart[];
 }): Promise<void> {
   const {
     conversationId,
@@ -58,9 +86,11 @@ export async function persistAssistantFromAiSdk(params: {
     responsesApiResponseId,
     reasoning,
     thoughtTiming,
+    uiParts,
   } = params;
   const reasoningSteps = reasoningPartsToMetadata(reasoning);
-  if (!text.trim() && !reasoningSteps?.length) {
+  const hasUiParts = uiParts != null && uiParts.length > 0;
+  if (!text.trim() && !reasoningSteps?.length && !hasUiParts) {
     return;
   }
 
@@ -107,6 +137,7 @@ export async function persistAssistantFromAiSdk(params: {
           metadata: buildAssistantMessageMetadata(
             reasoningSteps,
             thoughtTiming,
+            uiParts,
           ),
         },
       });
@@ -125,7 +156,11 @@ export async function persistAssistantFromAiSdk(params: {
       role: "assistant",
       contentType: "output_text",
       contentText: text,
-      metadata: buildAssistantMessageMetadata(reasoningSteps, thoughtTiming),
+      metadata: buildAssistantMessageMetadata(
+        reasoningSteps,
+        thoughtTiming,
+        uiParts,
+      ),
     },
   });
 }

@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
+import {
+  chatModelSupportsWebSearch,
+  getChatModelImageGenerationOpenRouterId,
+} from "@sokosumi/chat";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
@@ -29,6 +33,8 @@ import {
   extractPersistableUiParts,
   extractReasoningPartsFromMessage,
   hasModelVisibleMessageContent,
+  type PersistedChatUiFilePart,
+  type PersistedChatUiPart,
 } from "@/helpers/message-content";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { persistAssistantFromAiSdk } from "@/helpers/persist-assistant-from-ai-sdk";
@@ -36,6 +42,11 @@ import {
   clearPendingAndSetPrevious,
   persistPendingResponseId,
 } from "@/helpers/persist-pending-response-id";
+import { normalizeSafeRemoteUrl } from "@/helpers/safe-url";
+import {
+  isGeneratedChatImageDataUri,
+  uploadGeneratedChatImage,
+} from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -58,11 +69,184 @@ import { createCoworkerConversation } from "./coworker-conversation";
 
 import { mapChatRequestToUiMessages } from "./map-chat-request-to-ui-messages.js";
 
+const GENERATED_IMAGE_MARKDOWN_REGEX =
+  /!\[[^\]\n]*\]\((data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,[^)]+|https?:\/\/[^)\s]+)\)/gi;
+
+/** Shown when image markdown was stripped but blob upload failed and there is no caption left. */
+const ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK =
+  "The generated image could not be saved. Try generating again.";
+
+const IMAGE_MEDIA_TYPE_BY_EXTENSION: Record<string, string> = {
+  bmp: "image/bmp",
+  gif: "image/gif",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  svg: "image/svg+xml",
+  webp: "image/webp",
+};
+
+function messageRequestedImageGeneration(
+  message: Record<string, unknown>,
+): boolean {
+  const metadata = message.metadata;
+  if (!metadata || typeof metadata !== "object") {
+    return false;
+  }
+  return (metadata as Record<string, unknown>).imageGeneration === true;
+}
+
+function filenameFromImageUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const pathname = decodeURIComponent(parsed.pathname);
+    const filename = pathname.split("/").filter(Boolean).pop()?.trim();
+    return filename && filename.length > 0 ? filename : "generated-image";
+  } catch {
+    return "generated-image";
+  }
+}
+
+function inferImageMediaTypeFromUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const extension = parsed.pathname
+      .split(".")
+      .pop()
+      ?.toLowerCase()
+      .replace(/[^a-z0-9+]/g, "");
+    if (extension && IMAGE_MEDIA_TYPE_BY_EXTENSION[extension]) {
+      return IMAGE_MEDIA_TYPE_BY_EXTENSION[extension];
+    }
+  } catch {
+    return "image/png";
+  }
+
+  return "image/png";
+}
+
+function extractGeneratedImageMarkdown(text: string): {
+  strippedText: string;
+  imageUrls: string[];
+} {
+  const imageUrls: string[] = [];
+  const strippedText = text
+    .replace(GENERATED_IMAGE_MARKDOWN_REGEX, (_match, imageUrl: string) => {
+      imageUrls.push(imageUrl.trim());
+      return "";
+    })
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return {
+    strippedText,
+    imageUrls: [...new Set(imageUrls)],
+  };
+}
+
+async function buildGeneratedImageFileParts(params: {
+  imageUrls: string[];
+  userId: string;
+  conversationId: string;
+}): Promise<PersistedChatUiFilePart[]> {
+  const parts: PersistedChatUiFilePart[] = [];
+
+  for (const imageUrl of params.imageUrls) {
+    if (isGeneratedChatImageDataUri(imageUrl)) {
+      const uploaded = await uploadGeneratedChatImage({
+        dataUrl: imageUrl,
+        userId: params.userId,
+        conversationId: params.conversationId,
+      });
+
+      if (uploaded) {
+        parts.push({
+          type: "file",
+          url: uploaded.url,
+          mediaType: uploaded.mediaType,
+          filename: uploaded.filename,
+        });
+      }
+      continue;
+    }
+
+    const normalizedUrl = normalizeSafeRemoteUrl(imageUrl);
+    if (!normalizedUrl) {
+      console.warn("Skipping unsafe generated image URL in chat finish text");
+      continue;
+    }
+
+    parts.push({
+      type: "file",
+      url: normalizedUrl,
+      mediaType: inferImageMediaTypeFromUrl(normalizedUrl),
+      filename: filenameFromImageUrl(normalizedUrl),
+    });
+  }
+
+  return parts;
+}
+
+async function prepareAssistantFinishForPersistence(params: {
+  text: string;
+  userId: string;
+  conversationId: string;
+  /** When false, leave assistant text unchanged (normal chat may include `![](https://…)`). */
+  extractGeneratedImagesFromMarkdown: boolean;
+}): Promise<{ text: string; uiParts?: PersistedChatUiPart[] }> {
+  if (!params.extractGeneratedImagesFromMarkdown) {
+    return { text: params.text };
+  }
+
+  const { strippedText, imageUrls } = extractGeneratedImageMarkdown(
+    params.text,
+  );
+  if (imageUrls.length === 0) {
+    return { text: params.text };
+  }
+
+  const fileParts = await buildGeneratedImageFileParts({
+    imageUrls,
+    userId: params.userId,
+    conversationId: params.conversationId,
+  });
+
+  if (fileParts.length > 0) {
+    return {
+      text: strippedText,
+      uiParts: [
+        ...(strippedText
+          ? ([
+              { type: "text", text: strippedText },
+            ] satisfies PersistedChatUiPart[])
+          : []),
+        ...fileParts,
+      ],
+    };
+  }
+
+  const hadDataImageUrl = imageUrls.some((url) =>
+    isGeneratedChatImageDataUri(url),
+  );
+
+  if (!hadDataImageUrl) {
+    return { text: params.text };
+  }
+
+  if (strippedText.trim().length === 0) {
+    return { text: ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK };
+  }
+
+  return { text: strippedText };
+}
+
 async function persistUserOrSystemTurnForConversation(params: {
   conversationId: string;
   userId: string;
   lastMessage: { role: string } & Record<string, unknown>;
   extractedText: string;
+  imageGeneration?: boolean;
 }): Promise<void> {
   const { conversationId, userId, lastMessage, extractedText } = params;
   if (lastMessage.role !== "user" && lastMessage.role !== "system") {
@@ -72,11 +256,16 @@ async function persistUserOrSystemTurnForConversation(params: {
   const reasoningParts = extractReasoningPartsFromMessage(lastMessage);
   const uiParts = extractPersistableUiParts(lastMessage);
   const titleSource = buildMessageTitleSource(lastMessage);
+  const isImageGeneration =
+    lastMessage.role === "user" &&
+    (params.imageGeneration === true ||
+      messageRequestedImageGeneration(lastMessage));
   const metadata =
-    reasoningParts.length > 0 || uiParts.length > 0
+    reasoningParts.length > 0 || uiParts.length > 0 || isImageGeneration
       ? {
           ...(reasoningParts.length > 0 ? { reasoning: reasoningParts } : {}),
           ...(uiParts.length > 0 ? { ui_message_v1: { parts: uiParts } } : {}),
+          ...(isImageGeneration ? { image_generation: true } : {}),
         }
       : undefined;
 
@@ -182,6 +371,10 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(withGlobalHeaderParameters(route), async (c) => {
+    let logImageGenerationRequest = false;
+    let logConversationId: string | null = null;
+    let logSelectedModel: string | null = null;
+    let logImageGenerationModel: string | null = null;
     try {
       const userContext = requireUserContext(c.var.authContext);
 
@@ -190,6 +383,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         message: singleMessage,
         conversationId,
         model,
+        imageGeneration,
         trigger,
         previousResponseId: previousResponseIdFromRequest,
       } = c.req.valid("json");
@@ -294,6 +488,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const useCoworker = Boolean(internalConversationId) && Boolean(coworker);
+      let imageGenerationModel: string | null = null;
+
+      if (imageGeneration) {
+        if (useCoworker) {
+          throw badRequest(
+            "Image generation is only available for supported chat models.",
+          );
+        }
+
+        imageGenerationModel =
+          getChatModelImageGenerationOpenRouterId(selectedModel);
+        if (!imageGenerationModel) {
+          throw badRequest("Selected model does not support image generation.");
+        }
+      }
+      logImageGenerationRequest = imageGeneration === true;
+      logConversationId = internalConversationId;
+      logSelectedModel = selectedModel;
+      logImageGenerationModel = imageGenerationModel;
 
       if (useCoworker) {
         if (!lastMessageHasCoworkerCompatibleContent) {
@@ -330,6 +543,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
             lastMessage: incomingLast,
             extractedText: lastUserMessageText ?? "",
+            ...(imageGeneration === true ? { imageGeneration: true } : {}),
           });
         }
 
@@ -369,6 +583,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
             lastMessage: incomingLast,
             extractedText: lastUserMessageText ?? "",
+            ...(imageGeneration === true ? { imageGeneration: true } : {}),
           });
         }
       }
@@ -441,6 +656,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      if (imageGeneration === true) {
+        console.info("Starting OpenRouter image generation chat stream", {
+          conversationId: internalConversationId,
+          model: selectedModel,
+          imageGenerationModel,
+          messageCount: uiMessages.length,
+        });
+      }
+
       const modelMessages = await convertToModelMessages(
         uiMessages.map(({ id: _id, ...rest }) => rest),
       );
@@ -493,6 +717,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         return null;
       })();
+      const webSearchEnabled =
+        !useCoworker && chatModelSupportsWebSearch(selectedModel);
 
       const sokosumiProviderOptions: SokosumiProviderCallOptions = {
         mode: useCoworker ? "coworker" : "openrouter",
@@ -504,6 +730,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         providerConversationId: coworkerConversationsMode
           ? providerConversationId
           : null,
+        imageGenerationModel,
+        webSearchEnabled,
         onResponseStarted: async (responseId: string) => {
           responsesApiResponseIdRef.current = responseId;
           if (!internalConversationId || !coworker) {
@@ -594,13 +822,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                     endedAtMs: thoughtPhaseMs.end ?? Date.now(),
                   }
                 : undefined;
+            const preparedAssistantMessage =
+              await prepareAssistantFinishForPersistence({
+                text: finishEvent.text,
+                conversationId: internalConversationId,
+                userId: userContext.userId,
+                extractGeneratedImagesFromMarkdown: imageGeneration === true,
+              });
             await persistAssistantFromAiSdk({
               conversationId: internalConversationId,
               userId: userContext.userId,
-              text: finishEvent.text,
+              text: preparedAssistantMessage.text,
               responsesApiResponseId: responsesApiResponseIdRef.current,
               reasoning: useCoworker ? finishEvent.reasoning : undefined,
               thoughtTiming,
+              uiParts: preparedAssistantMessage.uiParts,
             });
           } catch (error) {
             console.error(
@@ -682,6 +918,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           : {}),
       });
     } catch (error) {
+      if (logImageGenerationRequest) {
+        console.error("Failed to stream OpenRouter image generation chat", {
+          conversationId: logConversationId,
+          model: logSelectedModel,
+          imageGenerationModel: logImageGenerationModel,
+          error,
+        });
+      }
       if (
         error &&
         typeof error === "object" &&

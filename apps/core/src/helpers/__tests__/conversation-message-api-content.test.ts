@@ -99,6 +99,36 @@ describe("conversationMessageToApiContent", () => {
     ]);
   });
 
+  it("returns assistant generated image file parts without markdown content", () => {
+    expect(
+      conversationMessageToApiContent({
+        contentType: "output_text",
+        contentText: "Here's the generated image.",
+        metadata: {
+          ui_message_v1: {
+            parts: [
+              { type: "output_text", text: "Here's the generated image." },
+              {
+                type: "file",
+                url: "https://blob.example.com/generated.png",
+                mediaType: "image/png",
+                filename: "generated.png",
+              },
+            ],
+          },
+        },
+      }),
+    ).toEqual([
+      { type: "output_text", text: "Here's the generated image." },
+      {
+        type: "file",
+        url: "https://blob.example.com/generated.png",
+        mediaType: "image/png",
+        filename: "generated.png",
+      },
+    ]);
+  });
+
   it("falls back to a text body when file contentType has no persisted file metadata", () => {
     expect(
       conversationMessageToApiContent({

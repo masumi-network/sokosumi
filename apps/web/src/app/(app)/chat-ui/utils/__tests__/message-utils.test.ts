@@ -6,6 +6,7 @@ import {
   deduplicateMessagesById,
   extractMessageContent,
   extractReasoningStepMessages,
+  getMessageFileParts,
   getThoughtTimingMsFromMessage,
   hasMessageTextOrFileParts,
   mergeAssistantThoughtMetadataFromDb,
@@ -97,6 +98,85 @@ describe("hasMessageTextOrFileParts", () => {
         ],
       }),
     ).toBe(true);
+  });
+
+  it("returns true for file-only content arrays", () => {
+    expect(
+      hasMessageTextOrFileParts({
+        id: "u3",
+        role: "user" as const,
+        content: [
+          {
+            type: "file" as const,
+            url: "https://example.com/image.png",
+            mediaType: "image/png",
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("returns true for file-only assistant image messages", () => {
+    expect(
+      hasMessageTextOrFileParts({
+        id: "a-file",
+        role: "assistant" as const,
+        parts: [
+          {
+            type: "file" as const,
+            url: "https://example.com/generated.png",
+            mediaType: "image/png",
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("getMessageFileParts", () => {
+  it("extracts file parts without mixing them into visible text", () => {
+    const message = {
+      id: "u4",
+      role: "user" as const,
+      parts: [
+        { type: "text" as const, text: "Look at this" },
+        {
+          type: "file" as const,
+          url: "https://example.com/blob.png",
+          mediaType: "image/png",
+          filename: "blob.png",
+        },
+      ],
+    };
+
+    expect(extractMessageContent(message)).toBe("Look at this");
+    expect(getMessageFileParts(message)).toEqual([
+      {
+        type: "file",
+        url: "https://example.com/blob.png",
+        mediaType: "image/png",
+        filename: "blob.png",
+      },
+    ]);
+  });
+
+  it("dedupes the same file URL when it appears in both array content and parts", () => {
+    const url = "https://blob.example.com/generated.png";
+    const file = {
+      type: "file" as const,
+      url,
+      mediaType: "image/png" as const,
+      filename: "generated.png",
+    };
+    const message = {
+      id: "asst-dup",
+      role: "assistant" as const,
+      content: [{ type: "output_text" as const, text: "Caption." }, file],
+      parts: [{ type: "text" as const, text: "Caption." }, file],
+    };
+
+    expect(getMessageFileParts(message)).toEqual([file]);
+    expect(hasMessageTextOrFileParts(message)).toBe(true);
   });
 });
 

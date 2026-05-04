@@ -24,6 +24,7 @@ import type { Chat, Coworker } from "@/app/chat/utils/types";
 import {
   extractMessageContent,
   extractReasoningStepMessages,
+  getMessageFileParts,
   getThoughtTimingMsFromMessage,
   hasMessageTextOrFileParts,
 } from "@/app/chat-ui/utils/message-utils";
@@ -141,7 +142,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         ? extractMessageContent(lastMessage)
         : "";
     const lastAssistantHasNoContent =
-      lastMessage?.role === "assistant" && !lastMessageContent.trim();
+      lastMessage?.role === "assistant" &&
+      !lastMessageContent.trim() &&
+      !hasMessageTextOrFileParts(lastMessage);
     const showStreamReasoningInLastAssistantRow =
       isCoworker &&
       isLoading &&
@@ -286,6 +289,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         (currentCreatedAt &&
           isDifferentDay(currentCreatedAt, previousCreatedAt));
       const content = extractMessageContent(message);
+      const fileParts = getMessageFileParts(message);
       const isLastMessage = index === messagesWithTimestamps.length - 1;
       const reasoningFromParts =
         role === "assistant" && isCoworker
@@ -369,6 +373,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
               <ChatMessage
                 role={role}
                 content={content}
+                fileParts={fileParts}
                 userImageUrl={userImageUrl}
                 userName={userName}
                 createdAt={createdAt}

@@ -17,7 +17,11 @@ import {
   formatDaySeparator,
   isDifferentDay,
 } from "@/app/chat/utils/date-utils";
-import { extractMessageContent } from "@/app/chat/utils/message-utils";
+import {
+  extractMessageContent,
+  getMessageFileParts,
+  hasMessageTextOrFileParts,
+} from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -135,7 +139,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         ? extractMessageContent(lastMessage)
         : "";
     const lastAssistantHasNoContent =
-      lastMessage?.role === "assistant" && !lastMessageContent.trim();
+      lastMessage?.role === "assistant" &&
+      !lastMessageContent.trim() &&
+      !hasMessageTextOrFileParts(lastMessage);
     const showPendingErrorForEmptyAssistant =
       lastMessage?.role === "assistant" &&
       lastAssistantHasNoContent &&
@@ -174,20 +180,24 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const modelName = selectedChat?.model?.name;
     const modelId = selectedChat?.model?.id;
 
-    const lastUserMessageText = (() => {
+    const lastUserMessage = (() => {
       for (let i = messagesWithTimestamps.length - 1; i >= 0; i--) {
         const msg = messagesWithTimestamps[i];
         if ((msg.role as string) === "user") {
-          const text = extractMessageContent(msg).trim();
-          if (text) return text;
-          return "";
+          return msg;
         }
       }
-      return "";
+      return null;
     })();
+    const lastUserMessageText = lastUserMessage
+      ? extractMessageContent(lastUserMessage).trim()
+      : "";
+    const lastUserMessageHasContent =
+      lastUserMessageText.length > 0 ||
+      (lastUserMessage != null && hasMessageTextOrFileParts(lastUserMessage));
 
     const canResend = Boolean(
-      showPendingError && onResendLastMessage && lastUserMessageText,
+      showPendingError && onResendLastMessage && lastUserMessageHasContent,
     );
 
     const pendingErrorMessage = t("pendingResponseFailed");
@@ -260,6 +270,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         (currentCreatedAt &&
           isDifferentDay(currentCreatedAt, previousCreatedAt));
       const content = extractMessageContent(message);
+      const fileParts = getMessageFileParts(message);
       let createdAt: Date | undefined;
       if ("createdAt" in message) {
         const createdAtValue = message.createdAt;
@@ -303,6 +314,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
               <ChatMessage
                 role={role}
                 content={content}
+                fileParts={fileParts}
                 userImageUrl={userImageUrl}
                 userName={userName}
                 createdAt={createdAt}
@@ -322,7 +334,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     return (
       <div
         ref={setWrapperRef}
-        className="absolute inset-x-0 top-0 bottom-[8rem] overflow-hidden"
+        className="absolute inset-x-0 top-0 bottom-32 overflow-hidden"
       >
         <div
           ref={scrollContainerRef}

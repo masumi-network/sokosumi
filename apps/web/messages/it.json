@@ -1213,6 +1213,17 @@
         "comingSoon": "In arrivo",
         "agenticCoworkers": "Coworker agentici",
         "models": "Modelli",
+        "supportsImageAttachments": "Supports image attachments",
+        "supportsImageGeneration": "Può creare immagini",
+        "attachmentMenu": {
+          "trigger": "Add",
+          "uploadFile": "Upload file",
+          "createImage": "Create image"
+        },
+        "createImageChip": {
+          "label": "Create image",
+          "remove": "Remove create image"
+        },
         "ConversationsSidebar": {
           "searchPlaceholder": "Cerca conversazioni...",
           "clearSearch": "Cancella ricerca",
@@ -1233,6 +1244,7 @@
         "modelAlt": "Modello",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Avatar utente",
+        "downloadGeneratedImage": "Scarica immagine generata",
         "expandPrompt": "Mostra messaggio completo",
         "collapsePrompt": "Mostra meno",
         "authorize": "Autorizza",
