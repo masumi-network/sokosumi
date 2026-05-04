@@ -354,6 +354,79 @@ describe("createResponsesSseToV3Stream", () => {
     expect(text).not.toContain("not-a-url");
   });
 
+  it("does not inject image markdown when assistant streams JSON text containing imageUrl", async () => {
+    const jsonLine =
+      '{"imageUrl":"https://example.com/structured-reply.json","answer":42}';
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_json_assistant"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: jsonLine,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_json_assistant"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).toContain(jsonLine);
+    expect(text).not.toContain("![Generated image]");
+  });
+
+  it("does not inject image markdown for message output_item.done with JSON in output_text", async () => {
+    const jsonLine =
+      '{"imageUrl":"https://example.com/not-a-generated-preview.png"}';
+    const item = {
+      type: "message",
+      id: "msg_json",
+      role: "assistant",
+      content: [{ type: "output_text", text: jsonLine }],
+    };
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_msg_item"}}',
+      `data: {"type":"response.output_item.done","item":${JSON.stringify(item)}}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_msg_item"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createResponsesSseToV3Stream(body, { warnings: [] });
+    const reader = stream.getReader();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (
+        value &&
+        typeof value === "object" &&
+        "type" in value &&
+        (value as { type: string }).type === "text-delta"
+      ) {
+        text += (value as { delta?: string }).delta ?? "";
+      }
+    }
+
+    expect(text).not.toContain("![Generated image]");
+    expect(text).not.toContain("not-a-generated-preview.png");
+  });
+
   it("emits image generation tool results when output is a JSON string", async () => {
     const body = encodeSse([
       "event: response.created",

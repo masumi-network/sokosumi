@@ -1,7 +1,11 @@
 "use client";
 
-import { CHAT_MODELS, chatModelSupportsImageInput } from "@sokosumi/chat";
-import { ChevronDown, Image as ImageIcon } from "lucide-react";
+import {
+  CHAT_MODELS,
+  chatModelSupportsImageGeneration,
+  chatModelSupportsImageInput,
+} from "@sokosumi/chat";
+import { ChevronDown, Image as ImageIcon, ImagePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -24,6 +28,7 @@ interface Model {
   name: string;
   icon?: React.ReactNode;
   supportsImageInput?: boolean;
+  supportsImageGeneration?: boolean;
 }
 
 interface CoworkerModelSelectorProps {
@@ -75,6 +80,7 @@ export default function CoworkerModelSelector({
     id: model.id,
     name: model.name,
     supportsImageInput: chatModelSupportsImageInput(model.id),
+    supportsImageGeneration: chatModelSupportsImageGeneration(model.id),
   }));
 
   const getCoworkerAvatarUrl = (c: Coworker): string | null =>
@@ -225,8 +231,15 @@ export default function CoworkerModelSelector({
                     )}
                   >
                     <ModelIcon modelId={model.id} modelName={model.name} />
-                    <span className="flex-1 text-left">{model.name}</span>
-                    {model.supportsImageInput ? (
+                    <span className="min-w-0 flex-1 text-left">
+                      {model.name}
+                    </span>
+                    {model.supportsImageGeneration ? (
+                      <ImagePlus
+                        className="text-muted-foreground size-3.5 shrink-0"
+                        aria-label={t("supportsImageGeneration")}
+                      />
+                    ) : model.supportsImageInput ? (
                       <ImageIcon
                         className="text-muted-foreground size-3.5 shrink-0"
                         aria-label={t("supportsImageAttachments")}

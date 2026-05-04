@@ -325,8 +325,9 @@ export type ChatUiMessage = {
         text: string;
     }>;
     metadata?: {
-        thoughtStartedAtMs: number;
-        thoughtEndedAtMs: number;
+        thoughtStartedAtMs?: number;
+        thoughtEndedAtMs?: number;
+        imageGeneration?: boolean;
     };
 };
 
@@ -438,6 +439,14 @@ export type ConversationMessage = {
     thoughtTiming?: {
         startedAtMs: number | null;
         endedAtMs: number | null;
+    };
+    /**
+     * UI message metadata, including whether a user turn requested image generation.
+     */
+    metadata?: {
+        thoughtStartedAtMs?: number;
+        thoughtEndedAtMs?: number;
+        imageGeneration?: boolean;
     };
 };
 
@@ -3729,6 +3738,10 @@ export type PostChatData = {
                 type: string;
                 text: string;
             }>;
+            metadata?: {
+                imageGeneration?: boolean;
+                [key: string]: unknown;
+            };
             id?: string;
         }>;
         message?: {
@@ -3769,6 +3782,10 @@ export type PostChatData = {
                 type: string;
                 text: string;
             }>;
+            metadata?: {
+                imageGeneration?: boolean;
+                [key: string]: unknown;
+            };
             id?: string;
         };
         id?: string;
@@ -3777,6 +3794,7 @@ export type PostChatData = {
         conversationId?: string;
         previousResponseId?: string;
         model?: string | null;
+        imageGeneration?: boolean;
     };
     headers?: {
         /**

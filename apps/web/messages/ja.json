@@ -1214,6 +1214,7 @@
         "agenticCoworkers": "エージェント型AI同僚",
         "models": "モデル",
         "supportsImageAttachments": "Supports image attachments",
+        "supportsImageGeneration": "画像を生成できます",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",

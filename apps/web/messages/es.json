@@ -1214,6 +1214,7 @@
         "agenticCoworkers": "Coworkers agénticos",
         "models": "Modelos",
         "supportsImageAttachments": "Supports image attachments",
+        "supportsImageGeneration": "Puede crear imágenes",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",

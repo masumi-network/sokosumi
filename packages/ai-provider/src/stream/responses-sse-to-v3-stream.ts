@@ -68,13 +68,18 @@ function isPreviewableImageUrl(imageUrl: string): boolean {
   }
 }
 
-function collectImageUrls(value: unknown, seen = new Set<unknown>()): string[] {
-  if (typeof value === "string" && value.trim()) {
-    try {
-      return collectImageUrls(JSON.parse(value), seen);
-    } catch {
-      return [];
-    }
+/**
+ * Walks objects/arrays for image tool payload shapes (`imageUrl`, nested
+ * `image_url.url`). Does **not** JSON.parse string values: assistant text may
+ * be valid JSON (e.g. `{"imageUrl":"…"}`) and must not become synthetic image
+ * markdown.
+ */
+function collectImageUrlsFromObjectGraph(
+  value: unknown,
+  seen = new Set<unknown>(),
+): string[] {
+  if (typeof value === "string") {
+    return [];
   }
 
   if (!value || typeof value !== "object" || seen.has(value)) {
@@ -83,7 +88,7 @@ function collectImageUrls(value: unknown, seen = new Set<unknown>()): string[] {
   seen.add(value);
 
   if (Array.isArray(value)) {
-    return value.flatMap((item) => collectImageUrls(item, seen));
+    return value.flatMap((item) => collectImageUrlsFromObjectGraph(item, seen));
   }
 
   const record = value as Record<string, unknown>;
@@ -100,10 +105,41 @@ function collectImageUrls(value: unknown, seen = new Set<unknown>()): string[] {
   }
 
   for (const nested of Object.values(record)) {
-    urls.push(...collectImageUrls(nested, seen));
+    urls.push(...collectImageUrlsFromObjectGraph(nested, seen));
   }
 
   return urls;
+}
+
+function tryParseJsonObjectOrArrayString(raw: string): unknown | undefined {
+  const t = raw.trim();
+  if (
+    !(t.startsWith("{") && t.endsWith("}")) &&
+    !(t.startsWith("[") && t.endsWith("]"))
+  ) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+/** `function_call_output.output` may be a JSON string; parse at most once here. */
+function collectImageUrlsFromFunctionCallOutput(
+  output: unknown,
+  seen = new Set<unknown>(),
+): string[] {
+  let root: unknown = output;
+  if (typeof output === "string" && output.trim()) {
+    const parsed = tryParseJsonObjectOrArrayString(output);
+    root = parsed !== undefined ? parsed : output;
+  }
+  if (typeof root === "string") {
+    return [];
+  }
+  return collectImageUrlsFromObjectGraph(root, seen);
 }
 
 export function createResponsesSseToV3Stream(
@@ -172,12 +208,12 @@ export function createResponsesSseToV3Stream(
         });
       }
 
-      function emitImageUrls(
-        value: unknown,
+      function emitCollectedImageUrls(
+        imageUrls: string[],
         scopeKey: string,
         source: "item" | "aggregate",
       ) {
-        for (const imageUrl of collectImageUrls(value)) {
+        for (const imageUrl of imageUrls) {
           if (!isPreviewableImageUrl(imageUrl)) {
             continue;
           }
@@ -281,7 +317,18 @@ export function createResponsesSseToV3Stream(
         } else if (chunk.type === "response.output_item.done") {
           const itemId =
             typeof chunk.item?.id === "string" ? chunk.item.id : undefined;
-          emitImageUrls(chunk.item, itemId ?? "item", "item");
+          const item = chunk.item;
+          if (item?.type === "function_call_output") {
+            const output =
+              item && "output" in item
+                ? (item as Record<string, unknown>).output
+                : undefined;
+            emitCollectedImageUrls(
+              collectImageUrlsFromFunctionCallOutput(output),
+              itemId ?? "item",
+              "item",
+            );
+          }
           if (itemId && chunk.item?.type === "reasoning") {
             delete reasoningAccumulator[itemId];
             if (reasoningStarted.has(itemId)) {
@@ -322,8 +369,16 @@ export function createResponsesSseToV3Stream(
         }
 
         const aggregateScope = responseId ?? lastKnownResponseId ?? "response";
-        emitImageUrls(chunk.output, aggregateScope, "aggregate");
-        emitImageUrls(chunk.response, aggregateScope, "aggregate");
+        emitCollectedImageUrls(
+          collectImageUrlsFromObjectGraph(chunk.output),
+          aggregateScope,
+          "aggregate",
+        );
+        emitCollectedImageUrls(
+          collectImageUrlsFromObjectGraph(chunk.response),
+          aggregateScope,
+          "aggregate",
+        );
 
         const isCompletionSignal =
           chunk.type === "response.completed" ||
@@ -395,7 +450,11 @@ export function createResponsesSseToV3Stream(
                 emitTextDelta(text);
               }
               const aggregateScope = parsed.id ?? lastKnownResponseId ?? "tail";
-              emitImageUrls(parsed.output, aggregateScope, "aggregate");
+              emitCollectedImageUrls(
+                collectImageUrlsFromObjectGraph(parsed.output),
+                aggregateScope,
+                "aggregate",
+              );
               const tailCompletionId =
                 typeof parsed.id === "string" ? parsed.id : lastKnownResponseId;
               if (
