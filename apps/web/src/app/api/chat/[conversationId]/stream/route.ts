@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import type { NextRequest } from "next/server";
 
 import { getSession } from "@/lib/auth/utils";
+import { buildCoreChatProxyHeaders } from "@/lib/clients/utils/build-core-chat-proxy-headers";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
 const CORE_CHAT_PATH = "chat" as const;
@@ -22,8 +23,9 @@ export async function GET(
   }
 
   try {
-    const requestHeaders = new Headers(await headers());
-    requestHeaders.delete("Content-Length");
+    const requestHeaders = buildCoreChatProxyHeaders(
+      new Headers(await headers()),
+    );
 
     const coreUrl = `${getCoreApiBaseUrl()}/${CORE_CHAT_PATH}/stream/${encodeURIComponent(conversationId)}`;
 
