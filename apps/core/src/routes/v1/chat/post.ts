@@ -4,6 +4,7 @@ import {
   chatModelSupportsWebSearch,
   getChatModelImageGenerationOpenRouterId,
 } from "@sokosumi/chat";
+import { extractReactEnvelope } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
@@ -80,8 +81,6 @@ const ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK =
 const ASSISTANT_GENERATED_IMAGE_UNAVAILABLE_FALLBACK =
   "The image generation tool did not return an image. Try generating again.";
 
-const REACT_IMAGE_GENERATION_ACTION = "openrouter_image_generation";
-
 const IMAGE_MEDIA_TYPE_BY_EXTENSION: Record<string, string> = {
   bmp: "image/bmp",
   gif: "image/gif",
@@ -100,6 +99,12 @@ function messageRequestedImageGeneration(
     return false;
   }
   return (metadata as Record<string, unknown>).imageGeneration === true;
+}
+
+function conversationUsesImageGeneration(
+  metadata: Record<string, unknown> | null | undefined,
+): boolean {
+  return metadata?.image_generation === true;
 }
 
 function filenameFromImageUrl(url: string): string {
@@ -149,124 +154,6 @@ function extractGeneratedImageMarkdown(text: string): {
     strippedText,
     imageUrls: [...new Set(imageUrls)],
   };
-}
-
-function findJsonObjectEnd(text: string, startIndex: number): number {
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let i = startIndex; i < text.length; i += 1) {
-    const char = text[i];
-
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (char === "\\") {
-        escaped = true;
-        continue;
-      }
-      if (char === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-      continue;
-    }
-
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return i + 1;
-      }
-    }
-  }
-
-  return -1;
-}
-
-function parseReactEnvelopeJson(rawJson: string, trailing: string) {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawJson) as unknown;
-  } catch {
-    return null;
-  }
-
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return null;
-  }
-
-  const record = parsed as Record<string, unknown>;
-  const hadEnvelope =
-    record.action === REACT_IMAGE_GENERATION_ACTION && "action_input" in record;
-  if (!hadEnvelope) {
-    return null;
-  }
-
-  return {
-    strippedText: trailing
-      .replace(/[ \t]+\n/g, "\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim(),
-    thought: typeof record.thought === "string" ? record.thought.trim() : null,
-    hadEnvelope: true,
-  };
-}
-
-function extractReactEnvelope(text: string): {
-  strippedText: string;
-  thought: string | null;
-  hadEnvelope: boolean;
-} {
-  const firstNonWhitespaceIndex = text.search(/\S/);
-  if (firstNonWhitespaceIndex === -1) {
-    return { strippedText: text, thought: null, hadEnvelope: false };
-  }
-
-  const leading = text.slice(firstNonWhitespaceIndex);
-  const fenceMatch = /^```json[ \t]*(?:\r?\n|$)/i.exec(leading);
-
-  if (fenceMatch) {
-    const jsonStart = firstNonWhitespaceIndex + fenceMatch[0].length;
-    const closingFenceIndex = text.indexOf("```", jsonStart);
-    if (closingFenceIndex === -1) {
-      return { strippedText: text, thought: null, hadEnvelope: false };
-    }
-
-    const extracted = parseReactEnvelopeJson(
-      text.slice(jsonStart, closingFenceIndex).trim(),
-      text.slice(closingFenceIndex + 3),
-    );
-    return (
-      extracted ?? { strippedText: text, thought: null, hadEnvelope: false }
-    );
-  }
-
-  if (text[firstNonWhitespaceIndex] !== "{") {
-    return { strippedText: text, thought: null, hadEnvelope: false };
-  }
-
-  const jsonEnd = findJsonObjectEnd(text, firstNonWhitespaceIndex);
-  if (jsonEnd === -1) {
-    return { strippedText: text, thought: null, hadEnvelope: false };
-  }
-
-  const extracted = parseReactEnvelopeJson(
-    text.slice(firstNonWhitespaceIndex, jsonEnd),
-    text.slice(jsonEnd),
-  );
-  return extracted ?? { strippedText: text, thought: null, hadEnvelope: false };
 }
 
 async function buildGeneratedImageFileParts(params: {
@@ -327,19 +214,16 @@ async function prepareAssistantFinishForPersistence(params: {
   const imageExtraction = params.extractGeneratedImagesFromMarkdown
     ? extractGeneratedImageMarkdown(params.text)
     : { strippedText: params.text, imageUrls: [] };
+  if (!params.extractGeneratedImagesFromMarkdown) {
+    return { text: params.text };
+  }
+
   const {
     strippedText: textWithoutReactEnvelope,
     thought,
     hadEnvelope,
   } = extractReactEnvelope(imageExtraction.strippedText);
   const reactThought = thought?.trim() ? thought : undefined;
-
-  if (!params.extractGeneratedImagesFromMarkdown) {
-    return {
-      text: hadEnvelope ? textWithoutReactEnvelope : params.text,
-      reactThought,
-    };
-  }
 
   const { imageUrls } = imageExtraction;
   if (imageUrls.length === 0) {
@@ -616,10 +500,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             : (lastUserMessageText?.trim().length ?? 0) > 0
           : false;
 
-      const metadata = (conversation?.metadata ?? null) as Record<
+      let metadata = (conversation?.metadata ?? null) as Record<
         string,
         unknown
       > | null;
+      const messageImageGenerationRequested =
+        incomingLast != null &&
+        messageRequestedImageGeneration(
+          incomingLast as Record<string, unknown>,
+        );
+      const conversationImageGeneration =
+        conversationUsesImageGeneration(metadata);
+      const effectiveImageGeneration =
+        imageGeneration === true ||
+        messageImageGenerationRequested ||
+        conversationImageGeneration;
       const coworkerSlug = metadata?.coworker_slug as string | undefined;
       const coworkerId = metadata?.coworker_id as string | undefined;
       let coworker: {
@@ -650,7 +545,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const useCoworker = Boolean(internalConversationId) && Boolean(coworker);
       let imageGenerationModel: string | null = null;
 
-      if (imageGeneration) {
+      if (effectiveImageGeneration) {
         if (useCoworker) {
           throw badRequest(
             "Image generation is only available for supported chat models.",
@@ -663,7 +558,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw badRequest("Selected model does not support image generation.");
         }
       }
-      logImageGenerationRequest = imageGeneration === true;
+      if (
+        effectiveImageGeneration &&
+        !conversationImageGeneration &&
+        internalConversationId
+      ) {
+        metadata = {
+          ...(metadata ?? {}),
+          image_generation: true,
+          userId: userContext.userId,
+        };
+        await prisma.conversation.update({
+          where: {
+            id: internalConversationId,
+            userId: userContext.userId,
+          },
+          data: { metadata },
+        });
+      }
+      logImageGenerationRequest = effectiveImageGeneration;
       logConversationId = internalConversationId;
       logSelectedModel = selectedModel;
       logImageGenerationModel = imageGenerationModel;
@@ -703,7 +616,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
             lastMessage: incomingLast,
             extractedText: lastUserMessageText ?? "",
-            ...(imageGeneration === true ? { imageGeneration: true } : {}),
+            ...(effectiveImageGeneration ? { imageGeneration: true } : {}),
           });
         }
 
@@ -743,7 +656,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
             lastMessage: incomingLast,
             extractedText: lastUserMessageText ?? "",
-            ...(imageGeneration === true ? { imageGeneration: true } : {}),
+            ...(effectiveImageGeneration ? { imageGeneration: true } : {}),
           });
         }
       }
@@ -816,7 +729,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      if (imageGeneration === true) {
+      if (effectiveImageGeneration) {
         console.info("Starting OpenRouter image generation chat stream", {
           conversationId: internalConversationId,
           model: selectedModel,
@@ -988,7 +901,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 conversationId: internalConversationId,
                 userId: userContext.userId,
                 modelId: selectedModel,
-                extractGeneratedImagesFromMarkdown: imageGeneration === true,
+                extractGeneratedImagesFromMarkdown: effectiveImageGeneration,
               });
             const reasoning = [
               ...(preparedAssistantMessage.reactThought

@@ -35,6 +35,13 @@ async function collectStreamTextAndReasoning(
   return { text, reasoning };
 }
 
+function createImageGenerationStream(body: ReadableStream<Uint8Array>) {
+  return createResponsesSseToV3Stream(body, {
+    warnings: [],
+    stripReactImageGenerationEnvelope: true,
+  });
+}
+
 describe("createResponsesSseToV3Stream", () => {
   it("does not emit synthetic prelude reasoning (avoids UIMessage start/end mismatch)", async () => {
     const body = encodeSse([
@@ -372,6 +379,33 @@ describe("createResponsesSseToV3Stream", () => {
     );
   });
 
+  it("passes ReAct-shaped JSON through unless image envelope stripping is enabled", async () => {
+    const envelope = {
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A fox"}',
+      thought: "Return this JSON literally.",
+    };
+    const text = JSON.stringify(envelope);
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_react_literal"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: text,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_react_literal"}}',
+      "data: [DONE]",
+    ]);
+
+    const result = await collectStreamTextAndReasoning(
+      createResponsesSseToV3Stream(body, { warnings: [] }),
+    );
+
+    expect(result.text).toBe(text);
+    expect(result.reasoning["react-thought"]).toBeUndefined();
+  });
+
   it("suppresses ReAct JSON and emits thought as reasoning", async () => {
     const envelope = {
       action: "openrouter_image_generation",
@@ -391,10 +425,37 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const { text, reasoning } = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createImageGenerationStream(body),
     );
 
     expect(text).toBe("");
+    expect(reasoning["react-thought"]).toBe("I should generate the image now.");
+  });
+
+  it("suppresses Gemini dalle.text2im ReAct JSON and emits thought as reasoning", async () => {
+    const envelope = {
+      action: "dalle.text2im",
+      action_input: '{"prompt":"A fox","aspect_ratio":"16:9"}',
+      thought: "I should generate the image now.",
+    };
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_dalle_text2im_json"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: JSON.stringify(envelope, null, 2),
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_dalle_text2im_json"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createImageGenerationStream(body),
+    );
+
+    expect(text).toBe("");
+    expect(text).not.toContain("dalle.text2im");
     expect(reasoning["react-thought"]).toBe("I should generate the image now.");
   });
 
@@ -417,7 +478,7 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const { text, reasoning } = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createImageGenerationStream(body),
     );
 
     expect(text).toBe("\n\nHere is the result.");
@@ -444,12 +505,68 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const { text, reasoning } = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createImageGenerationStream(body),
     );
 
     expect(text).toBe("\n\nDone.");
     expect(text).not.toContain("openrouter_image_generation");
     expect(reasoning["react-thought"]).toBe("I will generate this image.");
+  });
+
+  it("suppresses single-line fenced ReAct JSON with a space after json (no newline)", async () => {
+    const envelope = {
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A bird"}',
+      thought: "Single-line fence.",
+    };
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_react_fenced_oneline"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: `\`\`\`json ${JSON.stringify(envelope)}\`\`\`\n\nAll set.`,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_react_fenced_oneline"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createImageGenerationStream(body),
+    );
+
+    expect(text).toBe("\n\nAll set.");
+    expect(text).not.toContain("openrouter_image_generation");
+    expect(reasoning["react-thought"]).toBe("Single-line fence.");
+  });
+
+  it("suppresses single-line fenced ReAct JSON when space-after-json arrives before the JSON body", async () => {
+    const envelope = {
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A bird"}',
+      thought: "Streaming single-line fence.",
+    };
+    const json = JSON.stringify(envelope);
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_react_fenced_oneline_split"}}',
+      'data: {"type":"response.output_text.delta","delta":"```json "}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: `${json}\`\`\`\n\nTail.`,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_react_fenced_oneline_split"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createImageGenerationStream(body),
+    );
+
+    expect(text).toBe("\n\nTail.");
+    expect(text).not.toContain("openrouter_image_generation");
+    expect(reasoning["react-thought"]).toBe("Streaming single-line fence.");
   });
 
   it("suppresses fenced ReAct JSON split across prefix deltas", async () => {
@@ -474,7 +591,7 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const { text, reasoning } = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createImageGenerationStream(body),
     );
 
     expect(text).toBe("\n\nDone.");
@@ -497,7 +614,7 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const { text, reasoning } = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createImageGenerationStream(body),
     );
 
     expect(text).toBe(plainJson);
@@ -519,7 +636,7 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const { text, reasoning } = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createImageGenerationStream(body),
     );
 
     expect(text).toBe(plainJson);
@@ -546,7 +663,7 @@ describe("createResponsesSseToV3Stream", () => {
     ]);
 
     const { text, reasoning } = await collectStreamTextAndReasoning(
-      createResponsesSseToV3Stream(body, { warnings: [] }),
+      createImageGenerationStream(body),
     );
 
     expect(text).toContain(

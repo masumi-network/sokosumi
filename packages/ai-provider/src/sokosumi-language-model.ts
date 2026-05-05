@@ -262,6 +262,9 @@ async function streamOpenRouter(
       warnings: promptWarnings,
       onResponseStarted: sokosumiOpts.onResponseStarted,
       onResponseCompleted: sokosumiOpts.onResponseCompleted,
+      stripReactImageGenerationEnvelope: Boolean(
+        sokosumiOpts.imageGenerationModel,
+      ),
     }),
     request: { body: requestBody },
     response: {

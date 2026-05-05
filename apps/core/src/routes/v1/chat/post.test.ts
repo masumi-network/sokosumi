@@ -736,6 +736,66 @@ describe("POST /chat", () => {
     });
   });
 
+  it("does not strip ReAct-shaped JSON from assistant finish when image generation is off", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: { model_id: "claude-opus-4-6" },
+      })
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: null,
+      });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Return the JSON shape",
+      },
+    ]);
+    const finishText = JSON.stringify({
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A calm robot"}',
+      thought: "Return this exactly.",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        trigger: "submit-message",
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "Return the JSON shape" }],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: {
+        text: string;
+        reasoning?: unknown[];
+      }) => Promise<void>;
+    };
+    await streamCall.onFinish({
+      text: finishText,
+      reasoning: [],
+    });
+
+    expect(conversationMessageCreateMock).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        role: "assistant",
+        contentText: finishText,
+        metadata: undefined,
+      }),
+    });
+  });
+
   it("persists image generation intent on submitted user messages", async () => {
     const cid = "550e8400-e29b-41d4-a716-446655440000";
     conversationFindFirstMock.mockResolvedValueOnce({
@@ -774,6 +834,19 @@ describe("POST /chat", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(conversationUpdateMock).toHaveBeenCalledWith({
+      where: {
+        id: cid,
+        userId: "user_123",
+      },
+      data: {
+        metadata: {
+          model_id: "gpt-5-4",
+          image_generation: true,
+          userId: "user_123",
+        },
+      },
+    });
     expect(conversationMessageCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -792,6 +865,93 @@ describe("POST /chat", () => {
       "openai/gpt-5.4-image-2",
     );
     infoSpy.mockRestore();
+  });
+
+  it("uses sticky conversation image mode on later submitted user messages", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { model_id: "gpt-5-4", image_generation: true },
+    });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Make another one",
+        metadata: {
+          image_generation: true,
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Make another one" }],
+          },
+        },
+      },
+    ]);
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        trigger: "submit-message",
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "Make another one" }],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(conversationUpdateMock).not.toHaveBeenCalled();
+    expect(conversationMessageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            image_generation: true,
+          }),
+        }),
+      }),
+    );
+    const call = streamTextMock.mock.calls[0]![0] as {
+      providerOptions?: {
+        sokosumi?: { imageGenerationModel?: string | null };
+      };
+    };
+    expect(call.providerOptions?.sokosumi?.imageGenerationModel).toBe(
+      "openai/gpt-5.4-image-2",
+    );
+    infoSpy.mockRestore();
+  });
+
+  it("rejects sticky image mode for coworker conversations", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: {
+        coworker_slug: "ops-agent",
+        image_generation: true,
+      },
+      providerConversationId: "conv_remote_1",
+    });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [{ role: "user", content: "Can you help?" }],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(conversationUpdateMock).not.toHaveBeenCalled();
+    expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
   });
 
   it("persists generated image markdown as structured file parts on finish", async () => {
@@ -1180,6 +1340,86 @@ describe("POST /chat", () => {
     infoSpy.mockRestore();
   });
 
+  it("strips single-line fenced ReAct JSON (space after json) on persist", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: { model_id: "gpt-5-4" },
+      })
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: null,
+      });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Make an image",
+        metadata: {
+          image_generation: true,
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Make an image" }],
+          },
+        },
+      },
+    ]);
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const inner = JSON.stringify({
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A calm robot"}',
+      thought: "Fenced on one line.",
+    });
+    const fenced = `\`\`\`json ${inner}\`\`\`\n\nHere is the result.`;
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        trigger: "submit-message",
+        imageGeneration: true,
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "Make an image" }],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: {
+        text: string;
+        reasoning?: unknown[];
+      }) => Promise<void>;
+    };
+    await streamCall.onFinish({
+      text: fenced,
+      reasoning: [],
+    });
+
+    expect(conversationMessageCreateMock).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        role: "assistant",
+        contentText: "Here is the result.",
+        metadata: {
+          reasoning: [
+            {
+              type: "reasoning",
+              text: "Fenced on one line.",
+            },
+          ],
+        },
+      }),
+    });
+    expect(
+      JSON.stringify(conversationMessageCreateMock.mock.calls.at(-1)),
+    ).not.toContain("openrouter_image_generation");
+    infoSpy.mockRestore();
+  });
+
   it("persists an unavailable fallback when Gemini emits only a ReAct image envelope", async () => {
     const cid = "550e8400-e29b-41d4-a716-446655440000";
     conversationFindFirstMock
@@ -1262,6 +1502,96 @@ describe("POST /chat", () => {
     expect(
       JSON.stringify(conversationMessageCreateMock.mock.calls.at(-1)),
     ).not.toContain("openrouter_image_generation");
+    infoSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  it("strips Gemini dalle.text2im ReAct JSON from persisted assistant text", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: { model_id: "gemini-3-flash-preview" },
+      })
+      .mockResolvedValueOnce({
+        id: cid,
+        metadata: null,
+      });
+    conversationMessageFindManyMock.mockResolvedValueOnce([
+      {
+        id: "message-1",
+        role: "user",
+        contentText: "Make an image",
+        metadata: {
+          image_generation: true,
+          ui_message_v1: {
+            parts: [{ type: "text", text: "Make an image" }],
+          },
+        },
+      },
+    ]);
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const reactEnvelope = JSON.stringify(
+      {
+        action: "dalle.text2im",
+        action_input: '{"prompt":"A calm robot","aspect_ratio":"16:9"}',
+        thought: "I should generate an image for the user.",
+      },
+      null,
+      2,
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        trigger: "submit-message",
+        imageGeneration: true,
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "Make an image" }],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: {
+        text: string;
+        reasoning?: unknown[];
+      }) => Promise<void>;
+    };
+    await streamCall.onFinish({
+      text: reactEnvelope,
+      reasoning: [],
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Image generation requested but no image was returned",
+      { modelId: "gemini-3-flash-preview" },
+    );
+    expect(conversationMessageCreateMock).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        role: "assistant",
+        contentText:
+          "The image generation tool did not return an image. Try generating again.",
+        metadata: {
+          reasoning: [
+            {
+              type: "reasoning",
+              text: "I should generate an image for the user.",
+            },
+          ],
+        },
+      }),
+    });
+    expect(
+      JSON.stringify(conversationMessageCreateMock.mock.calls.at(-1)),
+    ).not.toContain("dalle.text2im");
     infoSpy.mockRestore();
     warnSpy.mockRestore();
   });

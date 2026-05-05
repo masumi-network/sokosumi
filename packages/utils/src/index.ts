@@ -47,6 +47,16 @@ export {
   extractLinks,
 } from "./markdown-links-extract.js";
 export {
+  DALLE_TEXT_TO_IMAGE_REACT_ACTION,
+  extractReactEnvelope,
+  findJsonObjectEnd,
+  isReactJsonFencePrefixCandidate,
+  normalizeReactEnvelopeTrailingText,
+  OPENROUTER_IMAGE_GENERATION_REACT_ACTION,
+  type ParseReactEnvelopeBufferResult,
+  parseReactEnvelopeBuffer,
+} from "./openrouter-react-image-envelope.js";
+export {
   isOrganizationLogoAllowedContentType,
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,

@@ -31,6 +31,7 @@ interface ChatInputContainerProps {
   selectedChatCoworker?: Coworker;
   coworkers?: Coworker[];
   mobileKeyboardOptimized?: boolean;
+  persistentImageGeneration?: boolean;
 }
 
 export default function ChatInputContainer({
@@ -48,6 +49,7 @@ export default function ChatInputContainer({
   selectedChatCoworker,
   coworkers,
   mobileKeyboardOptimized = false,
+  persistentImageGeneration = false,
 }: ChatInputContainerProps) {
   return (
     <div className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0 md:px-0">
@@ -69,6 +71,7 @@ export default function ChatInputContainer({
           selectedModel={selectedModel}
           coworker={selectedChatCoworker}
           coworkers={coworkers}
+          persistentImageGeneration={persistentImageGeneration}
         />
       </div>
     </div>

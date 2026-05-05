@@ -115,6 +115,7 @@ interface MultimodalInputProps {
   onCoworkerChange?: (coworker: Coworker) => void;
   enterSubmitsOnMobile?: boolean;
   blurOnSendOnMobile?: boolean;
+  persistentImageGeneration?: boolean;
 }
 
 const DEFAULT_COWORKER_SLUG = "elena";
@@ -180,6 +181,7 @@ function PureMultimodalInput({
   submitBlocked = false,
   controlledComposeKind,
   onComposeKindChange,
+  persistentImageGeneration = false,
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
   const tNewTask = useTranslations("App.Tasks.NewTask");
@@ -242,6 +244,8 @@ function PureMultimodalInput({
         : false,
     [selectedModel?.id],
   );
+  const effectiveImageGenerationEnabled =
+    persistentImageGeneration || imageGenerationEnabled;
   const hasChatFileParts = !isTaskComposer && chatFileParts.length > 0;
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const taskUploadFileLabel = tNewTask("uploadFile");
@@ -537,7 +541,7 @@ function PureMultimodalInput({
         {
           kind: composeKind,
           taskStatus,
-          imageGeneration: imageGenerationEnabled,
+          imageGeneration: effectiveImageGenerationEnabled,
         },
       );
       if (sendResult !== true) {
@@ -546,7 +550,7 @@ function PureMultimodalInput({
     } else {
       sendMessage(
         sendPayload,
-        imageGenerationEnabled
+        effectiveImageGenerationEnabled
           ? { body: { imageGeneration: true } }
           : undefined,
       );
@@ -570,7 +574,7 @@ function PureMultimodalInput({
     chatFileParts,
     composeKind,
     focusTaskEditor,
-    imageGenerationEnabled,
+    effectiveImageGenerationEnabled,
     input,
     isTaskComposer,
     onSendMessage,
@@ -892,29 +896,35 @@ function PureMultimodalInput({
           </div>
         ) : null}
         {!isTaskComposer &&
-        (chatFileParts.length > 0 || imageGenerationEnabled) ? (
-          <div className="flex flex-wrap gap-3 px-2 pb-1">
-            {chatFileParts.map((part) => (
-              <FileChipMiniPreviewWithMetadata
-                key={part.url}
-                url={part.url}
-                fileName={part.filename}
-                onRemove={() => handleRemoveChatAttachment(part.url)}
-                removeLabel={removeAttachmentLabel}
-              />
-            ))}
-            {imageGenerationEnabled ? (
+        (chatFileParts.length > 0 || effectiveImageGenerationEnabled) ? (
+          <div className="flex flex-col items-start gap-3 px-2 pb-1">
+            {chatFileParts.length > 0 ? (
+              <div className="flex w-full flex-wrap items-start gap-3">
+                {chatFileParts.map((part) => (
+                  <FileChipMiniPreviewWithMetadata
+                    key={part.url}
+                    url={part.url}
+                    fileName={part.filename}
+                    onRemove={() => handleRemoveChatAttachment(part.url)}
+                    removeLabel={removeAttachmentLabel}
+                  />
+                ))}
+              </div>
+            ) : null}
+            {effectiveImageGenerationEnabled ? (
               <div className="bg-muted text-foreground flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs">
                 <ImagePlus className="text-muted-foreground size-3.5" />
                 <span>{createImageChipLabel}</span>
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-foreground rounded-full p-0.5 transition-colors"
-                  aria-label={removeCreateImageLabel}
-                  onClick={() => setImageGenerationEnabled(false)}
-                >
-                  <X className="size-3" />
-                </button>
+                {!persistentImageGeneration ? (
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground rounded-full p-0.5 transition-colors"
+                    aria-label={removeCreateImageLabel}
+                    onClick={() => setImageGenerationEnabled(false)}
+                  >
+                    <X className="size-3" />
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -949,7 +959,8 @@ function PureMultimodalInput({
                   {supportsImageGeneration ? (
                     <DropdownMenuItem
                       disabled={
-                        isUploadingAttachments || imageGenerationEnabled
+                        isUploadingAttachments ||
+                        effectiveImageGenerationEnabled
                       }
                       onSelect={handleEnableImageGeneration}
                     >
@@ -1037,6 +1048,11 @@ function areMultimodalInputPropsEqual(
     return false;
   }
   if (prevProps.blurOnSendOnMobile !== nextProps.blurOnSendOnMobile) {
+    return false;
+  }
+  if (
+    prevProps.persistentImageGeneration !== nextProps.persistentImageGeneration
+  ) {
     return false;
   }
   if (prevProps.coworker?.id !== nextProps.coworker?.id) {

@@ -5,14 +5,17 @@ import type {
   SharedV3Warning,
 } from "@ai-sdk/provider";
 
+import {
+  isReactJsonFencePrefixCandidate,
+  parseReactEnvelopeBuffer,
+} from "@sokosumi/utils";
+
 import { extractTextFromCompletedOutput } from "../completed-output-text.js";
 
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
 const TEXT_BLOCK_ID = "sokosumi-output-text";
 const REACT_THOUGHT_ID = "react-thought";
-const REACT_IMAGE_GENERATION_ACTION = "openrouter_image_generation";
-const REACT_JSON_FENCE_PREFIX = "```json";
 const DATA_IMAGE_URL_REGEX =
   /^data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,/i;
 
@@ -40,6 +43,7 @@ export interface ResponsesSseToV3Options {
   warnings: SharedV3Warning[];
   onResponseStarted?: (responseId: string) => void | Promise<void>;
   onResponseCompleted?: (responseId: string) => void | Promise<void>;
+  stripReactImageGenerationEnvelope?: boolean;
 }
 
 type SseChunk = {
@@ -54,150 +58,10 @@ type SseChunk = {
   output?: unknown;
 };
 
-type ReactEnvelopeParseResult =
-  | {
-      status: "complete";
-      isReactEnvelope: boolean;
-      thought: string;
-      trailing: string;
-    }
-  | { status: "incomplete" };
-
 type ReactEnvelopeState = "idle" | "inEnvelope" | "afterEnvelope";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isReactJsonFencePrefixCandidate(value: string): boolean {
-  const lower = value.toLowerCase();
-  return (
-    REACT_JSON_FENCE_PREFIX.startsWith(lower) ||
-    /^```json(?:$|[ \t\r\n])/.test(lower)
-  );
-}
-
-function findJsonObjectEnd(text: string, startIndex: number): number {
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let i = startIndex; i < text.length; i += 1) {
-    const char = text[i];
-
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (char === "\\") {
-        escaped = true;
-        continue;
-      }
-      if (char === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-      continue;
-    }
-
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return i + 1;
-      }
-    }
-  }
-
-  return -1;
-}
-
-function parseReactEnvelopeBuffer(buffer: string): ReactEnvelopeParseResult {
-  const firstNonWhitespaceIndex = buffer.search(/\S/);
-  if (firstNonWhitespaceIndex === -1) {
-    return { status: "incomplete" };
-  }
-
-  const leading = buffer.slice(firstNonWhitespaceIndex);
-  if (isReactJsonFencePrefixCandidate(leading)) {
-    const fenceMatch = /^```json[ \t]*(?:\r?\n|$)/i.exec(leading);
-    if (!fenceMatch) {
-      return { status: "incomplete" };
-    }
-
-    const jsonStart = firstNonWhitespaceIndex + fenceMatch[0].length;
-    const closingFenceIndex = buffer.indexOf("```", jsonStart);
-    if (closingFenceIndex === -1) {
-      return { status: "incomplete" };
-    }
-    const rawJson = buffer.slice(jsonStart, closingFenceIndex).trim();
-    const trailing = buffer.slice(closingFenceIndex + 3);
-    return parseReactEnvelopeJson(rawJson, trailing, buffer);
-  }
-
-  if (buffer[firstNonWhitespaceIndex] !== "{") {
-    return {
-      status: "complete",
-      isReactEnvelope: false,
-      thought: "",
-      trailing: buffer,
-    };
-  }
-
-  const jsonEnd = findJsonObjectEnd(buffer, firstNonWhitespaceIndex);
-  if (jsonEnd === -1) {
-    return { status: "incomplete" };
-  }
-
-  const rawJson = buffer.slice(firstNonWhitespaceIndex, jsonEnd);
-  const trailing = buffer.slice(jsonEnd);
-  return parseReactEnvelopeJson(rawJson, trailing, buffer);
-}
-
-function parseReactEnvelopeJson(
-  rawJson: string,
-  trailing: string,
-  fallbackText = rawJson + trailing,
-): ReactEnvelopeParseResult {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawJson) as unknown;
-  } catch {
-    return {
-      status: "complete",
-      isReactEnvelope: false,
-      thought: "",
-      trailing: fallbackText,
-    };
-  }
-
-  if (!isRecord(parsed)) {
-    return {
-      status: "complete",
-      isReactEnvelope: false,
-      thought: "",
-      trailing: fallbackText,
-    };
-  }
-
-  const isReactEnvelope =
-    parsed.action === REACT_IMAGE_GENERATION_ACTION && "action_input" in parsed;
-
-  return {
-    status: "complete",
-    isReactEnvelope,
-    thought: typeof parsed.thought === "string" ? parsed.thought.trim() : "",
-    trailing: isReactEnvelope ? trailing : rawJson + trailing,
-  };
 }
 
 function isPreviewableImageUrl(imageUrl: string): boolean {
@@ -313,7 +177,12 @@ export function createResponsesSseToV3Stream(
 ): ReadableStream<LanguageModelV3StreamPart> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
-  const { warnings, onResponseStarted, onResponseCompleted } = options;
+  const {
+    warnings,
+    onResponseStarted,
+    onResponseCompleted,
+    stripReactImageGenerationEnvelope = false,
+  } = options;
 
   return new ReadableStream<LanguageModelV3StreamPart>({
     async start(controller) {
@@ -400,6 +269,11 @@ export function createResponsesSseToV3Stream(
 
       function routeTextDelta(delta: string) {
         if (!delta) {
+          return;
+        }
+
+        if (!stripReactImageGenerationEnvelope) {
+          emitTextDelta(delta);
           return;
         }
 
