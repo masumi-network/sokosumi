@@ -34,7 +34,7 @@ vi.mock("@/components/chat/chat-model-icon", () => ({
 }));
 
 describe("MessageList", () => {
-  it("shows live reasoning for model chats", () => {
+  it("shows streaming thought summary on the assistant row for model chats when live reasoning arrives before assistant content", () => {
     const messages = [
       {
         id: "user-1",
@@ -72,7 +72,7 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.getByText("reasoning.thinking")).toBeInTheDocument();
+    expect(screen.getByText("reasoning.expandSteps")).toBeInTheDocument();
     expect(screen.queryByText("reasoning.processing")).toBeNull();
   });
 });
