@@ -406,6 +406,34 @@ describe("createResponsesSseToV3Stream", () => {
     expect(result.reasoning["react-thought"]).toBeUndefined();
   });
 
+  it("does not suppress mid-response ReAct JSON after non-envelope text (matches persist)", async () => {
+    const envelope = {
+      action: "openrouter_image_generation",
+      action_input: '{"prompt":"A fox"}',
+      thought: "Mid-body envelope.",
+    };
+    const envelopeJson = JSON.stringify(envelope);
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_react_mid"}}',
+      'data: {"type":"response.output_text.delta","delta":"Intro\\n"}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: envelopeJson,
+      })}`,
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_react_mid"}}',
+      "data: [DONE]",
+    ]);
+
+    const { text, reasoning } = await collectStreamTextAndReasoning(
+      createImageGenerationStream(body),
+    );
+
+    expect(text).toBe(`Intro\n${envelopeJson}`);
+    expect(reasoning["react-thought"]).toBeUndefined();
+  });
+
   it("suppresses ReAct JSON and emits thought as reasoning", async () => {
     const envelope = {
       action: "openrouter_image_generation",

@@ -287,6 +287,10 @@ export function createResponsesSseToV3Stream(
 
         if (reactEnvelopeState === "idle" && !startsLikeEnvelope) {
           emitTextDelta(delta);
+          // Align with {@link extractReactEnvelope}: only a *leading* envelope is
+          // stripped on persist. After non-candidate text was emitted, later `{`
+          // chunks must pass through so streaming matches post-reload content.
+          reactEnvelopeState = "afterEnvelope";
           return;
         }
 
