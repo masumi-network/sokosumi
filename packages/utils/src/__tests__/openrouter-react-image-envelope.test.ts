@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   extractReactEnvelope,
+  normalizeReactEnvelopeTrailingText,
   parseReactEnvelopeBuffer,
 } from "../openrouter-react-image-envelope.js";
 
@@ -58,6 +59,17 @@ describe("parseReactEnvelopeBuffer", () => {
       thought: "",
       trailing: buffer,
     });
+  });
+});
+
+describe("normalizeReactEnvelopeTrailingText", () => {
+  it("strips horizontal whitespace before line feeds then collapses blank runs", () => {
+    expect(normalizeReactEnvelopeTrailingText("  \n\n\n\nbody")).toBe("body");
+  });
+
+  it("handles long runs of tabs before newlines in linear time", () => {
+    const tabs = "\t".repeat(50_000);
+    expect(normalizeReactEnvelopeTrailingText(`${tabs}\nok`)).toBe("ok");
   });
 });
 

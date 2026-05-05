@@ -65,9 +65,30 @@ export function isReactJsonFencePrefixCandidate(value: string): boolean {
   );
 }
 
+/** O(n): removes trailing spaces/tabs on each segment ending at `\n` (ReDoS-safe). */
+function stripSpacesAndTabsBeforeLineFeeds(value: string): string {
+  const parts: string[] = [];
+  let segmentStart = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    if (value[i] !== "\n") {
+      continue;
+    }
+    let end = i;
+    while (
+      end > segmentStart &&
+      (value[end - 1] === " " || value[end - 1] === "\t")
+    ) {
+      end -= 1;
+    }
+    parts.push(value.slice(segmentStart, end), "\n");
+    segmentStart = i + 1;
+  }
+  parts.push(value.slice(segmentStart));
+  return parts.join("");
+}
+
 export function normalizeReactEnvelopeTrailingText(trailing: string): string {
-  return trailing
-    .replace(/[ \t]+\n/g, "\n")
+  return stripSpacesAndTabsBeforeLineFeeds(trailing)
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
