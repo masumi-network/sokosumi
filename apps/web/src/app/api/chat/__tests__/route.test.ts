@@ -82,6 +82,7 @@ describe("chat route", () => {
       headersMock.mockResolvedValue(
         createReadonlyHeaders({
           cookie: "session=abc",
+          "transfer-encoding": "chunked",
           "x-organization-slug": "my-org",
         }),
       );
@@ -124,6 +125,7 @@ describe("chat route", () => {
       expect(init.method).toBe("GET");
       expect(forwardedHeaders.get("cookie")).toBe("session=abc");
       expect(forwardedHeaders.has("content-length")).toBe(false);
+      expect(forwardedHeaders.has("transfer-encoding")).toBe(false);
     });
   });
 
@@ -151,6 +153,7 @@ describe("chat route", () => {
         createReadonlyHeaders({
           cookie: "session=abc",
           "content-length": "999",
+          "transfer-encoding": "chunked",
           "x-organization-slug": "my-org",
         }),
       );
@@ -182,6 +185,7 @@ describe("chat route", () => {
       expect(forwardedHeaders.get("x-organization-slug")).toBe("my-org");
       expect(forwardedHeaders.get("content-type")).toBe("application/json");
       expect(forwardedHeaders.has("content-length")).toBe(false);
+      expect(forwardedHeaders.has("transfer-encoding")).toBe(false);
     });
   });
 });
