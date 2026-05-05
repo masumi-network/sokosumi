@@ -1,5 +1,13 @@
 import type { UIMessage } from "ai";
 
+/** Matches `ACTIVE_UI_STREAM_ID_METADATA_KEY` in core (`active_ui_stream_id`). */
+export function readActiveUiStreamIdFromMetadata(
+  metadata: Record<string, unknown> | null | undefined,
+): string | null {
+  const v = metadata?.active_ui_stream_id;
+  return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+}
+
 export function readPendingResponsesApiResponseIdFromMetadata(
   metadata: Record<string, unknown> | null | undefined,
 ): string | undefined {

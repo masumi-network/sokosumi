@@ -53,6 +53,7 @@ import {
 } from "@/app/chat-ui/utils/chat-route-base";
 import {
   hasImageGenerationUiMessage,
+  readActiveUiStreamIdFromMetadata,
   readConversationImageGenerationFromMetadata,
 } from "@/app/chat-ui/utils/conversation-metadata";
 import {
@@ -719,6 +720,35 @@ export default function ChatInterface({
   const slot1BoundId = slotToConversation.get(1) ?? null;
   const slot2BoundId = slotToConversation.get(2) ?? null;
 
+  const { resumeSlot0, resumeSlot1, resumeSlot2 } = useMemo(() => {
+    function slotResumeFor(boundId: string | null): boolean {
+      if (!boundId) return false;
+      const meta =
+        selectedConversation?.id === boundId
+          ? (selectedConversation.metadata as
+              | Record<string, unknown>
+              | null
+              | undefined)
+          : (conversations.find((c) => c.id === boundId)?.metadata as
+              | Record<string, unknown>
+              | null
+              | undefined);
+      return readActiveUiStreamIdFromMetadata(meta) != null;
+    }
+    return {
+      resumeSlot0: slotResumeFor(slot0BoundId),
+      resumeSlot1: slotResumeFor(slot1BoundId),
+      resumeSlot2: slotResumeFor(slot2BoundId),
+    };
+  }, [
+    slot0BoundId,
+    slot1BoundId,
+    slot2BoundId,
+    conversations,
+    selectedConversation?.id,
+    selectedConversation?.metadata,
+  ]);
+
   const transport0 = useMemo(
     () => makeSlotTransport(0, CHAT_API_PATH),
     [CHAT_API_PATH],
@@ -821,7 +851,7 @@ export default function ChatInterface({
   const chat0 = useChat({
     id: SLOT_PLACEHOLDER_CHAT_IDS[0],
     messages: slot0InitialMessages,
-    resume: Boolean(slot0BoundId),
+    resume: resumeSlot0,
     transport: transport0,
     onData: onDataForSlot(0),
     onError: onErrorForSlot(0),
@@ -830,7 +860,7 @@ export default function ChatInterface({
   const chat1 = useChat({
     id: SLOT_PLACEHOLDER_CHAT_IDS[1],
     messages: slot1InitialMessages,
-    resume: Boolean(slot1BoundId),
+    resume: resumeSlot1,
     transport: transport1,
     onData: onDataForSlot(1),
     onError: onErrorForSlot(1),
@@ -839,7 +869,7 @@ export default function ChatInterface({
   const chat2 = useChat({
     id: SLOT_PLACEHOLDER_CHAT_IDS[2],
     messages: slot2InitialMessages,
-    resume: Boolean(slot2BoundId),
+    resume: resumeSlot2,
     transport: transport2,
     onData: onDataForSlot(2),
     onError: onErrorForSlot(2),
