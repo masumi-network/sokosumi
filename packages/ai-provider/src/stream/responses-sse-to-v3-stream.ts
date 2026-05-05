@@ -5,11 +5,17 @@ import type {
   SharedV3Warning,
 } from "@ai-sdk/provider";
 
+import {
+  isReactJsonFencePrefixCandidate,
+  parseReactEnvelopeBuffer,
+} from "@sokosumi/utils";
+
 import { extractTextFromCompletedOutput } from "../completed-output-text.js";
 
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
 const TEXT_BLOCK_ID = "sokosumi-output-text";
+const REACT_THOUGHT_ID = "react-thought";
 const DATA_IMAGE_URL_REGEX =
   /^data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,/i;
 
@@ -37,6 +43,7 @@ export interface ResponsesSseToV3Options {
   warnings: SharedV3Warning[];
   onResponseStarted?: (responseId: string) => void | Promise<void>;
   onResponseCompleted?: (responseId: string) => void | Promise<void>;
+  stripReactImageGenerationEnvelope?: boolean;
 }
 
 type SseChunk = {
@@ -50,6 +57,8 @@ type SseChunk = {
   response?: { id?: string } & Record<string, unknown>;
   output?: unknown;
 };
+
+type ReactEnvelopeState = "idle" | "inEnvelope" | "afterEnvelope";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -142,13 +151,38 @@ function collectImageUrlsFromFunctionCallOutput(
   return collectImageUrlsFromObjectGraph(root, seen);
 }
 
+function extractReasoningTextFromItem(item: unknown): string {
+  if (!isRecord(item)) {
+    return "";
+  }
+
+  if (!Array.isArray(item.summary)) {
+    return "";
+  }
+
+  return item.summary
+    .map((part) => {
+      if (!isRecord(part) || part.type !== "summary_text") {
+        return "";
+      }
+      return typeof part.text === "string" ? part.text : "";
+    })
+    .filter((text) => text.trim().length > 0)
+    .join("");
+}
+
 export function createResponsesSseToV3Stream(
   body: ReadableStream<Uint8Array>,
   options: ResponsesSseToV3Options,
 ): ReadableStream<LanguageModelV3StreamPart> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
-  const { warnings, onResponseStarted, onResponseCompleted } = options;
+  const {
+    warnings,
+    onResponseStarted,
+    onResponseCompleted,
+    stripReactImageGenerationEnvelope = false,
+  } = options;
 
   return new ReadableStream<LanguageModelV3StreamPart>({
     async start(controller) {
@@ -167,11 +201,14 @@ export function createResponsesSseToV3Stream(
       const emittedImageKeys = new Set<string>();
       const emittedImageUrlsFromItems = new Set<string>();
       let needNewlineBeforeNextDelta = false;
+      let reactEnvelopeState: ReactEnvelopeState = "idle";
+      let pendingReactEnvelopeText = "";
 
       function closeWithFinish() {
         if (streamClosed) {
           return;
         }
+        flushPendingReactEnvelopeText();
         streamClosed = true;
         if (textStarted) {
           controller.enqueue({ type: "text-end", id: TEXT_BLOCK_ID });
@@ -206,6 +243,77 @@ export function createResponsesSseToV3Stream(
           id: TEXT_BLOCK_ID,
           delta,
         });
+      }
+
+      function flushPendingReactEnvelopeText() {
+        if (!pendingReactEnvelopeText) {
+          return;
+        }
+        const text = pendingReactEnvelopeText;
+        pendingReactEnvelopeText = "";
+        reactEnvelopeState = "afterEnvelope";
+        emitTextDelta(text);
+      }
+
+      function startsLikeReactEnvelopeCandidate(buffer: string): boolean {
+        const trimmed = buffer.trimStart();
+        if (trimmed.startsWith("{")) {
+          return true;
+        }
+        if (trimmed === "") {
+          return true;
+        }
+        const lower = trimmed.toLowerCase();
+        return isReactJsonFencePrefixCandidate(lower);
+      }
+
+      function routeTextDelta(delta: string) {
+        if (!delta) {
+          return;
+        }
+
+        if (!stripReactImageGenerationEnvelope) {
+          emitTextDelta(delta);
+          return;
+        }
+
+        if (reactEnvelopeState === "afterEnvelope") {
+          emitTextDelta(delta);
+          return;
+        }
+
+        const nextBuffer = pendingReactEnvelopeText + delta;
+        const startsLikeEnvelope = startsLikeReactEnvelopeCandidate(nextBuffer);
+
+        if (reactEnvelopeState === "idle" && !startsLikeEnvelope) {
+          emitTextDelta(delta);
+          // Align with {@link extractReactEnvelope}: only a *leading* envelope is
+          // stripped on persist. After non-candidate text was emitted, later `{`
+          // chunks must pass through so streaming matches post-reload content.
+          reactEnvelopeState = "afterEnvelope";
+          return;
+        }
+
+        reactEnvelopeState = "inEnvelope";
+        pendingReactEnvelopeText = nextBuffer;
+
+        const parsed = parseReactEnvelopeBuffer(pendingReactEnvelopeText);
+        if (parsed.status === "incomplete") {
+          return;
+        }
+
+        pendingReactEnvelopeText = "";
+        reactEnvelopeState = "afterEnvelope";
+
+        if (!parsed.isReactEnvelope) {
+          emitTextDelta(parsed.trailing);
+          return;
+        }
+
+        if (parsed.thought) {
+          emitReasoningDelta(REACT_THOUGHT_ID, parsed.thought);
+        }
+        emitTextDelta(parsed.trailing);
       }
 
       function emitCollectedImageUrls(
@@ -303,7 +411,7 @@ export function createResponsesSseToV3Stream(
             const id =
               typeof chunk.item?.id === "string" ? chunk.item.id : "reasoning";
             reasoningAccumulator[id] = "";
-            emitReasoningDelta(id, "Thinking...");
+            ensureReasoningStart(id);
           }
         } else if (chunk.type === "response.reasoning_summary_text.delta") {
           const itemId =
@@ -313,6 +421,13 @@ export function createResponsesSseToV3Stream(
           if (itemId && delta) {
             const next = (reasoningAccumulator[itemId] ?? "") + delta;
             emitReasoningDelta(itemId, next);
+          }
+        } else if (chunk.type === "response.reasoning_summary_text.done") {
+          const itemId =
+            typeof chunk.item_id === "string" ? chunk.item_id : undefined;
+          const text = typeof chunk.text === "string" ? chunk.text : undefined;
+          if (itemId && text) {
+            emitReasoningDelta(itemId, text);
           }
         } else if (chunk.type === "response.output_item.done") {
           const itemId =
@@ -330,6 +445,10 @@ export function createResponsesSseToV3Stream(
             );
           }
           if (itemId && chunk.item?.type === "reasoning") {
+            const itemReasoningText = extractReasoningTextFromItem(chunk.item);
+            if (itemReasoningText) {
+              emitReasoningDelta(itemId, itemReasoningText);
+            }
             delete reasoningAccumulator[itemId];
             if (reasoningStarted.has(itemId)) {
               controller.enqueue({ type: "reasoning-end", id: itemId });
@@ -364,7 +483,7 @@ export function createResponsesSseToV3Stream(
             needNewlineBeforeNextDelta = false;
             toSend = `\n\n${toSend}`;
           }
-          emitTextDelta(toSend);
+          routeTextDelta(toSend);
           return false;
         }
 
@@ -446,8 +565,7 @@ export function createResponsesSseToV3Stream(
             if (parsed.status === "completed" && parsed.output !== undefined) {
               const text = extractTextFromCompletedOutput(parsed.output);
               if (text) {
-                ensureTextStart();
-                emitTextDelta(text);
+                routeTextDelta(text);
               }
               const aggregateScope = parsed.id ?? lastKnownResponseId ?? "tail";
               emitCollectedImageUrls(

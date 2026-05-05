@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
-import { isReasoningGenericLabel } from "@/app/chat/utils/reasoning-generic-labels";
+import { getReasoningStepDisplayText } from "@/app/chat-ui/utils/reasoning-generic-labels";
 import { cn } from "@/lib/utils";
 
 interface ThoughtSummaryBarProps {
@@ -29,9 +29,8 @@ export default function ThoughtSummaryBar({
     : 0;
 
   const subordinateSteps = reasoningMessages
-    .filter(({ message }) => !isReasoningGenericLabel(message))
-    .map(({ message }) => message.trim())
-    .filter(Boolean);
+    .map(({ message }) => getReasoningStepDisplayText(message))
+    .filter((step): step is string => Boolean(step));
 
   useEffect(() => {
     if (reasoningStartedAt == null || isFrozen) return;

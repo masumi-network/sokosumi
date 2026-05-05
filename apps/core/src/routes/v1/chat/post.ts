@@ -4,6 +4,7 @@ import {
   chatModelSupportsWebSearch,
   getChatModelImageGenerationOpenRouterId,
 } from "@sokosumi/chat";
+import { extractReactEnvelope } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
@@ -76,6 +77,10 @@ const GENERATED_IMAGE_MARKDOWN_REGEX =
 const ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK =
   "The generated image could not be saved. Try generating again.";
 
+/** Shown when a model describes image tool use but never returns an image. */
+const ASSISTANT_GENERATED_IMAGE_UNAVAILABLE_FALLBACK =
+  "The image generation tool did not return an image. Try generating again.";
+
 const IMAGE_MEDIA_TYPE_BY_EXTENSION: Record<string, string> = {
   bmp: "image/bmp",
   gif: "image/gif",
@@ -94,6 +99,12 @@ function messageRequestedImageGeneration(
     return false;
   }
   return (metadata as Record<string, unknown>).imageGeneration === true;
+}
+
+function conversationUsesImageGeneration(
+  metadata: Record<string, unknown> | null | undefined,
+): boolean {
+  return metadata?.image_generation === true;
 }
 
 function filenameFromImageUrl(url: string): string {
@@ -192,18 +203,44 @@ async function prepareAssistantFinishForPersistence(params: {
   text: string;
   userId: string;
   conversationId: string;
+  modelId: string | null;
   /** When false, leave assistant text unchanged (normal chat may include `![](https://…)`). */
   extractGeneratedImagesFromMarkdown: boolean;
-}): Promise<{ text: string; uiParts?: PersistedChatUiPart[] }> {
+}): Promise<{
+  text: string;
+  uiParts?: PersistedChatUiPart[];
+  reactThought?: string;
+}> {
+  const imageExtraction = params.extractGeneratedImagesFromMarkdown
+    ? extractGeneratedImageMarkdown(params.text)
+    : { strippedText: params.text, imageUrls: [] };
   if (!params.extractGeneratedImagesFromMarkdown) {
     return { text: params.text };
   }
 
-  const { strippedText, imageUrls } = extractGeneratedImageMarkdown(
-    params.text,
-  );
+  const {
+    strippedText: textWithoutReactEnvelope,
+    thought,
+    hadEnvelope,
+  } = extractReactEnvelope(imageExtraction.strippedText);
+  const reactThought = thought?.trim() ? thought : undefined;
+
+  const { imageUrls } = imageExtraction;
   if (imageUrls.length === 0) {
-    return { text: params.text };
+    const visibleText = hadEnvelope ? textWithoutReactEnvelope : params.text;
+    if (visibleText.trim().length === 0) {
+      console.warn("Image generation requested but no image was returned", {
+        modelId: params.modelId,
+      });
+      return {
+        text: ASSISTANT_GENERATED_IMAGE_UNAVAILABLE_FALLBACK,
+        reactThought,
+      };
+    }
+    return {
+      text: visibleText,
+      reactThought,
+    };
   }
 
   const fileParts = await buildGeneratedImageFileParts({
@@ -214,11 +251,12 @@ async function prepareAssistantFinishForPersistence(params: {
 
   if (fileParts.length > 0) {
     return {
-      text: strippedText,
+      text: textWithoutReactEnvelope,
+      reactThought,
       uiParts: [
-        ...(strippedText
+        ...(textWithoutReactEnvelope
           ? ([
-              { type: "text", text: strippedText },
+              { type: "text", text: textWithoutReactEnvelope },
             ] satisfies PersistedChatUiPart[])
           : []),
         ...fileParts,
@@ -231,14 +269,20 @@ async function prepareAssistantFinishForPersistence(params: {
   );
 
   if (!hadDataImageUrl) {
-    return { text: params.text };
+    return {
+      text: hadEnvelope ? textWithoutReactEnvelope : params.text,
+      reactThought,
+    };
   }
 
-  if (strippedText.trim().length === 0) {
-    return { text: ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK };
+  if (textWithoutReactEnvelope.trim().length === 0) {
+    return {
+      text: ASSISTANT_GENERATED_IMAGE_UPLOAD_FAILED_FALLBACK,
+      reactThought,
+    };
   }
 
-  return { text: strippedText };
+  return { text: textWithoutReactEnvelope, reactThought };
 }
 
 async function persistUserOrSystemTurnForConversation(params: {
@@ -456,10 +500,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             : (lastUserMessageText?.trim().length ?? 0) > 0
           : false;
 
-      const metadata = (conversation?.metadata ?? null) as Record<
+      let metadata = (conversation?.metadata ?? null) as Record<
         string,
         unknown
       > | null;
+      const messageImageGenerationRequested =
+        incomingLast != null &&
+        messageRequestedImageGeneration(
+          incomingLast as Record<string, unknown>,
+        );
+      const conversationImageGeneration =
+        conversationUsesImageGeneration(metadata);
+      const effectiveImageGeneration =
+        imageGeneration === true ||
+        messageImageGenerationRequested ||
+        conversationImageGeneration;
       const coworkerSlug = metadata?.coworker_slug as string | undefined;
       const coworkerId = metadata?.coworker_id as string | undefined;
       let coworker: {
@@ -490,7 +545,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const useCoworker = Boolean(internalConversationId) && Boolean(coworker);
       let imageGenerationModel: string | null = null;
 
-      if (imageGeneration) {
+      if (effectiveImageGeneration) {
         if (useCoworker) {
           throw badRequest(
             "Image generation is only available for supported chat models.",
@@ -503,7 +558,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw badRequest("Selected model does not support image generation.");
         }
       }
-      logImageGenerationRequest = imageGeneration === true;
+      if (
+        effectiveImageGeneration &&
+        !conversationImageGeneration &&
+        internalConversationId
+      ) {
+        metadata = {
+          ...(metadata ?? {}),
+          image_generation: true,
+          userId: userContext.userId,
+        };
+        await prisma.conversation.update({
+          where: {
+            id: internalConversationId,
+            userId: userContext.userId,
+          },
+          data: { metadata },
+        });
+      }
+      logImageGenerationRequest = effectiveImageGeneration;
       logConversationId = internalConversationId;
       logSelectedModel = selectedModel;
       logImageGenerationModel = imageGenerationModel;
@@ -543,7 +616,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
             lastMessage: incomingLast,
             extractedText: lastUserMessageText ?? "",
-            ...(imageGeneration === true ? { imageGeneration: true } : {}),
+            ...(effectiveImageGeneration ? { imageGeneration: true } : {}),
           });
         }
 
@@ -583,7 +656,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
             lastMessage: incomingLast,
             extractedText: lastUserMessageText ?? "",
-            ...(imageGeneration === true ? { imageGeneration: true } : {}),
+            ...(effectiveImageGeneration ? { imageGeneration: true } : {}),
           });
         }
       }
@@ -656,7 +729,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      if (imageGeneration === true) {
+      if (effectiveImageGeneration) {
         console.info("Starting OpenRouter image generation chat stream", {
           conversationId: internalConversationId,
           model: selectedModel,
@@ -827,14 +900,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 text: finishEvent.text,
                 conversationId: internalConversationId,
                 userId: userContext.userId,
-                extractGeneratedImagesFromMarkdown: imageGeneration === true,
+                modelId: selectedModel,
+                extractGeneratedImagesFromMarkdown: effectiveImageGeneration,
               });
+            const reasoning = [
+              ...(preparedAssistantMessage.reactThought
+                ? [
+                    {
+                      type: "reasoning",
+                      text: preparedAssistantMessage.reactThought,
+                    },
+                  ]
+                : []),
+              ...(Array.isArray(finishEvent.reasoning)
+                ? finishEvent.reasoning
+                : []),
+            ];
             await persistAssistantFromAiSdk({
               conversationId: internalConversationId,
               userId: userContext.userId,
               text: preparedAssistantMessage.text,
               responsesApiResponseId: responsesApiResponseIdRef.current,
-              reasoning: useCoworker ? finishEvent.reasoning : undefined,
+              reasoning: reasoning.length > 0 ? reasoning : undefined,
               thoughtTiming,
               uiParts: preparedAssistantMessage.uiParts,
             });

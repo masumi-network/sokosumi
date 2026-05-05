@@ -108,6 +108,50 @@ export function clampRevealLengthForMarkdownDataImages(
   return safeDesiredLength;
 }
 
+export function advanceRevealPastCompletedDataImages(
+  fullContent: string,
+  currentLength: number,
+): number {
+  let safeCurrentLength = Math.max(
+    0,
+    Math.min(currentLength, fullContent.length),
+  );
+  let advanced = true;
+
+  while (advanced) {
+    advanced = false;
+    const regex = new RegExp(DATA_IMAGE_MARKDOWN_START_REGEX);
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(fullContent)) !== null) {
+      const start = match.index;
+
+      if (safeCurrentLength <= start) {
+        return safeCurrentLength;
+      }
+
+      const closingParenIndex = findMarkdownImageUrlClosingParenIndex(
+        fullContent,
+        start,
+      );
+
+      if (closingParenIndex === -1) {
+        return safeCurrentLength;
+      }
+
+      const end = closingParenIndex + 1;
+
+      if (safeCurrentLength < end) {
+        safeCurrentLength = end;
+        advanced = true;
+        break;
+      }
+    }
+  }
+
+  return safeCurrentLength;
+}
+
 export function parseMarkdownWithDataImageSegments(
   content: string,
 ): GeneratedImageMarkdownSegment[] {

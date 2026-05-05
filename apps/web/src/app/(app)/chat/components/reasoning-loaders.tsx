@@ -1,9 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-
-import { isReasoningGenericLabel } from "@/app/chat/utils/reasoning-generic-labels";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
+import { isReasoningGenericLabel } from "@/app/chat-ui/utils/reasoning-generic-labels";
 
 import ReasoningLoaderRow from "./reasoning-loader-row";
 

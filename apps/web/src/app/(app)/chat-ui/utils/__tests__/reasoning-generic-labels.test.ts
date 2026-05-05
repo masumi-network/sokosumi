@@ -8,16 +8,18 @@ describe("getReasoningStepDisplayText", () => {
     expect(getReasoningStepDisplayText("Processing...")).toBeNull();
   });
 
-  it("strips one or more leading placeholders", () => {
+  it("does not strip placeholder-looking text from real summaries", () => {
     expect(getReasoningStepDisplayText("Thinking...Real summary")).toBe(
-      "Real summary",
+      "Thinking...Real summary",
     );
     expect(getReasoningStepDisplayText("Processing...Thinking...Final")).toBe(
-      "Final",
+      "Processing...Thinking...Final",
     );
   });
 
-  it("trims whitespace after stripping", () => {
-    expect(getReasoningStepDisplayText("Thinking...  \n  Body")).toBe("Body");
+  it("trims whitespace without removing provider text", () => {
+    expect(getReasoningStepDisplayText("  _thought\nBody  ")).toBe(
+      "_thought\nBody",
+    );
   });
 });

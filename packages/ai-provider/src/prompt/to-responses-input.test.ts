@@ -181,6 +181,38 @@ describe("promptToResponsesInput", () => {
     ]);
   });
 
+  it("maps non-image file parts with https URL objects to input_file file_url", () => {
+    const input = promptToResponsesInput([
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            filename: "brief.pdf",
+            data: new URL(
+              "https://storage.example.com/containers/blobs/abc123.pdf",
+            ),
+          },
+        ],
+      },
+    ]);
+
+    expect(input).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_file",
+            file_url: "https://storage.example.com/containers/blobs/abc123.pdf",
+            filename: "brief.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("throws for non-base64 file data urls that cannot be mapped safely", () => {
     expect(() =>
       promptToResponsesInput([

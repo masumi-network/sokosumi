@@ -52,6 +52,10 @@ import {
   isChatShellPathname,
 } from "@/app/chat-ui/utils/chat-route-base";
 import {
+  hasImageGenerationUiMessage,
+  readConversationImageGenerationFromMetadata,
+} from "@/app/chat-ui/utils/conversation-metadata";
+import {
   extractMessageContent,
   extractReasoningStepMessages,
   hasMessageTextOrFileParts,
@@ -1335,6 +1339,29 @@ export default function ChatInterface({
     [createCoworkerChat],
   );
 
+  const selectedConversationImageGeneration = useMemo(() => {
+    if (!selectedChatId) {
+      return false;
+    }
+
+    const selectedMetadata =
+      selectedConversation?.id === selectedChatId
+        ? (selectedConversation.metadata as Record<string, unknown> | null)
+        : ((conversations.find((c) => c.id === selectedChatId)?.metadata ??
+            null) as Record<string, unknown> | null);
+
+    return (
+      readConversationImageGenerationFromMetadata(selectedMetadata) ||
+      hasImageGenerationUiMessage(displayedMessages)
+    );
+  }, [
+    conversations,
+    displayedMessages,
+    selectedChatId,
+    selectedConversation?.id,
+    selectedConversation?.metadata,
+  ]);
+
   const handleSendMessage = useCallback(
     async (
       message: ChatComposeMessage,
@@ -1346,13 +1373,16 @@ export default function ChatInterface({
         return false;
       }
 
+      const imageGenerationForSend =
+        options?.imageGeneration === true ||
+        (selectedChatId != null && selectedConversationImageGeneration);
       const messageText = getSendMessageText(message);
       const sendPayload = withImageGenerationMetadata(
         toChatSendMessage(message),
-        options?.imageGeneration === true,
+        imageGenerationForSend,
       );
       const composeKind = options?.kind ?? "task";
-      const sendOptions = options?.imageGeneration
+      const sendOptions = imageGenerationForSend
         ? { body: { imageGeneration: true } }
         : undefined;
 
@@ -1466,6 +1496,7 @@ export default function ChatInterface({
       coworkers,
       isLoading,
       selectedChatId,
+      selectedConversationImageGeneration,
       sendInConversation,
       setInput,
       handleCoworkerSelected,
@@ -1651,6 +1682,9 @@ export default function ChatInterface({
                   onSelectModel={handleModelSelected}
                   selectedChatCoworker={selectedChatCoworker}
                   coworkers={coworkers}
+                  persistentImageGeneration={
+                    selectedConversationImageGeneration
+                  }
                 />
               </>
             )}
