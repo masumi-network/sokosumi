@@ -243,6 +243,29 @@ describe("extractReasoningStepMessages", () => {
       },
     ]);
   });
+
+  it("extracts only thought from JSON reasoning parts", () => {
+    const message = {
+      id: "json-thought",
+      role: "assistant" as const,
+      parts: [
+        {
+          type: "reasoning" as const,
+          text: JSON.stringify({
+            action: "dalle.text2im",
+            action_input: JSON.stringify({ prompt: "Cyberpunk city" }),
+            thought: "I will generate the requested cyberpunk city image.",
+          }),
+        },
+      ],
+    };
+    expect(extractReasoningStepMessages(message)).toEqual([
+      {
+        id: "json-thought-reasoning-0",
+        message: "I will generate the requested cyberpunk city image.",
+      },
+    ]);
+  });
 });
 
 describe("getThoughtTimingMsFromMessage", () => {

@@ -22,4 +22,29 @@ describe("getReasoningStepDisplayText", () => {
       "_thought\nBody",
     );
   });
+
+  it("extracts thought from ReAct JSON reasoning objects", () => {
+    const raw = JSON.stringify({
+      action: "dalle.text2im",
+      action_input: JSON.stringify({ prompt: "Cyberpunk city" }),
+      thought:
+        "I will generate a high-detail cyberpunk city landscape with neon lights.",
+    });
+
+    expect(getReasoningStepDisplayText(raw)).toBe(
+      "I will generate a high-detail cyberpunk city landscape with neon lights.",
+    );
+  });
+
+  it("extracts thought from numeric-prefixed JSON reasoning objects", () => {
+    const raw = `0${JSON.stringify({
+      action: "dalle.text2im",
+      action_input: JSON.stringify({ prompt: "Cyberpunk city" }),
+      thought: "I will generate the requested image.",
+    })}`;
+
+    expect(getReasoningStepDisplayText(raw)).toBe(
+      "I will generate the requested image.",
+    );
+  });
 });

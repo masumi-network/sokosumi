@@ -67,12 +67,18 @@ export function useChatCreation({
     useState(true);
 
   const createModelChat = useCallback(
-    async (model: { id: string; name: string }) => {
+    async (
+      model: { id: string; name: string },
+      options?: { imageGeneration?: boolean },
+    ) => {
       const conversation = await createNewConversation(
         {
           model_id: model.id,
           model_name: model.name,
           type: "model",
+          ...(options?.imageGeneration === true
+            ? { image_generation: true }
+            : {}),
         },
         model.name,
       );
