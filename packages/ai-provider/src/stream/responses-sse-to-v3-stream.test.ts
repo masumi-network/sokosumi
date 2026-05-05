@@ -671,6 +671,47 @@ describe("createResponsesSseToV3Stream", () => {
     expect(reasoning["react-thought"]).toBeUndefined();
   });
 
+  it("flushes oversized ambiguous ReAct candidates while preserving reasoning", async () => {
+    const ambiguousText = `{${"x".repeat(17_000)}`;
+    const body = encodeSse([
+      "event: response.created",
+      'data: {"type":"response.created","response":{"id":"resp_ambiguous_react"}}',
+      `data: ${JSON.stringify({
+        type: "response.output_text.delta",
+        delta: ambiguousText,
+      })}`,
+      'data: {"type":"response.output_item.added","item":{"type":"reasoning","id":"rs_ambiguous"}}',
+      'data: {"type":"response.reasoning_summary_text.delta","item_id":"rs_ambiguous","delta":"I can keep reasoning while text is ambiguous."}',
+      'data: {"type":"response.output_text.delta","delta":" still visible"}',
+      'data: {"type":"response.output_item.done","item":{"type":"reasoning","id":"rs_ambiguous"}}',
+      "event: response.completed",
+      'data: {"type":"response.completed","status":"completed","response":{"id":"resp_ambiguous_react"}}',
+      "data: [DONE]",
+    ]);
+
+    const stream = createImageGenerationStream(body);
+    const reader = stream.getReader();
+    const textDeltas: string[] = [];
+    const reasoning: Record<string, string> = {};
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value || typeof value !== "object" || !("type" in value)) continue;
+      if (value.type === "text-delta") {
+        textDeltas.push(value.delta);
+      }
+      if (value.type === "reasoning-delta") {
+        reasoning[value.id] = `${reasoning[value.id] ?? ""}${value.delta}`;
+      }
+    }
+
+    expect(textDeltas).toEqual([ambiguousText, " still visible"]);
+    expect(reasoning.rs_ambiguous).toBe(
+      "I can keep reasoning while text is ambiguous.",
+    );
+  });
+
   it("suppresses ReAct JSON while preserving function_call_output image previews", async () => {
     const envelope = {
       action: "openrouter_image_generation",

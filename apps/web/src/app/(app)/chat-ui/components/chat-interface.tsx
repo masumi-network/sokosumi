@@ -1319,13 +1319,14 @@ export default function ChatInterface({
   const handleModelSelected = useCallback(
     async (
       model: { id: string; name: string } | null,
+      options?: { imageGeneration?: boolean },
     ): Promise<string | null> => {
       if (!model) {
         setSelectedModel(null);
         selectedModelRef.current = null;
         return null;
       }
-      const conversation = await createModelChat(model);
+      const conversation = await createModelChat(model, options);
       return conversation?.id || null;
     },
     [createModelChat, setSelectedModel],
@@ -1439,7 +1440,9 @@ export default function ChatInterface({
         if (model || selectedModel) {
           const modelToUse = model || selectedModel;
           if (modelToUse) {
-            conversationId = await handleModelSelected(modelToUse);
+            conversationId = await handleModelSelected(modelToUse, {
+              imageGeneration: imageGenerationForSend,
+            });
           }
         } else {
           const selectedCoworker =

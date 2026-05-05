@@ -16,6 +16,7 @@ const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
 const TEXT_BLOCK_ID = "sokosumi-output-text";
 const REACT_THOUGHT_ID = "react-thought";
+const MAX_REACT_ENVELOPE_BUFFER_CHARS = 16_384;
 const DATA_IMAGE_URL_REGEX =
   /^data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml);base64,/i;
 
@@ -299,6 +300,11 @@ export function createResponsesSseToV3Stream(
 
         const parsed = parseReactEnvelopeBuffer(pendingReactEnvelopeText);
         if (parsed.status === "incomplete") {
+          if (
+            pendingReactEnvelopeText.length > MAX_REACT_ENVELOPE_BUFFER_CHARS
+          ) {
+            flushPendingReactEnvelopeText();
+          }
           return;
         }
 

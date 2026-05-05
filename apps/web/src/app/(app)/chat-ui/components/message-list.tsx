@@ -145,13 +145,13 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       lastMessage?.role === "assistant" &&
       !lastMessageContent.trim() &&
       !hasMessageTextOrFileParts(lastMessage);
+    const hasLiveReasoning = reasoningMessages.length > 0;
     const showStreamReasoningInLastAssistantRow =
-      isCoworker &&
       isLoading &&
       lastAssistantHasNoContent &&
       lastMessage != null &&
       extractReasoningStepMessages(lastMessage).length === 0 &&
-      reasoningMessages.length > 0;
+      hasLiveReasoning;
     const showPendingErrorForEmptyAssistant =
       lastMessage?.role === "assistant" &&
       lastAssistantHasNoContent &&
@@ -162,9 +162,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         lastMessage.role !== "assistant" ||
         lastAssistantHasNoContent);
     const showReasoningLoaders =
-      isCoworker &&
       showLoadingArea &&
-      reasoningMessages.length > 0 &&
+      hasLiveReasoning &&
       !showStreamReasoningInLastAssistantRow;
     const showPendingError = showPendingErrorForEmptyAssistant;
     const showLoadingIndicator =
@@ -292,15 +291,12 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       const fileParts = getMessageFileParts(message);
       const isLastMessage = index === messagesWithTimestamps.length - 1;
       const reasoningFromParts =
-        role === "assistant" && isCoworker
-          ? extractReasoningStepMessages(message)
-          : [];
+        role === "assistant" ? extractReasoningStepMessages(message) : [];
       const showStreamOnlyThoughtBar =
         role === "assistant" &&
-        isCoworker &&
         isLastMessage &&
         reasoningFromParts.length === 0 &&
-        reasoningMessages.length > 0 &&
+        hasLiveReasoning &&
         (isLoading || content.trim().length > 0);
       const storedThoughtTiming =
         role === "assistant" && isCoworker
