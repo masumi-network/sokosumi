@@ -1,7 +1,3 @@
-import {
-  agentRatingRepository,
-  jobRepository,
-} from "@sokosumi/database/repositories";
 import { notFound } from "next/navigation";
 
 import { AgentDetail, AgentDetailViewTracker } from "@/components/agents";
@@ -11,8 +7,14 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
+import {
+  mapCoreAgentMetricsToRatingStats,
+  mapCoreAgentReviews,
+  mapCoreAgentToAgentWithCreditsPrice,
+} from "@/lib/agents/core-dto-mappers";
+import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
+import { coreClient } from "@/lib/clients/core.client";
 import { agentService } from "@/lib/services";
 
 export default async function AgentDetailPage({
@@ -22,35 +24,28 @@ export default async function AgentDetailPage({
 }) {
   const { agentId } = await params;
 
-  const agent = await agentService.getAvailableAgentById(agentId);
-  if (!agent) {
+  const coreAgent = await getCoreAgentById(agentId);
+  if (!coreAgent) {
     return notFound();
   }
 
-  const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(agent);
-  if (!agentWithCreditsPrice) {
-    return notFound();
-  }
-
-  const favoriteAgents = await agentService.getFavoriteAgents();
+  const agentWithCreditsPrice = mapCoreAgentToAgentWithCreditsPrice(coreAgent);
   const session = await getSession();
   const userId = session?.user.id ?? null;
 
-  const [
-    executedJobsCount,
-    averageExecutionDuration,
-    ratingStats,
-    distribution,
-    ratingsWithComments,
-  ] = await Promise.all([
-    jobRepository.getExecutedJobsCountByAgentId(agentId, prisma),
-    jobRepository.getAverageExecutionDurationByAgentId(agentId, prisma),
-    agentService.getAgentRatingStats(agentId),
-    agentRatingRepository.getRatingDistribution(agentId, prisma),
-    agentRatingRepository.getRatingsByAgentId(agentId, 10, 0, true, prisma),
+  const [reviewsResponse, favoriteAgents] = await Promise.all([
+    coreClient.getAgentReviews(agentId),
+    // TODO(core-api): replace with a Core favorites API when available.
+    agentService.getFavoriteAgents(),
   ]);
+  const { ratingDistribution, ratingsWithComments } = mapCoreAgentReviews(
+    reviewsResponse.data,
+  );
+  const executedJobsCount = coreAgent.metrics.executions.count;
+  const averageExecutionDuration = coreAgent.metrics.executions.averageTime;
+  const ratingStats = mapCoreAgentMetricsToRatingStats(coreAgent);
 
-  // Check if user can rate this agent and get existing rating
+  // TODO(core-api): replace with Core user rating read/eligibility APIs.
   const canRate = userId
     ? await agentService.canUserRateAgent(userId, agentId)
     : false;
@@ -75,7 +70,7 @@ export default async function AgentDetailPage({
             averageExecutionDuration={averageExecutionDuration}
             favoriteAgents={favoriteAgents}
             ratingStats={ratingStats}
-            ratingDistribution={distribution}
+            ratingDistribution={ratingDistribution}
             ratingsWithComments={ratingsWithComments}
             canRate={canRate}
             existingRating={existingRating}

@@ -1,6 +1,11 @@
 "use client";
 
-import { type PaidJobWithStatus, SokosumiJobStatus } from "@sokosumi/database";
+import {
+  JobType,
+  type JobWithSokosumiStatus,
+  type PaidJobWithStatus,
+  SokosumiJobStatus,
+} from "@sokosumi/database";
 import {
   ExternalLink,
   HandCoins,
@@ -74,6 +79,28 @@ const STATUS_CONFIGS: Partial<Record<SokosumiJobStatus, StatusConfig>> = {
     labelKey: "refunded",
   },
 };
+
+export function canRenderRefundRequest(
+  job: JobWithSokosumiStatus,
+): job is PaidJobWithStatus {
+  if (job.jobType !== JobType.PAID) {
+    return false;
+  }
+
+  switch (job.status) {
+    case SokosumiJobStatus.COMPLETED:
+      return job.unlockTime !== null;
+    case SokosumiJobStatus.FAILED:
+      return job.submitResultTime !== null && job.unlockTime !== null;
+    case SokosumiJobStatus.REFUND_PENDING:
+    case SokosumiJobStatus.REFUND_RESOLVED:
+    case SokosumiJobStatus.DISPUTE_PENDING:
+    case SokosumiJobStatus.DISPUTE_RESOLVED:
+      return true;
+    default:
+      return false;
+  }
+}
 
 function ButtonBase({
   disabled,

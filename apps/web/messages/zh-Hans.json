@@ -2437,6 +2437,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "AI 协作伙伴",
+        "defaultDescription": "一位由 AI 驱动、随时准备协助您的协作伙伴。"
       }
     }
   },

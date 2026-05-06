@@ -364,6 +364,15 @@ describe("core.client", () => {
               name: "Acme Labs",
               slug: "acme-labs",
             },
+            workspace: {
+              id: "workspace_1",
+              organizationId: "org_1",
+              organization: {
+                id: "org_1",
+                name: "Acme Labs",
+                slug: "acme-labs",
+              },
+            },
             agent: {
               id: "agent_1",
               name: "Research Agent",

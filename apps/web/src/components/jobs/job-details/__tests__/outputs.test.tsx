@@ -48,6 +48,7 @@ vi.mock("@/components/jobs/job-details/hash-group-row", () => ({
 }));
 
 vi.mock("@/components/jobs/job-details/refund-request", () => ({
+  canRenderRefundRequest: () => false,
   default: () => <button type="button">refund</button>,
 }));
 

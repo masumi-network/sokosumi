@@ -16,10 +16,6 @@ import type { CoworkerChannel } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 
 import { AgentVerifiedBadge } from "./agent-verified-badge";
-import {
-  DEFAULT_COWORKER_DESCRIPTION,
-  DEFAULT_COWORKER_SUBTITLE,
-} from "./coworker-gallery-defaults";
 
 interface CoworkerGalleryCardProps {
   slug: string;
@@ -74,7 +70,8 @@ function CoworkerGalleryCard({
   className,
   action,
 }: CoworkerGalleryCardProps) {
-  const t = useTranslations("App.Tasks.Detail");
+  const galleryCardT = useTranslations("App.Agents.CoworkerGalleryCard");
+  const taskDetailT = useTranslations("App.Tasks.Detail");
   const [expandedOrigin, setExpandedOrigin] = useState<TaskEventOrigin | null>(
     null,
   );
@@ -93,7 +90,7 @@ function CoworkerGalleryCard({
     COWORKER_FALLBACK_IMAGES[slug] ||
     "/images/logos/sokosumi-logo-white.svg";
   const canUseNextImage = canUseNextImageSrc(imageSrc);
-  const displayDescription = description || DEFAULT_COWORKER_DESCRIPTION;
+  const displayDescription = description || galleryCardT("defaultDescription");
   const coworkerNewTaskHref = `/tasks?create=true&coworker=${encodeURIComponent(slug)}`;
   /** Nested <a> inside Next.js <Link> is invalid HTML; use buttons when the card is link-wrapped. */
   const useAnchorForExternalChannels = Boolean(action);
@@ -112,7 +109,9 @@ function CoworkerGalleryCard({
         <div className="flex flex-wrap gap-1.5">
           {channels.map(({ origin, value }) => {
             const OriginIcon = ORIGIN_ICON_MAP[origin];
-            const label = t(`originApp.${ORIGIN_APP_NAME_KEY_MAP[origin]}`);
+            const label = taskDetailT(
+              `originApp.${ORIGIN_APP_NAME_KEY_MAP[origin]}`,
+            );
             const isExpanded = expandedOrigin === origin;
             const href = getChannelHref({ origin, value });
             const sharedClasses = cn(
@@ -205,7 +204,7 @@ function CoworkerGalleryCard({
       {/* Text overlay with scrim */}
       <div className="absolute inset-x-0 bottom-0 bg-black/70 p-3">
         <p className="text-xs font-medium text-white/70">
-          {caption ?? DEFAULT_COWORKER_SUBTITLE}
+          {caption ?? galleryCardT("defaultSubtitle")}
         </p>
         <h3 className="truncate text-base font-medium text-balance text-white">
           {name}

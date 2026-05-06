@@ -1,21 +1,16 @@
 import type { JobWithSokosumiStatus } from "@sokosumi/database";
-import {
-  agentRepository,
-  jobRepository,
-} from "@sokosumi/database/repositories";
 import { dehydrate } from "@tanstack/react-query";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { cache } from "react";
 
-import type { Session } from "@/lib/auth/auth";
+import { mapCoreJobToJobWithSokosumiStatus } from "@/lib/agents/core-dto-mappers";
 import { getSession } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { getJobQueryKey, getQueryClient } from "@/queries";
 
 interface LoadJobDetailsParams {
   agentId: string;
   jobId: string;
-  redirectTo?: string;
 }
 
 interface LoadJobDetailsResult {
@@ -26,45 +21,31 @@ interface LoadJobDetailsResult {
   readOnly: boolean;
 }
 
-// Cache repository calls to deduplicate queries across parallel routes
-const getCachedAgent = cache(async (agentId: string) => {
-  return agentRepository.getAgentWithRelationsById(agentId, prisma);
-});
-
 const getCachedJob = cache(async (jobId: string) => {
-  return jobRepository.getJobById(jobId, prisma);
-});
+  try {
+    const response = await coreClient.getJobById(jobId);
+    return mapCoreJobToJobWithSokosumiStatus(response.data);
+  } catch (error) {
+    if (error instanceof CoreApiRequestError && error.status === 404) {
+      return null;
+    }
 
-async function canAccessJob(
-  job: JobWithSokosumiStatus,
-  session: Session,
-): Promise<boolean> {
-  return job.userId === session.user.id;
-}
+    throw error;
+  }
+});
 
 export async function loadJobDetails({
   agentId,
   jobId,
-  redirectTo,
 }: LoadJobDetailsParams): Promise<LoadJobDetailsResult> {
   const session = await getSession();
   if (!session) {
     notFound();
   }
 
-  const agent = await getCachedAgent(agentId);
-  if (!agent) {
-    notFound();
-  }
-
   const job = await getCachedJob(jobId);
   if (!job || job.agent.id !== agentId) {
     notFound();
-  }
-
-  const hasAccess = await canAccessJob(job, session);
-  if (!hasAccess) {
-    redirect(redirectTo ?? `/agents/${agentId}/jobs`);
   }
 
   const queryClient = getQueryClient();
