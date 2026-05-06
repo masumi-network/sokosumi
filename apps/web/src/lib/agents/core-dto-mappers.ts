@@ -22,6 +22,16 @@ import type { Category } from "@/lib/types/category";
 
 type CoreAgentDto = CoreAgent | CoreAgentDetail;
 
+/** Fields returned by Core for paid jobs; optional until OpenAPI client is regenerated. */
+interface CoreJobChainPayload {
+  blockchainIdentifier?: string | null;
+  payByTime?: Date | string | null;
+  submitResultTime?: Date | string | null;
+  unlockTime?: Date | string | null;
+  externalDisputeUnlockTime?: Date | string | null;
+  sellerVkey?: string | null;
+}
+
 interface MappedAgentReviews {
   ratingDistribution: Record<number, number>;
   ratingsWithComments: UserAgentRatingWithUser[];
@@ -35,6 +45,34 @@ function toDate(value: Date | string | null | undefined): Date {
   }
 
   return value ? new Date(value) : COMPATIBILITY_DATE;
+}
+
+function toDateOrNull(value: Date | string | null | undefined): Date | null {
+  if (value == null) {
+    return null;
+  }
+
+  return value instanceof Date ? value : new Date(value);
+}
+
+function readCoreJobChainFields(job: CoreJobSummary): {
+  blockchainIdentifier: string | null;
+  payByTime: Date | null;
+  submitResultTime: Date | null;
+  unlockTime: Date | null;
+  externalDisputeUnlockTime: Date | null;
+  sellerVkey: string | null;
+} {
+  const payload = job as CoreJobSummary & CoreJobChainPayload;
+
+  return {
+    blockchainIdentifier: payload.blockchainIdentifier ?? null,
+    payByTime: toDateOrNull(payload.payByTime),
+    submitResultTime: toDateOrNull(payload.submitResultTime),
+    unlockTime: toDateOrNull(payload.unlockTime),
+    externalDisputeUnlockTime: toDateOrNull(payload.externalDisputeUnlockTime),
+    sellerVkey: payload.sellerVkey ?? null,
+  };
 }
 
 function isCoreAgentDetail(agent: CoreAgentDto): agent is CoreAgentDetail {
@@ -430,7 +468,8 @@ export function mapCoreJobSummaryToJobWithSokosumiStatus(
   job: CoreJobSummary,
 ): JobWithSokosumiStatus {
   const completedAt = job.completedAt ? toDate(job.completedAt) : null;
-  const externalDisputeUnlockTime = null;
+  const chain = readCoreJobChainFields(job);
+  const { externalDisputeUnlockTime } = chain;
 
   const mappedJob = {
     id: job.id,
@@ -454,12 +493,12 @@ export function mapCoreJobSummaryToJobWithSokosumiStatus(
     inputSchema: null,
     agentJobId: job.id,
     identifierFromPurchaser: null,
-    blockchainIdentifier: null,
-    payByTime: null,
-    submitResultTime: null,
-    unlockTime: null,
+    blockchainIdentifier: chain.blockchainIdentifier,
+    payByTime: chain.payByTime,
+    submitResultTime: chain.submitResultTime,
+    unlockTime: chain.unlockTime,
     externalDisputeUnlockTime,
-    sellerVkey: null,
+    sellerVkey: chain.sellerVkey,
     purchaseId: null,
     transactionId: null,
     refundedTransaction: null,

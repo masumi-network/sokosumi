@@ -74,6 +74,15 @@ export const jobSummarySchema = z
       .openapi({ example: "0x123abc" }),
     result: z.string().nullish().openapi({ example: "Markdown text" }),
     resultHash: z.string().nullish().openapi({ example: "result_hash" }),
+    blockchainIdentifier: z
+      .string()
+      .nullish()
+      .openapi({ example: "0b00e04c0860a60c61066056281180462d0b12" }),
+    payByTime: dateTimeSchema.nullish(),
+    submitResultTime: dateTimeSchema.nullish(),
+    unlockTime: dateTimeSchema.nullish(),
+    externalDisputeUnlockTime: dateTimeSchema.nullish(),
+    sellerVkey: z.string().nullish().openapi({ example: "seller_vkey_hex" }),
   })
   .openapi("JobSummary");
 
@@ -181,6 +190,15 @@ export const jobSchema = z
       .openapi({ example: "0x123abc" }),
     result: z.string().nullish().openapi({ example: "# Result" }),
     resultHash: z.string().nullish().openapi({ example: "result_hash_123" }),
+    blockchainIdentifier: z
+      .string()
+      .nullish()
+      .openapi({ example: "0b00e04c0860a60c61066056281180462d0b12" }),
+    payByTime: dateTimeSchema.nullish(),
+    submitResultTime: dateTimeSchema.nullish(),
+    unlockTime: dateTimeSchema.nullish(),
+    externalDisputeUnlockTime: dateTimeSchema.nullish(),
+    sellerVkey: z.string().nullish().openapi({ example: "seller_vkey_hex" }),
     input: z.string().nullish().openapi({
       example: '{"prompt":"How many planets are in the solar system?"}',
     }),

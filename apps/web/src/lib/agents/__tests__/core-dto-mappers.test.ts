@@ -332,6 +332,66 @@ describe("core dto mappers", () => {
     expect(mappedJob.jobStatusSettled).toBe(false);
   });
 
+  it("maps Masumi chain timestamps from a core job summary when present", () => {
+    const unlock = new Date("2026-05-01T12:00:00.000Z");
+    const submit = new Date("2026-05-01T11:00:00.000Z");
+    const payBy = new Date("2026-05-01T10:00:00.000Z");
+    const disputeUnlock = new Date("2026-05-02T00:00:00.000Z");
+
+    const job = {
+      id: "job-paid-1",
+      createdAt: new Date("2026-04-20T10:00:00.000Z"),
+      updatedAt: new Date("2026-04-21T10:00:00.000Z"),
+      completedAt: new Date("2026-04-21T11:00:00.000Z"),
+      agentId: "agent-1",
+      userId: "user-1",
+      user: {
+        id: "user-1",
+        name: "Ada Lovelace",
+        image: null,
+      },
+      organizationId: "org-1",
+      organization: {
+        id: "org-1",
+        name: "Acme",
+        slug: "acme",
+      },
+      workspace: {
+        id: "workspace-1",
+        organizationId: "org-1",
+        organization: {
+          id: "org-1",
+          name: "Acme",
+          slug: "acme",
+        },
+      },
+      taskId: null,
+      name: "Paid run",
+      jobType: "PAID" as const,
+      status: "completed" as const,
+      credits: 2,
+      onChainStatus: "RESULT_SUBMITTED" as const,
+      onChainTransactionHash: "tx-1",
+      result: "{}",
+      resultHash: "rh",
+      blockchainIdentifier: "bc-id-1",
+      payByTime: payBy,
+      submitResultTime: submit,
+      unlockTime: unlock,
+      externalDisputeUnlockTime: disputeUnlock,
+      sellerVkey: "vkey-1",
+    } as JobSummary;
+
+    const mappedJob = mapCoreJobSummaryToJobWithSokosumiStatus(job);
+
+    expect(mappedJob.blockchainIdentifier).toBe("bc-id-1");
+    expect(mappedJob.payByTime).toEqual(payBy);
+    expect(mappedJob.submitResultTime).toEqual(submit);
+    expect(mappedJob.unlockTime).toEqual(unlock);
+    expect(mappedJob.externalDisputeUnlockTime).toEqual(disputeUnlock);
+    expect(mappedJob.sellerVkey).toBe("vkey-1");
+  });
+
   it("maps a core job detail into the current job detail shape", () => {
     const share: JobShare = {
       id: "share-1",
