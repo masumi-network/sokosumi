@@ -559,6 +559,10 @@ export function mapCoreJobToJobWithSokosumiStatus(
     share: options?.share ?? null,
     agent: mapCoreJobAgent(job.agentId, job.agent),
     events: job.events.map(mapCoreJobEvent),
+    // Token-based public share pages are read-only; keep "unsettled" so
+    // downstream UI matches the legacy mapCoreSharedJob contract (no
+    // post-dispute / settled-only affordances for anonymous viewers).
+    ...(options?.share != null ? { jobStatusSettled: false } : {}),
   };
 
   return mappedJob as unknown as JobWithSokosumiStatus;
