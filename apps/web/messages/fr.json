@@ -2437,6 +2437,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "Collègue IA",
+        "defaultDescription": "Un collègue propulsé par l’IA prêt à vous aider."
       }
     }
   },

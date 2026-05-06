@@ -1,9 +1,6 @@
-import { agentRepository } from "@sokosumi/database/repositories";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
-import prisma from "@/lib/db/prisma";
-import { getAgentDescription, getAgentName } from "@/lib/helpers/agent";
+import { getCoreAgentById } from "@/lib/agents/core-loaders";
 
 export async function generateMetadata({
   params,
@@ -11,17 +8,11 @@ export async function generateMetadata({
   params: Promise<{ agentId: string }>;
 }): Promise<Metadata> {
   const { agentId } = await params;
-  const agent = await agentRepository.getAgentWithRelationsById(
-    agentId,
-    prisma,
-  );
-  if (!agent) {
-    notFound();
-  }
+  const agent = await getCoreAgentById(agentId);
 
   return {
-    title: getAgentName(agent),
-    description: getAgentDescription(agent),
+    title: agent?.name ?? agentId,
+    description: agent?.description ?? undefined,
   };
 }
 

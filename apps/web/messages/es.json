@@ -2375,6 +2375,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "AI Coworker",
+        "defaultDescription": "Un AI Coworker listo para ayudarte."
       }
     },
     "Feed": {

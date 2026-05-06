@@ -2437,6 +2437,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "Coworker IA",
+        "defaultDescription": "Un coworker basato sull’IA pronto ad assisterti."
       }
     }
   },

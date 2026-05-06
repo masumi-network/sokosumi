@@ -3,7 +3,6 @@
 import {
   AgentJobStatus,
   type JobEventWithRelations,
-  JobType,
   type JobWithSokosumiStatus,
 } from "@sokosumi/database";
 import { hashResult } from "@sokosumi/masumi";
@@ -19,7 +18,7 @@ import CopyMarkdown from "./copy-markdown";
 import DownloadButton from "./download-button";
 import { HashGroupRow } from "./hash-group-row";
 import MaximizeMarkdown from "./maximize-markdown";
-import RequestRefundButton from "./refund-request";
+import RequestRefundButton, { canRenderRefundRequest } from "./refund-request";
 
 interface JobDetailsOutputsProps {
   job: JobWithSokosumiStatus;
@@ -66,6 +65,7 @@ function JobDetailsOutputsInner({
   const onChainResultHash = job.resultHash ?? null;
   const isCompleted = event.status === AgentJobStatus.COMPLETED;
   const highlightTerm = (searchParams?.get("query") ?? "").trim();
+  const refundJob = !readOnly && canRenderRefundRequest(job) ? job : null;
 
   return (
     <JobDetailsOutputsLayout>
@@ -89,9 +89,7 @@ function JobDetailsOutputsInner({
                     <CopyMarkdown markdown={result} />
                   </div>
                 </div>
-                {!readOnly && job.jobType === JobType.PAID && (
-                  <RequestRefundButton initialJob={job} />
-                )}
+                {refundJob && <RequestRefundButton initialJob={refundJob} />}
               </div>
               <Separator className="my-2" />
               <HashGroupRow
@@ -113,13 +111,11 @@ function JobDetailsOutputsInner({
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
-          {event.status === AgentJobStatus.FAILED &&
-            !readOnly &&
-            job.jobType === JobType.PAID && (
-              <div className="flex justify-end">
-                <RequestRefundButton initialJob={job} />
-              </div>
-            )}
+          {event.status === AgentJobStatus.FAILED && refundJob && (
+            <div className="flex justify-end">
+              <RequestRefundButton initialJob={refundJob} />
+            </div>
+          )}
         </>
       )}
     </JobDetailsOutputsLayout>

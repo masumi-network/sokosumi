@@ -2437,6 +2437,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "AI同僚",
+        "defaultDescription": "あなたを支援する準備ができたAI搭載の同僚です。"
       }
     }
   },

@@ -2375,6 +2375,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "KI-Coworker",
+        "defaultDescription": "Ein KI-gestützter Coworker, der dich unterstützt."
       }
     },
     "Feed": {
