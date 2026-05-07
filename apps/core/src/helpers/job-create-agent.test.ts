@@ -142,6 +142,42 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     );
   });
 
+  it("rejects when maxCredits is zero and agent cost is positive", async () => {
+    getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+
+    await expect(
+      createAgentJobForUser(
+        createInput({
+          agentInput: {
+            agentId: "agent_1",
+            inputData: { prompt: "hello" },
+            inputSchema: createInput().agentInput.inputSchema,
+            maxCredits: 0,
+            name: "Scheduled Job",
+          },
+        }),
+      ),
+    ).rejects.toThrow("Credit cost exceeds maximum accepted credits");
+  });
+
+  it("allows maxCredits zero when agent cost is zero", async () => {
+    getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
+
+    await expect(
+      createAgentJobForUser(
+        createInput({
+          agentInput: {
+            agentId: "agent_1",
+            inputData: { prompt: "hello" },
+            inputSchema: createInput().agentInput.inputSchema,
+            maxCredits: 0,
+            name: "Scheduled Job",
+          },
+        }),
+      ),
+    ).resolves.toBeDefined();
+  });
+
   it("connects scheduled jobs to jobScheduleId via scheduleContext", async () => {
     const expectedInputSchema = JSON.stringify({
       input_data: [

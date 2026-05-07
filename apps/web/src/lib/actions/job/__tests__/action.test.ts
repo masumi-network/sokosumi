@@ -109,6 +109,7 @@ describe("startJob", () => {
       data: {
         name: "Research Agent",
         description: "Researches topics",
+        credits: 0,
       },
     });
     generateJobNameMock.mockResolvedValue(
@@ -168,7 +169,40 @@ describe("startJob", () => {
     });
   });
 
-  it("omits maxCredits when maxAcceptedCents converts to a non-positive value", async () => {
+  it("returns cost too high when maxAcceptedCents is zero but the agent has a positive credits price", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      data: {
+        name: "Research Agent",
+        description: "Researches topics",
+        credits: 2.5,
+      },
+    });
+
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(0),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+      session: {
+        user: { id: "user-1", email: "ada@example.com" },
+        session: { activeOrganizationId: "org-1" },
+      } as never,
+    });
+
+    expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: "Credit cost is too high",
+        code: JobErrorCode.COST_TOO_HIGH,
+      },
+    });
+  });
+
+  it("omits maxCredits when maxAcceptedCents is zero and the agent is free (Core rejects maxCredits: 0)", async () => {
     createAgentJobMock.mockResolvedValue({
       data: {
         id: "job-zero-max",

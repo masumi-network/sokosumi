@@ -47,22 +47,53 @@ function normalizeCoreJobName(name: string | null): string | null {
   return trimmedName.slice(0, CORE_JOB_NAME_MAX_LENGTH);
 }
 
-async function generateJobNameForCoreStart(
+interface CoreJobStartAgentContext {
+  name: string | null;
+  /** Credits price from Core `GET /agents/{id}`; null if the agent could not be loaded. */
+  agentCredits: number | null;
+}
+
+async function resolveCoreJobStartAgentContext(
   agentId: string,
   inputData: CoreJobInputData,
-): Promise<string | null> {
+): Promise<CoreJobStartAgentContext> {
   try {
     const { data: agent } = await coreClient.getAgentById(agentId);
+    const agentCredits = agent.credits;
 
-    const generatedName = await openrouterClient.generateJobName(
-      {
-        name: agent.name,
-        description: agent.description,
-      },
-      inputData,
-    );
+    try {
+      const generatedName = await openrouterClient.generateJobName(
+        {
+          name: agent.name,
+          description: agent.description,
+        },
+        inputData,
+      );
 
-    return normalizeCoreJobName(generatedName);
+      return {
+        name: normalizeCoreJobName(generatedName),
+        agentCredits,
+      };
+    } catch (error) {
+      Sentry.withScope((scope) => {
+        scope.setTag("error_type", "job_name_generation_failed");
+        scope.setContext("job_name_generation", {
+          agentId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        Sentry.captureException(error, {
+          contexts: {
+            error_classification: {
+              severity: "warning",
+              domain: "job_name_generation",
+              category: "action_layer",
+            },
+          },
+        });
+      });
+
+      return { name: null, agentCredits };
+    }
   } catch (error) {
     Sentry.withScope((scope) => {
       scope.setTag("error_type", "job_name_generation_failed");
@@ -81,7 +112,7 @@ async function generateJobNameForCoreStart(
       });
     });
 
-    return null;
+    return { name: null, agentCredits: null };
   }
 }
 
@@ -232,17 +263,26 @@ export const startJob = withSession<
         });
       }
 
-      const generatedName = await generateJobNameForCoreStart(
-        parsed.agentId,
-        coreInputData,
-      );
+      const { name: generatedName, agentCredits } =
+        await resolveCoreJobStartAgentContext(parsed.agentId, coreInputData);
 
       const maxCredits = convertCentsToCredits(parsed.maxAcceptedCents);
+
+      if (
+        parsed.maxAcceptedCents === 0n &&
+        agentCredits != null &&
+        agentCredits > 0
+      ) {
+        return Err({
+          message: "Credit cost is too high",
+          code: JobErrorCode.COST_TOO_HIGH,
+        });
+      }
 
       const job = await coreClient.createAgentJob(parsed.agentId, {
         inputSchema: parsed.inputSchema,
         inputData: coreInputData,
-        ...(maxCredits > 0 ? { maxCredits } : {}),
+        ...(parsed.maxAcceptedCents !== 0n ? { maxCredits } : {}),
         ...(generatedName ? { name: generatedName } : {}),
       });
 
