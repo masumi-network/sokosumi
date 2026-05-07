@@ -321,6 +321,21 @@ async function streamCoworker(
     return body;
   }
 
+  function throwCoworkerResponsesApiError(
+    res: Response,
+    errorText: string,
+    bodyForError: CoworkerResponsesBody,
+  ): never {
+    throw new APICallError({
+      message: `Coworker Responses API error: ${res.status} ${errorText}`,
+      url,
+      requestBodyValues: bodyForError,
+      statusCode: res.status,
+      responseBody: errorText,
+      isRetryable: res.status >= 500,
+    });
+  }
+
   let body = buildCoworkerResponsesBody(responsesInput);
 
   let requestBodyForError: CoworkerResponsesBody = body;
@@ -377,19 +392,14 @@ async function streamCoworker(
         body: JSON.stringify(retryBody),
         signal: options.abortSignal,
       });
+    } else {
+      throwCoworkerResponsesApiError(response, errorText, requestBodyForError);
     }
   }
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "Unknown error");
-    throw new APICallError({
-      message: `Coworker Responses API error: ${response.status} ${errorText}`,
-      url,
-      requestBodyValues: requestBodyForError,
-      statusCode: response.status,
-      responseBody: errorText,
-      isRetryable: response.status >= 500,
-    });
+    throwCoworkerResponsesApiError(response, errorText, requestBodyForError);
   }
 
   if (!response.body) {

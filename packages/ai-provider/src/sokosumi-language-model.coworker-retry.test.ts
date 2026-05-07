@@ -163,6 +163,36 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
     expect(call).toBe(1);
   });
 
+  it("preserves error body on previous_response_id-only failures (no double response.text)", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return new Response("previous_response_not_found", { status: 400 });
+    }) as typeof fetch;
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    await expect(
+      model.doStream({
+        prompt: [
+          {
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+        ],
+        providerOptions: {
+          sokosumi: {
+            mode: "coworker",
+            coworkerBaseUrl: "https://cow.example/api",
+            coworkerSlug: "agent",
+            sokosumiUserId: "user-1",
+            previousResponseId: "resp_stale",
+          },
+        },
+      }),
+    ).rejects.toThrowError(/previous_response_not_found/);
+  });
+
   it("retries without conversation when the API rejects the conversation", async () => {
     const onInvalidProviderConversationId = vi.fn();
     let call = 0;
