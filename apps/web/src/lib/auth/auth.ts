@@ -694,6 +694,10 @@ export const auth = betterAuth({
         getCheckoutSessionParams: async () => ({
           params: {
             billing_address_collection: "required",
+            customer_update: {
+              address: "auto",
+              name: "auto",
+            },
             tax_id_collection: {
               enabled: true,
             },
