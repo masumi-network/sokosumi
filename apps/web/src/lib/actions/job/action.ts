@@ -85,45 +85,43 @@ async function generateJobNameForCoreStart(
   }
 }
 
-function mapCoreStartJobError(error: unknown): ActionError {
-  if (error instanceof CoreApiRequestError) {
-    if (error.status === 401 || error.status === 403) {
-      return {
-        message: "Unauthenticated",
-        code: CommonErrorCode.UNAUTHENTICATED,
-      };
-    }
-
-    if (error.status === 404) {
-      return {
-        message: "Agent not found",
-        code: JobErrorCode.AGENT_NOT_FOUND,
-      };
-    }
-
-    if (error.message.includes("Insufficient balance")) {
-      return {
-        message: "Insufficient balance",
-        code: JobErrorCode.INSUFFICIENT_BALANCE,
-      };
-    }
-
-    if (error.message.includes("maximum accepted")) {
-      return {
-        message: "Credit cost is too high",
-        code: JobErrorCode.COST_TOO_HIGH,
-      };
-    }
-
-    if (error.status === 422) {
-      return {
-        message: error.message,
-        code: JobErrorCode.AGENT_JOB_START_FAILED,
-      };
-    }
+function mapCoreStartJobError(error: CoreApiRequestError): ActionError {
+  if (error.status === 401 || error.status === 403) {
+    return {
+      message: "Unauthenticated",
+      code: CommonErrorCode.UNAUTHENTICATED,
+    };
   }
 
-  return toCoreApiActionError(error);
+  if (error.status === 404) {
+    return {
+      message: "Agent not found",
+      code: JobErrorCode.AGENT_NOT_FOUND,
+    };
+  }
+
+  if (error.message.includes("Insufficient balance")) {
+    return {
+      message: "Insufficient balance",
+      code: JobErrorCode.INSUFFICIENT_BALANCE,
+    };
+  }
+
+  if (error.message.includes("maximum accepted")) {
+    return {
+      message: "Credit cost is too high",
+      code: JobErrorCode.COST_TOO_HIGH,
+    };
+  }
+
+  if (typeof error.status === "number" && error.status >= 500) {
+    return toCoreApiActionError(error);
+  }
+
+  return {
+    message: error.message,
+    code: JobErrorCode.AGENT_JOB_START_FAILED,
+  };
 }
 
 export const startDemoJob = withSession<

@@ -243,6 +243,60 @@ describe("startJob", () => {
       },
     });
   });
+
+  it("maps other client-side core errors to AGENT_JOB_START_FAILED", async () => {
+    createAgentJobMock.mockRejectedValue(
+      new MockCoreApiRequestError("Duplicate job", { status: 400 }),
+    );
+
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(10_000_000_000),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+    });
+
+    expect(toCoreApiActionErrorMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: "Duplicate job",
+        code: JobErrorCode.AGENT_JOB_START_FAILED,
+      },
+    });
+  });
+
+  it("maps core 5xx errors through toCoreApiActionError", async () => {
+    toCoreApiActionErrorMock.mockReturnValue({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Upstream failure",
+    });
+    createAgentJobMock.mockRejectedValue(
+      new MockCoreApiRequestError("Bad gateway", { status: 502 }),
+    );
+
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(10_000_000_000),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+    });
+
+    expect(toCoreApiActionErrorMock).toHaveBeenCalledWith(expect.any(Error));
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: "Upstream failure",
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      },
+    });
+  });
 });
 
 describe("updateJobName", () => {
