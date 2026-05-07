@@ -27,7 +27,7 @@ const response = await openai.responses.create({
   ],
 
   // Conversation linking (pick one state strategy)
-  conversation_id: "conv_...",        // Conversations API strategy
+  conversation: "conv_...",           // Conversations API strategy
   previous_response_id: "resp_...",   // chaining strategy
   // (omit both for stateless input-array strategy)
 
@@ -276,7 +276,7 @@ Complete list of streaming event types from `responses.create({ stream: true })`
 |---|---|---|---|
 | **History ownership** | Client | OpenAI (30-day TTL) | OpenAI (no TTL) |
 | **Storage cost** | Your infra | None extra | None extra |
-| **History on reconnect** | Client must send full history | Pass only latest message | Just pass conversation_id |
+| **History on reconnect** | Client must send full history | Pass only latest message | Just pass conversation |
 | **Item management** | Manual array | None | Full CRUD |
 | **ZDR compatible** | Yes (store=false) | No | No (items persist) |
 | **Compaction** | Manual (standalone endpoint) | Auto or server-side | Auto or server-side |

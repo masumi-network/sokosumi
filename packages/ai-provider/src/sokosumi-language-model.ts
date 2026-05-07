@@ -278,7 +278,8 @@ async function streamCoworker(
   sokosumiOpts: ReturnType<typeof parseSokosumiProviderOptions>,
   options: LanguageModelV3CallOptions,
 ): Promise<LanguageModelV3StreamResult> {
-  const providerConvId = sokosumiOpts.providerConversationId!.trim();
+  const providerConvId = sokosumiOpts.providerConversationId?.trim() ?? null;
+  const previousResponseId = sokosumiOpts.previousResponseId?.trim() ?? null;
 
   const fullResponsesInput = promptToResponsesInput(options.prompt);
   const responsesInput = lastTurnToResponsesInput(options.prompt);
@@ -299,24 +300,28 @@ async function streamCoworker(
   type CoworkerResponsesBody = {
     input: typeof fullResponsesInput;
     stream: boolean;
-    conversation_id?: string;
+    conversation?: string;
+    previous_response_id?: string;
   };
 
   function buildCoworkerResponsesBody(
     input: typeof fullResponsesInput,
-    includeConversationId: boolean,
   ): CoworkerResponsesBody {
     const body: CoworkerResponsesBody = {
       input,
       stream: true,
     };
-    if (includeConversationId) {
-      body.conversation_id = providerConvId;
+    if (providerConvId) {
+      body.conversation = providerConvId;
+      return body;
+    }
+    if (previousResponseId) {
+      body.previous_response_id = previousResponseId;
     }
     return body;
   }
 
-  let body = buildCoworkerResponsesBody(responsesInput, true);
+  let body = buildCoworkerResponsesBody(responsesInput);
 
   let requestBodyForError: CoworkerResponsesBody = body;
 
@@ -347,7 +352,7 @@ async function streamCoworker(
   if (!response.ok) {
     const errorText = await response.text().catch(() => "Unknown error");
     const isInvalidConversationId =
-      Boolean(body.conversation_id) &&
+      Boolean(body.conversation) &&
       (errorText.includes("invalid_conversation") ||
         errorText.includes("conversation not found") ||
         errorText.includes("invalid_conversation_id") ||
@@ -360,7 +365,10 @@ async function streamCoworker(
           await Promise.resolve(notify());
         } catch (_error) {}
       }
-      const retryBody = buildCoworkerResponsesBody(fullResponsesInput, false);
+      const retryBody: CoworkerResponsesBody = {
+        input: fullResponsesInput,
+        stream: true,
+      };
       body = retryBody;
       requestBodyForError = retryBody;
       response = await fetch(url, {

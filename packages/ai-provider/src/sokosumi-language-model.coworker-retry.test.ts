@@ -14,7 +14,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("rejects coworker mode without providerConversationId", async () => {
+  it("rejects coworker mode without providerConversationId or previousResponseId", async () => {
     const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
       openRouterApiKey: "sk-or-test",
     });
@@ -34,13 +34,13 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
     ).rejects.toBeInstanceOf(InvalidPromptError);
   });
 
-  it("sends conversation_id and omits previous_response_id when providerConversationId is set", async () => {
+  it("sends conversation only and omits previous_response_id when both are set", async () => {
     let call = 0;
     globalThis.fetch = vi.fn(async (_url, init) => {
       call++;
       const body = init?.body ? JSON.parse(String(init.body)) : {};
       const headers = (init?.headers ?? {}) as Record<string, string>;
-      expect(body.conversation_id).toBe("conv_abc");
+      expect(body.conversation).toBe("conv_abc");
       expect(body.previous_response_id).toBeUndefined();
       expect(body.input).toEqual([
         {
@@ -100,7 +100,70 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
     expect(call).toBe(1);
   });
 
-  it("retries without conversation_id when the API rejects the conversation", async () => {
+  it("sends previous_response_id without conversation when only previousResponseId is set", async () => {
+    let call = 0;
+    globalThis.fetch = vi.fn(async (_url, init) => {
+      call++;
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      expect(body.conversation).toBeUndefined();
+      expect(body.previous_response_id).toBe("resp_only");
+      expect(body.input).toEqual([
+        {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "Only last" }],
+        },
+      ]);
+      expect(headers["X-Coworker-Slug"]).toBe("agent");
+      expect(headers["X-Sokosumi-User-Id"]).toBe("user-1");
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.close();
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        },
+      );
+    }) as typeof fetch;
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    await model.doStream({
+      prompt: [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Earlier" }],
+        },
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "Old reply" }],
+        },
+        {
+          role: "user",
+          content: [{ type: "text", text: "Only last" }],
+        },
+      ],
+      providerOptions: {
+        sokosumi: {
+          mode: "coworker",
+          coworkerBaseUrl: "https://cow.example/api",
+          coworkerSlug: "agent",
+          sokosumiUserId: "user-1",
+          previousResponseId: "resp_only",
+        },
+      },
+    });
+
+    expect(call).toBe(1);
+  });
+
+  it("retries without conversation when the API rejects the conversation", async () => {
     const onInvalidProviderConversationId = vi.fn();
     let call = 0;
     globalThis.fetch = vi.fn(async (_url, init) => {
@@ -111,11 +174,26 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       expect(headers["X-Sokosumi-User-Id"]).toBe("user-1");
       expect(headers["X-Sokosumi-Organization-Id"]).toBeUndefined();
       if (call === 1) {
-        expect(body.conversation_id).toBe("conv_bad");
+        expect(body.conversation).toBe("conv_bad");
+        expect(body.previous_response_id).toBeUndefined();
+        expect(body.input).toEqual([
+          {
+            type: "message",
+            role: "user",
+            content: [{ type: "input_text", text: "Hello" }],
+          },
+        ]);
         return new Response("invalid_conversation_id", { status: 400 });
       }
-      expect(body.conversation_id).toBeUndefined();
+      expect(body.conversation).toBeUndefined();
       expect(body.previous_response_id).toBeUndefined();
+      expect(body.input).toEqual([
+        {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "Hello" }],
+        },
+      ]);
       return new Response(
         new ReadableStream({
           start(controller) {
@@ -146,6 +224,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           coworkerBaseUrl: "https://cow.example/api",
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
+          previousResponseId: "resp_old",
           providerConversationId: "conv_bad",
           onInvalidProviderConversationId,
         },

@@ -82,11 +82,11 @@ export function parseSokosumiProviderOptions(
           'providerOptions.sokosumi.sokosumiUserId is required when mode is "coworker".',
       });
     }
-    if (!providerConversationId?.trim()) {
+    if (!providerConversationId?.trim() && !previousResponseId?.trim()) {
       throw new InvalidPromptError({
         prompt: raw,
         message:
-          'providerOptions.sokosumi.providerConversationId is required when mode is "coworker".',
+          'providerOptions.sokosumi.providerConversationId or providerOptions.sokosumi.previousResponseId is required when mode is "coworker".',
       });
     }
   }
