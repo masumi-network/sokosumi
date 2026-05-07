@@ -50,7 +50,11 @@ vi.mock("@/middleware/auth-middleware", () => ({
 
 const patchJobMock = vi.fn();
 const requestJobRefundMock = vi.fn();
+const createAgentJobMock = vi.fn();
+const getAgentByIdMock = vi.fn();
+const generateJobNameMock = vi.fn();
 const toCoreApiActionErrorMock = vi.fn();
+const callAgentHiredWebHookMock = vi.fn();
 
 class MockCoreApiRequestError extends Error {
   status?: number;
@@ -65,6 +69,8 @@ class MockCoreApiRequestError extends Error {
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: MockCoreApiRequestError,
   coreClient: {
+    createAgentJob: (...args: unknown[]) => createAgentJobMock(...args),
+    getAgentById: (...args: unknown[]) => getAgentByIdMock(...args),
     patchJob: (...args: unknown[]) => patchJobMock(...args),
     requestJobRefund: (...args: unknown[]) => requestJobRefundMock(...args),
   },
@@ -72,25 +78,141 @@ vi.mock("@/lib/clients/core.client", () => ({
     toCoreApiActionErrorMock(...args),
 }));
 
+vi.mock("@/lib/clients/openrouter.client", () => ({
+  openrouterClient: {
+    generateJobName: (...args: unknown[]) => generateJobNameMock(...args),
+  },
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {},
 }));
 
 vi.mock("@/lib/services", () => ({
-  callAgentHiredWebHook: vi.fn(),
+  callAgentHiredWebHook: (...args: unknown[]) =>
+    callAgentHiredWebHookMock(...args),
   jobService: {
     moveJobToWorkspace: vi.fn(),
     provideJobInput: vi.fn(),
     startDemoJob: vi.fn(),
-    startJob: vi.fn(),
   },
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  userRepository: {
-    getUserById: vi.fn(),
-  },
-}));
+describe("startJob", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    toCoreApiActionErrorMock.mockReturnValue({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to communicate with Core API",
+    });
+    getAgentByIdMock.mockResolvedValue({
+      data: {
+        name: "Research Agent",
+        description: "Researches topics",
+      },
+    });
+    generateJobNameMock.mockResolvedValue(
+      "Generated research title that is intentionally longer than the Core job name limit so it is trimmed safely before create requests are sent",
+    );
+  });
+
+  it("creates an immediate job through the core client with a generated name", async () => {
+    createAgentJobMock.mockResolvedValue({
+      data: {
+        id: "job-1",
+      },
+    });
+
+    const { startJob } = await import("../action");
+    const { revalidatePath } = await import("next/cache");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(10_000_000_000),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+      session: {
+        user: { id: "user-1", email: "ada@example.com" },
+        session: { activeOrganizationId: "org-1" },
+      } as never,
+    });
+
+    expect(createAgentJobMock).toHaveBeenCalledWith("agent-1", {
+      inputSchema: { input_data: [] },
+      inputData: { prompt: "hello" },
+      maxCredits: 1,
+      name: "Generated research title that is intentionally longer than the Core job name limit so it is trimmed safely before create",
+    });
+    expect(getAgentByIdMock).toHaveBeenCalledWith("agent-1");
+    expect(generateJobNameMock).toHaveBeenCalledWith(
+      {
+        name: "Research Agent",
+        description: "Researches topics",
+      },
+      { prompt: "hello" },
+    );
+    expect(callAgentHiredWebHookMock).toHaveBeenCalledWith(
+      "user-1",
+      "ada@example.com",
+    );
+    expect(revalidatePath).toHaveBeenCalledWith(
+      "/agents/agent-1/jobs/job-1",
+      "layout",
+    );
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        jobId: "job-1",
+      },
+    });
+  });
+
+  it("returns bad input before calling core when validation fails", async () => {
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: 500,
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+    } as never);
+
+    expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: "Bad Input",
+        code: CommonErrorCode.BAD_INPUT,
+      },
+    });
+  });
+
+  it("maps insufficient balance core errors to the existing job error code", async () => {
+    createAgentJobMock.mockRejectedValue(
+      new MockCoreApiRequestError("Insufficient balance", { status: 400 }),
+    );
+
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(10_000_000_000),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: "Insufficient balance",
+        code: JobErrorCode.INSUFFICIENT_BALANCE,
+      },
+    });
+  });
+});
 
 describe("updateJobName", () => {
   beforeEach(() => {

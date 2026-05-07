@@ -19,6 +19,8 @@ import type {
   GetTasksData,
   PaginationMetadata,
   PatchJobsByIdData,
+  PostAgentsByIdJobsData,
+  PostAgentsByIdJobsError,
   PostTasksByIdLinksData,
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
@@ -52,6 +54,7 @@ import {
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchJobsById as corePatchJobsById,
   patchTasksById as corePatchTasksById,
+  postAgentsByIdJobs as corePostAgentsByIdJobs,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
   postJobsByIdRefund as corePostJobsByIdRefund,
@@ -491,6 +494,32 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function createAgentJob(
+    id: string,
+    body: NonNullable<PostAgentsByIdJobsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await corePostAgentsByIdJobs({
+          client,
+          path: { id },
+          body,
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error as PostAgentsByIdJobsError,
+            response: result.response,
+          };
+        }
+
+        return result;
+      },
+      "Failed to create agent job",
+    );
+  }
+
   async function getAgentInputSchema(id: string) {
     return executeOperation(
       getClient,
@@ -905,6 +934,7 @@ export function createCoreClient(getClient: GetClient) {
     addConversationMessage,
     archiveConversation,
     createConversation,
+    createAgentJob,
     createMyFileUploadSession,
     createTask,
     createTaskLink,
