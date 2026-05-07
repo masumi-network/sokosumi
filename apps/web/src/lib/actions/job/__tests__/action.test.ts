@@ -168,6 +168,37 @@ describe("startJob", () => {
     });
   });
 
+  it("omits maxCredits when maxAcceptedCents converts to a non-positive value", async () => {
+    createAgentJobMock.mockResolvedValue({
+      data: {
+        id: "job-zero-max",
+      },
+    });
+
+    const { startJob } = await import("../action");
+    await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(0),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+      session: {
+        user: { id: "user-1", email: "ada@example.com" },
+        session: { activeOrganizationId: "org-1" },
+      } as never,
+    });
+
+    expect(createAgentJobMock).toHaveBeenCalledWith("agent-1", {
+      inputSchema: { input_data: [] },
+      inputData: { prompt: "hello" },
+      name: "Generated research title that is intentionally longer than the Core job name limit so it is trimmed safely before create",
+    });
+    expect(createAgentJobMock.mock.calls[0][1]).not.toHaveProperty(
+      "maxCredits",
+    );
+  });
+
   it("returns bad input before calling core when validation fails", async () => {
     const { startJob } = await import("../action");
     const result = await startJob({

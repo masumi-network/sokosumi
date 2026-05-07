@@ -42,4 +42,15 @@ describe("job request schemas", () => {
 
     expect(() => patchJobRequestSchema.parse({ name })).toThrow();
   });
+
+  it("rejects inputData values that mix strings and numbers in one array", () => {
+    expect(() =>
+      createJobRequestSchema.parse({
+        inputSchema: validInputSchema,
+        inputData: {
+          mixed: ["hello", 42],
+        },
+      }),
+    ).toThrow();
+  });
 });

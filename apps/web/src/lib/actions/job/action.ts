@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import { toCoreJobInputData } from "@/lib/actions/job/core-job-input";
 import {
   CoreApiRequestError,
   coreClient,
@@ -39,38 +40,6 @@ type CoreJobInputData = NonNullable<
   PostAgentsByIdJobsData["body"]
 >["inputData"];
 const CORE_JOB_NAME_MAX_LENGTH = 120;
-
-function toCoreJobInputData(
-  inputData: StartJobInputSchemaType["inputData"],
-): CoreJobInputData | null {
-  const entries: [string, CoreJobInputData[string]][] = [];
-
-  for (const [key, value] of Object.entries(inputData)) {
-    if (
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "boolean"
-    ) {
-      entries.push([key, value]);
-      continue;
-    }
-
-    if (
-      Array.isArray(value) &&
-      value.every(
-        (item): item is string | number =>
-          typeof item === "string" || typeof item === "number",
-      )
-    ) {
-      entries.push([key, value]);
-      continue;
-    }
-
-    return null;
-  }
-
-  return Object.fromEntries(entries);
-}
 
 function normalizeCoreJobName(name: string | null): string | null {
   const trimmedName = name?.trim();
@@ -271,10 +240,12 @@ export const startJob = withSession<
         coreInputData,
       );
 
+      const maxCredits = convertCentsToCredits(parsed.maxAcceptedCents);
+
       const job = await coreClient.createAgentJob(parsed.agentId, {
         inputSchema: parsed.inputSchema,
         inputData: coreInputData,
-        maxCredits: convertCentsToCredits(parsed.maxAcceptedCents),
+        ...(maxCredits > 0 ? { maxCredits } : {}),
         ...(generatedName ? { name: generatedName } : {}),
       });
 
