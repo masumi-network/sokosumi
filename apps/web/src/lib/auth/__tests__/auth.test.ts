@@ -358,7 +358,7 @@ describe("web auth config", () => {
     });
   });
 
-  it("requires a billing address for subscription checkout", async () => {
+  it("configures subscription checkout for billing, tax IDs, and customer updates", async () => {
     await import("../auth");
 
     const [[config]] = stripePluginMock.mock.calls as Array<
@@ -368,6 +368,10 @@ describe("web auth config", () => {
             getCheckoutSessionParams: () => Promise<{
               params?: {
                 billing_address_collection?: string;
+                customer_update?: {
+                  address?: string;
+                  name?: string;
+                };
                 tax_id_collection?: {
                   enabled: boolean;
                 };
@@ -383,6 +387,10 @@ describe("web auth config", () => {
     expect(sessionParams).toEqual({
       params: {
         billing_address_collection: "required",
+        customer_update: {
+          address: "auto",
+          name: "auto",
+        },
         tax_id_collection: {
           enabled: true,
         },
