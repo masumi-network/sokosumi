@@ -2,7 +2,7 @@ import * as z from "zod";
 import type { PostAgentsByIdJobsData } from "@/lib/clients/generated/core";
 import type { StartJobInputSchemaType } from "@/lib/schemas";
 
-type CoreJobInputData = NonNullable<
+export type CoreJobInputData = NonNullable<
   PostAgentsByIdJobsData["body"]
 >["inputData"];
 

@@ -7,13 +7,15 @@ import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { toCoreJobInputData } from "@/lib/actions/job/core-job-input";
+import {
+  type CoreJobInputData,
+  toCoreJobInputData,
+} from "@/lib/actions/job/core-job-input";
 import {
   CoreApiRequestError,
   coreClient,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
-import type { PostAgentsByIdJobsData } from "@/lib/clients/generated/core";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
 import {
   type JobDetailsNameFormSchemaType,
@@ -36,9 +38,6 @@ interface StartDemoJobParameters extends AuthenticatedRequest {
   jobStatusResponse: JobStatusResponseSchemaType;
 }
 
-type CoreJobInputData = NonNullable<
-  PostAgentsByIdJobsData["body"]
->["inputData"];
 const CORE_JOB_NAME_MAX_LENGTH = 120;
 
 function normalizeCoreJobName(name: string | null): string | null {
