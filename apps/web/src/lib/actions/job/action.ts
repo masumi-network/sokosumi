@@ -40,6 +40,8 @@ interface StartDemoJobParameters extends AuthenticatedRequest {
 
 const CORE_JOB_NAME_MAX_LENGTH = 120;
 
+const ZERO_ACCEPTED_CENTS = BigInt(0);
+
 function normalizeCoreJobName(name: string | null): string | null {
   const trimmedName = name?.trim();
   if (!trimmedName) return null;
@@ -269,7 +271,7 @@ export const startJob = withSession<
       const maxCredits = convertCentsToCredits(parsed.maxAcceptedCents);
 
       if (
-        parsed.maxAcceptedCents === 0n &&
+        parsed.maxAcceptedCents === ZERO_ACCEPTED_CENTS &&
         agentCredits != null &&
         agentCredits > 0
       ) {
@@ -282,7 +284,9 @@ export const startJob = withSession<
       const job = await coreClient.createAgentJob(parsed.agentId, {
         inputSchema: parsed.inputSchema,
         inputData: coreInputData,
-        ...(parsed.maxAcceptedCents !== 0n ? { maxCredits } : {}),
+        ...(parsed.maxAcceptedCents !== ZERO_ACCEPTED_CENTS
+          ? { maxCredits }
+          : {}),
         ...(generatedName ? { name: generatedName } : {}),
       });
 
