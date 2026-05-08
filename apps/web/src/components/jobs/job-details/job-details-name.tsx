@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
 import {
+  JOB_NAME_MAX_LENGTH,
   type JobDetailsNameFormSchemaType,
   jobDetailsNameFormSchema,
 } from "@/lib/schemas";
@@ -134,6 +135,7 @@ export default function JobDetailsName({
                   <Input
                     placeholder={t("Form.Name.placeholder")}
                     type="text"
+                    maxLength={JOB_NAME_MAX_LENGTH}
                     {...field}
                     value={field.value ?? ""}
                   />

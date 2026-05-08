@@ -16,6 +16,7 @@ const getUsersByIdCreditsMock = vi.fn();
 const getUsersByIdOrganizationsMock = vi.fn();
 const deleteJobsByIdShareMock = vi.fn();
 const deleteTasksByIdShareMock = vi.fn();
+const postAgentsByIdJobsMock = vi.fn();
 const createClientMock = vi.fn();
 const headersMock = vi.fn();
 const mockClient = {
@@ -47,6 +48,7 @@ vi.mock("@/lib/clients/generated/core", () => ({
     postUsersByIdNoticesByNoticeIdAcknowledgeMock,
   getUsersByIdCredits: getUsersByIdCreditsMock,
   getUsersByIdOrganizations: getUsersByIdOrganizationsMock,
+  postAgentsByIdJobs: postAgentsByIdJobsMock,
   putJobsByIdShare: putJobsByIdShareMock,
   putTasksByIdShare: putTasksByIdShareMock,
 }));
@@ -126,6 +128,64 @@ describe("core.client", () => {
       throw new Error("Expected flat input schema");
     }
     expect(response.data.input_data).toHaveLength(1);
+  });
+
+  it("creates agent jobs through the server transport", async () => {
+    postAgentsByIdJobsMock.mockResolvedValue({
+      data: {
+        data: {
+          id: "job_123",
+          createdAt: new Date("2026-02-19T12:00:00.000Z"),
+          updatedAt: new Date("2026-02-19T12:00:00.000Z"),
+          agentId: "agent_1",
+          userId: "user_1",
+          user: {
+            id: "user_1",
+            name: "Ada Lovelace",
+            image: null,
+          },
+          organizationId: null,
+          organization: null,
+          workspace: {
+            id: "workspace_1",
+            organizationId: null,
+            organization: null,
+          },
+          taskId: null,
+          name: null,
+          jobType: "PAID",
+          status: "started",
+          credits: 5,
+          onChainStatus: null,
+          onChainTransactionHash: null,
+          result: null,
+          resultHash: null,
+        },
+        meta: {
+          requestId: "req_123",
+          timestamp: new Date("2026-02-19T12:00:00.000Z"),
+        },
+      },
+      response: new Response("{}", { status: 201 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.createAgentJob("agent_1", {
+      inputSchema: { input_data: [] },
+      inputData: { prompt: "hello" },
+      maxCredits: 5,
+    });
+
+    expect(postAgentsByIdJobsMock).toHaveBeenCalledWith({
+      body: {
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+        maxCredits: 5,
+      },
+      client: mockClient,
+      path: { id: "agent_1" },
+    });
+    expect(response.data.id).toBe("job_123");
   });
 
   it("raises CoreApiRequestError for agent input schema failures", async () => {

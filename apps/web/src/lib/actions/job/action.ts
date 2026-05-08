@@ -2,18 +2,23 @@
 
 import * as Sentry from "@sentry/nextjs";
 import type { PaidJobWithStatus } from "@sokosumi/database";
-import { userRepository } from "@sokosumi/database/repositories";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import {
+  type CoreJobInputData,
+  toCoreJobInputData,
+} from "@/lib/actions/job/core-job-input";
+import {
   CoreApiRequestError,
   coreClient,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
-import prisma from "@/lib/db/prisma";
+import { openrouterClient } from "@/lib/clients/openrouter.client";
 import {
+  JOB_NAME_MAX_LENGTH,
   type JobDetailsNameFormSchemaType,
   type JobStatusResponseSchemaType,
   jobDetailsNameFormSchema,
@@ -32,6 +37,188 @@ import {
 interface StartDemoJobParameters extends AuthenticatedRequest {
   input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">;
   jobStatusResponse: JobStatusResponseSchemaType;
+}
+
+const ZERO_ACCEPTED_CENTS = BigInt(0);
+
+function normalizeCoreJobName(name: string | null): string | null {
+  const trimmedName = name?.trim();
+  if (!trimmedName) return null;
+
+  return trimmedName.slice(0, JOB_NAME_MAX_LENGTH);
+}
+
+async function resolveAvailableCredits(): Promise<number | null> {
+  try {
+    const credits = await coreClient.getMyCredits();
+    const subscriptionRemaining =
+      credits.data?.subscription?.credits?.remaining ?? null;
+    const extraRemaining = credits.data?.extra?.credits?.remaining ?? null;
+
+    if (subscriptionRemaining == null && extraRemaining == null) return null;
+
+    return (subscriptionRemaining ?? 0) + (extraRemaining ?? 0);
+  } catch (error) {
+    Sentry.withScope((scope) => {
+      scope.setTag("error_type", "credit_balance_check_failed");
+      scope.setContext("credit_balance_check", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "warning",
+            domain: "job_start",
+            category: "credit_balance_preflight",
+          },
+        },
+      });
+    });
+
+    return null;
+  }
+}
+
+/**
+ * Loads agent metadata from Core for job start. Sentry tagging here must only
+ * reflect `GET /agents/{id}` failures — keep name-generation reporting separate.
+ */
+async function fetchAgentRowForCoreJobStart(agentId: string): Promise<{
+  name: string;
+  description: string;
+  credits: number;
+} | null> {
+  try {
+    const { data: agent } = await coreClient.getAgentById(agentId);
+    if (agent == null) {
+      Sentry.withScope((scope) => {
+        scope.setTag("error_type", "job_start_agent_fetch_failed");
+        scope.setContext("job_start_agent_fetch", {
+          agentId,
+          error: "empty_agent_response",
+        });
+        Sentry.captureMessage(
+          "Job start agent fetch returned no agent payload",
+          {
+            level: "warning",
+            contexts: {
+              error_classification: {
+                severity: "warning",
+                domain: "job_start",
+                category: "core_api",
+              },
+            },
+          },
+        );
+      });
+      return null;
+    }
+
+    return {
+      name: agent.name,
+      description: agent.description,
+      credits: agent.credits,
+    };
+  } catch (error) {
+    Sentry.withScope((scope) => {
+      scope.setTag("error_type", "job_start_agent_fetch_failed");
+      scope.setContext("job_start_agent_fetch", {
+        agentId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "warning",
+            domain: "job_start",
+            category: "core_api",
+          },
+        },
+      });
+    });
+
+    return null;
+  }
+}
+
+/**
+ * OpenRouter name generation — call only after agent fetch and credit
+ * preflights succeed so rejected starts do not incur LLM latency or cost.
+ */
+async function generateCoreJobNameForJobStart(
+  agentId: string,
+  agent: { name: string; description: string },
+  inputData: CoreJobInputData,
+): Promise<string | null> {
+  try {
+    const generatedName = await openrouterClient.generateJobName(
+      {
+        name: agent.name,
+        description: agent.description,
+      },
+      inputData,
+    );
+
+    return normalizeCoreJobName(generatedName);
+  } catch (error) {
+    Sentry.withScope((scope) => {
+      scope.setTag("error_type", "job_name_generation_failed");
+      scope.setContext("job_name_generation", {
+        agentId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "warning",
+            domain: "job_name_generation",
+            category: "action_layer",
+          },
+        },
+      });
+    });
+
+    return null;
+  }
+}
+
+function mapCoreStartJobError(error: CoreApiRequestError): ActionError {
+  if (error.status === 401 || error.status === 403) {
+    return {
+      message: "Unauthenticated",
+      code: CommonErrorCode.UNAUTHENTICATED,
+    };
+  }
+
+  if (error.status === 404) {
+    return {
+      message: "Agent not found",
+      code: JobErrorCode.AGENT_NOT_FOUND,
+    };
+  }
+
+  if (error.message.includes("Insufficient balance")) {
+    return {
+      message: "Insufficient balance",
+      code: JobErrorCode.INSUFFICIENT_BALANCE,
+    };
+  }
+
+  if (error.message.includes("maximum accepted")) {
+    return {
+      message: "Credit cost is too high",
+      code: JobErrorCode.COST_TOO_HIGH,
+    };
+  }
+
+  if (typeof error.status === "number" && error.status >= 500) {
+    return toCoreApiActionError(error);
+  }
+
+  return {
+    message: error.message,
+    code: JobErrorCode.AGENT_JOB_START_FAILED,
+  };
 }
 
 export const startDemoJob = withSession<
@@ -80,14 +267,6 @@ export const startJob = withSession<
         organizationId,
       };
 
-      const user = await userRepository.getUserById(userId, prisma);
-      if (!user) {
-        return Err({
-          message: "Unauthenticated",
-          code: CommonErrorCode.UNAUTHENTICATED,
-        });
-      }
-
       // Set user context for Sentry
       Sentry.setUser({
         id: userId,
@@ -132,8 +311,86 @@ export const startJob = withSession<
         });
       }
       const parsed = parsedResult.data;
+      const coreInputData = toCoreJobInputData(parsed.inputData);
+      if (!coreInputData) {
+        scope.setTag("error_type", "validation_error");
+        scope.setContext("validation_error", {
+          reason: "unsupported_core_input_data",
+        });
 
-      const job = await jobService.startJob(parsed);
+        Sentry.captureMessage(
+          "Job start input data is not core-compatible",
+          "warning",
+        );
+
+        return Err({
+          message: "Bad Input",
+          code: CommonErrorCode.BAD_INPUT,
+        });
+      }
+
+      const agentRow = await fetchAgentRowForCoreJobStart(parsed.agentId);
+      const agentCredits = agentRow == null ? null : agentRow.credits;
+
+      const maxCredits = convertCentsToCredits(parsed.maxAcceptedCents);
+
+      if (parsed.maxAcceptedCents === ZERO_ACCEPTED_CENTS) {
+        if (agentCredits == null) {
+          return Err({
+            message: "Credit cost is too high",
+            code: JobErrorCode.COST_TOO_HIGH,
+          });
+        }
+
+        if (agentCredits > 0) {
+          return Err({
+            message: "Credit cost is too high",
+            code: JobErrorCode.COST_TOO_HIGH,
+          });
+        }
+      }
+
+      // Core currently starts the external job before its own balance validation.
+      // Preflight locally to avoid launching upstream work for guaranteed
+      // insufficient-balance requests.
+      if (agentCredits != null && agentCredits > 0) {
+        const availableCredits = await resolveAvailableCredits();
+
+        if (availableCredits == null) {
+          return Err({
+            message: "Failed to verify credit balance",
+            code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+          });
+        }
+
+        if (availableCredits < agentCredits) {
+          return Err({
+            message: "Insufficient balance",
+            code: JobErrorCode.INSUFFICIENT_BALANCE,
+          });
+        }
+      }
+
+      const generatedName =
+        agentRow == null
+          ? null
+          : await generateCoreJobNameForJobStart(
+              parsed.agentId,
+              {
+                name: agentRow.name,
+                description: agentRow.description,
+              },
+              coreInputData,
+            );
+
+      const job = await coreClient.createAgentJob(parsed.agentId, {
+        inputSchema: parsed.inputSchema,
+        inputData: coreInputData,
+        ...(parsed.maxAcceptedCents !== ZERO_ACCEPTED_CENTS
+          ? { maxCredits }
+          : {}),
+        ...(generatedName ? { name: generatedName } : {}),
+      });
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({
@@ -141,19 +398,43 @@ export const startJob = withSession<
         message: "Job started successfully",
         level: "info",
         data: {
-          jobId: job.id,
+          jobId: job.data.id,
           agentId: input.agentId,
         },
       });
 
       // call after agent hired webhook
-      callAgentHiredWebHook(userId, user.email);
-      revalidatePath(`/agents/${input.agentId}/jobs/${job.id}`, "layout");
-      return Ok({ jobId: job.id });
+      void callAgentHiredWebHook(userId, session.user.email);
+      revalidatePath(`/agents/${input.agentId}/jobs/${job.data.id}`, "layout");
+      return Ok({ jobId: job.data.id });
     } catch (error) {
       scope.setTag("error_type", "job_start_error");
 
-      if (isJobError(error)) {
+      if (error instanceof CoreApiRequestError) {
+        const actionError = mapCoreStartJobError(error);
+        scope.setTag("error_code", actionError.code);
+        scope.setContext("error_details", {
+          originalMessage: error.message,
+          mappedErrorCode: actionError.code,
+          status: error.status,
+          details: error.details,
+          stack: error.stack,
+        });
+        Sentry.captureException(error, {
+          contexts: {
+            error_classification: {
+              severity:
+                actionError.code === JobErrorCode.INSUFFICIENT_BALANCE ||
+                actionError.code === JobErrorCode.COST_TOO_HIGH
+                  ? "warning"
+                  : "error",
+              domain: "job_start",
+              category: "core_api",
+            },
+          },
+        });
+        return Err(actionError);
+      } else if (isJobError(error)) {
         // Type-safe error handling using error.code
         let sentryLevel: "warning" | "error" | "fatal" = "error";
         switch (error.code) {

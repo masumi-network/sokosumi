@@ -292,7 +292,7 @@
               "Name": {
                 "invalid": "Le nom doit être une chaîne valide",
                 "min": "Le nom doit contenir au moins 2 caractères",
-                "max": "Le nom doit contenir au maximum 80 caractères"
+                "max": "Le nom doit contenir au maximum 120 caractères"
               }
             },
             "Form": {

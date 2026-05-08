@@ -54,6 +54,18 @@ const jobSummarySchemaResponseTransformer = (data: any) => {
     if (data.completedAt) {
         data.completedAt = new Date(data.completedAt);
     }
+    if (data.payByTime) {
+        data.payByTime = new Date(data.payByTime);
+    }
+    if (data.submitResultTime) {
+        data.submitResultTime = new Date(data.submitResultTime);
+    }
+    if (data.unlockTime) {
+        data.unlockTime = new Date(data.unlockTime);
+    }
+    if (data.externalDisputeUnlockTime) {
+        data.externalDisputeUnlockTime = new Date(data.externalDisputeUnlockTime);
+    }
     return data;
 };
 
@@ -398,6 +410,18 @@ const jobSchemaResponseTransformer = (data: any) => {
     data.updatedAt = new Date(data.updatedAt);
     if (data.completedAt) {
         data.completedAt = new Date(data.completedAt);
+    }
+    if (data.payByTime) {
+        data.payByTime = new Date(data.payByTime);
+    }
+    if (data.submitResultTime) {
+        data.submitResultTime = new Date(data.submitResultTime);
+    }
+    if (data.unlockTime) {
+        data.unlockTime = new Date(data.unlockTime);
+    }
+    if (data.externalDisputeUnlockTime) {
+        data.externalDisputeUnlockTime = new Date(data.externalDisputeUnlockTime);
     }
     data.events = data.events.map((item: any) => {
         item.createdAt = new Date(item.createdAt);

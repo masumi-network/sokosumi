@@ -275,6 +275,12 @@ export type JobSummary = {
     onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
+    blockchainIdentifier?: string | null;
+    payByTime?: Date | null;
+    submitResultTime?: Date | null;
+    unlockTime?: Date | null;
+    externalDisputeUnlockTime?: Date | null;
+    sellerVkey?: string | null;
 };
 
 export type UserSummary = {
@@ -705,6 +711,12 @@ export type Job = {
     onChainTransactionHash?: string | null;
     result?: string | null;
     resultHash?: string | null;
+    blockchainIdentifier?: string | null;
+    payByTime?: Date | null;
+    submitResultTime?: Date | null;
+    unlockTime?: Date | null;
+    externalDisputeUnlockTime?: Date | null;
+    sellerVkey?: string | null;
     input?: string | null;
     inputHash?: string | null;
     inputSchema?: string | null;
