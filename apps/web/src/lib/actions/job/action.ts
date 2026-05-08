@@ -18,6 +18,7 @@ import {
 } from "@/lib/clients/core.client";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
 import {
+  JOB_NAME_MAX_LENGTH,
   type JobDetailsNameFormSchemaType,
   type JobStatusResponseSchemaType,
   jobDetailsNameFormSchema,
@@ -38,15 +39,13 @@ interface StartDemoJobParameters extends AuthenticatedRequest {
   jobStatusResponse: JobStatusResponseSchemaType;
 }
 
-const CORE_JOB_NAME_MAX_LENGTH = 120;
-
 const ZERO_ACCEPTED_CENTS = BigInt(0);
 
 function normalizeCoreJobName(name: string | null): string | null {
   const trimmedName = name?.trim();
   if (!trimmedName) return null;
 
-  return trimmedName.slice(0, CORE_JOB_NAME_MAX_LENGTH);
+  return trimmedName.slice(0, JOB_NAME_MAX_LENGTH);
 }
 
 interface CoreJobStartAgentContext {

@@ -292,7 +292,7 @@
               "Name": {
                 "invalid": "O nome deve ser uma string válida",
                 "min": "O nome deve ter pelo menos 2 caracteres",
-                "max": "O nome deve ter no máximo 80 caracteres"
+                "max": "O nome deve ter no máximo 120 caracteres"
               }
             },
             "Form": {
