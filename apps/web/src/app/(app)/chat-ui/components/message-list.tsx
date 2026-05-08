@@ -125,18 +125,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       }
     }, []);
 
-    const messagesWithTimestamps = messages.map((message) => {
-      if ("createdAt" in message && message.createdAt) {
-        return message;
-      }
-      return {
-        ...message,
-        createdAt: new Date(),
-      };
-    });
-
-    const lastMessage =
-      messagesWithTimestamps[messagesWithTimestamps.length - 1];
+    const lastMessage = messages[messages.length - 1];
     const lastMessageContent =
       lastMessage && lastMessage.role === "assistant"
         ? extractMessageContent(lastMessage)
@@ -170,7 +159,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       showLoadingArea && !showReasoningLoaders && !showPendingError;
     const loadingIndicatorLabel = undefined;
 
-    const sections = groupMessagesIntoSection(messagesWithTimestamps);
+    const sections = groupMessagesIntoSection(messages);
 
     const selectedChat = chats.find((c) => c.id === selectedChatId);
     const coworkerId =
@@ -188,8 +177,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const modelId = selectedChat?.model?.id;
 
     const lastUserMessage = (() => {
-      for (let i = messagesWithTimestamps.length - 1; i >= 0; i--) {
-        const msg = messagesWithTimestamps[i];
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
         if ((msg.role as string) === "user") {
           return msg;
         }
@@ -270,7 +259,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       }
       let previousCreatedAt: Date | undefined;
       if (index > 0) {
-        const prevMessage = messagesWithTimestamps[index - 1];
+        const prevMessage = messages[index - 1];
         if ("createdAt" in prevMessage) {
           const createdAtValue = prevMessage.createdAt;
           if (createdAtValue instanceof Date) {
@@ -289,7 +278,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           isDifferentDay(currentCreatedAt, previousCreatedAt));
       const content = extractMessageContent(message);
       const fileParts = getMessageFileParts(message);
-      const isLastMessage = index === messagesWithTimestamps.length - 1;
+      const isLastMessage = index === messages.length - 1;
       const reasoningFromParts =
         role === "assistant" ? extractReasoningStepMessages(message) : [];
       const showStreamOnlyThoughtBar =
