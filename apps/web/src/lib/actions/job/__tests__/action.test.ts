@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 
+const sentrySetTagMock = vi.fn();
+const sentrySetContextMock = vi.fn();
+
 vi.mock("@/lib/actions", () => ({
   CommonErrorCode,
 }));
@@ -22,8 +25,8 @@ vi.mock("@sentry/nextjs", () => ({
     }) => Promise<unknown> | unknown,
   ) =>
     await callback({
-      setTag: vi.fn(),
-      setContext: vi.fn(),
+      setTag: sentrySetTagMock,
+      setContext: sentrySetContextMock,
     }),
 }));
 
@@ -231,6 +234,16 @@ describe("startJob", () => {
     });
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(sentrySetTagMock).toHaveBeenCalledWith(
+      "error_type",
+      "job_start_agent_fetch_failed",
+    );
+    expect(sentrySetContextMock).toHaveBeenCalledWith(
+      "job_start_agent_fetch",
+      expect.objectContaining({
+        agentId: "agent-1",
+      }),
+    );
     expect(result).toEqual({
       ok: false,
       error: {

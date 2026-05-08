@@ -86,47 +86,92 @@ async function resolveAvailableCredits(): Promise<number | null> {
   }
 }
 
+/**
+ * Loads agent metadata from Core for job start. Sentry tagging here must only
+ * reflect `GET /agents/{id}` failures — keep name-generation reporting separate.
+ */
+async function fetchAgentRowForCoreJobStart(agentId: string): Promise<{
+  name: string;
+  description: string;
+  credits: number;
+} | null> {
+  try {
+    const { data: agent } = await coreClient.getAgentById(agentId);
+    if (agent == null) {
+      Sentry.withScope((scope) => {
+        scope.setTag("error_type", "job_start_agent_fetch_failed");
+        scope.setContext("job_start_agent_fetch", {
+          agentId,
+          error: "empty_agent_response",
+        });
+        Sentry.captureMessage(
+          "Job start agent fetch returned no agent payload",
+          {
+            level: "warning",
+            contexts: {
+              error_classification: {
+                severity: "warning",
+                domain: "job_start",
+                category: "core_api",
+              },
+            },
+          },
+        );
+      });
+      return null;
+    }
+
+    return {
+      name: agent.name,
+      description: agent.description,
+      credits: agent.credits,
+    };
+  } catch (error) {
+    Sentry.withScope((scope) => {
+      scope.setTag("error_type", "job_start_agent_fetch_failed");
+      scope.setContext("job_start_agent_fetch", {
+        agentId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "warning",
+            domain: "job_start",
+            category: "core_api",
+          },
+        },
+      });
+    });
+
+    return null;
+  }
+}
+
 async function resolveCoreJobStartAgentContext(
   agentId: string,
   inputData: CoreJobInputData,
 ): Promise<CoreJobStartAgentContext> {
+  const agent = await fetchAgentRowForCoreJobStart(agentId);
+  if (!agent) {
+    return { name: null, agentCredits: null };
+  }
+
+  const agentCredits = agent.credits;
+
   try {
-    const { data: agent } = await coreClient.getAgentById(agentId);
-    const agentCredits = agent.credits;
+    const generatedName = await openrouterClient.generateJobName(
+      {
+        name: agent.name,
+        description: agent.description,
+      },
+      inputData,
+    );
 
-    try {
-      const generatedName = await openrouterClient.generateJobName(
-        {
-          name: agent.name,
-          description: agent.description,
-        },
-        inputData,
-      );
-
-      return {
-        name: normalizeCoreJobName(generatedName),
-        agentCredits,
-      };
-    } catch (error) {
-      Sentry.withScope((scope) => {
-        scope.setTag("error_type", "job_name_generation_failed");
-        scope.setContext("job_name_generation", {
-          agentId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        Sentry.captureException(error, {
-          contexts: {
-            error_classification: {
-              severity: "warning",
-              domain: "job_name_generation",
-              category: "action_layer",
-            },
-          },
-        });
-      });
-
-      return { name: null, agentCredits };
-    }
+    return {
+      name: normalizeCoreJobName(generatedName),
+      agentCredits,
+    };
   } catch (error) {
     Sentry.withScope((scope) => {
       scope.setTag("error_type", "job_name_generation_failed");
@@ -145,7 +190,7 @@ async function resolveCoreJobStartAgentContext(
       });
     });
 
-    return { name: null, agentCredits: null };
+    return { name: null, agentCredits };
   }
 }
 
