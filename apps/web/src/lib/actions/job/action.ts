@@ -58,7 +58,13 @@ interface CoreJobStartAgentContext {
 async function resolveAvailableCredits(): Promise<number | null> {
   try {
     const credits = await coreClient.getMyCredits();
-    return credits.data?.subscription?.credits?.remaining ?? null;
+    const subscriptionRemaining =
+      credits.data?.subscription?.credits?.remaining ?? null;
+    const extraRemaining = credits.data?.extra?.credits?.remaining ?? null;
+
+    if (subscriptionRemaining == null && extraRemaining == null) return null;
+
+    return (subscriptionRemaining ?? 0) + (extraRemaining ?? 0);
   } catch (error) {
     Sentry.withScope((scope) => {
       scope.setTag("error_type", "credit_balance_check_failed");

@@ -354,6 +354,99 @@ describe("startJob", () => {
     });
   });
 
+  it("uses extra credits remaining for preflight when subscription is null", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      data: {
+        name: "Research Agent",
+        description: "Researches topics",
+        credits: 2.5,
+      },
+    });
+    getMyCreditsMock.mockResolvedValue({
+      data: {
+        subscription: null,
+        credits: {
+          subscription: null,
+          buffer: 3,
+          total: 3,
+        },
+        extra: {
+          credits: { total: 3, remaining: 3, used: 0 },
+          buckets: [],
+        },
+      },
+    });
+    createAgentJobMock.mockResolvedValue({
+      data: {
+        id: "job-addon-credits",
+      },
+    });
+
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(10_000_000_000),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+    });
+
+    expect(createAgentJobMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        jobId: "job-addon-credits",
+      },
+    });
+  });
+
+  it("sums subscription and extra remaining credits for preflight", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      data: {
+        name: "Research Agent",
+        description: "Researches topics",
+        credits: 5.5,
+      },
+    });
+    getMyCreditsMock.mockResolvedValue({
+      data: {
+        subscription: {
+          credits: {
+            remaining: 2,
+          },
+        },
+        extra: {
+          credits: { total: 4, remaining: 4, used: 0 },
+          buckets: [],
+        },
+      },
+    });
+    createAgentJobMock.mockResolvedValue({
+      data: {
+        id: "job-summed-credits",
+      },
+    });
+
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(10_000_000_000),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+    });
+
+    expect(createAgentJobMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        jobId: "job-summed-credits",
+      },
+    });
+  });
+
   it("fails closed when credit preflight cannot verify balance for a paid agent", async () => {
     getAgentByIdMock.mockResolvedValue({
       data: {
