@@ -192,7 +192,9 @@ export default function CoworkerModelSelector({
                 onClick={() => handleCoworkerSelect(coworker)}
                 className={cn(
                   "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
-                  selectedCoworker?.id === coworker.id && "bg-accent",
+                  !selectedModel &&
+                    selectedCoworker?.id === coworker.id &&
+                    "bg-accent",
                 )}
               >
                 <CoworkerAvatarWithSkeleton
