@@ -55,6 +55,31 @@ interface CoreJobStartAgentContext {
   agentCredits: number | null;
 }
 
+async function resolveAvailableCredits(): Promise<number | null> {
+  try {
+    const credits = await coreClient.getMyCredits();
+    return credits.data?.subscription?.credits?.remaining ?? null;
+  } catch (error) {
+    Sentry.withScope((scope) => {
+      scope.setTag("error_type", "credit_balance_check_failed");
+      scope.setContext("credit_balance_check", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "warning",
+            domain: "job_start",
+            category: "credit_balance_preflight",
+          },
+        },
+      });
+    });
+
+    return null;
+  }
+}
+
 async function resolveCoreJobStartAgentContext(
   agentId: string,
   inputData: CoreJobInputData,
@@ -270,15 +295,41 @@ export const startJob = withSession<
 
       const maxCredits = convertCentsToCredits(parsed.maxAcceptedCents);
 
-      if (
-        parsed.maxAcceptedCents === ZERO_ACCEPTED_CENTS &&
-        agentCredits != null &&
-        agentCredits > 0
-      ) {
-        return Err({
-          message: "Credit cost is too high",
-          code: JobErrorCode.COST_TOO_HIGH,
-        });
+      if (parsed.maxAcceptedCents === ZERO_ACCEPTED_CENTS) {
+        if (agentCredits == null) {
+          return Err({
+            message: "Credit cost is too high",
+            code: JobErrorCode.COST_TOO_HIGH,
+          });
+        }
+
+        if (agentCredits > 0) {
+          return Err({
+            message: "Credit cost is too high",
+            code: JobErrorCode.COST_TOO_HIGH,
+          });
+        }
+      }
+
+      // Core currently starts the external job before its own balance validation.
+      // Preflight locally to avoid launching upstream work for guaranteed
+      // insufficient-balance requests.
+      if (agentCredits != null && agentCredits > 0) {
+        const availableCredits = await resolveAvailableCredits();
+
+        if (availableCredits == null) {
+          return Err({
+            message: "Failed to verify credit balance",
+            code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+          });
+        }
+
+        if (availableCredits < agentCredits) {
+          return Err({
+            message: "Insufficient balance",
+            code: JobErrorCode.INSUFFICIENT_BALANCE,
+          });
+        }
       }
 
       const job = await coreClient.createAgentJob(parsed.agentId, {

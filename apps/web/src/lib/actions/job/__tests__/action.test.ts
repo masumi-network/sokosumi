@@ -52,6 +52,7 @@ const patchJobMock = vi.fn();
 const requestJobRefundMock = vi.fn();
 const createAgentJobMock = vi.fn();
 const getAgentByIdMock = vi.fn();
+const getMyCreditsMock = vi.fn();
 const generateJobNameMock = vi.fn();
 const toCoreApiActionErrorMock = vi.fn();
 const callAgentHiredWebHookMock = vi.fn();
@@ -71,6 +72,7 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     createAgentJob: (...args: unknown[]) => createAgentJobMock(...args),
     getAgentById: (...args: unknown[]) => getAgentByIdMock(...args),
+    getMyCredits: (...args: unknown[]) => getMyCreditsMock(...args),
     patchJob: (...args: unknown[]) => patchJobMock(...args),
     requestJobRefund: (...args: unknown[]) => requestJobRefundMock(...args),
   },
@@ -110,6 +112,13 @@ describe("startJob", () => {
         name: "Research Agent",
         description: "Researches topics",
         credits: 0,
+      },
+    });
+    getMyCreditsMock.mockResolvedValue({
+      data: {
+        credits: {
+          total: 100,
+        },
       },
     });
     generateJobNameMock.mockResolvedValue(
@@ -177,6 +186,33 @@ describe("startJob", () => {
         credits: 2.5,
       },
     });
+
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(0),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+      session: {
+        user: { id: "user-1", email: "ada@example.com" },
+        session: { activeOrganizationId: "org-1" },
+      } as never,
+    });
+
+    expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: "Credit cost is too high",
+        code: JobErrorCode.COST_TOO_HIGH,
+      },
+    });
+  });
+
+  it("returns cost too high when maxAcceptedCents is zero and agent credits cannot be resolved", async () => {
+    getAgentByIdMock.mockRejectedValue(new Error("Core timeout"));
 
     const { startJob } = await import("../action");
     const result = await startJob({
@@ -274,6 +310,72 @@ describe("startJob", () => {
       error: {
         message: "Insufficient balance",
         code: JobErrorCode.INSUFFICIENT_BALANCE,
+      },
+    });
+  });
+
+  it("returns insufficient balance before createAgentJob when preflight balance is lower than agent credits", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      data: {
+        name: "Research Agent",
+        description: "Researches topics",
+        credits: 2.5,
+      },
+    });
+    getMyCreditsMock.mockResolvedValue({
+      data: {
+        credits: {
+          total: 1.9,
+        },
+      },
+    });
+
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(10_000_000_000),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+    });
+
+    expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: "Insufficient balance",
+        code: JobErrorCode.INSUFFICIENT_BALANCE,
+      },
+    });
+  });
+
+  it("fails closed when credit preflight cannot verify balance for a paid agent", async () => {
+    getAgentByIdMock.mockResolvedValue({
+      data: {
+        name: "Research Agent",
+        description: "Researches topics",
+        credits: 2.5,
+      },
+    });
+    getMyCreditsMock.mockRejectedValue(new Error("Credits API unavailable"));
+
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(10_000_000_000),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+      },
+    });
+
+    expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: "Failed to verify credit balance",
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
       },
     });
   });
