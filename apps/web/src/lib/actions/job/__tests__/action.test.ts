@@ -116,8 +116,10 @@ describe("startJob", () => {
     });
     getMyCreditsMock.mockResolvedValue({
       data: {
-        credits: {
-          total: 100,
+        subscription: {
+          credits: {
+            remaining: 100,
+          },
         },
       },
     });
@@ -324,8 +326,10 @@ describe("startJob", () => {
     });
     getMyCreditsMock.mockResolvedValue({
       data: {
-        credits: {
-          total: 1.9,
+        subscription: {
+          credits: {
+            remaining: 1.9,
+          },
         },
       },
     });
