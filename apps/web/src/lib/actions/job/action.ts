@@ -48,12 +48,6 @@ function normalizeCoreJobName(name: string | null): string | null {
   return trimmedName.slice(0, JOB_NAME_MAX_LENGTH);
 }
 
-interface CoreJobStartAgentContext {
-  name: string | null;
-  /** Credits price from Core `GET /agents/{id}`; null if the agent could not be loaded. */
-  agentCredits: number | null;
-}
-
 async function resolveAvailableCredits(): Promise<number | null> {
   try {
     const credits = await coreClient.getMyCredits();
@@ -147,17 +141,15 @@ async function fetchAgentRowForCoreJobStart(agentId: string): Promise<{
   }
 }
 
-async function resolveCoreJobStartAgentContext(
+/**
+ * OpenRouter name generation — call only after agent fetch and credit
+ * preflights succeed so rejected starts do not incur LLM latency or cost.
+ */
+async function generateCoreJobNameForJobStart(
   agentId: string,
+  agent: { name: string; description: string },
   inputData: CoreJobInputData,
-): Promise<CoreJobStartAgentContext> {
-  const agent = await fetchAgentRowForCoreJobStart(agentId);
-  if (!agent) {
-    return { name: null, agentCredits: null };
-  }
-
-  const agentCredits = agent.credits;
-
+): Promise<string | null> {
   try {
     const generatedName = await openrouterClient.generateJobName(
       {
@@ -167,10 +159,7 @@ async function resolveCoreJobStartAgentContext(
       inputData,
     );
 
-    return {
-      name: normalizeCoreJobName(generatedName),
-      agentCredits,
-    };
+    return normalizeCoreJobName(generatedName);
   } catch (error) {
     Sentry.withScope((scope) => {
       scope.setTag("error_type", "job_name_generation_failed");
@@ -189,7 +178,7 @@ async function resolveCoreJobStartAgentContext(
       });
     });
 
-    return { name: null, agentCredits };
+    return null;
   }
 }
 
@@ -340,8 +329,8 @@ export const startJob = withSession<
         });
       }
 
-      const { name: generatedName, agentCredits } =
-        await resolveCoreJobStartAgentContext(parsed.agentId, coreInputData);
+      const agentRow = await fetchAgentRowForCoreJobStart(parsed.agentId);
+      const agentCredits = agentRow == null ? null : agentRow.credits;
 
       const maxCredits = convertCentsToCredits(parsed.maxAcceptedCents);
 
@@ -381,6 +370,18 @@ export const startJob = withSession<
           });
         }
       }
+
+      const generatedName =
+        agentRow == null
+          ? null
+          : await generateCoreJobNameForJobStart(
+              parsed.agentId,
+              {
+                name: agentRow.name,
+                description: agentRow.description,
+              },
+              coreInputData,
+            );
 
       const job = await coreClient.createAgentJob(parsed.agentId, {
         inputSchema: parsed.inputSchema,

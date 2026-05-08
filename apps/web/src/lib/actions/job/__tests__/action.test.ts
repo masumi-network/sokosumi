@@ -207,6 +207,7 @@ describe("startJob", () => {
     });
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(generateJobNameMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       ok: false,
       error: {
@@ -234,6 +235,7 @@ describe("startJob", () => {
     });
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(generateJobNameMock).not.toHaveBeenCalled();
     expect(sentrySetTagMock).toHaveBeenCalledWith(
       "error_type",
       "job_start_agent_fetch_failed",
@@ -296,6 +298,7 @@ describe("startJob", () => {
     } as never);
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(generateJobNameMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       ok: false,
       error: {
@@ -358,6 +361,7 @@ describe("startJob", () => {
     });
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(generateJobNameMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       ok: false,
       error: {
@@ -481,6 +485,7 @@ describe("startJob", () => {
     });
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
+    expect(generateJobNameMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       ok: false,
       error: {
