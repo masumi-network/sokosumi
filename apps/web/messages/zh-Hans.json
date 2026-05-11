@@ -1812,10 +1812,9 @@
         "credits": "积分",
         "coupon": "优惠券"
       },
-      "billingPortalTitle": "计费门户",
-      "billingPortalDescription": "打开 Stripe 计费门户以管理您的订阅、账单信息和发票。",
+      "billingPortalDescription": "下载您的发票，更改账单地址并管理其他账单信息。",
+      "manageYourBilling": "管理账单",
       "openingBillingPortal": "正在打开...",
-      "billingPortalCta": "打开计费门户",
       "orgAccessRestrictedTitle": "计费访问受限",
       "orgAccessRestrictedDescription": "只有组织所有者和管理员可以查看该组织的计费详情。",
       "orgAccessRestrictedHint": "如需访问，请切换到个人上下文，或联系组织所有者/管理员。",

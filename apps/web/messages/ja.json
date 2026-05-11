@@ -1812,10 +1812,9 @@
         "credits": "クレジット",
         "coupon": "クーポン"
       },
-      "billingPortalTitle": "請求ポータル",
-      "billingPortalDescription": "Stripe の請求ポータルを開いて、サブスクリプション、請求情報、請求書を管理します。",
+      "billingPortalDescription": "請求書をダウンロードし、請求先住所を変更し、その他の請求情報を管理できます。",
+      "manageYourBilling": "請求を管理",
       "openingBillingPortal": "開いています...",
-      "billingPortalCta": "請求ポータルを開く",
       "orgAccessRestrictedTitle": "請求へのアクセスが制限されています",
       "orgAccessRestrictedDescription": "この組織の請求情報を閲覧できるのは、組織のオーナーと管理者のみです。",
       "orgAccessRestrictedHint": "個人コンテキストに切り替えるか、アクセスが必要な場合は組織のオーナー／管理者にお問い合わせください。",

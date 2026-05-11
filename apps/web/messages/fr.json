@@ -1812,10 +1812,9 @@
         "credits": "Crédits",
         "coupon": "Code promo"
       },
-      "billingPortalTitle": "Portail de facturation",
-      "billingPortalDescription": "Ouvrez le portail de facturation Stripe pour gérer vos abonnements, vos informations de facturation et vos factures.",
+      "billingPortalDescription": "Téléchargez vos factures, modifiez vos adresses de facturation et gérez d’autres informations de facturation.",
+      "manageYourBilling": "Gérer votre facturation",
       "openingBillingPortal": "Ouverture...",
-      "billingPortalCta": "Ouvrir le portail de facturation",
       "orgAccessRestrictedTitle": "Accès à la facturation restreint",
       "orgAccessRestrictedDescription": "Seuls les propriétaires et administrateurs de l’organisation peuvent consulter les informations de facturation de cette organisation.",
       "orgAccessRestrictedHint": "Basculez vers un contexte personnel ou contactez un propriétaire/administrateur de l’organisation si vous avez besoin d’un accès.",

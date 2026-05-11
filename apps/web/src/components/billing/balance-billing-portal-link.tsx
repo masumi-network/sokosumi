@@ -1,63 +1,51 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { ChevronRight, Loader2, ReceiptText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions";
 import {
   openOrganizationBillingPortal,
   openPersonalBillingPortal,
 } from "@/lib/actions/subscription";
 
-interface BillingPortalCardProps {
+interface BalanceBillingPortalLinkProps {
   baseReturnPath?: string;
-  ctaLabel: string;
   description: string;
   generalErrorMessage: string;
+  label: string;
   openingLabel: string;
   organizationId?: string | null;
   returnPath: string;
-  title: string;
   unauthenticatedActionLabel: string;
   unauthenticatedErrorMessage: string;
   unauthorizedErrorMessage?: string;
 }
 
-export function BillingPortalCard({
+export function BalanceBillingPortalLink({
   baseReturnPath,
-  ctaLabel,
   description,
   generalErrorMessage,
+  label,
   openingLabel,
   organizationId = null,
   returnPath,
-  title,
   unauthenticatedActionLabel,
   unauthenticatedErrorMessage,
   unauthorizedErrorMessage,
-}: BillingPortalCardProps) {
+}: BalanceBillingPortalLinkProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
 
   function resolveReturnPath(): string {
-    if (!baseReturnPath) {
-      return returnPath;
-    }
+    if (!baseReturnPath) return returnPath;
 
     const searchParams = new URLSearchParams(window.location.search);
     const tab = searchParams.get("tab");
-    if (!tab) {
-      return baseReturnPath;
-    }
+    if (!tab) return baseReturnPath;
 
     const encodedTab = encodeURIComponent(tab);
     return `${baseReturnPath}?tab=${encodedTab}`;
@@ -102,30 +90,32 @@ export function BillingPortalCard({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-1.5">
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
-        <Button
-          variant="outline"
-          className="self-start md:self-center"
-          disabled={isPending}
-          onClick={() => {
-            void handleOpenBillingPortal();
-          }}
-        >
-          {isPending ? (
-            <>
-              <Loader2 className="mr-2 size-4 animate-spin" />
-              {openingLabel}
-            </>
-          ) : (
-            ctaLabel
-          )}
-        </Button>
-      </CardHeader>
-    </Card>
+    <Button
+      type="button"
+      variant="ghost"
+      className="group h-auto w-full justify-start gap-3 rounded-lg p-3 text-left hover:bg-accent/60 has-[>svg]:px-3"
+      disabled={isPending}
+      aria-busy={isPending}
+      onClick={() => {
+        void handleOpenBillingPortal();
+      }}
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        {isPending ? (
+          <Loader2 className="size-5 animate-spin" />
+        ) : (
+          <ReceiptText className="size-5" />
+        )}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="font-semibold text-primary">
+          {isPending ? openingLabel : label}
+        </span>
+        <span className="text-muted-foreground text-sm leading-snug whitespace-normal">
+          {description}
+        </span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+    </Button>
   );
 }
