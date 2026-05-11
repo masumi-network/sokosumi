@@ -1750,10 +1750,9 @@
         "credits": "Credits",
         "coupon": "Gutschein"
       },
-      "billingPortalTitle": "Billing-Portal",
-      "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um deine Abonnements, Zahlungsdetails und Rechnungen zu verwalten.",
+      "billingPortalDescription": "Lade deine Rechnungen herunter, ändere deine Rechnungsadressen und verwalte weitere Rechnungsinformationen.",
+      "manageYourBilling": "Billing verwalten",
       "openingBillingPortal": "Wird geöffnet...",
-      "billingPortalCta": "Billing-Portal öffnen",
       "orgAccessRestrictedTitle": "Billing-Zugang eingeschränkt",
       "orgAccessRestrictedDescription": "Nur Eigentümer und Admins der Organisation können Billing-Details einsehen.",
       "orgAccessRestrictedHint": "Wechsle zu deinem persönlichen Account oder kontaktiere einen Organisations-Admin, wenn du Zugang benötigst.",
