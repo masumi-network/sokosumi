@@ -91,6 +91,9 @@ export function useConversations(): UseConversationsReturn {
   const [error, setError] = useState<ActionError | null>(null);
   const networkErrorToastMessage = t("networkErrorAfterRetry");
   const refreshGenerationRef = useRef(0);
+  const pendingCreatedConversationsRef = useRef(
+    new Map<string, Conversation>(),
+  );
 
   /**
    * Helper to parse serialized Result objects from Next.js server actions
@@ -183,9 +186,21 @@ export function useConversations(): UseConversationsReturn {
       }
 
       const next = result.value || [];
-      setConversations(next);
+      const nextIds = new Set(next.map((conversation) => conversation.id));
+      for (const id of nextIds) {
+        pendingCreatedConversationsRef.current.delete(id);
+      }
+      const pendingCreatedConversations = Array.from(
+        pendingCreatedConversationsRef.current.values(),
+      ).filter((conversation) => !nextIds.has(conversation.id));
+      const mergedConversations =
+        pendingCreatedConversations.length > 0
+          ? [...next, ...pendingCreatedConversations]
+          : next;
+
+      setConversations(mergedConversations);
       setIsLoading(false);
-      return next;
+      return mergedConversations;
     } catch (error) {
       if (generation !== refreshGenerationRef.current) {
         return undefined;
@@ -270,6 +285,10 @@ export function useConversations(): UseConversationsReturn {
         }
 
         const newConversation = result.value;
+        pendingCreatedConversationsRef.current.set(
+          newConversation.id,
+          newConversation,
+        );
         setConversations((prev) => [newConversation, ...prev]);
         setSelectedConversation({ ...newConversation, messages: [] }); // Select new conversation
 
@@ -501,6 +520,7 @@ export function useConversations(): UseConversationsReturn {
       }
 
       // Remove from local state immediately for responsive UI
+      pendingCreatedConversationsRef.current.delete(selectedConversation.id);
       setConversations((prev) =>
         prev.filter((conv) => conv.id !== selectedConversation.id),
       );
@@ -578,6 +598,7 @@ export function useConversations(): UseConversationsReturn {
         }
 
         // Remove from local state immediately for responsive UI
+        pendingCreatedConversationsRef.current.delete(id);
         setConversations((prev) => prev.filter((conv) => conv.id !== id));
 
         // If this was the selected conversation, clear selection
