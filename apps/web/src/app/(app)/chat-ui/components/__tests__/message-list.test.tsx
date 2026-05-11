@@ -27,6 +27,10 @@ vi.mock("@/app/chat/components/chat-message", () => ({
   ),
 }));
 
+vi.mock("@/app/chat/components/day-separator", () => ({
+  default: () => <div data-testid="day-separator" />,
+}));
+
 vi.mock("@/components/chat/chat-model-icon", () => ({
   ChatModelIcon: ({ modelName }: { modelName: string }) => (
     <span>{modelName}</span>
@@ -74,5 +78,50 @@ describe("MessageList", () => {
 
     expect(screen.getByText("reasoning.expandSteps")).toBeInTheDocument();
     expect(screen.queryByText("reasoning.processing")).toBeNull();
+  });
+
+  it("shows a day separator when a dated message follows an undated one on a new calendar day", () => {
+    const messages = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Hi" }],
+        createdAt: new Date("2026-05-10T10:00:00.000Z"),
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "Undated reply" }],
+      },
+      {
+        id: "assistant-2",
+        role: "assistant",
+        parts: [{ type: "text", text: "Next calendar day" }],
+        createdAt: new Date("2026-05-11T10:00:00.000Z"),
+      },
+    ] satisfies UIMessage[];
+    const chats = [
+      {
+        id: "conversation-1",
+        title: "Test",
+        createdAt: new Date("2026-05-10T09:00:00.000Z"),
+        updatedAt: new Date("2026-05-10T09:00:00.000Z"),
+        status: "active",
+        model: { id: "gpt-5", name: "GPT" },
+      },
+    ] satisfies Chat[];
+
+    render(
+      <MessageList
+        chats={chats}
+        isCoworker={false}
+        isLoading={false}
+        messages={messages}
+        selectedChatId="conversation-1"
+        userImageUrl=""
+      />,
+    );
+
+    expect(screen.getAllByTestId("day-separator")).toHaveLength(2);
   });
 });
