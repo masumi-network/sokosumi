@@ -1812,10 +1812,9 @@
         "credits": "Créditos",
         "coupon": "Cupom"
       },
-      "billingPortalTitle": "Portal de cobrança",
-      "billingPortalDescription": "Abra o Portal de Cobrança da Stripe para gerenciar suas assinaturas, dados de cobrança e faturas.",
+      "billingPortalDescription": "Baixe suas faturas, altere seus endereços de cobrança e gerencie outras informações de cobrança.",
+      "manageYourBilling": "Gerenciar cobrança",
       "openingBillingPortal": "Abrindo...",
-      "billingPortalCta": "Abrir portal de cobrança",
       "orgAccessRestrictedTitle": "Acesso à cobrança restrito",
       "orgAccessRestrictedDescription": "Apenas proprietários e admins da organização podem ver os detalhes de cobrança desta organização.",
       "orgAccessRestrictedHint": "Mude para o contexto pessoal ou fale com um proprietário/admin da organização se precisar de acesso.",

@@ -1750,10 +1750,9 @@
         "credits": "Credits",
         "coupon": "Cupón"
       },
-      "billingPortalTitle": "Portal de Billing",
-      "billingPortalDescription": "Abre el portal de Billing de Stripe para gestionar tus suscripciones, datos de pago y facturas.",
+      "billingPortalDescription": "Descarga tus facturas, cambia tus direcciones de facturación y gestiona otra información de facturación.",
+      "manageYourBilling": "Gestionar facturación",
       "openingBillingPortal": "Abriendo...",
-      "billingPortalCta": "Abrir portal de Billing",
       "orgAccessRestrictedTitle": "Acceso a Billing restringido",
       "orgAccessRestrictedDescription": "Solo los propietarios y admins de la organización pueden ver los detalles de Billing.",
       "orgAccessRestrictedHint": "Cambia a tu cuenta personal o contacta a un admin de la organización si necesitas acceso.",

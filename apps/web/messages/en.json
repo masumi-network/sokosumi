@@ -1812,10 +1812,9 @@
         "credits": "Credits",
         "coupon": "Coupon"
       },
-      "billingPortalTitle": "Billing Portal",
-      "billingPortalDescription": "Open Stripe Billing Portal to manage your subscriptions, billing details, and invoices.",
+      "billingPortalDescription": "Download your invoices, change your billing addresses and manage other billing information.",
+      "manageYourBilling": "Manage your billing",
       "openingBillingPortal": "Opening...",
-      "billingPortalCta": "Open billing portal",
       "orgAccessRestrictedTitle": "Billing access restricted",
       "orgAccessRestrictedDescription": "Only organization owners and admins can view billing details for this organization.",
       "orgAccessRestrictedHint": "Switch to a personal context or contact an organization owner/admin if you need access.",

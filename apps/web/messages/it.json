@@ -1812,10 +1812,9 @@
         "credits": "Crediti",
         "coupon": "Coupon"
       },
-      "billingPortalTitle": "Portale di fatturazione",
-      "billingPortalDescription": "Apri il Portale di fatturazione Stripe per gestire i tuoi abbonamenti, i dettagli di fatturazione e le fatture.",
+      "billingPortalDescription": "Scarica le fatture, modifica gli indirizzi di fatturazione e gestisci altre informazioni di fatturazione.",
+      "manageYourBilling": "Gestisci la fatturazione",
       "openingBillingPortal": "Apertura in corso...",
-      "billingPortalCta": "Apri il portale di fatturazione",
       "orgAccessRestrictedTitle": "Accesso alla fatturazione limitato",
       "orgAccessRestrictedDescription": "Solo i proprietari e gli amministratori dell’organizzazione possono visualizzare i dettagli di fatturazione per questa organizzazione.",
       "orgAccessRestrictedHint": "Passa al contesto personale o contatta un proprietario/amministratore dell’organizzazione se ti serve l’accesso.",

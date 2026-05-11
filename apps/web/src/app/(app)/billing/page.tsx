@@ -8,8 +8,8 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import Stripe from "stripe";
 
+import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
 import { BalanceSection } from "@/components/billing/balance-section";
-import { BillingPortalCard } from "@/components/billing/billing-portal-card";
 import { BillingTabs } from "@/components/billing/billing-tabs";
 import CouponSection from "@/components/billing/coupon-section";
 import CreditsSection from "@/components/billing/credits-section";
@@ -170,6 +170,22 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             })}
             stripeCustomerId={activeOrganization.stripeCustomerId}
             stripeCustomerLabel={t("stripeCustomerIdLabel")}
+            billingPortal={
+              activeOrganization.stripeCustomerId ? (
+                <BalanceBillingPortalLink
+                  baseReturnPath="/billing"
+                  description={t("billingPortalDescription")}
+                  generalErrorMessage={t("Errors.general")}
+                  label={t("manageYourBilling")}
+                  openingLabel={t("openingBillingPortal")}
+                  organizationId={activeOrganization.id}
+                  returnPath="/billing"
+                  unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
+                  unauthenticatedErrorMessage={t("Errors.unauthenticated")}
+                  unauthorizedErrorMessage={t("Errors.unauthorized")}
+                />
+              ) : null
+            }
           />
 
           <BillingTabs
@@ -210,22 +226,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               />
             }
           />
-
-          {activeOrganization.stripeCustomerId ? (
-            <BillingPortalCard
-              baseReturnPath="/billing"
-              ctaLabel={t("billingPortalCta")}
-              description={t("billingPortalDescription")}
-              generalErrorMessage={t("Errors.general")}
-              openingLabel={t("openingBillingPortal")}
-              organizationId={activeOrganization.id}
-              returnPath="/billing"
-              title={t("billingPortalTitle")}
-              unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-              unauthenticatedErrorMessage={t("Errors.unauthenticated")}
-              unauthorizedErrorMessage={t("Errors.unauthorized")}
-            />
-          ) : null}
         </div>
       </div>
     );
@@ -280,6 +280,20 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           })}
           stripeCustomerId={user?.stripeCustomerId ?? null}
           stripeCustomerLabel={t("stripeCustomerIdLabel")}
+          billingPortal={
+            user?.stripeCustomerId ? (
+              <BalanceBillingPortalLink
+                baseReturnPath="/billing"
+                description={t("billingPortalDescription")}
+                generalErrorMessage={t("Errors.general")}
+                label={t("manageYourBilling")}
+                openingLabel={t("openingBillingPortal")}
+                returnPath="/billing"
+                unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
+                unauthenticatedErrorMessage={t("Errors.unauthenticated")}
+              />
+            ) : null
+          }
         />
 
         <BillingTabs
@@ -317,20 +331,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             />
           }
         />
-
-        {user?.stripeCustomerId ? (
-          <BillingPortalCard
-            baseReturnPath="/billing"
-            ctaLabel={t("billingPortalCta")}
-            description={t("billingPortalDescription")}
-            generalErrorMessage={t("Errors.general")}
-            openingLabel={t("openingBillingPortal")}
-            returnPath="/billing"
-            title={t("billingPortalTitle")}
-            unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-            unauthenticatedErrorMessage={t("Errors.unauthenticated")}
-          />
-        ) : null}
       </div>
     </div>
   );

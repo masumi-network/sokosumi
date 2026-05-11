@@ -267,19 +267,39 @@ export default function ChatInterface({
   }, [organizationSlug]);
 
   const loadingConversationIdRef = useRef<string | null>(null);
+  const hydratedRouteConversationKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedChatId) return;
     if (isRouteDriven && !isChatPath) return;
-    if (selectedConversation?.id === selectedChatId) {
-      loadingConversationIdRef.current = null;
+    const routeConversationKey =
+      isRouteDriven && isChatPath
+        ? `${pathname ?? ""}:${selectedChatId}`
+        : null;
+    const needsRouteHydration =
+      routeConversationKey !== null &&
+      hydratedRouteConversationKeyRef.current !== routeConversationKey;
+    if (selectedConversation?.id === selectedChatId && !needsRouteHydration) {
       return;
     }
-    if (loadingConversationIdRef.current === selectedChatId) return;
+    if (
+      loadingConversationIdRef.current === selectedChatId &&
+      !needsRouteHydration
+    ) {
+      return;
+    }
+    if (needsRouteHydration) {
+      hydratedRouteConversationKeyRef.current = routeConversationKey;
+    }
     loadingConversationIdRef.current = selectedChatId;
-    void selectConversation(selectedChatId);
+    void selectConversation(selectedChatId).finally(() => {
+      if (loadingConversationIdRef.current === selectedChatId) {
+        loadingConversationIdRef.current = null;
+      }
+    });
   }, [
     isChatPath,
     isRouteDriven,
+    pathname,
     selectedChatId,
     selectedConversation?.id,
     selectConversation,
