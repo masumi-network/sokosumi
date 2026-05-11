@@ -36,12 +36,7 @@ export function BalanceSection({
   return (
     <Card>
       <CardHeader className="grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-y-1.5">
-        <div
-          className={cn(
-            "col-start-1 row-span-1 flex min-w-0 flex-col gap-1",
-            billingPortal ? "sm:row-span-3" : "sm:row-span-2",
-          )}
-        >
+        <div className="col-start-1 row-span-1 flex min-w-0 flex-col gap-1 sm:row-span-2">
           <CardTitle>{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </div>
