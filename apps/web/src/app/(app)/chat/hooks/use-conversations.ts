@@ -192,10 +192,14 @@ export function useConversations(): UseConversationsReturn {
       }
       const pendingCreatedConversations = Array.from(
         pendingCreatedConversationsRef.current.values(),
-      ).filter((conversation) => !nextIds.has(conversation.id));
+      )
+        .filter((conversation) => !nextIds.has(conversation.id))
+        // Map preserves insertion order (oldest pending first); reverse so the
+        // merge matches createNewConversation, which prepends each new chat.
+        .reverse();
       const mergedConversations =
         pendingCreatedConversations.length > 0
-          ? [...next, ...pendingCreatedConversations]
+          ? [...pendingCreatedConversations, ...next]
           : next;
 
       setConversations(mergedConversations);
