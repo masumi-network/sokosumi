@@ -57,6 +57,30 @@ function groupMessagesIntoSection(messages: UIMessage[]): UIMessage[][] {
   return sections;
 }
 
+function getCreatedAtFromUiMessage(message: UIMessage): Date | undefined {
+  if (!("createdAt" in message)) return undefined;
+  const createdAtValue = message.createdAt;
+  if (createdAtValue instanceof Date) return createdAtValue;
+  if (
+    typeof createdAtValue === "string" ||
+    typeof createdAtValue === "number"
+  ) {
+    return new Date(createdAtValue);
+  }
+  return undefined;
+}
+
+function getLastDatedMessageCreatedAtBefore(
+  messages: UIMessage[],
+  index: number,
+): Date | undefined {
+  for (let j = index - 1; j >= 0; j--) {
+    const d = getCreatedAtFromUiMessage(messages[j]);
+    if (d !== undefined) return d;
+  }
+  return undefined;
+}
+
 interface MessageListProps {
   messages: UIMessage[];
   selectedChatId: string | null;
@@ -245,33 +269,11 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
 
     function renderMessage(message: UIMessage, index: number) {
       const role = message.role as "user" | "assistant" | "system";
-      let currentCreatedAt: Date | undefined;
-      if ("createdAt" in message) {
-        const createdAtValue = message.createdAt;
-        if (createdAtValue instanceof Date) {
-          currentCreatedAt = createdAtValue;
-        } else if (
-          typeof createdAtValue === "string" ||
-          typeof createdAtValue === "number"
-        ) {
-          currentCreatedAt = new Date(createdAtValue);
-        }
-      }
-      let previousCreatedAt: Date | undefined;
-      if (index > 0) {
-        const prevMessage = messages[index - 1];
-        if ("createdAt" in prevMessage) {
-          const createdAtValue = prevMessage.createdAt;
-          if (createdAtValue instanceof Date) {
-            previousCreatedAt = createdAtValue;
-          } else if (
-            typeof createdAtValue === "string" ||
-            typeof createdAtValue === "number"
-          ) {
-            previousCreatedAt = new Date(createdAtValue);
-          }
-        }
-      }
+      const currentCreatedAt = getCreatedAtFromUiMessage(message);
+      const previousCreatedAt =
+        index > 0
+          ? getLastDatedMessageCreatedAtBefore(messages, index)
+          : undefined;
       const showDaySeparator =
         index === 0 ||
         (currentCreatedAt &&
@@ -304,18 +306,6 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         : reasoningFromParts.length > 0 && !isLastMessage
           ? null
           : (reasoningEndedAt ?? null);
-      let createdAt: Date | undefined;
-      if ("createdAt" in message) {
-        const createdAtValue = message.createdAt;
-        if (createdAtValue instanceof Date) {
-          createdAt = createdAtValue;
-        } else if (
-          typeof createdAtValue === "string" ||
-          typeof createdAtValue === "number"
-        ) {
-          createdAt = new Date(createdAtValue);
-        }
-      }
       const isStreaming = isLoading && isLastMessage && role === "assistant";
       const hideEmptyAssistantWhileLoading =
         isLastMessage &&
@@ -361,7 +351,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                 fileParts={fileParts}
                 userImageUrl={userImageUrl}
                 userName={userName}
-                createdAt={createdAt}
+                createdAt={currentCreatedAt}
                 coworkerName={coworkerName}
                 coworkerId={coworkerId}
                 coworkerImageUrl={coworkerImageUrl}
