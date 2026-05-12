@@ -52,6 +52,11 @@ import {
   isChatShellPathname,
 } from "@/app/chat-ui/utils/chat-route-base";
 import {
+  hasImageGenerationUiMessage,
+  readActiveUiStreamIdFromMetadata,
+  readConversationImageGenerationFromMetadata,
+} from "@/app/chat-ui/utils/conversation-metadata";
+import {
   extractMessageContent,
   extractReasoningStepMessages,
   hasMessageTextOrFileParts,
@@ -262,19 +267,39 @@ export default function ChatInterface({
   }, [organizationSlug]);
 
   const loadingConversationIdRef = useRef<string | null>(null);
+  const hydratedRouteConversationKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedChatId) return;
     if (isRouteDriven && !isChatPath) return;
-    if (selectedConversation?.id === selectedChatId) {
-      loadingConversationIdRef.current = null;
+    const routeConversationKey =
+      isRouteDriven && isChatPath
+        ? `${pathname ?? ""}:${selectedChatId}`
+        : null;
+    const needsRouteHydration =
+      routeConversationKey !== null &&
+      hydratedRouteConversationKeyRef.current !== routeConversationKey;
+    if (selectedConversation?.id === selectedChatId && !needsRouteHydration) {
       return;
     }
-    if (loadingConversationIdRef.current === selectedChatId) return;
+    if (
+      loadingConversationIdRef.current === selectedChatId &&
+      !needsRouteHydration
+    ) {
+      return;
+    }
+    if (needsRouteHydration) {
+      hydratedRouteConversationKeyRef.current = routeConversationKey;
+    }
     loadingConversationIdRef.current = selectedChatId;
-    void selectConversation(selectedChatId);
+    void selectConversation(selectedChatId).finally(() => {
+      if (loadingConversationIdRef.current === selectedChatId) {
+        loadingConversationIdRef.current = null;
+      }
+    });
   }, [
     isChatPath,
     isRouteDriven,
+    pathname,
     selectedChatId,
     selectedConversation?.id,
     selectConversation,
@@ -715,6 +740,35 @@ export default function ChatInterface({
   const slot1BoundId = slotToConversation.get(1) ?? null;
   const slot2BoundId = slotToConversation.get(2) ?? null;
 
+  const { resumeSlot0, resumeSlot1, resumeSlot2 } = useMemo(() => {
+    function slotResumeFor(boundId: string | null): boolean {
+      if (!boundId) return false;
+      const meta =
+        selectedConversation?.id === boundId
+          ? (selectedConversation.metadata as
+              | Record<string, unknown>
+              | null
+              | undefined)
+          : (conversations.find((c) => c.id === boundId)?.metadata as
+              | Record<string, unknown>
+              | null
+              | undefined);
+      return readActiveUiStreamIdFromMetadata(meta) != null;
+    }
+    return {
+      resumeSlot0: slotResumeFor(slot0BoundId),
+      resumeSlot1: slotResumeFor(slot1BoundId),
+      resumeSlot2: slotResumeFor(slot2BoundId),
+    };
+  }, [
+    slot0BoundId,
+    slot1BoundId,
+    slot2BoundId,
+    conversations,
+    selectedConversation?.id,
+    selectedConversation?.metadata,
+  ]);
+
   const transport0 = useMemo(
     () => makeSlotTransport(0, CHAT_API_PATH),
     [CHAT_API_PATH],
@@ -817,7 +871,7 @@ export default function ChatInterface({
   const chat0 = useChat({
     id: SLOT_PLACEHOLDER_CHAT_IDS[0],
     messages: slot0InitialMessages,
-    resume: Boolean(slot0BoundId),
+    resume: resumeSlot0,
     transport: transport0,
     onData: onDataForSlot(0),
     onError: onErrorForSlot(0),
@@ -826,7 +880,7 @@ export default function ChatInterface({
   const chat1 = useChat({
     id: SLOT_PLACEHOLDER_CHAT_IDS[1],
     messages: slot1InitialMessages,
-    resume: Boolean(slot1BoundId),
+    resume: resumeSlot1,
     transport: transport1,
     onData: onDataForSlot(1),
     onError: onErrorForSlot(1),
@@ -835,7 +889,7 @@ export default function ChatInterface({
   const chat2 = useChat({
     id: SLOT_PLACEHOLDER_CHAT_IDS[2],
     messages: slot2InitialMessages,
-    resume: Boolean(slot2BoundId),
+    resume: resumeSlot2,
     transport: transport2,
     onData: onDataForSlot(2),
     onError: onErrorForSlot(2),
@@ -1315,13 +1369,14 @@ export default function ChatInterface({
   const handleModelSelected = useCallback(
     async (
       model: { id: string; name: string } | null,
+      options?: { imageGeneration?: boolean },
     ): Promise<string | null> => {
       if (!model) {
         setSelectedModel(null);
         selectedModelRef.current = null;
         return null;
       }
-      const conversation = await createModelChat(model);
+      const conversation = await createModelChat(model, options);
       return conversation?.id || null;
     },
     [createModelChat, setSelectedModel],
@@ -1335,6 +1390,29 @@ export default function ChatInterface({
     [createCoworkerChat],
   );
 
+  const selectedConversationImageGeneration = useMemo(() => {
+    if (!selectedChatId) {
+      return false;
+    }
+
+    const selectedMetadata =
+      selectedConversation?.id === selectedChatId
+        ? (selectedConversation.metadata as Record<string, unknown> | null)
+        : ((conversations.find((c) => c.id === selectedChatId)?.metadata ??
+            null) as Record<string, unknown> | null);
+
+    return (
+      readConversationImageGenerationFromMetadata(selectedMetadata) ||
+      hasImageGenerationUiMessage(displayedMessages)
+    );
+  }, [
+    conversations,
+    displayedMessages,
+    selectedChatId,
+    selectedConversation?.id,
+    selectedConversation?.metadata,
+  ]);
+
   const handleSendMessage = useCallback(
     async (
       message: ChatComposeMessage,
@@ -1346,13 +1424,16 @@ export default function ChatInterface({
         return false;
       }
 
+      const imageGenerationForSend =
+        options?.imageGeneration === true ||
+        (selectedChatId != null && selectedConversationImageGeneration);
       const messageText = getSendMessageText(message);
       const sendPayload = withImageGenerationMetadata(
         toChatSendMessage(message),
-        options?.imageGeneration === true,
+        imageGenerationForSend,
       );
       const composeKind = options?.kind ?? "task";
-      const sendOptions = options?.imageGeneration
+      const sendOptions = imageGenerationForSend
         ? { body: { imageGeneration: true } }
         : undefined;
 
@@ -1409,7 +1490,9 @@ export default function ChatInterface({
         if (model || selectedModel) {
           const modelToUse = model || selectedModel;
           if (modelToUse) {
-            conversationId = await handleModelSelected(modelToUse);
+            conversationId = await handleModelSelected(modelToUse, {
+              imageGeneration: imageGenerationForSend,
+            });
           }
         } else {
           const selectedCoworker =
@@ -1466,6 +1549,7 @@ export default function ChatInterface({
       coworkers,
       isLoading,
       selectedChatId,
+      selectedConversationImageGeneration,
       sendInConversation,
       setInput,
       handleCoworkerSelected,
@@ -1651,6 +1735,9 @@ export default function ChatInterface({
                   onSelectModel={handleModelSelected}
                   selectedChatCoworker={selectedChatCoworker}
                   coworkers={coworkers}
+                  persistentImageGeneration={
+                    selectedConversationImageGeneration
+                  }
                 />
               </>
             )}

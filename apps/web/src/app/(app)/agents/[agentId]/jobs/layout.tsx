@@ -1,8 +1,3 @@
-import {
-  agentRatingRepository,
-  agentRepository,
-  jobRepository,
-} from "@sokosumi/database/repositories";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -12,9 +7,13 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
+import {
+  createUnavailableAgentWithCreditsPrice,
+  mapCoreAgentMetricsToRatingStats,
+  mapCoreAgentToAgentWithCreditsPrice,
+} from "@/lib/agents/core-dto-mappers";
+import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
-import { getAgentDescription, getAgentName } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 
 import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
@@ -26,17 +25,11 @@ export async function generateMetadata({
   params,
 }: JobLayoutProps): Promise<Metadata> {
   const { agentId } = await params;
-  const agent = await agentRepository.getAgentWithRelationsById(
-    agentId,
-    prisma,
-  );
-  if (!agent) {
-    notFound();
-  }
+  const agent = await getCoreAgentById(agentId);
 
   return {
-    title: getAgentName(agent),
-    description: getAgentDescription(agent),
+    title: agent?.name ?? agentId,
+    description: agent?.description ?? undefined,
   };
 }
 
@@ -74,35 +67,32 @@ async function JobLayoutInner({
   }
 
   const { agentId } = await params;
-  const agent = await agentRepository.getAgentWithRelationsById(
-    agentId,
-    prisma,
-  );
-  if (!agent) {
-    return notFound();
-  }
+  const coreAgent = await getCoreAgentById(agentId);
 
   const userId = session.user.id;
+  const agentWithCreditsPrice = coreAgent
+    ? mapCoreAgentToAgentWithCreditsPrice(coreAgent)
+    : createUnavailableAgentWithCreditsPrice(agentId);
+  const ratingStats = coreAgent
+    ? mapCoreAgentMetricsToRatingStats(coreAgent)
+    : { totalRatings: 0, averageRating: 0 };
+  const averageExecutionDuration =
+    coreAgent?.metrics.executions.averageTime ?? null;
+  const disabled = !coreAgent;
 
-  const [
-    agentJobs,
-    agentWithCreditsPrice,
-    favoriteAgents,
-    availableAgent,
-    ratingStats,
-    averageExecutionDuration,
-    canRate,
-    existingRating,
-  ] = await Promise.all([
-    getCachedMyJobs(agentId),
-    agentService.getAgentCreditsPrice(agent),
-    agentService.getFavoriteAgents(),
-    agentService.getAvailableAgentById(agentId),
-    agentService.getAgentRatingStats(agentId),
-    jobRepository.getAverageExecutionDurationByAgentId(agentId, prisma),
-    agentService.canUserRateAgent(userId, agentId),
-    agentRatingRepository.getUserRatingForAgent(userId, agentId, prisma),
-  ]);
+  const [agentJobs, favoriteAgents, canRate, existingRating] =
+    await Promise.all([
+      getCachedMyJobs(agentId),
+      // TODO(core-api): replace with a Core favorites API when available.
+      agentService.getFavoriteAgents(),
+      // TODO(core-api): replace with Core user rating read/eligibility APIs.
+      coreAgent
+        ? agentService.canUserRateAgent(userId, agentId)
+        : Promise.resolve(false),
+      coreAgent
+        ? agentService.getUserRatingForAgent(userId, agentId)
+        : Promise.resolve(null),
+    ]);
 
   return (
     <CreateJobModalContextProvider
@@ -116,7 +106,7 @@ async function JobLayoutInner({
           ratingStats,
           canRate,
           existingRating,
-          disabled: !availableAgent,
+          disabled,
         }}
       >
         <div className="flex w-full flex-col">
@@ -143,10 +133,10 @@ async function JobLayoutInner({
           <JobBottomNavigation
             agent={agentWithCreditsPrice}
             favoriteAgents={favoriteAgents}
-            disabled={!availableAgent}
+            disabled={disabled}
           />
           {/* Create Job Modal */}
-          {!!availableAgent && <CreateJobModal />}
+          {!disabled && <CreateJobModal />}
         </div>
       </JobsHeaderProvider>
     </CreateJobModalContextProvider>

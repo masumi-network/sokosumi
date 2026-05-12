@@ -1033,6 +1033,52 @@ export const JobSummarySchema = {
                 'null'
             ],
             example: 'result_hash'
+        },
+        blockchainIdentifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '0b00e04c0860a60c61066056281180462d0b12'
+        },
+        payByTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        submitResultTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        unlockTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        externalDisputeUnlockTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sellerVkey: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'seller_vkey_hex'
         }
     },
     required: [
@@ -2481,6 +2527,52 @@ export const JobSchema = {
                 'null'
             ],
             example: 'result_hash_123'
+        },
+        blockchainIdentifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '0b00e04c0860a60c61066056281180462d0b12'
+        },
+        payByTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        submitResultTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        unlockTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        externalDisputeUnlockTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sellerVkey: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'seller_vkey_hex'
         },
         input: {
             type: [

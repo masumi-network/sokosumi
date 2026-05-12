@@ -31,7 +31,7 @@ export const CHAT_MODELS = [
   },
   {
     id: "gemini-3-flash-preview",
-    name: "Gemini 3 Flash Preview",
+    name: "Gemini 3 Flash",
     iconProvider: "google",
     openRouterId: "google/gemini-3-flash-preview",
     inputModalities: ["text", "image"] as const,

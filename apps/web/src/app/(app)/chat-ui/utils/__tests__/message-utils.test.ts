@@ -208,7 +208,24 @@ describe("extractReasoningStepMessages", () => {
     ]);
   });
 
-  it("strips Thinking... prefix concatenated with real summary", () => {
+  it("shows a placeholder for empty streaming reasoning parts", () => {
+    const message = {
+      id: "streaming",
+      role: "assistant" as const,
+      parts: [
+        {
+          type: "reasoning" as const,
+          text: "",
+          state: "streaming" as const,
+        },
+      ],
+    };
+    expect(extractReasoningStepMessages(message)).toEqual([
+      { id: "streaming-reasoning-0", message: "Thinking..." },
+    ]);
+  });
+
+  it("keeps reasoning text exactly except for trimming", () => {
     const message = {
       id: "m2",
       role: "assistant" as const,
@@ -220,7 +237,33 @@ describe("extractReasoningStepMessages", () => {
       ],
     };
     expect(extractReasoningStepMessages(message)).toEqual([
-      { id: "m2-reasoning-0", message: "I will check the facts first." },
+      {
+        id: "m2-reasoning-0",
+        message: "Thinking...I will check the facts first.",
+      },
+    ]);
+  });
+
+  it("extracts only thought from JSON reasoning parts", () => {
+    const message = {
+      id: "json-thought",
+      role: "assistant" as const,
+      parts: [
+        {
+          type: "reasoning" as const,
+          text: JSON.stringify({
+            action: "dalle.text2im",
+            action_input: JSON.stringify({ prompt: "Cyberpunk city" }),
+            thought: "I will generate the requested cyberpunk city image.",
+          }),
+        },
+      ],
+    };
+    expect(extractReasoningStepMessages(message)).toEqual([
+      {
+        id: "json-thought-reasoning-0",
+        message: "I will generate the requested cyberpunk city image.",
+      },
     ]);
   });
 });

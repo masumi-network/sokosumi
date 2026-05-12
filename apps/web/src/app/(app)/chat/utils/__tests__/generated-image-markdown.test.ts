@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  advanceRevealPastCompletedDataImages,
   clampRevealLengthForMarkdownDataImages,
   parseMarkdownWithDataImageSegments,
 } from "../generated-image-markdown";
@@ -80,6 +81,50 @@ describe("clampRevealLengthForMarkdownDataImages", () => {
 
     expect(clampRevealLengthForMarkdownDataImages(content, desiredLength)).toBe(
       imageStart,
+    );
+  });
+});
+
+describe("advanceRevealPastCompletedDataImages", () => {
+  it("returns the current length when there are no markdown data images", () => {
+    expect(advanceRevealPastCompletedDataImages("Plain text", 5)).toBe(5);
+  });
+
+  it("returns the current length before a later image starts", () => {
+    const content = `Before ${pngImage} after`;
+    const currentLength = content.indexOf("Before") + 3;
+
+    expect(advanceRevealPastCompletedDataImages(content, currentLength)).toBe(
+      currentLength,
+    );
+  });
+
+  it("skips to the end of a complete image when reveal lands inside it", () => {
+    const content = `Before ${pngImage} after`;
+    const currentLength = content.indexOf("abc123") + 2;
+    const imageEnd = content.indexOf(")") + 1;
+
+    expect(advanceRevealPastCompletedDataImages(content, currentLength)).toBe(
+      imageEnd,
+    );
+  });
+
+  it("does not skip an incomplete image that is still streaming", () => {
+    const content = "Before ![Generated image](data:image/png;base64,abc";
+    const currentLength = content.length;
+
+    expect(advanceRevealPastCompletedDataImages(content, currentLength)).toBe(
+      currentLength,
+    );
+  });
+
+  it("skips the second image when reveal lands inside back-to-back images", () => {
+    const content = `${pngImage}${jpegImage} after`;
+    const currentLength = content.lastIndexOf("def456") + 2;
+    const secondImageEnd = content.lastIndexOf(")") + 1;
+
+    expect(advanceRevealPastCompletedDataImages(content, currentLength)).toBe(
+      secondImageEnd,
     );
   });
 });

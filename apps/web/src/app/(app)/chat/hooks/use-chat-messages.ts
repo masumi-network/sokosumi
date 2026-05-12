@@ -20,6 +20,60 @@ interface UseChatMessagesProps {
   streamingConversationIdsRef?: React.MutableRefObject<Set<string>>;
 }
 
+type SerializedConversationMessagesResult =
+  | {
+      ok: true;
+      data: {
+        messages: ConversationMessage[];
+        pagination: {
+          cursor: string | null;
+          limit: number;
+          total: number;
+          nextCursor: string | null;
+        } | null;
+      };
+    }
+  | { ok: false; error: unknown }
+  | { isOk: () => boolean; value?: unknown };
+
+function readMessagesFromResult(
+  rawItemsResult: unknown,
+): ConversationMessage[] | null {
+  const resultAny = rawItemsResult as SerializedConversationMessagesResult;
+
+  if (
+    resultAny &&
+    "ok" in resultAny &&
+    resultAny.ok === true &&
+    "data" in resultAny &&
+    resultAny.data &&
+    typeof resultAny.data === "object" &&
+    "messages" in resultAny.data
+  ) {
+    return resultAny.data.messages;
+  }
+
+  if (
+    resultAny &&
+    "isOk" in resultAny &&
+    typeof resultAny.isOk === "function" &&
+    resultAny.isOk() &&
+    "value" in resultAny
+  ) {
+    const value = resultAny.value as {
+      messages: ConversationMessage[];
+    };
+    return value.messages;
+  }
+
+  return null;
+}
+
+function endsWithUserMessage(messages: ConversationMessage[]): boolean {
+  const last = messages[messages.length - 1];
+  return last?.role === "user";
+}
+
 /**
  * Hook to handle message loading from database, caching, and conversion
  */
@@ -40,9 +94,10 @@ export function useChatMessages({
       if (streamingConversationIdsRef?.current.has(currentSelectedChatId)) {
         return;
       }
-      const hasSyncMessages =
+      const hasLoadedConversationMessages =
         selectedConversation?.id === currentSelectedChatId &&
-        Array.isArray(selectedConversation.messages);
+        Array.isArray(selectedConversation.messages) &&
+        selectedConversation.messages.length > 0;
 
       // Clear any existing retry timeout from previous effect run
       if (retryTimeoutRef.current !== null) {
@@ -50,55 +105,40 @@ export function useChatMessages({
         retryTimeoutRef.current = null;
       }
 
-      if (hasSyncMessages && selectedConversation.messages) {
-        const conversationMessages = selectedConversation.messages;
+      const selectedConversationMessages =
+        hasLoadedConversationMessages && selectedConversation.messages
+          ? selectedConversation.messages
+          : null;
+
+      if (selectedConversationMessages) {
         previousChatIdRef.current = currentSelectedChatId;
-        if (conversationMessages.length > 0) {
-          const dbMessages = convertItemsToMessages(conversationMessages);
-          messagesChatIdRef.current = currentSelectedChatId;
-          setMessagesForConversation(currentSelectedChatId, dbMessages);
-          chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
-        } else {
-          messagesChatIdRef.current = currentSelectedChatId;
-          setMessagesForConversation(currentSelectedChatId, []);
-        }
-        return;
+        const dbMessages = convertItemsToMessages(selectedConversationMessages);
+        messagesChatIdRef.current = currentSelectedChatId;
+        setMessagesForConversation(currentSelectedChatId, dbMessages);
+        chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
+      } else {
+        messagesChatIdRef.current = null;
+        setMessagesForConversation(currentSelectedChatId, []);
+        previousChatIdRef.current = currentSelectedChatId;
       }
 
-      messagesChatIdRef.current = null;
-      setMessagesForConversation(currentSelectedChatId, []);
-      previousChatIdRef.current = currentSelectedChatId;
-
-      const loadMessagesFromDB = async () => {
+      const loadMessagesFromDB = async (
+        options: { forceRefresh?: boolean; retryAttempt?: number } = {},
+      ) => {
+        const { forceRefresh = false, retryAttempt = 0 } = options;
         // Use ref-based check instead of closure values to detect chat changes
         if (
           previousChatIdRef.current !== currentSelectedChatId ||
-          messagesChatIdRef.current !== null
+          (messagesChatIdRef.current !== null && !forceRefresh)
         ) {
           return;
         }
-
-        type SerializedResult =
-          | {
-              ok: true;
-              data: {
-                messages: ConversationMessage[];
-                pagination: {
-                  cursor: string | null;
-                  limit: number;
-                  total: number;
-                  nextCursor: string | null;
-                } | null;
-              };
-            }
-          | { ok: false; error: unknown }
-          | { isOk: () => boolean; value?: unknown };
 
         try {
           const cachedMessages = chatMessagesRef.current.get(
             currentSelectedChatId,
           );
-          if (cachedMessages && cachedMessages.length > 0) {
+          if (!forceRefresh && cachedMessages && cachedMessages.length > 0) {
             messagesChatIdRef.current = currentSelectedChatId;
             setMessagesForConversation(
               currentSelectedChatId,
@@ -111,80 +151,40 @@ export function useChatMessages({
             limit: 100,
           });
 
-          const resultAny = rawItemsResult as SerializedResult;
-          let conversationMessages: ConversationMessage[] | null = null;
-
-          if (
-            resultAny &&
-            "ok" in resultAny &&
-            resultAny.ok === true &&
-            "data" in resultAny &&
-            resultAny.data &&
-            typeof resultAny.data === "object" &&
-            "messages" in resultAny.data
-          ) {
-            conversationMessages = resultAny.data.messages;
-          } else if (
-            resultAny &&
-            "isOk" in resultAny &&
-            typeof resultAny.isOk === "function"
-          ) {
-            if (resultAny.isOk() && "value" in resultAny) {
-              const value = resultAny.value as {
-                messages: ConversationMessage[];
-              };
-              conversationMessages = value.messages;
-            }
-          }
+          const conversationMessages = readMessagesFromResult(rawItemsResult);
 
           if (conversationMessages && conversationMessages.length > 0) {
             const dbMessages = convertItemsToMessages(conversationMessages);
             messagesChatIdRef.current = currentSelectedChatId;
             setMessagesForConversation(currentSelectedChatId, dbMessages);
             chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
-          } else if (!cachedMessages) {
+            if (endsWithUserMessage(conversationMessages) && retryAttempt < 1) {
+              retryTimeoutRef.current = setTimeout(() => {
+                void loadMessagesFromDB({
+                  forceRefresh: true,
+                  retryAttempt: retryAttempt + 1,
+                });
+              }, 1000);
+            }
+          } else if (!cachedMessages || forceRefresh) {
             // Store retry timeout ID in ref so it can be cleared by cleanup
             retryTimeoutRef.current = setTimeout(async () => {
               // Use ref-based check to ensure we're still on the same chat
               if (
                 previousChatIdRef.current === currentSelectedChatId &&
-                messagesChatIdRef.current === null
+                (messagesChatIdRef.current === null || forceRefresh)
               ) {
                 try {
                   const retryResult: unknown = await getConversationMessages({
                     conversationId: currentSelectedChatId,
                     limit: 100,
                   });
-                  const retryResultAny = retryResult as SerializedResult;
-                  let retryItems: ConversationMessage[] | null = null;
-
-                  if (
-                    retryResultAny &&
-                    "ok" in retryResultAny &&
-                    retryResultAny.ok === true &&
-                    "data" in retryResultAny &&
-                    retryResultAny.data &&
-                    typeof retryResultAny.data === "object" &&
-                    "messages" in retryResultAny.data
-                  ) {
-                    retryItems = retryResultAny.data.messages;
-                  } else if (
-                    retryResultAny &&
-                    "isOk" in retryResultAny &&
-                    typeof retryResultAny.isOk === "function"
-                  ) {
-                    if (retryResultAny.isOk() && "value" in retryResultAny) {
-                      const value = retryResultAny.value as {
-                        messages: ConversationMessage[];
-                      };
-                      retryItems = value.messages;
-                    }
-                  }
+                  const retryItems = readMessagesFromResult(retryResult);
 
                   // Double-check refs before updating state
                   if (
                     previousChatIdRef.current === currentSelectedChatId &&
-                    messagesChatIdRef.current === null
+                    (messagesChatIdRef.current === null || forceRefresh)
                   ) {
                     if (retryItems && retryItems.length > 0) {
                       const retryMessages = convertItemsToMessages(retryItems);
@@ -238,7 +238,9 @@ export function useChatMessages({
       };
 
       const timeoutId = setTimeout(() => {
-        void loadMessagesFromDB();
+        void loadMessagesFromDB({
+          forceRefresh: selectedConversationMessages !== null,
+        });
       }, 0);
 
       return () => {

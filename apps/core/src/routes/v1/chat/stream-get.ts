@@ -18,6 +18,11 @@ import {
 } from "@/lib/resumable-ui-stream-context";
 import { requireUserContext } from "@/middleware/auth";
 
+/** `resumable-stream` rejects with this after a fixed ~1s Redis pub/sub handshake timeout. */
+function isResumableStreamAckTimeoutError(error: unknown): boolean {
+  return error instanceof Error && error.message === "Timeout waiting for ack";
+}
+
 const route = createRoute({
   method: "get",
   path: "/stream/{conversationId}",
@@ -82,7 +87,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const ctx = getResumableUiStreamContext();
-    const resumed = await ctx.resumeExistingStream(activeStreamId);
+    let resumed;
+    try {
+      resumed = await ctx.resumeExistingStream(activeStreamId);
+    } catch (error) {
+      if (!isResumableStreamAckTimeoutError(error)) {
+        throw error;
+      }
+      console.warn(
+        "Resumable UI stream resume timed out waiting for Redis ack (likely slow Redis or cross-instance latency)",
+        { conversationId, activeStreamId },
+      );
+      void clearActiveUiStreamIdInMetadata({
+        conversationId,
+        userId: userContext.userId,
+      }).catch((clearError) => {
+        console.error(
+          "Failed to clear active UI stream id after resume ack timeout:",
+          clearError,
+        );
+      });
+      return new Response(null, { status: 204 });
+    }
+
     if (resumed == null) {
       void clearActiveUiStreamIdInMetadata({
         conversationId,

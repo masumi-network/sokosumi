@@ -358,7 +358,7 @@ describe("web auth config", () => {
     });
   });
 
-  it("requires a billing address for subscription checkout", async () => {
+  it("configures subscription checkout for billing, tax IDs, and customer updates", async () => {
     await import("../auth");
 
     const [[config]] = stripePluginMock.mock.calls as Array<
@@ -368,6 +368,10 @@ describe("web auth config", () => {
             getCheckoutSessionParams: () => Promise<{
               params?: {
                 billing_address_collection?: string;
+                customer_update?: {
+                  address?: string;
+                  name?: string;
+                };
                 tax_id_collection?: {
                   enabled: boolean;
                 };
@@ -383,6 +387,10 @@ describe("web auth config", () => {
     expect(sessionParams).toEqual({
       params: {
         billing_address_collection: "required",
+        customer_update: {
+          address: "auto",
+          name: "auto",
+        },
         tax_id_collection: {
           enabled: true,
         },
@@ -1439,5 +1447,83 @@ describe("web auth config", () => {
     expect(
       syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
     ).toHaveBeenCalledWith("org-1");
+  });
+
+  it("rejects direct /subscription/upgrade calls for the enterprise plan", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            before: (ctx: {
+              body?: Record<string, unknown>;
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.hooks.before({
+        body: { plan: "enterprise", customerType: "user" },
+        path: "/subscription/upgrade",
+      }),
+    ).rejects.toMatchObject({
+      code: "SUBSCRIPTION_PLAN_NOT_SELF_SERVE",
+      status: "BAD_REQUEST",
+    });
+  });
+
+  it("rejects /subscription/upgrade for the enterprise plan regardless of casing", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            before: (ctx: {
+              body?: Record<string, unknown>;
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.hooks.before({
+        body: { plan: "Enterprise" },
+        path: "/subscription/upgrade",
+      }),
+    ).rejects.toMatchObject({
+      code: "SUBSCRIPTION_PLAN_NOT_SELF_SERVE",
+      status: "BAD_REQUEST",
+    });
+  });
+
+  it("allows /subscription/upgrade for self-serve plans", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            before: (ctx: {
+              body?: Record<string, unknown>;
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.hooks.before({
+        body: { plan: "pro" },
+        path: "/subscription/upgrade",
+      }),
+    ).resolves.toBeUndefined();
   });
 });

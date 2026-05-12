@@ -15,6 +15,8 @@ import { fileSchema } from "./file.schema.js";
 import { linkSchema } from "./link.schema.js";
 import { workspaceSummarySchema } from "./workspace.schema.js";
 
+export const JOB_NAME_MAX_LENGTH = 120;
+
 export const jobInputSchema = z
   .object({
     id: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
@@ -74,6 +76,15 @@ export const jobSummarySchema = z
       .openapi({ example: "0x123abc" }),
     result: z.string().nullish().openapi({ example: "Markdown text" }),
     resultHash: z.string().nullish().openapi({ example: "result_hash" }),
+    blockchainIdentifier: z
+      .string()
+      .nullish()
+      .openapi({ example: "0b00e04c0860a60c61066056281180462d0b12" }),
+    payByTime: dateTimeSchema.nullish(),
+    submitResultTime: dateTimeSchema.nullish(),
+    unlockTime: dateTimeSchema.nullish(),
+    externalDisputeUnlockTime: dateTimeSchema.nullish(),
+    sellerVkey: z.string().nullish().openapi({ example: "seller_vkey_hex" }),
   })
   .openapi("JobSummary");
 
@@ -181,6 +192,15 @@ export const jobSchema = z
       .openapi({ example: "0x123abc" }),
     result: z.string().nullish().openapi({ example: "# Result" }),
     resultHash: z.string().nullish().openapi({ example: "result_hash_123" }),
+    blockchainIdentifier: z
+      .string()
+      .nullish()
+      .openapi({ example: "0b00e04c0860a60c61066056281180462d0b12" }),
+    payByTime: dateTimeSchema.nullish(),
+    submitResultTime: dateTimeSchema.nullish(),
+    unlockTime: dateTimeSchema.nullish(),
+    externalDisputeUnlockTime: dateTimeSchema.nullish(),
+    sellerVkey: z.string().nullish().openapi({ example: "seller_vkey_hex" }),
     input: z.string().nullish().openapi({
       example: '{"prompt":"How many planets are in the solar system?"}',
     }),
@@ -200,7 +220,10 @@ export const jobSchema = z
 /** Body for `PATCH /jobs/{id}`. Add optional fields here as more attributes become editable. */
 export const patchJobRequestSchema = z
   .object({
-    name: z.union([z.string().trim().min(1).max(80), z.null()]),
+    name: z.union([
+      z.string().trim().min(1).max(JOB_NAME_MAX_LENGTH),
+      z.null(),
+    ]),
   })
   .strict();
 
@@ -217,7 +240,7 @@ export const createJobRequestSchema = z.object({
     ]),
   ),
   maxCredits: z.number().positive().optional().openapi({ example: 10 }),
-  name: z.string().min(1).max(80).optional().openapi({
+  name: z.string().trim().min(1).max(JOB_NAME_MAX_LENGTH).optional().openapi({
     example: "My Job",
     description:
       "If not provided, an AI-generated name will be created based on the agent details and input data.",

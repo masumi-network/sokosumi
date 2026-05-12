@@ -180,6 +180,13 @@ export function extractReasoningStepMessages(
     const text = typeof p.text === "string" ? p.text : "";
     const display = getReasoningStepDisplayText(text);
     if (display === null) {
+      if (p.state === "streaming" && text.trim() === "") {
+        out.push({
+          id: `${msgId}-reasoning-${reasoningIndex}`,
+          message: "Thinking...",
+        });
+        reasoningIndex += 1;
+      }
       if (text.trim() === "Processing...") {
         out.push({
           id: `${msgId}-reasoning-${reasoningIndex}`,

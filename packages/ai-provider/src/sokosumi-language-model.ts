@@ -24,6 +24,10 @@ import {
 import type { CreateSokosumiOptions } from "./types.js";
 
 const OPENROUTER_RESPONSES_URL = "https://openrouter.ai/api/v1/responses";
+const SOKOSUMI_SUPPORTED_URL_PATTERNS: Record<string, RegExp[]> = {
+  // The Responses API mapping forwards these as image_url/file_url or inline data.
+  "*": [/^https?:\/\//i, /^data:/i],
+};
 
 export type SokosumiLanguageModel = LanguageModelV3 & {
   readonly provider: "sokosumi";
@@ -167,7 +171,7 @@ export function createSokosumiLanguageModel(
     specificationVersion: "v3",
     provider: "sokosumi",
     modelId: modelIdForLanguageModel,
-    supportedUrls: {},
+    supportedUrls: SOKOSUMI_SUPPORTED_URL_PATTERNS,
     doGenerate,
     doStream,
   };
@@ -258,6 +262,9 @@ async function streamOpenRouter(
       warnings: promptWarnings,
       onResponseStarted: sokosumiOpts.onResponseStarted,
       onResponseCompleted: sokosumiOpts.onResponseCompleted,
+      stripReactImageGenerationEnvelope: Boolean(
+        sokosumiOpts.imageGenerationModel,
+      ),
     }),
     request: { body: requestBody },
     response: {
@@ -271,7 +278,8 @@ async function streamCoworker(
   sokosumiOpts: ReturnType<typeof parseSokosumiProviderOptions>,
   options: LanguageModelV3CallOptions,
 ): Promise<LanguageModelV3StreamResult> {
-  const providerConvId = sokosumiOpts.providerConversationId!.trim();
+  const providerConvId = sokosumiOpts.providerConversationId?.trim() ?? null;
+  const previousResponseId = sokosumiOpts.previousResponseId?.trim() ?? null;
 
   const fullResponsesInput = promptToResponsesInput(options.prompt);
   const responsesInput = lastTurnToResponsesInput(options.prompt);
@@ -292,24 +300,43 @@ async function streamCoworker(
   type CoworkerResponsesBody = {
     input: typeof fullResponsesInput;
     stream: boolean;
-    conversation_id?: string;
+    conversation?: string;
+    previous_response_id?: string;
   };
 
   function buildCoworkerResponsesBody(
     input: typeof fullResponsesInput,
-    includeConversationId: boolean,
   ): CoworkerResponsesBody {
     const body: CoworkerResponsesBody = {
       input,
       stream: true,
     };
-    if (includeConversationId) {
-      body.conversation_id = providerConvId;
+    if (providerConvId) {
+      body.conversation = providerConvId;
+      return body;
+    }
+    if (previousResponseId) {
+      body.previous_response_id = previousResponseId;
     }
     return body;
   }
 
-  let body = buildCoworkerResponsesBody(responsesInput, true);
+  function throwCoworkerResponsesApiError(
+    res: Response,
+    errorText: string,
+    bodyForError: CoworkerResponsesBody,
+  ): never {
+    throw new APICallError({
+      message: `Coworker Responses API error: ${res.status} ${errorText}`,
+      url,
+      requestBodyValues: bodyForError,
+      statusCode: res.status,
+      responseBody: errorText,
+      isRetryable: res.status >= 500,
+    });
+  }
+
+  let body = buildCoworkerResponsesBody(responsesInput);
 
   let requestBodyForError: CoworkerResponsesBody = body;
 
@@ -340,7 +367,7 @@ async function streamCoworker(
   if (!response.ok) {
     const errorText = await response.text().catch(() => "Unknown error");
     const isInvalidConversationId =
-      Boolean(body.conversation_id) &&
+      Boolean(body.conversation) &&
       (errorText.includes("invalid_conversation") ||
         errorText.includes("conversation not found") ||
         errorText.includes("invalid_conversation_id") ||
@@ -353,7 +380,10 @@ async function streamCoworker(
           await Promise.resolve(notify());
         } catch (_error) {}
       }
-      const retryBody = buildCoworkerResponsesBody(fullResponsesInput, false);
+      const retryBody: CoworkerResponsesBody = {
+        input: fullResponsesInput,
+        stream: true,
+      };
       body = retryBody;
       requestBodyForError = retryBody;
       response = await fetch(url, {
@@ -362,19 +392,14 @@ async function streamCoworker(
         body: JSON.stringify(retryBody),
         signal: options.abortSignal,
       });
+    } else {
+      throwCoworkerResponsesApiError(response, errorText, requestBodyForError);
     }
   }
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "Unknown error");
-    throw new APICallError({
-      message: `Coworker Responses API error: ${response.status} ${errorText}`,
-      url,
-      requestBodyValues: requestBodyForError,
-      statusCode: response.status,
-      responseBody: errorText,
-      isRetryable: response.status >= 500,
-    });
+    throwCoworkerResponsesApiError(response, errorText, requestBodyForError);
   }
 
   if (!response.body) {

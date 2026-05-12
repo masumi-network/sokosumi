@@ -563,7 +563,13 @@ importers:
       '@sokosumi/chat':
         specifier: workspace:*
         version: link:../chat
+      '@sokosumi/utils':
+        specifier: workspace:*
+        version: link:../utils
     devDependencies:
+      '@ai-sdk/provider-utils':
+        specifier: ^4.0.23
+        version: 4.0.23(zod@4.3.6)
       '@types/node':
         specifier: 24.12.2
         version: 24.12.2

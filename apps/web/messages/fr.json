@@ -292,7 +292,7 @@
               "Name": {
                 "invalid": "Le nom doit être une chaîne valide",
                 "min": "Le nom doit contenir au moins 2 caractères",
-                "max": "Le nom doit contenir au maximum 80 caractères"
+                "max": "Le nom doit contenir au maximum 120 caractères"
               }
             },
             "Form": {
@@ -1737,6 +1737,8 @@
       "openingBillingPortal": "Ouverture...",
       "billingPortalCta": "Ouvrir le portail de facturation",
       "freePrice": "Gratuit",
+      "customPrice": "Personnalisé",
+      "contactUsCta": "Nous contacter",
       "Plans": {
         "free": {
           "name": "Gratuit",
@@ -1787,6 +1789,18 @@
               "item3": "Accès anticipé aux nouveaux agents et fonctionnalités"
             }
           }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Forfait personnalisé pour les organisations avec sièges, crédits et support adaptés.",
+          "features": {
+            "title": "Enterprise inclut :",
+            "items": {
+              "item1": "Forfait adapté à votre organisation",
+              "item2": "Attribution personnalisée de sièges et de crédits",
+              "item3": "Changements de forfait gérés par le support"
+            }
+          }
         }
       },
       "Errors": {
@@ -1812,10 +1826,14 @@
         "credits": "Crédits",
         "coupon": "Code promo"
       },
-      "billingPortalTitle": "Portail de facturation",
-      "billingPortalDescription": "Ouvrez le portail de facturation Stripe pour gérer vos abonnements, vos informations de facturation et vos factures.",
+      "billingPortalDescription": "Téléchargez vos factures, modifiez vos adresses de facturation et gérez d’autres informations de facturation.",
+      "manageYourBilling": "Gérer votre facturation",
       "openingBillingPortal": "Ouverture...",
-      "billingPortalCta": "Ouvrir le portail de facturation",
+      "enterprisePlanTitle": "Plan {planName}",
+      "enterprisePlanDescription": "Votre organisation dispose d’un abonnement Enterprise facturé via Stripe.",
+      "enterpriseSeatsLabel": "Sièges",
+      "enterpriseMembersLabel": "Membres actifs",
+      "enterpriseContactSupport": "Contactez le support pour modifier votre forfait ou vos sièges.",
       "orgAccessRestrictedTitle": "Accès à la facturation restreint",
       "orgAccessRestrictedDescription": "Seuls les propriétaires et administrateurs de l’organisation peuvent consulter les informations de facturation de cette organisation.",
       "orgAccessRestrictedHint": "Basculez vers un contexte personnel ou contactez un propriétaire/administrateur de l’organisation si vous avez besoin d’un accès.",
@@ -2438,6 +2456,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "Collègue IA",
+        "defaultDescription": "Un collègue propulsé par l’IA prêt à vous aider."
       }
     }
   },

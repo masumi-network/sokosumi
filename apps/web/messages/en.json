@@ -292,7 +292,7 @@
               "Name": {
                 "invalid": "Name must be a valid string",
                 "min": "Name must be at least 2 characters",
-                "max": "Name must be at most 80 characters"
+                "max": "Name must be at most 120 characters"
               }
             },
             "Form": {
@@ -1737,6 +1737,8 @@
       "openingBillingPortal": "Opening...",
       "billingPortalCta": "Open billing portal",
       "freePrice": "Free",
+      "customPrice": "Custom",
+      "contactUsCta": "Contact us",
       "Plans": {
         "free": {
           "name": "Free",
@@ -1787,6 +1789,18 @@
               "item3": "Early Access to new Agents & Features"
             }
           }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Custom plan for organizations with tailored seats, credits, and support.",
+          "features": {
+            "title": "Enterprise includes:",
+            "items": {
+              "item1": "Tailored plan for your organization",
+              "item2": "Custom seat and credit allocation",
+              "item3": "Support-managed plan changes"
+            }
+          }
         }
       },
       "Errors": {
@@ -1812,10 +1826,14 @@
         "credits": "Credits",
         "coupon": "Coupon"
       },
-      "billingPortalTitle": "Billing Portal",
-      "billingPortalDescription": "Open Stripe Billing Portal to manage your subscriptions, billing details, and invoices.",
+      "billingPortalDescription": "Download your invoices, change your billing addresses and manage other billing information.",
+      "manageYourBilling": "Manage your billing",
       "openingBillingPortal": "Opening...",
-      "billingPortalCta": "Open billing portal",
+      "enterprisePlanTitle": "{planName} plan",
+      "enterprisePlanDescription": "Your organization is on an Enterprise subscription invoiced through Stripe.",
+      "enterpriseSeatsLabel": "Seats",
+      "enterpriseMembersLabel": "Active members",
+      "enterpriseContactSupport": "Contact support to change your plan or seats.",
       "orgAccessRestrictedTitle": "Billing access restricted",
       "orgAccessRestrictedDescription": "Only organization owners and admins can view billing details for this organization.",
       "orgAccessRestrictedHint": "Switch to a personal context or contact an organization owner/admin if you need access.",
@@ -2438,6 +2456,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "AI Coworker",
+        "defaultDescription": "An AI-powered coworker ready to assist you."
       }
     }
   },

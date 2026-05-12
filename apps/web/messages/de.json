@@ -292,7 +292,7 @@
               "Name": {
                 "invalid": "Name muss eine gültige Zeichenkette sein",
                 "min": "Name muss mindestens 2 Zeichen lang sein",
-                "max": "Name darf maximal 80 Zeichen lang sein"
+                "max": "Name darf maximal 120 Zeichen lang sein"
               }
             },
             "Form": {
@@ -1675,6 +1675,8 @@
       "openingBillingPortal": "Wird geöffnet...",
       "billingPortalCta": "Billing-Portal öffnen",
       "freePrice": "Kostenlos",
+      "customPrice": "Individuell",
+      "contactUsCta": "Kontakt aufnehmen",
       "Plans": {
         "free": {
           "name": "Free",
@@ -1725,6 +1727,18 @@
               "item3": "Früher Zugang zu neuen Agents & Features"
             }
           }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Individueller Plan für Organisationen mit abgestimmten Plätzen, Credits und Support.",
+          "features": {
+            "title": "Enterprise enthält:",
+            "items": {
+              "item1": "Individueller Plan für deine Organisation",
+              "item2": "Individuelle Platz- und Credit-Zuteilung",
+              "item3": "Durch den Support verwaltete Planänderungen"
+            }
+          }
         }
       },
       "Errors": {
@@ -1750,10 +1764,14 @@
         "credits": "Credits",
         "coupon": "Gutschein"
       },
-      "billingPortalTitle": "Billing-Portal",
-      "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um deine Abonnements, Zahlungsdetails und Rechnungen zu verwalten.",
+      "billingPortalDescription": "Lade deine Rechnungen herunter, ändere deine Rechnungsadressen und verwalte weitere Rechnungsinformationen.",
+      "manageYourBilling": "Billing verwalten",
       "openingBillingPortal": "Wird geöffnet...",
-      "billingPortalCta": "Billing-Portal öffnen",
+      "enterprisePlanTitle": "{planName}-Plan",
+      "enterprisePlanDescription": "Deine Organisation nutzt ein Enterprise-Abonnement, das über Stripe abgerechnet wird.",
+      "enterpriseSeatsLabel": "Plätze",
+      "enterpriseMembersLabel": "Aktive Mitglieder",
+      "enterpriseContactSupport": "Kontaktiere den Support, um deinen Plan oder deine Plätze zu ändern.",
       "orgAccessRestrictedTitle": "Billing-Zugang eingeschränkt",
       "orgAccessRestrictedDescription": "Nur Eigentümer und Admins der Organisation können Billing-Details einsehen.",
       "orgAccessRestrictedHint": "Wechsle zu deinem persönlichen Account oder kontaktiere einen Organisations-Admin, wenn du Zugang benötigst.",
@@ -2376,6 +2394,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "KI-Coworker",
+        "defaultDescription": "Ein KI-gestützter Coworker, der dich unterstützt."
       }
     },
     "Feed": {

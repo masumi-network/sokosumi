@@ -57,6 +57,30 @@ function groupMessagesIntoSection(messages: UIMessage[]): UIMessage[][] {
   return sections;
 }
 
+function getCreatedAtFromUiMessage(message: UIMessage): Date | undefined {
+  if (!("createdAt" in message)) return undefined;
+  const createdAtValue = message.createdAt;
+  if (createdAtValue instanceof Date) return createdAtValue;
+  if (
+    typeof createdAtValue === "string" ||
+    typeof createdAtValue === "number"
+  ) {
+    return new Date(createdAtValue);
+  }
+  return undefined;
+}
+
+function getLastDatedMessageCreatedAtBefore(
+  messages: UIMessage[],
+  index: number,
+): Date | undefined {
+  for (let j = index - 1; j >= 0; j--) {
+    const d = getCreatedAtFromUiMessage(messages[j]);
+    if (d !== undefined) return d;
+  }
+  return undefined;
+}
+
 interface MessageListProps {
   messages: UIMessage[];
   selectedChatId: string | null;
@@ -125,18 +149,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       }
     }, []);
 
-    const messagesWithTimestamps = messages.map((message) => {
-      if ("createdAt" in message && message.createdAt) {
-        return message;
-      }
-      return {
-        ...message,
-        createdAt: new Date(),
-      };
-    });
-
-    const lastMessage =
-      messagesWithTimestamps[messagesWithTimestamps.length - 1];
+    const lastMessage = messages[messages.length - 1];
     const lastMessageContent =
       lastMessage && lastMessage.role === "assistant"
         ? extractMessageContent(lastMessage)
@@ -145,13 +158,13 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       lastMessage?.role === "assistant" &&
       !lastMessageContent.trim() &&
       !hasMessageTextOrFileParts(lastMessage);
+    const hasLiveReasoning = reasoningMessages.length > 0;
     const showStreamReasoningInLastAssistantRow =
-      isCoworker &&
       isLoading &&
       lastAssistantHasNoContent &&
       lastMessage != null &&
       extractReasoningStepMessages(lastMessage).length === 0 &&
-      reasoningMessages.length > 0;
+      hasLiveReasoning;
     const showPendingErrorForEmptyAssistant =
       lastMessage?.role === "assistant" &&
       lastAssistantHasNoContent &&
@@ -162,16 +175,15 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         lastMessage.role !== "assistant" ||
         lastAssistantHasNoContent);
     const showReasoningLoaders =
-      isCoworker &&
       showLoadingArea &&
-      reasoningMessages.length > 0 &&
+      hasLiveReasoning &&
       !showStreamReasoningInLastAssistantRow;
     const showPendingError = showPendingErrorForEmptyAssistant;
     const showLoadingIndicator =
       showLoadingArea && !showReasoningLoaders && !showPendingError;
     const loadingIndicatorLabel = undefined;
 
-    const sections = groupMessagesIntoSection(messagesWithTimestamps);
+    const sections = groupMessagesIntoSection(messages);
 
     const selectedChat = chats.find((c) => c.id === selectedChatId);
     const coworkerId =
@@ -189,8 +201,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const modelId = selectedChat?.model?.id;
 
     const lastUserMessage = (() => {
-      for (let i = messagesWithTimestamps.length - 1; i >= 0; i--) {
-        const msg = messagesWithTimestamps[i];
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
         if ((msg.role as string) === "user") {
           return msg;
         }
@@ -257,50 +269,25 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
 
     function renderMessage(message: UIMessage, index: number) {
       const role = message.role as "user" | "assistant" | "system";
-      let currentCreatedAt: Date | undefined;
-      if ("createdAt" in message) {
-        const createdAtValue = message.createdAt;
-        if (createdAtValue instanceof Date) {
-          currentCreatedAt = createdAtValue;
-        } else if (
-          typeof createdAtValue === "string" ||
-          typeof createdAtValue === "number"
-        ) {
-          currentCreatedAt = new Date(createdAtValue);
-        }
-      }
-      let previousCreatedAt: Date | undefined;
-      if (index > 0) {
-        const prevMessage = messagesWithTimestamps[index - 1];
-        if ("createdAt" in prevMessage) {
-          const createdAtValue = prevMessage.createdAt;
-          if (createdAtValue instanceof Date) {
-            previousCreatedAt = createdAtValue;
-          } else if (
-            typeof createdAtValue === "string" ||
-            typeof createdAtValue === "number"
-          ) {
-            previousCreatedAt = new Date(createdAtValue);
-          }
-        }
-      }
+      const currentCreatedAt = getCreatedAtFromUiMessage(message);
+      const previousCreatedAt =
+        index > 0
+          ? getLastDatedMessageCreatedAtBefore(messages, index)
+          : undefined;
       const showDaySeparator =
         index === 0 ||
         (currentCreatedAt &&
           isDifferentDay(currentCreatedAt, previousCreatedAt));
       const content = extractMessageContent(message);
       const fileParts = getMessageFileParts(message);
-      const isLastMessage = index === messagesWithTimestamps.length - 1;
+      const isLastMessage = index === messages.length - 1;
       const reasoningFromParts =
-        role === "assistant" && isCoworker
-          ? extractReasoningStepMessages(message)
-          : [];
+        role === "assistant" ? extractReasoningStepMessages(message) : [];
       const showStreamOnlyThoughtBar =
         role === "assistant" &&
-        isCoworker &&
         isLastMessage &&
         reasoningFromParts.length === 0 &&
-        reasoningMessages.length > 0 &&
+        hasLiveReasoning &&
         (isLoading || content.trim().length > 0);
       const storedThoughtTiming =
         role === "assistant" && isCoworker
@@ -319,18 +306,6 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         : reasoningFromParts.length > 0 && !isLastMessage
           ? null
           : (reasoningEndedAt ?? null);
-      let createdAt: Date | undefined;
-      if ("createdAt" in message) {
-        const createdAtValue = message.createdAt;
-        if (createdAtValue instanceof Date) {
-          createdAt = createdAtValue;
-        } else if (
-          typeof createdAtValue === "string" ||
-          typeof createdAtValue === "number"
-        ) {
-          createdAt = new Date(createdAtValue);
-        }
-      }
       const isStreaming = isLoading && isLastMessage && role === "assistant";
       const hideEmptyAssistantWhileLoading =
         isLastMessage &&
@@ -376,7 +351,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                 fileParts={fileParts}
                 userImageUrl={userImageUrl}
                 userName={userName}
-                createdAt={createdAt}
+                createdAt={currentCreatedAt}
                 coworkerName={coworkerName}
                 coworkerId={coworkerId}
                 coworkerImageUrl={coworkerImageUrl}

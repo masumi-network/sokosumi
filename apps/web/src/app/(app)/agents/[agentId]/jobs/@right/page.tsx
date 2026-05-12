@@ -1,11 +1,9 @@
-import { agentRepository } from "@sokosumi/database/repositories";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { getCachedMyJobs } from "@/app/agents/[agentId]/jobs/_lib/get-cached-my-jobs";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
-import prisma from "@/lib/db/prisma";
-import { agentService } from "@/lib/services";
+import { getCoreAgentById } from "@/lib/agents/core-loaders";
 
 import JobDetailRedirect from "./components/job-detail-redirect";
 
@@ -22,16 +20,13 @@ export default async function RightSectionPage({
 
   const { agentId } = await params;
 
-  const agent = await agentRepository.getAgentWithRelationsById(
-    agentId,
-    prisma,
-  );
-  if (!agent) {
+  const [agent, agentJobs] = await Promise.all([
+    getCoreAgentById(agentId),
+    getCachedMyJobs(agentId),
+  ]);
+  if (!agent && agentJobs.length === 0) {
     notFound();
   }
-
-  const agentJobs = await getCachedMyJobs(agentId);
-  const availableAgent = await agentService.getAvailableAgentById(agentId);
 
   if (agentJobs.length > 0) {
     return <JobDetailRedirect agentId={agentId} jobId={agentJobs[0].id} />;
@@ -42,7 +37,7 @@ export default async function RightSectionPage({
       <div className="bg-muted/30 w-full max-w-4xl rounded-xl border p-8 text-center">
         <p className="text-muted-foreground text-sm">{t("noExecutedJobs")}</p>
         <div className="mt-5 flex justify-center">
-          <CreateJobModalTrigger agentId={agentId} disabled={!availableAgent} />
+          <CreateJobModalTrigger agentId={agentId} disabled={!agent} />
         </div>
       </div>
     </div>

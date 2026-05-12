@@ -13,7 +13,7 @@ const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const getUserByIdMock = vi.fn();
 const zeroMarginTopUpEnabledMock = vi.fn();
-const billingPortalCardMock = vi.fn();
+const balanceBillingPortalLinkMock = vi.fn();
 const creditsSectionMock = vi.fn();
 const billingTabsMock = vi.fn();
 const organizationSubscriptionSectionMock = vi.fn();
@@ -88,13 +88,15 @@ vi.mock("@sokosumi/database/repositories", () => ({
 }));
 
 vi.mock("@/components/billing/balance-section", () => ({
-  BalanceSection: () => <div data-testid="balance-section" />,
+  BalanceSection: (props: { billingPortal?: React.ReactNode }) => (
+    <div data-testid="balance-section">{props.billingPortal}</div>
+  ),
 }));
 
-vi.mock("@/components/billing/billing-portal-card", () => ({
-  BillingPortalCard: (props: unknown) => {
-    billingPortalCardMock(props);
-    return <div data-testid="billing-portal-card" />;
+vi.mock("@/components/billing/balance-billing-portal-link", () => ({
+  BalanceBillingPortalLink: (props: unknown) => {
+    balanceBillingPortalLinkMock(props);
+    return <div data-testid="balance-billing-portal-link" />;
   },
 }));
 
@@ -342,7 +344,7 @@ describe("BillingPage", () => {
         memberCount: 2,
       }),
     );
-    expect(billingPortalCardMock).not.toHaveBeenCalled();
-    expect(view.queryByTestId("billing-portal-card")).toBeNull();
+    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
+    expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
   });
 });

@@ -292,7 +292,7 @@
               "Name": {
                 "invalid": "O nome deve ser uma string válida",
                 "min": "O nome deve ter pelo menos 2 caracteres",
-                "max": "O nome deve ter no máximo 80 caracteres"
+                "max": "O nome deve ter no máximo 120 caracteres"
               }
             },
             "Form": {
@@ -1737,6 +1737,8 @@
       "openingBillingPortal": "Abrindo...",
       "billingPortalCta": "Abrir portal de cobrança",
       "freePrice": "Grátis",
+      "customPrice": "Personalizado",
+      "contactUsCta": "Fale conosco",
       "Plans": {
         "free": {
           "name": "Grátis",
@@ -1787,6 +1789,18 @@
               "item3": "Acesso antecipado a novos agentes e recursos"
             }
           }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Plano personalizado para organizações com assentos, créditos e suporte sob medida.",
+          "features": {
+            "title": "O Enterprise inclui:",
+            "items": {
+              "item1": "Plano sob medida para sua organização",
+              "item2": "Alocação personalizada de assentos e créditos",
+              "item3": "Mudanças de plano gerenciadas pelo suporte"
+            }
+          }
         }
       },
       "Errors": {
@@ -1812,10 +1826,14 @@
         "credits": "Créditos",
         "coupon": "Cupom"
       },
-      "billingPortalTitle": "Portal de cobrança",
-      "billingPortalDescription": "Abra o Portal de Cobrança da Stripe para gerenciar suas assinaturas, dados de cobrança e faturas.",
+      "billingPortalDescription": "Baixe suas faturas, altere seus endereços de cobrança e gerencie outras informações de cobrança.",
+      "manageYourBilling": "Gerenciar cobrança",
       "openingBillingPortal": "Abrindo...",
-      "billingPortalCta": "Abrir portal de cobrança",
+      "enterprisePlanTitle": "Plano {planName}",
+      "enterprisePlanDescription": "Sua organização está em uma assinatura Enterprise faturada pelo Stripe.",
+      "enterpriseSeatsLabel": "Assentos",
+      "enterpriseMembersLabel": "Membros ativos",
+      "enterpriseContactSupport": "Fale com o suporte para alterar seu plano ou assentos.",
       "orgAccessRestrictedTitle": "Acesso à cobrança restrito",
       "orgAccessRestrictedDescription": "Apenas proprietários e admins da organização podem ver os detalhes de cobrança desta organização.",
       "orgAccessRestrictedHint": "Mude para o contexto pessoal ou fale com um proprietário/admin da organização se precisar de acesso.",
@@ -2438,6 +2456,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "Coworker de IA",
+        "defaultDescription": "Um coworker com IA pronto para ajudar você."
       }
     }
   },

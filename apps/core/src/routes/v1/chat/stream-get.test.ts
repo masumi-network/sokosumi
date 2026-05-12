@@ -120,6 +120,25 @@ describe("GET /chat/stream/:conversationId", () => {
     expect(resumeExistingStreamMock).not.toHaveBeenCalled();
   });
 
+  it("returns 204 and clears stale id when resume throws ack timeout", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { active_ui_stream_id: "stream_slow" },
+    });
+    resumeExistingStreamMock.mockRejectedValueOnce(
+      new Error("Timeout waiting for ack"),
+    );
+
+    const app = createApp();
+    const response = await app.request(`http://localhost/stream/${cid}`);
+
+    expect(response.status).toBe(204);
+    expect(clearActiveUiStreamIdInMetadataMock).toHaveBeenCalledWith({
+      conversationId: cid,
+      userId: "user_123",
+    });
+  });
+
   it("returns 204 and clears stale id when resume returns null", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({
       id: cid,

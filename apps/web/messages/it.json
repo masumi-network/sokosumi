@@ -292,7 +292,7 @@
               "Name": {
                 "invalid": "Il nome deve essere una stringa valida",
                 "min": "Il nome deve avere almeno 2 caratteri",
-                "max": "Il nome deve avere al massimo 80 caratteri"
+                "max": "Il nome deve avere al massimo 120 caratteri"
               }
             },
             "Form": {
@@ -1737,6 +1737,8 @@
       "openingBillingPortal": "Apertura in corso...",
       "billingPortalCta": "Apri il portale di fatturazione",
       "freePrice": "Gratis",
+      "customPrice": "Personalizzato",
+      "contactUsCta": "Contattaci",
       "Plans": {
         "free": {
           "name": "Gratuito",
@@ -1787,6 +1789,18 @@
               "item3": "Accesso anticipato a nuovi agenti e funzionalità"
             }
           }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Piano personalizzato per organizzazioni con postazioni, crediti e supporto su misura.",
+          "features": {
+            "title": "Enterprise include:",
+            "items": {
+              "item1": "Piano su misura per la tua organizzazione",
+              "item2": "Assegnazione personalizzata di postazioni e crediti",
+              "item3": "Modifiche al piano gestite dal supporto"
+            }
+          }
         }
       },
       "Errors": {
@@ -1812,10 +1826,14 @@
         "credits": "Crediti",
         "coupon": "Coupon"
       },
-      "billingPortalTitle": "Portale di fatturazione",
-      "billingPortalDescription": "Apri il Portale di fatturazione Stripe per gestire i tuoi abbonamenti, i dettagli di fatturazione e le fatture.",
+      "billingPortalDescription": "Scarica le fatture, modifica gli indirizzi di fatturazione e gestisci altre informazioni di fatturazione.",
+      "manageYourBilling": "Gestisci la fatturazione",
       "openingBillingPortal": "Apertura in corso...",
-      "billingPortalCta": "Apri il portale di fatturazione",
+      "enterprisePlanTitle": "Piano {planName}",
+      "enterprisePlanDescription": "La tua organizzazione ha un abbonamento Enterprise fatturato tramite Stripe.",
+      "enterpriseSeatsLabel": "Postazioni",
+      "enterpriseMembersLabel": "Membri attivi",
+      "enterpriseContactSupport": "Contatta il supporto per modificare il piano o le postazioni.",
       "orgAccessRestrictedTitle": "Accesso alla fatturazione limitato",
       "orgAccessRestrictedDescription": "Solo i proprietari e gli amministratori dell’organizzazione possono visualizzare i dettagli di fatturazione per questa organizzazione.",
       "orgAccessRestrictedHint": "Passa al contesto personale o contatta un proprietario/amministratore dell’organizzazione se ti serve l’accesso.",
@@ -2438,6 +2456,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "Coworker IA",
+        "defaultDescription": "Un coworker basato sull’IA pronto ad assisterti."
       }
     }
   },

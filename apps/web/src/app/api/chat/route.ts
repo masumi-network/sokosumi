@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth/utils";
+import { buildCoreChatProxyHeaders } from "@/lib/clients/utils/build-core-chat-proxy-headers";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
 const CORE_CHAT_PATH = "chat" as const;
@@ -26,8 +27,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const requestHeaders = new Headers(await headers());
-    requestHeaders.delete("Content-Length");
+    const requestHeaders = buildCoreChatProxyHeaders(
+      new Headers(await headers()),
+    );
 
     const incoming = new URL(req.url);
     const coreSearch = new URLSearchParams(incoming.search);
@@ -71,9 +73,10 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const requestHeaders = new Headers(await headers());
+    const requestHeaders = buildCoreChatProxyHeaders(
+      new Headers(await headers()),
+    );
     requestHeaders.set("Content-Type", "application/json");
-    requestHeaders.delete("Content-Length");
 
     const response = await fetch(`${getCoreApiBaseUrl()}/${CORE_CHAT_PATH}`, {
       method: "POST",

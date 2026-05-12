@@ -1,5 +1,0 @@
-const DEFAULT_COWORKER_SUBTITLE = "AI Coworker";
-const DEFAULT_COWORKER_DESCRIPTION =
-  "An AI-powered coworker ready to assist you.";
-
-export { DEFAULT_COWORKER_DESCRIPTION, DEFAULT_COWORKER_SUBTITLE };

@@ -21,6 +21,9 @@ export const startJobInputSchema = z.object({
 
 export type StartJobInputSchemaType = z.infer<typeof startJobInputSchema>;
 
+/** Must match Core `JOB_NAME_MAX_LENGTH` (`createJobRequestSchema` / `patchJobRequestSchema`). */
+export const JOB_NAME_MAX_LENGTH = 120;
+
 export const jobDetailsNameFormSchema = (
   t?: IntlTranslation<"Components.Jobs.JobDetails.Header.JobName.Schema">,
 ) =>
@@ -28,7 +31,7 @@ export const jobDetailsNameFormSchema = (
     name: z
       .string({ error: t?.("Name.invalid") })
       .min(2, { error: t?.("Name.min") })
-      .max(80, { error: t?.("Name.max") })
+      .max(JOB_NAME_MAX_LENGTH, { error: t?.("Name.max") })
       .or(z.literal("")),
   });
 

@@ -292,7 +292,7 @@
               "Name": {
                 "invalid": "名前は有効な文字列である必要があります",
                 "min": "名前は2文字以上である必要があります",
-                "max": "名前は80文字以内である必要があります"
+                "max": "名前は120文字以内である必要があります"
               }
             },
             "Form": {
@@ -1737,6 +1737,8 @@
       "openingBillingPortal": "開いています...",
       "billingPortalCta": "請求ポータルを開く",
       "freePrice": "無料",
+      "customPrice": "カスタム",
+      "contactUsCta": "お問い合わせ",
       "Plans": {
         "free": {
           "name": "無料",
@@ -1787,6 +1789,18 @@
               "item3": "新しいエージェント／機能への先行アクセス"
             }
           }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "シート数、クレジット、サポートを組織に合わせて調整できるカスタムプランです。",
+          "features": {
+            "title": "Enterpriseに含まれるもの:",
+            "items": {
+              "item1": "組織に合わせたプラン",
+              "item2": "カスタムのシート数とクレジット割り当て",
+              "item3": "サポートが管理するプラン変更"
+            }
+          }
         }
       },
       "Errors": {
@@ -1812,10 +1826,14 @@
         "credits": "クレジット",
         "coupon": "クーポン"
       },
-      "billingPortalTitle": "請求ポータル",
-      "billingPortalDescription": "Stripe の請求ポータルを開いて、サブスクリプション、請求情報、請求書を管理します。",
+      "billingPortalDescription": "請求書をダウンロードし、請求先住所を変更し、その他の請求情報を管理できます。",
+      "manageYourBilling": "請求を管理",
       "openingBillingPortal": "開いています...",
-      "billingPortalCta": "請求ポータルを開く",
+      "enterprisePlanTitle": "{planName}プラン",
+      "enterprisePlanDescription": "あなたの組織は、Stripe経由で請求されるEnterpriseサブスクリプションを利用しています。",
+      "enterpriseSeatsLabel": "シート",
+      "enterpriseMembersLabel": "アクティブメンバー",
+      "enterpriseContactSupport": "プランやシート数を変更するにはサポートにお問い合わせください。",
       "orgAccessRestrictedTitle": "請求へのアクセスが制限されています",
       "orgAccessRestrictedDescription": "この組織の請求情報を閲覧できるのは、組織のオーナーと管理者のみです。",
       "orgAccessRestrictedHint": "個人コンテキストに切り替えるか、アクセスが必要な場合は組織のオーナー／管理者にお問い合わせください。",
@@ -2438,6 +2456,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "AI同僚",
+        "defaultDescription": "あなたを支援する準備ができたAI搭載の同僚です。"
       }
     }
   },

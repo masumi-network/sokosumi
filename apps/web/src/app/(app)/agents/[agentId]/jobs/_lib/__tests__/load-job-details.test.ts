@@ -3,34 +3,41 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getSessionMock = vi.fn();
 const getAgentByIdMock = vi.fn();
 const getJobByIdMock = vi.fn();
+const mapCoreJobToJobWithSokosumiStatusMock = vi.fn();
 const setQueryDataMock = vi.fn();
-const redirectMock = vi.fn((url: string) => {
-  throw new Error(`redirect:${url}`);
-});
 const notFoundMock = vi.fn(() => {
   throw new Error("notFound");
 });
+
+class MockCoreApiRequestError extends Error {
+  status?: number;
+
+  constructor(message: string, options?: { status?: number }) {
+    super(message);
+    this.name = "CoreApiRequestError";
+    this.status = options?.status;
+  }
+}
+
+vi.mock("@/lib/agents/core-dto-mappers", () => ({
+  mapCoreJobToJobWithSokosumiStatus: (...args: unknown[]) =>
+    mapCoreJobToJobWithSokosumiStatusMock(...args),
+}));
 
 vi.mock("@/lib/auth/utils", () => ({
   getSession: getSessionMock,
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  agentRepository: {
-    getAgentWithRelationsById: getAgentByIdMock,
+vi.mock("@/lib/clients/core.client", () => ({
+  CoreApiRequestError: MockCoreApiRequestError,
+  coreClient: {
+    getAgentById: (...args: unknown[]) => getAgentByIdMock(...args),
+    getJobById: (...args: unknown[]) => getJobByIdMock(...args),
   },
-  jobRepository: {
-    getJobById: getJobByIdMock,
-  },
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {},
 }));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
-  redirect: redirectMock,
 }));
 
 vi.mock("@tanstack/react-query", () => ({
@@ -50,25 +57,36 @@ describe("loadJobDetails", () => {
     vi.resetModules();
   });
 
-  it("redirects when the job is not owned by the current user", async () => {
+  it("returns workspace-visible jobs in read-only mode", async () => {
     getSessionMock.mockResolvedValue({
-      user: { id: "user-1" },
+      user: { id: "user-1", name: "Ada Lovelace" },
       session: { activeOrganizationId: "org-1" },
     });
-    getAgentByIdMock.mockResolvedValue({ id: "agent-1" });
-    getJobByIdMock.mockResolvedValue({
+    getAgentByIdMock.mockResolvedValue({ data: { id: "agent-1" } });
+    getJobByIdMock.mockResolvedValue({ data: { id: "job-core-1" } });
+    mapCoreJobToJobWithSokosumiStatusMock.mockReturnValue({
       id: "job-1",
       agent: { id: "agent-1" },
       userId: "other-user",
     });
 
     const { loadJobDetails } = await import("../load-job-details");
+    const result = await loadJobDetails({ agentId: "agent-1", jobId: "job-1" });
 
-    await expect(
-      loadJobDetails({ agentId: "agent-1", jobId: "job-1" }),
-    ).rejects.toThrow("redirect:/agents/agent-1/jobs");
-
-    expect(redirectMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
+    expect(setQueryDataMock).toHaveBeenCalledWith(["jobs", "job-1"], {
+      id: "job-1",
+      agent: { id: "agent-1" },
+      userId: "other-user",
+    });
+    expect(result).toMatchObject({
+      job: {
+        id: "job-1",
+      },
+      readOnly: true,
+      activeOrganizationId: "org-1",
+      dehydratedState: "dehydrated-state",
+      personalWorkspaceLabel: "Ada Lovelace",
+    });
   });
 
   it("returns owned jobs without read-only mode", async () => {
@@ -76,8 +94,9 @@ describe("loadJobDetails", () => {
       user: { id: "user-1" },
       session: { activeOrganizationId: "org-1" },
     });
-    getAgentByIdMock.mockResolvedValue({ id: "agent-1" });
-    getJobByIdMock.mockResolvedValue({
+    getAgentByIdMock.mockResolvedValue({ data: { id: "agent-1" } });
+    getJobByIdMock.mockResolvedValue({ data: { id: "job-core-1" } });
+    mapCoreJobToJobWithSokosumiStatusMock.mockReturnValue({
       id: "job-1",
       agent: { id: "agent-1" },
       userId: "user-1",
@@ -100,5 +119,23 @@ describe("loadJobDetails", () => {
       dehydratedState: "dehydrated-state",
       personalWorkspaceLabel: null,
     });
+  });
+
+  it("calls notFound when core reports a missing job", async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    });
+    getAgentByIdMock.mockResolvedValue({ data: { id: "agent-1" } });
+    getJobByIdMock.mockRejectedValue(
+      new MockCoreApiRequestError("Job not found", { status: 404 }),
+    );
+
+    const { loadJobDetails } = await import("../load-job-details");
+
+    await expect(
+      loadJobDetails({ agentId: "agent-1", jobId: "job-1" }),
+    ).rejects.toThrow("notFound");
+    expect(notFoundMock).toHaveBeenCalled();
   });
 });

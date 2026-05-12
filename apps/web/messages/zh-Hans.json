@@ -292,7 +292,7 @@
               "Name": {
                 "invalid": "名称必须为有效字符串",
                 "min": "名称至少需要 2 个字符",
-                "max": "名称最多为 80 个字符"
+                "max": "名称最多为 120 个字符"
               }
             },
             "Form": {
@@ -1737,6 +1737,8 @@
       "openingBillingPortal": "正在打开...",
       "billingPortalCta": "打开计费门户",
       "freePrice": "免费",
+      "customPrice": "自定义",
+      "contactUsCta": "联系我们",
       "Plans": {
         "free": {
           "name": "免费",
@@ -1787,6 +1789,18 @@
               "item3": "抢先体验新智能体与功能"
             }
           }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "为组织提供席位、额度和支持定制的方案。",
+          "features": {
+            "title": "Enterprise 包含：",
+            "items": {
+              "item1": "为您的组织定制的方案",
+              "item2": "自定义席位和额度分配",
+              "item3": "由支持团队管理方案变更"
+            }
+          }
         }
       },
       "Errors": {
@@ -1812,10 +1826,14 @@
         "credits": "积分",
         "coupon": "优惠券"
       },
-      "billingPortalTitle": "计费门户",
-      "billingPortalDescription": "打开 Stripe 计费门户以管理您的订阅、账单信息和发票。",
+      "billingPortalDescription": "下载您的发票，更改账单地址并管理其他账单信息。",
+      "manageYourBilling": "管理账单",
       "openingBillingPortal": "正在打开...",
-      "billingPortalCta": "打开计费门户",
+      "enterprisePlanTitle": "{planName} 方案",
+      "enterprisePlanDescription": "您的组织正在使用通过 Stripe 开票的 Enterprise 订阅。",
+      "enterpriseSeatsLabel": "席位",
+      "enterpriseMembersLabel": "活跃成员",
+      "enterpriseContactSupport": "请联系支持团队更改您的方案或席位。",
       "orgAccessRestrictedTitle": "计费访问受限",
       "orgAccessRestrictedDescription": "只有组织所有者和管理员可以查看该组织的计费详情。",
       "orgAccessRestrictedHint": "如需访问，请切换到个人上下文，或联系组织所有者/管理员。",
@@ -2438,6 +2456,10 @@
             }
           }
         }
+      },
+      "CoworkerGalleryCard": {
+        "defaultSubtitle": "AI 协作伙伴",
+        "defaultDescription": "一位由 AI 驱动、随时准备协助您的协作伙伴。"
       }
     }
   },

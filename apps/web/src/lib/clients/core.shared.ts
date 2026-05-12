@@ -9,12 +9,18 @@ import type {
   CreateConversationMessageRequest,
   DeleteJobsByIdShareError,
   DeleteTasksByIdShareError,
+  GetAgentsByIdJobsData,
+  GetAgentsByIdReviewsData,
+  GetAgentsData,
+  GetCategoriesData,
   GetCoworkersData,
   GetJobsData,
   GetShareByTokenError,
   GetTasksData,
   PaginationMetadata,
   PatchJobsByIdData,
+  PostAgentsByIdJobsData,
+  PostAgentsByIdJobsError,
   PostTasksByIdLinksData,
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
@@ -25,8 +31,12 @@ import {
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
+  getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
+  getAgentsByIdJobs as coreGetAgentsByIdJobs,
+  getAgentsByIdReviews as coreGetAgentsByIdReviews,
+  getCategories as coreGetCategories,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
   getConversationsByIdMessages as coreGetConversationsByIdMessages,
@@ -44,6 +54,7 @@ import {
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchJobsById as corePatchJobsById,
   patchTasksById as corePatchTasksById,
+  postAgentsByIdJobs as corePostAgentsByIdJobs,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
   postJobsByIdRefund as corePostJobsByIdRefund,
@@ -436,6 +447,79 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getAgents(query?: GetAgentsData["query"]) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAgents({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch agents",
+    );
+  }
+
+  async function getAgentJobs(
+    id: string,
+    query?: GetAgentsByIdJobsData["query"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAgentsByIdJobs({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch agent jobs",
+    );
+  }
+
+  async function getAgentReviews(
+    id: string,
+    query?: GetAgentsByIdReviewsData["query"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAgentsByIdReviews({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch agent reviews",
+    );
+  }
+
+  async function createAgentJob(
+    id: string,
+    body: NonNullable<PostAgentsByIdJobsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await corePostAgentsByIdJobs({
+          client,
+          path: { id },
+          body,
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error as PostAgentsByIdJobsError,
+            response: result.response,
+          };
+        }
+
+        return result;
+      },
+      "Failed to create agent job",
+    );
+  }
+
   async function getAgentInputSchema(id: string) {
     return executeOperation(
       getClient,
@@ -445,6 +529,19 @@ export function createCoreClient(getClient: GetClient) {
           path: { id },
         }),
       "Failed to fetch agent input schema",
+    );
+  }
+
+  async function getCategories(query?: GetCategoriesData["query"]) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCategories({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch categories",
     );
   }
 
@@ -837,6 +934,7 @@ export function createCoreClient(getClient: GetClient) {
     addConversationMessage,
     archiveConversation,
     createConversation,
+    createAgentJob,
     createMyFileUploadSession,
     createTask,
     createTaskLink,
@@ -849,7 +947,11 @@ export function createCoreClient(getClient: GetClient) {
     getConversationMessages,
     getConversations,
     getAgentById,
+    getAgentJobs,
     getAgentInputSchema,
+    getAgentReviews,
+    getAgents,
+    getCategories,
     getCoworkers,
     getJobById,
     getJobs,

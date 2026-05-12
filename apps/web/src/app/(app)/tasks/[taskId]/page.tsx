@@ -25,6 +25,7 @@ import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
+import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import { resolveAccountName } from "@/lib/utils/account-name";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
@@ -350,7 +351,7 @@ async function TaskActivitySectionContent({
   task: Task;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
-  currentPlanPromise: Promise<"free" | "pro" | "standard" | "starter">;
+  currentPlanPromise: Promise<SubscriptionPlanName>;
 }) {
   const [agents, session, currentPlan, t] = await Promise.all([
     agentsPromise,
@@ -411,7 +412,7 @@ async function TaskActivitySectionContent({
 async function getCurrentPlan(
   session: SessionResult,
   organizationId: string | null,
-): Promise<"free" | "pro" | "standard" | "starter"> {
+): Promise<SubscriptionPlanName> {
   if (!session) {
     return "free";
   }

@@ -20,6 +20,7 @@ import {
   resolveMinimumOrganizationSeats,
   resolveTargetOrganizationSeats,
 } from "./organization-seat-settings-fields";
+import { SubscriptionEnterprisePlanCard } from "./subscription-enterprise-plan-card";
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
 import {
@@ -142,6 +143,10 @@ export function OrganizationSubscriptionSection({
 
   const handleUpgradePlan = useCallback(
     async (planName: PaidSubscriptionPlanName) => {
+      if (planName === "enterprise") {
+        return;
+      }
+
       if (!Number.isInteger(targetSeats) || targetSeats < minimumSeats) {
         toast.error(t("Errors.badInput"));
         return;
@@ -243,7 +248,7 @@ export function OrganizationSubscriptionSection({
         </CardContent>
       </Card>
       <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           {paidPlans.map((plan) => {
             const planPresentationProps = getPlanPresentationProps(plan);
 
@@ -257,6 +262,7 @@ export function OrganizationSubscriptionSection({
               />
             );
           })}
+          <SubscriptionEnterprisePlanCard />
         </div>
 
         {freePlan ? (
