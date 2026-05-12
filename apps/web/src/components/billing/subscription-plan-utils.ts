@@ -49,6 +49,8 @@ export function splitSubscriptionPlans(
 
 export function getPlanTranslationKey(plan: SubscriptionPlanName): string {
   switch (plan) {
+    case "enterprise":
+      return "enterprise";
     case "free":
       return "free";
     case "starter":
@@ -80,6 +82,7 @@ export function parsePlanName(
   }
 
   switch (value.toLowerCase()) {
+    case "enterprise":
     case "free":
     case "starter":
     case "standard":

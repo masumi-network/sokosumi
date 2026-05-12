@@ -57,6 +57,7 @@ const envSecretsSchema = z.object({
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
   STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
   STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
+  STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID: z.string().min(1).optional(),
 
   // OpenRouter
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
