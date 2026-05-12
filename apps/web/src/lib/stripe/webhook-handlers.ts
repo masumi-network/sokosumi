@@ -610,6 +610,9 @@ export async function handleInvoicePaidEvent(
     env.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID,
     env.STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID,
     env.STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID,
+    ...(env.STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID
+      ? [env.STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID]
+      : []),
   ]);
 
   // Ensure invoice has line items

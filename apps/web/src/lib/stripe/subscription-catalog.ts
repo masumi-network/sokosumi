@@ -6,7 +6,12 @@ import type Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
-export type SubscriptionPlanName = "free" | "starter" | "standard" | "pro";
+export type SubscriptionPlanName =
+  | "enterprise"
+  | "free"
+  | "pro"
+  | "standard"
+  | "starter";
 
 /** Paid catalog plans (excludes `free`). Used for Stripe checkout upgrade flows. */
 export type PaidSubscriptionPlanName = Exclude<SubscriptionPlanName, "free">;
@@ -21,10 +26,13 @@ interface SubscriptionCatalogPlan {
   slug: string;
 }
 
-type SubscriptionCatalog = Record<
-  SubscriptionPlanName,
-  SubscriptionCatalogPlan
->;
+interface SubscriptionCatalog {
+  enterprise?: SubscriptionCatalogPlan;
+  free: SubscriptionCatalogPlan;
+  pro: SubscriptionCatalogPlan;
+  standard: SubscriptionCatalogPlan;
+  starter: SubscriptionCatalogPlan;
+}
 
 interface RawPlanConfig {
   name: PaidSubscriptionPlanName;
@@ -36,7 +44,7 @@ let catalogCache: Promise<SubscriptionCatalog> | null = null;
 function getPaidPlanConfig(): RawPlanConfig[] {
   const env = getEnvSecrets();
 
-  return [
+  const plans: RawPlanConfig[] = [
     {
       name: "starter",
       productId: env.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID,
@@ -50,6 +58,15 @@ function getPaidPlanConfig(): RawPlanConfig[] {
       productId: env.STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID,
     },
   ];
+
+  if (env.STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID) {
+    plans.push({
+      name: "enterprise",
+      productId: env.STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID,
+    });
+  }
+
+  return plans;
 }
 
 function parseCredits(rawValue: string | undefined, planName: string): number {
@@ -78,7 +95,7 @@ function parseSlug(rawValue: string | undefined, planName: string): string {
 
 function parsePrice(
   defaultPrice: Stripe.Price | string | null | undefined,
-  planName: string,
+  planName: PaidSubscriptionPlanName,
 ): Stripe.Price {
   if (!defaultPrice || typeof defaultPrice === "string") {
     throw new Error(`Default price is not expanded for ${planName} plan`);
@@ -128,9 +145,9 @@ async function loadCatalog(stripe: Stripe): Promise<SubscriptionCatalog> {
     }),
   );
 
-  const paidCatalog = Object.fromEntries(paidEntries) as Record<
-    PaidSubscriptionPlanName,
-    SubscriptionCatalogPlan
+  const paidCatalog = Object.fromEntries(paidEntries) as Omit<
+    SubscriptionCatalog,
+    "free"
   >;
 
   const freePlan: SubscriptionCatalogPlan = {
@@ -165,13 +182,25 @@ export async function getBetterAuthSubscriptionPlans(
   stripe: Stripe,
 ): Promise<StripePlan[]> {
   const catalog = await getSubscriptionCatalog(stripe);
-  const paidNames: PaidSubscriptionPlanName[] = ["starter", "standard", "pro"];
+  const paidNames: PaidSubscriptionPlanName[] = [
+    "starter",
+    "standard",
+    "pro",
+    ...(catalog.enterprise ? (["enterprise"] as const) : []),
+  ];
 
-  return paidNames.map((name) => ({
-    limits: {
-      credits: catalog[name].credits,
-    },
-    name,
-    priceId: catalog[name].priceId,
-  }));
+  return paidNames.flatMap((name) => {
+    const plan = catalog[name];
+    if (!plan) return [];
+
+    return [
+      {
+        limits: {
+          credits: plan.credits,
+        },
+        name,
+        priceId: plan.priceId,
+      },
+    ];
+  });
 }

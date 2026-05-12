@@ -20,7 +20,7 @@ interface MockProductParams {
   credits?: number;
   interval?: "day" | "month" | "week" | "year";
   intervalCount?: number;
-  planName: "starter" | "standard" | "pro";
+  planName: "enterprise" | "pro" | "standard" | "starter";
   priceId: string;
   productId: string;
   unitAmount: number;
@@ -122,6 +122,71 @@ describe("subscription-catalog", () => {
         priceId: "price_pro",
       },
     ]);
+  });
+
+  it("includes Enterprise when configured as a paid monthly plan", async () => {
+    getEnvSecretsMock.mockReturnValue({
+      ...ENV,
+      STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID: "prod_enterprise",
+    });
+    const retrieveMock = vi.fn(async (productId: string) => {
+      switch (productId) {
+        case ENV.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID:
+          return createMockProduct({
+            planName: "starter",
+            priceId: "price_starter",
+            productId,
+            credits: 1750,
+            unitAmount: 2500,
+          });
+        case ENV.STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID:
+          return createMockProduct({
+            planName: "standard",
+            priceId: "price_standard",
+            productId,
+            credits: 5250,
+            unitAmount: 7500,
+          });
+        case ENV.STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID:
+          return createMockProduct({
+            planName: "pro",
+            priceId: "price_pro",
+            productId,
+            credits: 14000,
+            unitAmount: 20000,
+          });
+        case "prod_enterprise":
+          return createMockProduct({
+            planName: "enterprise",
+            priceId: "price_enterprise",
+            productId,
+            credits: 50000,
+            unitAmount: 120000,
+          });
+        default:
+          throw new Error(`Unexpected product id: ${productId}`);
+      }
+    });
+    const stripe = {
+      products: {
+        retrieve: retrieveMock,
+      },
+    };
+
+    const { getBetterAuthSubscriptionPlans, getSubscriptionCatalog } =
+      await import("../subscription-catalog");
+
+    const catalog = await getSubscriptionCatalog(stripe as never);
+    expect(catalog.enterprise?.credits).toBe(50000);
+    expect(catalog.enterprise?.monthlyAmount).toBe(120000);
+    expect(retrieveMock).toHaveBeenCalledTimes(4);
+
+    const plans = await getBetterAuthSubscriptionPlans(stripe as never);
+    expect(plans).toContainEqual({
+      limits: { credits: 50000 },
+      name: "enterprise",
+      priceId: "price_enterprise",
+    });
   });
 
   it("throws when paid product metadata credits are missing", async () => {

@@ -44,6 +44,7 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
 vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
+    STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID: "prod_enterprise",
     STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: "prod_pro",
     STRIPE_SECRET_KEY: "sk_test_mock",
     STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: "prod_standard",
@@ -120,6 +121,11 @@ const DEFAULT_INVOICE_CREATED_UNIX = 1_735_689_600;
 const DEFAULT_PERIOD_DURATION_SECONDS = 2_592_000;
 const SUBSCRIPTION_CATALOG = {
   free: { credits: 250, monthlyAmount: 0, productId: "local-free" },
+  enterprise: {
+    credits: 50000,
+    monthlyAmount: 120000,
+    productId: "prod_enterprise",
+  },
   pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
   standard: {
     credits: 5250,
@@ -880,6 +886,42 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("35000000000000"),
     );
+  });
+
+  it("grants Enterprise subscription credits for yearly organization invoices", async () => {
+    mockSubscriptionCatalog();
+    mockOrganizationInvoiceContext(
+      [
+        { role: "owner", userId: "owner-1" },
+        { role: "member", userId: "member-1" },
+      ],
+      "org-enterprise",
+    );
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_enterprise_cycle",
+        lines: [{ productId: "prod_enterprise", quantity: 2 }],
+      }) as never,
+    );
+
+    expect(getSubscriptionCatalogMock).toHaveBeenCalledTimes(1);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+
+    const amounts = createTransactionMock.mock.calls.map((call) => {
+      const createCall = call[0] as {
+        data: { sourceCreditBucket: { create: { amount: bigint } } };
+      };
+      return createCall.data.sourceCreditBucket.create.amount;
+    });
+    expect(amounts).toEqual([
+      BigInt("500000000000000"),
+      BigInt("500000000000000"),
+    ]);
   });
 
   it("uses invoice metadata credits for checkout-based top-up grants", async () => {

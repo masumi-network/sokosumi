@@ -414,6 +414,28 @@ export const auth = betterAuth({
 
           break;
         }
+        case "/subscription/upgrade": {
+          // Enterprise plans are sales-managed and intentionally not available
+          // via self-serve checkout. Reject here defensively so the underlying
+          // better-auth/stripe `/subscription/upgrade` endpoint cannot be hit
+          // directly with `plan: "enterprise"`, bypassing the UI/server-action
+          // guards. We keep "enterprise" in the registered plan list so
+          // dashboard-created Enterprise subscriptions are still tracked by
+          // better-auth's webhooks.
+          const requestedPlan = ctx.body?.plan;
+          if (
+            typeof requestedPlan === "string" &&
+            requestedPlan.toLowerCase() === "enterprise"
+          ) {
+            throw new APIError("BAD_REQUEST", {
+              code: "SUBSCRIPTION_PLAN_NOT_SELF_SERVE",
+              message:
+                "Enterprise subscriptions cannot be purchased via self-serve checkout.",
+            });
+          }
+
+          break;
+        }
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
