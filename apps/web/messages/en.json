@@ -240,6 +240,7 @@
       "tasks": "Tasks",
       "connections": "Connections",
       "feed": "My Feed",
+      "hermes": "Hermes",
       "new": "New"
     },
     "Jobs": {
@@ -1598,6 +1599,88 @@
         "ctrl": "Ctrl"
       }
     },
+    "Hermes": {
+      "Metadata": {
+        "title": "Hermes",
+        "description": "Your private, microVM-isolated AI agent."
+      },
+      "BetaTag": "Beta",
+      "EmptyState": {
+        "eyebrow": "Personal Hermes",
+        "title": "Your private Hermes Agent.",
+        "subtitle": "Hosted, sandboxed, yours.",
+        "description": "An isolated AI coworker with persistent memory, custom skills, and access to your Sokosumi data. Reach it from chat, Telegram, your terminal — wherever you work.",
+        "primaryCta": "Activate Hermes",
+        "secondaryCta": "Learn more",
+        "feature1Title": "Lives where you do",
+        "feature1Body": "Telegram, Discord, Slack, WhatsApp, Signal, email, CLI. Start anywhere, pick up anywhere.",
+        "feature2Title": "Grows the longer it runs",
+        "feature2Body": "Persistent memory and auto-generated skills. Learns your projects and how to do them.",
+        "feature3Title": "Scheduled automations",
+        "feature3Body": "Natural-language cron for reports, briefings, and backups. Runs unattended.",
+        "feature4Title": "Delegates & parallelizes",
+        "feature4Body": "Isolated subagents with their own terminals — parallel pipelines, zero context cost.",
+        "feature5Title": "Real sandboxing",
+        "feature5Body": "Local, Docker, SSH, Singularity, Modal. Container hardening and namespace isolation.",
+        "feature6Title": "Full web & browser control",
+        "feature6Body": "Search, browser automation, vision, image gen, TTS, multi-model reasoning.",
+        "sokosumiTitle": "Plugged into Sokosumi",
+        "sokosumiBody": "Reads your tasks, runs jobs through enabled agents, acts as your assistant across the platform — all inside your microVM.",
+        "footnote": "Beta access. One instance per account. By activating you accept the Beta terms — Hermes executes code on your behalf inside the sandbox.",
+        "poweredBy": "Powered by Nous Research"
+      },
+      "Provisioning": {
+        "title": "Provisioning your Hermes",
+        "subtitle": "This usually takes about a minute. You can leave this page open.",
+        "step1": "Allocating microVM",
+        "step2": "Mounting persistent volume",
+        "step3": "Starting Hermes runtime",
+        "step4": "Opening API endpoint"
+      },
+      "Running": {
+        "statusActive": "Active",
+        "statusSuspended": "Suspended",
+        "statusError": "Error",
+        "regionLabel": "Region",
+        "lastActiveLabel": "Last active",
+        "settingsCta": "Settings",
+        "composerPlaceholder": "Message Hermes…",
+        "composerHint": "Enter to send, Shift+Enter for newline",
+        "send": "Send",
+        "stop": "Stop",
+        "attach": "Attach files",
+        "emptyTitle": "ready when you are",
+        "emptyHint": "try setting up a daily briefing — \"every weekday at 9am, summarize my open tasks.\""
+      },
+      "Settings": {
+        "title": "Hermes settings",
+        "subtitle": "Configuration is per-instance. Saving a tool secret restarts your Hermes.",
+        "modelSection": "Model",
+        "modelLabel": "Model",
+        "modelProviderLabel": "Provider",
+        "modelManagedHelp": "Model selection is managed by the orchestrator. Changing this will require an update from your admin.",
+        "secretsSection": "Tool secrets",
+        "secretsHelp": "Add API keys for tools your Hermes can call (Exa, Tavily, GitHub, etc.). Stored encrypted in your isolated volume. Reserved keys (API_SERVER_*, HERMES_HOME, OPENROUTER_API_KEY) are managed.",
+        "secretKeyLabel": "Key",
+        "secretKeyInvalid": "Use uppercase letters, digits, and underscores only (e.g. EXA_API_KEY).",
+        "secretValueLabel": "Value",
+        "secretValuePlaceholder": "Paste the secret value",
+        "saveSecret": "Save secret",
+        "savingSecret": "Saving…",
+        "secretSavedToast": "{key} saved. Hermes is restarting.",
+        "secretSaveFailed": "Couldn't save the secret.",
+        "dangerSection": "Danger zone",
+        "destroyTitle": "Destroy this Hermes",
+        "destroyBody": "Permanently deletes the microVM and its persistent volume. Skills, memories, and conversations cannot be recovered.",
+        "destroyCta": "Destroy instance",
+        "cancel": "Cancel"
+      },
+      "Error": {
+        "title": "We couldn't start your Hermes",
+        "description": "The orchestrator returned an error. Try again in a minute. If it keeps happening, contact support.",
+        "retry": "Try again"
+      }
+    },
     "Error": {
       "title": "Something went wrong",
       "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
@@ -1620,7 +1703,8 @@
           "myFeed": "My Feed",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
-          "scheduledAgents": "Schedules"
+          "scheduledAgents": "Schedules",
+          "hermes": "Hermes"
         },
         "ChatLists": {
           "title": "Recent Chats",

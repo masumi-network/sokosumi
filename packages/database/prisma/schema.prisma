@@ -77,6 +77,10 @@ model User {
   conversations         Conversation[]
   noticeAcknowledgments NoticeAcknowledgment[]
 
+  // Hermes (per-user private agent — single conversation)
+  hermesMessages HermesMessage[]
+  hermesInstance HermesInstance?
+
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")
@@ -1380,4 +1384,52 @@ model ConversationMessage {
   @@index([conversationId])
   @@index([conversationId, createdAt])
   @@map("conversationMessage")
+}
+
+/// Per-user persistent history for the user's private Hermes agent. There is
+/// at most one logical conversation per user; messages are ordered by
+/// `createdAt`. Wiped when the user destroys their Hermes instance.
+model HermesMessage {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String // "user" | "assistant" | "system"
+  content   String
+  /// Outbox message kind from the orchestrator: "text" | "task_result" |
+  /// "reminder" | future. Null for user turns + assistant replies from the
+  /// regular chat path. Drives the notification-style rendering for
+  /// agent-initiated pushes.
+  kind      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("hermesMessage")
+}
+
+/// Sokosumi-side metadata about each user's Hermes instance. The orchestrator
+/// remains the source of truth for instance state; this table tracks polling
+/// metadata so the inbox cron can decide who to poll and when. One row per user.
+model HermesInstance {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// When the inbox cron last attempted a poll (success or failure).
+  lastPolledAt DateTime?
+  /// `createdAt` of the most recent inbox message we've ingested. Used as the
+  /// `since` cursor on the next poll.
+  lastInboxMessageAt DateTime?
+  /// `createdAt` of the latest inbox-kind message the user has seen. Anything
+  /// with `createdAt > lastSeenInboxAt` counts toward the sidebar unread badge.
+  lastSeenInboxAt DateTime?
+  /// Number of consecutive failed polls. Drives backoff into the cold tier.
+  consecutivePollErrors Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Lets the cron query "all instances due for polling, sorted by last poll".
+  @@index([lastPolledAt])
+  @@map("hermesInstance")
 }

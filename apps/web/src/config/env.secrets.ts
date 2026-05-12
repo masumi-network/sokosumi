@@ -20,6 +20,19 @@ const envSecretsSchema = z.object({
 
   CORE_APP_BASE_URL: z.url().default("http://localhost:8787"),
 
+  // Hermes Orchestrator
+  HERMES_ORCH_BASE_URL: z.url().optional(),
+  HERMES_ORCH_TOKEN: z.string().min(1).optional(),
+  // Inbox polling cron — disabled by default until orchestrator inbox endpoints
+  // are live. When false, the cron route returns a no-op 200.
+  HERMES_INBOX_POLLING_ENABLED: z
+    .string()
+    .transform((val: string) => val.trim().toLowerCase() === "true")
+    .default(false),
+
+  // Cron auth — shared bearer for /api/internal/* cron routes.
+  CRON_SECRET: z.string().min(1).optional(),
+
   CHROMIUM_EXECUTABLE_URL: z
     .url()
     .default(
