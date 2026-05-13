@@ -157,19 +157,6 @@ export async function resumeInstance(userId: string): Promise<void> {
 }
 
 /**
- * POST /v1/instances/:userId/suspend
- */
-export async function suspendInstance(userId: string): Promise<void> {
-  const res = await orchFetch(
-    `/v1/instances/${encodeURIComponent(userId)}/suspend`,
-    { method: "POST" },
-  );
-  if (!res.ok) {
-    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
-  }
-}
-
-/**
  * DELETE /v1/instances/:userId — destroys sprite and DB row.
  */
 export async function destroyInstance(userId: string): Promise<void> {

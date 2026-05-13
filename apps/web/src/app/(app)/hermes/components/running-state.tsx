@@ -21,6 +21,7 @@ import {
   PromptInputToolbar,
   PromptInputTools,
 } from "@/components/chat/prompt-input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   FileUpload,
@@ -124,6 +125,8 @@ function describeFileError(code: string | undefined, detail?: string): string {
 
 export default function RunningState({
   userName,
+  userImageUrl,
+  instance,
   previewMode,
   initialMessages,
   onDestroy,
@@ -211,6 +214,7 @@ export default function RunningState({
       });
     };
 
+    void tick();
     const interval = setInterval(() => void tick(), POLL_INTERVAL_MS);
     const onVisibility = () => {
       if (document.visibilityState === "visible") void tick();
@@ -389,6 +393,9 @@ export default function RunningState({
     }
     abortRef.current?.abort();
     abortRef.current = null;
+    // Clear the polling gate synchronously (same pattern as sendMessage setting
+    // true) so the inbox poller is not blocked until the next React commit.
+    isReplyingRef.current = false;
     setIsReplying(false);
   }, []);
 
@@ -436,7 +443,12 @@ export default function RunningState({
               <div className="flex flex-col items-center pt-12 pb-40 md:pt-8">
                 <div className="flex w-full max-w-4xl flex-col gap-1">
                   {messages.map((msg) => (
-                    <MessageRow key={msg.id} message={msg} />
+                    <MessageRow
+                      key={msg.id}
+                      message={msg}
+                      userImageUrl={userImageUrl}
+                      userName={userName}
+                    />
                   ))}
                   {isReplying ? <AssistantTyping /> : null}
                 </div>
@@ -510,7 +522,15 @@ function WelcomeBlock({ firstName }: { firstName: string | null }) {
   );
 }
 
-function MessageRow({ message }: { message: Message }) {
+function MessageRow({
+  message,
+  userImageUrl,
+  userName,
+}: {
+  message: Message;
+  userImageUrl?: string | null;
+  userName?: string | null;
+}) {
   const formatter = useFormatter();
   const isUser = message.role === "user";
   const createdAt = new Date(message.createdAt);
@@ -533,6 +553,21 @@ function MessageRow({ message }: { message: Message }) {
             {timestamp}
           </time>
         </div>
+        <Avatar className="size-8 shrink-0">
+          {userImageUrl ? (
+            <AvatarImage
+              src={userImageUrl}
+              alt=""
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : null}
+          <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
+            {userName?.trim() ? userName.trim().charAt(0).toUpperCase() : "U"}
+          </AvatarFallback>
+        </Avatar>
       </div>
     );
   }

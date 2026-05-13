@@ -17,7 +17,6 @@ import {
   isValidSecretKey,
   provisionInstance,
   setInstanceSecret,
-  suspendInstance,
 } from "@/lib/hermes/orchestrator-client";
 import type {
   HermesInstancePublic,
@@ -115,22 +114,6 @@ export const provisionHermesAction = withSession<
 });
 
 /**
- * Suspends the user's Hermes instance (bookkeeping; sprite auto-suspends on
- * idle anyway).
- */
-export const suspendHermesAction = withSession<
-  Record<string, never>,
-  Result<void, ActionError>
->(async ({ session }) => {
-  try {
-    await suspendInstance(session.user.id);
-    return Ok();
-  } catch (error) {
-    return Err(toActionError(error, "Failed to suspend Hermes instance"));
-  }
-});
-
-/**
  * Destroys the user's Hermes instance on the orchestrator.
  * Also wipes the user's persisted Hermes conversation history — the new
  * instance will have no skills/memory and the chat surface should mirror
@@ -177,22 +160,6 @@ export const listHermesMessagesAction = withSession<
     );
   } catch (error) {
     return Err(toActionError(error, "Failed to load Hermes messages"));
-  }
-});
-
-/**
- * Clears the user's persisted Hermes conversation history without destroying
- * the instance. Useful as a "Clear conversation" UX without re-provisioning.
- */
-export const clearHermesMessagesAction = withSession<
-  Record<string, never>,
-  Result<void, ActionError>
->(async ({ session }) => {
-  try {
-    await hermesMessageRepository.clearForUser(session.user.id, prisma);
-    return Ok();
-  } catch (error) {
-    return Err(toActionError(error, "Failed to clear Hermes messages"));
   }
 });
 
