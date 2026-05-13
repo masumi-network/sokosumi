@@ -45,6 +45,7 @@ interface OpenAIChatResponse {
   choices?: OpenAIChatChoice[];
 }
 
+/** Max UTF-8 byte length of trimmed user text (not JS string length / UTF-16 units). */
 const MAX_USER_CONTENT_BYTES = 32_000;
 const MAX_FILES = 5;
 // Aligned with the client `FileUpload` `maxSize` and the
@@ -236,7 +237,7 @@ export async function POST(req: NextRequest) {
   if (!trimmed && files.length === 0) {
     return NextResponse.json({ error: "content_required" }, { status: 400 });
   }
-  if (trimmed.length > MAX_USER_CONTENT_BYTES) {
+  if (Buffer.byteLength(trimmed, "utf8") > MAX_USER_CONTENT_BYTES) {
     return NextResponse.json({ error: "content_too_large" }, { status: 413 });
   }
 

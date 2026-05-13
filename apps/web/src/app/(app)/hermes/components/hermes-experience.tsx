@@ -57,17 +57,15 @@ export default function HermesExperience({
   >([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Initial fetch (skipped in preview mode). Loads instance state and
-  // persisted history in parallel.
-  useEffect(() => {
-    if (previewMode) return;
-    let cancelled = false;
-    void (async () => {
+  /** Loads instance state and persisted history in parallel (no provision). */
+  const refetchHermes = useCallback(
+    async (options?: { isCancelled?: () => boolean }) => {
+      const isCancelled = options?.isCancelled;
       const [instanceResult, messagesResult] = await Promise.all([
         getHermesInstanceAction({}),
         listHermesMessagesAction({}),
       ]);
-      if (cancelled) return;
+      if (isCancelled?.()) return;
       if (!instanceResult.ok) {
         setUiState("error");
         setErrorMessage(
@@ -85,11 +83,19 @@ export default function HermesExperience({
       }
       setInstance(instanceResult.data);
       setUiState(uiStateForServerStatus(instanceResult.data.status));
-    })();
+    },
+    [],
+  );
+
+  // Initial fetch (skipped in preview mode).
+  useEffect(() => {
+    if (previewMode) return;
+    let cancelled = false;
+    void refetchHermes({ isCancelled: () => cancelled });
     return () => {
       cancelled = true;
     };
-  }, [previewMode]);
+  }, [previewMode, refetchHermes]);
 
   // Polling loop bound to the `provisioning` UI state. Starts on entry,
   // teardown cancels in-flight requests and clears the timer.
@@ -158,9 +164,11 @@ export default function HermesExperience({
   }, []);
 
   const handleRetry = useCallback(() => {
+    if (previewMode) return;
     setErrorMessage(null);
-    void handleActivate();
-  }, [handleActivate]);
+    setUiState("loading");
+    void refetchHermes();
+  }, [previewMode, refetchHermes]);
 
   const handleDestroy = useCallback(async () => {
     if (previewMode) {
