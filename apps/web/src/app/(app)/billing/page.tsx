@@ -13,6 +13,7 @@ import { BalanceSection } from "@/components/billing/balance-section";
 import { BillingTabs } from "@/components/billing/billing-tabs";
 import CouponSection from "@/components/billing/coupon-section";
 import CreditsSection from "@/components/billing/credits-section";
+import { OrganizationEnterprisePlanCard } from "@/components/billing/organization-enterprise-plan-card";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import {
@@ -33,12 +34,12 @@ import {
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
-const PLAN_ORDER: SubscriptionPlanName[] = [
+const PLAN_ORDER = [
   "free",
   "starter",
   "standard",
   "pro",
-];
+] as const satisfies SubscriptionPlanName[];
 
 interface BillingPageProps {
   searchParams: Promise<{
@@ -67,7 +68,10 @@ function parseBillingTab(tab: string | undefined): BillingTab {
 }
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
-  const t = await getTranslations("App.Billing");
+  const [t, tSubscriptions] = await Promise.all([
+    getTranslations("App.Billing"),
+    getTranslations("App.Subscriptions"),
+  ]);
   const [query, session, activeOrganization, isZeroMarginTopUpEnabled] =
     await Promise.all([
       searchParams,
@@ -196,18 +200,32 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             }}
             showCreditsTab
             subscriptionContent={
-              <OrganizationSubscriptionSection
-                cancelAtPeriodEnd={
-                  latestSubscription?.cancelAtPeriodEnd ?? false
-                }
-                currentPlan={currentPlan}
-                currentPeriodEnd={latestSubscription?.periodEnd ?? null}
-                currentSeats={currentSeats}
-                memberCount={activeOrganization._count.members}
-                organizationId={activeOrganization.id}
-                plans={orgPlans}
-                returnPath="/billing?tab=subscription"
-              />
+              currentPlan === "enterprise" ? (
+                <OrganizationEnterprisePlanCard
+                  contactSupportText={t("enterpriseContactSupport")}
+                  description={t("enterprisePlanDescription")}
+                  memberCount={activeOrganization._count.members}
+                  membersLabel={t("enterpriseMembersLabel")}
+                  seats={currentSeats}
+                  seatsLabel={t("enterpriseSeatsLabel")}
+                  title={t("enterprisePlanTitle", {
+                    planName: tSubscriptions("Plans.enterprise.name"),
+                  })}
+                />
+              ) : (
+                <OrganizationSubscriptionSection
+                  cancelAtPeriodEnd={
+                    latestSubscription?.cancelAtPeriodEnd ?? false
+                  }
+                  currentPlan={currentPlan}
+                  currentPeriodEnd={latestSubscription?.periodEnd ?? null}
+                  currentSeats={currentSeats}
+                  memberCount={activeOrganization._count.members}
+                  organizationId={activeOrganization.id}
+                  plans={orgPlans}
+                  returnPath="/billing?tab=subscription"
+                />
+              )
             }
             creditsContent={
               <CreditsSection

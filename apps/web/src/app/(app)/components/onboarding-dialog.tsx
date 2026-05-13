@@ -557,6 +557,11 @@ export function OnboardingDialog({
       return;
     }
 
+    if (selectedPlan === "enterprise") {
+      toast.error(tSubscriptions("Errors.badInput"));
+      return;
+    }
+
     track("Onboarding plan checkout started", {
       customerType: organizationId ? "organization" : "user",
       plan: selectedPlan,

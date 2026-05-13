@@ -26,12 +26,12 @@ import {
 import { OnboardingSubscriptionReturnHandler } from "./onboarding-subscription-return-handler";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
-const PLAN_ORDER: SubscriptionPlanName[] = [
+const PLAN_ORDER = [
   "free",
   "starter",
   "standard",
   "pro",
-];
+] as const satisfies SubscriptionPlanName[];
 
 interface OnboardingDialogLoaderProps {
   activeOrganization: OrganizationWithRelations | null;
