@@ -17,6 +17,11 @@ import {
 import { getHermesUnreadCountAction } from "@/lib/actions/hermes";
 import { cn } from "@/lib/utils";
 
+interface MenuItemsProps {
+  /** Hermes nav + unread polling; driven by `hermesBetaEnabled` in app layout. */
+  hermesMenuEnabled: boolean;
+}
+
 interface MenuItemConfig {
   key: string;
   href: string;
@@ -29,10 +34,11 @@ interface MenuItemConfig {
 
 const HERMES_UNREAD_POLL_INTERVAL_MS = 30_000;
 
-function useHermesUnreadCount(): number {
+function useHermesUnreadCount(enabled: boolean): number {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
 
     const tick = async () => {
@@ -63,16 +69,17 @@ function useHermesUnreadCount(): number {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [enabled]);
 
-  return count;
+  return enabled ? count : 0;
 }
 
-export default function MenuItems() {
+export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const tHermes = useTranslations("App.Hermes");
+  const hermesBetaTag = tHermes("BetaTag");
   const pathname = usePathname();
-  const hermesUnread = useHermesUnreadCount();
+  const hermesUnread = useHermesUnreadCount(hermesMenuEnabled);
 
   const isPathActive = (href: string) => {
     if (pathname === href) {
@@ -107,14 +114,18 @@ export default function MenuItems() {
       label: t("scheduledAgents"),
       Icon: CalendarClock,
     },
-    {
-      key: "hermes",
-      href: "/hermes",
-      label: t("hermes"),
-      Icon: Feather,
-      badge: tHermes("BetaTag"),
-      unreadCount: hermesUnread,
-    },
+    ...(hermesMenuEnabled
+      ? ([
+          {
+            key: "hermes",
+            href: "/hermes",
+            label: t("hermes"),
+            Icon: Feather,
+            badge: hermesBetaTag,
+            unreadCount: hermesUnread,
+          },
+        ] satisfies MenuItemConfig[])
+      : []),
   ];
 
   return (

@@ -240,6 +240,7 @@
       "tasks": "タスク",
       "connections": "接続",
       "feed": "マイフィード",
+      "hermes": "Hermes",
       "new": "新規"
     },
     "Jobs": {
@@ -1598,6 +1599,88 @@
         "ctrl": "Ctrl"
       }
     },
+    "Hermes": {
+      "Metadata": {
+        "title": "Hermes",
+        "description": "マイクロVMで隔離された、あなた専用のプライベートAIエージェント。"
+      },
+      "BetaTag": "ベータ",
+      "EmptyState": {
+        "eyebrow": "パーソナル Hermes",
+        "title": "あなた専用の Hermes エージェント。",
+        "subtitle": "ホスト型、サンドボックス内、あなたのもの。",
+        "description": "永続メモリ、カスタムスキル、Sokosumi データへのアクセスを備えた隔離されたAIコワーカー。チャット、Telegram、ターミナルなど、作業している場所から利用できます。",
+        "primaryCta": "Hermes を有効化",
+        "secondaryCta": "詳しく見る",
+        "feature1Title": "あなたのいる場所で動く",
+        "feature1Body": "Telegram、Discord、Slack、WhatsApp、Signal、メール、CLI。どこからでも始め、どこでも再開。",
+        "feature2Title": "動かすほど賢くなる",
+        "feature2Body": "永続メモリと自動生成スキル。プロジェクトと進め方を学習します。",
+        "feature3Title": "スケジュール自動化",
+        "feature3Body": "自然言語の cron でレポート、ブリーフィング、バックアップ。無人で実行。",
+        "feature4Title": "委譲と並列処理",
+        "feature4Body": "独自ターミナルを持つ隔離サブエージェント。並列パイプライン、コンテキストコストなし。",
+        "feature5Title": "本物のサンドボックス",
+        "feature5Body": "ローカル、Docker、SSH、Singularity、Modal。コンテナ強化と名前空間隔離。",
+        "feature6Title": "Web・ブラウザのフル制御",
+        "feature6Body": "検索、ブラウザ自動化、ビジョン、画像生成、TTS、マルチモデル推論。",
+        "sokosumiTitle": "Sokosumi と連携",
+        "sokosumiBody": "タスクを読み、有効なエージェント経由でジョブを実行し、プラットフォーム上でアシスト — すべてマイクロVM内で。",
+        "footnote": "ベータアクセス。アカウントごとに1インスタンス。有効化によりベータ条項に同意したものとします — Hermes はサンドボックス内であなたに代わってコードを実行します。",
+        "poweredBy": "Powered by Nous Research"
+      },
+      "Provisioning": {
+        "title": "Hermes をプロビジョニング中",
+        "subtitle": "通常は約1分かかります。このページを開いたままにしておいても構いません。",
+        "step1": "マイクロVM を割り当て中",
+        "step2": "永続ボリュームをマウント中",
+        "step3": "Hermes ランタイムを起動中",
+        "step4": "API エンドポイントを開いています"
+      },
+      "Running": {
+        "statusActive": "アクティブ",
+        "statusSuspended": "一時停止",
+        "statusError": "エラー",
+        "regionLabel": "リージョン",
+        "lastActiveLabel": "最終アクティブ",
+        "settingsCta": "設定",
+        "composerPlaceholder": "Hermes にメッセージ…",
+        "composerHint": "Enter で送信、Shift+Enter で改行",
+        "send": "送信",
+        "stop": "停止",
+        "attach": "ファイルを添付",
+        "emptyTitle": "準備はいつでもできています",
+        "emptyHint": "毎日のブリーフィングを試す — 「平日毎朝9時に未完了タスクを要約して」"
+      },
+      "Settings": {
+        "title": "Hermes 設定",
+        "subtitle": "設定はインスタンスごとです。ツールシークレットを保存すると Hermes が再起動します。",
+        "modelSection": "モデル",
+        "modelLabel": "モデル",
+        "modelProviderLabel": "プロバイダー",
+        "modelManagedHelp": "モデル選択はオーケストレーターが管理します。変更には管理者による更新が必要です。",
+        "secretsSection": "ツールシークレット",
+        "secretsHelp": "Hermes が呼び出せるツールの API キーを追加（Exa、Tavily、GitHub など）。隔離ボリュームに暗号化保存。予約キー（API_SERVER_*、HERMES_HOME、OPENROUTER_API_KEY）は管理対象です。",
+        "secretKeyLabel": "キー",
+        "secretKeyInvalid": "大文字、数字、アンダースコアのみ（例: EXA_API_KEY）。",
+        "secretValueLabel": "値",
+        "secretValuePlaceholder": "シークレットの値を貼り付け",
+        "saveSecret": "シークレットを保存",
+        "savingSecret": "保存中…",
+        "secretSavedToast": "{key} を保存しました。Hermes を再起動しています。",
+        "secretSaveFailed": "シークレットを保存できませんでした。",
+        "dangerSection": "危険ゾーン",
+        "destroyTitle": "この Hermes を破棄",
+        "destroyBody": "マイクロVM と永続ボリュームを完全に削除します。スキル、メモリ、会話は復元できません。",
+        "destroyCta": "インスタンスを破棄",
+        "cancel": "キャンセル"
+      },
+      "Error": {
+        "title": "Hermes を起動できませんでした",
+        "description": "オーケストレーターがエラーを返しました。1分後に再試行してください。繰り返す場合はサポートへご連絡ください。",
+        "retry": "再試行"
+      }
+    },
     "Error": {
       "title": "問題が発生しました",
       "description": "予期しないエラーが発生しました。チームに通知されており、解決に向けて対応しています。",
@@ -1620,7 +1703,8 @@
           "myFeed": "マイフィード",
           "filesAndOutputs": "ファイルと出力",
           "taskManager": "タスク",
-          "scheduledAgents": "スケジュール"
+          "scheduledAgents": "スケジュール",
+          "hermes": "Hermes"
         },
         "ChatLists": {
           "title": "最近のチャット",

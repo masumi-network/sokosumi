@@ -109,9 +109,9 @@ function describeFileError(code: string | undefined, detail?: string): string {
     case "too_many_files":
       return "Too many files attached.";
     case "file_too_large":
-      return `File is too large${detail ? `: ${detail}` : ""}. Max 3 MB per file.`;
+      return `File is too large${detail ? `: ${detail}` : ""}. Max 20 MB per file.`;
     case "files_total_too_large":
-      return "Combined attachment size is too large. Max 5 MB total.";
+      return "Combined attachment size is too large. Max 20 MB total.";
     case "unsupported_file_type":
       return `Unsupported file type${detail ? `: ${detail}` : ""}. Images and text-like files only.`;
     case "invalid_data_url":
@@ -518,10 +518,6 @@ function MessageRow({ message }: { message: Message }) {
     hour: "2-digit",
     minute: "2-digit",
   });
-  const fullTimestamp = formatter.dateTime(createdAt, {
-    dateStyle: "full",
-    timeStyle: "short",
-  });
 
   if (isUser) {
     return (
@@ -530,17 +526,12 @@ function MessageRow({ message }: { message: Message }) {
           <div className="bg-muted-foreground/10 text-foreground min-h-6 rounded-lg px-3 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words">
             {message.content}
           </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <time
-                dateTime={message.createdAt}
-                className="text-tertiary-foreground px-1 text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
-              >
-                {timestamp}
-              </time>
-            </TooltipTrigger>
-            <TooltipContent side="left">{fullTimestamp}</TooltipContent>
-          </Tooltip>
+          <time
+            dateTime={message.createdAt}
+            className="text-tertiary-foreground px-1 text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+          >
+            {timestamp}
+          </time>
         </div>
       </div>
     );
@@ -561,17 +552,12 @@ function MessageRow({ message }: { message: Message }) {
         <div className="text-foreground min-h-5 bg-transparent pt-1 pr-10 pb-1 text-sm leading-relaxed whitespace-pre-wrap break-words">
           {message.content}
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <time
-              dateTime={message.createdAt}
-              className="text-tertiary-foreground pb-2 text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
-            >
-              {timestamp}
-            </time>
-          </TooltipTrigger>
-          <TooltipContent side="right">{fullTimestamp}</TooltipContent>
-        </Tooltip>
+        <time
+          dateTime={message.createdAt}
+          className="text-tertiary-foreground pb-2 text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+        >
+          {timestamp}
+        </time>
       </div>
     </div>
   );

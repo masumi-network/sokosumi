@@ -47,8 +47,12 @@ interface OpenAIChatResponse {
 
 const MAX_USER_CONTENT_BYTES = 32_000;
 const MAX_FILES = 5;
-const MAX_FILE_BYTES = 3 * 1024 * 1024; // 3 MB raw per file
-const MAX_TOTAL_FILE_BYTES = 5 * 1024 * 1024; // 5 MB raw across all files
+// Aligned with the client `FileUpload` `maxSize` and the
+// `serverActions.bodySizeLimit` of "20mb" in next.config.ts. Keeping the
+// total cap at 20 MB too — the request body limit is the binding constraint,
+// 5 × 20 MB would never reach the route.
+const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB raw per file
+const MAX_TOTAL_FILE_BYTES = 20 * 1024 * 1024; // 20 MB raw across all files
 const MAX_INLINED_TEXT_BYTES = 200 * 1024; // 200 KB per text file
 
 const ALLOWED_IMAGE_TYPES = new Set([
@@ -333,13 +337,15 @@ export async function POST(req: NextRequest) {
   const persistedUserContent = buildPersistedUserContent(trimmed, files);
 
   try {
-    await hermesMessageRepository.appendPair(
-      {
-        userId,
-        userContent: persistedUserContent,
-        assistantContent: content,
-      },
-      prisma,
+    await prisma.$transaction(async (tx) =>
+      hermesMessageRepository.appendPair(
+        {
+          userId,
+          userContent: persistedUserContent,
+          assistantContent: content,
+        },
+        tx,
+      ),
     );
   } catch (error) {
     Sentry.captureException(error, {

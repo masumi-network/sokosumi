@@ -9,8 +9,7 @@ import type { HermesInstancePublic, HermesInstanceStatus } from "./types";
  *
  * The orchestrator owns the source of truth for per-user microVM instances.
  * Sokosumi is a thin proxy: this module is the only place the orchestrator
- * bearer token is read, and the only place the per-instance `apiServerKey`
- * lives in process memory.
+ * bearer token is read for server-to-orchestrator calls.
  *
  * NEVER export anything from this module to a client component.
  */
@@ -56,11 +55,6 @@ function getConfig(): OrchestratorConfig {
     throw new HermesOrchestratorNotConfiguredError();
   }
   return { baseUrl, token };
-}
-
-export function isHermesOrchestratorConfigured(): boolean {
-  const env = getEnvSecrets();
-  return Boolean(env.HERMES_ORCH_BASE_URL && env.HERMES_ORCH_TOKEN);
 }
 
 async function orchFetch(
@@ -184,13 +178,11 @@ export async function destroyInstance(userId: string): Promise<void> {
   });
   // Treat 404 as already-destroyed.
   if (res.status === 404) {
-    invalidateApiServerKey(userId);
     return;
   }
   if (!res.ok) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
-  invalidateApiServerKey(userId);
 }
 
 const RESERVED_SECRET_KEYS = new Set(["HERMES_HOME", "OPENROUTER_API_KEY"]);
@@ -224,41 +216,6 @@ export async function setInstanceSecret(
   if (!res.ok) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// In-process apiServerKey cache. Stable per instance lifetime — invalidated
-// only on destroy. Lost on server restart, which is fine: re-fetched on
-// demand. Never reaches the browser.
-// ──────────────────────────────────────────────────────────────────────────
-
-const apiServerKeyCache = new Map<string, string>();
-
-export function invalidateApiServerKey(userId: string): void {
-  apiServerKeyCache.delete(userId);
-}
-
-interface KeyFromOrchestrator {
-  apiServerKey: string;
-}
-
-/**
- * GET /v1/instances/:userId/key — returns the bearer the user's Hermes API
- * expects. Cached in-process for the instance lifetime.
- */
-export async function getInstanceApiServerKey(userId: string): Promise<string> {
-  const cached = apiServerKeyCache.get(userId);
-  if (cached) return cached;
-
-  const res = await orchFetch(
-    `/v1/instances/${encodeURIComponent(userId)}/key`,
-  );
-  if (!res.ok) {
-    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
-  }
-  const data = (await res.json()) as KeyFromOrchestrator;
-  apiServerKeyCache.set(userId, data.apiServerKey);
-  return data.apiServerKey;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

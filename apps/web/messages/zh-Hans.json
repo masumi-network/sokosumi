@@ -240,6 +240,7 @@
       "tasks": "任务",
       "connections": "连接",
       "feed": "我的动态",
+      "hermes": "Hermes",
       "new": "新建"
     },
     "Jobs": {
@@ -1598,6 +1599,88 @@
         "ctrl": "Ctrl"
       }
     },
+    "Hermes": {
+      "Metadata": {
+        "title": "Hermes",
+        "description": "你的私人 AI 助手，运行在隔离的微虚拟机中。"
+      },
+      "BetaTag": "测试版",
+      "EmptyState": {
+        "eyebrow": "个人 Hermes",
+        "title": "你的私人 Hermes 助手。",
+        "subtitle": "托管、沙箱隔离、专属于你。",
+        "description": "具备持久记忆、自定义技能并可访问 Sokosumi 数据的隔离式 AI 同事。在聊天、Telegram、终端等任何工作场景中使用。",
+        "primaryCta": "启用 Hermes",
+        "secondaryCta": "了解更多",
+        "feature1Title": "在你所在之处工作",
+        "feature1Body": "Telegram、Discord、Slack、WhatsApp、Signal、邮件、CLI。随处开始、随处继续。",
+        "feature2Title": "运行越久越智能",
+        "feature2Body": "持久记忆与自动生成技能，学习你的项目与执行方式。",
+        "feature3Title": "定时自动化",
+        "feature3Body": "用自然语言配置 cron：报告、简报与备份，无人值守运行。",
+        "feature4Title": "委派与并行",
+        "feature4Body": "隔离子代理与独立终端，并行流水线，零额外上下文成本。",
+        "feature5Title": "真正的沙箱",
+        "feature5Body": "本地、Docker、SSH、Singularity、Modal。容器加固与命名空间隔离。",
+        "feature6Title": "完整的网页与浏览器控制",
+        "feature6Body": "搜索、浏览器自动化、视觉、图像生成、TTS、多模型推理。",
+        "sokosumiTitle": "接入 Sokosumi",
+        "sokosumiBody": "读取任务、通过已启用的智能体运行作业，在平台内协助你——全部在微虚拟机中完成。",
+        "footnote": "测试版访问。每个账户一个实例。启用即表示接受测试版条款——Hermes 会在沙箱中代你执行代码。",
+        "poweredBy": "由 Nous Research 提供支持"
+      },
+      "Provisioning": {
+        "title": "正在为你的 Hermes 分配资源",
+        "subtitle": "通常需要约一分钟，你可以保持此页面打开。",
+        "step1": "分配微虚拟机",
+        "step2": "挂载持久卷",
+        "step3": "启动 Hermes 运行时",
+        "step4": "开放 API 端点"
+      },
+      "Running": {
+        "statusActive": "运行中",
+        "statusSuspended": "已暂停",
+        "statusError": "错误",
+        "regionLabel": "区域",
+        "lastActiveLabel": "上次活动",
+        "settingsCta": "设置",
+        "composerPlaceholder": "向 Hermes 发送消息…",
+        "composerHint": "Enter 发送，Shift+Enter 换行",
+        "send": "发送",
+        "stop": "停止",
+        "attach": "附加文件",
+        "emptyTitle": "随时待命",
+        "emptyHint": "试试每日简报——「每个工作日早上 9 点，总结我的未完成任务」。"
+      },
+      "Settings": {
+        "title": "Hermes 设置",
+        "subtitle": "配置按实例生效。保存工具密钥会重启 Hermes。",
+        "modelSection": "模型",
+        "modelLabel": "模型",
+        "modelProviderLabel": "提供商",
+        "modelManagedHelp": "模型选择由编排器管理，更改需由管理员更新。",
+        "secretsSection": "工具密钥",
+        "secretsHelp": "添加 Hermes 可调用工具的 API 密钥（Exa、Tavily、GitHub 等）。加密存储在隔离卷中。保留键名（API_SERVER_*、HERMES_HOME、OPENROUTER_API_KEY）由系统管理。",
+        "secretKeyLabel": "键名",
+        "secretKeyInvalid": "仅可使用大写字母、数字和下划线（例如 EXA_API_KEY）。",
+        "secretValueLabel": "值",
+        "secretValuePlaceholder": "粘贴密钥值",
+        "saveSecret": "保存密钥",
+        "savingSecret": "正在保存…",
+        "secretSavedToast": "已保存 {key}。Hermes 正在重启。",
+        "secretSaveFailed": "无法保存密钥。",
+        "dangerSection": "危险操作",
+        "destroyTitle": "销毁此 Hermes",
+        "destroyBody": "将永久删除微虚拟机及其持久卷，技能、记忆与对话无法恢复。",
+        "destroyCta": "销毁实例",
+        "cancel": "取消"
+      },
+      "Error": {
+        "title": "无法启动 Hermes",
+        "description": "编排器返回错误。请在一分钟后重试；若持续出现请联系支持。",
+        "retry": "重试"
+      }
+    },
     "Error": {
       "title": "出现问题",
       "description": "我们遇到了意外错误。团队已收到通知，正在处理该问题。",
@@ -1620,7 +1703,8 @@
           "myFeed": "我的动态",
           "filesAndOutputs": "文件与输出",
           "taskManager": "任务",
-          "scheduledAgents": "日程"
+          "scheduledAgents": "日程",
+          "hermes": "Hermes"
         },
         "ChatLists": {
           "title": "最近聊天",

@@ -13,7 +13,6 @@ import {
   getInstance,
   HermesOrchestratorError,
   HermesOrchestratorNotConfiguredError,
-  invalidateApiServerKey,
   isReservedSecretKey,
   isValidSecretKey,
   provisionInstance,
@@ -132,7 +131,7 @@ export const suspendHermesAction = withSession<
 });
 
 /**
- * Destroys the user's Hermes instance and clears any cached credentials.
+ * Destroys the user's Hermes instance on the orchestrator.
  * Also wipes the user's persisted Hermes conversation history — the new
  * instance will have no skills/memory and the chat surface should mirror
  * that fresh start.
@@ -143,7 +142,6 @@ export const destroyHermesAction = withSession<
 >(async ({ session }) => {
   try {
     await destroyInstance(session.user.id);
-    invalidateApiServerKey(session.user.id);
     await hermesMessageRepository.clearForUser(session.user.id, prisma);
     await hermesInstanceRepository.deleteForUser(session.user.id, prisma);
     return Ok();
