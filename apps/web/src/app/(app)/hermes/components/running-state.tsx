@@ -293,6 +293,7 @@ export default function RunningState({
               createdAt: new Date().toISOString(),
             },
           ]);
+          isReplyingRef.current = false;
           setIsReplying(false);
         }, 1200);
         return;
@@ -379,6 +380,9 @@ export default function RunningState({
           toast.error("Couldn't reach Hermes. Check your connection.");
         } finally {
           if (abortRef.current === controller) abortRef.current = null;
+          // Clear the polling gate synchronously (same pattern as stop()) so the
+          // inbox poller is not blocked until the next React commit.
+          isReplyingRef.current = false;
           setIsReplying(false);
         }
       })();
