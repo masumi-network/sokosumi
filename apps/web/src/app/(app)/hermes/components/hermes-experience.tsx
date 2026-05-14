@@ -124,12 +124,19 @@ export default function HermesExperience({
         return;
       }
       if (result.data) {
-        setInstance(result.data);
         const next = uiStateForServerStatus(result.data.status);
         if (next !== "provisioning") {
+          if (next === "running") {
+            const messagesResult = await listHermesMessagesAction({});
+            if (cancelled) return;
+            if (messagesResult.ok) setInitialMessages(messagesResult.data);
+          }
+          if (cancelled) return;
+          setInstance(result.data);
           setUiState(next);
           return;
         }
+        setInstance(result.data);
       } else {
         // Provision call succeeded but the instance disappeared — treat as error.
         setUiState("error");
@@ -158,9 +165,14 @@ export default function HermesExperience({
       return;
     }
     setInstance(result.data);
+    const nextUi = uiStateForServerStatus(result.data.status);
+    if (nextUi === "running") {
+      const messagesResult = await listHermesMessagesAction({});
+      if (messagesResult.ok) setInitialMessages(messagesResult.data);
+    }
     // Immediately reflect server-side status — if it already came back as
     // "running" the polling effect will just no-op.
-    setUiState(uiStateForServerStatus(result.data.status));
+    setUiState(nextUi);
   }, []);
 
   const handleRetry = useCallback(() => {
