@@ -124,14 +124,165 @@ function isValidRole(role: string): role is "user" | "assistant" | "system" {
 function decodeDataUrl(
   dataUrl: string,
 ): { mime: string; bytes: Buffer } | null {
-  const match = /^data:([^;,]+);base64,(.+)$/.exec(dataUrl);
+  const match = /^data:([^;,]*);base64,(.+)$/s.exec(dataUrl);
   if (!match) return null;
 
   try {
-    return { mime: match[1]!, bytes: Buffer.from(match[2]!, "base64") };
+    const rawMime = match[1]!.trim();
+    const mime =
+      rawMime === "" ? "application/octet-stream" : rawMime.toLowerCase();
+    return { mime, bytes: Buffer.from(match[2]!, "base64") };
   } catch {
     return null;
   }
+}
+
+function isUndeterminedClientMime(type: string): boolean {
+  const t = type.trim().toLowerCase();
+  return t === "" || t === "application/octet-stream";
+}
+
+function sniffImageMimeFromBytes(buf: Buffer): string | null {
+  if (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47 &&
+    buf[4] === 0x0d &&
+    buf[5] === 0x0a &&
+    buf[6] === 0x1a &&
+    buf[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+
+  if (
+    buf.length >= 3 &&
+    buf[0] === 0xff &&
+    buf[1] === 0xd8 &&
+    buf[2] === 0xff
+  ) {
+    return "image/jpeg";
+  }
+
+  if (
+    buf.length >= 6 &&
+    buf[0] === 0x47 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x38 &&
+    (buf[4] === 0x37 || buf[4] === 0x39) &&
+    buf[5] === 0x61
+  ) {
+    return "image/gif";
+  }
+
+  if (
+    buf.length >= 12 &&
+    buf.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buf.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+
+  return null;
+}
+
+const EXT_TO_TEXT_LIKE_MIME: Readonly<Record<string, string>> = {
+  ".bash": "application/x-sh",
+  ".cjs": "application/javascript",
+  ".css": "text/css",
+  ".csv": "application/csv",
+  ".htm": "text/html",
+  ".html": "text/html",
+  ".js": "application/javascript",
+  ".json": "application/json",
+  ".log": "text/plain",
+  ".markdown": "text/markdown",
+  ".md": "text/markdown",
+  ".mjs": "application/javascript",
+  ".sql": "application/sql",
+  ".sh": "application/x-sh",
+  ".tex": "application/x-tex",
+  ".toml": "text/plain",
+  ".ts": "application/typescript",
+  ".tsx": "application/typescript",
+  ".txt": "text/plain",
+  ".xml": "application/xml",
+  ".yaml": "application/yaml",
+  ".yml": "application/yaml",
+  ".zsh": "application/x-sh",
+};
+
+function guessTextLikeMimeFromFilename(name: string): string | null {
+  const lower = name.toLowerCase();
+  const dot = lower.lastIndexOf(".");
+  if (dot === -1 || dot === lower.length - 1) return null;
+  return EXT_TO_TEXT_LIKE_MIME[lower.slice(dot)] ?? null;
+}
+
+function dataUrlWithMime(mime: string, bytes: Buffer): string {
+  return `data:${mime};base64,${bytes.toString("base64")}`;
+}
+
+/**
+ * When the client sends an empty or generic MIME (common when `File.type` is
+ * blank and the UI falls back to `application/octet-stream`), infer a concrete
+ * allowed type from the data URL, magic bytes, or filename before validating.
+ */
+function resolveHermesUploadedMime(
+  name: string,
+  clientTypeRaw: string,
+  parsedMime: string,
+  bytes: Buffer,
+): { effectiveMime: string; dataUrl: string } {
+  const clientType = clientTypeRaw.trim().toLowerCase();
+  const dataMime = parsedMime.trim().toLowerCase();
+
+  const clientUndetermined = isUndeterminedClientMime(clientTypeRaw);
+  const dataUndetermined = isUndeterminedClientMime(parsedMime);
+
+  if (!clientUndetermined) {
+    if (!isImageMime(clientType) && !isTextLikeMime(clientType)) {
+      throw badRequest(`Unsupported file type: ${clientTypeRaw.trim()}.`);
+    }
+
+    if (dataMime !== clientType) {
+      throw badRequest(`File "${name}" MIME type does not match its data URL.`);
+    }
+
+    return {
+      effectiveMime: clientType,
+      dataUrl: dataUrlWithMime(clientType, bytes),
+    };
+  }
+
+  if (
+    !dataUndetermined &&
+    (isImageMime(dataMime) || isTextLikeMime(dataMime))
+  ) {
+    return {
+      effectiveMime: dataMime,
+      dataUrl: dataUrlWithMime(dataMime, bytes),
+    };
+  }
+
+  const sniffed = sniffImageMimeFromBytes(bytes);
+  if (sniffed) {
+    return { effectiveMime: sniffed, dataUrl: dataUrlWithMime(sniffed, bytes) };
+  }
+
+  const guessed = guessTextLikeMimeFromFilename(name);
+  if (guessed && isTextLikeMime(guessed)) {
+    return { effectiveMime: guessed, dataUrl: dataUrlWithMime(guessed, bytes) };
+  }
+
+  throw badRequest(
+    `Could not determine a supported type for "${name}". ` +
+      "Use a supported image (PNG, JPEG, GIF, WebP) or text-based file, " +
+      "or rename the file with a recognizable extension.",
+  );
 }
 
 function validateAndDecodeFiles(
@@ -146,19 +297,9 @@ function validateAndDecodeFiles(
   let totalBytes = 0;
 
   for (const file of raw) {
-    if (!isImageMime(file.type) && !isTextLikeMime(file.type)) {
-      throw badRequest(`Unsupported file type: ${file.type}.`);
-    }
-
     const parsed = decodeDataUrl(file.dataUrl);
     if (!parsed) {
       throw badRequest(`File "${file.name}" is not a valid base64 data URL.`);
-    }
-
-    if (parsed.mime !== file.type) {
-      throw badRequest(
-        `File "${file.name}" MIME type does not match its data URL.`,
-      );
     }
 
     if (parsed.bytes.length > MAX_FILE_BYTES) {
@@ -170,11 +311,18 @@ function validateAndDecodeFiles(
       throw payloadTooLarge("Uploaded files are larger than 20 MB in total.");
     }
 
+    const { effectiveMime, dataUrl } = resolveHermesUploadedMime(
+      file.name,
+      file.type,
+      parsed.mime,
+      parsed.bytes,
+    );
+
     decoded.push({
       name: file.name,
-      type: file.type,
+      type: effectiveMime,
       bytes: parsed.bytes,
-      dataUrl: file.dataUrl,
+      dataUrl,
     });
   }
 

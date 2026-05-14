@@ -271,6 +271,115 @@ describe("Hermes route contracts", () => {
     );
   });
 
+  /** 1×1 PNG (minimal valid). */
+  const tinyPngBase64 =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+  it("accepts application/octet-stream when the data URL declares a supported image type", async () => {
+    await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        content: "Describe this",
+        files: [
+          {
+            name: "upload.bin",
+            type: "application/octet-stream",
+            dataUrl: `data:image/png;base64,${tinyPngBase64}`,
+          },
+        ],
+      }),
+    });
+
+    expect(proxyChatCompletionsMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.arrayContaining([
+              expect.objectContaining({
+                type: "image_url",
+                image_url: {
+                  url: `data:image/png;base64,${tinyPngBase64}`,
+                },
+              }),
+            ]),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("accepts application/octet-stream for PNG bytes when the data URL is also generic", async () => {
+    await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        content: "Describe this",
+        files: [
+          {
+            name: "upload.bin",
+            type: "application/octet-stream",
+            dataUrl: `data:application/octet-stream;base64,${tinyPngBase64}`,
+          },
+        ],
+      }),
+    });
+
+    expect(proxyChatCompletionsMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.arrayContaining([
+              expect.objectContaining({
+                type: "image_url",
+                image_url: {
+                  url: `data:image/png;base64,${tinyPngBase64}`,
+                },
+              }),
+            ]),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("returns 400 for an explicitly unsupported client MIME type", async () => {
+    const response = await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        content: "Hi",
+        files: [
+          {
+            name: "x.pdf",
+            type: "application/pdf",
+            dataUrl: "data:application/pdf;base64,AA==",
+          },
+        ],
+      }),
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("BadRequest");
+    expect(body.message).toBe("Unsupported file type: application/pdf.");
+    expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
+  });
+
   it("returns instance-not-ready 409 as data/meta with data.status only", async () => {
     ensureInstanceReadyMock.mockRejectedValue(
       new HermesInstanceNotReadyErrorMock("provisioning"),

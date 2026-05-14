@@ -107,6 +107,21 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+/** Prefer the data URL MIME when the browser left `File.type` blank. */
+function mimeFromDataUrl(dataUrl: string): string | null {
+  const match = /^data:([^;,]*);/i.exec(dataUrl);
+  if (!match) return null;
+  const raw = match[1]!.trim();
+  const lower = raw.toLowerCase();
+  if (lower === "" || lower === "application/octet-stream") return null;
+  return lower;
+}
+
+function clientMimeForHermesUpload(file: File, dataUrl: string): string {
+  if (file.type.trim() !== "") return file.type;
+  return mimeFromDataUrl(dataUrl) ?? "application/octet-stream";
+}
+
 export default function RunningState({
   userName,
   userImageUrl,
@@ -293,11 +308,14 @@ export default function RunningState({
       void (async () => {
         try {
           const filePayloads = await Promise.all(
-            filesToSend.map(async (f) => ({
-              name: f.name,
-              type: f.type || "application/octet-stream",
-              dataUrl: await fileToDataUrl(f),
-            })),
+            filesToSend.map(async (f) => {
+              const dataUrl = await fileToDataUrl(f);
+              return {
+                name: f.name,
+                type: clientMimeForHermesUpload(f, dataUrl),
+                dataUrl,
+              };
+            }),
           );
 
           const res = await fetch("/api/hermes/chat", {

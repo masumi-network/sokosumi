@@ -283,7 +283,7 @@ async function pollInboxes(
   if (!shouldContinueSync(options)) {
     return {
       status: "ok",
-      polled: due.length,
+      polled: 0,
       totalMessages: 0,
       breakdown,
     };
