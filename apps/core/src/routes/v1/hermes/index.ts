@@ -62,6 +62,7 @@ const MAX_USER_CONTENT_BYTES = 32_000;
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_TOTAL_FILE_BYTES = 20 * 1024 * 1024;
+/** Max length of inlined UTF-8 text after decoding (`String` UTF-16 indices), not raw byte length. */
 const MAX_INLINED_TEXT_BYTES = 200 * 1024;
 /** Max persisted turns sent to the Hermes proxy per request (newest first in DB). */
 const MAX_CHAT_CONTEXT_MESSAGES = 100;
@@ -320,9 +321,10 @@ function buildUserMessageForHermes(
   let textBody = trimmed;
 
   for (const file of textFiles) {
-    const text = file.bytes.toString("utf8").slice(0, MAX_INLINED_TEXT_BYTES);
+    const fullText = file.bytes.toString("utf8");
+    const text = fullText.slice(0, MAX_INLINED_TEXT_BYTES);
     const truncatedMarker =
-      file.bytes.length > MAX_INLINED_TEXT_BYTES ? "\n...(truncated)" : "";
+      text.length < fullText.length ? "\n...(truncated)" : "";
     textBody += `\n\n--- attached file: ${file.name} (${file.type}) ---\n\`\`\`\n${text}${truncatedMarker}\n\`\`\`\n--- end ${file.name} ---`;
   }
 

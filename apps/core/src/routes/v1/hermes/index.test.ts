@@ -430,6 +430,82 @@ describe("Hermes route contracts", () => {
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
   });
 
+  it("does not append a truncation marker when UTF-8 byte size exceeds the limit but the decoded string fits", async () => {
+    const utf8ThreeByteChar = "\u3042";
+    const repeatCount = Math.ceil((200 * 1024 + 1) / 3);
+    const plain = utf8ThreeByteChar.repeat(repeatCount);
+    expect(Buffer.byteLength(plain, "utf8")).toBeGreaterThan(200 * 1024);
+    expect(plain.length).toBeLessThan(200 * 1024);
+
+    const response = await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        content: "Read attachment",
+        files: [
+          {
+            name: "dense.txt",
+            type: "text/plain",
+            dataUrl: `data:text/plain;base64,${Buffer.from(plain, "utf8").toString("base64")}`,
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const [, body] = proxyChatCompletionsMock.mock.calls[0] ?? [];
+    expect(body).toEqual(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.not.stringContaining("...(truncated)"),
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("appends a truncation marker only when decoded text is sliced shorter than the full string", async () => {
+    const plain = "a".repeat(200 * 1024 + 1);
+
+    const response = await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        content: "Read attachment",
+        files: [
+          {
+            name: "long.txt",
+            type: "text/plain",
+            dataUrl: `data:text/plain;base64,${Buffer.from(plain, "utf8").toString("base64")}`,
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const [, body] = proxyChatCompletionsMock.mock.calls[0] ?? [];
+    expect(body).toEqual(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining("...(truncated)"),
+          }),
+        ]),
+      }),
+    );
+  });
+
   it("returns instance-not-ready 409 as data/meta with data.status only", async () => {
     ensureInstanceReadyMock.mockRejectedValue(
       new HermesInstanceNotReadyErrorMock("provisioning"),
