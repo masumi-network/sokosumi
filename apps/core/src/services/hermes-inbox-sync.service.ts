@@ -55,6 +55,16 @@ function createEmptyBreakdown(): HermesInboxSyncSummary["breakdown"] {
   };
 }
 
+/** Latest inbox instant for cursor updates; does not assume orchestrator sort order. */
+function maxInboxMessageCreatedAt(messages: HermesInboxMessage[]): Date {
+  let latest = new Date(messages[0]!.createdAt);
+  for (let i = 1; i < messages.length; i++) {
+    const candidate = new Date(messages[i]!.createdAt);
+    if (candidate.getTime() > latest.getTime()) latest = candidate;
+  }
+  return latest;
+}
+
 function shouldContinueSync(options: SyncOptions): boolean {
   return (
     options.shouldContinue() &&
@@ -236,7 +246,7 @@ async function pollOne(
     });
   }
 
-  const latestCreatedAt = new Date(messages[messages.length - 1]!.createdAt);
+  const latestCreatedAt = maxInboxMessageCreatedAt(messages);
   await markPolled({
     userId: instance.userId,
     lastInboxMessageAt: latestCreatedAt,
