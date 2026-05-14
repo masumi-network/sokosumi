@@ -5,7 +5,6 @@ import {
   ackInstanceInbox,
   getInstanceInbox,
   type HermesInboxMessage,
-  HermesOrchestratorError,
 } from "@/clients/hermes-orchestrator.client";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -317,11 +316,10 @@ async function pollInboxes(
     } catch (error) {
       polled += 1;
       breakdown.error += 1;
-      if (error instanceof HermesOrchestratorError) {
-        Sentry.captureException(error, {
-          tags: { context: "hermes_inbox_unhandled" },
-        });
-      }
+      Sentry.captureException(error, {
+        tags: { context: "hermes_inbox_unhandled" },
+        extra: { userId: instance.userId },
+      });
     }
   }
 

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -149,5 +150,36 @@ describe("hermesInboxSyncService", () => {
     );
     expect(summary.polled).toBe(1);
     expect(summary.breakdown.skipped_not_implemented).toBe(1);
+  });
+
+  it("reports unexpected pollOne failures to Sentry with hermes_inbox_unhandled context", async () => {
+    hermesInstanceFindManyMock.mockResolvedValue([
+      {
+        userId: "user-unhandled",
+        lastInboxMessageAt: null,
+        lastPolledAt: null,
+      },
+    ]);
+
+    getInstanceInboxMock.mockResolvedValue({
+      kind: "messages",
+      data: undefined,
+    } as never);
+
+    const summary = await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(summary.polled).toBe(1);
+    expect(summary.breakdown.error).toBe(1);
+    expect(Sentry.captureException).toHaveBeenCalledWith(
+      expect.any(TypeError),
+      expect.objectContaining({
+        tags: { context: "hermes_inbox_unhandled" },
+        extra: { userId: "user-unhandled" },
+      }),
+    );
   });
 });
