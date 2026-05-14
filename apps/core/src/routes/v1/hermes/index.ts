@@ -376,6 +376,16 @@ function mapOrchestratorError(error: unknown, fallback: string): never {
       throw serviceUnavailable(`${fallback}: ${error.message}`);
     }
 
+    // Auth / permission / rate-limit responses from the orchestrator reflect Core's
+    // integration (token, quotas), not the end user's request — avoid 400.
+    if (
+      error.httpStatus === 401 ||
+      error.httpStatus === 403 ||
+      error.httpStatus === 429
+    ) {
+      throw serviceUnavailable("Hermes is temporarily unavailable.");
+    }
+
     throw badRequest(error.message);
   }
 
