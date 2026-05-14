@@ -409,6 +409,32 @@ describe("Hermes route contracts", () => {
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
   });
 
+  it("returns 503 when the Hermes proxy fetch fails at the network layer", async () => {
+    proxyChatCompletionsMock.mockRejectedValue(new TypeError("fetch failed"));
+
+    const response = await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content: "Hello" }),
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(503);
+    expect(body.error).toBe("ServiceUnavailable");
+    expect(body.message).toBe("Hermes is temporarily unavailable.");
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(TypeError),
+      expect.objectContaining({
+        tags: { context: "hermes_proxy_fetch" },
+        extra: { userId: "user_123" },
+      }),
+    );
+  });
+
   it("returns 200 when DELETE /me/instance succeeds", async () => {
     vi.mocked(destroyInstance).mockResolvedValue(undefined);
 

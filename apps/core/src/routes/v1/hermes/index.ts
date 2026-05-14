@@ -618,11 +618,24 @@ app.openapi(postChatRoute, async (c) => {
     return mapOrchestratorError(error, "Failed to prepare Hermes instance");
   }
 
-  const upstream = await proxyChatCompletions(userContext.userId, {
-    model: "hermes-agent",
-    messages: conversation,
-    stream: false,
-  });
+  let upstream: Response;
+  try {
+    upstream = await proxyChatCompletions(userContext.userId, {
+      model: "hermes-agent",
+      messages: conversation,
+      stream: false,
+    });
+  } catch (error) {
+    if (error instanceof HTTPException) {
+      throw error;
+    }
+
+    Sentry.captureException(error, {
+      tags: { context: "hermes_proxy_fetch" },
+      extra: { userId: userContext.userId },
+    });
+    throw serviceUnavailable("Hermes is temporarily unavailable.");
+  }
 
   if (upstream.status >= 500) {
     Sentry.captureMessage("hermes_proxy_5xx", {
