@@ -71,3 +71,16 @@ export const created = <T>(
     201,
   );
 };
+
+export const conflictWithData = <T>(c: Context, data: T) => {
+  return c.json<SuccessResponse<T>, 409>(
+    {
+      data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: c.var.requestId,
+      },
+    },
+    409,
+  );
+};

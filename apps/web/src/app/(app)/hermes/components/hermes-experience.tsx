@@ -182,6 +182,7 @@ export default function HermesExperience({
       return;
     }
     setInstance(null);
+    setInitialMessages([]);
     setUiState("idle");
   }, [previewMode]);
 

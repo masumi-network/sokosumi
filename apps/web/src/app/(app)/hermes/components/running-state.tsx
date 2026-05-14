@@ -90,10 +90,12 @@ function pickReply(turn: number): string {
 }
 
 interface ChatApiResponse {
-  message?: { role?: string; content?: string };
+  data?: {
+    message?: { role?: string; content?: string };
+    status?: string;
+  };
   error?: string;
-  status?: string;
-  detail?: string;
+  message?: string;
 }
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -103,24 +105,6 @@ function fileToDataUrl(file: File): Promise<string> {
     r.onerror = () => reject(r.error ?? new Error("file_read_failed"));
     r.readAsDataURL(file);
   });
-}
-
-function describeFileError(code: string | undefined, detail?: string): string {
-  switch (code) {
-    case "too_many_files":
-      return "Too many files attached.";
-    case "file_too_large":
-      return `File is too large${detail ? `: ${detail}` : ""}. Max 20 MB per file.`;
-    case "files_total_too_large":
-      return "Combined attachment size is too large. Max 20 MB total.";
-    case "unsupported_file_type":
-      return `Unsupported file type${detail ? `: ${detail}` : ""}. Images and text-like files only.`;
-    case "invalid_data_url":
-    case "invalid_file_shape":
-      return "One of your attachments couldn't be read.";
-    default:
-      return "Hermes couldn't accept your attachments.";
-  }
 }
 
 export default function RunningState({
@@ -299,7 +283,7 @@ export default function RunningState({
         return;
       }
 
-      // Real Hermes round-trip via Sokosumi's server-side proxy. The server
+      // Real Hermes round-trip via Sokosumi's server-side proxy. Core
       // reconstructs the full conversation from the persisted DB history; we
       // only send the new user turn + any attached files (encoded as data URLs).
       const controller = new AbortController();
@@ -333,31 +317,27 @@ export default function RunningState({
               .json()
               .catch(() => ({}))) as ChatApiResponse;
             toast.error(
-              body.status === "provisioning"
+              body.data?.status === "provisioning"
                 ? "Your Hermes is still warming up. Try again in a few seconds."
-                : "Your Hermes isn't ready yet.",
+                : (body.message ?? "Your Hermes isn't ready yet."),
             );
             setIsReplying(false);
             return;
           }
 
-          if (res.status === 400 || res.status === 413) {
+          if (!res.ok) {
             const body = (await res
               .json()
               .catch(() => ({}))) as ChatApiResponse;
-            toast.error(describeFileError(body.error, body.detail));
+            toast.error(
+              body.message ?? `Hermes returned an error (${res.status}).`,
+            );
             setIsReplying(false);
             return;
           }
 
-          if (!res.ok) {
-            toast.error(`Hermes returned an error (${res.status}).`);
-            setIsReplying(false);
-            return;
-          }
-
-          const data = (await res.json()) as ChatApiResponse;
-          const reply = data.message?.content ?? "";
+          const body = (await res.json()) as ChatApiResponse;
+          const reply = body.data?.message?.content ?? "";
           if (!reply) {
             toast.error("Hermes returned an empty response.");
             setIsReplying(false);
@@ -547,7 +527,7 @@ function MessageRow({
     return (
       <div className="group/message flex w-full justify-end gap-3 px-4 py-0.5">
         <div className="flex max-w-[70%] flex-col items-end gap-0.5">
-          <div className="bg-muted-foreground/10 text-foreground min-h-6 rounded-lg px-3 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words">
+          <div className="bg-muted-foreground/10 text-foreground min-h-6 rounded-lg px-3 py-3 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
             {message.content}
           </div>
           <time
@@ -588,7 +568,7 @@ function MessageRow({
             <span>{chip.label}</span>
           </span>
         ) : null}
-        <div className="text-foreground min-h-5 bg-transparent pt-1 pr-10 pb-1 text-sm leading-relaxed whitespace-pre-wrap break-words">
+        <div className="text-foreground min-h-5 bg-transparent pt-1 pr-10 pb-1 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
           {message.content}
         </div>
         <time
@@ -723,7 +703,7 @@ function Composer({
             <FileUploadItem
               key={`${file.name}-${file.lastModified}`}
               value={file}
-              className="bg-muted/40 border-border/60 flex max-w-[14rem] items-center gap-2 rounded-md border px-2 py-1.5"
+              className="bg-muted/40 border-border/60 flex max-w-56 items-center gap-2 rounded-md border px-2 py-1.5"
             >
               <FileUploadItemPreview className="size-7 shrink-0 rounded" />
               <FileUploadItemMetadata className="min-w-0 flex-1 text-xs" />

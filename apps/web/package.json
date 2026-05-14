@@ -25,7 +25,8 @@
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
     "prisma:migrate:reset": "pnpm --filter @sokosumi/database prisma:migrate:reset",
     "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio",
-    "generate:core": "openapi-ts -f openapi-ts.core.config.ts"
+    "generate:core": "openapi-ts -f openapi-ts.core.config.ts",
+    "generate:core:snapshot": "pnpm --filter @sokosumi/core run write-openapi-snapshot-for-web && openapi-ts -f openapi-ts.core.config.ts -i openapi-core.snapshot.json"
   },
   "dependencies": {
     "@ai-sdk/react": "3.0.170",

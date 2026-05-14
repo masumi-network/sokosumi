@@ -1,23 +1,14 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import {
-  hermesInstanceRepository,
-  hermesMessageRepository,
-} from "@sokosumi/database/repositories";
 
-import { type ActionError, CommonErrorCode } from "@/lib/actions";
-import prisma from "@/lib/db/prisma";
+import type { ActionError } from "@/lib/actions";
 import {
-  destroyInstance,
-  getInstance,
-  HermesOrchestratorError,
-  HermesOrchestratorNotConfiguredError,
-  isReservedSecretKey,
-  isValidSecretKey,
-  provisionInstance,
-  setInstanceSecret,
-} from "@/lib/hermes/orchestrator-client";
+  CoreApiRequestError,
+  coreClient,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
+import type { HermesInstance } from "@/lib/clients/generated/core";
 import type {
   HermesInstancePublic,
   HermesPersistedMessage,
@@ -28,50 +19,78 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-function toActionError(error: unknown, fallback: string): ActionError {
-  if (error instanceof HermesOrchestratorNotConfiguredError) {
-    return {
-      code: "HERMES_ORCH_NOT_CONFIGURED",
-      message: error.message,
-    };
+const HERMES_MESSAGE_PAGE_LIMIT = 100;
+
+function toActionError(error: unknown): ActionError {
+  if (!(error instanceof CoreApiRequestError)) {
+    Sentry.captureException(error, { tags: { context: "hermes_action" } });
   }
-  if (error instanceof HermesOrchestratorError) {
-    return {
-      code: error.code,
-      message: error.message,
-    };
-  }
-  Sentry.captureException(error, { tags: { context: "hermes_action" } });
+
+  return toCoreApiActionError(error);
+}
+
+function toIsoString(value: Date | string | null): string | null {
+  if (value === null) return null;
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function mapHermesInstance(
+  instance: HermesInstance | null,
+): HermesInstancePublic | null {
+  if (!instance) return null;
+
   return {
-    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    message: fallback,
+    status: instance.status,
+    endpointUrl: instance.endpointUrl,
+    lastActivityAt: toIsoString(instance.lastActivityAt),
   };
+}
+
+function mapHermesMessage(
+  message: Awaited<
+    ReturnType<typeof coreClient.getHermesMessages>
+  >["data"][number],
+): HermesPersistedMessage {
+  return {
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    kind: message.kind,
+    createdAt: toIsoString(message.createdAt) ?? new Date(0).toISOString(),
+  };
+}
+
+async function listAllHermesMessages(): Promise<HermesPersistedMessage[]> {
+  const messages: HermesPersistedMessage[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const response = await coreClient.getHermesMessages({
+      cursor,
+      limit: HERMES_MESSAGE_PAGE_LIMIT,
+    });
+    messages.push(...response.data.map(mapHermesMessage));
+    cursor = response.meta?.pagination?.nextCursor ?? undefined;
+  } while (cursor);
+
+  return messages;
 }
 
 /**
  * Returns the current Hermes instance state for the signed-in user, or `null`
- * if no instance has been provisioned yet. Lazily upserts the Sokosumi-side
- * `HermesInstance` row on the first observation of an existing orchestrator
- * instance — this backfills users provisioned before the polling table existed.
+ * if no instance has been provisioned yet.
  */
 export const getHermesInstanceAction = withSession<
   Record<string, never>,
   Result<HermesInstancePublic | null, ActionError>
->(async ({ session }) => {
+>(async () => {
   try {
-    const inst = await getInstance(session.user.id);
-    if (inst) {
-      await hermesInstanceRepository
-        .upsertForUser(session.user.id, prisma)
-        .catch((err) => {
-          Sentry.captureException(err, {
-            tags: { context: "hermes_instance_backfill" },
-          });
-        });
-    }
-    return Ok(inst);
+    const response = await coreClient.getHermesInstance();
+    const body = response.data;
+    if (!body.hasInstance) return Ok(null);
+    return Ok(mapHermesInstance(body.instance));
   } catch (error) {
-    return Err(toActionError(error, "Failed to fetch Hermes instance"));
+    return Err(toActionError(error));
   }
 });
 
@@ -83,53 +102,27 @@ export const getHermesInstanceAction = withSession<
 export const provisionHermesAction = withSession<
   Record<string, never>,
   Result<HermesInstancePublic, ActionError>
->(async ({ session }) => {
+>(async () => {
   try {
-    // Pass name + email so the orchestrator can run its research-intro
-    // onboarding pass (the per-user welcome message arrives regardless).
-    await provisionInstance(session.user.id, {
-      name: session.user.name,
-      email: session.user.email,
-    });
-    const inst = await getInstance(session.user.id);
-    if (!inst) {
-      return Err({
-        code: "HERMES_PROVISION_RACE",
-        message: "Provision call succeeded but instance not yet visible.",
-      });
-    }
-    // Track the instance for the inbox cron. Best-effort — failure here
-    // doesn't block the user (cron will lazily backfill on next sighting).
-    await hermesInstanceRepository
-      .upsertForUser(session.user.id, prisma)
-      .catch((err) => {
-        Sentry.captureException(err, {
-          tags: { context: "hermes_instance_upsert" },
-        });
-      });
-    return Ok(inst);
+    const response = await coreClient.provisionHermesInstance();
+    return Ok(mapHermesInstance(response.data)!);
   } catch (error) {
-    return Err(toActionError(error, "Failed to provision Hermes instance"));
+    return Err(toActionError(error));
   }
 });
 
 /**
- * Destroys the user's Hermes instance on the orchestrator.
- * Also wipes the user's persisted Hermes conversation history — the new
- * instance will have no skills/memory and the chat surface should mirror
- * that fresh start.
+ * Destroys the user's Hermes instance and clears its persisted history in Core.
  */
 export const destroyHermesAction = withSession<
   Record<string, never>,
   Result<void, ActionError>
->(async ({ session }) => {
+>(async () => {
   try {
-    await destroyInstance(session.user.id);
-    await hermesMessageRepository.clearForUser(session.user.id, prisma);
-    await hermesInstanceRepository.deleteForUser(session.user.id, prisma);
+    await coreClient.destroyHermesInstance();
     return Ok();
   } catch (error) {
-    return Err(toActionError(error, "Failed to destroy Hermes instance"));
+    return Err(toActionError(error));
   }
 });
 
@@ -139,27 +132,11 @@ export const destroyHermesAction = withSession<
 export const listHermesMessagesAction = withSession<
   Record<string, never>,
   Result<HermesPersistedMessage[], ActionError>
->(async ({ session }) => {
+>(async () => {
   try {
-    const rows = await hermesMessageRepository.listForUser(
-      session.user.id,
-      prisma,
-    );
-    return Ok(
-      rows.map((m) => ({
-        id: m.id,
-        role: (m.role === "user" ||
-        m.role === "assistant" ||
-        m.role === "system"
-          ? m.role
-          : "assistant") as "user" | "assistant" | "system",
-        content: m.content,
-        kind: m.kind,
-        createdAt: m.createdAt.toISOString(),
-      })),
-    );
+    return Ok(await listAllHermesMessages());
   } catch (error) {
-    return Err(toActionError(error, "Failed to load Hermes messages"));
+    return Err(toActionError(error));
   }
 });
 
@@ -170,15 +147,12 @@ export const listHermesMessagesAction = withSession<
 export const getHermesUnreadCountAction = withSession<
   Record<string, never>,
   Result<number, ActionError>
->(async ({ session }) => {
+>(async () => {
   try {
-    const count = await hermesInstanceRepository.countUnreadInbox(
-      session.user.id,
-      prisma,
-    );
-    return Ok(count);
+    const response = await coreClient.getHermesUnreadCount();
+    return Ok(response.data.count);
   } catch (error) {
-    return Err(toActionError(error, "Failed to get Hermes unread count"));
+    return Err(toActionError(error));
   }
 });
 
@@ -193,16 +167,14 @@ interface MarkHermesInboxSeenArgs extends AuthenticatedRequest {
 export const markHermesInboxSeenAction = withSession<
   MarkHermesInboxSeenArgs,
   Result<void, ActionError>
->(async ({ asOfIso, session }) => {
+>(async ({ asOfIso }) => {
   try {
-    const asOf = asOfIso ? new Date(asOfIso) : null;
-    await hermesInstanceRepository.markInboxSeen(
-      { userId: session.user.id, asOf },
-      prisma,
+    await coreClient.markHermesInboxSeen(
+      asOfIso ? { asOfIso: new Date(asOfIso) } : undefined,
     );
     return Ok();
   } catch (error) {
-    return Err(toActionError(error, "Failed to mark Hermes inbox as seen"));
+    return Err(toActionError(error));
   }
 });
 
@@ -218,30 +190,11 @@ interface SetHermesSecretArgs extends AuthenticatedRequest {
 export const setHermesSecretAction = withSession<
   SetHermesSecretArgs,
   Result<void, ActionError>
->(async ({ key, value, session }) => {
-  if (!isValidSecretKey(key)) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message:
-        "Secret key must match [A-Z_][A-Z0-9_]* (uppercase, digits, underscores).",
-    });
-  }
-  if (isReservedSecretKey(key)) {
-    return Err({
-      code: "HERMES_SECRET_RESERVED",
-      message: `Secret key "${key}" is managed by the orchestrator.`,
-    });
-  }
-  if (value.length === 0) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: "Secret value must not be empty.",
-    });
-  }
+>(async ({ key, value }) => {
   try {
-    await setInstanceSecret(session.user.id, key, value);
+    await coreClient.setHermesSecret({ key, value });
     return Ok();
   } catch (error) {
-    return Err(toActionError(error, "Failed to write Hermes secret"));
+    return Err(toActionError(error));
   }
 });

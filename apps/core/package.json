@@ -27,7 +27,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ci": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "write-openapi-snapshot-for-web": "tsx scripts/write-openapi-for-web.mts"
   },
   "dependencies": {
     "@better-auth/api-key": "1.6.9",

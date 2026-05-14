@@ -73,6 +73,14 @@ const envSchema = z.object({
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
   OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
+  // Hermes Orchestrator
+  HERMES_ORCH_BASE_URL: z.url(),
+  HERMES_ORCH_TOKEN: z.string().min(1),
+  HERMES_INBOX_POLLING_ENABLED: z
+    .string()
+    .default("false")
+    .transform((val: string) => val.trim().toLowerCase() === "true"),
+
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().min(1),

@@ -1,18 +1,16 @@
-import "server-only";
+import { getEnv } from "@/config/env";
 
-import { getEnvSecrets } from "@/config/env.secrets";
+export type HermesInstanceStatus =
+  | "provisioning"
+  | "running"
+  | "suspended"
+  | "error";
 
-import type { HermesInstancePublic, HermesInstanceStatus } from "./types";
-
-/**
- * Server-side client for the Hermes Orchestrator.
- *
- * The orchestrator owns the source of truth for per-user microVM instances.
- * Sokosumi is a thin proxy: this module is the only place the orchestrator
- * bearer token is read for server-to-orchestrator calls.
- *
- * NEVER export anything from this module to a client component.
- */
+export interface HermesInstancePublic {
+  status: HermesInstanceStatus;
+  endpointUrl: string | null;
+  lastActivityAt: string | null;
+}
 
 interface OrchestratorErrorBody {
   status?: number;
@@ -34,43 +32,32 @@ export class HermesOrchestratorError extends Error {
   }
 }
 
-export class HermesOrchestratorNotConfiguredError extends Error {
-  constructor() {
-    super(
-      "Hermes Orchestrator is not configured (HERMES_ORCH_BASE_URL / HERMES_ORCH_TOKEN missing)",
-    );
-  }
+interface InstanceFromOrchestrator {
+  status: HermesInstanceStatus;
+  endpointUrl: string | null;
+  lastActivityAt?: string | null;
 }
 
-interface OrchestratorConfig {
-  baseUrl: string;
-  token: string;
-}
-
-function getConfig(): OrchestratorConfig {
-  const env = getEnvSecrets();
-  const baseUrl = env.HERMES_ORCH_BASE_URL;
-  const token = env.HERMES_ORCH_TOKEN;
-  if (!baseUrl || !token) {
-    throw new HermesOrchestratorNotConfiguredError();
-  }
-  return { baseUrl, token };
+interface HermesOrchestratorFetchInit extends RequestInit {
+  jsonBody?: unknown;
 }
 
 async function orchFetch(
   path: string,
-  init: RequestInit & { jsonBody?: unknown } = {},
+  init: HermesOrchestratorFetchInit = {},
 ): Promise<Response> {
-  const { baseUrl, token } = getConfig();
+  const env = getEnv();
   const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${token}`);
+  headers.set("Authorization", `Bearer ${env.HERMES_ORCH_TOKEN}`);
+
   if (init.jsonBody !== undefined) {
     headers.set("Content-Type", "application/json");
   }
+
   const body =
     init.jsonBody !== undefined ? JSON.stringify(init.jsonBody) : init.body;
 
-  return fetch(`${baseUrl}${path}`, {
+  return fetch(`${env.HERMES_ORCH_BASE_URL}${path}`, {
     ...init,
     headers,
     body,
@@ -86,12 +73,6 @@ async function readErrorBody(res: Response): Promise<OrchestratorErrorBody> {
   }
 }
 
-interface InstanceFromOrchestrator {
-  status: HermesInstanceStatus;
-  endpointUrl: string | null;
-  lastActivityAt?: string | null;
-}
-
 /**
  * GET /v1/instances/:userId
  * Returns null if the orchestrator has no instance for this user yet (404).
@@ -100,10 +81,12 @@ export async function getInstance(
   userId: string,
 ): Promise<HermesInstancePublic | null> {
   const res = await orchFetch(`/v1/instances/${encodeURIComponent(userId)}`);
+
   if (res.status === 404) return null;
   if (!res.ok) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
+
   const data = (await res.json()) as InstanceFromOrchestrator;
   return {
     status: data.status,
@@ -113,60 +96,57 @@ export async function getInstance(
 }
 
 /**
- * POST /v1/instances — provision (or fetch existing). Idempotent on userId.
- *
- * `name` and `email` are optional but recommended: when supplied, the
- * orchestrator runs a public-web research pass on first boot and seeds the
- * user's chat with a personalized intro + suggestions. Without them the
- * onboarding degrades gracefully to a generic welcome.
+ * POST /v1/instances - provision or fetch an existing instance.
+ * Idempotent on userId.
  */
 export async function provisionInstance(
   userId: string,
   hints: { name?: string | null; email?: string | null } = {},
 ): Promise<void> {
   const body: Record<string, string> = { userId };
+
   if (hints.name && hints.name.trim().length > 0) {
     body.name = hints.name.trim();
   }
+
   if (hints.email && hints.email.trim().length > 0) {
     body.email = hints.email.trim();
   }
+
   const res = await orchFetch("/v1/instances", {
     method: "POST",
     jsonBody: body,
   });
+
   if (!res.ok && res.status !== 202 && res.status !== 200) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
-  // Discard body — caller should poll getInstance() for state.
 }
 
 /**
  * POST /v1/instances/:userId/resume
- * Bookkeeping signal — sprite auto-wakes on inbound HTTP, but the orchestrator
- * needs to know the instance is allowed to receive traffic.
+ * Bookkeeping signal that the instance may receive traffic.
  */
 export async function resumeInstance(userId: string): Promise<void> {
   const res = await orchFetch(
     `/v1/instances/${encodeURIComponent(userId)}/resume`,
     { method: "POST" },
   );
+
   if (!res.ok) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
 }
 
 /**
- * DELETE /v1/instances/:userId — destroys sprite and DB row.
+ * DELETE /v1/instances/:userId
  */
 export async function destroyInstance(userId: string): Promise<void> {
   const res = await orchFetch(`/v1/instances/${encodeURIComponent(userId)}`, {
     method: "DELETE",
   });
-  // Treat 404 as already-destroyed.
-  if (res.status === 404) {
-    return;
-  }
+
+  if (res.status === 404) return;
   if (!res.ok) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
@@ -185,8 +165,7 @@ export function isValidSecretKey(key: string): boolean {
 }
 
 /**
- * POST /v1/instances/:userId/secrets — writes a key/value into the user's
- * Hermes instance .env. Restarts the Hermes service on the sprite.
+ * POST /v1/instances/:userId/secrets
  */
 export async function setInstanceSecret(
   userId: string,
@@ -200,23 +179,17 @@ export async function setInstanceSecret(
       jsonBody: { key, value },
     },
   );
+
   if (!res.ok) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────
-// Outbound inbox (Hermes → Sokosumi). Endpoints are part of the spec we
-// sent the orchestrator team but may not be live yet — this client treats
-// 404 (route not found) and 501 (not implemented) as "no-op, no inbox
-// available" so the cron stays harmless until the orchestrator ships.
-// ──────────────────────────────────────────────────────────────────────────
-
 export interface HermesInboxMessage {
   id: string;
   content: string;
-  createdAt: string; // ISO 8601
-  kind?: string; // "text" for v1
+  createdAt: string;
+  kind?: string;
 }
 
 export interface HermesInboxResponse {
@@ -224,95 +197,93 @@ export interface HermesInboxResponse {
   hasMore: boolean;
 }
 
-/**
- * GET /v1/instances/:userId/inbox — fetch outbound messages Hermes has queued.
- *
- * Returns `null` when the orchestrator has not yet implemented the endpoint
- * (404 / 501). Returns `{ status }` when the instance is in a non-pollable
- * state (suspended / provisioning / error) — these come back as 409 per the
- * spec. Throws on hard transport errors so the cron can record an error.
- */
 export type GetInboxResult =
   | { kind: "messages"; data: HermesInboxResponse }
   | { kind: "not_implemented" }
   | { kind: "instance_missing" }
   | { kind: "instance_not_pollable"; status: HermesInstanceStatus };
 
+/**
+ * GET /v1/instances/:userId/inbox
+ */
 export async function getInstanceInbox(
   userId: string,
-  options: { sinceIso?: string | null; limit?: number } = {},
+  options: {
+    sinceIso?: string | null;
+    limit?: number;
+    signal?: AbortSignal;
+  } = {},
 ): Promise<GetInboxResult> {
   const params = new URLSearchParams();
   if (options.sinceIso) params.set("since", options.sinceIso);
   if (options.limit) params.set("limit", String(options.limit));
-  const qs = params.toString();
-  const path = `/v1/instances/${encodeURIComponent(userId)}/inbox${qs ? `?${qs}` : ""}`;
-  const res = await orchFetch(path);
+
+  const query = params.toString();
+  const path = `/v1/instances/${encodeURIComponent(userId)}/inbox${
+    query ? `?${query}` : ""
+  }`;
+  const res = await orchFetch(path, { signal: options.signal });
 
   if (res.status === 404) {
-    // Either the route isn't implemented yet OR the instance doesn't exist.
-    // We can't reliably distinguish without inspecting the body — try.
     const body = await readErrorBody(res);
-    if (body.code === "instance_not_found") {
-      return { kind: "instance_missing" };
-    }
+    if (body.code === "instance_not_found") return { kind: "instance_missing" };
     return { kind: "not_implemented" };
   }
-  if (res.status === 501) {
-    return { kind: "not_implemented" };
-  }
+
+  if (res.status === 501) return { kind: "not_implemented" };
+
   if (res.status === 409) {
     const body = (await res.json().catch(() => ({}))) as {
       status?: HermesInstanceStatus;
     };
+
     return {
       kind: "instance_not_pollable",
       status: body.status ?? "error",
     };
   }
+
   if (!res.ok) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
+
   const data = (await res.json()) as HermesInboxResponse;
   return { kind: "messages", data };
 }
 
 /**
- * POST /v1/instances/:userId/inbox/ack — durably acknowledge messages so
- * Hermes can drop them from its outbox. Idempotent; unknown ids are ignored.
+ * POST /v1/instances/:userId/inbox/ack
  */
 export async function ackInstanceInbox(
   userId: string,
   messageIds: string[],
+  options: { signal?: AbortSignal } = {},
 ): Promise<{ kind: "ok" } | { kind: "not_implemented" }> {
   if (messageIds.length === 0) return { kind: "ok" };
+
   const res = await orchFetch(
     `/v1/instances/${encodeURIComponent(userId)}/inbox/ack`,
     {
       method: "POST",
+      signal: options.signal,
       jsonBody: { messageIds },
     },
   );
+
   if (res.status === 404 || res.status === 501) {
     return { kind: "not_implemented" };
   }
+
   if (!res.ok && res.status !== 204) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
+
   return { kind: "ok" };
 }
 
-/**
- * Ensures the user has a running instance and returns the connection details
- * needed to talk to their Hermes. Mirrors the helper from the integration
- * brief but only does ONE state check + at most ONE resume — does not loop.
- *
- * Use this before sending chat traffic. If the instance is `provisioning`,
- * throws `HermesInstanceNotReadyError` so the caller can surface a
- * "preparing your agent" state to the user.
- */
 export class HermesInstanceNotReadyError extends Error {
   readonly status: HermesInstanceStatus | "missing";
+
   constructor(status: HermesInstanceStatus | "missing") {
     super(`Hermes instance not ready (${status})`);
     this.status = status;
@@ -320,40 +291,35 @@ export class HermesInstanceNotReadyError extends Error {
 }
 
 /**
- * Confirms the instance is reachable for a chat call. Resumes once if
- * suspended; throws `HermesInstanceNotReadyError` for missing / provisioning /
- * error states so the caller can surface the right UI.
- *
- * As of v3 the orchestrator proxy handles auth + routing, so we no longer
- * need (or fetch) the per-instance `apiServerKey` for chat purposes.
+ * Confirms the instance is reachable for a chat call.
  */
 export async function ensureInstanceReady(userId: string): Promise<void> {
-  let inst = await getInstance(userId);
-  if (!inst) {
+  let instance = await getInstance(userId);
+
+  if (!instance) {
     throw new HermesInstanceNotReadyError("missing");
   }
-  if (inst.status === "error") {
+
+  if (instance.status === "error") {
     throw new HermesInstanceNotReadyError("error");
   }
-  if (inst.status === "suspended") {
+
+  if (instance.status === "suspended") {
     await resumeInstance(userId);
-    inst = await getInstance(userId);
-    if (!inst || inst.status !== "running") {
-      throw new HermesInstanceNotReadyError(inst?.status ?? "missing");
+    instance = await getInstance(userId);
+
+    if (!instance || instance.status !== "running") {
+      throw new HermesInstanceNotReadyError(instance?.status ?? "missing");
     }
   }
-  if (inst.status !== "running") {
-    throw new HermesInstanceNotReadyError(inst.status);
+
+  if (instance.status !== "running") {
+    throw new HermesInstanceNotReadyError(instance.status);
   }
 }
 
 /**
- * POST /v1/proxy/:userId/v1/chat/completions — orchestrator-routed chat.
- *
- * v3 binding: ALL chat traffic must go through this proxy. Direct sprite
- * calls are unsupported and will be blocked. The orchestrator captures
- * billing, applies spend caps, populates admin visibility, and routes to
- * the right model (vision-aware when image_url parts are present).
+ * POST /v1/proxy/:userId/v1/chat/completions
  */
 export async function proxyChatCompletions(
   userId: string,

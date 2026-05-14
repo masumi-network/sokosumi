@@ -1858,6 +1858,283 @@ export const PatchCreditCostRequestSchema = {
     ]
 } as const;
 
+export const HermesChatResponseSchema = {
+    type: 'object',
+    properties: {
+        message: {
+            type: 'object',
+            properties: {
+                role: {
+                    type: 'string',
+                    enum: [
+                        'assistant'
+                    ]
+                },
+                content: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'role',
+                'content'
+            ]
+        }
+    },
+    required: [
+        'message'
+    ]
+} as const;
+
+export const HermesInstanceNotReadySchema = {
+    type: 'object',
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HermesInstanceStatus'
+                },
+                {
+                    type: 'string',
+                    enum: [
+                        'missing'
+                    ]
+                }
+            ]
+        }
+    },
+    required: [
+        'status'
+    ]
+} as const;
+
+export const HermesInstanceStatusSchema = {
+    type: 'string',
+    enum: [
+        'provisioning',
+        'running',
+        'suspended',
+        'error'
+    ]
+} as const;
+
+export const HermesChatRequestSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string'
+        },
+        files: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesUploadedFile'
+            }
+        }
+    }
+} as const;
+
+export const HermesUploadedFileSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1
+        },
+        type: {
+            type: 'string',
+            minLength: 1
+        },
+        dataUrl: {
+            type: 'string',
+            minLength: 1
+        }
+    },
+    required: [
+        'name',
+        'type',
+        'dataUrl'
+    ]
+} as const;
+
+export const HermesGetInstanceEnvelopeSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/HermesGetInstanceNone'
+        },
+        {
+            $ref: '#/components/schemas/HermesGetInstanceSome'
+        }
+    ],
+    discriminator: {
+        propertyName: 'hasInstance',
+        mapping: {
+            false: '#/components/schemas/HermesGetInstanceNone',
+            true: '#/components/schemas/HermesGetInstanceSome'
+        }
+    }
+} as const;
+
+export const HermesGetInstanceNoneSchema = {
+    type: 'object',
+    properties: {
+        hasInstance: {
+            type: 'boolean',
+            enum: [
+                false
+            ]
+        }
+    },
+    required: [
+        'hasInstance'
+    ]
+} as const;
+
+export const HermesGetInstanceSomeSchema = {
+    type: 'object',
+    properties: {
+        hasInstance: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        instance: {
+            $ref: '#/components/schemas/HermesInstance'
+        }
+    },
+    required: [
+        'hasInstance',
+        'instance'
+    ]
+} as const;
+
+export const HermesInstanceSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            $ref: '#/components/schemas/HermesInstanceStatus'
+        },
+        endpointUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        },
+        lastActivityAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'status',
+        'endpointUrl',
+        'lastActivityAt'
+    ]
+} as const;
+
+export const HermesEmptyResponseSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
+export const HermesPersistedMessageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        role: {
+            $ref: '#/components/schemas/HermesChatMessageRole'
+        },
+        content: {
+            type: 'string'
+        },
+        kind: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'role',
+        'content',
+        'kind',
+        'createdAt'
+    ]
+} as const;
+
+export const HermesChatMessageRoleSchema = {
+    type: 'string',
+    enum: [
+        'user',
+        'assistant',
+        'system'
+    ]
+} as const;
+
+export const HermesUnreadCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'count'
+    ]
+} as const;
+
+export const MarkHermesInboxSeenRequestSchema = {
+    type: 'object',
+    properties: {
+        asOfIso: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    }
+} as const;
+
+export const SetHermesSecretRequestSchema = {
+    type: 'object',
+    properties: {
+        key: {
+            type: 'string',
+            minLength: 1
+        },
+        value: {
+            type: 'string'
+        }
+    },
+    required: [
+        'key',
+        'value'
+    ]
+} as const;
+
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {

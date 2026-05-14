@@ -300,7 +300,9 @@ For internal async-ack sync routes (immediate `200` response + background execut
 | `pnpm core:build`                 | Build for production     |
 | `pnpm core:start`                 | Run production build     |
 | `pnpm --filter core lint`         | Lint core app            |
-| `pnpm --filter core generate:api` | Regenerate API clients   |
+| `pnpm --filter core write-openapi-snapshot-for-web` | Writes `apps/web/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for web `openapi-ts` |
+| `pnpm --filter web generate:core:snapshot`          | Runs the snapshot script + regenerates `apps/web/src/lib/clients/generated/core` (no running Core server) |
+| `pnpm --filter web generate:core`                 | Regenerates the web Core client from `http://localhost:8787/v1/openapi.json` (Core must be running)        |
 
 ## Common Patterns
 

@@ -3,11 +3,5 @@
   "relatedProjects": [
     "prj_CSgdc8zCRyR5ZT1LH8VkDJBJTtff",
     "prj_GrqmJbIxWe0I6aYiZHZC2hiJYLiH"
-  ],
-  "crons": [
-    {
-      "path": "/api/internal/hermes/poll-inboxes",
-      "schedule": "* * * * *"
-    }
   ]
 }
