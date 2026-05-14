@@ -51,5 +51,6 @@ next-env.d.ts
 
 # api-docs
 /public/openapi.json
+/openapi-core.snapshot.json
 # next-agents-md
 .next-docs/

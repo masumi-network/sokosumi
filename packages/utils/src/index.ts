@@ -74,7 +74,10 @@ export {
 } from "./task-archive.js";
 export { getFallbackUserName, getStoredUserName } from "./user-name.js";
 export {
+  isUserUploadAllowedContentType,
+  normalizeUserUploadContentType,
   resolveUserUploadContentType,
+  USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET,
   USER_UPLOAD_ALLOWED_CONTENT_TYPES,
 } from "./user-upload-content-type.js";
 export {

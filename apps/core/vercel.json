@@ -26,6 +26,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/sync/hermes/poll-inboxes",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/jobs",
       "schedule": "* * * * *"
     },

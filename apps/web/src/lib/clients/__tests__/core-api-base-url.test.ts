@@ -53,6 +53,25 @@ describe("getCoreApiBaseUrl", () => {
     );
   });
 
+  it("joinCoreApiPath matches OpenAPI client base + path joining", async () => {
+    const { joinCoreApiPath } = await import(
+      "../utils/core-api-base-url.shared"
+    );
+
+    expect(joinCoreApiPath("http://localhost:8787/v1", "/hermes/chat")).toBe(
+      "http://localhost:8787/v1/hermes/chat",
+    );
+    expect(joinCoreApiPath("http://localhost:8787/v1/", "/hermes/chat")).toBe(
+      "http://localhost:8787/v1/hermes/chat",
+    );
+    expect(joinCoreApiPath("http://localhost:8787/v1///", "/hermes/chat")).toBe(
+      "http://localhost:8787/v1/hermes/chat",
+    );
+    expect(joinCoreApiPath("http://localhost:8787/v1", "hermes/chat")).toBe(
+      "http://localhost:8787/v1/hermes/chat",
+    );
+  });
+
   it("resolves the server core API url from related projects", async () => {
     const { getServerCoreApiBaseUrl } = await import(
       "../utils/core-api-base-url"

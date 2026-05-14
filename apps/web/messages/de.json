@@ -240,6 +240,7 @@
       "tasks": "Aufgaben",
       "connections": "Verbindungen",
       "feed": "Mein Feed",
+      "hermes": "Hermes",
       "new": "Neu"
     },
     "Jobs": {
@@ -1567,6 +1568,88 @@
         "ctrl": "Strg"
       }
     },
+    "Hermes": {
+      "Metadata": {
+        "title": "Hermes",
+        "description": "Dein privater KI-Agent, isoliert in einer eigenen MicroVM."
+      },
+      "BetaTag": "Beta",
+      "EmptyState": {
+        "eyebrow": "Persönlicher Hermes",
+        "title": "Dein privater Hermes-Agent.",
+        "subtitle": "Gehostet, in einer Sandbox, deins.",
+        "description": "Ein isolierter KI-Kollege mit persistentem Gedächtnis, eigenen Skills und Zugriff auf deine Sokosumi-Daten. Erreichbar aus dem Chat, Telegram, dem Terminal – überall, wo du arbeitest.",
+        "primaryCta": "Hermes aktivieren",
+        "secondaryCta": "Mehr erfahren",
+        "feature1Title": "Lebt dort, wo du bist",
+        "feature1Body": "Telegram, Discord, Slack, WhatsApp, Signal, E-Mail, CLI. Starte überall, mach überall weiter.",
+        "feature2Title": "Wird mit der Laufzeit besser",
+        "feature2Body": "Persistentes Gedächtnis und automatisch erzeugte Skills. Lernt deine Projekte und wie du sie erledigst.",
+        "feature3Title": "Geplante Automatisierungen",
+        "feature3Body": "Cron in natürlicher Sprache für Reports, Briefings und Backups. Läuft ohne dich.",
+        "feature4Title": "Delegiert und parallelisiert",
+        "feature4Body": "Isolierte Subagenten mit eigenen Terminals – parallele Pipelines, ohne Kontextkosten.",
+        "feature5Title": "Echte Sandbox",
+        "feature5Body": "Lokal, Docker, SSH, Singularity, Modal. Container-Härtung und Namespace-Isolation.",
+        "feature6Title": "Volles Web- und Browser-Steuerung",
+        "feature6Body": "Suche, Browser-Automatisierung, Vision, Bildgenerierung, TTS, Multi-Model-Reasoning.",
+        "sokosumiTitle": "Angebunden an Sokosumi",
+        "sokosumiBody": "Liest deine Tasks, startet Jobs über freigeschaltete Agents, unterstützt dich auf der Plattform – alles in deiner MicroVM.",
+        "footnote": "Beta-Zugang. Eine Instanz pro Konto. Mit der Aktivierung akzeptierst du die Beta-Bedingungen – Hermes führt Code in deiner Sandbox in deinem Auftrag aus.",
+        "poweredBy": "Powered by Nous Research"
+      },
+      "Provisioning": {
+        "title": "Hermes wird bereitgestellt",
+        "subtitle": "Das dauert meist etwa eine Minute. Du kannst diese Seite geöffnet lassen.",
+        "step1": "MicroVM wird zugewiesen",
+        "step2": "Persistentes Volume wird eingehängt",
+        "step3": "Hermes-Runtime wird gestartet",
+        "step4": "API-Endpunkt wird geöffnet"
+      },
+      "Running": {
+        "statusActive": "Aktiv",
+        "statusSuspended": "Ausgesetzt",
+        "statusError": "Fehler",
+        "regionLabel": "Region",
+        "lastActiveLabel": "Zuletzt aktiv",
+        "settingsCta": "Einstellungen",
+        "composerPlaceholder": "Nachricht an Hermes …",
+        "composerHint": "Enter zum Senden, Umschalt+Enter für neue Zeile",
+        "send": "Senden",
+        "stop": "Stopp",
+        "attach": "Dateien anhängen",
+        "emptyTitle": "bereit, wenn du es bist",
+        "emptyHint": "probiere ein tägliches Briefing – „jeden Werktag um 9 Uhr, fasse meine offenen Tasks zusammen.“"
+      },
+      "Settings": {
+        "title": "Hermes-Einstellungen",
+        "subtitle": "Die Konfiguration gilt pro Instanz. Beim Speichern eines Tool-Geheimnisses startet Hermes neu.",
+        "modelSection": "Modell",
+        "modelLabel": "Modell",
+        "modelProviderLabel": "Anbieter",
+        "modelManagedHelp": "Die Modellwahl wird vom Orchestrator verwaltet. Eine Änderung erfordert ein Update durch deinen Admin.",
+        "secretsSection": "Tool-Geheimnisse",
+        "secretsHelp": "API-Schlüssel für Tools, die Hermes aufrufen kann (Exa, Tavily, GitHub usw.). Verschlüsselt in deinem isolierten Volume gespeichert. Reservierte Schlüssel (API_SERVER_*, HERMES_HOME, OPENROUTER_API_KEY) werden zentral verwaltet.",
+        "secretKeyLabel": "Schlüssel",
+        "secretKeyInvalid": "Nur Großbuchstaben, Ziffern und Unterstriche (z. B. EXA_API_KEY).",
+        "secretValueLabel": "Wert",
+        "secretValuePlaceholder": "Geheimwert einfügen",
+        "saveSecret": "Geheimnis speichern",
+        "savingSecret": "Speichern …",
+        "secretSavedToast": "{key} gespeichert. Hermes startet neu.",
+        "secretSaveFailed": "Geheimnis konnte nicht gespeichert werden.",
+        "dangerSection": "Gefahrenbereich",
+        "destroyTitle": "Diesen Hermes zerstören",
+        "destroyBody": "Löscht die MicroVM und das persistente Volume dauerhaft. Skills, Erinnerungen und Chats sind nicht wiederherstellbar.",
+        "destroyCta": "Instanz zerstören",
+        "cancel": "Abbrechen"
+      },
+      "Error": {
+        "title": "Hermes konnte nicht gestartet werden",
+        "description": "Der Orchestrator hat einen Fehler gemeldet. Bitte in einer Minute erneut versuchen. Wenn es weiter passiert, kontaktiere den Support.",
+        "retry": "Erneut versuchen"
+      }
+    },
     "Error": {
       "title": "Etwas ist schiefgelaufen",
       "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
@@ -1589,7 +1672,8 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "scheduledAgents": "Zeitpläne",
-          "myFeed": "Mein Feed"
+          "myFeed": "Mein Feed",
+          "hermes": "Hermes"
         },
         "ChatLists": {
           "title": "Letzte Chats",

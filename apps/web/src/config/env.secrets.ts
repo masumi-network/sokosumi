@@ -20,6 +20,9 @@ const envSecretsSchema = z.object({
 
   CORE_APP_BASE_URL: z.url().default("http://localhost:8787"),
 
+  // Cron auth — shared bearer for /api/internal/* cron routes.
+  CRON_SECRET: z.string().min(1).optional(),
+
   CHROMIUM_EXECUTABLE_URL: z
     .url()
     .default(

@@ -17,6 +17,7 @@ import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
 import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
+import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import {
@@ -65,12 +66,14 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     activeOrganization,
     creditsResultRaw,
     coworkersResult,
+    hermesMenuEnabled,
   ] = await Promise.all([
     userService.showOnboarding(session),
     getPendingNoticesAction(),
     userService.getActiveOrganization(),
     coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers("chat").catch(() => []),
+    hermesBetaEnabled(),
   ]);
   const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
@@ -133,6 +136,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
             <Sidebar
               creditsData={creditsData}
               currentTimestampMs={currentTimestampMs}
+              hermesMenuEnabled={hermesMenuEnabled}
               organizationName={activeOrganization?.name ?? null}
               session={session}
             />

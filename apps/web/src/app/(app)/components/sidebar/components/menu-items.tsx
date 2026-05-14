@@ -1,10 +1,10 @@
 "use client";
 
-import { CalendarClock, ListTodo, Rss, Sparkles } from "lucide-react";
+import { CalendarClock, Feather, ListTodo, Rss, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import type { ComponentType, SVGProps } from "react";
+import { type ComponentType, type SVGProps, useEffect, useState } from "react";
 
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -14,7 +14,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { getHermesUnreadCountAction } from "@/lib/actions/hermes";
 import { cn } from "@/lib/utils";
+
+interface MenuItemsProps {
+  /** Hermes nav + unread polling; driven by `hermesBetaEnabled` in app layout. */
+  hermesMenuEnabled: boolean;
+}
 
 interface MenuItemConfig {
   key: string;
@@ -22,11 +28,58 @@ interface MenuItemConfig {
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
   hasIndicator?: boolean;
+  badge?: string;
+  unreadCount?: number;
 }
 
-export default function MenuItems() {
+const HERMES_UNREAD_POLL_INTERVAL_MS = 30_000;
+
+function useHermesUnreadCount(enabled: boolean): number {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+
+    const tick = async () => {
+      if (cancelled) return;
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState !== "visible"
+      ) {
+        return;
+      }
+      const result = await getHermesUnreadCountAction({});
+      if (cancelled || !result.ok) return;
+      setCount(result.data);
+    };
+
+    void tick();
+    const interval = setInterval(
+      () => void tick(),
+      HERMES_UNREAD_POLL_INTERVAL_MS,
+    );
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [enabled]);
+
+  return enabled ? count : 0;
+}
+
+export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
+  const tHermes = useTranslations("App.Hermes");
+  const hermesBetaTag = tHermes("BetaTag");
   const pathname = usePathname();
+  const hermesUnread = useHermesUnreadCount(hermesMenuEnabled);
 
   const isPathActive = (href: string) => {
     if (pathname === href) {
@@ -61,43 +114,78 @@ export default function MenuItems() {
       label: t("scheduledAgents"),
       Icon: CalendarClock,
     },
+    ...(hermesMenuEnabled
+      ? ([
+          {
+            key: "hermes",
+            href: "/hermes",
+            label: t("hermes"),
+            Icon: Feather,
+            badge: hermesBetaTag,
+            unreadCount: hermesUnread,
+          },
+        ] satisfies MenuItemConfig[])
+      : []),
   ];
 
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
-          {items.map(({ key, href, label, Icon, hasIndicator }) => {
-            const isActive = isPathActive(href);
+          {items.map(
+            ({ key, href, label, Icon, hasIndicator, badge, unreadCount }) => {
+              const isActive = isPathActive(href);
+              const showUnread = (unreadCount ?? 0) > 0;
+              const unreadDisplay =
+                (unreadCount ?? 0) > 99 ? "99+" : String(unreadCount ?? 0);
 
-            return (
-              <SidebarMenuItem key={key}>
-                <SidebarMenuButton asChild isActive={isActive} className="">
-                  <SheetClose asChild>
-                    <Link
-                      href={href}
-                      aria-current={isActive ? "page" : undefined}
-                      className={cn(
-                        "flex min-h-auto w-full items-center gap-2 px-3",
-                        isActive
-                          ? "text-primary-foreground"
-                          : "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
-                      )}
-                    >
-                      <Icon className="size-4" aria-hidden />
-                      <span className="flex-1 truncate">{label}</span>
-                      {hasIndicator ? (
-                        <span
-                          aria-hidden
-                          className="bg-primary-iris size-2 shrink-0 rounded-full"
-                        />
-                      ) : null}
-                    </Link>
-                  </SheetClose>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
+              return (
+                <SidebarMenuItem key={key}>
+                  <SidebarMenuButton asChild isActive={isActive} className="">
+                    <SheetClose asChild>
+                      <Link
+                        href={href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={cn(
+                          "flex min-h-auto w-full items-center gap-2 px-3",
+                          isActive
+                            ? "text-primary-foreground"
+                            : "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
+                        )}
+                      >
+                        <Icon className="size-4" aria-hidden />
+                        <span className="flex-1 truncate">{label}</span>
+                        {badge ? (
+                          <span
+                            className={cn(
+                              "border-border/60 text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[10px] font-medium uppercase tracking-wide leading-4",
+                              isActive &&
+                                "border-primary-foreground/30 text-primary-foreground",
+                            )}
+                          >
+                            {badge}
+                          </span>
+                        ) : null}
+                        {showUnread ? (
+                          <span
+                            aria-label={`${unreadDisplay} unread`}
+                            className="bg-primary text-primary-foreground inline-flex min-w-[1.125rem] shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
+                          >
+                            {unreadDisplay}
+                          </span>
+                        ) : hasIndicator ? (
+                          <span
+                            aria-hidden
+                            className="bg-primary-iris size-2 shrink-0 rounded-full"
+                          />
+                        ) : null}
+                      </Link>
+                    </SheetClose>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            },
+          )}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>

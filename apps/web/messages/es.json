@@ -240,6 +240,7 @@
       "tasks": "Tareas",
       "connections": "Conexiones",
       "feed": "My Feed",
+      "hermes": "Hermes",
       "new": "Nuevo"
     },
     "Jobs": {
@@ -1567,6 +1568,88 @@
         "ctrl": "Ctrl"
       }
     },
+    "Hermes": {
+      "Metadata": {
+        "title": "Hermes",
+        "description": "Tu agente de IA privado, aislado en una microVM."
+      },
+      "BetaTag": "Beta",
+      "EmptyState": {
+        "eyebrow": "Hermes personal",
+        "title": "Tu agente Hermes privado.",
+        "subtitle": "Alojado, en sandbox, tuyo.",
+        "description": "Un compañero de IA aislado con memoria persistente, habilidades personalizadas y acceso a tus datos de Sokosumi. Úsalo desde el chat, Telegram, la terminal: donde trabajes.",
+        "primaryCta": "Activar Hermes",
+        "secondaryCta": "Más información",
+        "feature1Title": "Vive donde tú estés",
+        "feature1Body": "Telegram, Discord, Slack, WhatsApp, Signal, email, CLI. Empieza en cualquier sitio y continúa en otro.",
+        "feature2Title": "Mejor cuanto más corre",
+        "feature2Body": "Memoria persistente y habilidades autogeneradas. Aprende tus proyectos y cómo los haces.",
+        "feature3Title": "Automatizaciones programadas",
+        "feature3Body": "Cron en lenguaje natural para informes, resúmenes y copias de seguridad. Funciona solo.",
+        "feature4Title": "Delega y paraleliza",
+        "feature4Body": "Subagentes aislados con su propia terminal: pipelines en paralelo, sin coste de contexto.",
+        "feature5Title": "Sandbox de verdad",
+        "feature5Body": "Local, Docker, SSH, Singularity, Modal. Endurecimiento de contenedores y aislamiento por espacio de nombres.",
+        "feature6Title": "Control web y de navegador completo",
+        "feature6Body": "Búsqueda, automatización del navegador, visión, generación de imagen, TTS, razonamiento multimodelo.",
+        "sokosumiTitle": "Conectado a Sokosumi",
+        "sokosumiBody": "Lee tus tareas, ejecuta jobs con los agents habilitados y te asiste en la plataforma, todo dentro de tu microVM.",
+        "footnote": "Acceso beta. Una instancia por cuenta. Al activar aceptas las condiciones beta: Hermes ejecuta código en tu nombre dentro del sandbox.",
+        "poweredBy": "Con tecnología de Nous Research"
+      },
+      "Provisioning": {
+        "title": "Aprovisionando tu Hermes",
+        "subtitle": "Suele tardar un minuto. Puedes dejar esta página abierta.",
+        "step1": "Asignando microVM",
+        "step2": "Montando volumen persistente",
+        "step3": "Iniciando el runtime de Hermes",
+        "step4": "Abriendo el endpoint de la API"
+      },
+      "Running": {
+        "statusActive": "Activo",
+        "statusSuspended": "Suspendido",
+        "statusError": "Error",
+        "regionLabel": "Región",
+        "lastActiveLabel": "Última actividad",
+        "settingsCta": "Ajustes",
+        "composerPlaceholder": "Mensaje a Hermes…",
+        "composerHint": "Enter para enviar, Mayús+Enter para nueva línea",
+        "send": "Enviar",
+        "stop": "Detener",
+        "attach": "Adjuntar archivos",
+        "emptyTitle": "listo cuando tú lo estés",
+        "emptyHint": "prueba un resumen diario: «cada día laborable a las 9, resume mis tareas abiertas»."
+      },
+      "Settings": {
+        "title": "Ajustes de Hermes",
+        "subtitle": "La configuración es por instancia. Guardar un secreto de herramienta reinicia Hermes.",
+        "modelSection": "Modelo",
+        "modelLabel": "Modelo",
+        "modelProviderLabel": "Proveedor",
+        "modelManagedHelp": "La elección del modelo la gestiona el orquestador. Cambiarlo requerirá una actualización de tu administrador.",
+        "secretsSection": "Secretos de herramientas",
+        "secretsHelp": "Añade claves API para herramientas que Hermes pueda llamar (Exa, Tavily, GitHub, etc.). Almacenadas cifradas en tu volumen aislado. Las claves reservadas (API_SERVER_*, HERMES_HOME, OPENROUTER_API_KEY) están gestionadas.",
+        "secretKeyLabel": "Clave",
+        "secretKeyInvalid": "Solo mayúsculas, dígitos y guiones bajos (p. ej. EXA_API_KEY).",
+        "secretValueLabel": "Valor",
+        "secretValuePlaceholder": "Pega el valor del secreto",
+        "saveSecret": "Guardar secreto",
+        "savingSecret": "Guardando…",
+        "secretSavedToast": "{key} guardado. Hermes se está reiniciando.",
+        "secretSaveFailed": "No se pudo guardar el secreto.",
+        "dangerSection": "Zona de peligro",
+        "destroyTitle": "Destruir este Hermes",
+        "destroyBody": "Elimina de forma permanente la microVM y su volumen persistente. Habilidades, memorias y conversaciones no se pueden recuperar.",
+        "destroyCta": "Destruir instancia",
+        "cancel": "Cancelar"
+      },
+      "Error": {
+        "title": "No pudimos iniciar tu Hermes",
+        "description": "El orquestador devolvió un error. Vuelve a intentarlo en un minuto. Si continúa, contacta con soporte.",
+        "retry": "Reintentar"
+      }
+    },
     "Error": {
       "title": "Algo salió mal",
       "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
@@ -1589,7 +1672,8 @@
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
           "scheduledAgents": "Programaciones",
-          "myFeed": "Mi feed"
+          "myFeed": "Mi feed",
+          "hermes": "Hermes"
         },
         "ChatLists": {
           "title": "Chats recientes",
