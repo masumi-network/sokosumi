@@ -353,6 +353,49 @@ describe("Hermes route contracts", () => {
     );
   });
 
+  /** Minimal PDF header (`%PDF-1.7` plus newline) as base64. */
+  const tinyPdfBase64 = "JVBERi0xLjcK";
+
+  it("forwards PDF attachments as OpenRouter-compatible file parts", async () => {
+    await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        content: "Summarize this",
+        files: [
+          {
+            name: "x.pdf",
+            type: "application/pdf",
+            dataUrl: `data:application/pdf;base64,${tinyPdfBase64}`,
+          },
+        ],
+      }),
+    });
+
+    expect(proxyChatCompletionsMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.arrayContaining([
+              expect.objectContaining({
+                type: "file",
+                file: {
+                  filename: "x.pdf",
+                  file_data: `data:application/pdf;base64,${tinyPdfBase64}`,
+                },
+              }),
+            ]),
+          }),
+        ]),
+      }),
+    );
+  });
+
   it("returns 400 for an explicitly unsupported client MIME type", async () => {
     const response = await createApp().request("/chat", {
       method: "POST",
@@ -364,9 +407,9 @@ describe("Hermes route contracts", () => {
         content: "Hi",
         files: [
           {
-            name: "x.pdf",
-            type: "application/pdf",
-            dataUrl: "data:application/pdf;base64,AA==",
+            name: "x.exe",
+            type: "application/x-msdownload",
+            dataUrl: "data:application/x-msdownload;base64,AA==",
           },
         ],
       }),
@@ -376,7 +419,9 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toBe("BadRequest");
-    expect(body.message).toBe("Unsupported file type: application/pdf.");
+    expect(body.message).toBe(
+      "Unsupported file type: application/x-msdownload.",
+    );
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
   });
 

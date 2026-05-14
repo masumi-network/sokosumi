@@ -747,7 +747,7 @@ function Composer({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="size-8 rounded-full p-0"
+                className="size-8 rounded-full! p-0"
                 title={attachLabel}
                 aria-label={attachLabel}
               >

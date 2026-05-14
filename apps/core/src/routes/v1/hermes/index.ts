@@ -1,8 +1,13 @@
 import { Buffer } from "node:buffer";
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
+import {
+  isUserUploadAllowedContentType,
+  normalizeUserUploadContentType,
+  resolveUserUploadContentType,
+  USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
-
 import {
   destroyInstance,
   ensureInstanceReady,
@@ -61,27 +66,6 @@ const MAX_INLINED_TEXT_BYTES = 200 * 1024;
 /** Max persisted turns sent to the Hermes proxy per request (newest first in DB). */
 const MAX_CHAT_CONTEXT_MESSAGES = 100;
 
-const ALLOWED_IMAGE_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/jpg",
-  "image/gif",
-  "image/webp",
-]);
-
-const ALLOWED_TEXT_TYPES = new Set([
-  "application/json",
-  "application/xml",
-  "application/x-yaml",
-  "application/yaml",
-  "application/javascript",
-  "application/typescript",
-  "application/sql",
-  "application/x-sh",
-  "application/x-tex",
-  "application/csv",
-]);
-
 interface DecodedFile {
   name: string;
   type: string;
@@ -91,7 +75,11 @@ interface DecodedFile {
 
 type ContentPart =
   | { type: "text"; text: string }
-  | { type: "image_url"; image_url: { url: string } };
+  | { type: "image_url"; image_url: { url: string } }
+  | {
+      type: "file";
+      file: { filename: string; file_data: string };
+    };
 
 type MessageContent = string | ContentPart[];
 
@@ -109,12 +97,25 @@ interface OpenAIChatResponse {
   choices?: OpenAIChatChoice[];
 }
 
-function isImageMime(type: string): boolean {
-  return ALLOWED_IMAGE_TYPES.has(type);
+function isHermesVisionImageMime(type: string): boolean {
+  return (
+    type.startsWith("image/") && USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET.has(type)
+  );
 }
 
-function isTextLikeMime(type: string): boolean {
-  return type.startsWith("text/") || ALLOWED_TEXT_TYPES.has(type);
+/** Text and JSON: inlined inside the leading `{ type: "text" }` part. */
+function isHermesUtf8InlineMime(type: string): boolean {
+  if (type.startsWith("text/")) return true;
+  return type === "application/json";
+}
+
+/** Non-image, non–UTF-8-inline: OpenRouter chat `content` file parts (PDF, Office, media, …). */
+function isHermesBinaryFileAttachmentMime(type: string): boolean {
+  return (
+    USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET.has(type) &&
+    !isHermesVisionImageMime(type) &&
+    !isHermesUtf8InlineMime(type)
+  );
 }
 
 function isValidRole(role: string): role is "user" | "assistant" | "system" {
@@ -189,39 +190,6 @@ function sniffImageMimeFromBytes(buf: Buffer): string | null {
   return null;
 }
 
-const EXT_TO_TEXT_LIKE_MIME: Readonly<Record<string, string>> = {
-  ".bash": "application/x-sh",
-  ".cjs": "application/javascript",
-  ".css": "text/css",
-  ".csv": "application/csv",
-  ".htm": "text/html",
-  ".html": "text/html",
-  ".js": "application/javascript",
-  ".json": "application/json",
-  ".log": "text/plain",
-  ".markdown": "text/markdown",
-  ".md": "text/markdown",
-  ".mjs": "application/javascript",
-  ".sql": "application/sql",
-  ".sh": "application/x-sh",
-  ".tex": "application/x-tex",
-  ".toml": "text/plain",
-  ".ts": "application/typescript",
-  ".tsx": "application/typescript",
-  ".txt": "text/plain",
-  ".xml": "application/xml",
-  ".yaml": "application/yaml",
-  ".yml": "application/yaml",
-  ".zsh": "application/x-sh",
-};
-
-function guessTextLikeMimeFromFilename(name: string): string | null {
-  const lower = name.toLowerCase();
-  const dot = lower.lastIndexOf(".");
-  if (dot === -1 || dot === lower.length - 1) return null;
-  return EXT_TO_TEXT_LIKE_MIME[lower.slice(dot)] ?? null;
-}
-
 function dataUrlWithMime(mime: string, bytes: Buffer): string {
   return `data:${mime};base64,${bytes.toString("base64")}`;
 }
@@ -230,6 +198,8 @@ function dataUrlWithMime(mime: string, bytes: Buffer): string {
  * When the client sends an empty or generic MIME (common when `File.type` is
  * blank and the UI falls back to `application/octet-stream`), infer a concrete
  * allowed type from the data URL, magic bytes, or filename before validating.
+ *
+ * Allowed types match `USER_UPLOAD_ALLOWED_CONTENT_TYPES` (same as user uploads).
  */
 function resolveHermesUploadedMime(
   name: string,
@@ -237,51 +207,55 @@ function resolveHermesUploadedMime(
   parsedMime: string,
   bytes: Buffer,
 ): { effectiveMime: string; dataUrl: string } {
-  const clientType = clientTypeRaw.trim().toLowerCase();
-  const dataMime = parsedMime.trim().toLowerCase();
+  const clientNorm = normalizeUserUploadContentType(clientTypeRaw);
+  const dataMimeNorm = normalizeUserUploadContentType(parsedMime);
 
   const clientUndetermined = isUndeterminedClientMime(clientTypeRaw);
   const dataUndetermined = isUndeterminedClientMime(parsedMime);
 
   if (!clientUndetermined) {
-    if (!isImageMime(clientType) && !isTextLikeMime(clientType)) {
+    if (!isUserUploadAllowedContentType(clientNorm)) {
       throw badRequest(`Unsupported file type: ${clientTypeRaw.trim()}.`);
     }
 
-    if (dataMime !== clientType) {
+    if (!dataUndetermined && dataMimeNorm !== clientNorm) {
       throw badRequest(`File "${name}" MIME type does not match its data URL.`);
     }
 
     return {
-      effectiveMime: clientType,
-      dataUrl: dataUrlWithMime(clientType, bytes),
+      effectiveMime: clientNorm,
+      dataUrl: dataUrlWithMime(clientNorm, bytes),
     };
   }
 
-  if (
-    !dataUndetermined &&
-    (isImageMime(dataMime) || isTextLikeMime(dataMime))
-  ) {
+  if (!dataUndetermined && isUserUploadAllowedContentType(dataMimeNorm)) {
     return {
-      effectiveMime: dataMime,
-      dataUrl: dataUrlWithMime(dataMime, bytes),
+      effectiveMime: dataMimeNorm,
+      dataUrl: dataUrlWithMime(dataMimeNorm, bytes),
     };
   }
 
   const sniffed = sniffImageMimeFromBytes(bytes);
-  if (sniffed) {
+  if (sniffed && isUserUploadAllowedContentType(sniffed)) {
     return { effectiveMime: sniffed, dataUrl: dataUrlWithMime(sniffed, bytes) };
   }
 
-  const guessed = guessTextLikeMimeFromFilename(name);
-  if (guessed && isTextLikeMime(guessed)) {
-    return { effectiveMime: guessed, dataUrl: dataUrlWithMime(guessed, bytes) };
+  const inferred = resolveUserUploadContentType(
+    name,
+    "application/octet-stream",
+  );
+  if (inferred) {
+    return {
+      effectiveMime: inferred,
+      dataUrl: dataUrlWithMime(inferred, bytes),
+    };
   }
 
   throw badRequest(
     `Could not determine a supported type for "${name}". ` +
-      "Use a supported image (PNG, JPEG, GIF, WebP) or text-based file, " +
-      "or rename the file with a recognizable extension.",
+      "Use the same kinds of files supported elsewhere in Sokosumi " +
+      "(for example images, PDF, Office documents, plain text, CSV, or common media), " +
+      "or pick a file whose extension matches an allowed type.",
   );
 }
 
@@ -337,8 +311,12 @@ function buildUserMessageForHermes(
     return { role: "user", content: trimmed };
   }
 
-  const textFiles = files.filter((file) => isTextLikeMime(file.type));
-  const imageFiles = files.filter((file) => isImageMime(file.type));
+  const textFiles = files.filter((file) => isHermesUtf8InlineMime(file.type));
+  const imageFiles = files.filter((file) => isHermesVisionImageMime(file.type));
+  const fileAttachments = files.filter((file) =>
+    isHermesBinaryFileAttachmentMime(file.type),
+  );
+
   let textBody = trimmed;
 
   for (const file of textFiles) {
@@ -348,8 +326,13 @@ function buildUserMessageForHermes(
     textBody += `\n\n--- attached file: ${file.name} (${file.type}) ---\n\`\`\`\n${text}${truncatedMarker}\n\`\`\`\n--- end ${file.name} ---`;
   }
 
-  if (imageFiles.length === 0) {
+  const hasStructured = imageFiles.length > 0 || fileAttachments.length > 0;
+  if (!hasStructured) {
     return { role: "user", content: textBody };
+  }
+
+  if (!textBody.trim()) {
+    textBody = "Please use the attached file(s).";
   }
 
   return {
@@ -359,6 +342,13 @@ function buildUserMessageForHermes(
       ...imageFiles.map((file) => ({
         type: "image_url" as const,
         image_url: { url: file.dataUrl },
+      })),
+      ...fileAttachments.map((file) => ({
+        type: "file" as const,
+        file: {
+          filename: file.name,
+          file_data: file.dataUrl,
+        },
       })),
     ],
   };
