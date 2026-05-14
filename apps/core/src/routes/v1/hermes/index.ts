@@ -58,6 +58,8 @@ const MAX_FILES = 5;
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_TOTAL_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_INLINED_TEXT_BYTES = 200 * 1024;
+/** Max persisted turns sent to the Hermes proxy per request (newest first in DB). */
+const MAX_CHAT_CONTEXT_MESSAGES = 100;
 
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/png",
@@ -441,10 +443,13 @@ app.openapi(postChatRoute, async (c) => {
     throw payloadTooLarge("Message content is too large.");
   }
 
-  const history = await prisma.hermesMessage.findMany({
+  const historyNewestFirst = await prisma.hermesMessage.findMany({
     where: { userId: userContext.userId },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: MAX_CHAT_CONTEXT_MESSAGES,
+    select: { role: true, content: true },
   });
+  const history = historyNewestFirst.slice().reverse();
   const conversation: OutboundChatMessage[] = [
     ...history
       .filter((message) => isValidRole(message.role))
@@ -592,6 +597,11 @@ app.openapi(destroyInstanceRoute, async (c) => {
 
   try {
     await destroyInstance(userContext.userId);
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to destroy Hermes instance");
+  }
+
+  try {
     await prisma.$transaction([
       prisma.hermesMessage.deleteMany({
         where: { userId: userContext.userId },
@@ -600,11 +610,17 @@ app.openapi(destroyInstanceRoute, async (c) => {
         where: { userId: userContext.userId },
       }),
     ]);
-
-    return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to destroy Hermes instance");
+    Sentry.captureException(error, {
+      tags: { context: "hermes_destroy_db_cleanup" },
+      extra: { userId: userContext.userId },
+    });
+    throw serviceUnavailable(
+      "Your Hermes instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
+    );
   }
+
+  return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
 });
 
 app.openapi(listMessagesRoute, async (c) => {

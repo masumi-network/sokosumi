@@ -6,6 +6,7 @@ import { errorHandler } from "@/helpers/error-handler";
 const {
   authGetSessionMock,
   authVerifyApiKeyMock,
+  captureExceptionMock,
   ensureInstanceReadyMock,
   HermesInstanceNotReadyErrorMock,
   hermesMessageCreateMock,
@@ -35,6 +36,7 @@ const {
   return {
     authGetSessionMock: vi.fn(),
     authVerifyApiKeyMock: vi.fn(),
+    captureExceptionMock: vi.fn(),
     ensureInstanceReadyMock: vi.fn(),
     HermesInstanceNotReadyErrorMock,
     hermesMessageCreateMock: vi.fn(),
@@ -44,6 +46,14 @@ const {
     prismaTransactionMock: vi.fn(),
     proxyChatCompletionsMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
+  };
+});
+
+vi.mock("@sentry/node", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sentry/node")>();
+  return {
+    ...actual,
+    captureException: captureExceptionMock,
   };
 });
 
@@ -59,9 +69,17 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    hermesInstance: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      findUnique: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue(undefined),
+      upsert: vi.fn().mockResolvedValue(undefined),
+    },
     hermesMessage: {
       create: hermesMessageCreateMock,
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       findMany: hermesMessageFindManyMock,
+      count: vi.fn().mockResolvedValue(0),
     },
     user: {
       findUnique: userFindUniqueMock,
@@ -90,6 +108,8 @@ vi.mock("@/clients/hermes-orchestrator.client", () => ({
   proxyChatCompletions: proxyChatCompletionsMock,
   setInstanceSecret: vi.fn(),
 }));
+
+import { destroyInstance } from "@/clients/hermes-orchestrator.client";
 
 import hermesRouter from "./index";
 
@@ -135,18 +155,23 @@ describe("Hermes route contracts", () => {
         ],
       }),
     );
-    prismaTransactionMock.mockImplementation(
-      async (
-        callback: (tx: {
-          hermesMessage: { create: typeof hermesMessageCreateMock };
-        }) => Promise<unknown>,
-      ) =>
-        await callback({
+    prismaTransactionMock.mockImplementation(async (arg: unknown) => {
+      if (Array.isArray(arg)) {
+        await Promise.all(arg);
+        return;
+      }
+      if (typeof arg === "function") {
+        return await (
+          arg as (tx: {
+            hermesMessage: { create: typeof hermesMessageCreateMock };
+          }) => Promise<unknown>
+        )({
           hermesMessage: {
             create: hermesMessageCreateMock,
           },
-        }),
-    );
+        });
+      }
+    });
     isReservedSecretKeyMock.mockReturnValue(false);
     isValidSecretKeyMock.mockReturnValue(true);
   });
@@ -208,6 +233,44 @@ describe("Hermes route contracts", () => {
     expect(hermesMessageCreateMock).toHaveBeenCalledTimes(2);
   });
 
+  it("loads a bounded recent window of persisted history for the proxy", async () => {
+    hermesMessageFindManyMock.mockResolvedValue([
+      { role: "assistant", content: "Latest reply" },
+      { role: "user", content: "Latest user" },
+      { role: "assistant", content: "Older reply" },
+    ]);
+
+    await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content: "New turn" }),
+    });
+
+    expect(hermesMessageFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user_123" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 100,
+        select: { role: true, content: true },
+      }),
+    );
+
+    expect(proxyChatCompletionsMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        messages: [
+          { role: "assistant", content: "Older reply" },
+          { role: "user", content: "Latest user" },
+          { role: "assistant", content: "Latest reply" },
+          { role: "user", content: "New turn" },
+        ],
+      }),
+    );
+  });
+
   it("returns instance-not-ready 409 as data/meta with data.status only", async () => {
     ensureInstanceReadyMock.mockRejectedValue(
       new HermesInstanceNotReadyErrorMock("provisioning"),
@@ -235,6 +298,66 @@ describe("Hermes route contracts", () => {
     expect(body).not.toHaveProperty("details");
     expect(body).toHaveProperty("meta.requestId", "req_hermes_route_test");
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 when DELETE /me/instance succeeds", async () => {
+    vi.mocked(destroyInstance).mockResolvedValue(undefined);
+
+    const response = await createApp().request("/me/instance", {
+      method: "DELETE",
+      headers: {
+        Authorization: "Bearer test_api_key",
+      },
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.ok", true);
+    expect(destroyInstance).toHaveBeenCalledWith("user_123");
+    expect(prismaTransactionMock).toHaveBeenCalled();
+  });
+
+  it("returns 503 and reports to Sentry when orchestrator destroy succeeds but DB cleanup fails", async () => {
+    vi.mocked(destroyInstance).mockResolvedValue(undefined);
+    prismaTransactionMock.mockImplementation(async (arg: unknown) => {
+      if (Array.isArray(arg)) {
+        throw new Error("connection refused");
+      }
+      if (typeof arg === "function") {
+        return await (
+          arg as (tx: {
+            hermesMessage: { create: typeof hermesMessageCreateMock };
+          }) => Promise<unknown>
+        )({
+          hermesMessage: {
+            create: hermesMessageCreateMock,
+          },
+        });
+      }
+    });
+
+    const response = await createApp().request("/me/instance", {
+      method: "DELETE",
+      headers: {
+        Authorization: "Bearer test_api_key",
+      },
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(503);
+    expect(body.error).toBe("ServiceUnavailable");
+    expect(body.message).toBe(
+      "Your Hermes instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
+    );
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        tags: { context: "hermes_destroy_db_cleanup" },
+        extra: { userId: "user_123" },
+      }),
+    );
   });
 
   it("documents the chat and instance-not-ready envelopes in OpenAPI", () => {
