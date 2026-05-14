@@ -21,3 +21,14 @@ export function normalizeCoreApiBaseUrl(baseUrl: string): string {
     ? withoutTrailingSlash
     : `${withoutTrailingSlash}/v1`;
 }
+
+/**
+ * Joins a Core API base URL to a path the same way the generated OpenAPI
+ * client does: strip trailing slashes from the base, ensure the path starts
+ * with a single `/`, then concatenate (avoids `//` when env values vary).
+ */
+export function joinCoreApiPath(baseUrl: string, path: string): string {
+  const base = baseUrl.replace(/\/+$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
+}

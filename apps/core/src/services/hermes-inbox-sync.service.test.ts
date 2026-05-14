@@ -115,4 +115,39 @@ describe("hermesInboxSyncService", () => {
       }),
     );
   });
+
+  it("does not start the next inbox poll after shouldContinue becomes false", async () => {
+    hermesInstanceFindManyMock.mockResolvedValue([
+      {
+        userId: "user-first",
+        lastInboxMessageAt: null,
+        lastPolledAt: null,
+      },
+      {
+        userId: "user-second",
+        lastInboxMessageAt: null,
+        lastPolledAt: null,
+      },
+    ]);
+
+    let allowContinue = true;
+    getInstanceInboxMock.mockImplementation(async () => {
+      allowContinue = false;
+      return { kind: "not_implemented" as const };
+    });
+
+    const summary = await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => allowContinue,
+    });
+
+    expect(getInstanceInboxMock).toHaveBeenCalledTimes(1);
+    expect(getInstanceInboxMock).toHaveBeenCalledWith(
+      "user-first",
+      expect.any(Object),
+    );
+    expect(summary.polled).toBe(1);
+    expect(summary.breakdown.skipped_not_implemented).toBe(1);
+  });
 });

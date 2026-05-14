@@ -6,8 +6,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/utils";
 import { buildCoreChatProxyHeaders } from "@/lib/clients/utils/build-core-chat-proxy-headers";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
-
-const CORE_HERMES_CHAT_PATH = "hermes/chat" as const;
+import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
     );
 
     const response = await fetch(
-      `${getCoreApiBaseUrl()}/${CORE_HERMES_CHAT_PATH}`,
+      joinCoreApiPath(getCoreApiBaseUrl(), "/hermes/chat"),
       {
         method: "POST",
         headers: requestHeaders,

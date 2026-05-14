@@ -299,21 +299,26 @@ async function pollInboxes(
     };
   }
 
-  const settled = await Promise.allSettled(
-    due.map((instance) => pollOne(instance, options)),
-  );
-
   let totalMessages = 0;
-  for (const result of settled) {
-    if (result.status === "fulfilled") {
-      breakdown[result.value.outcome] += 1;
-      if (result.value.outcome === "messages") {
-        totalMessages += result.value.count ?? 0;
+  let polled = 0;
+
+  for (const instance of due) {
+    if (!shouldContinueSync(options)) {
+      break;
+    }
+
+    try {
+      const outcome = await pollOne(instance, options);
+      polled += 1;
+      breakdown[outcome.outcome] += 1;
+      if (outcome.outcome === "messages") {
+        totalMessages += outcome.count ?? 0;
       }
-    } else {
+    } catch (error) {
+      polled += 1;
       breakdown.error += 1;
-      if (result.reason instanceof HermesOrchestratorError) {
-        Sentry.captureException(result.reason, {
+      if (error instanceof HermesOrchestratorError) {
+        Sentry.captureException(error, {
           tags: { context: "hermes_inbox_unhandled" },
         });
       }
@@ -322,7 +327,7 @@ async function pollInboxes(
 
   return {
     status: "ok",
-    polled: due.length,
+    polled,
     totalMessages,
     breakdown,
   };
