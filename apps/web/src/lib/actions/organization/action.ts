@@ -8,17 +8,19 @@ import {
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import * as z from "zod";
 
-import { type ActionError, CommonErrorCode } from "@/lib/actions";
+import { getEnvSecrets } from "@/config/env.secrets";
+import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import prisma from "@/lib/db/prisma";
 import {
   type OrganizationInformationFormSchemaType,
   organizationInformationFormSchema,
 } from "@/lib/schemas";
 import {
+  type BulkInviteResultRow,
   organizationService,
-  preferredOrganizationService,
-  stripeService,
-} from "@/lib/services";
+} from "@/lib/services/organization.service";
+import { preferredOrganizationService } from "@/lib/services/preferred-organization.service";
+import { stripeService } from "@/lib/services/stripe.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -52,6 +54,11 @@ export async function generateOrganizationSlug(
 const updateInvoiceEmailSchema = z.object({
   organizationId: z.string(),
   invoiceEmail: z.email().nullable(),
+});
+
+const bulkInviteEmailsSchema = z.object({
+  organizationId: z.string().min(1),
+  rawEmails: z.string().min(1),
 });
 
 interface UpdateOrganizationInvoiceEmailParameters
@@ -120,6 +127,99 @@ export const updateOrganizationInvoiceEmail = withSession<
     invoiceEmail: getOrganizationMetadata(updatedOrganization.metadata)
       .invoiceEmail,
   });
+});
+
+interface InviteOrganizationMembersBulkParameters extends AuthenticatedRequest {
+  organizationId: string;
+  rawEmails: string;
+}
+
+function parseBulkInviteEmails(rawEmails: string): string[] | null {
+  const emailsByKey = new Map<string, string>();
+  const emailSchema = z.email();
+
+  for (const rawEmail of rawEmails.split(/[\n,;]+/)) {
+    const email = rawEmail.trim();
+    if (!email) continue;
+
+    if (!emailSchema.safeParse(email).success) {
+      return null;
+    }
+
+    const emailKey = email.toLowerCase();
+    if (!emailsByKey.has(emailKey)) {
+      emailsByKey.set(emailKey, email);
+    }
+  }
+
+  return Array.from(emailsByKey.values());
+}
+
+export const inviteOrganizationMembersBulk = withSession<
+  InviteOrganizationMembersBulkParameters,
+  Result<{ results: BulkInviteResultRow[] }, ActionError>
+>(async ({ organizationId, rawEmails, session }) => {
+  const parsedResult = bulkInviteEmailsSchema.safeParse({
+    organizationId,
+    rawEmails,
+  });
+  if (!parsedResult.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: parsedResult.error.issues[0]?.message,
+    });
+  }
+
+  const emails = parseBulkInviteEmails(parsedResult.data.rawEmails);
+  if (!emails || emails.length === 0) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: "Enter at least one valid email address",
+    });
+  }
+
+  const invitationLimit = getEnvSecrets().BETTER_AUTH_ORG_INVITATION_LIMIT;
+  if (emails.length > invitationLimit) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: `You can invite up to ${invitationLimit} members at a time`,
+    });
+  }
+
+  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+    session.user.id,
+    parsedResult.data.organizationId,
+    prisma,
+  );
+
+  if (!member) {
+    return Err({
+      code: CommonErrorCode.UNAUTHORIZED,
+      message: "You are not a member of this organization",
+    });
+  }
+
+  if (member.role !== MemberRole.OWNER && member.role !== MemberRole.ADMIN) {
+    return Err({
+      code: CommonErrorCode.UNAUTHORIZED,
+      message: "Only organization owners and admins can invite members",
+    });
+  }
+
+  try {
+    return Ok(
+      await organizationService.inviteMultipleMembers(
+        parsedResult.data.organizationId,
+        emails,
+        MemberRole.MEMBER,
+      ),
+    );
+  } catch (error) {
+    console.error("Failed to bulk invite organization members", error);
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
 });
 
 const updatePreferredOrganizationSchema = z.object({

@@ -2,7 +2,10 @@
 
 import { useTranslations } from "next-intl";
 
-import { OrganizationMemberInviteModal } from "@/components/organizations";
+import {
+  OrganizationBulkInviteModal,
+  OrganizationMemberInviteModal,
+} from "@/components/organizations";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
 
@@ -31,20 +34,43 @@ function OrganizationMemberInviteModalHost({
   );
 }
 
+function OrganizationBulkInviteModalHost({
+  open,
+  onOpenChange,
+  organizationId,
+}: OrganizationMemberInviteModalHostProps) {
+  return (
+    <OrganizationBulkInviteModal
+      open={open}
+      onOpenChange={onOpenChange}
+      organizationId={organizationId}
+    />
+  );
+}
+
 export default function OrganizationInviteButton({
   organizationId,
   className,
 }: OrganizationInviteButtonProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
-  const { Component, showModal } = useModal(OrganizationMemberInviteModalHost, {
-    organizationId,
-  });
+  const { Component: InviteMemberModal, showModal: showInviteMemberModal } =
+    useModal(OrganizationMemberInviteModalHost, { organizationId });
+  const { Component: BulkInviteModal, showModal: showBulkInviteModal } =
+    useModal(OrganizationBulkInviteModalHost, { organizationId });
 
   return (
     <>
-      {Component}
-      <Button onClick={showModal} className={className}>
+      {InviteMemberModal}
+      {BulkInviteModal}
+      <Button onClick={showInviteMemberModal} className={className}>
         {t("invite")}
+      </Button>
+      <Button
+        onClick={showBulkInviteModal}
+        variant="outline"
+        className={className}
+      >
+        {t("bulkInvite")}
       </Button>
     </>
   );

@@ -595,6 +595,21 @@
           }
         }
       },
+      "BulkInviteModal": {
+        "title": "Mitglieder gesammelt einladen",
+        "description": "Füge E-Mail-Adressen ein, um mehrere Mitglieder gleichzeitig einzuladen.",
+        "label": "E-Mail-Adressen",
+        "placeholder": "alex@example.com, sam@example.com",
+        "hint": "Trenne E-Mail-Adressen mit Kommas, Semikolons oder Zeilenumbrüchen.",
+        "submit": "Einladungen senden",
+        "close": "Schließen",
+        "error": "Einladungen konnten nicht gesendet werden",
+        "summary": "Gesendet: {sent}. Fehlgeschlagen: {failed}.",
+        "Status": {
+          "sent": "Gesendet",
+          "failed": "Fehlgeschlagen"
+        }
+      },
       "LeaveOrganizationModal": {
         "title": "Möchtest du die Organisation wirklich verlassen?",
         "description": "Organisation \"{organization}\" verlassen.",
@@ -2316,6 +2331,7 @@
         "edit": "Bearbeiten",
         "delete": "Löschen",
         "invite": "Mitglied einladen",
+        "bulkInvite": "Mehrere einladen",
         "InvoiceEmail": {
           "title": "Rechnungs-E-Mail",
           "description": "E-Mail-Adresse für den Empfang von Rechnungen und Billing-Benachrichtigungen",

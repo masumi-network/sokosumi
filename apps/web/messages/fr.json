@@ -595,6 +595,21 @@
           }
         }
       },
+      "BulkInviteModal": {
+        "title": "Inviter des membres en masse",
+        "description": "Collez des adresses e-mail pour inviter plusieurs membres à la fois.",
+        "label": "Adresses e-mail",
+        "placeholder": "alex@example.com, sam@example.com",
+        "hint": "Séparez les e-mails par des virgules, des points-virgules ou des sauts de ligne.",
+        "submit": "Envoyer les invitations",
+        "close": "Fermer",
+        "error": "Impossible d’envoyer les invitations",
+        "summary": "Envoyées : {sent}. Échouées : {failed}.",
+        "Status": {
+          "sent": "Envoyée",
+          "failed": "Échouée"
+        }
+      },
       "LeaveOrganizationModal": {
         "title": "Voulez-vous vraiment quitter l’organisation ?",
         "description": "Quitter l’organisation « {organization} ».",
@@ -2378,6 +2393,7 @@
         "edit": "Modifier",
         "delete": "Supprimer",
         "invite": "Inviter un membre",
+        "bulkInvite": "Invitation groupée",
         "InvoiceEmail": {
           "title": "E-mail de facturation",
           "description": "Adresse e-mail pour recevoir les factures et les notifications de facturation",

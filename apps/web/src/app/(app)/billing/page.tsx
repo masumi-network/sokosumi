@@ -175,7 +175,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             stripeCustomerId={activeOrganization.stripeCustomerId}
             stripeCustomerLabel={t("stripeCustomerIdLabel")}
             billingPortal={
-              activeOrganization.stripeCustomerId ? (
+              activeOrganization.stripeCustomerId &&
+              currentPlan !== "enterprise" ? (
                 <BalanceBillingPortalLink
                   baseReturnPath="/billing"
                   description={t("billingPortalDescription")}
@@ -299,7 +300,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           stripeCustomerId={user?.stripeCustomerId ?? null}
           stripeCustomerLabel={t("stripeCustomerIdLabel")}
           billingPortal={
-            user?.stripeCustomerId ? (
+            user?.stripeCustomerId && currentPlan !== "enterprise" ? (
               <BalanceBillingPortalLink
                 baseReturnPath="/billing"
                 description={t("billingPortalDescription")}

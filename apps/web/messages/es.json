@@ -595,6 +595,21 @@
           }
         }
       },
+      "BulkInviteModal": {
+        "title": "Invitar miembros en bloque",
+        "description": "Pega direcciones de email para invitar a varios miembros a la vez.",
+        "label": "Direcciones de email",
+        "placeholder": "alex@example.com, sam@example.com",
+        "hint": "Separa los emails con comas, punto y coma o saltos de línea.",
+        "submit": "Enviar invitaciones",
+        "close": "Cerrar",
+        "error": "No se pudieron enviar las invitaciones",
+        "summary": "Enviadas: {sent}. Fallidas: {failed}.",
+        "Status": {
+          "sent": "Enviada",
+          "failed": "Fallida"
+        }
+      },
       "LeaveOrganizationModal": {
         "title": "¿Seguro que quieres salir de la organización?",
         "description": "Salir de la organización \"{organization}\".",
@@ -2316,6 +2331,7 @@
         "edit": "Editar",
         "delete": "Eliminar",
         "invite": "Invitar miembro",
+        "bulkInvite": "Invitar en bloque",
         "InvoiceEmail": {
           "title": "Email de facturación",
           "description": "Dirección de email para recibir facturas y notificaciones de Billing",
