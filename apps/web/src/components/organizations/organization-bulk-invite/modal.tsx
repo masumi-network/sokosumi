@@ -87,7 +87,17 @@ export default function OrganizationBulkInviteModal({
       router.refresh();
     }
 
-    toast.success(t("summary", { sent: sentCount, failed: failedCount }));
+    const summaryMessage = t("summary", {
+      sent: sentCount,
+      failed: failedCount,
+    });
+    if (sentCount === 0) {
+      toast.error(summaryMessage);
+    } else if (failedCount > 0) {
+      toast.warning(summaryMessage);
+    } else {
+      toast.success(summaryMessage);
+    }
     setIsSubmitting(false);
   };
 
