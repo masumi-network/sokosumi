@@ -65,40 +65,46 @@ export default function OrganizationBulkInviteModal({
     setIsSubmitting(true);
     setResults([]);
 
-    const result = await inviteOrganizationMembersBulk({
-      organizationId,
-      rawEmails,
-    });
+    try {
+      const result = await inviteOrganizationMembersBulk({
+        organizationId,
+        rawEmails,
+      });
 
-    if (!result.ok) {
-      toast.error(result.error.message ?? t("error"));
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("error"));
+        return;
+      }
+
+      const nextResults = result.data.results;
+      const sentCount = nextResults.filter(
+        (row) => row.status === "sent",
+      ).length;
+      const failedCount = nextResults.length - sentCount;
+
+      setResults(nextResults);
+      setRawEmails("");
+
+      if (sentCount > 0) {
+        router.refresh();
+      }
+
+      const summaryMessage = t("summary", {
+        sent: sentCount,
+        failed: failedCount,
+      });
+      if (sentCount === 0) {
+        toast.error(summaryMessage);
+      } else if (failedCount > 0) {
+        toast.warning(summaryMessage);
+      } else {
+        toast.success(summaryMessage);
+      }
+    } catch (_error) {
+      toast.error(t("error"));
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    const nextResults = result.data.results;
-    const sentCount = nextResults.filter((row) => row.status === "sent").length;
-    const failedCount = nextResults.length - sentCount;
-
-    setResults(nextResults);
-    setRawEmails("");
-
-    if (sentCount > 0) {
-      router.refresh();
-    }
-
-    const summaryMessage = t("summary", {
-      sent: sentCount,
-      failed: failedCount,
-    });
-    if (sentCount === 0) {
-      toast.error(summaryMessage);
-    } else if (failedCount > 0) {
-      toast.warning(summaryMessage);
-    } else {
-      toast.success(summaryMessage);
-    }
-    setIsSubmitting(false);
   };
 
   return (
