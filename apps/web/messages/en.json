@@ -595,6 +595,21 @@
           }
         }
       },
+      "BulkInviteModal": {
+        "title": "Bulk invite members",
+        "description": "Paste email addresses to invite multiple members at once.",
+        "label": "Email addresses",
+        "placeholder": "alex@example.com, sam@example.com",
+        "hint": "Separate emails with commas, semicolons, or new lines.",
+        "submit": "Send invites",
+        "close": "Close",
+        "error": "Failed to send invites",
+        "summary": "Sent: {sent}. Failed: {failed}.",
+        "Status": {
+          "sent": "Sent",
+          "failed": "Failed"
+        }
+      },
       "LeaveOrganizationModal": {
         "title": "Do you really want to leave the organization?",
         "description": "Leave the organization \"{organization}\".",
@@ -2378,6 +2393,7 @@
         "edit": "Edit",
         "delete": "Delete",
         "invite": "Invite Member",
+        "bulkInvite": "Bulk invite",
         "InvoiceEmail": {
           "title": "Invoice Email",
           "description": "Email address for receiving invoices and billing notifications",

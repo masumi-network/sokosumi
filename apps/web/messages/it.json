@@ -595,6 +595,21 @@
           }
         }
       },
+      "BulkInviteModal": {
+        "title": "Invita membri in blocco",
+        "description": "Incolla gli indirizzi email per invitare più membri alla volta.",
+        "label": "Indirizzi email",
+        "placeholder": "alex@example.com, sam@example.com",
+        "hint": "Separa le email con virgole, punti e virgola o nuove righe.",
+        "submit": "Invia inviti",
+        "close": "Chiudi",
+        "error": "Impossibile inviare gli inviti",
+        "summary": "Inviati: {sent}. Non riusciti: {failed}.",
+        "Status": {
+          "sent": "Inviato",
+          "failed": "Non riuscito"
+        }
+      },
       "LeaveOrganizationModal": {
         "title": "Vuoi davvero uscire dall’organizzazione?",
         "description": "Esci dall’organizzazione \"{organization}\".",
@@ -2378,6 +2393,7 @@
         "edit": "Modifica",
         "delete": "Elimina",
         "invite": "Invita un membro",
+        "bulkInvite": "Invita in blocco",
         "InvoiceEmail": {
           "title": "Email per le fatture",
           "description": "Indirizzo email per ricevere fatture e notifiche di fatturazione",

@@ -347,4 +347,35 @@ describe("BillingPage", () => {
     expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
     expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
   });
+
+  it("hides the billing portal for organization enterprise plans even with a Stripe customer", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      _count: { members: 2 },
+      id: "org-1",
+      name: "Org One",
+      stripeCustomerId: "cus_org_1",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      periodEnd: "2026-03-01T00:00:00.000Z",
+      plan: "enterprise",
+      seats: 10,
+    });
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
+    expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
+  });
 });

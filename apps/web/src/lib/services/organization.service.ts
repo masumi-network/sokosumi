@@ -18,6 +18,11 @@ import { auth } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
+export type BulkInviteResultRow = {
+  email: string;
+  status: "sent" | "failed";
+};
+
 /**
  * Service for organization and invitations related operations.
  * Provides methods to get members and pending invitations for the current user.
@@ -171,30 +176,44 @@ export const organizationService = (() => {
 
   /**
    * Invites multiple members to an organization in batch.
+   * Callers must verify the current user can invite members before calling.
    *
    * @param organizationId - The ID of the organization.
    * @param emails - Array of email addresses to invite.
    * @param role - The role to assign to invited members.
-   * @returns Promise that resolves when all invitations are sent.
+   * @returns Promise that resolves with one status row per email.
    */
   async function inviteMultipleMembers(
     organizationId: string,
     emails: string[],
     role: MemberRole,
-  ): Promise<void> {
+  ): Promise<{ results: BulkInviteResultRow[] }> {
     const headersList = await headers();
+    const results: BulkInviteResultRow[] = [];
 
     for (const email of emails) {
-      await auth.api.createInvitation({
-        body: {
+      try {
+        await auth.api.createInvitation({
+          body: {
+            email,
+            role,
+            organizationId,
+            resend: true,
+          },
+          headers: headersList,
+        });
+        results.push({ email, status: "sent" });
+      } catch (error) {
+        console.error("Failed to invite organization member", {
           email,
-          role,
           organizationId,
-          resend: true,
-        },
-        headers: headersList,
-      });
+          error,
+        });
+        results.push({ email, status: "failed" });
+      }
     }
+
+    return { results };
   }
 
   return {

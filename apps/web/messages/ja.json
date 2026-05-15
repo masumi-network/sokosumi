@@ -595,6 +595,21 @@
           }
         }
       },
+      "BulkInviteModal": {
+        "title": "メンバーを一括招待",
+        "description": "メールアドレスを貼り付けて、複数のメンバーを一度に招待します。",
+        "label": "メールアドレス",
+        "placeholder": "alex@example.com, sam@example.com",
+        "hint": "メールアドレスはカンマ、セミコロン、または改行で区切ってください。",
+        "submit": "招待を送信",
+        "close": "閉じる",
+        "error": "招待を送信できませんでした",
+        "summary": "送信済み: {sent}。失敗: {failed}。",
+        "Status": {
+          "sent": "送信済み",
+          "failed": "失敗"
+        }
+      },
       "LeaveOrganizationModal": {
         "title": "本当に組織から退出しますか？",
         "description": "組織「{organization}」から退出します。",
@@ -2378,6 +2393,7 @@
         "edit": "編集",
         "delete": "削除",
         "invite": "メンバーを招待",
+        "bulkInvite": "一括招待",
         "InvoiceEmail": {
           "title": "請求書送付先メール",
           "description": "請求書および請求関連の通知を受け取るメールアドレス",

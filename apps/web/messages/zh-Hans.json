@@ -595,6 +595,21 @@
           }
         }
       },
+      "BulkInviteModal": {
+        "title": "批量邀请成员",
+        "description": "粘贴电子邮件地址，一次邀请多位成员。",
+        "label": "电子邮件地址",
+        "placeholder": "alex@example.com, sam@example.com",
+        "hint": "请使用逗号、分号或换行分隔电子邮件地址。",
+        "submit": "发送邀请",
+        "close": "关闭",
+        "error": "发送邀请失败",
+        "summary": "已发送：{sent}。失败：{failed}。",
+        "Status": {
+          "sent": "已发送",
+          "failed": "失败"
+        }
+      },
       "LeaveOrganizationModal": {
         "title": "您确定要退出该组织吗？",
         "description": "退出组织 \"{organization}\"。",
@@ -2378,6 +2393,7 @@
         "edit": "编辑",
         "delete": "删除",
         "invite": "邀请成员",
+        "bulkInvite": "批量邀请",
         "InvoiceEmail": {
           "title": "发票邮箱",
           "description": "用于接收发票和计费通知的邮箱地址",

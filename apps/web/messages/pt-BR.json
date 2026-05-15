@@ -595,6 +595,21 @@
           }
         }
       },
+      "BulkInviteModal": {
+        "title": "Convidar membros em massa",
+        "description": "Cole endereços de e-mail para convidar vários membros de uma vez.",
+        "label": "Endereços de e-mail",
+        "placeholder": "alex@example.com, sam@example.com",
+        "hint": "Separe os e-mails com vírgulas, ponto e vírgula ou quebras de linha.",
+        "submit": "Enviar convites",
+        "close": "Fechar",
+        "error": "Não foi possível enviar os convites",
+        "summary": "Enviados: {sent}. Falharam: {failed}.",
+        "Status": {
+          "sent": "Enviado",
+          "failed": "Falhou"
+        }
+      },
       "LeaveOrganizationModal": {
         "title": "Você realmente quer sair da organização?",
         "description": "Sair da organização \"{organization}\".",
@@ -2378,6 +2393,7 @@
         "edit": "Editar",
         "delete": "Excluir",
         "invite": "Convidar membro",
+        "bulkInvite": "Convidar em massa",
         "InvoiceEmail": {
           "title": "E-mail para faturas",
           "description": "Endereço de e-mail para receber faturas e notificações de cobrança",
