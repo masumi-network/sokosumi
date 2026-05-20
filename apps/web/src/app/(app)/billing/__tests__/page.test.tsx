@@ -147,6 +147,7 @@ vi.mock("@/components/billing/personal-subscription-section", () => ({
 
 function createSubscriptionCatalog() {
   return {
+    enterpriseProducts: [],
     free: { credits: 250, currency: "EUR", monthlyAmount: 0 },
     pro: { credits: 14_000, currency: "EUR", monthlyAmount: 20_000 },
     standard: { credits: 5_250, currency: "EUR", monthlyAmount: 7_500 },

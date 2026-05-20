@@ -74,6 +74,7 @@ vi.mock("../onboarding-subscription-return-handler", () => ({
 
 function createSubscriptionCatalog() {
   return {
+    enterpriseProducts: [],
     free: { credits: 250, currency: "eur", monthlyAmount: 0 },
     pro: { credits: 14_000, currency: "eur", monthlyAmount: 20_000 },
     standard: { credits: 5_250, currency: "eur", monthlyAmount: 7_500 },
