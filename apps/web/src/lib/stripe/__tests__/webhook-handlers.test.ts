@@ -1416,33 +1416,25 @@ describe("handleCustomerCreatedEvent", () => {
   });
 });
 
-describe("reconcileActiveStripeSubscriptionEvent", () => {
+describe("reconcileActiveStripeBackedSubscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 2 });
+  });
+
+  it("cancels active local free rows for the same reference when a Stripe-backed subscription is active", async () => {
+    const { reconcileActiveStripeBackedSubscription } = await import(
+      "../webhook-handlers"
+    );
+
+    await reconcileActiveStripeBackedSubscription({
       id: "sub_local_enterprise",
       plan: "enterprise",
       referenceId: "org-enterprise",
       status: "active",
       stripeSubscriptionId: "sub_enterprise",
     });
-    subscriptionUpdateManyMock.mockResolvedValue({ count: 2 });
-  });
 
-  it("cancels active local free rows for the same reference when a Stripe-backed subscription is active", async () => {
-    const { reconcileActiveStripeSubscriptionEvent } = await import(
-      "../webhook-handlers"
-    );
-
-    await reconcileActiveStripeSubscriptionEvent({
-      id: "sub_enterprise",
-      status: "active",
-    } as never);
-
-    expect(getSubscriptionByStripeSubscriptionIdMock).toHaveBeenCalledWith(
-      "sub_enterprise",
-      expect.anything(),
-    );
     expect(subscriptionUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: {
@@ -1463,37 +1455,34 @@ describe("reconcileActiveStripeSubscriptionEvent", () => {
     });
   });
 
-  it("does not cancel local free rows for non-active Stripe subscription statuses", async () => {
-    const { reconcileActiveStripeSubscriptionEvent } = await import(
+  it("does not cancel local free rows for non-active local subscription statuses", async () => {
+    const { reconcileActiveStripeBackedSubscription } = await import(
       "../webhook-handlers"
     );
 
-    await reconcileActiveStripeSubscriptionEvent({
-      id: "sub_enterprise",
+    await reconcileActiveStripeBackedSubscription({
+      id: "sub_local_enterprise",
+      plan: "enterprise",
+      referenceId: "org-enterprise",
       status: "incomplete",
-    } as never);
+      stripeSubscriptionId: "sub_enterprise",
+    });
 
-    expect(getSubscriptionByStripeSubscriptionIdMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("does not cancel local free rows when the Stripe-backed local row is still free", async () => {
-    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
+    const { reconcileActiveStripeBackedSubscription } = await import(
+      "../webhook-handlers"
+    );
+
+    await reconcileActiveStripeBackedSubscription({
       id: "sub_local_free",
       plan: "free",
       referenceId: "org-enterprise",
       status: "active",
       stripeSubscriptionId: "sub_free",
     });
-
-    const { reconcileActiveStripeSubscriptionEvent } = await import(
-      "../webhook-handlers"
-    );
-
-    await reconcileActiveStripeSubscriptionEvent({
-      id: "sub_free",
-      status: "active",
-    } as never);
 
     expect(subscriptionUpdateManyMock).not.toHaveBeenCalled();
   });

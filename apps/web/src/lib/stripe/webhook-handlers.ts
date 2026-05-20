@@ -979,22 +979,6 @@ export async function handleCustomerUpdatedEvent(
   }
 }
 
-export async function reconcileActiveStripeSubscriptionEvent(
-  subscription: Stripe.Subscription,
-): Promise<void> {
-  if (!isActiveSubscriptionStatus(subscription.status)) {
-    return;
-  }
-
-  const localSubscription =
-    await subscriptionRepository.getSubscriptionByStripeSubscriptionId(
-      subscription.id,
-      prisma,
-    );
-
-  await reconcileActiveStripeBackedSubscription(localSubscription);
-}
-
 export async function reconcileActiveStripeBackedSubscription(
   localSubscription: StripeBackedSubscriptionForReconciliation | null,
 ): Promise<void> {
