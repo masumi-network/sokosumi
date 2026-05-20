@@ -13,6 +13,8 @@ const getUserByStripeCustomerIdMock = vi.fn();
 const getOrganizationByStripeCustomerIdMock = vi.fn();
 const getMembersByOrganizationIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
+const invalidateSubscriptionCatalogCacheMock = vi.fn();
+const resolveEnterpriseProductMock = vi.fn();
 const findExistingBucketMock = vi.fn();
 const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
 const createTransactionMock = vi.fn();
@@ -23,6 +25,7 @@ const ensureInitialLocalFreeSubscriptionPeriodMock = vi.fn();
 const transitionToNextLocalFreeSubscriptionPeriodMock = vi.fn();
 const getSubscriptionByStripeSubscriptionIdMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
+const subscriptionUpdateManyMock = vi.fn();
 const prismaOrganizationUpdateMock = vi.fn();
 const prismaUserUpdateMock = vi.fn();
 
@@ -38,13 +41,15 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
       findMany: (...args: unknown[]) => findOutOfCreditsTasksMock(...args),
       update: (...args: unknown[]) => updateTaskMock(...args),
     },
+    subscription: {
+      updateMany: (...args: unknown[]) => subscriptionUpdateManyMock(...args),
+    },
   }),
 );
 
 vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({
     STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
-    STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID: "prod_enterprise",
     STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: "prod_pro",
     STRIPE_SECRET_KEY: "sk_test_mock",
     STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: "prod_standard",
@@ -114,6 +119,10 @@ vi.mock("@/lib/services", () => ({
 vi.mock("@/lib/stripe/subscription-catalog", () => ({
   getSubscriptionCatalog: (...args: unknown[]) =>
     getSubscriptionCatalogMock(...args),
+  invalidateSubscriptionCatalogCache: (...args: unknown[]) =>
+    invalidateSubscriptionCatalogCacheMock(...args),
+  resolveEnterpriseProduct: (...args: unknown[]) =>
+    resolveEnterpriseProductMock(...args),
 }));
 
 const DEFAULT_PERIOD_END_UNIX = 1_735_689_600;
@@ -121,11 +130,13 @@ const DEFAULT_INVOICE_CREATED_UNIX = 1_735_689_600;
 const DEFAULT_PERIOD_DURATION_SECONDS = 2_592_000;
 const SUBSCRIPTION_CATALOG = {
   free: { credits: 250, monthlyAmount: 0, productId: "local-free" },
-  enterprise: {
-    credits: 50000,
-    monthlyAmount: 120000,
-    productId: "prod_enterprise",
-  },
+  enterpriseProducts: [
+    {
+      credits: 50000,
+      monthlyAmount: 120000,
+      productId: "prod_enterprise",
+    },
+  ],
   pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
   standard: {
     credits: 5250,
@@ -276,6 +287,8 @@ describe("handleInvoicePaidEvent", () => {
       undefined,
     );
     getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue(null);
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 0 });
+    resolveEnterpriseProductMock.mockResolvedValue(null);
   });
 
   it("does not grant subscription credits for unpaid subscription_update invoices", async () => {
@@ -922,6 +935,51 @@ describe("handleInvoicePaidEvent", () => {
       BigInt("500000000000000"),
       BigInt("500000000000000"),
     ]);
+    expect(resolveEnterpriseProductMock).not.toHaveBeenCalled();
+    expect(invalidateSubscriptionCatalogCacheMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves uncached Enterprise products from Stripe and uses an overlay for credits", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      ...SUBSCRIPTION_CATALOG,
+      enterpriseProducts: [],
+    });
+    resolveEnterpriseProductMock.mockResolvedValue({
+      credits: 60000,
+      monthlyAmount: 150000,
+      productId: "prod_custom_enterprise",
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_custom_enterprise_cycle",
+        lines: [{ productId: "prod_custom_enterprise", quantity: 2 }],
+      }) as never,
+    );
+
+    expect(resolveEnterpriseProductMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "prod_custom_enterprise",
+    );
+    expect(invalidateSubscriptionCatalogCacheMock).toHaveBeenCalledTimes(1);
+    expect(getSubscriptionCatalogMock).toHaveBeenCalledTimes(2);
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            amount: bigint;
+          };
+        };
+      };
+    };
+    expect(createCall.data.sourceCreditBucket.create.amount).toBe(
+      BigInt("1200000000000000"),
+    );
   });
 
   it("uses invoice metadata credits for checkout-based top-up grants", async () => {
@@ -1355,6 +1413,89 @@ describe("handleCustomerCreatedEvent", () => {
       expect.anything(),
     );
     expect(claimWelcomeCouponMock).toHaveBeenCalledWith("user-1");
+  });
+});
+
+describe("reconcileActiveStripeSubscriptionEvent", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
+      id: "sub_local_enterprise",
+      plan: "enterprise",
+      referenceId: "org-enterprise",
+      status: "active",
+      stripeSubscriptionId: "sub_enterprise",
+    });
+    subscriptionUpdateManyMock.mockResolvedValue({ count: 2 });
+  });
+
+  it("cancels active local free rows for the same reference when a Stripe-backed subscription is active", async () => {
+    const { reconcileActiveStripeSubscriptionEvent } = await import(
+      "../webhook-handlers"
+    );
+
+    await reconcileActiveStripeSubscriptionEvent({
+      id: "sub_enterprise",
+      status: "active",
+    } as never);
+
+    expect(getSubscriptionByStripeSubscriptionIdMock).toHaveBeenCalledWith(
+      "sub_enterprise",
+      expect.anything(),
+    );
+    expect(subscriptionUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: {
+          not: "sub_local_enterprise",
+        },
+        plan: "free",
+        referenceId: "org-enterprise",
+        status: {
+          in: ["active", "trialing", "past_due", "unpaid"],
+        },
+        stripeSubscriptionId: null,
+      },
+      data: {
+        canceledAt: expect.any(Date),
+        endedAt: expect.any(Date),
+        status: "canceled",
+      },
+    });
+  });
+
+  it("does not cancel local free rows for non-active Stripe subscription statuses", async () => {
+    const { reconcileActiveStripeSubscriptionEvent } = await import(
+      "../webhook-handlers"
+    );
+
+    await reconcileActiveStripeSubscriptionEvent({
+      id: "sub_enterprise",
+      status: "incomplete",
+    } as never);
+
+    expect(getSubscriptionByStripeSubscriptionIdMock).not.toHaveBeenCalled();
+    expect(subscriptionUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("does not cancel local free rows when the Stripe-backed local row is still free", async () => {
+    getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
+      id: "sub_local_free",
+      plan: "free",
+      referenceId: "org-enterprise",
+      status: "active",
+      stripeSubscriptionId: "sub_free",
+    });
+
+    const { reconcileActiveStripeSubscriptionEvent } = await import(
+      "../webhook-handlers"
+    );
+
+    await reconcileActiveStripeSubscriptionEvent({
+      id: "sub_free",
+      status: "active",
+    } as never);
+
+    expect(subscriptionUpdateManyMock).not.toHaveBeenCalled();
   });
 });
 

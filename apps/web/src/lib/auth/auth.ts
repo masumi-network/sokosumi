@@ -67,6 +67,7 @@ import {
   handleCustomerUpdatedEvent,
   handleInvoicePaidEvent,
   handleSubscriptionDeletedEvent,
+  reconcileActiveStripeBackedSubscription,
 } from "@/lib/stripe/webhook-handlers";
 
 export type Session = typeof auth.$Infer.Session;
@@ -713,6 +714,42 @@ export const auth = betterAuth({
       subscription: {
         enabled: true,
         plans: async () => await getBetterAuthSubscriptionPlans(stripeInstance),
+        onSubscriptionCreated: async ({ event, subscription }) => {
+          try {
+            await reconcileActiveStripeBackedSubscription(subscription);
+          } catch (error) {
+            Sentry.captureException(error, {
+              tags: {
+                stripeEventType: event.type,
+                stripeSubscriptionId: subscription.stripeSubscriptionId,
+              },
+              extra: {
+                eventId: event.id,
+                localSubscriptionId: subscription.id,
+                referenceId: subscription.referenceId,
+              },
+            });
+            throw error;
+          }
+        },
+        onSubscriptionUpdate: async ({ event, subscription }) => {
+          try {
+            await reconcileActiveStripeBackedSubscription(subscription);
+          } catch (error) {
+            Sentry.captureException(error, {
+              tags: {
+                stripeEventType: event.type,
+                stripeSubscriptionId: subscription.stripeSubscriptionId,
+              },
+              extra: {
+                eventId: event.id,
+                localSubscriptionId: subscription.id,
+                referenceId: subscription.referenceId,
+              },
+            });
+            throw error;
+          }
+        },
         getCheckoutSessionParams: async () => ({
           params: {
             billing_address_collection: "required",
