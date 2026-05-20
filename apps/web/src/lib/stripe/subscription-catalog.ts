@@ -195,7 +195,9 @@ export async function resolveEnterpriseProduct(
     expand: ["default_price"],
   });
 
-  if (product.active === false || !isEnterpriseSlug(product.metadata)) {
+  // Archived products (active=false) are excluded from catalog discovery but must
+  // still resolve here: Stripe keeps billing existing subscriptions on them.
+  if (!isEnterpriseSlug(product.metadata)) {
     return null;
   }
 

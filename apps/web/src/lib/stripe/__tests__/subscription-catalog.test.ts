@@ -295,6 +295,35 @@ describe("subscription-catalog", () => {
     expect(listMock).toHaveBeenCalledTimes(2);
   });
 
+  it("resolves archived enterprise products for webhook credit grants", async () => {
+    const { stripe } = createMockStripe({
+      products: {
+        prod_archived_enterprise: createMockProduct({
+          active: false,
+          planName: "enterprise",
+          priceId: "price_archived_enterprise",
+          productId: "prod_archived_enterprise",
+          credits: 40000,
+          unitAmount: 100000,
+        }),
+      },
+    });
+
+    const { resolveEnterpriseProduct } = await import(
+      "../subscription-catalog"
+    );
+
+    await expect(
+      resolveEnterpriseProduct(stripe as never, "prod_archived_enterprise"),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        credits: 40000,
+        monthlyAmount: 100000,
+        productId: "prod_archived_enterprise",
+      }),
+    );
+  });
+
   it("resolves a valid enterprise product and returns null for invalid products", async () => {
     const { stripe } = createMockStripe({
       products: {
