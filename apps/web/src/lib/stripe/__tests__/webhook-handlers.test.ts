@@ -982,6 +982,47 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
+  it("skips unknown products when enterprise resolve returns null", async () => {
+    mockSubscriptionCatalog();
+    getSubscriptionCatalogMock.mockResolvedValue({
+      ...SUBSCRIPTION_CATALOG,
+      enterpriseProducts: [],
+    });
+    resolveEnterpriseProductMock.mockResolvedValue(null);
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_mixed_unknown_and_starter",
+        lines: [
+          { productId: "prod_unknown", quantity: 1 },
+          { productId: "prod_starter", quantity: 1 },
+        ],
+      }) as never,
+    );
+
+    expect(resolveEnterpriseProductMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "prod_unknown",
+    );
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            amount: bigint;
+          };
+        };
+      };
+    };
+    expect(createCall.data.sourceCreditBucket.create.amount).toBe(
+      BigInt("17500000000000"),
+    );
+  });
+
   it("uses invoice metadata credits for checkout-based top-up grants", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 

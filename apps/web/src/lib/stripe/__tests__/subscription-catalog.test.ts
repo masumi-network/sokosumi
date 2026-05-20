@@ -370,4 +370,26 @@ describe("subscription-catalog", () => {
       resolveEnterpriseProduct(stripe as never, "prod_standard_named"),
     ).resolves.toBeNull();
   });
+
+  it("returns null when Stripe product retrieve fails", async () => {
+    const retrieveMock = vi.fn(async () => {
+      throw new Error("No such product: prod_deleted");
+    });
+    const stripe = {
+      products: {
+        retrieve: retrieveMock,
+      },
+    };
+
+    const { resolveEnterpriseProduct } = await import(
+      "../subscription-catalog"
+    );
+
+    await expect(
+      resolveEnterpriseProduct(stripe as never, "prod_deleted"),
+    ).resolves.toBeNull();
+    expect(retrieveMock).toHaveBeenCalledWith("prod_deleted", {
+      expand: ["default_price"],
+    });
+  });
 });

@@ -191,9 +191,16 @@ export async function resolveEnterpriseProduct(
   stripe: Stripe,
   productId: string,
 ): Promise<SubscriptionCatalogPlan | null> {
-  const product = await stripe.products.retrieve(productId, {
-    expand: ["default_price"],
-  });
+  let product: Stripe.Product;
+  try {
+    product = await stripe.products.retrieve(productId, {
+      expand: ["default_price"],
+    });
+  } catch {
+    // Deleted products, rate limits, and transient Stripe/network errors should
+    // not block invoice credit grants for other line items.
+    return null;
+  }
 
   // Archived products (active=false) are excluded from catalog discovery but must
   // still resolve here: Stripe keeps billing existing subscriptions on them.
