@@ -808,7 +808,10 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
 body[data-hermes-fullscreen="true"] [data-app-main] {
   max-height: 100svh !important;
   min-height: 100svh !important;
-  padding-top: 1rem !important;
+  /* Full-bleed Hermes — kill the AppLayout's `p-4`. Done here instead of via
+   * `data-agent-fullbleed` so main keeps its `overflow-y-auto`; otherwise
+   * the setup loaders leak excess height to the document body. */
+  padding: 0 !important;
 }
 
 /* Three staggered pulsing dots after the "Thinking" phrase in the chat.

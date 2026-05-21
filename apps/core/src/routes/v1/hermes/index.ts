@@ -1669,17 +1669,28 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   }
 
   // Register the same MCP URL under every orchestrator provider string this
-  // connection covers (outlook covers both mail + calendar).
-  let lastIntegration: Awaited<
+  // connection covers (outlook covers both mail + calendar). We return the
+  // integration row for the *requested* provider, NOT the last loop
+  // iteration — otherwise an `outlook` finalize would respond with the
+  // `outlook_calendar` row, and the client's optimistic UI would update
+  // the wrong card.
+  let requestedProviderIntegration: Awaited<
+    ReturnType<typeof connectInstanceIntegration>
+  > | null = null;
+  let anyIntegration: Awaited<
     ReturnType<typeof connectInstanceIntegration>
   > | null = null;
   try {
     for (const orchestratorProvider of pairedOrchestratorProviders(provider)) {
-      lastIntegration = await connectInstanceIntegration(userContext.userId, {
+      const integration = await connectInstanceIntegration(userContext.userId, {
         provider: orchestratorProvider,
         mcpUrl,
         mode,
       });
+      anyIntegration = integration;
+      if (orchestratorProvider === provider) {
+        requestedProviderIntegration = integration;
+      }
     }
   } catch (error) {
     return mapOrchestratorError(error, "Failed to register integration");
@@ -1688,12 +1699,13 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   return ok(
     c,
     hermesIntegrationSchema.parse(
-      lastIntegration ?? {
-        provider,
-        status: "connecting",
-        connectedAt: null,
-        mode,
-      },
+      requestedProviderIntegration ??
+        anyIntegration ?? {
+          provider,
+          status: "connecting",
+          connectedAt: null,
+          mode,
+        },
     ),
   );
 });

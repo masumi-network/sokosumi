@@ -14,16 +14,22 @@ export default async function HermesLayout({ children }: HermesLayoutProps) {
     notFound();
   }
 
-  // `data-agent-fullbleed` triggers the existing AppLayout CSS hook that
-  // zeros main's 16px `p-4` padding (see globals.css). Without this, the
-  // FlowBackground screens render with a visible 16px frame around them.
-  // The chat (RunningState) doesn't show this because its rounded-lg
-  // wrapper makes the frame look intentional, but the setup flow has
-  // FlowBackground edge-to-edge and the padding reads as a white border.
+  // We DON'T use `data-agent-fullbleed` here even though it nicely zeros
+  // main's p-4 padding. That helper also sets `overflow: visible` on
+  // main + every ancestor up to the app shell, which delegates scrolling
+  // to the document body. Setup screens (OnboardingProgress / Provisioning)
+  // are slightly taller than viewport on some sizes and end up with a
+  // useless body-level scroll into empty space.
+  //
+  // Padding-zero is handled by our own CSS rule keyed off the body's
+  // `data-hermes-fullscreen` attribute (see globals.css). That rule keeps
+  // main's `overflow-y-auto` so any scroll is contained inside main —
+  // long pages (EmptyState) scroll normally; short pages (setup loaders)
+  // don't get a phantom body scroll.
   return (
-    <div data-agent-fullbleed className="flex h-full w-full flex-1 flex-col">
+    <>
       <FullscreenEffect />
       {children}
-    </div>
+    </>
   );
 }
