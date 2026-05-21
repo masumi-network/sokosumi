@@ -1137,18 +1137,23 @@ app.openapi(getInstanceRoute, async (c) => {
       // Atomic welcome (orchestrator's "ready" payload carries the intro).
       // Persist it on first sight so the chat opens with the welcome
       // already rendered via the existing message-fetch path — no separate
-      // poll-and-drain race.
+      // poll-and-drain race. Awaited deliberately: the client typically
+      // fetches messages immediately after seeing `status === "ready"`,
+      // so persisting in the background would let the first fetch return
+      // an empty inbox and flash empty chat.
       if (instance.welcomeMessage && instance.onboardedAt) {
-        await persistHermesWelcomeMessage({
-          userId: userContext.userId,
-          content: instance.welcomeMessage,
-          kind: instance.welcomeKind,
-          onboardedAtIso: instance.onboardedAt,
-        }).catch((error) => {
+        try {
+          await persistHermesWelcomeMessage({
+            userId: userContext.userId,
+            content: instance.welcomeMessage,
+            kind: instance.welcomeKind,
+            onboardedAtIso: instance.onboardedAt,
+          });
+        } catch (error) {
           Sentry.captureException(error, {
             tags: { context: "hermes_welcome_persist" },
           });
-        });
+        }
       }
     }
 

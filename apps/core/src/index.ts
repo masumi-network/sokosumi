@@ -150,6 +150,11 @@ if (
     running = true;
     const controller = new AbortController();
     const deadline = Date.now() + RUN_BUDGET_MS;
+    // Hard-abort the poll if it exceeds its budget — `shouldContinue` only
+    // gates iterations between requests, so a single stuck HTTP call would
+    // otherwise leave `running` pinned forever and silently disable the dev
+    // poller until process restart.
+    const watchdog = setTimeout(() => controller.abort(), RUN_BUDGET_MS);
     try {
       const summary = await hermesInboxSyncService.pollInboxes({
         abortSignal: controller.signal,
@@ -164,6 +169,7 @@ if (
     } catch (error) {
       console.warn("[dev/inbox-poll] failed", (error as Error)?.message);
     } finally {
+      clearTimeout(watchdog);
       running = false;
     }
   };
