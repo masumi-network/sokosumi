@@ -101,23 +101,65 @@ export interface HermesInstancePublic {
    * Null before any integration is connected + the first refresh completes.
    */
   lastInboxRefreshAt: string | null;
+  /**
+   * IANA timezone the user chose (e.g. "America/New_York"). Drives the
+   * orchestrator's per-user cron resolution. Null until the user (or the
+   * onboarding flow) tells us what their local time is.
+   */
+  timezone: string | null;
+  /**
+   * Tool calls Hermes wanted to make at medium autonomy that need a yes/no
+   * from the user before the orchestrator will let them execute. Empty
+   * unless the user is on medium and Hermes paused mid-turn.
+   */
+  pendingConfirmations: HermesPendingConfirmation[];
 }
 
 export type HermesScheduleSource = "orchestrator" | "hermes";
+
+/**
+ * What the schedule represents on the orchestrator side. Drives the UI's
+ * editability + chip + whether it can be deleted.
+ *
+ *   - "user"          — created by the user via chat. Editable + deletable.
+ *   - "system_prompt" — auto-created by the orchestrator (e.g. weekday brief).
+ *                       Toggle + retime/retz, never delete.
+ *   - "system_sweep"  — background housekeeping cron. Toggle only.
+ */
+export type HermesScheduleKind = "user" | "system_prompt" | "system_sweep";
 
 export interface HermesSchedule {
   /** Stable id within (source). */
   id: string;
   source: HermesScheduleSource;
+  kind: HermesScheduleKind;
   name: string;
+  /** One-liner explainer (populated for `system_prompt` kinds). */
+  description: string | null;
   /** Crontab-compatible expression. */
   cronExpr: string;
+  /** IANA tz the cron resolves against. */
+  timezone: string | null;
   enabled: boolean;
   lastRunAt: string | null;
   nextRunAt: string | null;
-  /** When `source === "orchestrator"` and this is the workspace sync row,
-   * the UI renders it without delete controls (system-managed). */
+  /**
+   * Legacy: true for the workspace sync row. Kept for backwards-compat in
+   * older clients; new code should switch on `kind` instead.
+   */
   systemManaged: boolean;
+}
+
+/**
+ * A medium-autonomy gate. The orchestrator intercepted a write/spend tool
+ * call from Hermes; the user has to approve or reject before it runs.
+ */
+export interface HermesPendingConfirmation {
+  id: string;
+  toolName: string;
+  /** One-paragraph plain-English summary of what Hermes wants to do. */
+  summary: string;
+  createdAt: string;
 }
 
 export type HermesOnboardingStepStatus =
@@ -172,6 +214,28 @@ interface InstanceFromOrchestrator {
   welcomeKind?: "research_intro" | "welcome" | "returning" | null;
   lastSokosumiSyncAt?: string | null;
   lastInboxRefreshAt?: string | null;
+  timezone?: string | null;
+  pendingConfirmations?: RawPendingConfirmationFromOrchestrator[];
+}
+
+interface RawPendingConfirmationFromOrchestrator {
+  id?: string;
+  toolName?: string;
+  tool_name?: string;
+  summary?: string;
+  createdAt?: string;
+  created_at?: string;
+}
+
+function normalizePendingConfirmation(
+  raw: RawPendingConfirmationFromOrchestrator,
+): HermesPendingConfirmation | null {
+  const id = raw.id;
+  const toolName = raw.toolName ?? raw.tool_name;
+  const summary = raw.summary;
+  const createdAt = raw.createdAt ?? raw.created_at;
+  if (!id || !toolName || !summary || !createdAt) return null;
+  return { id, toolName, summary, createdAt };
 }
 
 function normalizeAutonomyLevel(value: unknown): HermesAutonomyLevel {
@@ -246,6 +310,10 @@ export async function getInstance(
     welcomeKind: data.welcomeKind ?? null,
     lastSokosumiSyncAt: data.lastSokosumiSyncAt ?? null,
     lastInboxRefreshAt: data.lastInboxRefreshAt ?? null,
+    timezone: data.timezone ?? null,
+    pendingConfirmations: (data.pendingConfirmations ?? [])
+      .map(normalizePendingConfirmation)
+      .filter((c): c is HermesPendingConfirmation => c !== null),
   };
 }
 
@@ -273,9 +341,12 @@ export async function listInstanceSchedules(
     schedules?: Array<{
       id?: string;
       source?: string;
+      kind?: string;
       name?: string;
+      description?: string | null;
       cron_expr?: string;
       cronExpr?: string;
+      timezone?: string | null;
       enabled?: boolean;
       last_run_at?: string | null;
       lastRunAt?: string | null;
@@ -288,17 +359,39 @@ export async function listInstanceSchedules(
     const source: HermesScheduleSource =
       raw.source === "hermes" ? "hermes" : "orchestrator";
     const name = raw.name ?? "unnamed";
+    const kind = normalizeScheduleKind(raw.kind, source, name);
     return {
       id: raw.id ?? `${source}-${idx}-${name}`,
       source,
+      kind,
       name,
+      description: raw.description ?? null,
       cronExpr: raw.cron_expr ?? raw.cronExpr ?? "",
+      timezone: raw.timezone ?? null,
       enabled: raw.enabled !== false,
       lastRunAt: raw.last_run_at ?? raw.lastRunAt ?? null,
       nextRunAt: raw.next_run_at ?? raw.nextRunAt ?? null,
-      systemManaged: source === "orchestrator" && name === "sokosumi-sync",
+      // Legacy: keep true for the workspace-sync row so older UIs that
+      // haven't switched to `kind` yet still hide delete controls.
+      systemManaged: kind !== "user",
     };
   });
+}
+
+function normalizeScheduleKind(
+  raw: string | undefined,
+  source: HermesScheduleSource,
+  name: string,
+): HermesScheduleKind {
+  if (raw === "user" || raw === "system_prompt" || raw === "system_sweep") {
+    return raw;
+  }
+  // Pre-`kind` orchestrator: infer from the legacy heuristic so older
+  // deployments don't suddenly let users delete the workspace-sync row.
+  if (source === "orchestrator" && name === "sokosumi-sync") {
+    return "system_sweep";
+  }
+  return source === "hermes" ? "user" : "system_sweep";
 }
 
 export type SokosumiEnv = "development" | "preprod" | "mainnet";
@@ -361,6 +454,8 @@ export async function patchInstance(
     autonomyLevel?: HermesAutonomyLevel;
     name?: string | null;
     email?: string | null;
+    /** IANA tz, e.g. "America/New_York". */
+    timezone?: string | null;
   },
 ): Promise<void> {
   const body: Record<string, string> = {};
@@ -369,6 +464,9 @@ export async function patchInstance(
   if (patch.name && patch.name.trim().length > 0) body.name = patch.name.trim();
   if (patch.email && patch.email.trim().length > 0) {
     body.email = patch.email.trim();
+  }
+  if (patch.timezone && patch.timezone.trim().length > 0) {
+    body.timezone = patch.timezone.trim();
   }
 
   if (Object.keys(body).length === 0) return;
@@ -382,6 +480,116 @@ export async function patchInstance(
     !res.ok &&
     res.status !== 202 &&
     res.status !== 200 &&
+    res.status !== 204
+  ) {
+    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
+  }
+}
+
+export type HermesConfirmationStatus =
+  | "approved"
+  | "rejected"
+  | "errored"
+  | "already_resolved";
+
+export interface HermesConfirmationResolveResult {
+  status: HermesConfirmationStatus;
+  /** Present on `approved` — orchestrator-formatted result body. */
+  result?: string | null;
+  /** Present on `errored` — surface to the user. */
+  error?: string | null;
+}
+
+/**
+ * POST /v1/instances/:userId/confirmations/:id/approve
+ * The orchestrator runs the queued tool call and returns its result.
+ */
+export async function approveConfirmation(
+  userId: string,
+  confirmationId: string,
+): Promise<HermesConfirmationResolveResult> {
+  const res = await orchFetch(
+    `/v1/instances/${encodeURIComponent(userId)}/confirmations/${encodeURIComponent(confirmationId)}/approve`,
+    { method: "POST" },
+  );
+
+  if (!res.ok) {
+    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
+  }
+
+  const data = (await res.json().catch(() => ({}))) as {
+    status?: string;
+    result?: unknown;
+    error?: unknown;
+  };
+  return {
+    status: normalizeConfirmationStatus(data.status),
+    result: typeof data.result === "string" ? data.result : null,
+    error: typeof data.error === "string" ? data.error : null,
+  };
+}
+
+/**
+ * POST /v1/instances/:userId/confirmations/:id/reject
+ * Optional `reason` is shown to Hermes on its next turn so it can adapt.
+ */
+export async function rejectConfirmation(
+  userId: string,
+  confirmationId: string,
+  reason?: string,
+): Promise<HermesConfirmationResolveResult> {
+  const jsonBody =
+    reason && reason.trim().length > 0 ? { reason: reason.trim() } : undefined;
+  const res = await orchFetch(
+    `/v1/instances/${encodeURIComponent(userId)}/confirmations/${encodeURIComponent(confirmationId)}/reject`,
+    { method: "POST", jsonBody },
+  );
+
+  if (!res.ok) {
+    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
+  }
+
+  const data = (await res.json().catch(() => ({}))) as { status?: string };
+  return {
+    status: normalizeConfirmationStatus(data.status),
+  };
+}
+
+function normalizeConfirmationStatus(value: unknown): HermesConfirmationStatus {
+  if (
+    value === "approved" ||
+    value === "rejected" ||
+    value === "errored" ||
+    value === "already_resolved"
+  ) {
+    return value;
+  }
+  return "already_resolved";
+}
+
+/**
+ * PATCH /v1/instances/:userId/schedules/:scheduleId
+ * Currently only used to toggle `enabled` on a schedule. The orchestrator
+ * resyncs the user-local cron on the next request.
+ */
+export async function patchSchedule(
+  userId: string,
+  scheduleId: string,
+  patch: { enabled?: boolean },
+): Promise<void> {
+  const body: Record<string, boolean> = {};
+  if (typeof patch.enabled === "boolean") body.enabled = patch.enabled;
+  if (Object.keys(body).length === 0) return;
+
+  const res = await orchFetch(
+    `/v1/instances/${encodeURIComponent(userId)}/schedules/${encodeURIComponent(scheduleId)}`,
+    { method: "PATCH", jsonBody: body },
+  );
+
+  if (
+    !res.ok &&
+    res.status !== 200 &&
+    res.status !== 202 &&
     res.status !== 204
   ) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));

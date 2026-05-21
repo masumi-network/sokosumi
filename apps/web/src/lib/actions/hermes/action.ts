@@ -11,11 +11,15 @@ import {
 import type { HermesInstance } from "@/lib/clients/generated/core";
 import type {
   HermesAutonomyLevel,
+  HermesConfirmationResolveResult,
+  HermesConfirmationStatus,
   HermesInstancePublic,
   HermesIntegration,
   HermesIntegrationProvider,
+  HermesPendingConfirmation,
   HermesPersistedMessage,
   HermesSchedule,
+  HermesScheduleKind,
   HermesScheduleSource,
 } from "@/lib/hermes/types";
 import { Err, Ok, type Result } from "@/lib/ts-res";
@@ -53,6 +57,24 @@ function mapHermesInstance(
     transitioning: instance.transitioning ?? false,
     lastSokosumiSyncAt: toIsoString(instance.lastSokosumiSyncAt ?? null),
     lastInboxRefreshAt: toIsoString(instance.lastInboxRefreshAt ?? null),
+    timezone: instance.timezone ?? null,
+    pendingConfirmations: (instance.pendingConfirmations ?? []).map(
+      mapHermesPendingConfirmation,
+    ),
+  };
+}
+
+function mapHermesPendingConfirmation(raw: {
+  id: string;
+  toolName: string;
+  summary: string;
+  createdAt: Date | string;
+}): HermesPendingConfirmation {
+  return {
+    id: raw.id,
+    toolName: raw.toolName,
+    summary: raw.summary,
+    createdAt: toIsoString(raw.createdAt) ?? new Date(0).toISOString(),
   };
 }
 
@@ -265,22 +287,25 @@ interface UpdateHermesInstanceArgs extends AuthenticatedRequest {
   autonomyLevel?: HermesAutonomyLevel;
   name?: string | null;
   email?: string | null;
+  /** IANA tz, e.g. "America/New_York". */
+  timezone?: string | null;
 }
 
 /**
- * PATCH /hermes/me/instance — update autonomy or identity hints on an
+ * PATCH /hermes/me/instance — update autonomy / identity / timezone on an
  * existing instance. Caller should refresh `getHermesInstanceAction` after
  * this resolves to pick up the new values.
  */
 export const updateHermesInstanceAction = withSession<
   UpdateHermesInstanceArgs,
   Result<HermesInstancePublic, ActionError>
->(async ({ autonomyLevel, name, email }) => {
+>(async ({ autonomyLevel, name, email, timezone }) => {
   try {
     const response = await coreClient.updateHermesInstance({
       autonomyLevel,
       name: name ?? undefined,
       email: email ?? undefined,
+      timezone: timezone ?? undefined,
     });
     return Ok(mapHermesInstance(response.data)!);
   } catch (error) {
@@ -444,8 +469,11 @@ export const finalizeHermesIntegrationAction = withSession<
 function mapHermesSchedule(raw: {
   id: string;
   source: string;
+  kind: string;
   name: string;
+  description?: string | null;
   cronExpr: string;
+  timezone?: string | null;
   enabled: boolean;
   lastRunAt: Date | string | null;
   nextRunAt: Date | string | null;
@@ -456,13 +484,23 @@ function mapHermesSchedule(raw: {
     source: (raw.source === "hermes"
       ? "hermes"
       : "orchestrator") as HermesScheduleSource,
+    kind: normalizeScheduleKind(raw.kind),
     name: raw.name,
+    description: raw.description ?? null,
     cronExpr: raw.cronExpr,
+    timezone: raw.timezone ?? null,
     enabled: raw.enabled,
     lastRunAt: toIsoString(raw.lastRunAt),
     nextRunAt: toIsoString(raw.nextRunAt),
     systemManaged: raw.systemManaged,
   };
+}
+
+function normalizeScheduleKind(kind: string): HermesScheduleKind {
+  if (kind === "user" || kind === "system_prompt" || kind === "system_sweep") {
+    return kind;
+  }
+  return "system_sweep";
 }
 
 export const listHermesSchedulesAction = withSession<
@@ -472,6 +510,87 @@ export const listHermesSchedulesAction = withSession<
   try {
     const response = await coreClient.listHermesSchedules();
     return Ok(response.data.schedules.map(mapHermesSchedule));
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+interface ToggleHermesScheduleArgs extends AuthenticatedRequest {
+  scheduleId: string;
+  enabled: boolean;
+}
+
+/**
+ * PATCH /hermes/me/instance/schedules/:scheduleId — currently toggles
+ * `enabled`. The orchestrator resyncs the user-local cron after the call.
+ */
+export const toggleHermesScheduleAction = withSession<
+  ToggleHermesScheduleArgs,
+  Result<HermesSchedule, ActionError>
+>(async ({ scheduleId, enabled }) => {
+  try {
+    const response = await coreClient.patchHermesSchedule(scheduleId, {
+      enabled,
+    });
+    return Ok(mapHermesSchedule(response.data));
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Medium-autonomy confirmations — approve / reject the tool call Hermes
+// asked the user to greenlight.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ResolveConfirmationArgs extends AuthenticatedRequest {
+  confirmationId: string;
+}
+
+function mapConfirmationResolveResult(raw: {
+  status: string;
+  result?: string | null;
+  error?: string | null;
+}): HermesConfirmationResolveResult {
+  const status: HermesConfirmationStatus =
+    raw.status === "approved" ||
+    raw.status === "rejected" ||
+    raw.status === "errored" ||
+    raw.status === "already_resolved"
+      ? raw.status
+      : "already_resolved";
+  return {
+    status,
+    result: raw.result ?? null,
+    error: raw.error ?? null,
+  };
+}
+
+export const approveHermesConfirmationAction = withSession<
+  ResolveConfirmationArgs,
+  Result<HermesConfirmationResolveResult, ActionError>
+>(async ({ confirmationId }) => {
+  try {
+    const response = await coreClient.approveHermesConfirmation(confirmationId);
+    return Ok(mapConfirmationResolveResult(response.data));
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+interface RejectConfirmationArgs extends ResolveConfirmationArgs {
+  reason?: string;
+}
+
+export const rejectHermesConfirmationAction = withSession<
+  RejectConfirmationArgs,
+  Result<HermesConfirmationResolveResult, ActionError>
+>(async ({ confirmationId, reason }) => {
+  try {
+    const response = await coreClient.rejectHermesConfirmation(confirmationId, {
+      reason: reason && reason.trim().length > 0 ? reason.trim() : undefined,
+    });
+    return Ok(mapConfirmationResolveResult(response.data));
   } catch (error) {
     return Err(toActionError(error));
   }

@@ -57,6 +57,15 @@ export const hermesIntegrationSchema = z
   })
   .openapi("HermesIntegration");
 
+export const hermesPendingConfirmationSchema = z
+  .object({
+    id: z.string().min(1),
+    toolName: z.string().min(1),
+    summary: z.string().min(1),
+    createdAt: dateTimeSchema,
+  })
+  .openapi("HermesPendingConfirmation");
+
 export const hermesInstanceSchema = z
   .object({
     status: hermesInstanceStatusSchema,
@@ -68,6 +77,8 @@ export const hermesInstanceSchema = z
     transitioning: z.boolean().default(false),
     lastSokosumiSyncAt: dateTimeSchema.nullable().default(null),
     lastInboxRefreshAt: dateTimeSchema.nullable().default(null),
+    timezone: z.string().nullable().default(null),
+    pendingConfirmations: z.array(hermesPendingConfirmationSchema).default([]),
   })
   .openapi("HermesInstance");
 
@@ -75,12 +86,19 @@ export const hermesScheduleSourceSchema = z
   .enum(["orchestrator", "hermes"])
   .openapi("HermesScheduleSource");
 
+export const hermesScheduleKindSchema = z
+  .enum(["user", "system_prompt", "system_sweep"])
+  .openapi("HermesScheduleKind");
+
 export const hermesScheduleSchema = z
   .object({
     id: z.string().min(1),
     source: hermesScheduleSourceSchema,
+    kind: hermesScheduleKindSchema,
     name: z.string().min(1),
+    description: z.string().nullable().default(null),
     cronExpr: z.string(),
+    timezone: z.string().nullable().default(null),
     enabled: z.boolean(),
     lastRunAt: dateTimeSchema.nullable(),
     nextRunAt: dateTimeSchema.nullable(),
@@ -93,6 +111,33 @@ export const hermesSchedulesListResponseSchema = z
     schedules: z.array(hermesScheduleSchema),
   })
   .openapi("HermesSchedulesList");
+
+export const hermesPatchScheduleRequestSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+  })
+  .refine((input) => input.enabled !== undefined, {
+    message: "At least one field must be provided.",
+  })
+  .openapi("HermesPatchScheduleRequest");
+
+export const hermesConfirmationStatusSchema = z
+  .enum(["approved", "rejected", "errored", "already_resolved"])
+  .openapi("HermesConfirmationStatus");
+
+export const hermesConfirmationResolveResponseSchema = z
+  .object({
+    status: hermesConfirmationStatusSchema,
+    result: z.string().nullable().optional(),
+    error: z.string().nullable().optional(),
+  })
+  .openapi("HermesConfirmationResolveResponse");
+
+export const hermesRejectConfirmationRequestSchema = z
+  .object({
+    reason: z.string().min(1).max(500).optional(),
+  })
+  .openapi("HermesRejectConfirmationRequest");
 
 export const hermesOnboardingStepStatusSchema = z
   .enum(["pending", "running", "done", "error"])
@@ -135,12 +180,15 @@ export const hermesUpdateInstanceRequestSchema = z
     autonomyLevel: hermesAutonomyLevelSchema.optional(),
     name: z.string().min(1).optional(),
     email: z.string().email().optional(),
+    /** IANA tz, e.g. "America/New_York". */
+    timezone: z.string().min(1).max(64).optional(),
   })
   .refine(
     (input) =>
       input.autonomyLevel !== undefined ||
       input.name !== undefined ||
-      input.email !== undefined,
+      input.email !== undefined ||
+      input.timezone !== undefined,
     { message: "At least one field must be provided." },
   )
   .openapi("HermesUpdateInstanceRequest");

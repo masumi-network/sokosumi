@@ -2069,6 +2069,20 @@ export const HermesInstanceSchema = {
             format: 'date-time',
             default: null,
             example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
+        pendingConfirmations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesPendingConfirmation'
+            },
+            default: []
         }
     },
     required: [
@@ -2160,6 +2174,35 @@ export const HermesIntegrationModeSchema = {
     default: 'read'
 } as const;
 
+export const HermesPendingConfirmationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            minLength: 1
+        },
+        toolName: {
+            type: 'string',
+            minLength: 1
+        },
+        summary: {
+            type: 'string',
+            minLength: 1
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'toolName',
+        'summary',
+        'createdAt'
+    ]
+} as const;
+
 export const HermesUpdateInstanceRequestSchema = {
     type: 'object',
     properties: {
@@ -2173,6 +2216,11 @@ export const HermesUpdateInstanceRequestSchema = {
         email: {
             type: 'string',
             format: 'email'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
         }
     }
 } as const;
@@ -2405,12 +2453,29 @@ export const HermesScheduleSchema = {
         source: {
             $ref: '#/components/schemas/HermesScheduleSource'
         },
+        kind: {
+            $ref: '#/components/schemas/HermesScheduleKind'
+        },
         name: {
             type: 'string',
             minLength: 1
         },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
         cronExpr: {
             type: 'string'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
         },
         enabled: {
             type: 'boolean'
@@ -2438,6 +2503,7 @@ export const HermesScheduleSchema = {
     required: [
         'id',
         'source',
+        'kind',
         'name',
         'cronExpr',
         'enabled',
@@ -2453,6 +2519,69 @@ export const HermesScheduleSourceSchema = {
         'orchestrator',
         'hermes'
     ]
+} as const;
+
+export const HermesScheduleKindSchema = {
+    type: 'string',
+    enum: [
+        'user',
+        'system_prompt',
+        'system_sweep'
+    ]
+} as const;
+
+export const HermesPatchScheduleRequestSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        }
+    }
+} as const;
+
+export const HermesConfirmationResolveResponseSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            $ref: '#/components/schemas/HermesConfirmationStatus'
+        },
+        result: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'status'
+    ]
+} as const;
+
+export const HermesConfirmationStatusSchema = {
+    type: 'string',
+    enum: [
+        'approved',
+        'rejected',
+        'errored',
+        'already_resolved'
+    ]
+} as const;
+
+export const HermesRejectConfirmationRequestSchema = {
+    type: 'object',
+    properties: {
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        }
+    }
 } as const;
 
 export const HermesConnectIntegrationRequestSchema = {

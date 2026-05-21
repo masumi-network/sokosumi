@@ -34,6 +34,7 @@ import {
 import {
   disconnectHermesIntegrationAction,
   listHermesSchedulesAction,
+  toggleHermesScheduleAction,
   updateHermesInstanceAction,
 } from "@/lib/actions/hermes";
 import { humanizeCron } from "@/lib/hermes/humanize-cron";
@@ -44,6 +45,7 @@ import type {
   HermesIntegrationStatus,
   HermesSchedule,
 } from "@/lib/hermes/types";
+import { cn } from "@/lib/utils";
 
 import AutonomySelector from "./autonomy-selector";
 import ConnectInterstitial from "./connect-interstitial";
@@ -131,7 +133,20 @@ export default function SettingsPanel({
       if (previewMode) return;
 
       setAutonomySaving(true);
-      const result = await updateHermesInstanceAction({ autonomyLevel: next });
+      // Piggyback the browser-detected IANA timezone every time the user
+      // touches autonomy. Idempotent on the orchestrator side; saves us a
+      // separate "set my timezone" step. Try/catch because some browsers
+      // (rare) return undefined here.
+      let timezone: string | undefined;
+      try {
+        timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } catch {
+        timezone = undefined;
+      }
+      const result = await updateHermesInstanceAction({
+        autonomyLevel: next,
+        timezone,
+      });
       setAutonomySaving(false);
 
       if (!result.ok) {
@@ -385,6 +400,11 @@ export default function SettingsPanel({
             <SchedulesSection
               schedules={schedules}
               loading={schedulesLoading}
+              onScheduleUpdated={(updated) =>
+                setSchedules((prev) =>
+                  prev.map((s) => (s.id === updated.id ? updated : s)),
+                )
+              }
             />
 
             <Separator />
@@ -629,11 +649,14 @@ function SyncRow({
 function SchedulesSection({
   schedules,
   loading,
+  onScheduleUpdated,
 }: {
   schedules: HermesSchedule[];
   loading: boolean;
+  onScheduleUpdated: (next: HermesSchedule) => void;
 }) {
   const t = useTranslations("App.Hermes.Settings");
+  const onScheduleChange = onScheduleUpdated;
 
   return (
     <section className="flex flex-col gap-3">
@@ -655,44 +678,127 @@ function SchedulesSection({
       ) : (
         <ul className="flex flex-col gap-2">
           {schedules.map((s) => (
-            <li
-              key={s.id}
-              className="border-border/60 bg-background flex flex-col gap-1.5 rounded-md border px-3 py-2.5"
-            >
-              <div className="flex items-center gap-2">
-                <div
-                  aria-hidden
-                  className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md"
-                >
-                  <CalendarClock className="size-3.5" />
-                </div>
-                <span className="text-foreground flex-1 truncate text-sm font-medium">
-                  {s.name}
-                </span>
-                <span
-                  className={
-                    s.systemManaged
-                      ? "border-border/60 text-muted-foreground rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-                      : "bg-primary/10 text-primary rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-                  }
-                >
-                  {s.systemManaged
-                    ? t("schedulesSystemBadge")
-                    : s.source === "hermes"
-                      ? t("schedulesHermesBadge")
-                      : s.source}
-                </span>
-              </div>
-              <ScheduleMeta
-                cronExpr={s.cronExpr}
-                lastRunAt={s.lastRunAt}
-                nextRunAt={s.nextRunAt}
-              />
-            </li>
+            <ScheduleRow key={s.id} schedule={s} onChange={onScheduleChange} />
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * One row in the schedules list. Renders by `kind`:
+ *
+ *   - user          — "Created by you" chip; toggle visible (delete TBD).
+ *   - system_prompt — "Auto-created" chip; shows description; toggle visible.
+ *   - system_sweep  — "Background task" chip; toggle visible.
+ *
+ * Toggle PATCHes the orchestrator and replaces the row in parent state with
+ * the returned schedule (so `enabled` flips immediately + `nextRunAt`
+ * refreshes when the orchestrator resyncs).
+ */
+function ScheduleRow({
+  schedule,
+  onChange,
+}: {
+  schedule: HermesSchedule;
+  onChange: (next: HermesSchedule) => void;
+}) {
+  const t = useTranslations("App.Hermes.Settings");
+  const [toggling, setToggling] = useState(false);
+
+  const handleToggle = async () => {
+    if (toggling) return;
+    setToggling(true);
+    const result = await toggleHermesScheduleAction({
+      scheduleId: schedule.id,
+      enabled: !schedule.enabled,
+    });
+    setToggling(false);
+    if (!result.ok) {
+      toast.error(result.error.message ?? t("schedulesToggleFailed"));
+      return;
+    }
+    onChange(result.data);
+  };
+
+  const chip = (() => {
+    switch (schedule.kind) {
+      case "user":
+        return {
+          label: t("schedulesKindUserBadge"),
+          className: "bg-primary/10 text-primary",
+        };
+      case "system_prompt":
+        return {
+          label: t("schedulesKindSystemPromptBadge"),
+          className: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+        };
+      case "system_sweep":
+        return {
+          label: t("schedulesKindSystemSweepBadge"),
+          className: "border-border/60 text-muted-foreground border",
+        };
+    }
+  })();
+
+  return (
+    <li
+      className={cn(
+        "border-border/60 bg-background flex flex-col gap-2 rounded-md border px-3 py-2.5 transition-opacity",
+        !schedule.enabled && "opacity-60",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <div
+          aria-hidden
+          className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md"
+        >
+          <CalendarClock className="size-3.5" />
+        </div>
+        <span className="text-foreground flex-1 truncate text-sm font-medium">
+          {schedule.name}
+        </span>
+        <span
+          className={cn(
+            "rounded-full px-1.5 py-0.5 text-xs font-medium uppercase tracking-wider",
+            chip.className,
+          )}
+        >
+          {chip.label}
+        </span>
+      </div>
+
+      {schedule.description ? (
+        <p className="text-muted-foreground pl-9 text-xs leading-relaxed">
+          {schedule.description}
+        </p>
+      ) : null}
+
+      <ScheduleMeta
+        cronExpr={schedule.cronExpr}
+        lastRunAt={schedule.lastRunAt}
+        nextRunAt={schedule.nextRunAt}
+      />
+
+      <div className="flex items-center justify-end pl-9">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-xs"
+          disabled={toggling}
+          onClick={() => void handleToggle()}
+        >
+          {toggling ? (
+            <Loader2 className="size-3 animate-spin" aria-hidden />
+          ) : null}
+          {schedule.enabled
+            ? t("schedulesDisableLabel")
+            : t("schedulesEnableLabel")}
+        </Button>
+      </div>
+    </li>
   );
 }
 

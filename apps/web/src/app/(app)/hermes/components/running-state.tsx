@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plug, Plus, X } from "lucide-react";
+import { AlertCircle, Check, Loader2, Plug, Plus, X } from "lucide-react";
 import Image from "next/image";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -41,11 +41,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  approveHermesConfirmationAction,
   listHermesMessagesAction,
   markHermesInboxSeenAction,
+  rejectHermesConfirmationAction,
 } from "@/lib/actions/hermes";
 import type {
   HermesInstancePublic,
+  HermesPendingConfirmation,
   HermesPersistedMessage,
 } from "@/lib/hermes/types";
 import { cn } from "@/lib/utils";
@@ -458,6 +461,12 @@ export default function RunningState({
                 />
               ))}
               {isReplying ? <AssistantTyping /> : null}
+              {(instance?.pendingConfirmations ?? []).map((confirmation) => (
+                <ConfirmationCard
+                  key={confirmation.id}
+                  confirmation={confirmation}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -696,6 +705,7 @@ function describeOutboxKind(kind: string | null): OutboxKindChip | null {
   if (kind === "task_result") return { label: "Scheduled task" };
   if (kind === "daily_suggestions") return { label: "Suggestions" };
   if (kind === "reminder") return { label: "Reminder" };
+  if (kind === "confirmation_resolved") return { label: "Confirmation" };
   // Unknown future kinds — generic Hermes push.
   return { label: "From Hermes" };
 }
@@ -1031,3 +1041,139 @@ type HermesIntegrationPublic = NonNullable<
   RunningStateProps["instance"]
 >["integrations"][number];
 type HermesIntegrationProvider = HermesIntegrationPublic["provider"];
+
+/**
+ * Inline approve/reject card for medium-autonomy gates. The orchestrator
+ * intercepted a write/spend tool call from Hermes and put it in a queue;
+ * this card renders the summary + buttons that resolve it. After approve
+ * or reject we don't optimistically remove the card — the instance poll
+ * naturally drops it from `pendingConfirmations` once the orchestrator
+ * confirms (we just show "Resolved" briefly if the resolve call succeeds
+ * but the poll hasn't caught up yet).
+ */
+function ConfirmationCard({
+  confirmation,
+}: {
+  confirmation: HermesPendingConfirmation;
+}) {
+  const [busy, setBusy] = useState<"approving" | "rejecting" | null>(null);
+  const [resolved, setResolved] = useState<{
+    kind: "approved" | "rejected" | "errored";
+    error?: string | null;
+  } | null>(null);
+
+  const handleApprove = async () => {
+    if (busy) return;
+    setBusy("approving");
+    const result = await approveHermesConfirmationAction({
+      confirmationId: confirmation.id,
+    });
+    setBusy(null);
+    if (!result.ok) {
+      toast.error(result.error.message ?? "Couldn't approve.");
+      return;
+    }
+    if (result.data.status === "errored") {
+      setResolved({ kind: "errored", error: result.data.error });
+      return;
+    }
+    setResolved({ kind: "approved" });
+  };
+
+  const handleReject = async () => {
+    if (busy) return;
+    setBusy("rejecting");
+    const result = await rejectHermesConfirmationAction({
+      confirmationId: confirmation.id,
+    });
+    setBusy(null);
+    if (!result.ok) {
+      toast.error(result.error.message ?? "Couldn't reject.");
+      return;
+    }
+    setResolved({ kind: "rejected" });
+  };
+
+  if (resolved) {
+    return (
+      <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
+        <AssistantAvatar />
+        <div className="border-border/60 bg-card/60 flex min-w-0 flex-1 flex-col gap-2 rounded-2xl border px-4 py-3 backdrop-blur-sm">
+          {resolved.kind === "approved" ? (
+            <div className="text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-2 text-sm font-medium">
+              <Check className="size-4" aria-hidden />
+              <span>Approved. Hermes will run the action.</span>
+            </div>
+          ) : resolved.kind === "rejected" ? (
+            <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+              <X className="size-4" aria-hidden />
+              <span>Rejected. Hermes will adapt on its next turn.</span>
+            </div>
+          ) : (
+            <div className="text-destructive flex flex-col gap-1">
+              <div className="inline-flex items-center gap-2 text-sm font-medium">
+                <AlertCircle className="size-4" aria-hidden />
+                <span>The action errored.</span>
+              </div>
+              {resolved.error ? (
+                <p className="text-destructive/80 text-xs leading-relaxed">
+                  {resolved.error}
+                </p>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
+      <AssistantAvatar accent />
+      <div className="border-amber-500/30 bg-amber-500/[0.06] flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border px-4 py-3 backdrop-blur-sm">
+        <div className="text-amber-700 dark:text-amber-400 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
+          <AlertCircle className="size-3.5" aria-hidden />
+          <span>Hermes wants to act</span>
+        </div>
+        <p className="text-foreground text-sm leading-relaxed">
+          {confirmation.summary}
+        </p>
+        <div className="text-tertiary-foreground font-mono text-xs">
+          {confirmation.toolName}
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="primary"
+            className="gap-1.5"
+            disabled={busy !== null}
+            onClick={() => void handleApprove()}
+          >
+            {busy === "approving" ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Check className="size-3.5" aria-hidden />
+            )}
+            <span>Approve</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            disabled={busy !== null}
+            onClick={() => void handleReject()}
+          >
+            {busy === "rejecting" ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <X className="size-3.5" aria-hidden />
+            )}
+            <span>Reject</span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -22,6 +22,8 @@ import type {
   HermesConnectIntegrationRequest,
   HermesFinalizeIntegrationRequest,
   HermesInitiateIntegrationRequest,
+  HermesPatchScheduleRequest,
+  HermesRejectConfirmationRequest,
   HermesStartOnboardingRequest,
   HermesUpdateInstanceRequest,
   MarkHermesInboxSeenRequest,
@@ -70,6 +72,7 @@ import {
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchHermesMeInstance as corePatchHermesMeInstance,
+  patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
@@ -77,6 +80,8 @@ import {
   postConversationsByIdMessages as corePostConversationsByIdMessages,
   postHermesMeInboxSeen as corePostHermesMeInboxSeen,
   postHermesMeInstance as corePostHermesMeInstance,
+  postHermesMeInstanceConfirmationsByConfirmationIdApprove as corePostHermesMeInstanceConfirmationsByConfirmationIdApprove,
+  postHermesMeInstanceConfirmationsByConfirmationIdReject as corePostHermesMeInstanceConfirmationsByConfirmationIdReject,
   postHermesMeInstanceIntegrations as corePostHermesMeInstanceIntegrations,
   postHermesMeInstanceIntegrationsFinalize as corePostHermesMeInstanceIntegrationsFinalize,
   postHermesMeInstanceIntegrationsInitiate as corePostHermesMeInstanceIntegrationsInitiate,
@@ -911,6 +916,50 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function patchHermesSchedule(
+    scheduleId: string,
+    body: HermesPatchScheduleRequest,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchHermesMeInstanceSchedulesByScheduleId({
+          client,
+          path: { scheduleId },
+          body,
+        }),
+      "Failed to update Hermes schedule",
+    );
+  }
+
+  async function approveHermesConfirmation(confirmationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostHermesMeInstanceConfirmationsByConfirmationIdApprove({
+          client,
+          path: { confirmationId },
+        }),
+      "Failed to approve Hermes confirmation",
+    );
+  }
+
+  async function rejectHermesConfirmation(
+    confirmationId: string,
+    body: HermesRejectConfirmationRequest,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostHermesMeInstanceConfirmationsByConfirmationIdReject({
+          client,
+          path: { confirmationId },
+          body,
+        }),
+      "Failed to reject Hermes confirmation",
+    );
+  }
+
   async function connectHermesIntegration(
     body: HermesConnectIntegrationRequest,
   ) {
@@ -1176,6 +1225,9 @@ export function createCoreClient(getClient: GetClient) {
     getHermesUnreadCount,
     listHermesIntegrations,
     listHermesSchedules,
+    patchHermesSchedule,
+    approveHermesConfirmation,
+    rejectHermesConfirmation,
     startHermesOnboarding,
     connectHermesIntegration,
     disconnectHermesIntegration,

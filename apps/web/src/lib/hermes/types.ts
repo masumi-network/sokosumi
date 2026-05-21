@@ -104,19 +104,63 @@ export interface HermesInstancePublic {
    * connected. Null before the first refresh.
    */
   lastInboxRefreshAt: string | null;
+  /**
+   * IANA timezone the user (or onboarding) told the orchestrator about.
+   * Null until set. Drives per-user cron resolution.
+   */
+  timezone: string | null;
+  /**
+   * Medium-autonomy gates Hermes is waiting on. Empty for low/high autonomy
+   * users. The UI renders each as an inline approve/reject card.
+   */
+  pendingConfirmations: HermesPendingConfirmation[];
 }
 
 export type HermesScheduleSource = "orchestrator" | "hermes";
 
+/**
+ *   - "user"          — created by the user. Editable + deletable.
+ *   - "system_prompt" — auto-created (e.g. morning brief). Toggle/retime, never delete.
+ *   - "system_sweep"  — background housekeeping. Toggle only.
+ */
+export type HermesScheduleKind = "user" | "system_prompt" | "system_sweep";
+
 export interface HermesSchedule {
   id: string;
   source: HermesScheduleSource;
+  kind: HermesScheduleKind;
   name: string;
+  description: string | null;
   cronExpr: string;
+  timezone: string | null;
   enabled: boolean;
   lastRunAt: string | null;
   nextRunAt: string | null;
+  /** Legacy mirror of (kind !== "user"). New code should switch on `kind`. */
   systemManaged: boolean;
+}
+
+/**
+ * Medium-autonomy gate. Hermes wanted to run a write/spend tool; the
+ * orchestrator intercepted, the tool hasn't run yet, the user has to say yes.
+ */
+export interface HermesPendingConfirmation {
+  id: string;
+  toolName: string;
+  summary: string;
+  createdAt: string;
+}
+
+export type HermesConfirmationStatus =
+  | "approved"
+  | "rejected"
+  | "errored"
+  | "already_resolved";
+
+export interface HermesConfirmationResolveResult {
+  status: HermesConfirmationStatus;
+  result?: string | null;
+  error?: string | null;
 }
 
 export interface HermesChatMessage {

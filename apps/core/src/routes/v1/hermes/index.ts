@@ -19,6 +19,7 @@ import {
   initiateConnection,
 } from "@/clients/composio.client";
 import {
+  approveConfirmation,
   connectInstanceIntegration,
   destroyInstance,
   disconnectInstanceIntegration,
@@ -33,8 +34,10 @@ import {
   listInstanceIntegrations,
   listInstanceSchedules,
   patchInstance,
+  patchSchedule,
   provisionInstance,
   proxyChatCompletions,
+  rejectConfirmation,
   setInstanceSecret,
   startInstanceOnboarding,
 } from "@/clients/hermes-orchestrator.client";
@@ -65,6 +68,7 @@ import { requireUserContext } from "@/middleware/auth";
 import {
   hermesChatRequestSchema,
   hermesChatResponseSchema,
+  hermesConfirmationResolveResponseSchema,
   hermesConnectIntegrationRequestSchema,
   hermesEmptyResponseSchema,
   hermesFinalizeIntegrationRequestSchema,
@@ -77,7 +81,10 @@ import {
   hermesIntegrationSchema,
   hermesIntegrationsListResponseSchema,
   hermesOnboardingProgressSchema,
+  hermesPatchScheduleRequestSchema,
   hermesPersistedMessageSchema,
+  hermesRejectConfirmationRequestSchema,
+  hermesScheduleSchema,
   hermesSchedulesListResponseSchema,
   hermesStartOnboardingRequestSchema,
   hermesUnreadCountSchema,
@@ -796,6 +803,93 @@ const listSchedulesRoute = withGlobalHeaderParameters(
   }),
 );
 
+const patchScheduleRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "patch",
+    path: "/me/instance/schedules/{scheduleId}",
+    description:
+      "Update a scheduled task (currently just toggle `enabled`). Orchestrator resyncs the user-local cron on next request.",
+    tags: TAGS,
+    request: {
+      params: z.object({
+        scheduleId: z.string().min(1),
+      }),
+      body: {
+        content: {
+          "application/json": {
+            schema: hermesPatchScheduleRequestSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(hermesScheduleSchema, "Updated schedule"),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const approveConfirmationRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/me/instance/confirmations/{confirmationId}/approve",
+    description:
+      "Approve a medium-autonomy pending tool call. The orchestrator runs it and returns the result.",
+    tags: TAGS,
+    request: {
+      params: z.object({
+        confirmationId: z.string().min(1),
+      }),
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        hermesConfirmationResolveResponseSchema,
+        "Confirmation resolved",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const rejectConfirmationRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/me/instance/confirmations/{confirmationId}/reject",
+    description:
+      "Reject a medium-autonomy pending tool call. Optional `reason` is shown to Hermes on its next turn.",
+    tags: TAGS,
+    request: {
+      params: z.object({
+        confirmationId: z.string().min(1),
+      }),
+      body: {
+        content: {
+          "application/json": {
+            schema: hermesRejectConfirmationRequestSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        hermesConfirmationResolveResponseSchema,
+        "Confirmation rejected",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
 const connectIntegrationRoute = withGlobalHeaderParameters(
   createRoute({
     method: "post",
@@ -1114,6 +1208,7 @@ app.openapi(updateInstanceRoute, async (c) => {
       autonomyLevel: body.autonomyLevel,
       name: body.name,
       email: body.email,
+      timezone: body.timezone,
     });
     const instance = await getInstance(userContext.userId);
 
@@ -1344,6 +1439,63 @@ app.openapi(listSchedulesRoute, async (c) => {
     return ok(c, hermesSchedulesListResponseSchema.parse({ schedules }));
   } catch (error) {
     return mapOrchestratorError(error, "Failed to list Hermes schedules");
+  }
+});
+
+app.openapi(patchScheduleRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const { scheduleId } = c.req.valid("param");
+  const body = c.req.valid("json");
+
+  try {
+    await patchSchedule(userContext.userId, scheduleId, {
+      enabled: body.enabled,
+    });
+    // Re-fetch + return the updated row so the UI can refresh state. The
+    // orchestrator currently returns 204 from PATCH; we list to find the
+    // edited row.
+    const schedules = await listInstanceSchedules(userContext.userId);
+    const updated = schedules.find((s) => s.id === scheduleId);
+    if (!updated) {
+      throw serviceUnavailable(
+        "Schedule updated but the row is no longer visible.",
+      );
+    }
+    return ok(c, hermesScheduleSchema.parse(updated));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to update Hermes schedule");
+  }
+});
+
+app.openapi(approveConfirmationRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const { confirmationId } = c.req.valid("param");
+
+  try {
+    const result = await approveConfirmation(
+      userContext.userId,
+      confirmationId,
+    );
+    return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to approve Hermes confirmation");
+  }
+});
+
+app.openapi(rejectConfirmationRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const { confirmationId } = c.req.valid("param");
+  const body = c.req.valid("json");
+
+  try {
+    const result = await rejectConfirmation(
+      userContext.userId,
+      confirmationId,
+      body.reason,
+    );
+    return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to reject Hermes confirmation");
   }
 });
 
