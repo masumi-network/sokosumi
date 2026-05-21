@@ -720,19 +720,11 @@ export async function ensureMcpServer(
   const cached = mcpServerCache.get(key);
   if (cached) return cached;
 
-  const listRes = await composioFetch("/api/v3/mcp/servers", {
-    searchParams: { limit: 50 },
-  });
-  const list = await parseResponse<ComposioListResponse<ComposioMcpServer>>(
-    listRes,
-    "list mcp servers",
-  );
-  const items = list.items ?? list.data ?? [];
   const name = mcpServerName(toolkit, mode);
-  const existing = items.find((item) => item.name === name);
-  if (existing) {
-    mcpServerCache.set(key, existing.id);
-    return existing.id;
+  const existingId = await findMcpServerByName(name);
+  if (existingId) {
+    mcpServerCache.set(key, existingId);
+    return existingId;
   }
 
   const createRes = await composioFetch("/api/v3/mcp/servers", {
@@ -756,6 +748,40 @@ export async function ensureMcpServer(
   }
   mcpServerCache.set(mcpCacheKey(toolkit, mode), id);
   return id;
+}
+
+/**
+ * Walk every page of `/api/v3/mcp/servers` looking for a server with the
+ * exact name. The list endpoint doesn't accept a name filter (unlike
+ * `auth_configs?toolkit=…`), so we paginate via `next_cursor` until we
+ * find the row or exhaust the list.
+ *
+ * Page size of 100 is the Composio max; the safety cap (50 pages = 5000
+ * rows) keeps a pathological account from spinning forever.
+ */
+async function findMcpServerByName(name: string): Promise<string | null> {
+  const PAGE_SIZE = 100;
+  const MAX_PAGES = 50;
+  let cursor: string | undefined;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const listRes = await composioFetch("/api/v3/mcp/servers", {
+      searchParams: { limit: PAGE_SIZE, cursor },
+    });
+    const list = await parseResponse<ComposioListResponse<ComposioMcpServer>>(
+      listRes,
+      "list mcp servers",
+    );
+    const items = list.items ?? list.data ?? [];
+    const hit = items.find((item) => item.name === name);
+    if (hit?.id) return hit.id;
+
+    const nextCursor = list.next_cursor;
+    if (!nextCursor || items.length === 0) return null;
+    cursor = nextCursor;
+  }
+
+  return null;
 }
 
 export interface InitiateConnectionResult {
