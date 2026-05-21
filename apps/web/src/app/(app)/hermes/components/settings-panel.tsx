@@ -23,7 +23,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
@@ -288,113 +287,56 @@ export default function SettingsPanel({
       />
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-md">
-          <SheetHeader className="border-b pb-4">
-            <SheetTitle>{t("title")}</SheetTitle>
-            <SheetDescription>{t("subtitle")}</SheetDescription>
+          <SheetHeader className="border-border/40 border-b px-6 pt-6 pb-4">
+            <SheetTitle className="text-foreground text-lg font-semibold tracking-tight">
+              {t("title")}
+            </SheetTitle>
+            <SheetDescription className="text-muted-foreground text-sm">
+              {t("subtitle")}
+            </SheetDescription>
           </SheetHeader>
 
-          <div className="flex flex-col gap-8 px-4 py-6">
-            {/* ── Model (read-only) ────────────────────────────── */}
-            <section className="flex flex-col gap-3">
-              <h3 className="text-foreground text-sm font-medium">
-                {t("modelSection")}
-              </h3>
-              <div className="border-border/60 bg-muted/20 flex flex-col gap-2 rounded-md border px-3 py-3">
-                <ReadOnlyField
-                  label={t("modelLabel")}
-                  value="deepseek-4-flash"
-                  mono
-                />
-                <ReadOnlyField
-                  label={t("modelProviderLabel")}
-                  value="OpenRouter (managed)"
-                />
-                <p className="text-tertiary-foreground text-xs leading-relaxed">
-                  {t("modelManagedHelp")}
-                </p>
-              </div>
-            </section>
-
-            <Separator />
-
-            {/* ── Autonomy ─────────────────────────────────────── */}
-            <section className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-foreground text-sm font-medium">
-                  {t("autonomySection")}
-                </h3>
-                {autonomySaving ? (
-                  <span className="text-tertiary-foreground inline-flex items-center gap-1.5 text-xs">
+          <div className="flex flex-col gap-10 px-6 py-6">
+            {/* ── Autonomy (most-used; leads the panel) ─────────── */}
+            <PanelSection
+              title={t("autonomySection")}
+              description={t("autonomyHelp")}
+              trailing={
+                autonomySaving ? (
+                  <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
                     <Loader2 className="size-3 animate-spin" aria-hidden />
                     {t("autonomySaving")}
                   </span>
-                ) : null}
-              </div>
-              <p className="text-tertiary-foreground text-xs leading-relaxed">
-                {t("autonomyHelp")}
-              </p>
+                ) : null
+              }
+            >
               <AutonomySelector
                 value={autonomy}
                 onChange={(next) => void handleAutonomyChange(next)}
                 disabled={autonomySaving}
                 compact
               />
-            </section>
-
-            <Separator />
+            </PanelSection>
 
             {/* ── Integrations ─────────────────────────────────── */}
-            <section className="flex flex-col gap-3">
-              <h3 className="text-foreground text-sm font-medium">
-                {t("integrationsSection")}
-              </h3>
-              <p className="text-tertiary-foreground text-xs leading-relaxed">
-                {t("integrationsHelp")}
-              </p>
-              <ul className="flex flex-col gap-2">
-                {PROVIDERS.map(({ slug, iconSrc }) => {
-                  const status = effectiveStatus(slug);
-                  return (
-                    <li
-                      key={slug}
-                      className="border-border/60 bg-background flex items-center gap-3 rounded-md border px-3 py-2.5"
-                    >
-                      <div
-                        aria-hidden
-                        className="border-border/60 bg-background flex size-8 shrink-0 items-center justify-center rounded-md border"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={iconSrc} alt="" className="size-4" />
-                      </div>
-                      <span className="text-foreground flex-1 truncate text-sm">
-                        {tProviders(slug)}
-                      </span>
-                      <IntegrationButton
-                        status={status}
-                        mode={integrationByProvider.get(slug)?.mode ?? "read"}
-                        connectLabel={t("connectIntegration")}
-                        connectingLabel={t("connectingIntegration")}
-                        connectedLabel={t("connectedIntegration")}
-                        disconnectLabel={t("disconnectIntegration")}
-                        retryLabel={t("retryIntegration")}
-                        onConnect={() => void handleConnect(slug)}
-                        onDisconnect={() => void handleDisconnect(slug)}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-
-            <Separator />
-
-            {/* ── Workspace sync ───────────────────────────────── */}
-            <SyncStatusSection
-              lastSokosumiSyncAt={lastSokosumiSyncAt}
-              lastInboxRefreshAt={lastInboxRefreshAt}
-            />
-
-            <Separator />
+            <PanelSection
+              title={t("integrationsSection")}
+              description={t("integrationsHelp")}
+            >
+              <IntegrationList
+                providers={PROVIDERS}
+                effectiveStatus={effectiveStatus}
+                integrationByProvider={integrationByProvider}
+                tProviders={tProviders}
+                connectLabel={t("connectIntegration")}
+                connectingLabel={t("connectingIntegration")}
+                connectedLabel={t("connectedIntegration")}
+                disconnectLabel={t("disconnectIntegration")}
+                retryLabel={t("retryIntegration")}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+              />
+            </PanelSection>
 
             {/* ── Scheduled tasks ──────────────────────────────── */}
             <SchedulesSection
@@ -407,60 +349,77 @@ export default function SettingsPanel({
               }
             />
 
-            <Separator />
+            {/* ── Memory refresh (informational, compact) ─────── */}
+            <SyncStatusSection
+              lastSokosumiSyncAt={lastSokosumiSyncAt}
+              lastInboxRefreshAt={lastInboxRefreshAt}
+            />
+
+            {/* ── Model (reference info, lowest priority) ──────── */}
+            <PanelSection title={t("modelSection")}>
+              <div className="border-border/60 bg-card/40 flex flex-col gap-2.5 rounded-xl border px-4 py-3.5">
+                <ReadOnlyField
+                  label={t("modelLabel")}
+                  value="deepseek-4-flash"
+                  mono
+                />
+                <ReadOnlyField
+                  label={t("modelProviderLabel")}
+                  value="OpenRouter (managed)"
+                />
+                <p className="text-muted-foreground/80 text-xs leading-relaxed">
+                  {t("modelManagedHelp")}
+                </p>
+              </div>
+            </PanelSection>
 
             {/* ── Danger zone ──────────────────────────────────── */}
-            <section className="flex flex-col gap-3">
-              <h3 className="text-destructive text-sm font-medium">
-                {t("dangerSection")}
-              </h3>
-              <div className="border-destructive/30 flex flex-col gap-3 rounded-md border px-3 py-3">
-                <div className="flex flex-col gap-1">
-                  <span className="text-foreground text-sm font-medium">
-                    {t("destroyTitle")}
-                  </span>
-                  <p className="text-tertiary-foreground text-xs leading-relaxed">
-                    {t("destroyBody")}
-                  </p>
-                </div>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="gap-2 self-start"
-                      disabled={destroyPending}
-                    >
-                      {destroyPending ? (
-                        <Loader2 className="size-4 animate-spin" aria-hidden />
-                      ) : (
-                        <Trash2 className="size-4" aria-hidden />
-                      )}
-                      {t("destroyCta")}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{t("destroyTitle")}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {t("destroyBody")}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel disabled={destroyPending}>
-                        {t("cancel")}
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDestroy}
-                        disabled={destroyPending}
-                        className="bg-destructive text-white hover:bg-destructive/90"
-                      >
-                        {t("destroyCta")}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+            <section className="border-destructive/20 flex items-start gap-4 rounded-xl border border-dashed px-4 py-4">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-destructive text-sm font-semibold tracking-tight">
+                  {t("destroyTitle")}
+                </h3>
+                <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+                  {t("destroyBody")}
+                </p>
               </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="gap-1.5 self-start"
+                    disabled={destroyPending}
+                  >
+                    {destroyPending ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 className="size-3.5" aria-hidden />
+                    )}
+                    {t("destroyCta")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("destroyTitle")}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("destroyBody")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={destroyPending}>
+                      {t("cancel")}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDestroy}
+                      disabled={destroyPending}
+                      className="bg-destructive text-white hover:bg-destructive/90"
+                    >
+                      {t("destroyCta")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </section>
           </div>
         </SheetContent>
@@ -470,6 +429,147 @@ export default function SettingsPanel({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Section frame for the settings panel. One consistent header pattern
+ * (semibold title + optional muted description + optional right-aligned
+ * trailing slot) across the whole sheet. Spacing between sections is
+ * owned by the parent `gap-10` so we don't need `<Separator />` lines.
+ */
+function PanelSection({
+  title,
+  description,
+  trailing,
+  children,
+}: {
+  title: string;
+  description?: string;
+  trailing?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-foreground text-sm font-semibold tracking-tight">
+            {title}
+          </h3>
+          {description ? (
+            <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+              {description}
+            </p>
+          ) : null}
+        </div>
+        {trailing ? <div className="shrink-0">{trailing}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+interface IntegrationListProps {
+  providers: Array<{
+    slug: HermesIntegrationProvider;
+    iconSrc: string;
+  }>;
+  effectiveStatus: (
+    provider: HermesIntegrationProvider,
+  ) => HermesIntegrationStatus;
+  integrationByProvider: Map<HermesIntegrationProvider, HermesIntegration>;
+  tProviders: (key: string) => string;
+  connectLabel: string;
+  connectingLabel: string;
+  connectedLabel: string;
+  disconnectLabel: string;
+  retryLabel: string;
+  onConnect: (provider: HermesIntegrationProvider) => void;
+  onDisconnect: (provider: HermesIntegrationProvider) => void;
+}
+
+/**
+ * Integration list split into connected vs available groups. Connected
+ * rises to the top so the user sees their actual integrations first;
+ * the rest sits as a muted "Available" list below. Each row is a single
+ * flat strip (no nested icon-tile border) so the chrome reads quietly.
+ */
+function IntegrationList({
+  providers,
+  effectiveStatus,
+  integrationByProvider,
+  tProviders,
+  connectLabel,
+  connectingLabel,
+  connectedLabel,
+  disconnectLabel,
+  retryLabel,
+  onConnect,
+  onDisconnect,
+}: IntegrationListProps) {
+  const connected = providers.filter(
+    (p) => effectiveStatus(p.slug) === "connected",
+  );
+  const available = providers.filter(
+    (p) => effectiveStatus(p.slug) !== "connected",
+  );
+
+  const renderRow = ({
+    slug,
+    iconSrc,
+  }: IntegrationListProps["providers"][number]) => {
+    const status = effectiveStatus(slug);
+    return (
+      <li
+        key={slug}
+        className={cn(
+          "group/row hover:bg-muted/30 flex items-center gap-3 px-4 py-2.5 transition-colors",
+          status === "connected" && "bg-card/40",
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={iconSrc} alt="" className="size-5 shrink-0" />
+        <span className="text-foreground flex-1 truncate text-sm">
+          {tProviders(slug)}
+        </span>
+        <IntegrationButton
+          status={status}
+          mode={integrationByProvider.get(slug)?.mode ?? "read"}
+          connectLabel={connectLabel}
+          connectingLabel={connectingLabel}
+          connectedLabel={connectedLabel}
+          disconnectLabel={disconnectLabel}
+          retryLabel={retryLabel}
+          onConnect={() => void onConnect(slug)}
+          onDisconnect={() => void onDisconnect(slug)}
+        />
+      </li>
+    );
+  };
+
+  return (
+    <div className="border-border/60 divide-border/60 overflow-hidden rounded-xl border divide-y">
+      {connected.length > 0 ? (
+        <>
+          <div className="bg-card/60 text-muted-foreground px-4 py-1.5 text-xs font-medium uppercase tracking-wider">
+            Connected
+          </div>
+          <ul className="divide-border/60 divide-y">
+            {connected.map(renderRow)}
+          </ul>
+        </>
+      ) : null}
+      {available.length > 0 ? (
+        <>
+          <div className="bg-card/60 text-muted-foreground px-4 py-1.5 text-xs font-medium uppercase tracking-wider">
+            Available
+          </div>
+          <ul className="divide-border/60 divide-y">
+            {available.map(renderRow)}
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
+}
 
 function ReadOnlyField({
   label,
@@ -529,18 +629,15 @@ function IntegrationButton({
   }
   if (status === "connected") {
     return (
-      <div className="inline-flex items-center gap-3 text-xs">
-        <span className="text-foreground inline-flex items-center gap-1.5">
-          <span aria-hidden>✓</span>
-          {connectedLabel}
-          <span className="text-muted-foreground">
-            · {mode === "write" ? "full access" : "read only"}
-          </span>
+      <div className="inline-flex items-center gap-3">
+        <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+          <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
+          {mode === "write" ? "full access" : "read only"}
         </span>
         <button
           type="button"
           onClick={onDisconnect}
-          className="text-tertiary-foreground hover:text-foreground underline-offset-4 hover:underline"
+          className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
         >
           {disconnectLabel}
         </button>
@@ -549,13 +646,25 @@ function IntegrationButton({
   }
   if (status === "error") {
     return (
-      <Button type="button" size="sm" variant="outline" onClick={onConnect}>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="h-7 px-2.5 text-xs"
+        onClick={onConnect}
+      >
         {retryLabel}
       </Button>
     );
   }
   return (
-    <Button type="button" size="sm" variant="outline" onClick={onConnect}>
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="h-7 px-2.5 text-xs"
+      onClick={onConnect}
+    >
       {connectLabel}
     </Button>
   );
@@ -574,16 +683,10 @@ function SyncStatusSection({
   const formatter = useFormatter();
 
   return (
-    <section className="flex flex-col gap-3">
-      <h3 className="text-foreground text-sm font-medium">
-        {t("syncSection")}
-      </h3>
-      <p className="text-tertiary-foreground text-xs leading-relaxed">
-        {t("syncHelp")}
-      </p>
-      <div className="border-border/60 bg-card/40 divide-y divide-border/60 flex flex-col rounded-md border">
+    <PanelSection title={t("syncSection")} description={t("syncHelp")}>
+      <div className="border-border/60 divide-border/60 flex flex-col divide-y overflow-hidden rounded-xl border">
         <SyncRow
-          icon={<RefreshCw className="size-4" />}
+          icon={<RefreshCw className="size-3.5" />}
           label={t("syncWorkspaceLabel")}
           value={
             lastSokosumiSyncAt
@@ -595,7 +698,7 @@ function SyncStatusSection({
           stale={!lastSokosumiSyncAt}
         />
         <SyncRow
-          icon={<Inbox className="size-4" />}
+          icon={<Inbox className="size-3.5" />}
           label={t("syncInboxLabel")}
           value={
             lastInboxRefreshAt
@@ -607,7 +710,7 @@ function SyncStatusSection({
           stale={!lastInboxRefreshAt}
         />
       </div>
-    </section>
+    </PanelSection>
   );
 }
 
@@ -623,21 +726,17 @@ function SyncRow({
   stale: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5">
-      <div
-        aria-hidden
-        className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-md"
-      >
+    <div className="hover:bg-muted/30 flex items-center gap-3 px-4 py-2.5 transition-colors">
+      <span className="text-muted-foreground shrink-0" aria-hidden>
         {icon}
-      </div>
+      </span>
       <div className="min-w-0 flex-1">
-        <div className="text-foreground text-xs font-medium">{label}</div>
+        <div className="text-foreground text-sm font-medium">{label}</div>
         <div
-          className={
-            stale
-              ? "text-tertiary-foreground text-[11px]"
-              : "text-muted-foreground text-[11px]"
-          }
+          className={cn(
+            "text-xs",
+            stale ? "text-muted-foreground/70" : "text-muted-foreground",
+          )}
         >
           {value}
         </div>

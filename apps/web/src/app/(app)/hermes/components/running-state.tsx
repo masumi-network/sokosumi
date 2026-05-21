@@ -1044,6 +1044,33 @@ const INTEGRATION_ICON_BY_PROVIDER: Record<HermesIntegrationProvider, string> =
     linkedin: "/icons/linkedin.svg",
   };
 
+/**
+ * Some Composio toolkits cover multiple orchestrator provider strings
+ * from a single OAuth (Outlook's mail + calendar share one consent and
+ * land as two integration rows). The chat chip should treat those as
+ * one connected service so the count + icon stack reflect reality.
+ */
+function canonicalServiceKey(provider: HermesIntegrationProvider): string {
+  if (provider === "outlook" || provider === "outlook_calendar") {
+    return "outlook";
+  }
+  return provider;
+}
+
+function dedupeServiceIntegrations(
+  integrations: HermesIntegrationPublic[],
+): HermesIntegrationPublic[] {
+  const seen = new Set<string>();
+  const result: HermesIntegrationPublic[] = [];
+  for (const integration of integrations) {
+    const key = canonicalServiceKey(integration.provider);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(integration);
+  }
+  return result;
+}
+
 function IntegrationsChip({
   integrations,
   onClick,
@@ -1051,7 +1078,12 @@ function IntegrationsChip({
   integrations: HermesIntegrationPublic[];
   onClick: () => void;
 }) {
-  const connected = integrations.filter((i) => i.status === "connected");
+  // Dedupe paired providers (outlook + outlook_calendar share one OAuth)
+  // so the chip shows one entry per real service. Otherwise a single
+  // Outlook connection looks like "2 connected" with the same icon twice.
+  const connected = dedupeServiceIntegrations(
+    integrations.filter((i) => i.status === "connected"),
+  );
   const stacked = connected.slice(0, 3);
   const hasAny = connected.length > 0;
 
