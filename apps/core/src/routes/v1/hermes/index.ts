@@ -1612,9 +1612,13 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
       if (status === "FAILED" || status === "EXPIRED") {
         throw badRequest(`Composio connection ${status.toLowerCase()}`);
       }
-      await new Promise((resolve) =>
-        setTimeout(resolve, FINALIZE_POLL_INTERVAL_MS),
-      );
+      // Skip the sleep on the final iteration — we'd just be making the
+      // user wait an extra 750ms before throwing "not active yet" below.
+      if (attempt < FINALIZE_POLL_MAX_ATTEMPTS - 1) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, FINALIZE_POLL_INTERVAL_MS),
+        );
+      }
     }
   } catch (error) {
     if (error instanceof HTTPException) throw error;
