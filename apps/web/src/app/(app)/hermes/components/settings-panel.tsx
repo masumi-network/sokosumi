@@ -287,7 +287,7 @@ export default function SettingsPanel({
               <div className="border-border/60 bg-muted/20 flex flex-col gap-2 rounded-md border px-3 py-3">
                 <ReadOnlyField
                   label={t("modelLabel")}
-                  value="claude-sonnet-4.6"
+                  value="deepseek-4-flash"
                   mono
                 />
                 <ReadOnlyField
