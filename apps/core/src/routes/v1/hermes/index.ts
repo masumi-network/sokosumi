@@ -482,6 +482,11 @@ async function persistHermesWelcomeMessage(args: {
   // Look for any prior welcome at this exact onboarding moment. We compare
   // against a 1-second window to absorb sub-second timestamp drift from
   // the orchestrator's serialization.
+  //
+  // Use `null` (not `undefined`) when kind is null so Prisma generates an
+  // `IS NULL` filter. Passing `undefined` tells Prisma "skip this field"
+  // which would let any assistant message in the window count as a dup,
+  // potentially suppressing an unrelated welcome insert.
   const lowerBound = new Date(createdAt.getTime() - 1000);
   const upperBound = new Date(createdAt.getTime() + 1000);
   const existing = await prisma.hermesMessage.findFirst({
@@ -489,7 +494,7 @@ async function persistHermesWelcomeMessage(args: {
       userId: args.userId,
       role: "assistant",
       createdAt: { gte: lowerBound, lte: upperBound },
-      kind: args.kind ?? undefined,
+      kind: args.kind ?? null,
     },
     select: { id: true },
   });
@@ -1363,8 +1368,17 @@ app.openapi(disconnectIntegrationRoute, async (c) => {
   const userContext = requireUserContext(c.var.authContext);
   const { provider } = c.req.valid("param");
 
+  // Mirror the dual-provider behaviour of finalize: Outlook's mail + calendar
+  // share one Composio OAuth, so disconnecting one must disconnect both —
+  // otherwise the paired half stays "connected" on the orchestrator as a
+  // ghost integration.
   try {
-    await disconnectInstanceIntegration(userContext.userId, provider);
+    for (const orchestratorProvider of pairedOrchestratorProviders(provider)) {
+      await disconnectInstanceIntegration(
+        userContext.userId,
+        orchestratorProvider,
+      );
+    }
     return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
   } catch (error) {
     return mapOrchestratorError(
@@ -1376,10 +1390,14 @@ app.openapi(disconnectIntegrationRoute, async (c) => {
 
 /**
  * The Composio toolkit `outlook` covers BOTH mail and calendar, so a single
- * OAuth completion needs to be registered with the orchestrator under both
- * provider strings. Other providers map 1:1.
+ * OAuth (and a single disconnect) needs to register/unregister with the
+ * orchestrator under both provider strings. Other providers map 1:1.
+ *
+ * Used by both finalize and disconnect so the pair stays consistent on the
+ * orchestrator side — connecting one always connects both, disconnecting
+ * one always disconnects both.
  */
-function orchestratorProvidersForFinalize(
+function pairedOrchestratorProviders(
   provider: HermesIntegrationProvider,
 ): HermesIntegrationProvider[] {
   if (provider === "outlook" || provider === "outlook_calendar") {
@@ -1467,9 +1485,7 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
     ReturnType<typeof connectInstanceIntegration>
   > | null = null;
   try {
-    for (const orchestratorProvider of orchestratorProvidersForFinalize(
-      provider,
-    )) {
+    for (const orchestratorProvider of pairedOrchestratorProviders(provider)) {
       lastIntegration = await connectInstanceIntegration(userContext.userId, {
         provider: orchestratorProvider,
         mcpUrl,
