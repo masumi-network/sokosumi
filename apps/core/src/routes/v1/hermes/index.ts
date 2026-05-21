@@ -8,6 +8,7 @@ import {
   USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET,
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
+import { v5 as uuidv5 } from "uuid";
 import {
   buildMcpUrl,
   ComposioApiError,
@@ -471,11 +472,23 @@ async function upsertHermesInstanceForUser(userId: string): Promise<void> {
 }
 
 /**
+ * Stable namespace UUID for deriving HermesMessage ids from welcome-event
+ * tuples. Bound to this codebase; do NOT change without a migration plan
+ * (it shifts every existing welcome's deterministic id).
+ */
+const HERMES_WELCOME_UUID_NAMESPACE = "f4e5b2cd-1c1a-4d8a-9a2e-7c1ad1b8d5a9";
+
+/**
  * Persist the orchestrator's one-shot welcome into our local message log.
- * Idempotent: if a HermesMessage for this user already exists at
- * `onboardedAt` (rounded to the second), we skip the insert. That lets us
- * call this on every `getInstance` fetch without duplicating the welcome
- * across re-renders or page reloads.
+ *
+ * Idempotent via a deterministic UUIDv5 id derived from
+ * `(userId, onboardedAtIso, kind)`. We use `upsert` so two concurrent GET
+ * /me/instance polls that race the existence check both end up at the same
+ * row — the second insert is a no-op (`update: {}`) instead of duplicating.
+ *
+ * Previously this did `findFirst` then `create` without a transaction or
+ * unique constraint, which let two concurrent polls each pass the check
+ * and double-insert the welcome.
  */
 async function persistHermesWelcomeMessage(args: {
   userId: string;
@@ -486,35 +499,24 @@ async function persistHermesWelcomeMessage(args: {
   const createdAt = new Date(args.onboardedAtIso);
   if (Number.isNaN(createdAt.getTime())) return;
 
-  // Look for any prior welcome at this exact onboarding moment. We compare
-  // against a 1-second window to absorb sub-second timestamp drift from
-  // the orchestrator's serialization.
-  //
-  // Use `null` (not `undefined`) when kind is null so Prisma generates an
-  // `IS NULL` filter. Passing `undefined` tells Prisma "skip this field"
-  // which would let any assistant message in the window count as a dup,
-  // potentially suppressing an unrelated welcome insert.
-  const lowerBound = new Date(createdAt.getTime() - 1000);
-  const upperBound = new Date(createdAt.getTime() + 1000);
-  const existing = await prisma.hermesMessage.findFirst({
-    where: {
-      userId: args.userId,
-      role: "assistant",
-      createdAt: { gte: lowerBound, lte: upperBound },
-      kind: args.kind ?? null,
-    },
-    select: { id: true },
-  });
-  if (existing) return;
+  const id = uuidv5(
+    `${args.userId}:${args.onboardedAtIso}:${args.kind ?? "none"}`,
+    HERMES_WELCOME_UUID_NAMESPACE,
+  );
 
-  await prisma.hermesMessage.create({
-    data: {
+  await prisma.hermesMessage.upsert({
+    where: { id },
+    create: {
+      id,
       userId: args.userId,
       role: "assistant",
       content: args.content,
       kind: args.kind,
       createdAt,
     },
+    // Already persisted — leave it alone. We rely on the primary-key
+    // conflict to coalesce concurrent inserts atomically.
+    update: {},
   });
 }
 
