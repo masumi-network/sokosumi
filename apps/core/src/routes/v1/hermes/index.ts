@@ -1611,7 +1611,14 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
       const { status } = await getConnection(connectionId);
       lastStatus = status;
       if (status === "ACTIVE") break;
-      if (status === "FAILED" || status === "EXPIRED") {
+      // FAILED / EXPIRED / INACTIVE are all terminal — bail out immediately
+      // so the user gets actionable feedback instead of waiting 6s for the
+      // poll budget to drain only to be told the connection won't activate.
+      if (
+        status === "FAILED" ||
+        status === "EXPIRED" ||
+        status === "INACTIVE"
+      ) {
         throw badRequest(`Composio connection ${status.toLowerCase()}`);
       }
       // Skip the sleep on the final iteration — we'd just be making the
