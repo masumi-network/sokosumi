@@ -1,8 +1,21 @@
 "use client";
 
-import { Loader2, Plug, Plus, X } from "lucide-react";
+import {
+  Bell,
+  CheckCircle2,
+  Inbox,
+  Lightbulb,
+  ListTodo,
+  Loader2,
+  Plug,
+  Plus,
+  Sparkles,
+  Sunrise,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 import { useFormatter, useTranslations } from "next-intl";
+import type { ComponentType } from "react";
 import {
   type FormEvent,
   useCallback,
@@ -639,8 +652,8 @@ function MessageRow({
       <AssistantAvatar accent={Boolean(chip)} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {chip ? (
-          <span className="border-border/60 text-tertiary-foreground bg-muted/40 inline-flex w-fit items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium tracking-wide">
-            <span aria-hidden>{chip.icon}</span>
+          <span className="border-border/60 text-tertiary-foreground bg-muted/40 inline-flex w-fit items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium tracking-wide">
+            <chip.Icon className="size-3" aria-hidden />
             <span>{chip.label}</span>
           </span>
         ) : null}
@@ -684,32 +697,32 @@ function MessageRow({
 }
 
 interface OutboxKindChip {
-  icon: string;
+  Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   label: string;
 }
 
 function describeOutboxKind(kind: string | null): OutboxKindChip | null {
   if (!kind || kind === "text") return null;
   if (kind === "welcome" || kind === "research_intro" || kind === "returning") {
-    return { icon: "👋", label: "Welcome" };
+    return { Icon: Sparkles, label: "Welcome" };
   }
   if (kind === "daily_brief") {
-    return { icon: "🌅", label: "Daily brief" };
+    return { Icon: Sunrise, label: "Daily brief" };
   }
   if (kind === "job_complete") {
-    return { icon: "✅", label: "Job complete" };
+    return { Icon: CheckCircle2, label: "Job complete" };
   }
   if (kind === "task_result") {
-    return { icon: "📋", label: "Scheduled task" };
+    return { Icon: ListTodo, label: "Scheduled task" };
   }
   if (kind === "daily_suggestions") {
-    return { icon: "💡", label: "Suggestions" };
+    return { Icon: Lightbulb, label: "Suggestions" };
   }
   if (kind === "reminder") {
-    return { icon: "🔔", label: "Reminder" };
+    return { Icon: Bell, label: "Reminder" };
   }
   // Unknown future kinds — generic Hermes push.
-  return { icon: "📨", label: "From Hermes" };
+  return { Icon: Inbox, label: "From Hermes" };
 }
 
 /**
