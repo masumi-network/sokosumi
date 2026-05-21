@@ -38,7 +38,7 @@ const POLL_INTERVAL_MS = 1_000;
  * "Working" line that suddenly grows to 5.
  */
 const SKELETON_STEPS = [
-  "Saving your details",
+  "Bootstrapping your private memory",
   "Connecting to your integrations",
   "Reading your inbox",
   "Checking your public profile",
@@ -51,7 +51,11 @@ const SKELETON_STEPS = [
  */
 const PREVIEW_SEQUENCE: HermesOnboardingStep[][] = [
   [
-    { id: "memory", label: "Saving your details", status: "running" },
+    {
+      id: "memory",
+      label: "Bootstrapping your private memory",
+      status: "running",
+    },
     { id: "inbox_scan", label: "Reading your inbox", status: "pending" },
     {
       id: "web_research",
@@ -61,7 +65,11 @@ const PREVIEW_SEQUENCE: HermesOnboardingStep[][] = [
     { id: "intro_draft", label: "Drafting your intro", status: "pending" },
   ],
   [
-    { id: "memory", label: "Saving your details", status: "done" },
+    {
+      id: "memory",
+      label: "Bootstrapping your private memory",
+      status: "done",
+    },
     { id: "inbox_scan", label: "Reading your inbox", status: "running" },
     {
       id: "web_research",
@@ -71,7 +79,11 @@ const PREVIEW_SEQUENCE: HermesOnboardingStep[][] = [
     { id: "intro_draft", label: "Drafting your intro", status: "pending" },
   ],
   [
-    { id: "memory", label: "Saving your details", status: "done" },
+    {
+      id: "memory",
+      label: "Bootstrapping your private memory",
+      status: "done",
+    },
     { id: "inbox_scan", label: "Reading your inbox", status: "done" },
     {
       id: "web_research",
@@ -81,7 +93,11 @@ const PREVIEW_SEQUENCE: HermesOnboardingStep[][] = [
     { id: "intro_draft", label: "Drafting your intro", status: "pending" },
   ],
   [
-    { id: "memory", label: "Saving your details", status: "done" },
+    {
+      id: "memory",
+      label: "Bootstrapping your private memory",
+      status: "done",
+    },
     { id: "inbox_scan", label: "Reading your inbox", status: "done" },
     {
       id: "web_research",
@@ -165,8 +181,8 @@ export default function OnboardingProgress({
   const progress = useOnboardingProgress(previewMode);
 
   return (
-    <FlowBackground>
-      <div className="mx-auto w-full max-w-2xl px-6 py-12 md:py-20">
+    <FlowBackground className="flex h-full flex-col">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-8 md:py-12">
         <ProgressPips current="personalizing" />
 
         {/* ── Hero ────────────────────────────────────────────────── */}
