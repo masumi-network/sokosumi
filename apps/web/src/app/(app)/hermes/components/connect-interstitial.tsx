@@ -68,9 +68,7 @@ export default function ConnectInterstitial({
   onCancel,
 }: ConnectInterstitialProps) {
   const isOpen = pending !== null;
-  const authProvider = pending
-    ? AUTH_PROVIDER_BY_SLUG[pending.provider]
-    : null;
+  const authProvider = pending ? AUTH_PROVIDER_BY_SLUG[pending.provider] : null;
 
   return (
     <Dialog

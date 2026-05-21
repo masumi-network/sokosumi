@@ -17,7 +17,6 @@ import {
   Network,
   Plug,
   Repeat,
-  ServerCog,
   ShieldAlert,
   Sparkles,
   Wand2,
@@ -664,7 +663,9 @@ function MicroVmVisual() {
             <dd className="text-foreground font-mono text-xs">encrypted</dd>
           </div>
           <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground text-xs">Shared with others</dt>
+            <dt className="text-muted-foreground text-xs">
+              Shared with others
+            </dt>
             <dd className="text-foreground font-mono text-xs">never</dd>
           </div>
         </dl>
@@ -697,7 +698,12 @@ function ConnectionVisual() {
         preserveAspectRatio="none"
         className="text-border absolute inset-0 size-full"
       >
-        <g stroke="currentColor" strokeWidth="1" strokeDasharray="3 4" fill="none">
+        <g
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="3 4"
+          fill="none"
+        >
           <line x1="200" y1="110" x2="80" y2="30" />
           <line x1="200" y1="110" x2="320" y2="30" />
           <line x1="200" y1="110" x2="80" y2="190" />
@@ -736,7 +742,11 @@ function ConnectionVisual() {
 }
 
 function InboxMemoryVisual() {
-  const inbox: Array<{ from: string; subject: string; status: "read" | "warn" }> = [
+  const inbox: Array<{
+    from: string;
+    subject: string;
+    status: "read" | "warn";
+  }> = [
     { from: "Hannah", subject: "Q4 roadmap review", status: "read" },
     { from: "Alex", subject: "Cardano deal — next steps", status: "read" },
     { from: "CI bot", subject: "Build #2438 failed", status: "warn" },
@@ -775,10 +785,7 @@ function InboxMemoryVisual() {
                   !
                 </span>
               ) : (
-                <Check
-                  className="size-3 text-emerald-500"
-                  aria-hidden
-                />
+                <Check className="size-3 text-emerald-500" aria-hidden />
               )}
             </li>
           ))}
@@ -821,7 +828,11 @@ function ActVisual() {
           {[
             { src: "/icons/google-calendar.svg", label: "Found a free slot" },
             { src: "/icons/gmail.svg", label: "Drafted the invite" },
-            { src: null, label: "Hired Research agent for context", done: false },
+            {
+              src: null,
+              label: "Hired Research agent for context",
+              done: false,
+            },
           ].map((row, i) => (
             <li
               key={i}
@@ -831,11 +842,17 @@ function ActVisual() {
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={row.src} alt="" className="size-3.5 shrink-0" />
               ) : (
-                <Sparkles className="text-primary size-3.5 shrink-0" aria-hidden />
+                <Sparkles
+                  className="text-primary size-3.5 shrink-0"
+                  aria-hidden
+                />
               )}
               <span className="text-foreground flex-1">{row.label}</span>
               {row.done === false ? (
-                <Loader2 className="text-muted-foreground size-3 animate-spin" aria-hidden />
+                <Loader2
+                  className="text-muted-foreground size-3 animate-spin"
+                  aria-hidden
+                />
               ) : (
                 <Check className="size-3 text-emerald-500" aria-hidden />
               )}
@@ -1014,10 +1031,7 @@ function MockMarkdown({ text }: { text: string }) {
             <ul key={blockIdx} className="flex flex-col gap-1.5 pl-1">
               {lines.map((line, i) => (
                 <li key={i} className="flex items-start gap-2">
-                  <span
-                    aria-hidden
-                    className="text-muted-foreground/60 mt-0.5"
-                  >
+                  <span aria-hidden className="text-muted-foreground/60 mt-0.5">
                     •
                   </span>
                   <span className="flex-1">

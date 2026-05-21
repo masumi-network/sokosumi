@@ -15,7 +15,7 @@ const FACTS = [
   "Chat from here, Telegram, Slack, your terminal — pick up anywhere.",
   "Every morning Hermes can send a brief of what needs your attention.",
   "Read your inbox, draft replies, schedule meetings — all from chat.",
-  "Ask Hermes to schedule things in plain English: \"every Monday at 9am, summarise my week ahead.\"",
+  'Ask Hermes to schedule things in plain English: "every Monday at 9am, summarise my week ahead."',
 ] as const;
 
 /**

@@ -1,6 +1,5 @@
-import { getEnv } from "@/config/env";
-
 import type { HermesIntegrationProvider } from "@/clients/hermes-orchestrator.client";
+import { getEnv } from "@/config/env";
 
 /**
  * Composio toolkit slugs we use for Hermes integrations.
@@ -92,10 +91,7 @@ function authConfigName(toolkit: ComposioToolkit): string {
   return `${RECORD_NAME_PREFIX}-${toolkit}-auth-v1`;
 }
 
-function mcpServerName(
-  toolkit: ComposioToolkit,
-  mode: ComposioMode,
-): string {
+function mcpServerName(toolkit: ComposioToolkit, mode: ComposioMode): string {
   // Composio enforces a 30-character cap on MCP server names. Use compact
   // toolkit aliases so every combo fits within `hermes-<alias>-<mode>-v5`.
   const alias =
@@ -165,7 +161,8 @@ async function composioFetch(
   return fetch(url.toString(), {
     ...init,
     headers,
-    body: init.jsonBody !== undefined ? JSON.stringify(init.jsonBody) : undefined,
+    body:
+      init.jsonBody !== undefined ? JSON.stringify(init.jsonBody) : undefined,
     cache: "no-store",
   });
 }
@@ -475,10 +472,7 @@ const ALLOWED_TOOLS: Record<ComposioToolkit, Record<ComposioMode, string[]>> = {
     ],
   },
   googledocs: {
-    read: [
-      "GOOGLEDOCS_GET_DOCUMENT_BY_ID",
-      "GOOGLEDOCS_SEARCH_DOCUMENTS",
-    ],
+    read: ["GOOGLEDOCS_GET_DOCUMENT_BY_ID", "GOOGLEDOCS_SEARCH_DOCUMENTS"],
     write: [
       "GOOGLEDOCS_GET_DOCUMENT_BY_ID",
       "GOOGLEDOCS_SEARCH_DOCUMENTS",
@@ -642,10 +636,7 @@ const ALLOWED_TOOLS: Record<ComposioToolkit, Record<ComposioMode, string[]>> = {
     ],
   },
   linkedin: {
-    read: [
-      "LINKEDIN_GET_MY_INFO",
-      "LINKEDIN_GET_COMPANY_INFO",
-    ],
+    read: ["LINKEDIN_GET_MY_INFO", "LINKEDIN_GET_COMPANY_INFO"],
     write: [
       "LINKEDIN_GET_MY_INFO",
       "LINKEDIN_GET_COMPANY_INFO",

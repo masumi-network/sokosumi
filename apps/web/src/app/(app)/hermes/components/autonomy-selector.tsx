@@ -87,10 +87,7 @@ export default function AutonomySelector({
 
   return (
     <fieldset
-      className={cn(
-        "flex flex-col",
-        compact ? "gap-2" : "gap-3",
-      )}
+      className={cn("flex flex-col", compact ? "gap-2" : "gap-3")}
       disabled={disabled}
       aria-label="Hermes autonomy level"
     >

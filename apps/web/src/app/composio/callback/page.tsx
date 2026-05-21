@@ -92,9 +92,7 @@ export default function ComposioCallbackPage() {
             : "connection failed"}
         </div>
         <p className="text-muted-foreground mt-2 text-xs">
-          {state.posted
-            ? "you can close this window."
-            : "finalizing…"}
+          {state.posted ? "you can close this window." : "finalizing…"}
         </p>
       </div>
     </main>

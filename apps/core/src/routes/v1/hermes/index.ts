@@ -9,7 +9,16 @@ import {
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import {
-  type HermesIntegrationProvider,
+  buildMcpUrl,
+  ComposioApiError,
+  ComposioConfigError,
+  composioToolkitForProvider,
+  ensureAuthConfig,
+  ensureMcpServer,
+  getConnection,
+  initiateConnection,
+} from "@/clients/composio.client";
+import {
   connectInstanceIntegration,
   destroyInstance,
   disconnectInstanceIntegration,
@@ -17,6 +26,7 @@ import {
   getInstance,
   getInstanceOnboardingProgress,
   HermesInstanceNotReadyError,
+  type HermesIntegrationProvider,
   HermesOrchestratorError,
   isReservedSecretKey,
   isValidSecretKey,
@@ -28,16 +38,6 @@ import {
   setInstanceSecret,
   startInstanceOnboarding,
 } from "@/clients/hermes-orchestrator.client";
-import {
-  buildMcpUrl,
-  composioToolkitForProvider,
-  ComposioApiError,
-  ComposioConfigError,
-  ensureAuthConfig,
-  ensureMcpServer,
-  getConnection,
-  initiateConnection,
-} from "@/clients/composio.client";
 import {
   getWebAppBaseUrl,
   resolveSokosumiEnvForOrchestrator,
@@ -1463,9 +1463,9 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
 
   // Register the same MCP URL under every orchestrator provider string this
   // connection covers (outlook covers both mail + calendar).
-  let lastIntegration:
-    | Awaited<ReturnType<typeof connectInstanceIntegration>>
-    | null = null;
+  let lastIntegration: Awaited<
+    ReturnType<typeof connectInstanceIntegration>
+  > | null = null;
   try {
     for (const orchestratorProvider of orchestratorProvidersForFinalize(
       provider,

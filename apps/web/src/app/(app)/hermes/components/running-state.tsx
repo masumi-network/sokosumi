@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import RotatingMessages from "@/app/hermes/components/rotating-messages";
 import SettingsPanel from "@/app/hermes/components/settings-panel";
 import { ArrowUpIcon, StopIcon } from "@/components/chat/icons";
-import Markdown from "@/components/markdown";
 import {
   PromptInput,
   PromptInputSubmit,
@@ -23,6 +22,7 @@ import {
   PromptInputToolbar,
   PromptInputTools,
 } from "@/components/chat/prompt-input";
+import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -473,7 +473,10 @@ export default function RunningState({
         {instance?.transitioning ? (
           <div className="mb-2 w-full max-w-4xl">
             <div className="border-primary/30 bg-primary/5 text-foreground flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm">
-              <Loader2 className="text-primary size-4 shrink-0 animate-spin" aria-hidden />
+              <Loader2
+                className="text-primary size-4 shrink-0 animate-spin"
+                aria-hidden
+              />
               <span>
                 Hermes is applying your change…{" "}
                 <span className="text-muted-foreground">
@@ -957,28 +960,26 @@ function Composer({
   );
 }
 
-const INTEGRATION_ICON_BY_PROVIDER: Record<
-  HermesIntegrationProvider,
-  string
-> = {
-  gmail: "/icons/gmail.svg",
-  google_calendar: "/icons/google-calendar.svg",
-  google_sheets: "/icons/google-sheets.svg",
-  google_docs: "/icons/google-docs.svg",
-  outlook: "/icons/outlook.svg",
-  outlook_calendar: "/icons/outlook.svg",
-  slack: "/icons/slack.svg",
-  teams: "/icons/teams.svg",
-  linear: "/icons/linear.svg",
-  jira: "/icons/jira.svg",
-  github: "/icons/github.svg",
-  notion: "/icons/notion.svg",
-  hubspot: "/icons/hubspot.svg",
-  twitter: "/icons/x.svg",
-  instagram: "/icons/instagram.svg",
-  youtube: "/icons/youtube.svg",
-  linkedin: "/icons/linkedin.svg",
-};
+const INTEGRATION_ICON_BY_PROVIDER: Record<HermesIntegrationProvider, string> =
+  {
+    gmail: "/icons/gmail.svg",
+    google_calendar: "/icons/google-calendar.svg",
+    google_sheets: "/icons/google-sheets.svg",
+    google_docs: "/icons/google-docs.svg",
+    outlook: "/icons/outlook.svg",
+    outlook_calendar: "/icons/outlook.svg",
+    slack: "/icons/slack.svg",
+    teams: "/icons/teams.svg",
+    linear: "/icons/linear.svg",
+    jira: "/icons/jira.svg",
+    github: "/icons/github.svg",
+    notion: "/icons/notion.svg",
+    hubspot: "/icons/hubspot.svg",
+    twitter: "/icons/x.svg",
+    instagram: "/icons/instagram.svg",
+    youtube: "/icons/youtube.svg",
+    linkedin: "/icons/linkedin.svg",
+  };
 
 function IntegrationsChip({
   integrations,

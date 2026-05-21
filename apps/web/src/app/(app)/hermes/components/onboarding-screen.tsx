@@ -60,7 +60,8 @@ const PROVIDERS: Array<{
   {
     slug: "google_calendar",
     iconSrc: "/icons/google-calendar.svg",
-    capability: "Read your events, check availability, create & update meetings",
+    capability:
+      "Read your events, check availability, create & update meetings",
   },
   {
     slug: "outlook",
@@ -143,10 +144,7 @@ export default function OnboardingScreen({
   // User clicked a connect button — open the interstitial. Actual OAuth
   // fires from `runConnect` once they confirm.
   const handleConnect = useCallback(
-    (
-      provider: HermesIntegrationProvider,
-      mode: "read" | "write" = "read",
-    ) => {
+    (provider: HermesIntegrationProvider, mode: "read" | "write" = "read") => {
       setPendingConnect({ provider, mode });
     },
     [],
@@ -211,181 +209,159 @@ export default function OnboardingScreen({
   return (
     <FlowBackground>
       <div className="mx-auto w-full max-w-2xl px-6 py-12 md:py-20">
-      <ProgressPips current="setup" />
+        <ProgressPips current="setup" />
 
-      {/* ── Hero ────────────────────────────────────────────────── */}
-      <div className="mb-8 flex flex-col items-center text-center md:mb-10">
-        <div className="bg-card border-border/60 ring-border/40 relative size-14 overflow-hidden rounded-full border ring-4">
-          <Image
-            src="/images/hermes/avatar.png"
-            alt=""
-            fill
-            sizes="56px"
-            className="object-cover"
-          />
-        </div>
-        <h1 className="text-foreground mt-5 text-2xl font-semibold tracking-tight md:text-3xl">
-          {t("title")}
-        </h1>
-      </div>
-
-      {/* ── Step indicator ──────────────────────────────────────── */}
-      <StepIndicator
-        current={step}
-        total={TOTAL_STEPS}
-        label={t("stepLabel", { step, total: TOTAL_STEPS })}
-      />
-
-      {/* ── Step content ────────────────────────────────────────── */}
-      <div
-        key={step}
-        className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
-      >
-        {step === 1 && (
-          <Section
-            heading={t("identityHeading")}
-            description={t("identityHelp")}
-          >
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <Field
-                id="hermes-onboarding-name"
-                label={t("nameLabel")}
-                placeholder={t("namePlaceholder")}
-                value={name}
-                onChange={setName}
-              />
-              <Field
-                id="hermes-onboarding-email"
-                label={t("emailLabel")}
-                type="email"
-                placeholder={t("emailPlaceholder")}
-                value={email}
-                onChange={setEmail}
-              />
-            </div>
-          </Section>
-        )}
-
-        {step === 2 && (
-          <Section
-            heading={t("autonomyHeading")}
-            description={t("autonomyHelp")}
-          >
-            <AutonomySelector
-              value={autonomyLevel}
-              onChange={setAutonomyLevel}
+        {/* ── Hero ────────────────────────────────────────────────── */}
+        <div className="mb-8 flex flex-col items-center text-center md:mb-10">
+          <div className="bg-card border-border/60 ring-border/40 relative size-14 overflow-hidden rounded-full border ring-4">
+            <Image
+              src="/images/hermes/avatar.png"
+              alt=""
+              fill
+              sizes="56px"
+              className="object-cover"
             />
-          </Section>
-        )}
+          </div>
+          <h1 className="text-foreground mt-5 text-2xl font-semibold tracking-tight md:text-3xl">
+            {t("title")}
+          </h1>
+        </div>
 
-        {step === 3 && (
-          <Section
-            heading={t("integrationsHeading")}
-            description={t("integrationsHelp")}
-          >
-            <ul className="flex flex-col gap-2">
-              {PROVIDERS.map(({ slug, iconSrc, capability }) => (
-                <li key={slug}>
-                  <IntegrationRow
-                    name={tProviders(slug)}
-                    iconSrc={iconSrc}
-                    capability={capability}
-                    status={effectiveStatus(slug)}
-                    connectedMode={
-                      integrationByProvider.get(slug)?.mode ?? "read"
-                    }
-                    connectingLabel={t("connecting")}
-                    connectedLabel={t("connected")}
-                    disconnectLabel={t("disconnect")}
-                    retryLabel={t("retry")}
-                    onConnectReadOnly={() => void handleConnect(slug, "read")}
-                    onConnectFullAccess={() => void handleConnect(slug, "write")}
-                    onDisconnect={() => void handleDisconnect(slug)}
-                  />
-                </li>
-              ))}
-            </ul>
+        {/* ── Step indicator ──────────────────────────────────────── */}
+        <StepIndicator
+          current={step}
+          total={TOTAL_STEPS}
+          label={t("stepLabel", { step, total: TOTAL_STEPS })}
+        />
 
-            {/* Preview of providers users can connect later from Settings.
-                Tells them this isn't the full menu so they don't think these
-                three are all Hermes supports. */}
-            <div className="mt-6 flex flex-col gap-2.5 rounded-lg border border-dashed border-border/60 bg-card/40 px-4 py-3">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-foreground text-xs font-medium">
-                  {t("moreLaterHeading")}
-                </span>
-                <span className="text-muted-foreground text-[11px]">
-                  {t("moreLaterHelp")}
-                </span>
+        {/* ── Step content ────────────────────────────────────────── */}
+        <div
+          key={step}
+          className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
+        >
+          {step === 1 && (
+            <Section
+              heading={t("identityHeading")}
+              description={t("identityHelp")}
+            >
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <Field
+                  id="hermes-onboarding-name"
+                  label={t("nameLabel")}
+                  placeholder={t("namePlaceholder")}
+                  value={name}
+                  onChange={setName}
+                />
+                <Field
+                  id="hermes-onboarding-email"
+                  label={t("emailLabel")}
+                  type="email"
+                  placeholder={t("emailPlaceholder")}
+                  value={email}
+                  onChange={setEmail}
+                />
               </div>
-              <ul className="flex flex-wrap items-center gap-2">
-                {[
-                  { src: "/icons/slack.svg", label: "Slack" },
-                  { src: "/icons/teams.svg", label: "Teams" },
-                  { src: "/icons/linear.svg", label: "Linear" },
-                  { src: "/icons/jira.svg", label: "Jira" },
-                  { src: "/icons/github.svg", label: "GitHub" },
-                  { src: "/icons/notion.svg", label: "Notion" },
-                  { src: "/icons/google-sheets.svg", label: "Sheets" },
-                  { src: "/icons/google-docs.svg", label: "Docs" },
-                  { src: "/icons/hubspot.svg", label: "HubSpot" },
-                  { src: "/icons/x.svg", label: "X" },
-                  { src: "/icons/linkedin.svg", label: "LinkedIn" },
-                  { src: "/icons/instagram.svg", label: "Instagram" },
-                  { src: "/icons/youtube.svg", label: "YouTube" },
-                ].map(({ src, label }) => (
-                  <li
-                    key={label}
-                    title={label}
-                    className="border-border/60 bg-background flex items-center gap-1.5 rounded-md border px-2 py-1"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="size-3.5" />
-                    <span className="text-muted-foreground text-[11px]">
-                      {label}
-                    </span>
+            </Section>
+          )}
+
+          {step === 2 && (
+            <Section
+              heading={t("autonomyHeading")}
+              description={t("autonomyHelp")}
+            >
+              <AutonomySelector
+                value={autonomyLevel}
+                onChange={setAutonomyLevel}
+              />
+            </Section>
+          )}
+
+          {step === 3 && (
+            <Section
+              heading={t("integrationsHeading")}
+              description={t("integrationsHelp")}
+            >
+              <ul className="flex flex-col gap-2">
+                {PROVIDERS.map(({ slug, iconSrc, capability }) => (
+                  <li key={slug}>
+                    <IntegrationRow
+                      name={tProviders(slug)}
+                      iconSrc={iconSrc}
+                      capability={capability}
+                      status={effectiveStatus(slug)}
+                      connectedMode={
+                        integrationByProvider.get(slug)?.mode ?? "read"
+                      }
+                      connectingLabel={t("connecting")}
+                      connectedLabel={t("connected")}
+                      disconnectLabel={t("disconnect")}
+                      retryLabel={t("retry")}
+                      onConnectReadOnly={() => void handleConnect(slug, "read")}
+                      onConnectFullAccess={() =>
+                        void handleConnect(slug, "write")
+                      }
+                      onDisconnect={() => void handleDisconnect(slug)}
+                    />
                   </li>
                 ))}
               </ul>
-            </div>
-          </Section>
-        )}
-      </div>
 
-      {/* ── Wizard navigation ───────────────────────────────────── */}
-      <div className="mt-10 flex flex-col items-center gap-4 md:mt-12">
-        {step < TOTAL_STEPS ? (
-          <div className="flex w-full max-w-md items-center justify-between gap-3">
-            <Button
-              type="button"
-              size="lg"
-              variant="ghost"
-              className="gap-2"
-              disabled={step === 1}
-              onClick={goBack}
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              <span>{t("back")}</span>
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              variant="primary"
-              className="gap-2"
-              onClick={goNext}
-            >
-              <span>{t("next")}</span>
-              <ArrowRight className="size-4" aria-hidden />
-            </Button>
-          </div>
-        ) : (
-          <>
+              {/* Preview of providers users can connect later from Settings.
+                Tells them this isn't the full menu so they don't think these
+                three are all Hermes supports. */}
+              <div className="mt-6 flex flex-col gap-2.5 rounded-lg border border-dashed border-border/60 bg-card/40 px-4 py-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-foreground text-xs font-medium">
+                    {t("moreLaterHeading")}
+                  </span>
+                  <span className="text-muted-foreground text-[11px]">
+                    {t("moreLaterHelp")}
+                  </span>
+                </div>
+                <ul className="flex flex-wrap items-center gap-2">
+                  {[
+                    { src: "/icons/slack.svg", label: "Slack" },
+                    { src: "/icons/teams.svg", label: "Teams" },
+                    { src: "/icons/linear.svg", label: "Linear" },
+                    { src: "/icons/jira.svg", label: "Jira" },
+                    { src: "/icons/github.svg", label: "GitHub" },
+                    { src: "/icons/notion.svg", label: "Notion" },
+                    { src: "/icons/google-sheets.svg", label: "Sheets" },
+                    { src: "/icons/google-docs.svg", label: "Docs" },
+                    { src: "/icons/hubspot.svg", label: "HubSpot" },
+                    { src: "/icons/x.svg", label: "X" },
+                    { src: "/icons/linkedin.svg", label: "LinkedIn" },
+                    { src: "/icons/instagram.svg", label: "Instagram" },
+                    { src: "/icons/youtube.svg", label: "YouTube" },
+                  ].map(({ src, label }) => (
+                    <li
+                      key={label}
+                      title={label}
+                      className="border-border/60 bg-background flex items-center gap-1.5 rounded-md border px-2 py-1"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="size-3.5" />
+                      <span className="text-muted-foreground text-[11px]">
+                        {label}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Section>
+          )}
+        </div>
+
+        {/* ── Wizard navigation ───────────────────────────────────── */}
+        <div className="mt-10 flex flex-col items-center gap-4 md:mt-12">
+          {step < TOTAL_STEPS ? (
             <div className="flex w-full max-w-md items-center justify-between gap-3">
               <Button
                 type="button"
                 size="lg"
                 variant="ghost"
                 className="gap-2"
+                disabled={step === 1}
                 onClick={goBack}
               >
                 <ArrowLeft className="size-4" aria-hidden />
@@ -396,65 +372,89 @@ export default function OnboardingScreen({
                 size="lg"
                 variant="primary"
                 className="gap-2"
-                onClick={() =>
-                  onContinue({
-                    skipResearch: false,
-                    name: name.trim() || null,
-                    email: email.trim() || null,
-                    autonomyLevel,
-                  })
-                }
+                onClick={goNext}
               >
-                <span>{t("continueCta")}</span>
+                <span>{t("next")}</span>
                 <ArrowRight className="size-4" aria-hidden />
               </Button>
             </div>
-            <p className="text-muted-foreground/80 text-center text-xs">
-              {connectedCount === 0
-                ? t("footnote")
-                : t("continueWithCount", { count: connectedCount })}
-            </p>
-            <div className="border-border/60 mt-2 flex w-full max-w-xs flex-col items-center gap-1 border-t pt-4">
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                onClick={() =>
-                  onContinue({
-                    skipResearch: true,
-                    name: name.trim() || null,
-                    email: email.trim() || null,
-                    autonomyLevel,
-                  })
-                }
-              >
-                {t("skipCta")}
-              </button>
-              <p className="text-muted-foreground/60 max-w-xs text-center text-xs leading-relaxed">
-                {t("skipCtaHelp")}
+          ) : (
+            <>
+              <div className="flex w-full max-w-md items-center justify-between gap-3">
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="ghost"
+                  className="gap-2"
+                  onClick={goBack}
+                >
+                  <ArrowLeft className="size-4" aria-hidden />
+                  <span>{t("back")}</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="primary"
+                  className="gap-2"
+                  onClick={() =>
+                    onContinue({
+                      skipResearch: false,
+                      name: name.trim() || null,
+                      email: email.trim() || null,
+                      autonomyLevel,
+                    })
+                  }
+                >
+                  <span>{t("continueCta")}</span>
+                  <ArrowRight className="size-4" aria-hidden />
+                </Button>
+              </div>
+              <p className="text-muted-foreground/80 text-center text-xs">
+                {connectedCount === 0
+                  ? t("footnote")
+                  : t("continueWithCount", { count: connectedCount })}
               </p>
-            </div>
-          </>
-        )}
-      </div>
+              <div className="border-border/60 mt-2 flex w-full max-w-xs flex-col items-center gap-1 border-t pt-4">
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                  onClick={() =>
+                    onContinue({
+                      skipResearch: true,
+                      name: name.trim() || null,
+                      email: email.trim() || null,
+                      autonomyLevel,
+                    })
+                  }
+                >
+                  {t("skipCta")}
+                </button>
+                <p className="text-muted-foreground/60 max-w-xs text-center text-xs leading-relaxed">
+                  {t("skipCtaHelp")}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
 
-      <ConnectInterstitial
-        pending={
-          pendingConnect
-            ? {
-                provider: pendingConnect.provider,
-                providerName: tProviders(pendingConnect.provider),
-                mode: pendingConnect.mode,
-              }
-            : null
-        }
-        onCancel={() => setPendingConnect(null)}
-        onConfirm={() => {
-          if (!pendingConnect) return;
-          const { provider, mode } = pendingConnect;
-          setPendingConnect(null);
-          void runConnect(provider, mode);
-        }}
-      />
+        <ConnectInterstitial
+          pending={
+            pendingConnect
+              ? {
+                  provider: pendingConnect.provider,
+                  providerName: tProviders(pendingConnect.provider),
+                  mode: pendingConnect.mode,
+                }
+              : null
+          }
+          onCancel={() => setPendingConnect(null)}
+          onConfirm={() => {
+            if (!pendingConnect) return;
+            const { provider, mode } = pendingConnect;
+            setPendingConnect(null);
+            void runConnect(provider, mode);
+          }}
+        />
       </div>
     </FlowBackground>
   );
@@ -503,10 +503,7 @@ function StepIndicator({
       <span className="text-tertiary-foreground font-mono text-[10px] font-semibold uppercase tracking-wider tabular-nums">
         {label}
       </span>
-      <div
-        aria-hidden
-        className="flex w-full max-w-xs items-center gap-1.5"
-      >
+      <div aria-hidden className="flex w-full max-w-xs items-center gap-1.5">
         {Array.from({ length: total }, (_, i) => {
           const idx = i + 1;
           const filled = idx <= current;
@@ -681,8 +678,12 @@ function IntegrationRow({
           {showFullAccess ? (
             <div className="flex flex-col gap-2">
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Hermes will be able to <strong className="text-foreground">draft replies and act in your account on your behalf</strong>.
-                Only enable if you want it sending mail / creating events for you.
+                Hermes will be able to{" "}
+                <strong className="text-foreground">
+                  draft replies and act in your account on your behalf
+                </strong>
+                . Only enable if you want it sending mail / creating events for
+                you.
               </p>
               <div className="flex items-center gap-2">
                 <Button

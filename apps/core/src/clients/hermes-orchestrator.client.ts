@@ -378,7 +378,12 @@ export async function patchInstance(
     jsonBody: body,
   });
 
-  if (!res.ok && res.status !== 202 && res.status !== 200 && res.status !== 204) {
+  if (
+    !res.ok &&
+    res.status !== 202 &&
+    res.status !== 200 &&
+    res.status !== 204
+  ) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
 }

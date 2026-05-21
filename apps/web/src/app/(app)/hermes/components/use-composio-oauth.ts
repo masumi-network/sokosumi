@@ -26,7 +26,11 @@ interface CallbackMessage {
 
 export type ComposioOAuthResult =
   | { ok: true; integration: HermesIntegration }
-  | { ok: false; reason: "popup_blocked" | "popup_closed" | "timeout" | "error"; message?: string };
+  | {
+      ok: false;
+      reason: "popup_blocked" | "popup_closed" | "timeout" | "error";
+      message?: string;
+    };
 
 function isCallbackMessage(value: unknown): value is CallbackMessage {
   return (
@@ -79,7 +83,10 @@ export function useComposioOAuth() {
       provider: HermesIntegrationProvider,
       mode: HermesIntegrationMode = "read",
     ): Promise<ComposioOAuthResult> => {
-      const initiate = await initiateHermesIntegrationAction({ provider, mode });
+      const initiate = await initiateHermesIntegrationAction({
+        provider,
+        mode,
+      });
       if (!initiate.ok) {
         return {
           ok: false,
@@ -101,7 +108,12 @@ export function useComposioOAuth() {
 
       // Race: callback message wins, popup close loses, timeout loses last.
       const result = await new Promise<
-        | { kind: "message"; connectionId: string | null; status: "success" | "error"; errorMessage: string | null }
+        | {
+            kind: "message";
+            connectionId: string | null;
+            status: "success" | "error";
+            errorMessage: string | null;
+          }
         | { kind: "closed" }
         | { kind: "timeout" }
       >((resolve) => {
@@ -137,7 +149,8 @@ export function useComposioOAuth() {
       }
 
       if (result.kind === "timeout") return { ok: false, reason: "timeout" };
-      if (result.kind === "closed") return { ok: false, reason: "popup_closed" };
+      if (result.kind === "closed")
+        return { ok: false, reason: "popup_closed" };
 
       if (result.status === "error") {
         return {

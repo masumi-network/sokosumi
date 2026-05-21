@@ -652,23 +652,48 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
 }
 
 @keyframes hermes-blob-drift-1 {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
-  25%      { transform: translate3d(20vw, 12vh, 0) scale(1.18) rotate(8deg); }
-  50%      { transform: translate3d(28vw, 28vh, 0) scale(0.92) rotate(-4deg); }
-  75%      { transform: translate3d(6vw, 32vh, 0) scale(1.1) rotate(6deg); }
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(20vw, 12vh, 0) scale(1.18) rotate(8deg);
+  }
+  50% {
+    transform: translate3d(28vw, 28vh, 0) scale(0.92) rotate(-4deg);
+  }
+  75% {
+    transform: translate3d(6vw, 32vh, 0) scale(1.1) rotate(6deg);
+  }
 }
 
 @keyframes hermes-blob-drift-2 {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
-  25%      { transform: translate3d(-22vw, -18vh, 0) scale(1.2) rotate(-10deg); }
-  50%      { transform: translate3d(-30vw, 4vh, 0) scale(0.88) rotate(6deg); }
-  75%      { transform: translate3d(-12vw, -8vh, 0) scale(1.12) rotate(-4deg); }
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(-22vw, -18vh, 0) scale(1.2) rotate(-10deg);
+  }
+  50% {
+    transform: translate3d(-30vw, 4vh, 0) scale(0.88) rotate(6deg);
+  }
+  75% {
+    transform: translate3d(-12vw, -8vh, 0) scale(1.12) rotate(-4deg);
+  }
 }
 
 @keyframes hermes-blob-drift-3 {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
-  33%      { transform: translate3d(18vw, -22vh, 0) scale(1.25) rotate(12deg); }
-  66%      { transform: translate3d(-16vw, 14vh, 0) scale(0.85) rotate(-8deg); }
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate3d(18vw, -22vh, 0) scale(1.25) rotate(12deg);
+  }
+  66% {
+    transform: translate3d(-16vw, 14vh, 0) scale(0.85) rotate(-8deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -790,7 +815,9 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
  * Each dot uses the same keyframe; the JSX adds per-dot animation-delay so
  * they fire in sequence and the row reads as a typing indicator. */
 @keyframes thinking-dot {
-  0%, 80%, 100% {
+  0%,
+  80%,
+  100% {
     opacity: 0.2;
     transform: translateY(0);
   }

@@ -12,11 +12,12 @@ import RotatingMessages from "@/app/hermes/components/rotating-messages";
 const HINTS = [
   "Pro tip: ask \"what's important in my inbox today?\" once you're in.",
   "Hermes remembers your projects, your contacts, your preferences.",
-  "Try: \"every weekday at 8am, send me my inbox brief.\"",
+  'Try: "every weekday at 8am, send me my inbox brief."',
   "Hermes can hire other Sokosumi agents to help with research.",
   "Connect more tools later from Settings — Slack, Linear, Notion, more.",
   "Every morning Hermes will send a brief of what needs your attention.",
 ] as const;
+
 import { getHermesOnboardingProgressAction } from "@/lib/actions/hermes";
 import type {
   HermesOnboardingStep,
@@ -166,67 +167,67 @@ export default function OnboardingProgress({
   return (
     <FlowBackground>
       <div className="mx-auto w-full max-w-2xl px-6 py-12 md:py-20">
-      <ProgressPips current="personalizing" />
+        <ProgressPips current="personalizing" />
 
-      {/* ── Hero ────────────────────────────────────────────────── */}
-      <div className="mb-10 flex flex-col items-center text-center md:mb-12">
-        <div className="bg-card border-border/60 ring-border/40 relative size-16 overflow-hidden rounded-full border ring-4">
-          <Image
-            src="/images/hermes/avatar.png"
-            alt=""
-            fill
-            sizes="64px"
-            className="object-cover"
-          />
+        {/* ── Hero ────────────────────────────────────────────────── */}
+        <div className="mb-10 flex flex-col items-center text-center md:mb-12">
+          <div className="bg-card border-border/60 ring-border/40 relative size-16 overflow-hidden rounded-full border ring-4">
+            <Image
+              src="/images/hermes/avatar.png"
+              alt=""
+              fill
+              sizes="64px"
+              className="object-cover"
+            />
+          </div>
+          <h1 className="text-foreground mt-6 text-3xl font-semibold tracking-tight md:text-4xl">
+            {t("title")}
+          </h1>
+          <p className="text-muted-foreground mt-4 max-w-xl text-base leading-relaxed">
+            {t("subtitle")}
+          </p>
         </div>
-        <h1 className="text-foreground mt-6 text-3xl font-semibold tracking-tight md:text-4xl">
-          {t("title")}
-        </h1>
-        <p className="text-muted-foreground mt-4 max-w-xl text-base leading-relaxed">
-          {t("subtitle")}
-        </p>
-      </div>
 
-      {/* ── Steps ───────────────────────────────────────────────── */}
-      {/*
+        {/* ── Steps ───────────────────────────────────────────────── */}
+        {/*
         Before the orchestrator returns the real step list we render an
         animated skeleton with the labels we KNOW it will return — keeps
         the loader from snapping from a single "Warming things up" row to
         a full 5-step list, and gives the user something to read.
       */}
-      <ol className="border-border/60 bg-card/40 flex flex-col rounded-xl border">
-        {progress.steps.length === 0
-          ? SKELETON_STEPS.map((label, index) => (
-              <SkeletonRow
-                key={label}
-                label={label}
-                isFirst={index === 0}
-                isLast={index === SKELETON_STEPS.length - 1}
-              />
-            ))
-          : progress.steps.map((step, index) => (
-              <StepRow
-                key={step.id}
-                step={step}
-                isLast={index === progress.steps.length - 1}
-              />
-            ))}
-      </ol>
+        <ol className="border-border/60 bg-card/40 flex flex-col rounded-xl border">
+          {progress.steps.length === 0
+            ? SKELETON_STEPS.map((label, index) => (
+                <SkeletonRow
+                  key={label}
+                  label={label}
+                  isFirst={index === 0}
+                  isLast={index === SKELETON_STEPS.length - 1}
+                />
+              ))
+            : progress.steps.map((step, index) => (
+                <StepRow
+                  key={step.id}
+                  step={step}
+                  isLast={index === progress.steps.length - 1}
+                />
+              ))}
+        </ol>
 
-      {/* Rotating hint instead of the misleading countdown. The orchestrator
+        {/* Rotating hint instead of the misleading countdown. The orchestrator
           ETA is wildly variable (Composio MCP cold-start, OAuth verification,
           Gmail inbox size) so a per-second number reads as broken when it
           inevitably drifts. Honest copy + something fun to read. */}
-      <div className="mt-6 flex min-h-[2.5rem] items-center justify-center">
-        <RotatingMessages
-          messages={HINTS}
-          intervalMs={5_500}
-          className="text-muted-foreground max-w-md text-center text-xs leading-relaxed"
-        />
-      </div>
-      <p className="text-muted-foreground/60 mt-2 text-center text-[11px]">
-        This usually takes a couple of minutes. You can close this tab.
-      </p>
+        <div className="mt-6 flex min-h-[2.5rem] items-center justify-center">
+          <RotatingMessages
+            messages={HINTS}
+            intervalMs={5_500}
+            className="text-muted-foreground max-w-md text-center text-xs leading-relaxed"
+          />
+        </div>
+        <p className="text-muted-foreground/60 mt-2 text-center text-[11px]">
+          This usually takes a couple of minutes. You can close this tab.
+        </p>
       </div>
     </FlowBackground>
   );

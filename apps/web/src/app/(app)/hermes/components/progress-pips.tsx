@@ -33,7 +33,9 @@ export default function ProgressPips({ current }: ProgressPipsProps) {
             <div
               className={cn(
                 "flex items-center gap-1.5 text-xs transition-colors",
-                isCurrent ? "text-foreground font-medium" : "text-muted-foreground/60",
+                isCurrent
+                  ? "text-foreground font-medium"
+                  : "text-muted-foreground/60",
               )}
             >
               <span
@@ -48,10 +50,7 @@ export default function ProgressPips({ current }: ProgressPipsProps) {
               <span>{LABELS[step]}</span>
             </div>
             {idx < STEPS.length - 1 && (
-              <div
-                aria-hidden
-                className="bg-border h-px w-6"
-              />
+              <div aria-hidden className="bg-border h-px w-6" />
             )}
           </div>
         );

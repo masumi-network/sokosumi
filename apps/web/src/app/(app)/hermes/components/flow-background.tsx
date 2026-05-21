@@ -26,8 +26,7 @@ export default function FlowBackground({
   className,
   intensity = "full",
 }: FlowBackgroundProps) {
-  const opacityClass =
-    intensity === "subtle" ? "opacity-60" : "opacity-100";
+  const opacityClass = intensity === "subtle" ? "opacity-60" : "opacity-100";
 
   return (
     <div className={cn("relative min-h-full w-full", className)}>
