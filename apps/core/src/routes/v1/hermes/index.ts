@@ -479,6 +479,18 @@ async function upsertHermesInstanceForUser(userId: string): Promise<void> {
 const HERMES_WELCOME_UUID_NAMESPACE = "f4e5b2cd-1c1a-4d8a-9a2e-7c1ad1b8d5a9";
 
 /**
+ * Per-process memo of welcome ids we've already persisted this lifetime.
+ * GET /me/instance is on the hot polling path; without this every poll
+ * would issue a (no-op but real) upsert round-trip to Postgres for users
+ * whose welcome is long since written. The upsert is the correctness
+ * floor; this is the latency optimization.
+ *
+ * Cold starts / horizontally-scaled instances each have their own memo —
+ * worst case we issue one extra upsert per process per user. Acceptable.
+ */
+const persistedWelcomeIds = new Set<string>();
+
+/**
  * Persist the orchestrator's one-shot welcome into our local message log.
  *
  * Idempotent via a deterministic UUIDv5 id derived from
@@ -504,6 +516,11 @@ async function persistHermesWelcomeMessage(args: {
     HERMES_WELCOME_UUID_NAMESPACE,
   );
 
+  // Already persisted in this process — skip the DB round-trip on the hot
+  // polling path. The first poll after a process start still pays the
+  // upsert cost; everything after that is in-memory.
+  if (persistedWelcomeIds.has(id)) return;
+
   await prisma.hermesMessage.upsert({
     where: { id },
     create: {
@@ -518,6 +535,8 @@ async function persistHermesWelcomeMessage(args: {
     // conflict to coalesce concurrent inserts atomically.
     update: {},
   });
+
+  persistedWelcomeIds.add(id);
 }
 
 const postChatRoute = withGlobalHeaderParameters(
