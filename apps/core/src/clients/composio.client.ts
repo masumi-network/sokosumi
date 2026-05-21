@@ -91,9 +91,15 @@ function authConfigName(toolkit: ComposioToolkit): string {
   return `${RECORD_NAME_PREFIX}-${toolkit}-auth-v1`;
 }
 
+/** Composio enforces a 30-char cap on MCP server names. */
+const MAX_MCP_SERVER_NAME_LENGTH = 30;
+
 function mcpServerName(toolkit: ComposioToolkit, mode: ComposioMode): string {
-  // Composio enforces a 30-character cap on MCP server names. Use compact
-  // toolkit aliases so every combo fits within `hermes-<alias>-<mode>-v5`.
+  // Use compact toolkit aliases so every combo fits within
+  // `hermes-<alias>-<mode>-v5`. New toolkits with long slugs MUST get an
+  // alias here — the assertion below fails fast at startup (the lazy ensure
+  // path runs on first integration use) so we catch it before the
+  // Composio API rejects the create with a confusing 400.
   const alias =
     toolkit === "googlecalendar"
       ? "gcal"
@@ -106,7 +112,14 @@ function mcpServerName(toolkit: ComposioToolkit, mode: ComposioMode): string {
             : toolkit;
   // v5 = post-discovery that single-prefix `OUTLOOK_*` mail tools work
   // (v4 was created with a too-narrow Outlook allow_tools list).
-  return `${RECORD_NAME_PREFIX}-${alias}-${mode}-v5`;
+  const name = `${RECORD_NAME_PREFIX}-${alias}-${mode}-v5`;
+  if (name.length > MAX_MCP_SERVER_NAME_LENGTH) {
+    throw new ComposioConfigError(
+      `MCP server name "${name}" is ${name.length} chars, exceeds Composio's ${MAX_MCP_SERVER_NAME_LENGTH}-char cap. ` +
+        `Add a shorter alias for toolkit "${toolkit}" in mcpServerName().`,
+    );
+  }
+  return name;
 }
 
 export class ComposioConfigError extends Error {

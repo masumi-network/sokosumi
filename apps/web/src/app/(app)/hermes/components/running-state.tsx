@@ -146,6 +146,34 @@ export default function RunningState({
   const [files, setFiles] = useState<File[]>([]);
   const [isReplying, setIsReplying] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Confirmation IDs the user already approved/rejected. We hide them
+  // optimistically the moment the orchestrator returns 200, then prune
+  // the set once the next poll confirms the row left `pendingConfirmations`
+  // server-side. Without this, an "errored" approval would leave a stuck
+  // resolved card on screen forever.
+  const [dismissedConfirmationIds, setDismissedConfirmationIds] = useState<
+    Set<string>
+  >(() => new Set());
+
+  // Reconcile dismissed set with the latest poll: if an id is no longer in
+  // pendingConfirmations, the orchestrator agreed and we can stop tracking
+  // it locally. Keeps the set from growing unbounded.
+  useEffect(() => {
+    if (!instance) return;
+    const live = new Set(instance.pendingConfirmations.map((c) => c.id));
+    setDismissedConfirmationIds((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (live.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [instance]);
 
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -461,12 +489,21 @@ export default function RunningState({
                 />
               ))}
               {isReplying ? <AssistantTyping /> : null}
-              {(instance?.pendingConfirmations ?? []).map((confirmation) => (
-                <ConfirmationCard
-                  key={confirmation.id}
-                  confirmation={confirmation}
-                />
-              ))}
+              {(instance?.pendingConfirmations ?? [])
+                .filter((c) => !dismissedConfirmationIds.has(c.id))
+                .map((confirmation) => (
+                  <ConfirmationCard
+                    key={confirmation.id}
+                    confirmation={confirmation}
+                    onResolved={(id) =>
+                      setDismissedConfirmationIds((prev) => {
+                        const next = new Set(prev);
+                        next.add(id);
+                        return next;
+                      })
+                    }
+                  />
+                ))}
             </div>
           </div>
         )}
@@ -1043,24 +1080,22 @@ type HermesIntegrationPublic = NonNullable<
 type HermesIntegrationProvider = HermesIntegrationPublic["provider"];
 
 /**
- * Inline approve/reject card for medium-autonomy gates. The orchestrator
- * intercepted a write/spend tool call from Hermes and put it in a queue;
- * this card renders the summary + buttons that resolve it. After approve
- * or reject we don't optimistically remove the card — the instance poll
- * naturally drops it from `pendingConfirmations` once the orchestrator
- * confirms (we just show "Resolved" briefly if the resolve call succeeds
- * but the poll hasn't caught up yet).
+ * Inline approve/reject card for medium-autonomy gates. Per the orchestrator
+ * spec, the card hides on every 200 — including when `status === "errored"`.
+ * Errors are surfaced as a toast instead of pinning a resolved card in the
+ * chat (otherwise an erroring approval would block the next confirmation
+ * from being interactive). The parent owns the "dismissed" set so the card
+ * stays hidden across re-polls even if the orchestrator hasn't dropped the
+ * row from `pendingConfirmations` yet.
  */
 function ConfirmationCard({
   confirmation,
+  onResolved,
 }: {
   confirmation: HermesPendingConfirmation;
+  onResolved: (confirmationId: string) => void;
 }) {
   const [busy, setBusy] = useState<"approving" | "rejecting" | null>(null);
-  const [resolved, setResolved] = useState<{
-    kind: "approved" | "rejected" | "errored";
-    error?: string | null;
-  } | null>(null);
 
   const handleApprove = async () => {
     if (busy) return;
@@ -1074,10 +1109,13 @@ function ConfirmationCard({
       return;
     }
     if (result.data.status === "errored") {
-      setResolved({ kind: "errored", error: result.data.error });
-      return;
+      toast.error(
+        result.data.error ?? "Hermes' action errored after approval.",
+      );
+    } else if (result.data.status === "approved") {
+      toast.success("Approved. Hermes will run the action.");
     }
-    setResolved({ kind: "approved" });
+    onResolved(confirmation.id);
   };
 
   const handleReject = async () => {
@@ -1091,41 +1129,8 @@ function ConfirmationCard({
       toast.error(result.error.message ?? "Couldn't reject.");
       return;
     }
-    setResolved({ kind: "rejected" });
+    onResolved(confirmation.id);
   };
-
-  if (resolved) {
-    return (
-      <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
-        <AssistantAvatar />
-        <div className="border-border/60 bg-card/60 flex min-w-0 flex-1 flex-col gap-2 rounded-2xl border px-4 py-3 backdrop-blur-sm">
-          {resolved.kind === "approved" ? (
-            <div className="text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-2 text-sm font-medium">
-              <Check className="size-4" aria-hidden />
-              <span>Approved. Hermes will run the action.</span>
-            </div>
-          ) : resolved.kind === "rejected" ? (
-            <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
-              <X className="size-4" aria-hidden />
-              <span>Rejected. Hermes will adapt on its next turn.</span>
-            </div>
-          ) : (
-            <div className="text-destructive flex flex-col gap-1">
-              <div className="inline-flex items-center gap-2 text-sm font-medium">
-                <AlertCircle className="size-4" aria-hidden />
-                <span>The action errored.</span>
-              </div>
-              {resolved.error ? (
-                <p className="text-destructive/80 text-xs leading-relaxed">
-                  {resolved.error}
-                </p>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
