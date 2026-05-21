@@ -1765,7 +1765,6 @@
         "moreLaterHelp": "From Settings, once Hermes is set up.",
         "continueCta": "Set up my agent",
         "continueWithCount": "Continuing with {count, plural, =0 {no integrations} =1 {# integration} other {# integrations}}",
-        "comingSoonStub": "Composio wiring lands in the next change. For now this button is a placeholder.",
         "footnote": "You can add or remove integrations any time from Settings."
       },
       "OnboardingProgress": {
