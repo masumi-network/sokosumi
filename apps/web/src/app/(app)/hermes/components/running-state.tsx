@@ -1,7 +1,16 @@
 "use client";
 
-import { AlertCircle, Check, Loader2, Plug, Plus, X } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowUpRight,
+  Check,
+  Loader2,
+  Plug,
+  Plus,
+  X,
+} from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   type FormEvent,
@@ -680,6 +689,14 @@ function MessageRow({
     ? extractSuggestedPrompts(message.content)
     : [];
 
+  // Detect orchestrator-pushed "confirmation_resolved" messages with a
+  // sokosumi_create_task payload and split them into prose + task card so
+  // the user doesn't have to read raw JSON in chat.
+  const parsedConfirmation =
+    message.kind === "confirmation_resolved"
+      ? parseConfirmationResolved(message.content)
+      : null;
+
   return (
     <div className="group/message flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
       <AssistantAvatar accent={Boolean(chip)} />
@@ -689,9 +706,20 @@ function MessageRow({
             {chip.label}
           </span>
         ) : null}
-        <Markdown className="text-foreground pt-1 pr-10 pb-1 text-sm">
-          {message.content}
-        </Markdown>
+        {parsedConfirmation ? (
+          <div className="flex flex-col gap-3 pt-1 pr-10 pb-1">
+            <p className="text-foreground text-sm leading-relaxed">
+              {parsedConfirmation.summary}
+            </p>
+            {parsedConfirmation.task ? (
+              <TaskResultCard task={parsedConfirmation.task} />
+            ) : null}
+          </div>
+        ) : (
+          <Markdown className="text-foreground pt-1 pr-10 pb-1 text-sm">
+            {message.content}
+          </Markdown>
+        )}
         {suggestions.length > 0 ? (
           <div className="mt-4 mb-2 flex flex-col gap-2 pr-10 sm:flex-row sm:flex-wrap">
             {suggestions.map((prompt) => (
@@ -1132,19 +1160,23 @@ function ConfirmationCard({
     onResolved(confirmation.id);
   };
 
+  const tool = describeConfirmationTool(confirmation.toolName);
+
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
       <AssistantAvatar accent />
       <div className="border-amber-500/30 bg-amber-500/[0.06] flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border px-4 py-3 backdrop-blur-sm">
         <div className="text-amber-700 dark:text-amber-400 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
           <AlertCircle className="size-3.5" aria-hidden />
-          <span>Hermes wants to act</span>
+          <span>Hermes needs your okay</span>
         </div>
-        <p className="text-foreground text-sm leading-relaxed">
-          {confirmation.summary}
-        </p>
-        <div className="text-tertiary-foreground font-mono text-xs">
-          {confirmation.toolName}
+        <div className="flex flex-col gap-1">
+          <div className="text-foreground text-sm font-semibold tracking-tight">
+            {tool.action}
+          </div>
+          <p className="text-foreground/90 text-sm leading-relaxed">
+            {confirmation.summary}
+          </p>
         </div>
         <div className="flex items-center gap-2 pt-1">
           <Button
@@ -1181,4 +1213,208 @@ function ConfirmationCard({
       </div>
     </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Confirmation-resolved message rendering
+//
+// The orchestrator pushes a `confirmation_resolved` outbox message after the
+// user approves a tool call, with body shaped like:
+//
+//   The user approved your earlier sokosumi_create_task request. The action
+//   was executed; here's the result you can act on:
+//   { ...big JSON blob... }
+//
+// Dumping that JSON in chat is hostile. Parse it, render the prose intro,
+// and if the payload is a known shape (currently sokosumi_create_task)
+// render a Task Card linking to /tasks/:id instead.
+
+interface ParsedTaskResult {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string | null;
+  credits: number | null;
+  coworker: { name: string; image: string | null } | null;
+  organization: { name: string; slug: string | null } | null;
+}
+
+interface ParsedConfirmationResolved {
+  /** Prose lead-in with the JSON block stripped out. */
+  summary: string;
+  /** Populated when the JSON payload matched the sokosumi_create_task shape. */
+  task: ParsedTaskResult | null;
+}
+
+function parseConfirmationResolved(
+  content: string,
+): ParsedConfirmationResolved | null {
+  if (!content) return null;
+  // Find the first opening brace at the start of a line, take everything
+  // from there as the JSON region. The intro prose is whatever comes before.
+  const braceIdx = content.search(/^\s*{/m);
+  if (braceIdx < 0) {
+    // No JSON in the body — just return the message as-is so the caller
+    // can render it as plain markdown again.
+    return null;
+  }
+  const summary = content.slice(0, braceIdx).trim();
+  const rawJson = content.slice(braceIdx).trim();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    return { summary: summary || content, task: null };
+  }
+
+  return {
+    summary: summary || "Hermes ran your approved action.",
+    task: extractTaskFromConfirmation(parsed),
+  };
+}
+
+function extractTaskFromConfirmation(
+  payload: unknown,
+): ParsedTaskResult | null {
+  if (!payload || typeof payload !== "object") return null;
+  const root = payload as Record<string, unknown>;
+  const taskWrapper = root.task as Record<string, unknown> | undefined;
+  const data = (taskWrapper?.data ?? taskWrapper) as
+    | Record<string, unknown>
+    | undefined;
+  if (!data || typeof data !== "object") return null;
+
+  const id = typeof data.id === "string" ? data.id : null;
+  const name = typeof data.name === "string" ? data.name : null;
+  if (!id || !name) return null;
+
+  const coworker = data.coworker as Record<string, unknown> | null | undefined;
+  const organization = data.organization as
+    | Record<string, unknown>
+    | null
+    | undefined;
+
+  return {
+    id,
+    name,
+    description: typeof data.description === "string" ? data.description : null,
+    status: typeof data.status === "string" ? data.status : null,
+    credits: typeof data.credits === "number" ? data.credits : null,
+    coworker: coworker
+      ? {
+          name: typeof coworker.name === "string" ? coworker.name : "Coworker",
+          image: typeof coworker.image === "string" ? coworker.image : null,
+        }
+      : null,
+    organization: organization
+      ? {
+          name:
+            typeof organization.name === "string"
+              ? organization.name
+              : "Organization",
+          slug:
+            typeof organization.slug === "string" ? organization.slug : null,
+        }
+      : null,
+  };
+}
+
+/**
+ * A compact card for `sokosumi_create_task` results pushed via
+ * `confirmation_resolved`. Replaces what would otherwise be a 60-line raw
+ * JSON dump with the bits a human actually wants: name, who it's assigned
+ * to, status, and a deep link.
+ */
+function TaskResultCard({ task }: { task: ParsedTaskResult }) {
+  return (
+    <Link
+      href={`/tasks/${task.id}`}
+      className="border-border bg-card/60 hover:border-foreground/30 hover:bg-card group/task-card flex max-w-2xl flex-col gap-3 rounded-2xl border p-4 transition-colors"
+    >
+      <div className="flex items-center gap-2">
+        {task.coworker?.image ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={task.coworker.image}
+            alt=""
+            className="border-border size-6 shrink-0 rounded-full border"
+          />
+        ) : task.coworker ? (
+          <span className="bg-muted text-muted-foreground inline-flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+            {task.coworker.name.charAt(0).toUpperCase()}
+          </span>
+        ) : null}
+        <span className="text-foreground text-sm font-medium">
+          {task.coworker?.name ?? "Task"}
+        </span>
+        {task.organization ? (
+          <>
+            <span className="text-tertiary-foreground text-xs">·</span>
+            <span className="text-muted-foreground text-xs">
+              {task.organization.name}
+            </span>
+          </>
+        ) : null}
+        {task.status ? (
+          <span className="border-border/60 text-muted-foreground ml-auto rounded-full border px-1.5 py-0.5 text-xs font-medium uppercase tracking-wider">
+            {task.status.toLowerCase()}
+          </span>
+        ) : null}
+      </div>
+
+      <div>
+        <div className="text-foreground text-base font-semibold tracking-tight">
+          {task.name}
+        </div>
+        {task.description ? (
+          <p className="text-muted-foreground mt-1 line-clamp-3 text-sm leading-relaxed">
+            {task.description}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="text-muted-foreground group-hover/task-card:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors">
+        <span>View task</span>
+        <ArrowUpRight className="size-3.5" aria-hidden />
+      </div>
+    </Link>
+  );
+}
+
+/**
+ * Maps a tool slug to user-facing copy for the confirmation card.
+ * Hides the technical sokosumi_* prefix; falls back to the raw slug for
+ * future kinds.
+ */
+function describeConfirmationTool(toolName: string): {
+  action: string;
+  helper: string;
+} {
+  switch (toolName) {
+    case "sokosumi_create_task":
+      return { action: "Create a task", helper: "Adds a task in Sokosumi." };
+    case "sokosumi_create_job":
+      return {
+        action: "Run an agent job",
+        helper: "Spends credits to run a job.",
+      };
+    case "sokosumi_add_task_comment":
+      return {
+        action: "Add a comment",
+        helper: "Posts a comment on a task.",
+      };
+    case "sokosumi_provide_job_input":
+      return {
+        action: "Send job input",
+        helper: "Fulfills a job that's waiting on you.",
+      };
+    case "sokosumi_refund_job":
+      return {
+        action: "Request a refund",
+        helper: "Asks Sokosumi to refund a failed job.",
+      };
+    default:
+      return { action: toolName, helper: "" };
+  }
 }
