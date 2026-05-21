@@ -252,18 +252,21 @@ async function orchFetch(
   init: HermesOrchestratorFetchInit = {},
 ): Promise<Response> {
   const env = getEnv();
-  const headers = new Headers(init.headers);
+  // Strip our custom field before forwarding to native fetch — see same
+  // pattern in composio.client.ts.
+  const { jsonBody, headers: initHeaders, body: initBody, ...fetchInit } = init;
+
+  const headers = new Headers(initHeaders);
   headers.set("Authorization", `Bearer ${env.HERMES_ORCH_TOKEN}`);
 
-  if (init.jsonBody !== undefined) {
+  if (jsonBody !== undefined) {
     headers.set("Content-Type", "application/json");
   }
 
-  const body =
-    init.jsonBody !== undefined ? JSON.stringify(init.jsonBody) : init.body;
+  const body = jsonBody !== undefined ? JSON.stringify(jsonBody) : initBody;
 
   return fetch(`${env.HERMES_ORCH_BASE_URL}${path}`, {
-    ...init,
+    ...fetchInit,
     headers,
     body,
     cache: "no-store",

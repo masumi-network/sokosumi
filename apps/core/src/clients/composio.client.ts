@@ -157,25 +157,29 @@ async function composioFetch(
     );
   }
 
+  // Pull our custom fields out before forwarding the rest to native fetch —
+  // current runtimes silently ignore unknown options, but stricter ones
+  // (or future spec changes) might not.
+  const { jsonBody, searchParams, headers: initHeaders, ...fetchInit } = init;
+
   const url = new URL(path, env.COMPOSIO_API_BASE_URL);
-  if (init.searchParams) {
-    for (const [key, value] of Object.entries(init.searchParams)) {
+  if (searchParams) {
+    for (const [key, value] of Object.entries(searchParams)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
     }
   }
 
-  const headers = new Headers(init.headers);
+  const headers = new Headers(initHeaders);
   // Composio v3 uses `x-api-key`, NOT `Authorization: Bearer`.
   headers.set("x-api-key", env.COMPOSIO_API_KEY);
-  if (init.jsonBody !== undefined) {
+  if (jsonBody !== undefined) {
     headers.set("Content-Type", "application/json");
   }
 
   return fetch(url.toString(), {
-    ...init,
+    ...fetchInit,
     headers,
-    body:
-      init.jsonBody !== undefined ? JSON.stringify(init.jsonBody) : undefined,
+    body: jsonBody !== undefined ? JSON.stringify(jsonBody) : undefined,
     cache: "no-store",
   });
 }
