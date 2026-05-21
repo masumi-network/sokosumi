@@ -6,6 +6,8 @@ import { toast } from "sonner";
 
 import EmptyState from "@/app/hermes/components/empty-state";
 import ErrorState from "@/app/hermes/components/error-state";
+import OnboardingProgress from "@/app/hermes/components/onboarding-progress";
+import OnboardingScreen from "@/app/hermes/components/onboarding-screen";
 import ProvisioningState from "@/app/hermes/components/provisioning-state";
 import RunningState from "@/app/hermes/components/running-state";
 import {
@@ -13,40 +15,96 @@ import {
   getHermesInstanceAction,
   listHermesMessagesAction,
   provisionHermesAction,
+  startHermesOnboardingAction,
 } from "@/lib/actions/hermes";
 import type {
+  HermesAutonomyLevel,
   HermesInstancePublic,
   HermesInstanceStatus,
   HermesPersistedMessage,
 } from "@/lib/hermes/types";
 
-type UiState = "loading" | "idle" | "provisioning" | "running" | "error";
+type UiState =
+  | "loading"
+  | "idle"
+  | "provisioning"
+  | "infrastructure_ready"
+  | "onboarding"
+  | "running"
+  | "error";
 
 interface HermesExperienceProps {
   userName?: string | null;
+  userEmail?: string | null;
   userImageUrl?: string | null;
 }
 
 const POLL_INTERVAL_MS = 5_000;
 const PROVISION_DEADLINE_MS = 15 * 60_000;
 
+const PREVIEW_STATES = new Set<UiState>([
+  "idle",
+  "provisioning",
+  "infrastructure_ready",
+  "onboarding",
+  "running",
+  "error",
+]);
+
 function uiStateForServerStatus(status: HermesInstanceStatus): UiState {
-  if (status === "running" || status === "suspended") return "running";
-  if (status === "provisioning") return "provisioning";
-  return "error";
+  switch (status) {
+    case "provisioning":
+      return "provisioning";
+    case "infrastructure_ready":
+      return "infrastructure_ready";
+    case "onboarding":
+      return "onboarding";
+    case "ready":
+    case "running":
+    case "suspended":
+      return "running";
+    case "error":
+      return "error";
+  }
+}
+
+/** Statuses that warrant continuous instance polling (waiting for a flip). */
+function isPollableTransitionState(status: UiState): boolean {
+  return status === "provisioning" || status === "onboarding";
+}
+
+/**
+ * Forward-only rank for the Hermes state machine. The polling effect uses
+ * this to ignore stale orchestrator reads (e.g. an `infrastructure_ready`
+ * response that arrives moments after we've already kicked off /onboard and
+ * optimistically moved the UI to `onboarding`). Without this guard, the user
+ * ping-pongs between screens during the few seconds the orchestrator takes
+ * to mark its own status. `error` is treated as terminal and always allowed.
+ */
+const STATE_RANK: Record<UiState, number> = {
+  loading: 0,
+  idle: 1,
+  provisioning: 2,
+  infrastructure_ready: 3,
+  onboarding: 4,
+  running: 5,
+  error: 99,
+};
+
+function isForwardTransition(from: UiState, to: UiState): boolean {
+  if (to === "error") return true;
+  return STATE_RANK[to] >= STATE_RANK[from];
 }
 
 export default function HermesExperience({
   userName,
+  userEmail,
   userImageUrl,
 }: HermesExperienceProps) {
   const params = useSearchParams();
   const previewParam = params?.get("state");
   const previewMode =
-    previewParam === "idle" ||
-    previewParam === "provisioning" ||
-    previewParam === "running" ||
-    previewParam === "error";
+    previewParam !== null && PREVIEW_STATES.has(previewParam as UiState);
 
   const [uiState, setUiState] = useState<UiState>(
     previewMode ? (previewParam as UiState) : "loading",
@@ -97,11 +155,12 @@ export default function HermesExperience({
     };
   }, [previewMode, refetchHermes]);
 
-  // Polling loop bound to the `provisioning` UI state. Starts on entry,
-  // teardown cancels in-flight requests and clears the timer.
+  // Polling loop bound to any transitional state (`provisioning` or
+  // `onboarding`). Starts on entry, teardown cancels in-flight requests
+  // and clears the timer.
   useEffect(() => {
     if (previewMode) return;
-    if (uiState !== "provisioning") return;
+    if (!isPollableTransitionState(uiState)) return;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -125,8 +184,19 @@ export default function HermesExperience({
       }
       if (result.data) {
         const next = uiStateForServerStatus(result.data.status);
-        if (next !== "provisioning") {
+        // Ignore stale polls that would walk the state backwards (e.g. a poll
+        // racing the orchestrator's status flip right after we POST /onboard).
+        if (!isForwardTransition(uiState, next)) {
+          setInstance(result.data);
+          timer = setTimeout(() => void tick(), POLL_INTERVAL_MS);
+          return;
+        }
+        if (!isPollableTransitionState(next)) {
           if (next === "running") {
+            // Orchestrator only flips to `ready` once the welcome message
+            // (or a fallback) is already enqueued in the inbox. Our dev
+            // poller + chat's own 5s poll will surface it; we preload here
+            // so the chat opens with the welcome already rendered.
             const messagesResult = await listHermesMessagesAction({});
             if (cancelled) return;
             if (messagesResult.ok) setInitialMessages(messagesResult.data);
@@ -137,6 +207,7 @@ export default function HermesExperience({
           return;
         }
         setInstance(result.data);
+        if (next !== uiState) setUiState(next);
       } else {
         // Provision call succeeded but the instance disappeared — treat as error.
         setUiState("error");
@@ -198,6 +269,47 @@ export default function HermesExperience({
     setUiState("idle");
   }, [previewMode]);
 
+  /**
+   * Kicks off the orchestrator's research-intro flow. After the POST
+   * returns, the orchestrator flips status to `onboarding`; our polling
+   * effect catches it and routes to OnboardingProgress, then to RunningState
+   * once status flips to `ready`. In preview mode we simulate the transition
+   * with a timer so the design loop is walkable without backend.
+   */
+  const handleStartOnboarding = useCallback(
+    async (options: {
+      skipResearch: boolean;
+      name: string | null;
+      email: string | null;
+      autonomyLevel: HermesAutonomyLevel;
+    }) => {
+      setUiState("onboarding");
+
+      if (previewMode) {
+        // Mock orchestrator flow: ~30s "research", then flip to running.
+        setTimeout(() => {
+          setUiState("running");
+        }, 30_000);
+        return;
+      }
+
+      const result = await startHermesOnboardingAction({
+        skipResearch: options.skipResearch,
+        name: options.name,
+        email: options.email,
+        autonomyLevel: options.autonomyLevel,
+      });
+      if (!result.ok) {
+        toast.error(result.error.message ?? "Couldn't start onboarding.");
+        setUiState("infrastructure_ready");
+        return;
+      }
+      // The polling effect (now active for `onboarding`) will detect when
+      // status flips to `ready` and route us to RunningState.
+    },
+    [previewMode],
+  );
+
   if (uiState === "loading") {
     // Stay blank while we fetch — avoids a flash of the wrong state.
     return null;
@@ -208,6 +320,20 @@ export default function HermesExperience({
   }
   if (uiState === "provisioning") {
     return <ProvisioningState />;
+  }
+  if (uiState === "infrastructure_ready") {
+    return (
+      <OnboardingScreen
+        defaultName={userName ?? ""}
+        defaultEmail={userEmail ?? ""}
+        integrations={instance?.integrations ?? []}
+        previewMode={previewMode}
+        onContinue={(opts) => void handleStartOnboarding(opts)}
+      />
+    );
+  }
+  if (uiState === "onboarding") {
+    return <OnboardingProgress previewMode={previewMode} />;
   }
   if (uiState === "error") {
     return (

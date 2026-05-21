@@ -17,6 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function HermesPage() {
   const session = await getSession();
   const userName = session?.user.name ?? null;
+  const userEmail = session?.user.email ?? null;
   const userImageUrl = session?.user.image
     ? session.user.image
     : session?.user.email
@@ -25,7 +26,11 @@ export default async function HermesPage() {
 
   return (
     <Suspense fallback={null}>
-      <HermesExperience userName={userName} userImageUrl={userImageUrl} />
+      <HermesExperience
+        userName={userName}
+        userEmail={userEmail}
+        userImageUrl={userImageUrl}
+      />
     </Suspense>
   );
 }

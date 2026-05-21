@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 
 import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 
+import FullscreenEffect from "./components/fullscreen-effect";
+
 interface HermesLayoutProps {
   children: ReactNode;
 }
@@ -12,5 +14,10 @@ export default async function HermesLayout({ children }: HermesLayoutProps) {
     notFound();
   }
 
-  return children;
+  return (
+    <>
+      <FullscreenEffect />
+      {children}
+    </>
+  );
 }

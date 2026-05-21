@@ -10,8 +10,13 @@ import {
 } from "@/lib/clients/core.client";
 import type { HermesInstance } from "@/lib/clients/generated/core";
 import type {
+  HermesAutonomyLevel,
   HermesInstancePublic,
+  HermesIntegration,
+  HermesIntegrationProvider,
   HermesPersistedMessage,
+  HermesSchedule,
+  HermesScheduleSource,
 } from "@/lib/hermes/types";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
@@ -38,11 +43,16 @@ function mapHermesInstance(
   instance: HermesInstance | null,
 ): HermesInstancePublic | null {
   if (!instance) return null;
-
   return {
     status: instance.status,
     endpointUrl: instance.endpointUrl,
     lastActivityAt: toIsoString(instance.lastActivityAt),
+    onboardedAt: toIsoString(instance.onboardedAt),
+    autonomyLevel: (instance.autonomyLevel ?? "medium") as HermesAutonomyLevel,
+    integrations: instance.integrations.map(mapHermesIntegration),
+    transitioning: instance.transitioning ?? false,
+    lastSokosumiSyncAt: toIsoString(instance.lastSokosumiSyncAt ?? null),
+    lastInboxRefreshAt: toIsoString(instance.lastInboxRefreshAt ?? null),
   };
 }
 
@@ -194,6 +204,274 @@ export const setHermesSecretAction = withSession<
   try {
     await coreClient.setHermesSecret({ key, value });
     return Ok();
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Onboarding v2 actions — wired to apps/core which proxies to the orchestrator.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function mapHermesIntegration(integration: {
+  provider: HermesIntegrationProvider | string;
+  status: string;
+  connectedAt: Date | string | null;
+  mode?: string | null;
+}): HermesIntegration {
+  return {
+    provider: integration.provider as HermesIntegrationProvider,
+    status: integration.status as HermesIntegration["status"],
+    connectedAt: toIsoString(integration.connectedAt),
+    mode: integration.mode === "write" ? "write" : "read",
+  };
+}
+
+interface StartOnboardingArgs extends AuthenticatedRequest {
+  /** When true, the orchestrator skips the public-web research pass. */
+  skipResearch: boolean;
+  name?: string | null;
+  email?: string | null;
+  /** Optional autonomy override; PATCHed onto the instance before start. */
+  autonomyLevel?: HermesAutonomyLevel | null;
+}
+
+/**
+ * Fires `POST /hermes/me/instance/onboard` on apps/core. After this returns,
+ * the orchestrator flips status to `onboarding`; the client should poll
+ * `getHermesInstanceAction` (already polling) and
+ * `getHermesOnboardingProgressAction` for step-by-step UI updates.
+ */
+export const startHermesOnboardingAction = withSession<
+  StartOnboardingArgs,
+  Result<void, ActionError>
+>(async ({ skipResearch, name, email, autonomyLevel }) => {
+  try {
+    await coreClient.startHermesOnboarding({
+      name: name ?? undefined,
+      email: email ?? undefined,
+      // "shallow" = web-only research (used by skip-for-now path);
+      // "deep" = inbox + web (default for users who connected integrations).
+      researchDepth: skipResearch ? "shallow" : "deep",
+      autonomyLevel: autonomyLevel ?? undefined,
+    });
+    return Ok();
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+interface UpdateHermesInstanceArgs extends AuthenticatedRequest {
+  autonomyLevel?: HermesAutonomyLevel;
+  name?: string | null;
+  email?: string | null;
+}
+
+/**
+ * PATCH /hermes/me/instance — update autonomy or identity hints on an
+ * existing instance. Caller should refresh `getHermesInstanceAction` after
+ * this resolves to pick up the new values.
+ */
+export const updateHermesInstanceAction = withSession<
+  UpdateHermesInstanceArgs,
+  Result<HermesInstancePublic, ActionError>
+>(async ({ autonomyLevel, name, email }) => {
+  try {
+    const response = await coreClient.updateHermesInstance({
+      autonomyLevel,
+      name: name ?? undefined,
+      email: email ?? undefined,
+    });
+    return Ok(mapHermesInstance(response.data)!);
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+export interface HermesOnboardingProgressPayload {
+  status: string;
+  steps: Array<{
+    id: string;
+    label: string;
+    status: "pending" | "running" | "done" | "error";
+    errorMessage?: string | null;
+  }>;
+  etaSeconds: number | null;
+}
+
+/**
+ * GET /hermes/me/instance/onboarding-progress — poll while in the
+ * `onboarding` state for the step-by-step loader UI.
+ */
+export const getHermesOnboardingProgressAction = withSession<
+  Record<string, never>,
+  Result<HermesOnboardingProgressPayload, ActionError>
+>(async () => {
+  try {
+    const response = await coreClient.getHermesOnboardingProgress();
+    const data = response.data;
+    return Ok({
+      status: data.status,
+      steps: data.steps.map((step) => ({
+        id: step.id,
+        label: step.label,
+        status: step.status,
+        errorMessage: step.errorMessage ?? null,
+      })),
+      etaSeconds: data.etaSeconds,
+    });
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+interface ConnectIntegrationArgs extends AuthenticatedRequest {
+  provider: HermesIntegrationProvider;
+  /** Composio's MCP server URL for the connected account. */
+  mcpUrl: string;
+  /** Composio's MCP auth token for the connected account. */
+  mcpToken?: string;
+  /** Access level. Orchestrator defaults to "read" when omitted. */
+  mode?: "read" | "write";
+}
+
+export const connectHermesIntegrationAction = withSession<
+  ConnectIntegrationArgs,
+  Result<HermesIntegration, ActionError>
+>(async ({ provider, mcpUrl, mcpToken, mode }) => {
+  try {
+    const response = await coreClient.connectHermesIntegration({
+      provider,
+      mcpUrl,
+      mcpToken,
+      mode: mode ?? "read",
+    });
+    return Ok(mapHermesIntegration(response.data));
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+interface DisconnectIntegrationArgs extends AuthenticatedRequest {
+  provider: HermesIntegrationProvider;
+}
+
+export const disconnectHermesIntegrationAction = withSession<
+  DisconnectIntegrationArgs,
+  Result<void, ActionError>
+>(async ({ provider }) => {
+  try {
+    await coreClient.disconnectHermesIntegration({ provider });
+    return Ok();
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Composio-managed OAuth (initiate + finalize)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface InitiateIntegrationArgs extends AuthenticatedRequest {
+  provider: HermesIntegrationProvider;
+  /** Access level — drives OAuth scope narrowing. Defaults to "read". */
+  mode?: "read" | "write";
+}
+
+export interface HermesIntegrationOAuthHandoffPayload {
+  provider: HermesIntegrationProvider;
+  redirectUrl: string;
+  connectionId: string;
+}
+
+/**
+ * Starts the Composio-hosted OAuth flow for a provider. The client opens
+ * `redirectUrl` in a popup and waits for the callback page to postMessage
+ * back, then calls `finalizeHermesIntegrationAction`.
+ */
+export const initiateHermesIntegrationAction = withSession<
+  InitiateIntegrationArgs,
+  Result<HermesIntegrationOAuthHandoffPayload, ActionError>
+>(async ({ provider, mode }) => {
+  try {
+    const response = await coreClient.initiateHermesIntegration({
+      provider,
+      mode: mode ?? "read",
+    });
+    return Ok({
+      provider: response.data.provider as HermesIntegrationProvider,
+      redirectUrl: response.data.redirectUrl,
+      connectionId: response.data.connectionId,
+    });
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+interface FinalizeIntegrationArgs extends AuthenticatedRequest {
+  provider: HermesIntegrationProvider;
+  connectionId: string;
+  /** Access level the user chose. Defaults to "read" on the orchestrator side. */
+  mode?: "read" | "write";
+}
+
+/**
+ * Confirms a Composio connection is ACTIVE and registers its MCP URL with
+ * the orchestrator. Outlook OAuth covers both `outlook` and
+ * `outlook_calendar` server-side; the returned integration mirrors the
+ * provider the user clicked.
+ */
+export const finalizeHermesIntegrationAction = withSession<
+  FinalizeIntegrationArgs,
+  Result<HermesIntegration, ActionError>
+>(async ({ provider, connectionId, mode }) => {
+  try {
+    const response = await coreClient.finalizeHermesIntegration({
+      provider,
+      connectionId,
+      mode: mode ?? "read",
+    });
+    return Ok(mapHermesIntegration(response.data));
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scheduled tasks — orchestrator-managed (sokosumi-sync) + Hermes-native cron
+// ─────────────────────────────────────────────────────────────────────────────
+
+function mapHermesSchedule(raw: {
+  id: string;
+  source: string;
+  name: string;
+  cronExpr: string;
+  enabled: boolean;
+  lastRunAt: Date | string | null;
+  nextRunAt: Date | string | null;
+  systemManaged: boolean;
+}): HermesSchedule {
+  return {
+    id: raw.id,
+    source: (raw.source === "hermes"
+      ? "hermes"
+      : "orchestrator") as HermesScheduleSource,
+    name: raw.name,
+    cronExpr: raw.cronExpr,
+    enabled: raw.enabled,
+    lastRunAt: toIsoString(raw.lastRunAt),
+    nextRunAt: toIsoString(raw.nextRunAt),
+    systemManaged: raw.systemManaged,
+  };
+}
+
+export const listHermesSchedulesAction = withSession<
+  Record<string, never>,
+  Result<HermesSchedule[], ActionError>
+>(async () => {
+  try {
+    const response = await coreClient.listHermesSchedules();
+    return Ok(response.data.schedules.map(mapHermesSchedule));
   } catch (error) {
     return Err(toActionError(error));
   }

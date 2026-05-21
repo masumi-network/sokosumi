@@ -9,17 +9,39 @@ import {
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import {
+  type HermesIntegrationProvider,
+  connectInstanceIntegration,
   destroyInstance,
+  disconnectInstanceIntegration,
   ensureInstanceReady,
   getInstance,
+  getInstanceOnboardingProgress,
   HermesInstanceNotReadyError,
   HermesOrchestratorError,
   isReservedSecretKey,
   isValidSecretKey,
+  listInstanceIntegrations,
+  listInstanceSchedules,
+  patchInstance,
   provisionInstance,
   proxyChatCompletions,
   setInstanceSecret,
+  startInstanceOnboarding,
 } from "@/clients/hermes-orchestrator.client";
+import {
+  buildMcpUrl,
+  composioToolkitForProvider,
+  ComposioApiError,
+  ComposioConfigError,
+  ensureAuthConfig,
+  ensureMcpServer,
+  getConnection,
+  initiateConnection,
+} from "@/clients/composio.client";
+import {
+  getWebAppBaseUrl,
+  resolveSokosumiEnvForOrchestrator,
+} from "@/config/env";
 import {
   badRequest,
   internalServerError,
@@ -43,12 +65,23 @@ import { requireUserContext } from "@/middleware/auth";
 import {
   hermesChatRequestSchema,
   hermesChatResponseSchema,
+  hermesConnectIntegrationRequestSchema,
   hermesEmptyResponseSchema,
+  hermesFinalizeIntegrationRequestSchema,
   hermesGetInstanceEnvelopeSchema,
+  hermesInitiateIntegrationRequestSchema,
+  hermesInitiateIntegrationResponseSchema,
   hermesInstanceNotReadySchema,
   hermesInstanceSchema,
+  hermesIntegrationProviderSchema,
+  hermesIntegrationSchema,
+  hermesIntegrationsListResponseSchema,
+  hermesOnboardingProgressSchema,
   hermesPersistedMessageSchema,
+  hermesSchedulesListResponseSchema,
+  hermesStartOnboardingRequestSchema,
   hermesUnreadCountSchema,
+  hermesUpdateInstanceRequestSchema,
   markHermesInboxSeenRequestSchema,
   setHermesSecretRequestSchema,
 } from "@/schemas/hermes.schema";
@@ -371,6 +404,31 @@ function buildPersistedUserContent(
     : `Attached files: ${names}`;
 }
 
+function mapComposioError(error: unknown, fallback: string): never {
+  if (error instanceof HTTPException) throw error;
+  if (error instanceof ComposioConfigError) {
+    throw serviceUnavailable("Integrations are not configured on this server.");
+  }
+  if (error instanceof ComposioApiError) {
+    Sentry.captureException(error, {
+      tags: { context: "composio", composio_status: String(error.httpStatus) },
+      extra: { body: error.body },
+    });
+    if (error.httpStatus >= 500) {
+      throw serviceUnavailable(`${fallback}: ${error.message}`);
+    }
+    if (
+      error.httpStatus === 401 ||
+      error.httpStatus === 403 ||
+      error.httpStatus === 429
+    ) {
+      throw serviceUnavailable("Integrations are temporarily unavailable.");
+    }
+    throw badRequest(error.message);
+  }
+  throw internalServerError(fallback);
+}
+
 function mapOrchestratorError(error: unknown, fallback: string): never {
   if (error instanceof HTTPException) {
     throw error;
@@ -402,6 +460,49 @@ async function upsertHermesInstanceForUser(userId: string): Promise<void> {
     where: { userId },
     create: { userId },
     update: {},
+  });
+}
+
+/**
+ * Persist the orchestrator's one-shot welcome into our local message log.
+ * Idempotent: if a HermesMessage for this user already exists at
+ * `onboardedAt` (rounded to the second), we skip the insert. That lets us
+ * call this on every `getInstance` fetch without duplicating the welcome
+ * across re-renders or page reloads.
+ */
+async function persistHermesWelcomeMessage(args: {
+  userId: string;
+  content: string;
+  kind: string | null;
+  onboardedAtIso: string;
+}): Promise<void> {
+  const createdAt = new Date(args.onboardedAtIso);
+  if (Number.isNaN(createdAt.getTime())) return;
+
+  // Look for any prior welcome at this exact onboarding moment. We compare
+  // against a 1-second window to absorb sub-second timestamp drift from
+  // the orchestrator's serialization.
+  const lowerBound = new Date(createdAt.getTime() - 1000);
+  const upperBound = new Date(createdAt.getTime() + 1000);
+  const existing = await prisma.hermesMessage.findFirst({
+    where: {
+      userId: args.userId,
+      role: "assistant",
+      createdAt: { gte: lowerBound, lte: upperBound },
+      kind: args.kind ?? undefined,
+    },
+    select: { id: true },
+  });
+  if (existing) return;
+
+  await prisma.hermesMessage.create({
+    data: {
+      userId: args.userId,
+      role: "assistant",
+      content: args.content,
+      kind: args.kind,
+      createdAt,
+    },
   });
 }
 
@@ -467,6 +568,33 @@ const provisionInstanceRoute = withGlobalHeaderParameters(
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const updateInstanceRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "patch",
+    path: "/me/instance",
+    description:
+      "Update mutable fields (autonomyLevel, name, email) on the current user's Hermes instance",
+    tags: TAGS,
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: hermesUpdateInstanceRequestSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(hermesInstanceSchema, "Updated Hermes instance"),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
       503: jsonErrorResponse("Service Unavailable"),
     },
   }),
@@ -572,6 +700,202 @@ const setSecretRoute = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       422: jsonErrorResponse("Unprocessable Entity"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+// ─── Onboarding v2 routes ─────────────────────────────────────────────────
+
+const startOnboardingRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/me/instance/onboard",
+    description:
+      "Kick off the orchestrator's onboarding flow (research-intro + boot prompt)",
+    tags: TAGS,
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: hermesStartOnboardingRequestSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        hermesEmptyResponseSchema,
+        "Onboarding kicked off; poll /me/instance and /me/instance/onboarding-progress",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const getOnboardingProgressRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/me/instance/onboarding-progress",
+    description: "Get step-by-step onboarding progress for the loader UI",
+    tags: TAGS,
+    responses: {
+      200: jsonSuccessResponse(
+        hermesOnboardingProgressSchema,
+        "Onboarding progress",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const listIntegrationsRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/me/instance/integrations",
+    description: "List the current user's connected Hermes integrations",
+    tags: TAGS,
+    responses: {
+      200: jsonSuccessResponse(
+        hermesIntegrationsListResponseSchema,
+        "Connected integrations",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const listSchedulesRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/me/instance/schedules",
+    description:
+      "List orchestrator-managed and Hermes-side scheduled tasks for this user (workspace sync, daily briefs, etc.)",
+    tags: TAGS,
+    responses: {
+      200: jsonSuccessResponse(
+        hermesSchedulesListResponseSchema,
+        "Scheduled tasks",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const connectIntegrationRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/me/instance/integrations",
+    description:
+      "Connect a third-party provider via its Composio MCP URL + token",
+    tags: TAGS,
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: hermesConnectIntegrationRequestSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        hermesIntegrationSchema,
+        "Integration connecting",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const disconnectIntegrationRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "delete",
+    path: "/me/instance/integrations/{provider}",
+    description: "Disconnect a third-party provider",
+    tags: TAGS,
+    request: {
+      params: z.object({
+        provider: hermesIntegrationProviderSchema,
+      }),
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        hermesEmptyResponseSchema,
+        "Integration disconnected",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const initiateIntegrationRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/me/instance/integrations/initiate",
+    description:
+      "Start the Composio-hosted OAuth flow for a provider. Returns the URL the client should open in a popup.",
+    tags: TAGS,
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: hermesInitiateIntegrationRequestSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        hermesInitiateIntegrationResponseSchema,
+        "OAuth flow initiated",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const finalizeIntegrationRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/me/instance/integrations/finalize",
+    description:
+      "Finalize a Composio OAuth flow: confirm the connection is ACTIVE and register the MCP URL with the orchestrator.",
+    tags: TAGS,
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: hermesFinalizeIntegrationRequestSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        hermesIntegrationSchema,
+        "Integration finalized",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
       503: jsonErrorResponse("Service Unavailable"),
     },
   }),
@@ -710,6 +1034,23 @@ app.openapi(getInstanceRoute, async (c) => {
           tags: { context: "hermes_instance_backfill" },
         });
       });
+
+      // Atomic welcome (orchestrator's "ready" payload carries the intro).
+      // Persist it on first sight so the chat opens with the welcome
+      // already rendered via the existing message-fetch path — no separate
+      // poll-and-drain race.
+      if (instance.welcomeMessage && instance.onboardedAt) {
+        await persistHermesWelcomeMessage({
+          userId: userContext.userId,
+          content: instance.welcomeMessage,
+          kind: instance.welcomeKind,
+          onboardedAtIso: instance.onboardedAt,
+        }).catch((error) => {
+          Sentry.captureException(error, {
+            tags: { context: "hermes_welcome_persist" },
+          });
+        });
+      }
     }
 
     return ok(
@@ -737,6 +1078,7 @@ app.openapi(provisionInstanceRoute, async (c) => {
     await provisionInstance(userContext.userId, {
       name: user?.name,
       email: user?.email,
+      sokosumiEnv: resolveSokosumiEnvForOrchestrator(),
     });
     const instance = await getInstance(userContext.userId);
 
@@ -755,6 +1097,30 @@ app.openapi(provisionInstanceRoute, async (c) => {
     return ok(c, hermesInstanceSchema.parse(instance));
   } catch (error) {
     return mapOrchestratorError(error, "Failed to provision Hermes instance");
+  }
+});
+
+app.openapi(updateInstanceRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const body = c.req.valid("json");
+
+  try {
+    await patchInstance(userContext.userId, {
+      autonomyLevel: body.autonomyLevel,
+      name: body.name,
+      email: body.email,
+    });
+    const instance = await getInstance(userContext.userId);
+
+    if (!instance) {
+      throw serviceUnavailable(
+        "Update succeeded but the Hermes instance is no longer visible.",
+      );
+    }
+
+    return ok(c, hermesInstanceSchema.parse(instance));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to update Hermes instance");
   }
 });
 
@@ -909,6 +1275,222 @@ app.openapi(setSecretRoute, async (c) => {
   } catch (error) {
     return mapOrchestratorError(error, "Failed to write Hermes secret");
   }
+});
+
+// ─── Onboarding v2 handlers ───────────────────────────────────────────────
+
+app.openapi(startOnboardingRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const body = c.req.valid("json");
+
+  // Pull name/email from the DB if the client didn't provide them, so the
+  // orchestrator's research pass has the best chance of finding context.
+  const user = await prisma.user.findUnique({
+    where: { id: userContext.userId },
+    select: { name: true, email: true },
+  });
+
+  try {
+    // Push autonomy first so the orchestrator's research-intro reflects it.
+    if (body.autonomyLevel) {
+      await patchInstance(userContext.userId, {
+        autonomyLevel: body.autonomyLevel,
+      });
+    }
+
+    await startInstanceOnboarding(userContext.userId, {
+      name: body.name ?? user?.name,
+      email: body.email ?? user?.email,
+      researchDepth: body.researchDepth,
+    });
+    return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to start Hermes onboarding");
+  }
+});
+
+app.openapi(getOnboardingProgressRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+
+  try {
+    const progress = await getInstanceOnboardingProgress(userContext.userId);
+    return ok(c, hermesOnboardingProgressSchema.parse(progress));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to fetch onboarding progress");
+  }
+});
+
+app.openapi(listIntegrationsRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+
+  try {
+    const integrations = await listInstanceIntegrations(userContext.userId);
+    return ok(c, hermesIntegrationsListResponseSchema.parse({ integrations }));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to list Hermes integrations");
+  }
+});
+
+app.openapi(listSchedulesRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+
+  try {
+    const schedules = await listInstanceSchedules(userContext.userId);
+    return ok(c, hermesSchedulesListResponseSchema.parse({ schedules }));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to list Hermes schedules");
+  }
+});
+
+app.openapi(connectIntegrationRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const body = c.req.valid("json");
+
+  try {
+    const integration = await connectInstanceIntegration(userContext.userId, {
+      provider: body.provider,
+      mcpUrl: body.mcpUrl,
+      mcpToken: body.mcpToken,
+      mode: body.mode,
+    });
+    return ok(c, hermesIntegrationSchema.parse(integration));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to connect Hermes integration");
+  }
+});
+
+app.openapi(disconnectIntegrationRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const { provider } = c.req.valid("param");
+
+  try {
+    await disconnectInstanceIntegration(userContext.userId, provider);
+    return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
+  } catch (error) {
+    return mapOrchestratorError(
+      error,
+      "Failed to disconnect Hermes integration",
+    );
+  }
+});
+
+/**
+ * The Composio toolkit `outlook` covers BOTH mail and calendar, so a single
+ * OAuth completion needs to be registered with the orchestrator under both
+ * provider strings. Other providers map 1:1.
+ */
+function orchestratorProvidersForFinalize(
+  provider: HermesIntegrationProvider,
+): HermesIntegrationProvider[] {
+  if (provider === "outlook" || provider === "outlook_calendar") {
+    return ["outlook", "outlook_calendar"];
+  }
+  return [provider];
+}
+
+app.openapi(initiateIntegrationRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const { provider, mode } = c.req.valid("json");
+  const toolkit = composioToolkitForProvider(provider);
+  const callbackUrl = `${getWebAppBaseUrl()}/composio/callback`;
+
+  try {
+    const authConfigId = await ensureAuthConfig(toolkit);
+    // Cold-start MCP server too so finalize doesn't pay the latency.
+    await ensureMcpServer(toolkit, mode, authConfigId);
+    const { redirectUrl, connectionId } = await initiateConnection({
+      toolkit,
+      authConfigId,
+      userId: userContext.userId,
+      callbackUrl,
+    });
+    return ok(
+      c,
+      hermesInitiateIntegrationResponseSchema.parse({
+        provider,
+        redirectUrl,
+        connectionId,
+      }),
+    );
+  } catch (error) {
+    return mapComposioError(error, "Failed to start integration OAuth");
+  }
+});
+
+const FINALIZE_POLL_INTERVAL_MS = 750;
+const FINALIZE_POLL_MAX_ATTEMPTS = 8;
+
+app.openapi(finalizeIntegrationRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const { provider, connectionId, mode } = c.req.valid("json");
+  const toolkit = composioToolkitForProvider(provider);
+
+  // Poll Composio until the connection is ACTIVE. The callback page typically
+  // fires immediately after the OAuth redirect lands, so a handful of short
+  // polls is enough.
+  let lastStatus: string = "INITIATED";
+  try {
+    for (let attempt = 0; attempt < FINALIZE_POLL_MAX_ATTEMPTS; attempt++) {
+      const { status } = await getConnection(connectionId);
+      lastStatus = status;
+      if (status === "ACTIVE") break;
+      if (status === "FAILED" || status === "EXPIRED") {
+        throw badRequest(`Composio connection ${status.toLowerCase()}`);
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, FINALIZE_POLL_INTERVAL_MS),
+      );
+    }
+  } catch (error) {
+    if (error instanceof HTTPException) throw error;
+    return mapComposioError(error, "Failed to verify integration");
+  }
+
+  if (lastStatus !== "ACTIVE") {
+    throw badRequest(
+      `Composio connection not active yet (status: ${lastStatus.toLowerCase()})`,
+    );
+  }
+
+  let mcpUrl: string;
+  try {
+    const authConfigId = await ensureAuthConfig(toolkit);
+    const mcpServerId = await ensureMcpServer(toolkit, mode, authConfigId);
+    mcpUrl = buildMcpUrl(mcpServerId, userContext.userId);
+  } catch (error) {
+    return mapComposioError(error, "Failed to resolve integration MCP URL");
+  }
+
+  // Register the same MCP URL under every orchestrator provider string this
+  // connection covers (outlook covers both mail + calendar).
+  let lastIntegration:
+    | Awaited<ReturnType<typeof connectInstanceIntegration>>
+    | null = null;
+  try {
+    for (const orchestratorProvider of orchestratorProvidersForFinalize(
+      provider,
+    )) {
+      lastIntegration = await connectInstanceIntegration(userContext.userId, {
+        provider: orchestratorProvider,
+        mcpUrl,
+        mode,
+      });
+    }
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to register integration");
+  }
+
+  return ok(
+    c,
+    hermesIntegrationSchema.parse(
+      lastIntegration ?? {
+        provider,
+        status: "connecting",
+        connectedAt: null,
+        mode,
+      },
+    ),
+  );
 });
 
 export default app;

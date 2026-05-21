@@ -76,10 +76,24 @@ const envSchema = z.object({
   // Hermes Orchestrator
   HERMES_ORCH_BASE_URL: z.url(),
   HERMES_ORCH_TOKEN: z.string().min(1),
+  /**
+   * Which Sokosumi environment label to pass to the Hermes orchestrator on
+   * provision (drives their per-env Sokosumi-API base + coworker key). When
+   * omitted we derive it from NETWORK + VERCEL_ENV in
+   * `resolveSokosumiEnvForOrchestrator()`. Override only if the heuristic
+   * is wrong for a deployment slice.
+   */
+  SOKOSUMI_ENV_OVERRIDE: z
+    .enum(["development", "preprod", "mainnet"])
+    .optional(),
   HERMES_INBOX_POLLING_ENABLED: z
     .string()
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
+
+  // Composio (managed OAuth + MCP broker for Hermes integrations)
+  COMPOSIO_API_KEY: z.string().startsWith("ak_").optional(),
+  COMPOSIO_API_BASE_URL: z.url().default("https://backend.composio.dev"),
 
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),
@@ -182,4 +196,28 @@ export function getBetterAuthPublicBaseUrl(): string {
     vercelProductionUrl: env.VERCEL_PROJECT_PRODUCTION_URL,
     fallbackUrl: env.BETTER_AUTH_URL,
   });
+}
+
+/**
+ * Resolve which Sokosumi env label to pass to the Hermes orchestrator.
+ *
+ * Heuristic:
+ *   - SOKOSUMI_ENV_OVERRIDE wins if set (escape hatch for unusual deploys)
+ *   - VERCEL_ENV undefined  → "development" (local dev)
+ *   - NETWORK === "Mainnet" → "mainnet"
+ *   - otherwise             → "preprod"
+ *
+ * The orchestrator uses this to pick the right Sokosumi API base + coworker
+ * key. If their env config doesn't know our `sokosumiEnv` value yet, the
+ * orchestrator just skips the sokosumi_sync step — the rest of onboarding
+ * runs normally.
+ */
+export function resolveSokosumiEnvForOrchestrator():
+  | "development"
+  | "preprod"
+  | "mainnet" {
+  const env = getEnv();
+  if (env.SOKOSUMI_ENV_OVERRIDE) return env.SOKOSUMI_ENV_OVERRIDE;
+  if (!env.VERCEL_ENV) return "development";
+  return env.NETWORK === "Mainnet" ? "mainnet" : "preprod";
 }

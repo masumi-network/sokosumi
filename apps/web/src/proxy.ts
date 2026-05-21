@@ -84,9 +84,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - images directory in /public (public static images)
+     * - icons directory in /public (public static brand SVGs)
      * - legal directory in /public (public static legal documents)
      * - js directory in /public (public static js files)
      */
-    "/((?!api|_next/static|_next/image|images|public|legal|js).*)",
+    "/((?!api|_next/static|_next/image|images|icons|public|legal|js).*)",
   ],
 };

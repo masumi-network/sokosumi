@@ -3,16 +3,195 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 
 export const hermesInstanceStatusSchema = z
-  .enum(["provisioning", "running", "suspended", "error"])
+  .enum([
+    "provisioning",
+    "infrastructure_ready",
+    "onboarding",
+    "ready",
+    "running",
+    "suspended",
+    "error",
+  ])
   .openapi("HermesInstanceStatus");
+
+export const hermesIntegrationProviderSchema = z
+  .enum([
+    "gmail",
+    "google_calendar",
+    "google_sheets",
+    "google_docs",
+    "outlook",
+    "outlook_calendar",
+    "slack",
+    "teams",
+    "linear",
+    "jira",
+    "github",
+    "notion",
+    "hubspot",
+    "twitter",
+    "instagram",
+    "youtube",
+    "linkedin",
+  ])
+  .openapi("HermesIntegrationProvider");
+
+export const hermesIntegrationStatusSchema = z
+  .enum(["disconnected", "connecting", "connected", "error"])
+  .openapi("HermesIntegrationStatus");
+
+export const hermesIntegrationModeSchema = z
+  .enum(["read", "write"])
+  .openapi("HermesIntegrationMode");
+
+export const hermesAutonomyLevelSchema = z
+  .enum(["low", "medium", "high"])
+  .openapi("HermesAutonomyLevel");
+
+export const hermesIntegrationSchema = z
+  .object({
+    provider: hermesIntegrationProviderSchema,
+    status: hermesIntegrationStatusSchema,
+    connectedAt: dateTimeSchema.nullable(),
+    mode: hermesIntegrationModeSchema.default("read"),
+  })
+  .openapi("HermesIntegration");
 
 export const hermesInstanceSchema = z
   .object({
     status: hermesInstanceStatusSchema,
     endpointUrl: z.url().nullable(),
     lastActivityAt: dateTimeSchema.nullable(),
+    onboardedAt: dateTimeSchema.nullable(),
+    autonomyLevel: hermesAutonomyLevelSchema.default("medium"),
+    integrations: z.array(hermesIntegrationSchema),
+    transitioning: z.boolean().default(false),
+    lastSokosumiSyncAt: dateTimeSchema.nullable().default(null),
+    lastInboxRefreshAt: dateTimeSchema.nullable().default(null),
   })
   .openapi("HermesInstance");
+
+export const hermesScheduleSourceSchema = z
+  .enum(["orchestrator", "hermes"])
+  .openapi("HermesScheduleSource");
+
+export const hermesScheduleSchema = z
+  .object({
+    id: z.string().min(1),
+    source: hermesScheduleSourceSchema,
+    name: z.string().min(1),
+    cronExpr: z.string(),
+    enabled: z.boolean(),
+    lastRunAt: dateTimeSchema.nullable(),
+    nextRunAt: dateTimeSchema.nullable(),
+    systemManaged: z.boolean(),
+  })
+  .openapi("HermesSchedule");
+
+export const hermesSchedulesListResponseSchema = z
+  .object({
+    schedules: z.array(hermesScheduleSchema),
+  })
+  .openapi("HermesSchedulesList");
+
+export const hermesOnboardingStepStatusSchema = z
+  .enum(["pending", "running", "done", "error"])
+  .openapi("HermesOnboardingStepStatus");
+
+export const hermesOnboardingStepSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    status: hermesOnboardingStepStatusSchema,
+    /** Populated by orchestrator when status === "failed". ~300 chars max. */
+    errorMessage: z.string().optional().nullable(),
+  })
+  .openapi("HermesOnboardingStep");
+
+export const hermesOnboardingProgressSchema = z
+  .object({
+    status: hermesInstanceStatusSchema,
+    steps: z.array(hermesOnboardingStepSchema),
+    etaSeconds: z.number().int().min(0).nullable(),
+  })
+  .openapi("HermesOnboardingProgress");
+
+export const hermesStartOnboardingRequestSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    email: z.string().email().optional(),
+    researchDepth: z.enum(["deep", "shallow"]).optional(),
+    /**
+     * Optional. When provided, the autonomy is PATCHed onto the instance
+     * before the onboarding flow starts, so the orchestrator's research
+     * intro can already reflect the user's choice.
+     */
+    autonomyLevel: hermesAutonomyLevelSchema.optional(),
+  })
+  .openapi("HermesStartOnboardingRequest");
+
+export const hermesUpdateInstanceRequestSchema = z
+  .object({
+    autonomyLevel: hermesAutonomyLevelSchema.optional(),
+    name: z.string().min(1).optional(),
+    email: z.string().email().optional(),
+  })
+  .refine(
+    (input) =>
+      input.autonomyLevel !== undefined ||
+      input.name !== undefined ||
+      input.email !== undefined,
+    { message: "At least one field must be provided." },
+  )
+  .openapi("HermesUpdateInstanceRequest");
+
+export const hermesConnectIntegrationRequestSchema = z
+  .object({
+    provider: hermesIntegrationProviderSchema,
+    mcpUrl: z.url(),
+    mcpToken: z.string().min(1).optional(),
+    mode: hermesIntegrationModeSchema.default("read"),
+  })
+  .openapi("HermesConnectIntegrationRequest");
+
+export const hermesIntegrationsListResponseSchema = z
+  .object({
+    integrations: z.array(hermesIntegrationSchema),
+  })
+  .openapi("HermesIntegrationsList");
+
+// ─── Composio-managed OAuth flow (initiate + finalize) ────────────────────
+//
+// The web client first calls `initiate` to get a Composio-hosted OAuth URL,
+// opens it in a popup, then calls `finalize` with the `connectionId` the
+// callback page posted back. `finalize` polls Composio until the connection
+// is ACTIVE, then registers the MCP URL with the orchestrator.
+
+export const hermesInitiateIntegrationRequestSchema = z
+  .object({
+    provider: hermesIntegrationProviderSchema,
+    /** Access level requested. Drives OAuth scope narrowing on Composio. */
+    mode: hermesIntegrationModeSchema.default("read"),
+  })
+  .openapi("HermesInitiateIntegrationRequest");
+
+export const hermesInitiateIntegrationResponseSchema = z
+  .object({
+    provider: hermesIntegrationProviderSchema,
+    /** URL the user's browser opens (in a popup) to complete OAuth. */
+    redirectUrl: z.url(),
+    /** Composio connection identifier — pass back to /finalize. */
+    connectionId: z.string().min(1),
+  })
+  .openapi("HermesInitiateIntegrationResponse");
+
+export const hermesFinalizeIntegrationRequestSchema = z
+  .object({
+    provider: hermesIntegrationProviderSchema,
+    connectionId: z.string().min(1),
+    mode: hermesIntegrationModeSchema.default("read"),
+  })
+  .openapi("HermesFinalizeIntegrationRequest");
 
 /**
  * GET /hermes/me/instance payload. Discriminated union so OpenAPI clients never
