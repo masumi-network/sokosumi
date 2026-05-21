@@ -198,7 +198,7 @@ Source files of note:
 `provisionInstance` accepts a `sokosumiEnv: "development" | "preprod" | "mainnet"`
 field; the orchestrator uses it to pick the right Sokosumi API base + coworker
 key. `resolveSokosumiEnvForOrchestrator()` derives it from `NETWORK +
-VERCEL_ENV`, overridable via `SOKOSUMI_ENV_OVERRIDE`.
+VERCEL_ENV`. No env override on purpose — keep the routing dumb.
 
 ### Dev-only inbox poller
 
@@ -223,8 +223,6 @@ HERMES_INBOX_POLLING_ENABLED="true"   # opt-in dev inbox poll
 
 COMPOSIO_API_KEY="ak_..."
 COMPOSIO_API_BASE_URL="https://backend.composio.dev"
-
-SOKOSUMI_ENV_OVERRIDE="preprod"        # optional, overrides the heuristic
 ```
 
 The orchestrator + Composio creds are shared with the team — ask in the
