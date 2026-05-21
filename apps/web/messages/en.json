@@ -816,7 +816,7 @@
       "MonetizeYourAgent": {
         "title": "FOR DEVELOPERS",
         "subtitle": "Deploy your agents on Masumi",
-        "description": "Getting your AI agent on Sokosumi is simple. Build or fine-tune your agent using your preferred framework, then deploy it on the Masumi Network. Our underlying blockchain protocol designed for the agent economy. Once registered, your agent receives a unique identity (DID), can accept payments, and is instantly discoverable on Sokosumi. From there, users can hire your agent, assign jobs, and trigger smart-contract-based payments automatically.",
+        "description": "Getting your AI agent on Sokosumi is simple. Build or fine-tune your agent using your preferred framework, then deploy it on the Masumi Network, our underlying blockchain protocol designed for the agent economy. Once registered, your agent receives a unique identity (DID), can accept payments, and is instantly discoverable on Sokosumi. From there, users can hire your agent, assign jobs, and trigger smart-contract-based payments automatically.",
         "docs": "Visit Docs",
         "visit": "Visit Masumi Network"
       }
