@@ -32,6 +32,9 @@ interface Option {
   };
 }
 
+// Color contract: neutral for "low" (it's the safe default, no urgency),
+// primary for "medium" (the recommended path — earns the brand color),
+// amber only for "high" (genuine warning — this tier spends credits).
 const OPTIONS: Option[] = [
   {
     value: "low",
@@ -39,8 +42,8 @@ const OPTIONS: Option[] = [
     bodyKey: "autonomyLowBody",
     Icon: Eye,
     accent: {
-      tile: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-      selectedRing: "border-emerald-500/50 bg-emerald-500/[0.04]",
+      tile: "bg-muted/40 text-muted-foreground",
+      selectedRing: "border-foreground/40 bg-muted/30",
     },
   },
   {
@@ -50,8 +53,8 @@ const OPTIONS: Option[] = [
     recommended: true,
     Icon: MessageCircleQuestion,
     accent: {
-      tile: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-      selectedRing: "border-cyan-500/50 bg-cyan-500/[0.04]",
+      tile: "bg-primary/10 text-primary",
+      selectedRing: "border-primary/50 bg-primary/[0.04]",
     },
   },
   {

@@ -732,7 +732,7 @@ function ScheduleRow({
       case "system_prompt":
         return {
           label: t("schedulesKindSystemPromptBadge"),
-          className: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+          className: "bg-primary/10 text-primary",
         };
       case "system_sweep":
         return {

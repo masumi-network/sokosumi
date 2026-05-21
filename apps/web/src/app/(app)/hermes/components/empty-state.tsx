@@ -70,48 +70,48 @@ const JOURNEY: Array<{
     titleKey: "journeyStep1Title",
     bodyKey: "journeyStep1Body",
     Visual: ActivationVisual,
-    accentText: "text-violet-700 dark:text-violet-300",
-    accentRing: "border-violet-500/40",
+    accentText: "text-primary",
+    accentRing: "border-primary/40",
   },
   {
     tagKey: "journeyStep2Tag",
     titleKey: "journeyStep2Title",
     bodyKey: "journeyStep2Body",
     Visual: MicroVmVisual,
-    accentText: "text-cyan-700 dark:text-cyan-300",
-    accentRing: "border-cyan-500/40",
+    accentText: "text-primary",
+    accentRing: "border-primary/40",
   },
   {
     tagKey: "journeyStep3Tag",
     titleKey: "journeyStep3Title",
     bodyKey: "journeyStep3Body",
     Visual: ConnectionVisual,
-    accentText: "text-amber-700 dark:text-amber-400",
-    accentRing: "border-amber-500/40",
+    accentText: "text-primary",
+    accentRing: "border-primary/40",
   },
   {
     tagKey: "journeyStep4Tag",
     titleKey: "journeyStep4Title",
     bodyKey: "journeyStep4Body",
     Visual: InboxMemoryVisual,
-    accentText: "text-emerald-700 dark:text-emerald-300",
-    accentRing: "border-emerald-500/40",
+    accentText: "text-primary",
+    accentRing: "border-primary/40",
   },
   {
     tagKey: "journeyStep5Tag",
     titleKey: "journeyStep5Title",
     bodyKey: "journeyStep5Body",
     Visual: ActVisual,
-    accentText: "text-rose-700 dark:text-rose-300",
-    accentRing: "border-rose-500/40",
+    accentText: "text-primary",
+    accentRing: "border-primary/40",
   },
   {
     tagKey: "journeyStep6Tag",
     titleKey: "journeyStep6Title",
     bodyKey: "journeyStep6Body",
     Visual: OvernightVisual,
-    accentText: "text-violet-700 dark:text-violet-300",
-    accentRing: "border-violet-500/40",
+    accentText: "text-primary",
+    accentRing: "border-primary/40",
   },
 ];
 
@@ -128,38 +128,38 @@ const FEATURES: Array<{
     titleKey: "feature1Title",
     bodyKey: "feature1Body",
     Icon: Brain,
-    accent: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+    accent: "bg-primary/10 text-primary",
     hero: true,
   },
   {
     titleKey: "feature2Title",
     bodyKey: "feature2Body",
     Icon: Sparkles,
-    accent: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+    accent: "bg-muted/40 text-muted-foreground",
   },
   {
     titleKey: "feature3Title",
     bodyKey: "feature3Body",
     Icon: MessageSquare,
-    accent: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
+    accent: "bg-muted/40 text-muted-foreground",
   },
   {
     titleKey: "feature4Title",
     bodyKey: "feature4Body",
     Icon: Lock,
-    accent: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+    accent: "bg-muted/40 text-muted-foreground",
   },
   {
     titleKey: "feature5Title",
     bodyKey: "feature5Body",
     Icon: Moon,
-    accent: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+    accent: "bg-muted/40 text-muted-foreground",
   },
   {
     titleKey: "feature6Title",
     bodyKey: "feature6Body",
     Icon: Plug,
-    accent: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
+    accent: "bg-muted/40 text-muted-foreground",
   },
 ];
 
@@ -229,7 +229,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
             {/* Soft accent halo behind the avatar */}
             <div
               aria-hidden
-              className="from-violet-400/40 via-cyan-400/30 to-amber-300/30 absolute -inset-6 rounded-full bg-gradient-to-br blur-2xl"
+              className="bg-primary/20 absolute -inset-6 rounded-full blur-2xl"
             />
             <div className="bg-card border-border/60 ring-background relative size-44 overflow-hidden rounded-full border ring-8 md:size-52">
               <Image
@@ -244,7 +244,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
           </div>
 
           <div className="mt-10 inline-flex items-center gap-2">
-            <span className="text-violet-700 dark:text-violet-300 text-xs font-semibold uppercase tracking-wider">
+            <span className="text-primary text-xs font-semibold uppercase tracking-wider">
               {t("eyebrow")}
             </span>
             <span className="border-border/60 bg-card/80 text-muted-foreground rounded-full border px-2 py-0.5 text-xs font-medium uppercase tracking-wider backdrop-blur-sm">
@@ -287,7 +287,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
         {/* ── Services strip ─────────────────────────────────────── */}
         <Section
           eyebrow="Integrations"
-          eyebrowColor="text-cyan-700 dark:text-cyan-300"
+          eyebrowColor="text-primary"
           heading={t("servicesHeading")}
           description={t("servicesHelp")}
           marginTop="mt-28 md:mt-36"
@@ -320,7 +320,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
         {/* ── Journey — end-to-end step-by-step ─────────────────── */}
         <Section
           eyebrow={t("journeyEyebrow")}
-          eyebrowColor="text-violet-700 dark:text-violet-300"
+          eyebrowColor="text-primary"
           heading={t("journeyHeading")}
           description={t("journeyDescription")}
           marginTop="mt-32 md:mt-40"
@@ -335,7 +335,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
         {/* ── Features (vertical list) ──────────────────────────── */}
         <Section
           eyebrow={t("featuresEyebrow")}
-          eyebrowColor="text-amber-700 dark:text-amber-400"
+          eyebrowColor="text-muted-foreground"
           heading={t("featuresHeading")}
           marginTop="mt-32 md:mt-40"
         >
@@ -370,7 +370,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
         {/* ── Things to try (click-through) ─────────────────────── */}
         <Section
           eyebrow="Try this"
-          eyebrowColor="text-rose-700 dark:text-rose-300"
+          eyebrowColor="text-muted-foreground"
           heading={t("examplesHeading")}
           description={t("examplesPickHint")}
           marginTop="mt-32 md:mt-40"
@@ -383,7 +383,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
           {/* Outer gradient ring */}
           <div
             aria-hidden
-            className="from-violet-500/30 via-cyan-500/20 to-amber-400/20 absolute -inset-px rounded-3xl bg-gradient-to-br"
+            className="bg-primary/20 absolute -inset-px rounded-3xl"
           />
           <div className="border-border/60 bg-card/80 relative overflow-hidden rounded-3xl border p-8 backdrop-blur-md md:p-12">
             {/* Decorative blurred circle */}
@@ -600,7 +600,7 @@ function ActivationVisual() {
     <div className="relative flex h-56 items-center justify-center">
       <div
         aria-hidden
-        className="absolute size-40 rounded-full bg-violet-500/10 blur-3xl"
+        className="bg-primary/10 absolute size-40 rounded-full blur-3xl"
       />
       <div className="border-border/60 bg-background/80 relative flex flex-col items-center gap-4 rounded-2xl border px-8 py-6">
         <div className="bg-card border-border/60 ring-background relative size-16 overflow-hidden rounded-full border ring-4">
@@ -883,7 +883,7 @@ function OvernightVisual() {
     <div className="border-border/60 bg-background/60 mx-auto max-w-md rounded-2xl border p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="inline-flex items-center gap-2">
-          <Moon className="text-violet-500 size-4" aria-hidden />
+          <Moon className="text-primary size-4" aria-hidden />
           <span className="text-foreground text-sm font-semibold tracking-tight">
             Tonight · 4 jobs
           </span>

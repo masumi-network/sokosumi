@@ -46,12 +46,11 @@ export default function FlowBackground({
           opacityClass,
         )}
       >
-        {/* Violet — top-left drift */}
-        <div className="hermes-blob hermes-blob-1 bg-violet-400/40 dark:bg-violet-500/30" />
-        {/* Cyan — bottom-right drift */}
-        <div className="hermes-blob hermes-blob-2 bg-cyan-400/35 dark:bg-cyan-500/25" />
-        {/* Amber — center-top drift, slower */}
-        <div className="hermes-blob hermes-blob-3 bg-amber-300/30 dark:bg-amber-400/20" />
+        {/* All three blobs use Sokosumi's primary (purple) — varying
+         * opacity gives them texture without introducing extra hues. */}
+        <div className="hermes-blob hermes-blob-1 bg-primary/30" />
+        <div className="hermes-blob hermes-blob-2 bg-primary/20" />
+        <div className="hermes-blob hermes-blob-3 bg-primary/15" />
 
         {/* Soft top wash so the brightest spots don't fight the heading text */}
         <div className="from-background/40 via-background/0 to-background/0 absolute inset-0 bg-gradient-to-b" />
