@@ -36,6 +36,7 @@ import {
   listHermesSchedulesAction,
   updateHermesInstanceAction,
 } from "@/lib/actions/hermes";
+import { humanizeCron } from "@/lib/hermes/humanize-cron";
 import type {
   HermesAutonomyLevel,
   HermesIntegration,
@@ -633,7 +634,6 @@ function SchedulesSection({
   loading: boolean;
 }) {
   const t = useTranslations("App.Hermes.Settings");
-  const formatter = useFormatter();
 
   return (
     <section className="flex flex-col gap-3">
@@ -683,27 +683,65 @@ function SchedulesSection({
                       : s.source}
                 </span>
               </div>
-              <div className="text-tertiary-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-9 text-[11px] tabular-nums">
-                <code className="bg-muted/40 rounded px-1 py-0.5 text-[10px]">
-                  {s.cronExpr || "—"}
-                </code>
-                <span>
-                  {t("schedulesLastRun")}:{" "}
-                  {s.lastRunAt
-                    ? formatter.relativeTime(new Date(s.lastRunAt))
-                    : t("schedulesNeverRan")}
-                </span>
-                {s.nextRunAt ? (
-                  <span>
-                    {t("schedulesNextRun")}:{" "}
-                    {formatter.relativeTime(new Date(s.nextRunAt))}
-                  </span>
-                ) : null}
-              </div>
+              <ScheduleMeta
+                cronExpr={s.cronExpr}
+                lastRunAt={s.lastRunAt}
+                nextRunAt={s.nextRunAt}
+              />
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * Per-row "meta" line under each schedule. Leads with a human-readable
+ * phrase ("Every weekday at 8:00 AM") via `humanizeCron`; falls back to
+ * the raw cron expression when the pattern is too exotic to phrase
+ * confidently. The raw expression is always available on hover so power
+ * users can verify what Hermes parsed.
+ */
+function ScheduleMeta({
+  cronExpr,
+  lastRunAt,
+  nextRunAt,
+}: {
+  cronExpr: string;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+}) {
+  const t = useTranslations("App.Hermes.Settings");
+  const formatter = useFormatter();
+  const human = humanizeCron(cronExpr);
+
+  return (
+    <div className="text-tertiary-foreground flex flex-col gap-1 pl-9 text-xs">
+      <div
+        className="text-foreground/90 text-sm leading-snug"
+        title={cronExpr || undefined}
+      >
+        {human ?? (
+          <code className="bg-muted/40 rounded px-1.5 py-0.5 text-xs">
+            {cronExpr || "—"}
+          </code>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 tabular-nums">
+        <span>
+          {t("schedulesLastRun")}:{" "}
+          {lastRunAt
+            ? formatter.relativeTime(new Date(lastRunAt))
+            : t("schedulesNeverRan")}
+        </span>
+        {nextRunAt ? (
+          <span>
+            {t("schedulesNextRun")}:{" "}
+            {formatter.relativeTime(new Date(nextRunAt))}
+          </span>
+        ) : null}
+      </div>
+    </div>
   );
 }
