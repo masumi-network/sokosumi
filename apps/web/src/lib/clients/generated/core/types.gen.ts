@@ -693,6 +693,7 @@ export const HermesOnboardingStepStatus = {
     PENDING: 'pending',
     RUNNING: 'running',
     DONE: 'done',
+    SKIPPED: 'skipped',
     ERROR: 'error'
 } as const;
 

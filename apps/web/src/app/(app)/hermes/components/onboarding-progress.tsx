@@ -258,6 +258,7 @@ function StepRow({
   const isDone = step.status === "done";
   const isActive = step.status === "running";
   const isError = step.status === "error";
+  const isSkipped = step.status === "skipped";
 
   return (
     <li
@@ -276,9 +277,11 @@ function StepRow({
               "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
             isActive && "bg-primary/10 text-primary",
             isError && "bg-destructive/10 text-destructive",
+            isSkipped && "bg-muted text-muted-foreground/70",
             !isDone &&
               !isActive &&
               !isError &&
+              !isSkipped &&
               "bg-muted text-muted-foreground/60",
           )}
         >
@@ -288,6 +291,9 @@ function StepRow({
             <Loader2 className="size-3.5 animate-spin" />
           ) : isError ? (
             <AlertCircle className="size-3.5" />
+          ) : isSkipped ? (
+            // Dash glyph reads as "not applicable" without needing copy.
+            <span className="bg-muted-foreground/60 h-px w-2 rounded-full" />
           ) : (
             <span className="bg-muted-foreground/40 size-1.5 rounded-full" />
           )}
@@ -298,7 +304,12 @@ function StepRow({
             isActive && "text-foreground font-medium",
             isDone && "text-foreground",
             isError && "text-destructive font-medium",
-            !isDone && !isActive && !isError && "text-muted-foreground",
+            isSkipped && "text-muted-foreground/70 line-through",
+            !isDone &&
+              !isActive &&
+              !isError &&
+              !isSkipped &&
+              "text-muted-foreground",
           )}
         >
           {step.label}
