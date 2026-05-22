@@ -16,7 +16,9 @@ const {
   isValidSecretKeyMock,
   prismaTransactionMock,
   proxyChatCompletionsMock,
+  syncHermesInboxForUserMock,
   userFindUniqueMock,
+  waitUntilMock,
 } = vi.hoisted(() => {
   class HermesInstanceNotReadyErrorMock extends Error {
     readonly status:
@@ -47,7 +49,9 @@ const {
     isValidSecretKeyMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
     proxyChatCompletionsMock: vi.fn(),
+    syncHermesInboxForUserMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
+    waitUntilMock: vi.fn(),
   };
 });
 
@@ -120,6 +124,14 @@ vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
   };
 });
 
+vi.mock("@/services/hermes-inbox-sync.service", () => ({
+  syncHermesInboxForUser: syncHermesInboxForUserMock,
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: waitUntilMock,
+}));
+
 import {
   destroyInstance,
   getInstance,
@@ -159,6 +171,10 @@ describe("Hermes route contracts", () => {
     hermesMessageCreateMock.mockResolvedValue(undefined);
     hermesMessageUpsertMock.mockResolvedValue(undefined);
     ensureInstanceReadyMock.mockResolvedValue(undefined);
+    syncHermesInboxForUserMock.mockResolvedValue({
+      userId: "user_123",
+      outcome: "no_messages",
+    });
     proxyChatCompletionsMock.mockResolvedValue(
       Response.json({
         choices: [
@@ -191,6 +207,9 @@ describe("Hermes route contracts", () => {
     isReservedSecretKeyMock.mockReturnValue(false);
     isValidSecretKeyMock.mockReturnValue(true);
     vi.mocked(getInstance).mockResolvedValue(null);
+    waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
+      promise.catch(() => undefined);
+    });
   });
 
   it("returns 401 when authentication is missing", async () => {
@@ -548,7 +567,50 @@ describe("Hermes route contracts", () => {
   });
 
   it("returns 503 when the Hermes proxy fetch fails at the network layer", async () => {
+    vi.useFakeTimers();
     proxyChatCompletionsMock.mockRejectedValue(new TypeError("fetch failed"));
+
+    try {
+      const response = await createApp().request("/chat", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "Hello" }),
+      });
+
+      const body = await parseJson(response);
+
+      expect(response.status).toBe(503);
+      expect(body.error).toBe("ServiceUnavailable");
+      expect(body.message).toBe("Hermes is temporarily unavailable.");
+      expect(captureExceptionMock).toHaveBeenCalledWith(
+        expect.any(TypeError),
+        expect.objectContaining({
+          tags: { context: "hermes_proxy_fetch" },
+          extra: { userId: "user_123" },
+        }),
+      );
+      expect(syncHermesInboxForUserMock).toHaveBeenCalledWith(
+        "user_123",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
+      expect(hermesMessageCreateMock).toHaveBeenCalledWith({
+        data: {
+          userId: "user_123",
+          role: "user",
+          content: "Hello",
+        },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not send chat to the instance when the user turn cannot be persisted", async () => {
+    hermesMessageCreateMock.mockRejectedValueOnce(new Error("db down"));
 
     const response = await createApp().request("/chat", {
       method: "POST",
@@ -563,11 +625,11 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
-    expect(body.message).toBe("Hermes is temporarily unavailable.");
+    expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
     expect(captureExceptionMock).toHaveBeenCalledWith(
-      expect.any(TypeError),
+      expect.any(Error),
       expect.objectContaining({
-        tags: { context: "hermes_proxy_fetch" },
+        tags: { context: "hermes_chat_user_persist" },
         extra: { userId: "user_123" },
       }),
     );

@@ -7,6 +7,7 @@ import {
   resolveUserUploadContentType,
   USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET,
 } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import {
@@ -98,6 +99,7 @@ import {
   type CursorPaginationMeta,
   cursorPaginationQuerySchema,
 } from "@/schemas/pagination.schema";
+import { syncHermesInboxForUser } from "@/services/hermes-inbox-sync.service";
 
 const TAGS = ["Hermes"];
 const MAX_USER_CONTENT_BYTES = 32_000;
@@ -111,6 +113,7 @@ const MAX_TOTAL_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_INLINED_TEXT_UTF16_CODE_UNITS = 200 * 1024;
 /** Max persisted turns sent to the Hermes proxy per request (newest first in DB). */
 const MAX_CHAT_CONTEXT_MESSAGES = 100;
+const CHAT_RECOVERY_RETRY_DELAYS_MS = [2_000, 5_000, 10_000];
 
 interface DecodedFile {
   name: string;
@@ -549,6 +552,41 @@ async function persistHermesWelcomeMessage(args: {
   });
 
   persistedWelcomeIds.add(id);
+}
+
+async function recoverHermesInboxAfterChatFailure(
+  userId: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<Awaited<ReturnType<typeof syncHermesInboxForUser>> | null> {
+  try {
+    return await syncHermesInboxForUser(userId, { signal: options.signal });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_chat_inbox_recovery" },
+      extra: { userId },
+    });
+    return null;
+  }
+}
+
+async function recoverHermesInboxAfterChatFailureWithRetries(
+  userId: string,
+): Promise<void> {
+  for (const delayMs of CHAT_RECOVERY_RETRY_DELAYS_MS) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    const outcome = await recoverHermesInboxAfterChatFailure(userId);
+    if (outcome?.outcome === "messages" && (outcome.count ?? 0) > 0) return;
+  }
+}
+
+async function recoverHermesInboxAfterFailedChatRequest(
+  userId: string,
+  signal: AbortSignal,
+): Promise<void> {
+  const outcome = await recoverHermesInboxAfterChatFailure(userId, { signal });
+  if (outcome?.outcome === "messages" && (outcome.count ?? 0) > 0) return;
+
+  waitUntil(recoverHermesInboxAfterChatFailureWithRetries(userId));
 }
 
 const postChatRoute = withGlobalHeaderParameters(
@@ -1050,6 +1088,23 @@ app.openapi(postChatRoute, async (c) => {
     return mapOrchestratorError(error, "Failed to prepare Hermes instance");
   }
 
+  const persistedUserContent = buildPersistedUserContent(trimmed, files);
+  try {
+    await prisma.hermesMessage.create({
+      data: {
+        userId: userContext.userId,
+        role: "user",
+        content: persistedUserContent,
+      },
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_chat_user_persist" },
+      extra: { userId: userContext.userId },
+    });
+    throw serviceUnavailable("Hermes is temporarily unavailable.");
+  }
+
   let upstream: Response;
   try {
     upstream = await proxyChatCompletions(userContext.userId, {
@@ -1066,6 +1121,10 @@ app.openapi(postChatRoute, async (c) => {
       tags: { context: "hermes_proxy_fetch" },
       extra: { userId: userContext.userId },
     });
+    await recoverHermesInboxAfterFailedChatRequest(
+      userContext.userId,
+      c.req.raw.signal,
+    );
     throw serviceUnavailable("Hermes is temporarily unavailable.");
   }
 
@@ -1074,11 +1133,19 @@ app.openapi(postChatRoute, async (c) => {
       level: "warning",
       tags: { status: String(upstream.status) },
     });
+    await recoverHermesInboxAfterFailedChatRequest(
+      userContext.userId,
+      c.req.raw.signal,
+    );
     throw serviceUnavailable("Hermes is temporarily unavailable.");
   }
 
   if (!upstream.ok) {
     const text = await upstream.text();
+    await recoverHermesInboxAfterFailedChatRequest(
+      userContext.userId,
+      c.req.raw.signal,
+    );
     throw badRequest(text || "Hermes rejected the chat request.");
   }
 
@@ -1091,30 +1158,25 @@ app.openapi(postChatRoute, async (c) => {
       : "";
 
   if (!content) {
+    await recoverHermesInboxAfterFailedChatRequest(
+      userContext.userId,
+      c.req.raw.signal,
+    );
     throw serviceUnavailable("Hermes returned an empty response.");
   }
 
-  const persistedUserContent = buildPersistedUserContent(trimmed, files);
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.hermesMessage.create({
-        data: {
-          userId: userContext.userId,
-          role: "user",
-          content: persistedUserContent,
-        },
-      });
-      await tx.hermesMessage.create({
-        data: {
-          userId: userContext.userId,
-          role: "assistant",
-          content,
-        },
-      });
+    await prisma.hermesMessage.create({
+      data: {
+        userId: userContext.userId,
+        role: "assistant",
+        content,
+      },
     });
   } catch (error) {
     Sentry.captureException(error, {
-      tags: { context: "hermes_chat_persist" },
+      tags: { context: "hermes_chat_assistant_persist" },
+      extra: { userId: userContext.userId },
     });
   }
 

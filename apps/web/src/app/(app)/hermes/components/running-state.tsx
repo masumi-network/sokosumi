@@ -55,6 +55,10 @@ import {
   markHermesInboxSeenAction,
   rejectHermesConfirmationAction,
 } from "@/lib/actions/hermes";
+import {
+  type HermesUiMessage,
+  mergeHermesMessageLists,
+} from "@/lib/hermes/merge-persisted-messages";
 import type {
   HermesInstancePublic,
   HermesPendingConfirmation,
@@ -75,14 +79,7 @@ interface RunningStateProps {
   onRefresh?: () => void | Promise<void>;
 }
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  /** Outbox kind for agent-initiated pushes (task_result, reminder, …). Null for normal chat turns. */
-  kind: string | null;
-  createdAt: string;
-}
+type Message = HermesUiMessage;
 
 const POLL_INTERVAL_MS = 5_000;
 
@@ -95,6 +92,20 @@ function persistedToMessage(m: HermesPersistedMessage): Message | null {
     kind: m.kind,
     createdAt: m.createdAt,
   };
+}
+
+function persistedToMessages(messages: HermesPersistedMessage[]): Message[] {
+  return messages
+    .map(persistedToMessage)
+    .filter((m): m is Message => m !== null);
+}
+
+function hasSameMessageIds(left: Message[], right: Message[]): boolean {
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i++) {
+    if (left[i]!.id !== right[i]!.id) return false;
+  }
+  return true;
 }
 
 interface ChatApiResponse {
@@ -145,9 +156,7 @@ export default function RunningState({
   );
 
   const [messages, setMessages] = useState<Message[]>(() =>
-    (initialMessages ?? [])
-      .map(persistedToMessage)
-      .filter((m): m is Message => m !== null),
+    persistedToMessages(initialMessages ?? []),
   );
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -191,6 +200,15 @@ export default function RunningState({
   useEffect(() => {
     isReplyingRef.current = isReplying;
   }, [isReplying]);
+
+  useEffect(() => {
+    if (!initialMessages) return;
+    const serverMessages = persistedToMessages(initialMessages);
+    setMessages((prev) => {
+      const merged = mergeHermesMessageLists(prev, serverMessages);
+      return hasSameMessageIds(prev, merged) ? prev : merged;
+    });
+  }, [initialMessages]);
 
   useEffect(() => {
     return () => {
@@ -238,18 +256,10 @@ export default function RunningState({
       }
 
       setMessages((prev) => {
+        const merged = mergeHermesMessageLists(prev, next);
         // Cheap shallow check to avoid unnecessary rerenders + scroll jitter.
-        if (prev.length === next.length) {
-          let same = true;
-          for (let i = 0; i < prev.length; i++) {
-            if (prev[i]!.id !== next[i]!.id) {
-              same = false;
-              break;
-            }
-          }
-          if (same) return prev;
-        }
-        return next;
+        if (hasSameMessageIds(prev, merged)) return prev;
+        return merged;
       });
     };
 
@@ -430,6 +440,15 @@ export default function RunningState({
           // inbox poller is not blocked until the next React commit.
           isReplyingRef.current = false;
           setIsReplying(false);
+
+          const result = await listHermesMessagesAction({});
+          if (result.ok) {
+            const next = persistedToMessages(result.data);
+            setMessages((prev) => {
+              const merged = mergeHermesMessageLists(prev, next);
+              return hasSameMessageIds(prev, merged) ? prev : merged;
+            });
+          }
         }
       })();
     },
@@ -1195,7 +1214,7 @@ function ConfirmationCard({
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
       <AssistantAvatar accent />
-      <div className="border-amber-500/30 bg-amber-500/[0.06] flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border px-4 py-3 backdrop-blur-sm">
+      <div className="border-amber-500/30 bg-amber-500/6 flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border px-4 py-3 backdrop-blur-sm">
         <div className="text-amber-700 dark:text-amber-400 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
           <AlertCircle className="size-3.5" aria-hidden />
           <span>{t("heading")}</span>

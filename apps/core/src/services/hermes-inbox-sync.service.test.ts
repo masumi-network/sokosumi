@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/node";
+import { v5 as uuidv5 } from "uuid";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -6,16 +7,21 @@ const {
   getEnvMock,
   getInstanceInboxMock,
   hermesInstanceFindManyMock,
+  hermesInstanceFindUniqueMock,
   hermesInstanceUpdateMock,
-  hermesMessageCreateMock,
+  hermesMessageUpsertMock,
 } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
   getInstanceInboxMock: vi.fn(),
   ackInstanceInboxMock: vi.fn(),
   hermesInstanceFindManyMock: vi.fn(),
+  hermesInstanceFindUniqueMock: vi.fn(),
   hermesInstanceUpdateMock: vi.fn(),
-  hermesMessageCreateMock: vi.fn(),
+  hermesMessageUpsertMock: vi.fn(),
 }));
+
+const HERMES_INBOX_MESSAGE_UUID_NAMESPACE =
+  "3ed84820-2c89-4546-9a58-96b20f8b4980";
 
 vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
@@ -35,6 +41,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     hermesInstance: {
       findMany: (...args: unknown[]) => hermesInstanceFindManyMock(...args),
+      findUnique: (...args: unknown[]) => hermesInstanceFindUniqueMock(...args),
       update: (...args: unknown[]) => hermesInstanceUpdateMock(...args),
       delete: vi.fn().mockResolvedValue(undefined),
     },
@@ -42,12 +49,12 @@ vi.mock("@/lib/db/prisma", () => ({
       arg:
         | Array<Promise<unknown>>
         | ((tx: {
-            hermesMessage: { create: typeof hermesMessageCreateMock };
+            hermesMessage: { upsert: typeof hermesMessageUpsertMock };
           }) => Promise<unknown>),
     ) => {
       if (Array.isArray(arg)) return await Promise.all(arg);
       return await arg({
-        hermesMessage: { create: hermesMessageCreateMock },
+        hermesMessage: { upsert: hermesMessageUpsertMock },
       });
     },
   },
@@ -62,7 +69,7 @@ describe("hermesInboxSyncService", () => {
       HERMES_INBOX_POLLING_ENABLED: true,
     } as ReturnType<typeof import("@/config/env").getEnv>);
     ackInstanceInboxMock.mockResolvedValue({ kind: "ok" });
-    hermesMessageCreateMock.mockResolvedValue(undefined);
+    hermesMessageUpsertMock.mockResolvedValue(undefined);
     hermesInstanceUpdateMock.mockResolvedValue(undefined);
   });
 
@@ -150,6 +157,125 @@ describe("hermesInboxSyncService", () => {
     );
     expect(summary.polled).toBe(1);
     expect(summary.breakdown.skipped_not_implemented).toBe(1);
+  });
+
+  it("overlaps the inbox since cursor when lastInboxMessageAt is set", async () => {
+    hermesInstanceFindManyMock.mockResolvedValue([
+      {
+        userId: "user-overlap",
+        lastInboxMessageAt: new Date("2026-01-01T10:00:00.000Z"),
+        lastPolledAt: null,
+      },
+    ]);
+
+    getInstanceInboxMock.mockResolvedValue({
+      kind: "messages",
+      data: { messages: [], hasMore: false },
+    });
+
+    await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(getInstanceInboxMock).toHaveBeenCalledWith(
+      "user-overlap",
+      expect.objectContaining({
+        sinceIso: "2026-01-01T09:55:00.000Z",
+      }),
+    );
+  });
+
+  it("does not advance lastInboxMessageAt when inbox ack fails", async () => {
+    hermesInstanceFindManyMock.mockResolvedValue([
+      {
+        userId: "user-ack-fails",
+        lastInboxMessageAt: null,
+        lastPolledAt: null,
+      },
+    ]);
+    getInstanceInboxMock.mockResolvedValue({
+      kind: "messages",
+      data: {
+        messages: [
+          {
+            id: "m-unacked",
+            content: "retry me",
+            createdAt: "2026-01-01T10:00:00.000Z",
+          },
+        ],
+        hasMore: false,
+      },
+    });
+    ackInstanceInboxMock.mockRejectedValue(new Error("ack failed"));
+
+    await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    const ackFailureUpdates = hermesInstanceUpdateMock.mock.calls.filter(
+      ([args]) =>
+        (args as { where?: { userId?: string } }).where?.userId ===
+        "user-ack-fails",
+    );
+    expect(ackFailureUpdates).not.toHaveLength(0);
+    expect(
+      ackFailureUpdates.some(
+        ([args]) =>
+          "lastInboxMessageAt" in
+          ((args as { data?: Record<string, unknown> }).data ?? {}),
+      ),
+    ).toBe(false);
+  });
+
+  it("upserts inbox messages with a stable id derived from the orchestrator message id", async () => {
+    hermesInstanceFindManyMock.mockResolvedValue([
+      {
+        userId: "user-upsert",
+        lastInboxMessageAt: null,
+        lastPolledAt: null,
+      },
+    ]);
+    getInstanceInboxMock.mockResolvedValue({
+      kind: "messages",
+      data: {
+        messages: [
+          {
+            id: "orchestrator-message-1",
+            content: "timeout notice",
+            createdAt: "2026-01-01T10:00:00.000Z",
+            kind: "text",
+          },
+        ],
+        hasMore: false,
+      },
+    });
+
+    await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    const expectedId = uuidv5(
+      "user-upsert:orchestrator-message-1",
+      HERMES_INBOX_MESSAGE_UUID_NAMESPACE,
+    );
+    expect(hermesMessageUpsertMock).toHaveBeenCalledWith({
+      where: { id: expectedId },
+      create: expect.objectContaining({
+        id: expectedId,
+        userId: "user-upsert",
+        role: "assistant",
+        content: "timeout notice",
+        kind: "text",
+        createdAt: new Date("2026-01-01T10:00:00.000Z"),
+      }),
+      update: {},
+    });
   });
 
   it("reports unexpected pollOne failures to Sentry with hermes_inbox_unhandled context", async () => {
