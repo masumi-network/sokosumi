@@ -254,6 +254,12 @@ interface StartOnboardingArgs extends AuthenticatedRequest {
   skipResearch: boolean;
   name?: string | null;
   email?: string | null;
+  /** Free-form role label (e.g. "Founder / CEO", "Engineering"). Hermes uses
+   * this to personalize tone and prioritization, not for access control. */
+  role?: string | null;
+  /** Company name the user works at. Same role: context for personalization
+   * and research, not an org/tenant identifier. */
+  company?: string | null;
   /** Optional autonomy override; PATCHed onto the instance before start. */
   autonomyLevel?: HermesAutonomyLevel | null;
 }
@@ -267,11 +273,13 @@ interface StartOnboardingArgs extends AuthenticatedRequest {
 export const startHermesOnboardingAction = withSession<
   StartOnboardingArgs,
   Result<void, ActionError>
->(async ({ skipResearch, name, email, autonomyLevel }) => {
+>(async ({ skipResearch, name, email, role, company, autonomyLevel }) => {
   try {
     await coreClient.startHermesOnboarding({
       name: name ?? undefined,
       email: email ?? undefined,
+      role: role ?? undefined,
+      company: company ?? undefined,
       // "shallow" = web-only research (used by skip-for-now path);
       // "deep" = inbox + web (default for users who connected integrations).
       researchDepth: skipResearch ? "shallow" : "deep",

@@ -670,6 +670,8 @@ export type SetHermesSecretRequest = {
 export type HermesStartOnboardingRequest = {
     name?: string;
     email?: string;
+    role?: string;
+    company?: string;
     researchDepth?: 'deep' | 'shallow';
     autonomyLevel?: HermesAutonomyLevel;
 };

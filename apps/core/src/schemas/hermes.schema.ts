@@ -165,6 +165,18 @@ export const hermesStartOnboardingRequestSchema = z
   .object({
     name: z.string().min(1).optional(),
     email: z.string().email().optional(),
+    /**
+     * Free-form role label captured on the identity step
+     * (e.g. "Founder / CEO", "Engineering"). The orchestrator uses this
+     * as context for personalization — it is not an access-control field.
+     */
+    role: z.string().min(1).max(64).optional(),
+    /**
+     * Company name the user provided on the identity step. Same purpose
+     * as `role` — context for the research-intro prompt and ongoing tone,
+     * not an org/tenant identifier.
+     */
+    company: z.string().min(1).max(120).optional(),
     researchDepth: z.enum(["deep", "shallow"]).optional(),
     /**
      * Optional. When provided, the autonomy is PATCHed onto the instance

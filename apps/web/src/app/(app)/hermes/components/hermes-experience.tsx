@@ -306,6 +306,8 @@ export default function HermesExperience({
       skipResearch: boolean;
       name: string | null;
       email: string | null;
+      role: string | null;
+      company: string | null;
       autonomyLevel: HermesAutonomyLevel;
     }) => {
       setUiState("onboarding");
@@ -322,6 +324,8 @@ export default function HermesExperience({
         skipResearch: options.skipResearch,
         name: options.name,
         email: options.email,
+        role: options.role,
+        company: options.company,
         autonomyLevel: options.autonomyLevel,
       });
       if (!result.ok) {

@@ -1427,6 +1427,8 @@ app.openapi(startOnboardingRoute, async (c) => {
     await startInstanceOnboarding(userContext.userId, {
       name: body.name ?? user?.name,
       email: body.email ?? user?.email,
+      role: body.role,
+      company: body.company,
       researchDepth: body.researchDepth,
     });
     return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));

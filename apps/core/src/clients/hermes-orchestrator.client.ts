@@ -822,6 +822,11 @@ export async function proxyChatCompletions(
 export interface StartOnboardingInput {
   name?: string | null;
   email?: string | null;
+  /** User-supplied role label (e.g. "Founder / CEO"). Context for the
+   * orchestrator's research-intro prompt, not access control. */
+  role?: string | null;
+  /** Company name the user provided. Context for research + tone. */
+  company?: string | null;
   /** "deep" runs the full context-aware research; default if omitted. */
   researchDepth?: "deep" | "shallow" | null;
 }
@@ -839,6 +844,10 @@ export async function startInstanceOnboarding(
   if (input.name && input.name.trim().length > 0) body.name = input.name.trim();
   if (input.email && input.email.trim().length > 0) {
     body.email = input.email.trim();
+  }
+  if (input.role && input.role.trim().length > 0) body.role = input.role.trim();
+  if (input.company && input.company.trim().length > 0) {
+    body.company = input.company.trim();
   }
   if (input.researchDepth) body.researchDepth = input.researchDepth;
 

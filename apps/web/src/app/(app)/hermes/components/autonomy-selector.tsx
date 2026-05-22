@@ -23,28 +23,19 @@ interface Option {
   /** When set, render a small spend-warning badge in the header row. */
   spendBadgeKey?: string;
   Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  /** Per-tier accent (icon tile + selected ring). */
-  accent: {
-    /** Icon-tile bg + text classes. */
-    tile: string;
-    /** Border + bg used when selected. */
-    selectedRing: string;
-  };
 }
 
-// Color contract: neutral for "low" (it's the safe default, no urgency),
-// primary for "medium" (the recommended path — earns the brand color),
-// amber only for "high" (genuine warning — this tier spends credits).
+// Color contract: ALL tiers use the same neutral chrome — the user said the
+// tinted accent rings (primary on medium, amber on high) didn't read well
+// against the foreground text when selected. Meaning is carried by the
+// "Recommended" and "Spends credits" badges, not by ring colour. Amber is
+// kept only on the spend-warning badge itself where it actively signals risk.
 const OPTIONS: Option[] = [
   {
     value: "low",
     labelKey: "autonomyLowLabel",
     bodyKey: "autonomyLowBody",
     Icon: Eye,
-    accent: {
-      tile: "bg-muted/40 text-muted-foreground",
-      selectedRing: "border-foreground/40 bg-muted/30",
-    },
   },
   {
     value: "medium",
@@ -52,10 +43,6 @@ const OPTIONS: Option[] = [
     bodyKey: "autonomyMediumBody",
     recommended: true,
     Icon: MessageCircleQuestion,
-    accent: {
-      tile: "bg-primary/10 text-primary",
-      selectedRing: "border-primary/50 bg-primary/[0.04]",
-    },
   },
   {
     value: "high",
@@ -63,10 +50,6 @@ const OPTIONS: Option[] = [
     bodyKey: "autonomyHighBody",
     spendBadgeKey: "autonomyHighSpendBadge",
     Icon: Zap,
-    accent: {
-      tile: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-      selectedRing: "border-amber-500/50 bg-amber-500/[0.04]",
-    },
   },
 ];
 
@@ -90,7 +73,7 @@ export default function AutonomySelector({
 
   return (
     <fieldset
-      className={cn("flex flex-col", compact ? "gap-2" : "gap-3")}
+      className="border-border/60 divide-border/60 flex flex-col divide-y overflow-hidden rounded-xl border"
       disabled={disabled}
       aria-label="Hermes autonomy level"
     >
@@ -102,18 +85,15 @@ export default function AutonomySelector({
           recommended,
           spendBadgeKey,
           Icon,
-          accent,
         }) => {
           const isSelected = value === optValue;
           return (
             <label
               key={optValue}
               className={cn(
-                "group relative flex cursor-pointer items-start gap-4 rounded-xl border transition-all",
-                compact ? "p-4" : "p-5",
-                isSelected
-                  ? cn(accent.selectedRing, "shadow-sm")
-                  : "border-border bg-card/60 hover:border-foreground/20 hover:bg-card",
+                "group relative flex cursor-pointer items-start gap-3 transition-colors",
+                compact ? "px-4 py-3" : "px-4 py-3.5",
+                isSelected ? "bg-foreground/[0.03]" : "hover:bg-muted/40",
                 disabled && "cursor-not-allowed opacity-60",
               )}
             >
@@ -127,13 +107,14 @@ export default function AutonomySelector({
                 className="sr-only"
               />
 
-              {/* Accent icon tile */}
               <span
                 aria-hidden
                 className={cn(
-                  "flex shrink-0 items-center justify-center rounded-xl transition-colors",
-                  compact ? "size-9" : "size-10",
-                  accent.tile,
+                  "mt-0.5 flex shrink-0 items-center justify-center rounded-lg transition-colors",
+                  compact ? "size-8" : "size-9",
+                  isSelected
+                    ? "bg-foreground text-background"
+                    : "bg-muted/60 text-muted-foreground",
                 )}
               >
                 <Icon className={compact ? "size-4" : "size-[18px]"} />
@@ -143,19 +124,19 @@ export default function AutonomySelector({
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      "text-foreground font-semibold tracking-tight",
-                      compact ? "text-sm" : "text-base",
+                      "text-foreground font-medium tracking-tight",
+                      compact ? "text-sm" : "text-sm",
                     )}
                   >
                     {t(labelKey)}
                   </span>
                   {recommended ? (
-                    <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 text-xs font-medium uppercase tracking-wider">
+                    <span className="bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider">
                       {t("autonomyMediumRecommended")}
                     </span>
                   ) : null}
                   {spendBadgeKey ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
                       <Coins className="size-2.5" aria-hidden />
                       <span>{t(spendBadgeKey)}</span>
                     </span>
@@ -163,26 +144,25 @@ export default function AutonomySelector({
                 </div>
                 <p
                   className={cn(
-                    "text-muted-foreground mt-1.5 leading-relaxed",
-                    compact ? "text-xs" : "text-sm",
+                    "text-muted-foreground mt-1 leading-relaxed",
+                    compact ? "text-xs" : "text-xs",
                   )}
                 >
                   {t(bodyKey)}
                 </p>
               </div>
 
-              {/* Selection indicator */}
               <span
                 aria-hidden
                 className={cn(
-                  "mt-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors",
+                  "mt-1 inline-flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
                   isSelected
                     ? "border-foreground bg-foreground"
                     : "border-border bg-background",
                 )}
               >
                 {isSelected ? (
-                  <span className="bg-background size-1.5 rounded-full" />
+                  <span className="bg-background size-1 rounded-full" />
                 ) : null}
               </span>
             </label>

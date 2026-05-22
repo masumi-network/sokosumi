@@ -2335,6 +2335,16 @@ export const HermesStartOnboardingRequestSchema = {
             type: 'string',
             format: 'email'
         },
+        role: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        },
+        company: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
         researchDepth: {
             type: 'string',
             enum: [

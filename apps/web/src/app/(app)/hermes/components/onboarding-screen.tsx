@@ -12,6 +12,13 @@ import ProgressPips from "@/app/hermes/components/progress-pips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { disconnectHermesIntegrationAction } from "@/lib/actions/hermes";
 import type {
   HermesAutonomyLevel,
@@ -26,6 +33,11 @@ import { useComposioOAuth } from "./use-composio-oauth";
 
 interface OnboardingScreenProps {
   defaultName: string;
+  /**
+   * Session email — passed straight through to the orchestrator as-is.
+   * The user doesn't get to edit it (we already verified it on signup) so
+   * it isn't rendered as a field anymore, just forwarded silently.
+   */
   defaultEmail: string;
   integrations: HermesIntegration[];
   previewMode: boolean;
@@ -33,9 +45,30 @@ interface OnboardingScreenProps {
     skipResearch: boolean;
     name: string | null;
     email: string | null;
+    role: string | null;
+    company: string | null;
     autonomyLevel: HermesAutonomyLevel;
   }) => void;
 }
+
+/**
+ * Role options for the identity step. Plain strings (not enum-backed)
+ * because the orchestrator only needs them as context for personalization —
+ * Hermes doesn't switch behaviour by role, it just talks more like a peer
+ * when it knows what the user does.
+ */
+const ROLE_OPTIONS = [
+  "Founder / CEO",
+  "Product",
+  "Engineering",
+  "Design",
+  "Marketing",
+  "Sales",
+  "Operations",
+  "Finance",
+  "Customer Success",
+  "Other",
+] as const;
 
 /**
  * Ordered v1 provider list. Each `slug` matches the orchestrator's expected
@@ -85,7 +118,8 @@ export default function OnboardingScreen({
   const composioOAuth = useComposioOAuth();
 
   const [name, setName] = useState(defaultName);
-  const [email, setEmail] = useState(defaultEmail);
+  const [role, setRole] = useState<string>("");
+  const [company, setCompany] = useState<string>("");
   const [autonomyLevel, setAutonomyLevel] =
     useState<HermesAutonomyLevel>("medium");
   /** 1 = details, 2 = autonomy, 3 = integrations + final CTA. */
@@ -244,7 +278,7 @@ export default function OnboardingScreen({
               heading={t("identityHeading")}
               description={t("identityHelp")}
             >
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field
                   id="hermes-onboarding-name"
                   label={t("nameLabel")}
@@ -253,13 +287,32 @@ export default function OnboardingScreen({
                   onChange={setName}
                 />
                 <Field
-                  id="hermes-onboarding-email"
-                  label={t("emailLabel")}
-                  type="email"
-                  placeholder={t("emailPlaceholder")}
-                  value={email}
-                  onChange={setEmail}
+                  id="hermes-onboarding-company"
+                  label={t("companyLabel")}
+                  placeholder={t("companyPlaceholder")}
+                  value={company}
+                  onChange={setCompany}
                 />
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <Label
+                    htmlFor="hermes-onboarding-role"
+                    className="text-foreground text-sm font-medium"
+                  >
+                    {t("roleLabel")}
+                  </Label>
+                  <Select value={role} onValueChange={setRole}>
+                    <SelectTrigger id="hermes-onboarding-role" className="h-10">
+                      <SelectValue placeholder={t("rolePlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </Section>
           )}
@@ -400,7 +453,9 @@ export default function OnboardingScreen({
                     onContinue({
                       skipResearch: false,
                       name: name.trim() || null,
-                      email: email.trim() || null,
+                      email: defaultEmail || null,
+                      role: role.trim() || null,
+                      company: company.trim() || null,
                       autonomyLevel,
                     })
                   }
@@ -422,7 +477,9 @@ export default function OnboardingScreen({
                     onContinue({
                       skipResearch: true,
                       name: name.trim() || null,
-                      email: email.trim() || null,
+                      email: defaultEmail || null,
+                      role: role.trim() || null,
+                      company: company.trim() || null,
                       autonomyLevel,
                     })
                   }
