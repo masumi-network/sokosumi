@@ -192,6 +192,43 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("filters tasks by projectId", async () => {
+    const app = createApp();
+    const projectId = "33333333-3333-4333-8333-333333333333";
+    const response = await app.request(
+      `http://localhost/?projectId=${projectId}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          userId: "user_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          projectId,
+        },
+      }),
+    );
+  });
+
+  it("filters tasks unassigned to a project with projectId=null", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?projectId=null");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          userId: "user_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          projectId: null,
+        },
+      }),
+    );
+  });
+
   it("does not include task links for user-scoped task list reads", async () => {
     const app = createApp();
 

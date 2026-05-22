@@ -470,6 +470,7 @@ export async function getUserJobs(
   context: JobContext,
   options: {
     agentId?: string;
+    projectId?: string | null;
     status?: AgentJobStatus;
     scope?: "workspace" | "owned";
     cursor?: string;
@@ -484,6 +485,7 @@ export async function getUserJobs(
 }> {
   const {
     agentId,
+    projectId,
     status,
     scope = "owned",
     cursor,
@@ -500,6 +502,7 @@ export async function getUserJobs(
         ...(scope === "owned" ? { userId: userContext.userId } : {}),
       },
       ...(agentId ? [{ agentId }] : []),
+      ...(projectId !== undefined ? [{ projectId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
     ],
   };
