@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import type { HermesInstance, Prisma } from "@sokosumi/database";
+import { v5 as uuidv5 } from "uuid";
 
 import {
   ackInstanceInbox,
@@ -16,6 +17,9 @@ const WARM_POLL_INTERVAL_MS = 2 * 60_000;
 const COLD_POLL_INTERVAL_MS = 10 * 60_000;
 const POLL_BATCH_LIMIT = 100;
 const INBOX_FETCH_LIMIT = 50;
+const INBOX_SINCE_OVERLAP_MS = 5 * 60_000;
+const HERMES_INBOX_MESSAGE_UUID_NAMESPACE =
+  "3ed84820-2c89-4546-9a58-96b20f8b4980";
 
 interface SyncOptions {
   abortSignal: AbortSignal;
@@ -69,6 +73,25 @@ function shouldContinueSync(options: SyncOptions): boolean {
     options.shouldContinue() &&
     !options.abortSignal.aborted &&
     Date.now() < options.deadlineMs
+  );
+}
+
+function inboxSinceIso(lastInboxMessageAt: Date | null): string | null {
+  if (!lastInboxMessageAt) return null;
+
+  // The orchestrator treats `since` like a cursor and message timestamps can
+  // reflect turn start, so overlap defensively and rely on idempotent upserts.
+  const overlappedMs = Math.max(
+    0,
+    lastInboxMessageAt.getTime() - INBOX_SINCE_OVERLAP_MS,
+  );
+  return new Date(overlappedMs).toISOString();
+}
+
+function inboxMessageId(userId: string, orchestratorMessageId: string): string {
+  return uuidv5(
+    `${userId}:${orchestratorMessageId}`,
+    HERMES_INBOX_MESSAGE_UUID_NAMESPACE,
   );
 }
 
@@ -150,13 +173,18 @@ async function persistInboxMessages(
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     for (const message of messages) {
-      await tx.hermesMessage.create({
-        data: {
+      const id = inboxMessageId(userId, message.id);
+      await tx.hermesMessage.upsert({
+        where: { id },
+        create: {
+          id,
           userId,
           role: "assistant",
           content: message.content,
           kind: message.kind ?? "text",
+          createdAt: new Date(message.createdAt),
         },
+        update: {},
       });
     }
   });
@@ -166,7 +194,7 @@ async function pollOne(
   instance: HermesInstance,
   options: SyncOptions,
 ): Promise<PollOutcome> {
-  const sinceIso = instance.lastInboxMessageAt?.toISOString() ?? null;
+  const sinceIso = inboxSinceIso(instance.lastInboxMessageAt);
 
   let result: Awaited<ReturnType<typeof getInstanceInbox>>;
   try {
@@ -243,6 +271,14 @@ async function pollOne(
       tags: { context: "hermes_inbox_ack" },
       extra: { userId: instance.userId, count: messages.length },
     });
+    await markPolled({ userId: instance.userId, incrementErrors: true }).catch(
+      () => undefined,
+    );
+    return {
+      userId: instance.userId,
+      outcome: "messages",
+      count: messages.length,
+    };
   }
 
   const latestCreatedAt = maxInboxMessageCreatedAt(messages);
@@ -257,6 +293,22 @@ async function pollOne(
     outcome: "messages",
     count: messages.length,
   };
+}
+
+export async function syncHermesInboxForUser(
+  userId: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<PollOutcome> {
+  const instance = await prisma.hermesInstance.findUnique({
+    where: { userId },
+  });
+  if (!instance) return { userId, outcome: "skipped_instance_missing" };
+
+  return await pollOne(instance, {
+    abortSignal: options.signal ?? new AbortController().signal,
+    deadlineMs: Date.now() + 30_000,
+    shouldContinue: () => true,
+  });
 }
 
 async function pollInboxes(

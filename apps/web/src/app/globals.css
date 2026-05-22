@@ -608,6 +608,104 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   animation: var(--animate-reasoning-step-in);
 }
 
+/* ─── Hermes flow background blobs ────────────────────────────────────────
+   Large blurred color washes that drift across the Hermes setup flow.
+   Position-based animation (not transform) so blend modes stay sane.
+   `@media (prefers-reduced-motion)` pauses the drift but keeps the color.
+*/
+.hermes-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(110px);
+  mix-blend-mode: normal;
+  will-change: transform, filter;
+}
+
+.hermes-blob-1 {
+  top: -15%;
+  left: -15%;
+  width: 60vw;
+  height: 60vw;
+  max-width: 820px;
+  max-height: 820px;
+  animation: hermes-blob-drift-1 22s ease-in-out infinite;
+}
+
+.hermes-blob-2 {
+  bottom: -20%;
+  right: -15%;
+  width: 65vw;
+  height: 65vw;
+  max-width: 880px;
+  max-height: 880px;
+  animation: hermes-blob-drift-2 26s ease-in-out infinite;
+}
+
+.hermes-blob-3 {
+  top: 25%;
+  left: 30%;
+  width: 50vw;
+  height: 50vw;
+  max-width: 700px;
+  max-height: 700px;
+  animation: hermes-blob-drift-3 30s ease-in-out infinite;
+}
+
+@keyframes hermes-blob-drift-1 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(20vw, 12vh, 0) scale(1.18) rotate(8deg);
+  }
+  50% {
+    transform: translate3d(28vw, 28vh, 0) scale(0.92) rotate(-4deg);
+  }
+  75% {
+    transform: translate3d(6vw, 32vh, 0) scale(1.1) rotate(6deg);
+  }
+}
+
+@keyframes hermes-blob-drift-2 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(-22vw, -18vh, 0) scale(1.2) rotate(-10deg);
+  }
+  50% {
+    transform: translate3d(-30vw, 4vh, 0) scale(0.88) rotate(6deg);
+  }
+  75% {
+    transform: translate3d(-12vw, -8vh, 0) scale(1.12) rotate(-4deg);
+  }
+}
+
+@keyframes hermes-blob-drift-3 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate3d(18vw, -22vh, 0) scale(1.25) rotate(12deg);
+  }
+  66% {
+    transform: translate3d(-16vw, 14vh, 0) scale(0.85) rotate(-8deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Don't kill all motion — slow it down to a very gentle breathe so the
+     gradient still feels alive without being a vestibular trigger. */
+  .hermes-blob-1,
+  .hermes-blob-2,
+  .hermes-blob-3 {
+    animation-duration: 120s;
+  }
+}
+
 .reasoning-step-typing {
   position: relative;
 }
@@ -700,4 +798,38 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
 
 .hljs-strong {
   font-weight: 700;
+}
+
+/* Hermes owns its own chrome — AppLayout's <main> reserves 64px at the top
+ * for the shared breadcrumb header on every route. When the Hermes fullscreen
+ * effect is active, reclaim that space so the chat / empty-state fills the
+ * viewport. Keyed off a body attribute toggled by FullscreenEffect.
+ */
+body[data-hermes-fullscreen="true"] [data-app-main] {
+  max-height: 100svh !important;
+  min-height: 100svh !important;
+  /* Full-bleed Hermes — kill the AppLayout's `p-4`. Done here instead of via
+   * `data-agent-fullbleed` so main keeps its `overflow-y-auto`; otherwise
+   * the setup loaders leak excess height to the document body. */
+  padding: 0 !important;
+}
+
+/* Three staggered pulsing dots after the "Thinking" phrase in the chat.
+ * Each dot uses the same keyframe; the JSX adds per-dot animation-delay so
+ * they fire in sequence and the row reads as a typing indicator. */
+@keyframes thinking-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+.animate-thinking-dot {
+  animation: thinking-dot 1.2s ease-in-out infinite;
 }
