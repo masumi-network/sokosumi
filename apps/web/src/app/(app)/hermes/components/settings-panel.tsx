@@ -161,8 +161,11 @@ export default function SettingsPanel({
       }
       toast.success(t("autonomySavedToast"));
       onAutonomyChanged?.(result.data.autonomyLevel);
+      // Sync parent state so the next time the sheet opens it doesn't
+      // resync the selector from the stale `autonomyLevel` prop.
+      void onRefreshInstance?.();
     },
-    [autonomy, previewMode, onAutonomyChanged, t],
+    [autonomy, previewMode, onAutonomyChanged, onRefreshInstance, t],
   );
 
   // Fetch schedules whenever the panel opens — cheap, returns 404/empty in

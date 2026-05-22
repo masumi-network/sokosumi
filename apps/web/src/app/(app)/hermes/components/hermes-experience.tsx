@@ -72,9 +72,19 @@ function uiStateForServerStatus(status: HermesInstanceStatus): UiState {
   }
 }
 
-/** Statuses that warrant continuous instance polling (waiting for a flip). */
+/** Statuses that warrant continuous instance polling (waiting for a flip).
+ *
+ * `infrastructure_ready` is included because the user can sit on the setup
+ * wizard for an arbitrary amount of time before they hit Continue — if the
+ * orchestrator flips the instance to `error` while they're filling out the
+ * form, we want to surface that immediately rather than waiting for the
+ * submit to bounce. */
 function isPollableTransitionState(status: UiState): boolean {
-  return status === "provisioning" || status === "onboarding";
+  return (
+    status === "provisioning" ||
+    status === "infrastructure_ready" ||
+    status === "onboarding"
+  );
 }
 
 /**
