@@ -1669,6 +1669,9 @@
         "setup": "设置",
         "personalizing": "个性化"
       },
+      "Loading": {
+        "message": "正在加载 Hermes…"
+      },
       "Experience": {
         "fetchFailed": "无法连接 Hermes。",
         "provisionTimeout": "配置在 15 分钟后超时。请重试。",

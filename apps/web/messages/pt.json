@@ -1669,6 +1669,9 @@
         "setup": "Configuração",
         "personalizing": "A personalizar"
       },
+      "Loading": {
+        "message": "A carregar Hermes…"
+      },
       "Experience": {
         "fetchFailed": "Não foi possível contactar o Hermes.",
         "provisionTimeout": "O aprovisionamento expirou após 15 minutos. Tente novamente.",

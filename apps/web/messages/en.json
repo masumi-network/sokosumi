@@ -1669,6 +1669,9 @@
         "setup": "Setup",
         "personalizing": "Personalizing"
       },
+      "Loading": {
+        "message": "Loading Hermes…"
+      },
       "Experience": {
         "fetchFailed": "Failed to reach Hermes.",
         "provisionTimeout": "Provisioning timed out after 15 minutes. Please try again.",

@@ -1669,6 +1669,9 @@
         "setup": "Configurazione",
         "personalizing": "Personalizzazione"
       },
+      "Loading": {
+        "message": "Caricamento di Hermes…"
+      },
       "Experience": {
         "fetchFailed": "Impossibile raggiungere Hermes.",
         "provisionTimeout": "Il provisioning è scaduto dopo 15 minuti. Riprova.",

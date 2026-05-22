@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import EmptyState from "@/app/hermes/components/empty-state";
 import ErrorState from "@/app/hermes/components/error-state";
+import LoadingState from "@/app/hermes/components/loading-state";
 import OnboardingProgress from "@/app/hermes/components/onboarding-progress";
 import OnboardingScreen from "@/app/hermes/components/onboarding-screen";
 import ProvisioningState from "@/app/hermes/components/provisioning-state";
@@ -373,8 +374,7 @@ export default function HermesExperience({
   );
 
   if (uiState === "loading") {
-    // Stay blank while we fetch — avoids a flash of the wrong state.
-    return null;
+    return <LoadingState />;
   }
 
   if (uiState === "idle") {

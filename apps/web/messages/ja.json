@@ -1669,6 +1669,9 @@
         "setup": "セットアップ",
         "personalizing": "パーソナライズ中"
       },
+      "Loading": {
+        "message": "Hermes を読み込み中…"
+      },
       "Experience": {
         "fetchFailed": "Hermes に接続できませんでした。",
         "provisionTimeout": "プロビジョニングが15分でタイムアウトしました。もう一度お試しください。",

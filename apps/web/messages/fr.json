@@ -1669,6 +1669,9 @@
         "setup": "Configuration",
         "personalizing": "Personnalisation"
       },
+      "Loading": {
+        "message": "Chargement d'Hermes…"
+      },
       "Experience": {
         "fetchFailed": "Impossible de joindre Hermes.",
         "provisionTimeout": "Le provisionnement a expiré après 15 minutes. Veuillez réessayer.",

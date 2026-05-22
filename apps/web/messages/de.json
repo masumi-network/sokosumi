@@ -1638,6 +1638,9 @@
         "setup": "Einrichtung",
         "personalizing": "Wird personalisiert"
       },
+      "Loading": {
+        "message": "Hermes wird geladen…"
+      },
       "Experience": {
         "fetchFailed": "Hermes konnte nicht erreicht werden.",
         "provisionTimeout": "Die Bereitstellung ist nach 15 Minuten abgelaufen. Bitte versuche es erneut.",
