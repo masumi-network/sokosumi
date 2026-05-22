@@ -5,7 +5,6 @@ import {
   ArrowUpRight,
   Brain,
   Calendar,
-  CalendarClock,
   Check,
   Inbox,
   ListTodo,
@@ -14,7 +13,6 @@ import {
   Mail,
   MessageSquare,
   Moon,
-  Network,
   Plug,
   Repeat,
   ShieldAlert,
@@ -26,6 +24,7 @@ import { useTranslations } from "next-intl";
 import { type ComponentType, useState } from "react";
 
 import FlowBackground from "@/app/hermes/components/flow-background";
+import { SokosumiIcon } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -128,7 +127,7 @@ const FEATURES: Array<{
     titleKey: "feature1Title",
     bodyKey: "feature1Body",
     Icon: Brain,
-    accent: "bg-primary/10 text-primary",
+    accent: "bg-muted/40 text-muted-foreground",
     hero: true,
   },
   {
@@ -181,38 +180,38 @@ const EXAMPLES: Array<{
   {
     key: "example1",
     replyKey: "example1Reply",
-    category: "Inbox",
-    Icon: Inbox,
+    category: "Inbox + Research agent",
+    Icon: Mail,
   },
   {
     key: "example2",
     replyKey: "example2Reply",
-    category: "Reply",
-    Icon: Mail,
+    category: "Competitor Research + reply",
+    Icon: Sparkles,
   },
   {
     key: "example3",
     replyKey: "example3Reply",
-    category: "Calendar",
-    Icon: CalendarClock,
+    category: "Brief agent, daily",
+    Icon: Repeat,
   },
   {
     key: "example4",
     replyKey: "example4Reply",
-    category: "Tickets",
+    category: "GitHub + Linear + Slack",
     Icon: ListTodo,
   },
   {
     key: "example5",
     replyKey: "example5Reply",
-    category: "Schedule",
-    Icon: Repeat,
+    category: "Reddit Research",
+    Icon: Sparkles,
   },
   {
     key: "example6",
     replyKey: "example6Reply",
-    category: "Research",
-    Icon: Sparkles,
+    category: "Watch + refund + Linear",
+    Icon: Inbox,
   },
 ];
 
@@ -394,9 +393,12 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
             <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
               <div
                 aria-hidden
-                className="bg-primary/15 text-primary flex size-14 shrink-0 items-center justify-center rounded-2xl"
+                className="bg-primary/10 text-primary flex size-16 shrink-0 items-center justify-center rounded-2xl"
               >
-                <Network className="size-7" />
+                <SokosumiIcon
+                  animated={false}
+                  className="size-9 text-primary"
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-primary text-xs font-semibold uppercase tracking-wider">

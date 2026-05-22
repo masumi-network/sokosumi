@@ -32,18 +32,12 @@ interface OnboardingProgressProps {
 const POLL_INTERVAL_MS = 1_000;
 
 /**
- * Mirrors the labels the orchestrator returns once it starts emitting
- * progress. Rendered with the first row showing a spinner so the user has
- * something to anchor on during the pre-first-poll gap — beats a single
- * "Working" line that suddenly grows to 5.
+ * Skeleton row count shown before the first poll returns. We render shimmer
+ * placeholders (not text) so when the orchestrator hands us real labels the
+ * transition reads as "loading → loaded" instead of one label visibly
+ * swapping to another — which looks like a bug.
  */
-const SKELETON_STEPS = [
-  "Bootstrapping your private memory",
-  "Connecting to your integrations",
-  "Reading your inbox",
-  "Checking your public profile",
-  "Drafting your intro",
-];
+const SKELETON_STEP_COUNT = 5;
 
 /**
  * Step sequence shown in preview mode (`?state=onboarding`). Mirrors the
@@ -181,44 +175,43 @@ export default function OnboardingProgress({
   const progress = useOnboardingProgress(previewMode);
 
   return (
-    <FlowBackground className="flex h-full flex-col">
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-8 md:py-12">
+    <FlowBackground className="flex h-full flex-col overflow-hidden">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-4 md:py-6">
         <ProgressPips current="personalizing" />
 
         {/* ── Hero ────────────────────────────────────────────────── */}
-        <div className="mb-10 flex flex-col items-center text-center md:mb-12">
-          <div className="bg-card border-border/60 ring-border/40 relative size-16 overflow-hidden rounded-full border ring-4">
+        <div className="mb-6 flex flex-col items-center text-center md:mb-8">
+          <div className="bg-card border-border/60 ring-border/40 relative size-14 overflow-hidden rounded-full border ring-4">
             <Image
               src="/images/hermes/avatar.png"
               alt=""
               fill
-              sizes="64px"
+              sizes="56px"
               className="object-cover"
             />
           </div>
-          <h1 className="text-foreground mt-6 text-3xl font-semibold tracking-tight md:text-4xl">
+          <h1 className="text-foreground mt-4 text-2xl font-semibold tracking-tight md:text-3xl">
             {t("title")}
           </h1>
-          <p className="text-muted-foreground mt-4 max-w-xl text-base leading-relaxed">
+          <p className="text-muted-foreground mt-2 max-w-xl text-sm leading-relaxed">
             {t("subtitle")}
           </p>
         </div>
 
         {/* ── Steps ───────────────────────────────────────────────── */}
         {/*
-        Before the orchestrator returns the real step list we render an
-        animated skeleton with the labels we KNOW it will return — keeps
-        the loader from snapping from a single "Warming things up" row to
-        a full 5-step list, and gives the user something to read.
+        Before the orchestrator returns the real step list we render
+        shimmer placeholders (not text). When real labels arrive the
+        transition reads as loading→loaded, never as text swapping.
       */}
         <ol className="border-border/60 bg-card/40 flex flex-col rounded-xl border">
           {progress.steps.length === 0
-            ? SKELETON_STEPS.map((label, index) => (
+            ? Array.from({ length: SKELETON_STEP_COUNT }).map((_, index) => (
                 <SkeletonRow
-                  key={label}
-                  label={label}
+                  // eslint-disable-next-line react/no-array-index-key
+                  key={index}
                   isFirst={index === 0}
-                  isLast={index === SKELETON_STEPS.length - 1}
+                  isLast={index === SKELETON_STEP_COUNT - 1}
                 />
               ))
             : progress.steps.map((step, index) => (
@@ -234,16 +227,13 @@ export default function OnboardingProgress({
           ETA is wildly variable (Composio MCP cold-start, OAuth verification,
           Gmail inbox size) so a per-second number reads as broken when it
           inevitably drifts. Honest copy + something fun to read. */}
-        <div className="mt-6 flex min-h-[2.5rem] items-center justify-center">
+        <div className="mt-4 flex min-h-[2rem] items-center justify-center">
           <RotatingMessages
             messages={HINTS}
             intervalMs={5_500}
             className="text-muted-foreground max-w-md text-center text-xs leading-relaxed"
           />
         </div>
-        <p className="text-muted-foreground/60 mt-2 text-center text-[11px]">
-          This usually takes a couple of minutes. You can close this tab.
-        </p>
       </div>
     </FlowBackground>
   );
@@ -263,7 +253,7 @@ function StepRow({
   return (
     <li
       className={cn(
-        "flex flex-col gap-1 px-5 py-4 transition-colors",
+        "flex flex-col gap-1 px-5 py-3 transition-colors",
         !isLast && "border-border/60 border-b",
         isActive && "bg-card",
       )}
@@ -315,18 +305,19 @@ function StepRow({
 }
 
 function SkeletonRow({
-  label,
   isFirst,
   isLast,
 }: {
-  label: string;
   isFirst: boolean;
   isLast: boolean;
 }) {
+  // Vary the placeholder bar width so the column doesn't look like a barcode.
+  const widths = ["w-2/3", "w-1/2", "w-3/5", "w-2/5", "w-1/2"];
+  const width = isFirst ? widths[0] : widths[(isLast ? 4 : 2) % widths.length];
   return (
     <li
       className={cn(
-        "flex items-center gap-3 px-5 py-4",
+        "flex items-center gap-3 px-5 py-3",
         !isLast && "border-border/60 border-b",
         isFirst && "bg-card",
       )}
@@ -345,13 +336,13 @@ function SkeletonRow({
         )}
       </span>
       <span
+        aria-hidden
         className={cn(
-          "text-sm",
-          isFirst ? "text-foreground font-medium" : "text-muted-foreground",
+          "bg-muted-foreground/15 h-3 rounded-full",
+          isFirst ? "animate-pulse" : "opacity-60",
+          width,
         )}
-      >
-        {label}
-      </span>
+      />
     </li>
   );
 }
