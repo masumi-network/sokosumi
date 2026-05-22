@@ -965,8 +965,7 @@ function normalizeOrchestratorDateTime(value: unknown): string | null {
 
 /**
  * Coerce orchestrator datetime fields to ISO-8601 (or null) before API
- * validation. Used by `getInstance` and by route handlers that may receive
- * mocked or cached instance payloads.
+ * validation. Applied inside `getInstance` before callers see the payload.
  */
 export function normalizeHermesInstancePublic(
   instance: HermesInstancePublic,

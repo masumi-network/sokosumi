@@ -745,12 +745,12 @@ describe("Hermes route contracts", () => {
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
   });
 
-  it("returns 200 for GET /me/instance when onboardedAt is truthy but not ISO-8601", async () => {
+  it("returns 200 for GET /me/instance and skips welcome persist when onboardedAt is null", async () => {
     vi.mocked(getInstance).mockResolvedValue({
       status: "ready",
       endpointUrl: null,
       lastActivityAt: null,
-      onboardedAt: "not-a-valid-iso-datetime",
+      onboardedAt: null,
       autonomyLevel: "medium",
       integrations: [],
       transitioning: false,

@@ -37,7 +37,6 @@ import {
   isValidSecretKey,
   listInstanceIntegrations,
   listInstanceSchedules,
-  normalizeHermesInstancePublic,
   patchInstance,
   patchSchedule,
   provisionInstance,
@@ -1258,15 +1257,13 @@ app.openapi(getInstanceRoute, async (c) => {
   try {
     const instance = await getInstance(userContext.userId);
     if (instance) {
-      const normalizedInstance = normalizeHermesInstancePublic(instance);
-
       await upsertHermesInstanceForUser(userContext.userId).catch((error) => {
         Sentry.captureException(error, {
           tags: { context: "hermes_instance_backfill" },
         });
       });
 
-      const parsedInstance = hermesInstanceSchema.parse(normalizedInstance);
+      const parsedInstance = hermesInstanceSchema.parse(instance);
 
       // Atomic welcome (orchestrator's "ready" payload carries the intro).
       // Persist it on first sight so the chat opens with the welcome
@@ -1275,14 +1272,14 @@ app.openapi(getInstanceRoute, async (c) => {
       // fetches messages immediately after seeing `status === "ready"`,
       // so persisting in the background would let the first fetch return
       // an empty inbox and flash empty chat. Only when `onboardedAt` is a
-      // valid ISO timestamp (normalized in the orchestrator client) — a
-      // truthy but malformed value must not persist-then-500 the handler.
-      if (normalizedInstance.welcomeMessage && parsedInstance.onboardedAt) {
+      // valid ISO timestamp (normalized in `getInstance`) — a truthy but
+      // malformed value must not persist-then-500 the handler.
+      if (instance.welcomeMessage && parsedInstance.onboardedAt) {
         try {
           await persistHermesWelcomeMessage({
             userId: userContext.userId,
-            content: normalizedInstance.welcomeMessage,
-            kind: normalizedInstance.welcomeKind,
+            content: instance.welcomeMessage,
+            kind: instance.welcomeKind,
             onboardedAtIso: parsedInstance.onboardedAt,
           });
         } catch (error) {
