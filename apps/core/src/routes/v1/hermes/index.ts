@@ -1600,6 +1600,7 @@ app.openapi(initiateIntegrationRoute, async (c) => {
       userId: userContext.userId,
       callbackUrl,
     });
+    rememberPendingConnection(connectionId, userContext.userId);
     return ok(
       c,
       hermesInitiateIntegrationResponseSchema.parse({
@@ -1616,10 +1617,61 @@ app.openapi(initiateIntegrationRoute, async (c) => {
 const FINALIZE_POLL_INTERVAL_MS = 750;
 const FINALIZE_POLL_MAX_ATTEMPTS = 8;
 
+/**
+ * Short-lived map of `connectionId -> { userId, expiresAt }` populated by
+ * initiate and consumed by finalize. Lets finalize reject any client-supplied
+ * `connectionId` that wasn't created by this server for the same authenticated
+ * user — without this, a leaked connectionId could be passed to a different
+ * user's finalize and register a non-functional MCP under their account.
+ *
+ * In-memory is fine: the OAuth round-trip is ~seconds, well under the TTL,
+ * and a server restart between initiate and finalize is rare enough that
+ * forcing a retry is the right failure mode.
+ */
+const PENDING_CONNECTION_TTL_MS = 15 * 60_000;
+const pendingConnections = new Map<
+  string,
+  { userId: string; expiresAt: number }
+>();
+
+function rememberPendingConnection(connectionId: string, userId: string): void {
+  pendingConnections.set(connectionId, {
+    userId,
+    expiresAt: Date.now() + PENDING_CONNECTION_TTL_MS,
+  });
+  // Opportunistic GC on write so the map can't grow unbounded.
+  if (pendingConnections.size > 256) {
+    const now = Date.now();
+    for (const [key, entry] of pendingConnections) {
+      if (entry.expiresAt < now) pendingConnections.delete(key);
+    }
+  }
+}
+
+function consumePendingConnection(
+  connectionId: string,
+  userId: string,
+): boolean {
+  const entry = pendingConnections.get(connectionId);
+  if (!entry) return false;
+  pendingConnections.delete(connectionId);
+  if (entry.expiresAt < Date.now()) return false;
+  return entry.userId === userId;
+}
+
 app.openapi(finalizeIntegrationRoute, async (c) => {
   const userContext = requireUserContext(c.var.authContext);
   const { provider, connectionId, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
+
+  // Verify the connection was created by THIS server for THIS user. Without
+  // this, a leaked or guessed `connectionId` from another user's OAuth could
+  // be finalized under the attacker's account.
+  if (!consumePendingConnection(connectionId, userContext.userId)) {
+    throw badRequest(
+      "Unknown or expired connection — restart the integration flow",
+    );
+  }
 
   // Poll Composio until the connection is ACTIVE. The callback page typically
   // fires immediately after the OAuth redirect lands, so a handful of short

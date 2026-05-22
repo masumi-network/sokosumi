@@ -64,6 +64,11 @@ interface SettingsPanelProps {
   /** Notify parent when the orchestrator-side autonomy changed so it can refetch. */
   onAutonomyChanged?: (next: HermesAutonomyLevel) => void;
   onDestroy: () => Promise<void> | void;
+  /** Re-pull the instance so the parent's `integrations` snapshot stays
+   * fresh after connect/disconnect/autonomy mutations. The panel keeps a
+   * local overlay for snappy UI, but the chip / autonomy badge upstream
+   * read from parent state. */
+  onRefreshInstance?: () => void | Promise<void>;
 }
 
 // Composio's `outlook` toolkit covers mail + calendar in a single connection,
@@ -106,6 +111,7 @@ export default function SettingsPanel({
   lastInboxRefreshAt,
   onAutonomyChanged,
   onDestroy,
+  onRefreshInstance,
 }: SettingsPanelProps) {
   const t = useTranslations("App.Hermes.Settings");
   const tProviders = useTranslations("App.Hermes.Onboarding.providers");
@@ -230,8 +236,12 @@ export default function SettingsPanel({
         ...prev,
         [provider]: result.integration.status,
       }));
+      // Re-pull the instance so the parent's integrations chip / pending
+      // confirmations reflect the new state immediately instead of waiting
+      // for the next background refresh tick.
+      void onRefreshInstance?.();
     },
-    [previewMode, composioOAuth],
+    [previewMode, composioOAuth, onRefreshInstance],
   );
 
   const handleDisconnect = useCallback(
@@ -254,8 +264,9 @@ export default function SettingsPanel({
         return;
       }
       setOverlay((prev) => ({ ...prev, [provider]: "disconnected" }));
+      void onRefreshInstance?.();
     },
-    [previewMode, effectiveStatus],
+    [previewMode, effectiveStatus, onRefreshInstance],
   );
 
   const handleDestroy = () => {

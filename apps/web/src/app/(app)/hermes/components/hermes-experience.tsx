@@ -40,6 +40,10 @@ interface HermesExperienceProps {
 }
 
 const POLL_INTERVAL_MS = 5_000;
+/** Background instance refresh once we're in running state. Keeps the
+ * integrations chip and autonomy badge fresh after settings-panel changes
+ * without hammering the orchestrator. */
+const RUNNING_REFRESH_INTERVAL_MS = 30_000;
 const PROVISION_DEADLINE_MS = 15 * 60_000;
 
 const PREVIEW_STATES = new Set<UiState>([
@@ -228,6 +232,23 @@ export default function HermesExperience({
     };
   }, [uiState, previewMode]);
 
+  // Low-frequency instance refresh once we're running. The settings panel
+  // mutates integration state via local overlay; without a parent refresh the
+  // integrations chip and pendingConfirmations on the chat header drift until
+  // a full reload.
+  useEffect(() => {
+    if (previewMode) return;
+    if (uiState !== "running") return;
+    let cancelled = false;
+    const interval = setInterval(() => {
+      void refetchHermes({ isCancelled: () => cancelled });
+    }, RUNNING_REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [uiState, previewMode, refetchHermes]);
+
   const handleActivate = useCallback(async () => {
     setUiState("provisioning");
     setErrorMessage(null);
@@ -352,6 +373,7 @@ export default function HermesExperience({
       previewMode={previewMode}
       initialMessages={initialMessages}
       onDestroy={handleDestroy}
+      onRefresh={refetchHermes}
     />
   );
 }

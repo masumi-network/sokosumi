@@ -69,6 +69,9 @@ interface RunningStateProps {
   previewMode: boolean;
   initialMessages?: HermesPersistedMessage[];
   onDestroy: () => Promise<void> | void;
+  /** Re-pull the instance from the orchestrator. SettingsPanel calls this
+   * after mutations so the integrations chip / autonomy badge don't drift. */
+  onRefresh?: () => void | Promise<void>;
 }
 
 interface Message {
@@ -143,6 +146,7 @@ export default function RunningState({
   previewMode,
   initialMessages,
   onDestroy,
+  onRefresh,
 }: RunningStateProps) {
   const t = useTranslations("App.Hermes.Running");
 
@@ -569,6 +573,7 @@ export default function RunningState({
         lastSokosumiSyncAt={instance?.lastSokosumiSyncAt ?? null}
         lastInboxRefreshAt={instance?.lastInboxRefreshAt ?? null}
         onDestroy={onDestroy}
+        onRefreshInstance={onRefresh}
       />
     </div>
   );
