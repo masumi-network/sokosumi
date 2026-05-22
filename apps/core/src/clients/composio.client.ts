@@ -676,9 +676,11 @@ export async function ensureAuthConfig(
   const cached = authConfigCache.get(toolkit);
   if (cached) return cached;
 
-  // Look for an existing record so restarts don't create duplicates.
+  // Look for an existing record so restarts don't create duplicates. The
+  // Composio list endpoint filters on `toolkit_slug` — `toolkit` is silently
+  // ignored and returns the full unfiltered page.
   const listRes = await composioFetch("/api/v3/auth_configs", {
-    searchParams: { toolkit, limit: 50 },
+    searchParams: { toolkit_slug: toolkit, limit: 50 },
   });
   const list = await parseResponse<ComposioListResponse<ComposioAuthConfig>>(
     listRes,

@@ -83,11 +83,30 @@ export function useComposioOAuth() {
       provider: HermesIntegrationProvider,
       mode: HermesIntegrationMode = "read",
     ): Promise<ComposioOAuthResult> => {
+      // Open the popup synchronously before the await so the user-gesture
+      // chain from the originating click survives. If we wait until after
+      // `initiateHermesIntegrationAction` returns the browser counts the
+      // gesture as expired and blocks the popup.
+      const popup = window.open(
+        "about:blank",
+        "composio-oauth",
+        POPUP_FEATURES,
+      );
+      if (!popup) {
+        return { ok: false, reason: "popup_blocked" };
+      }
+      popupRef.current = popup;
+
       const initiate = await initiateHermesIntegrationAction({
         provider,
         mode,
       });
       if (!initiate.ok) {
+        try {
+          popup.close();
+        } catch {
+          /* ignore */
+        }
         return {
           ok: false,
           reason: "error",
@@ -96,14 +115,12 @@ export function useComposioOAuth() {
       }
 
       const { redirectUrl, connectionId } = initiate.data;
-
-      // Pre-open a blank popup so the click chain doesn't get blocked by
-      // the popup blocker (we'll navigate it once we have the URL).
-      const popup = window.open(redirectUrl, "composio-oauth", POPUP_FEATURES);
-      if (!popup) {
-        return { ok: false, reason: "popup_blocked" };
+      try {
+        popup.location.href = redirectUrl;
+      } catch {
+        // Cross-origin navigation race — fall back to a top-level open.
+        popup.location.replace(redirectUrl);
       }
-      popupRef.current = popup;
       popup.focus();
 
       // Race: callback message wins, popup close loses, timeout loses last.
