@@ -1,8 +1,17 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Briefcase as BriefcaseIcon,
+  Building2,
+  Check,
+  Loader2,
+  User as UserIcon,
+} from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import type { ComponentType } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -10,7 +19,6 @@ import ConnectInterstitial from "@/app/hermes/components/connect-interstitial";
 import FlowBackground from "@/app/hermes/components/flow-background";
 import ProgressPips from "@/app/hermes/components/progress-pips";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -278,47 +286,61 @@ export default function OnboardingScreen({
               heading={t("identityHeading")}
               description={t("identityHelp")}
             >
-              <div className="flex flex-col gap-3">
-                <Field
-                  id="hermes-onboarding-name"
+              <div className="border-border/60 bg-card/40 divide-border/60 overflow-hidden rounded-xl border divide-y">
+                <InlineRow
+                  htmlFor="hermes-onboarding-name"
+                  Icon={UserIcon}
                   label={t("nameLabel")}
-                  placeholder={t("namePlaceholder")}
-                  value={name}
-                  onChange={setName}
-                  autoFocus
-                />
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div className="flex flex-col gap-1.5">
-                    <Label
-                      htmlFor="hermes-onboarding-role"
-                      className="text-foreground text-sm font-medium"
-                    >
-                      {t("roleLabel")}
-                    </Label>
-                    <Select value={role} onValueChange={setRole}>
-                      <SelectTrigger
-                        id="hermes-onboarding-role"
-                        className="h-10"
-                      >
-                        <SelectValue placeholder={t("rolePlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ROLE_OPTIONS.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Field
-                    id="hermes-onboarding-company"
-                    label={t("companyLabel")}
-                    placeholder={t("companyPlaceholder")}
-                    value={company}
-                    onChange={setCompany}
+                >
+                  <input
+                    id="hermes-onboarding-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={t("namePlaceholder")}
+                    autoComplete="off"
+                    spellCheck={false}
+                    autoFocus
+                    className="text-foreground placeholder:text-muted-foreground/60 h-9 w-full border-0 bg-transparent text-sm outline-none focus:outline-none focus:ring-0"
                   />
-                </div>
+                </InlineRow>
+                <InlineRow
+                  htmlFor="hermes-onboarding-role"
+                  Icon={BriefcaseIcon}
+                  label={t("roleLabel")}
+                >
+                  <Select value={role} onValueChange={setRole}>
+                    <SelectTrigger
+                      id="hermes-onboarding-role"
+                      className="text-foreground data-[placeholder]:text-muted-foreground/60 h-9 w-full border-0 bg-transparent px-0 text-sm shadow-none focus:ring-0 focus-visible:ring-0"
+                    >
+                      <SelectValue placeholder={t("rolePlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </InlineRow>
+                <InlineRow
+                  htmlFor="hermes-onboarding-company"
+                  Icon={Building2}
+                  label={t("companyLabel")}
+                >
+                  <input
+                    id="hermes-onboarding-company"
+                    type="text"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    placeholder={t("companyPlaceholder")}
+                    autoComplete="organization"
+                    spellCheck={false}
+                    className="text-foreground placeholder:text-muted-foreground/60 h-9 w-full border-0 bg-transparent text-sm outline-none focus:outline-none focus:ring-0"
+                  />
+                </InlineRow>
               </div>
             </Section>
           )}
@@ -590,42 +612,39 @@ function StepIndicator({
   );
 }
 
-function Field({
-  id,
+/**
+ * Identity-step form row: borderless input/select inside a shared card so the
+ * three fields read as one designed object instead of three stacked inputs.
+ * Icon tile on the left, fixed-width label column, then the control fills the
+ * rest. Focus state lives on the row's bg, not on the child input, so the
+ * Select trigger and the bare <input> share the same hit treatment.
+ */
+function InlineRow({
+  htmlFor,
+  Icon,
   label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-  autoFocus,
+  children,
 }: {
-  id: string;
+  htmlFor: string;
+  Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: "text" | "email";
-  autoFocus?: boolean;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id} className="text-foreground text-sm font-medium">
+    <div className="focus-within:bg-muted/40 flex items-center gap-3 px-4 py-2 transition-colors">
+      <span
+        aria-hidden
+        className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md"
+      >
+        <Icon className="size-3.5" aria-hidden />
+      </span>
+      <Label
+        htmlFor={htmlFor}
+        className="text-muted-foreground w-20 shrink-0 cursor-pointer text-xs font-medium uppercase tracking-wider"
+      >
         {label}
       </Label>
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        autoComplete="off"
-        spellCheck={false}
-        autoFocus={autoFocus}
-        // Override the default `border-input` (a lighter neutral) so the
-        // field chrome matches the dark-bordered cards in the rest of the
-        // Hermes onboarding flow.
-        className="border-border bg-card/60 h-10"
-      />
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }

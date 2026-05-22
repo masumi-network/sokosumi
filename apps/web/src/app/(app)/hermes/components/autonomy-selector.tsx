@@ -91,7 +91,7 @@ export default function AutonomySelector({
             <label
               key={optValue}
               className={cn(
-                "group relative flex cursor-pointer items-start gap-3 overflow-hidden rounded-xl border transition-all",
+                "group relative flex cursor-pointer items-start gap-3 rounded-xl border transition-colors",
                 compact ? "px-4 py-3" : "px-4 py-3.5",
                 isSelected
                   ? "border-foreground bg-card shadow-sm"
@@ -99,15 +99,6 @@ export default function AutonomySelector({
                 disabled && "cursor-not-allowed opacity-60",
               )}
             >
-              {/* Strong left accent bar when selected — the single highest-
-                  contrast cue, paired with the filled icon tile. */}
-              {isSelected ? (
-                <span
-                  aria-hidden
-                  className="bg-foreground pointer-events-none absolute inset-y-0 left-0 w-[3px]"
-                />
-              ) : null}
-
               <input
                 type="radio"
                 name="hermes-autonomy"
@@ -132,14 +123,14 @@ export default function AutonomySelector({
               </span>
 
               <div className="min-w-0 flex-1">
+                {/* font-weight is held constant across selection states to
+                    avoid sub-pixel reflow when toggling; selection is signaled
+                    by border + filled tile + the persistent right-side slot. */}
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      "tracking-tight transition-colors",
+                      "text-foreground font-medium tracking-tight",
                       compact ? "text-sm" : "text-sm",
-                      isSelected
-                        ? "text-foreground font-semibold"
-                        : "text-foreground font-medium",
                     )}
                   >
                     {t(labelKey)}
@@ -161,13 +152,19 @@ export default function AutonomySelector({
                 </p>
               </div>
 
-              {/* Selected-state checkmark — confirms the click landed; replaces
-                  the previous radio dot which read as a generic form control. */}
-              {isSelected ? (
-                <span aria-hidden className="text-foreground mt-1 shrink-0">
-                  <Check className="size-4" />
-                </span>
-              ) : null}
+              {/* Reserved slot — width is held even when unselected so the
+                  text column doesn't reflow on selection. */}
+              <span
+                aria-hidden
+                className="mt-0.5 flex size-5 shrink-0 items-center justify-center"
+              >
+                <Check
+                  className={cn(
+                    "text-foreground size-4 transition-opacity",
+                    isSelected ? "opacity-100" : "opacity-0",
+                  )}
+                />
+              </span>
             </label>
           );
         },
