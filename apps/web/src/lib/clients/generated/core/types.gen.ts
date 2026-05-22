@@ -755,13 +755,6 @@ export type HermesRejectConfirmationRequest = {
     reason?: string;
 };
 
-export type HermesConnectIntegrationRequest = {
-    provider: HermesIntegrationProvider;
-    mcpUrl: string;
-    mcpToken?: string;
-    mode?: HermesIntegrationMode;
-};
-
 export type HermesInitiateIntegrationResponse = {
     provider: HermesIntegrationProvider;
     redirectUrl: string;
@@ -6376,100 +6369,6 @@ export type GetHermesMeInstanceIntegrationsResponses = {
 };
 
 export type GetHermesMeInstanceIntegrationsResponse = GetHermesMeInstanceIntegrationsResponses[keyof GetHermesMeInstanceIntegrationsResponses];
-
-export type PostHermesMeInstanceIntegrationsData = {
-    body?: HermesConnectIntegrationRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
-         */
-        'X-Delegation-User-Id'?: string;
-        /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
-         */
-        'X-Delegation-Organization-Id'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/hermes/me/instance/integrations';
-};
-
-export type PostHermesMeInstanceIntegrationsErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostHermesMeInstanceIntegrationsError = PostHermesMeInstanceIntegrationsErrors[keyof PostHermesMeInstanceIntegrationsErrors];
-
-export type PostHermesMeInstanceIntegrationsResponses = {
-    /**
-     * Integration connecting
-     */
-    200: {
-        data: HermesIntegration;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostHermesMeInstanceIntegrationsResponse = PostHermesMeInstanceIntegrationsResponses[keyof PostHermesMeInstanceIntegrationsResponses];
 
 export type GetHermesMeInstanceSchedulesData = {
     body?: never;

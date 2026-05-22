@@ -19,7 +19,6 @@ import type {
   GetJobsData,
   GetShareByTokenError,
   GetTasksData,
-  HermesConnectIntegrationRequest,
   HermesFinalizeIntegrationRequest,
   HermesInitiateIntegrationRequest,
   HermesPatchScheduleRequest,
@@ -82,7 +81,6 @@ import {
   postHermesMeInstance as corePostHermesMeInstance,
   postHermesMeInstanceConfirmationsByConfirmationIdApprove as corePostHermesMeInstanceConfirmationsByConfirmationIdApprove,
   postHermesMeInstanceConfirmationsByConfirmationIdReject as corePostHermesMeInstanceConfirmationsByConfirmationIdReject,
-  postHermesMeInstanceIntegrations as corePostHermesMeInstanceIntegrations,
   postHermesMeInstanceIntegrationsFinalize as corePostHermesMeInstanceIntegrationsFinalize,
   postHermesMeInstanceIntegrationsInitiate as corePostHermesMeInstanceIntegrationsInitiate,
   postHermesMeInstanceOnboard as corePostHermesMeInstanceOnboard,
@@ -960,20 +958,6 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function connectHermesIntegration(
-    body: HermesConnectIntegrationRequest,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePostHermesMeInstanceIntegrations({
-          client,
-          body,
-        }),
-      "Failed to connect Hermes integration",
-    );
-  }
-
   async function disconnectHermesIntegration(
     path: DeleteHermesMeInstanceIntegrationsByProviderData["path"],
   ) {
@@ -1229,7 +1213,6 @@ export function createCoreClient(getClient: GetClient) {
     approveHermesConfirmation,
     rejectHermesConfirmation,
     startHermesOnboarding,
-    connectHermesIntegration,
     disconnectHermesIntegration,
     initiateHermesIntegration,
     finalizeHermesIntegration,

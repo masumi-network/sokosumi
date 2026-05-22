@@ -28,6 +28,7 @@ import {
   getInstance,
   getInstanceOnboardingProgress,
   HermesInstanceNotReadyError,
+  type HermesIntegrationMode,
   type HermesIntegrationProvider,
   HermesOrchestratorError,
   isReservedSecretKey,
@@ -70,7 +71,6 @@ import {
   hermesChatRequestSchema,
   hermesChatResponseSchema,
   hermesConfirmationResolveResponseSchema,
-  hermesConnectIntegrationRequestSchema,
   hermesEmptyResponseSchema,
   hermesFinalizeIntegrationRequestSchema,
   hermesGetInstanceEnvelopeSchema,
@@ -911,35 +911,6 @@ const rejectConfirmationRoute = withGlobalHeaderParameters(
   }),
 );
 
-const connectIntegrationRoute = withGlobalHeaderParameters(
-  createRoute({
-    method: "post",
-    path: "/me/instance/integrations",
-    description:
-      "Connect a third-party provider via its Composio MCP URL + token",
-    tags: TAGS,
-    request: {
-      body: {
-        content: {
-          "application/json": {
-            schema: hermesConnectIntegrationRequestSchema,
-          },
-        },
-      },
-    },
-    responses: {
-      200: jsonSuccessResponse(
-        hermesIntegrationSchema,
-        "Integration connecting",
-      ),
-      400: jsonErrorResponse("Bad Request"),
-      401: jsonErrorResponse("Unauthorized"),
-      403: jsonErrorResponse("Forbidden"),
-      503: jsonErrorResponse("Service Unavailable"),
-    },
-  }),
-);
-
 const disconnectIntegrationRoute = withGlobalHeaderParameters(
   createRoute({
     method: "delete",
@@ -1527,22 +1498,12 @@ app.openapi(rejectConfirmationRoute, async (c) => {
   }
 });
 
-app.openapi(connectIntegrationRoute, async (c) => {
-  const userContext = requireUserContext(c.var.authContext);
-  const body = c.req.valid("json");
-
-  try {
-    const integration = await connectInstanceIntegration(userContext.userId, {
-      provider: body.provider,
-      mcpUrl: body.mcpUrl,
-      mcpToken: body.mcpToken,
-      mode: body.mode,
-    });
-    return ok(c, hermesIntegrationSchema.parse(integration));
-  } catch (error) {
-    return mapOrchestratorError(error, "Failed to connect Hermes integration");
-  }
-});
+// NOTE: the legacy `POST /me/instance/integrations` direct-connect endpoint
+// (which accepted a client-supplied mcpUrl + mcpToken and forwarded them to
+// the orchestrator) has been removed — Composio managed OAuth via
+// initiate → finalize is now the only path that can register an integration.
+// Keeping that endpoint around let a logged-in user attach an arbitrary MCP
+// URL to their account bypassing the OAuth interstitial entirely.
 
 app.openapi(disconnectIntegrationRoute, async (c) => {
   const userContext = requireUserContext(c.var.authContext);
@@ -1602,7 +1563,11 @@ app.openapi(initiateIntegrationRoute, async (c) => {
       userId: userContext.userId,
       callbackUrl,
     });
-    rememberPendingConnection(connectionId, userContext.userId);
+    rememberPendingConnection(connectionId, {
+      userId: userContext.userId,
+      provider,
+      mode,
+    });
     return ok(
       c,
       hermesInitiateIntegrationResponseSchema.parse({
@@ -1620,45 +1585,94 @@ const FINALIZE_POLL_INTERVAL_MS = 750;
 const FINALIZE_POLL_MAX_ATTEMPTS = 8;
 
 /**
- * Short-lived map of `connectionId -> { userId, expiresAt }` populated by
- * initiate and consumed by finalize. Lets finalize reject any client-supplied
- * `connectionId` that wasn't created by this server for the same authenticated
- * user — without this, a leaked connectionId could be passed to a different
- * user's finalize and register a non-functional MCP under their account.
+ * Short-lived map of `connectionId -> { userId, provider, mode, expiresAt }`
+ * populated by initiate and consumed by finalize. The full triple is captured
+ * so finalize can reject any client-supplied mismatch:
  *
- * In-memory is fine: the OAuth round-trip is ~seconds, well under the TTL,
- * and a server restart between initiate and finalize is rare enough that
- * forcing a retry is the right failure mode.
+ *   - `userId` — guards against another user finalizing this connection
+ *   - `provider` / `mode` — guards against a client that initiated `read`
+ *     OAuth from passing `mode: "write"` to finalize and bypassing the
+ *     interstitial's read-only promise (Bugbot HIGH).
+ *
+ * IN-MEMORY LIMITATION: this map is per-process. If core ever runs as
+ * multiple replicas behind a load balancer, initiate and finalize can land
+ * on different instances and finalize will (incorrectly) report "unknown
+ * connection". Today we run a single core instance; if that changes this
+ * needs to move to Redis or a small DB table keyed by connectionId.
+ *
+ * Entries are NOT deleted on a mismatched / failed finalize — only on a
+ * successful match — so:
+ *   1. A guessed/leaked `connectionId` from another user can't DoS the
+ *      legitimate user by erasing their pending entry on the mismatch
+ *      attempt (Bugbot medium).
+ *   2. Finalize can be retried after a transient "not active yet" or
+ *      orchestrator hiccup without forcing a full OAuth restart
+ *      (Bugbot medium).
  */
 const PENDING_CONNECTION_TTL_MS = 15 * 60_000;
-const pendingConnections = new Map<
-  string,
-  { userId: string; expiresAt: number }
->();
+interface PendingConnection {
+  userId: string;
+  provider: HermesIntegrationProvider;
+  mode: HermesIntegrationMode;
+  expiresAt: number;
+}
+const pendingConnections = new Map<string, PendingConnection>();
 
-function rememberPendingConnection(connectionId: string, userId: string): void {
+function rememberPendingConnection(
+  connectionId: string,
+  entry: Omit<PendingConnection, "expiresAt">,
+): void {
   pendingConnections.set(connectionId, {
-    userId,
+    ...entry,
     expiresAt: Date.now() + PENDING_CONNECTION_TTL_MS,
   });
   // Opportunistic GC on write so the map can't grow unbounded.
   if (pendingConnections.size > 256) {
     const now = Date.now();
-    for (const [key, entry] of pendingConnections) {
-      if (entry.expiresAt < now) pendingConnections.delete(key);
+    for (const [key, value] of pendingConnections) {
+      if (value.expiresAt < now) pendingConnections.delete(key);
     }
   }
 }
 
-function consumePendingConnection(
+type VerifyResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "unknown" | "expired" | "user_mismatch" | "claim_mismatch";
+    };
+
+/**
+ * Check finalize's `{userId, provider, mode}` triple against the entry the
+ * initiate stored under `connectionId`. Does NOT delete on failure so
+ * legitimate retries / cross-user probes can't invalidate the real pending
+ * entry. Caller deletes via {@link clearPendingConnection} only after a
+ * fully successful registration.
+ */
+function verifyPendingConnection(
   connectionId: string,
-  userId: string,
-): boolean {
+  claim: {
+    userId: string;
+    provider: HermesIntegrationProvider;
+    mode: HermesIntegrationMode;
+  },
+): VerifyResult {
   const entry = pendingConnections.get(connectionId);
-  if (!entry) return false;
+  if (!entry) return { ok: false, reason: "unknown" };
+  if (entry.expiresAt < Date.now()) {
+    pendingConnections.delete(connectionId);
+    return { ok: false, reason: "expired" };
+  }
+  if (entry.userId !== claim.userId)
+    return { ok: false, reason: "user_mismatch" };
+  if (entry.provider !== claim.provider || entry.mode !== claim.mode) {
+    return { ok: false, reason: "claim_mismatch" };
+  }
+  return { ok: true };
+}
+
+function clearPendingConnection(connectionId: string): void {
   pendingConnections.delete(connectionId);
-  if (entry.expiresAt < Date.now()) return false;
-  return entry.userId === userId;
 }
 
 app.openapi(finalizeIntegrationRoute, async (c) => {
@@ -1666,10 +1680,24 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   const { provider, connectionId, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
 
-  // Verify the connection was created by THIS server for THIS user. Without
-  // this, a leaked or guessed `connectionId` from another user's OAuth could
-  // be finalized under the attacker's account.
-  if (!consumePendingConnection(connectionId, userContext.userId)) {
+  // Verify the connection matches what initiate captured for this user. We
+  // explicitly check provider + mode (not just userId) so a client cannot
+  // initiate "read" OAuth and then call finalize with mode: "write" to get
+  // the write-scoped MCP — the interstitial showed the user a read-only
+  // confirmation, finalize must honour that.
+  const verify = verifyPendingConnection(connectionId, {
+    userId: userContext.userId,
+    provider,
+    mode,
+  });
+  if (!verify.ok) {
+    if (verify.reason === "claim_mismatch") {
+      // Distinct message so callers (and logs) can tell the upgrade attempt
+      // apart from a stale connectionId.
+      throw badRequest(
+        "Connection provider or mode does not match the initiated OAuth flow",
+      );
+    }
     throw badRequest(
       "Unknown or expired connection — restart the integration flow",
     );
@@ -1763,6 +1791,11 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
     }
     return mapOrchestratorError(error, "Failed to register integration");
   }
+
+  // Registration succeeded — release the pending entry. (Earlier failures
+  // intentionally leave it in place so the client can retry without going
+  // through the full OAuth round-trip again.)
+  clearPendingConnection(connectionId);
 
   return ok(
     c,

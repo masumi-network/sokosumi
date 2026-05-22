@@ -358,33 +358,6 @@ export const getHermesOnboardingProgressAction = withSession<
   }
 });
 
-interface ConnectIntegrationArgs extends AuthenticatedRequest {
-  provider: HermesIntegrationProvider;
-  /** Composio's MCP server URL for the connected account. */
-  mcpUrl: string;
-  /** Composio's MCP auth token for the connected account. */
-  mcpToken?: string;
-  /** Access level. Orchestrator defaults to "read" when omitted. */
-  mode?: "read" | "write";
-}
-
-export const connectHermesIntegrationAction = withSession<
-  ConnectIntegrationArgs,
-  Result<HermesIntegration, ActionError>
->(async ({ provider, mcpUrl, mcpToken, mode }) => {
-  try {
-    const response = await coreClient.connectHermesIntegration({
-      provider,
-      mcpUrl,
-      mcpToken,
-      mode: mode ?? "read",
-    });
-    return Ok(mapHermesIntegration(response.data));
-  } catch (error) {
-    return Err(toActionError(error));
-  }
-});
-
 interface DisconnectIntegrationArgs extends AuthenticatedRequest {
   provider: HermesIntegrationProvider;
 }

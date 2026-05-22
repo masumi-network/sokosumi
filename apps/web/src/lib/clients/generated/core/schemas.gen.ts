@@ -2594,30 +2594,6 @@ export const HermesRejectConfirmationRequestSchema = {
     }
 } as const;
 
-export const HermesConnectIntegrationRequestSchema = {
-    type: 'object',
-    properties: {
-        provider: {
-            $ref: '#/components/schemas/HermesIntegrationProvider'
-        },
-        mcpUrl: {
-            type: 'string',
-            format: 'uri'
-        },
-        mcpToken: {
-            type: 'string',
-            minLength: 1
-        },
-        mode: {
-            $ref: '#/components/schemas/HermesIntegrationMode'
-        }
-    },
-    required: [
-        'provider',
-        'mcpUrl'
-    ]
-} as const;
-
 export const HermesInitiateIntegrationResponseSchema = {
     type: 'object',
     properties: {

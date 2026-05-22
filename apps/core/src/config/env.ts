@@ -206,6 +206,12 @@ export function resolveSokosumiEnvForOrchestrator():
   | "preprod"
   | "mainnet" {
   const env = getEnv();
-  if (!env.VERCEL_ENV) return "development";
+  // A "deployed" signal — Vercel sets VERCEL_ENV automatically, but a
+  // non-Vercel host (self-hosted, Docker, staging cluster) won't, so fall
+  // back to NODE_ENV=production. Without this fallback a production
+  // self-hosted core silently downgrades to "development" and points
+  // Hermes microVMs at the wrong Sokosumi backend.
+  const isDeployed = Boolean(env.VERCEL_ENV) || env.NODE_ENV === "production";
+  if (!isDeployed) return "development";
   return env.NETWORK === "Mainnet" ? "mainnet" : "preprod";
 }

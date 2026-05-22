@@ -143,12 +143,25 @@ export const hermesOnboardingStepStatusSchema = z
   .enum(["pending", "running", "done", "error"])
   .openapi("HermesOnboardingStepStatus");
 
+/**
+ * The Python orchestrator emits `"failed"` for terminal-error steps; our
+ * client-facing API has historically used `"error"`. Accept both on the
+ * wire and coerce `"failed"` → `"error"` so the UI loader doesn't crash
+ * on a real orchestrator failure. The status emitted to clients is always
+ * one of the documented enum values.
+ */
+const hermesOnboardingStepStatusWireSchema = z.preprocess(
+  (value) => (value === "failed" ? "error" : value),
+  hermesOnboardingStepStatusSchema,
+);
+
 export const hermesOnboardingStepSchema = z
   .object({
     id: z.string().min(1),
     label: z.string().min(1),
-    status: hermesOnboardingStepStatusSchema,
-    /** Populated by orchestrator when status === "failed". ~300 chars max. */
+    status: hermesOnboardingStepStatusWireSchema,
+    /** Populated by orchestrator when status === "error" (orchestrator
+     * may emit "failed"; preprocessed above). ~300 chars max. */
     errorMessage: z.string().optional().nullable(),
   })
   .openapi("HermesOnboardingStep");
@@ -204,15 +217,6 @@ export const hermesUpdateInstanceRequestSchema = z
     { message: "At least one field must be provided." },
   )
   .openapi("HermesUpdateInstanceRequest");
-
-export const hermesConnectIntegrationRequestSchema = z
-  .object({
-    provider: hermesIntegrationProviderSchema,
-    mcpUrl: z.url(),
-    mcpToken: z.string().min(1).optional(),
-    mode: hermesIntegrationModeSchema.default("read"),
-  })
-  .openapi("HermesConnectIntegrationRequest");
 
 export const hermesIntegrationsListResponseSchema = z
   .object({
