@@ -23,13 +23,12 @@ interface OnboardingProgressProps {
 const POLL_INTERVAL_MS = 1_000;
 
 /**
- * Skeleton row count shown before the first poll returns. We render shimmer
- * placeholders (not text) so when the orchestrator hands us real labels the
- * transition reads as "loading → loaded" instead of one label visibly
- * swapping to another — which looks like a bug.
+ * Step ids we know the orchestrator emits, in the order it emits them. Used
+ * for both the preview-mode mock and as the skeleton-state default before
+ * the first real poll lands — rendering known labels (rather than shimmer
+ * bars) lets the user start reading immediately. Order matters: the first
+ * id renders as "running" in the skeleton.
  */
-const SKELETON_STEP_COUNT = 5;
-
 const PREVIEW_STEP_IDS = [
   "memory",
   "inbox_scan",
@@ -54,6 +53,23 @@ function buildPreviewSequence(
       status: statuses[index]!,
     })),
   );
+}
+
+/**
+ * Skeleton step list used before the first real poll resolves. First step
+ * is "running" so the user sees a live spinner; the rest are pending. The
+ * labels come from i18n previewSteps so the user reads real copy from the
+ * first paint — when the orchestrator's real labels arrive they replace
+ * these in place (same ids → same React keys → no list reshuffle).
+ */
+function buildSkeletonSteps(
+  stepLabels: Record<string, string>,
+): HermesOnboardingStep[] {
+  return PREVIEW_STEP_IDS.map((id, index) => ({
+    id,
+    label: stepLabels[id] ?? id,
+    status: index === 0 ? "running" : "pending",
+  }));
 }
 
 const PREVIEW_TICK_MS = 7_000;
@@ -165,11 +181,16 @@ export default function OnboardingProgress({
   const t = useTranslations("App.Hermes.OnboardingProgress");
   const previewSteps = t.raw("previewSteps") as Record<string, string>;
   const previewSequence = buildPreviewSequence(previewSteps);
+  const skeletonSteps = buildSkeletonSteps(previewSteps);
   const hints = t.raw("hints") as string[];
   const { progress, pollError } = useOnboardingProgress(
     previewMode,
     previewSequence,
   );
+  // Show seeded labels until the first real orchestrator response arrives —
+  // shimmer bars read as "broken" to users; real labels read as "starting".
+  const displaySteps =
+    progress.steps.length > 0 ? progress.steps : skeletonSteps;
 
   return (
     <FlowBackground className="flex h-full flex-col overflow-hidden">
@@ -202,22 +223,13 @@ export default function OnboardingProgress({
         transition reads as loading→loaded, never as text swapping.
       */}
         <ol className="border-border/60 bg-card/40 flex flex-col rounded-xl border">
-          {progress.steps.length === 0
-            ? Array.from({ length: SKELETON_STEP_COUNT }).map((_, index) => (
-                <SkeletonRow
-                  // eslint-disable-next-line react/no-array-index-key
-                  key={index}
-                  isFirst={index === 0}
-                  isLast={index === SKELETON_STEP_COUNT - 1}
-                />
-              ))
-            : progress.steps.map((step, index) => (
-                <StepRow
-                  key={step.id}
-                  step={step}
-                  isLast={index === progress.steps.length - 1}
-                />
-              ))}
+          {displaySteps.map((step, index) => (
+            <StepRow
+              key={step.id}
+              step={step}
+              isLast={index === displaySteps.length - 1}
+            />
+          ))}
         </ol>
 
         {/* Rotating hint instead of the misleading countdown. The orchestrator
@@ -320,49 +332,6 @@ function StepRow({
           {step.errorMessage}
         </p>
       )}
-    </li>
-  );
-}
-
-function SkeletonRow({
-  isFirst,
-  isLast,
-}: {
-  isFirst: boolean;
-  isLast: boolean;
-}) {
-  // Vary the placeholder bar width so the column doesn't look like a barcode.
-  const widths = ["w-2/3", "w-1/2", "w-3/5", "w-2/5", "w-1/2"];
-  const width = isFirst ? widths[0] : widths[(isLast ? 4 : 2) % widths.length];
-  return (
-    <li
-      className={cn(
-        "flex items-center gap-3 px-5 py-3",
-        !isLast && "border-border/60 border-b",
-        isFirst && "bg-card",
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "flex size-6 shrink-0 items-center justify-center rounded-full",
-          isFirst ? "bg-primary/10 text-primary" : "bg-muted",
-        )}
-      >
-        {isFirst ? (
-          <Loader2 className="size-3.5 animate-spin" />
-        ) : (
-          <span className="bg-muted-foreground/40 size-1.5 rounded-full" />
-        )}
-      </span>
-      <span
-        aria-hidden
-        className={cn(
-          "bg-muted-foreground/15 h-3 rounded-full",
-          isFirst ? "animate-pulse" : "opacity-60",
-          width,
-        )}
-      />
     </li>
   );
 }
