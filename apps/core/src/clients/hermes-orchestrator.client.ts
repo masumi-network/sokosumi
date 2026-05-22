@@ -386,8 +386,12 @@ export async function listInstanceSchedules(
       cronExpr: raw.cron_expr ?? raw.cronExpr ?? "",
       timezone: raw.timezone ?? null,
       enabled: raw.enabled !== false,
-      lastRunAt: raw.last_run_at ?? raw.lastRunAt ?? null,
-      nextRunAt: raw.next_run_at ?? raw.nextRunAt ?? null,
+      lastRunAt: normalizeOrchestratorDateTime(
+        raw.last_run_at ?? raw.lastRunAt ?? null,
+      ),
+      nextRunAt: normalizeOrchestratorDateTime(
+        raw.next_run_at ?? raw.nextRunAt ?? null,
+      ),
       // Legacy: keep true for the workspace-sync row so older UIs that
       // haven't switched to `kind` yet still hide delete controls.
       systemManaged: kind !== "user",

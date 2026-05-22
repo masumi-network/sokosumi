@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { hermesInstanceSchema } from "@/schemas/hermes.schema";
+import {
+  hermesInstanceSchema,
+  hermesScheduleSchema,
+  hermesSchedulesListResponseSchema,
+} from "@/schemas/hermes.schema";
 
 const fetchMock = vi.fn();
 
@@ -91,5 +95,71 @@ describe("hermes-orchestrator.client", () => {
     expect(instance?.onboardedAt).toBeNull();
     expect(instance?.welcomeMessage).toBe("Welcome back.");
     expect(() => hermesInstanceSchema.parse(instance)).not.toThrow();
+  });
+
+  it("coerces invalid schedule lastRunAt and nextRunAt to null so schedule schema parse succeeds", async () => {
+    fetchMock.mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        schedules: [
+          {
+            id: "sched_1",
+            source: "hermes",
+            kind: "user",
+            name: "daily-brief",
+            cron_expr: "0 9 * * *",
+            enabled: true,
+            last_run_at: "not-a-valid-iso-datetime",
+            next_run_at: "also-invalid",
+          },
+        ],
+      }),
+    });
+
+    const { listInstanceSchedules } = await import(
+      "./hermes-orchestrator.client"
+    );
+    const schedules = await listInstanceSchedules("user_sched");
+
+    expect(schedules).toHaveLength(1);
+    expect(schedules[0]?.lastRunAt).toBeNull();
+    expect(schedules[0]?.nextRunAt).toBeNull();
+    expect(() =>
+      hermesSchedulesListResponseSchema.parse({ schedules }),
+    ).not.toThrow();
+    expect(() => hermesScheduleSchema.parse(schedules[0])).not.toThrow();
+  });
+
+  it("preserves valid schedule lastRunAt and nextRunAt", async () => {
+    const lastRunAt = "2024-06-01T08:00:00.000Z";
+    const nextRunAt = "2024-06-02T08:00:00.000Z";
+    fetchMock.mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        schedules: [
+          {
+            id: "sched_2",
+            source: "orchestrator",
+            kind: "system_sweep",
+            name: "sokosumi-sync",
+            cronExpr: "0 */6 * * *",
+            enabled: true,
+            lastRunAt,
+            nextRunAt,
+          },
+        ],
+      }),
+    });
+
+    const { listInstanceSchedules } = await import(
+      "./hermes-orchestrator.client"
+    );
+    const schedules = await listInstanceSchedules("user_sched_2");
+
+    expect(schedules[0]?.lastRunAt).toBe(lastRunAt);
+    expect(schedules[0]?.nextRunAt).toBe(nextRunAt);
+    expect(() => hermesScheduleSchema.parse(schedules[0])).not.toThrow();
   });
 });
