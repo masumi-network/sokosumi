@@ -16,7 +16,12 @@ export type SubscriptionPlanName =
 /** Paid catalog plans (excludes `free`). Used for Stripe checkout upgrade flows. */
 export type PaidSubscriptionPlanName = Exclude<SubscriptionPlanName, "free">;
 
-interface SubscriptionCatalogPlan {
+type SelfServePaidSubscriptionPlanName = Exclude<
+  PaidSubscriptionPlanName,
+  "enterprise"
+>;
+
+export interface SubscriptionCatalogPlan {
   credits: number;
   currency: string;
   monthlyAmount: number;
@@ -26,8 +31,8 @@ interface SubscriptionCatalogPlan {
   slug: string;
 }
 
-interface SubscriptionCatalog {
-  enterprise?: SubscriptionCatalogPlan;
+export interface SubscriptionCatalog {
+  enterpriseProducts: SubscriptionCatalogPlan[];
   free: SubscriptionCatalogPlan;
   pro: SubscriptionCatalogPlan;
   standard: SubscriptionCatalogPlan;
@@ -35,16 +40,20 @@ interface SubscriptionCatalog {
 }
 
 interface RawPlanConfig {
-  name: PaidSubscriptionPlanName;
+  name: SelfServePaidSubscriptionPlanName;
   productId: string;
 }
+
+type MonthlyStripePrice = Stripe.Price & { unit_amount: number };
+
+const MAX_ENTERPRISE_PRODUCT_PAGES = 100;
 
 let catalogCache: Promise<SubscriptionCatalog> | null = null;
 
 function getPaidPlanConfig(): RawPlanConfig[] {
   const env = getEnvSecrets();
 
-  const plans: RawPlanConfig[] = [
+  return [
     {
       name: "starter",
       productId: env.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID,
@@ -58,15 +67,6 @@ function getPaidPlanConfig(): RawPlanConfig[] {
       productId: env.STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID,
     },
   ];
-
-  if (env.STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID) {
-    plans.push({
-      name: "enterprise",
-      productId: env.STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID,
-    });
-  }
-
-  return plans;
 }
 
 function parseCredits(rawValue: string | undefined, planName: string): number {
@@ -96,7 +96,7 @@ function parseSlug(rawValue: string | undefined, planName: string): string {
 function parsePrice(
   defaultPrice: Stripe.Price | string | null | undefined,
   planName: PaidSubscriptionPlanName,
-): Stripe.Price {
+): MonthlyStripePrice {
   if (!defaultPrice || typeof defaultPrice === "string") {
     throw new Error(`Default price is not expanded for ${planName} plan`);
   }
@@ -116,38 +116,137 @@ function parsePrice(
     throw new Error(`Invalid unit amount for ${planName} plan`);
   }
 
-  return defaultPrice;
+  return defaultPrice as MonthlyStripePrice;
+}
+
+export function isEnterpriseSlug(
+  metadata: Stripe.Metadata | null | undefined,
+): boolean {
+  return metadata?.slug?.trim().toLowerCase() === "enterprise";
+}
+
+export function hydrateEnterprisePlan(
+  product: Stripe.Product,
+): SubscriptionCatalogPlan {
+  const price = parsePrice(product.default_price, "enterprise");
+  const slug = parseSlug(product.metadata.slug, "enterprise");
+  const credits = parseCredits(product.metadata.credits, "enterprise");
+
+  return {
+    credits,
+    currency: price.currency,
+    monthlyAmount: price.unit_amount,
+    name: "enterprise",
+    priceId: price.id,
+    productId: product.id,
+    slug,
+  };
+}
+
+export async function discoverEnterpriseProducts(
+  stripe: Stripe,
+): Promise<SubscriptionCatalogPlan[]> {
+  const enterpriseProducts: SubscriptionCatalogPlan[] = [];
+  let startingAfter: string | undefined;
+
+  for (let page = 0; page < MAX_ENTERPRISE_PRODUCT_PAGES; page += 1) {
+    const products = await stripe.products.list({
+      active: true,
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    });
+
+    const enterpriseProductIds = products.data
+      .filter((product) => isEnterpriseSlug(product.metadata))
+      .map((product) => product.id);
+
+    const hydratedProducts = await Promise.all(
+      enterpriseProductIds.map(async (productId) => {
+        const product = await stripe.products.retrieve(productId, {
+          expand: ["default_price"],
+        });
+        return hydrateEnterprisePlan(product);
+      }),
+    );
+    enterpriseProducts.push(...hydratedProducts);
+
+    if (!products.has_more) {
+      return enterpriseProducts;
+    }
+
+    const lastProduct = products.data.at(-1);
+    if (!lastProduct) {
+      return enterpriseProducts;
+    }
+
+    startingAfter = lastProduct.id;
+  }
+
+  throw new Error(
+    `Exceeded ${MAX_ENTERPRISE_PRODUCT_PAGES} pages while discovering enterprise Stripe products`,
+  );
+}
+
+export async function resolveEnterpriseProduct(
+  stripe: Stripe,
+  productId: string,
+): Promise<SubscriptionCatalogPlan | null> {
+  let product: Stripe.Product;
+  try {
+    product = await stripe.products.retrieve(productId, {
+      expand: ["default_price"],
+    });
+  } catch {
+    // Deleted products, rate limits, and transient Stripe/network errors should
+    // not block invoice credit grants for other line items.
+    return null;
+  }
+
+  // Archived products (active=false) are excluded from catalog discovery but must
+  // still resolve here: Stripe keeps billing existing subscriptions on them.
+  if (!isEnterpriseSlug(product.metadata)) {
+    return null;
+  }
+
+  try {
+    return hydrateEnterprisePlan(product);
+  } catch {
+    return null;
+  }
 }
 
 async function loadCatalog(stripe: Stripe): Promise<SubscriptionCatalog> {
-  const paidEntries = await Promise.all(
-    getPaidPlanConfig().map(async (rawPlan) => {
-      const product = await stripe.products.retrieve(rawPlan.productId, {
-        expand: ["default_price"],
-      });
+  const [paidEntries, enterpriseProducts] = await Promise.all([
+    Promise.all(
+      getPaidPlanConfig().map(async (rawPlan) => {
+        const product = await stripe.products.retrieve(rawPlan.productId, {
+          expand: ["default_price"],
+        });
 
-      const price = parsePrice(product.default_price, rawPlan.name);
-      const slug = parseSlug(product.metadata.slug, rawPlan.name);
-      const credits = parseCredits(product.metadata.credits, rawPlan.name);
+        const price = parsePrice(product.default_price, rawPlan.name);
+        const slug = parseSlug(product.metadata.slug, rawPlan.name);
+        const credits = parseCredits(product.metadata.credits, rawPlan.name);
 
-      return [
-        rawPlan.name,
-        {
-          credits,
-          currency: price.currency,
-          monthlyAmount: price.unit_amount,
-          name: rawPlan.name,
-          priceId: price.id,
-          productId: rawPlan.productId,
-          slug,
-        },
-      ] as const;
-    }),
-  );
+        return [
+          rawPlan.name,
+          {
+            credits,
+            currency: price.currency,
+            monthlyAmount: price.unit_amount,
+            name: rawPlan.name,
+            priceId: price.id,
+            productId: rawPlan.productId,
+            slug,
+          },
+        ] as const;
+      }),
+    ),
+    discoverEnterpriseProducts(stripe),
+  ]);
 
   const paidCatalog = Object.fromEntries(paidEntries) as Omit<
     SubscriptionCatalog,
-    "free"
+    "enterpriseProducts" | "free"
   >;
 
   const freePlan: SubscriptionCatalogPlan = {
@@ -161,9 +260,14 @@ async function loadCatalog(stripe: Stripe): Promise<SubscriptionCatalog> {
   };
 
   return {
+    enterpriseProducts,
     free: freePlan,
     ...paidCatalog,
   };
+}
+
+export function invalidateSubscriptionCatalogCache(): void {
+  catalogCache = null;
 }
 
 export async function getSubscriptionCatalog(
@@ -182,25 +286,33 @@ export async function getBetterAuthSubscriptionPlans(
   stripe: Stripe,
 ): Promise<StripePlan[]> {
   const catalog = await getSubscriptionCatalog(stripe);
-  const paidNames: PaidSubscriptionPlanName[] = [
+  const selfServePlans: SelfServePaidSubscriptionPlanName[] = [
     "starter",
     "standard",
     "pro",
-    ...(catalog.enterprise ? (["enterprise"] as const) : []),
   ];
 
-  return paidNames.flatMap((name) => {
-    const plan = catalog[name];
-    if (!plan) return [];
+  return [
+    ...selfServePlans.flatMap((name) => {
+      const plan = catalog[name];
+      if (!plan) return [];
 
-    return [
-      {
-        limits: {
-          credits: plan.credits,
+      return [
+        {
+          limits: {
+            credits: plan.credits,
+          },
+          name,
+          priceId: plan.priceId,
         },
-        name,
-        priceId: plan.priceId,
+      ];
+    }),
+    ...catalog.enterpriseProducts.map((plan) => ({
+      limits: {
+        credits: plan.credits,
       },
-    ];
-  });
+      name: "enterprise",
+      priceId: plan.priceId,
+    })),
+  ];
 }
