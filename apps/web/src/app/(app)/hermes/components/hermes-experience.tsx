@@ -115,14 +115,16 @@ export default function HermesExperience({
   >([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  /** Loads instance state and persisted history in parallel (no provision). */
+  /**
+   * Loads instance state then persisted history. Sequenced (not parallel) because
+   * `GET /me/instance` lazily upserts the Hermes welcome message on first hit —
+   * fetching messages in parallel can resolve before that upsert lands, opening
+   * the chat without the intro until the next poll.
+   */
   const refetchHermes = useCallback(
     async (options?: { isCancelled?: () => boolean }) => {
       const isCancelled = options?.isCancelled;
-      const [instanceResult, messagesResult] = await Promise.all([
-        getHermesInstanceAction({}),
-        listHermesMessagesAction({}),
-      ]);
+      const instanceResult = await getHermesInstanceAction({});
       if (isCancelled?.()) return;
       if (!instanceResult.ok) {
         setUiState("error");
@@ -131,6 +133,8 @@ export default function HermesExperience({
         );
         return;
       }
+      const messagesResult = await listHermesMessagesAction({});
+      if (isCancelled?.()) return;
       if (messagesResult.ok) {
         setInitialMessages(messagesResult.data);
       }

@@ -1674,12 +1674,18 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   // iteration — otherwise an `outlook` finalize would respond with the
   // `outlook_calendar` row, and the client's optimistic UI would update
   // the wrong card.
+  //
+  // If a later sibling fails after an earlier one succeeded we roll back the
+  // succeeded ones — otherwise an outlook pairing could end up with mail
+  // connected and calendar not, leaving the documented mail+calendar pairing
+  // half-broken with no way to retry cleanly.
   let requestedProviderIntegration: Awaited<
     ReturnType<typeof connectInstanceIntegration>
   > | null = null;
   let anyIntegration: Awaited<
     ReturnType<typeof connectInstanceIntegration>
   > | null = null;
+  const connectedProviders: HermesIntegrationProvider[] = [];
   try {
     for (const orchestratorProvider of pairedOrchestratorProviders(provider)) {
       const integration = await connectInstanceIntegration(userContext.userId, {
@@ -1687,12 +1693,20 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
         mcpUrl,
         mode,
       });
+      connectedProviders.push(orchestratorProvider);
       anyIntegration = integration;
       if (orchestratorProvider === provider) {
         requestedProviderIntegration = integration;
       }
     }
   } catch (error) {
+    for (const succeeded of connectedProviders) {
+      try {
+        await disconnectInstanceIntegration(userContext.userId, succeeded);
+      } catch {
+        // Best-effort rollback — surface the original failure to the client.
+      }
+    }
     return mapOrchestratorError(error, "Failed to register integration");
   }
 
