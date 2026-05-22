@@ -1,8 +1,7 @@
 import { type TaskStatus } from "@sokosumi/database";
 import { computeJobStatus } from "@sokosumi/database/helpers";
 import {
-  type JobWithSummaryRelations,
-  jobSummaryInclude,
+  jobForStatusComputeSelect,
   type SokosumiJobStatus,
 } from "@sokosumi/database/types/job";
 
@@ -100,11 +99,11 @@ export async function getProjectJobStatsByProjectIds(
       workspaceId,
       projectId: { in: [...projectIds] },
     },
-    include: jobSummaryInclude,
+    select: jobForStatusComputeSelect,
   });
 
   for (const job of jobs) {
-    const projectId = (job as JobWithSummaryRelations).projectId;
+    const projectId = job.projectId;
     if (!projectId) continue;
     const stats = statsByProjectId.get(projectId);
     if (!stats) continue;

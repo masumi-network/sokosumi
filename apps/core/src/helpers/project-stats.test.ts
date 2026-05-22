@@ -1,5 +1,8 @@
 import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import {
+  jobForStatusComputeSelect,
+  SokosumiJobStatus,
+} from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getProjectStatsByProjectIds } from "./project-stats";
@@ -145,13 +148,12 @@ describe("getProjectStatsByProjectIds", () => {
         },
       }),
     );
-    expect(jobFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          workspaceId: WORKSPACE_ID,
-          projectId: { in: [PROJECT_A_ID, PROJECT_B_ID] },
-        },
-      }),
-    );
+    expect(jobFindManyMock).toHaveBeenCalledWith({
+      where: {
+        workspaceId: WORKSPACE_ID,
+        projectId: { in: [PROJECT_A_ID, PROJECT_B_ID] },
+      },
+      select: jobForStatusComputeSelect,
+    });
   });
 });

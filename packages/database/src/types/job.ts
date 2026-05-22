@@ -26,6 +26,37 @@ export type JobWithEvents = Prisma.JobGetPayload<{
   include: typeof jobWithEvents;
 }>;
 
+/** Minimal job query shape for {@link computeJobStatus} without summary relations. */
+export const jobForStatusComputeSelect = {
+  projectId: true,
+  jobType: true,
+  refundedTransactionId: true,
+  createdAt: true,
+  payByTime: true,
+  submitResultTime: true,
+  externalDisputeUnlockTime: true,
+  purchase: true,
+  events: {
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      status: true,
+      input: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  },
+} as const;
+
+export type JobForStatusCompute = Prisma.JobGetPayload<{
+  select: typeof jobForStatusComputeSelect;
+}>;
+
+export type JobEventForStatusCompute = JobForStatusCompute["events"][number];
+
 export const jobWithPurchase = {
   purchase: true,
 } as const;

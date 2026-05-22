@@ -10,7 +10,9 @@ import type { Job } from "../generated/prisma/client.js";
 import {
   type DemoJobWithStatus,
   type FreeJobWithStatus,
+  type JobEventForStatusCompute,
   type JobEventWithRelations,
+  type JobForStatusCompute,
   type JobWithEvents,
   type JobWithPurchase,
   type JobWithSokosumiStatus,
@@ -42,20 +44,20 @@ function hasPaymentWindowExpired(
  * Returns the latest (most recent) job event from a job's events array.
  *
  * This helper assumes that events are ordered descending by `createdAt`,
- * which is enforced by `jobInclude` in `packages/database/src/types/job.ts`.
+ * which is enforced by event `orderBy` in `jobWithEvents` / `jobForStatusComputeSelect`.
  * The latest event is the first element in the array.
  *
  * @param job - An object containing an `events` array.
  * @returns The latest event, or `undefined` if the events array is empty.
  */
 export function getLatestJobEvent(job: {
-  events: JobEventWithRelations[];
-}): JobEventWithRelations | undefined {
+  events: readonly JobEventForStatusCompute[];
+}): JobEventForStatusCompute | undefined {
   return job.events.at(0);
 }
 
 function checkPaymentStatus(
-  job: JobWithPurchase,
+  job: Pick<JobForStatusCompute, "createdAt" | "payByTime" | "purchase">,
   now: Date,
 ): SokosumiJobStatus | null {
   const purchase = job.purchase;
@@ -80,7 +82,9 @@ function checkPaymentStatus(
  * @param job - The job object to evaluate.
  * @returns The corresponding `JobStatus` if the next action maps to a status, otherwise `null`.
  */
-function checkNextAction(job: JobWithPurchase): SokosumiJobStatus | null {
+function checkNextAction(
+  job: Pick<JobForStatusCompute, "purchase">,
+): SokosumiJobStatus | null {
   const purchase = job.purchase;
   if (!purchase) {
     return SokosumiJobStatus.PAYMENT_PENDING;
@@ -128,8 +132,8 @@ function checkNextAction(job: JobWithPurchase): SokosumiJobStatus | null {
  * @returns The resolved JobStatus for the FUNDS_LOCKED state.
  */
 function getFundsLockedJobStatus(
-  job: Job,
-  latestJobEvent: JobEventWithRelations,
+  job: Pick<Job, "externalDisputeUnlockTime" | "submitResultTime">,
+  latestJobEvent: JobEventForStatusCompute,
   now: Date,
 ): SokosumiJobStatus {
   switch (latestJobEvent.status) {
@@ -191,9 +195,7 @@ function getFundsLockedJobStatus(
  * @param job - The job object containing all relevant status and metadata.
  * @returns The resolved JobStatus for the job.
  */
-export function computeJobStatus(
-  job: JobWithEvents & JobWithTransaction & JobWithPurchase,
-): SokosumiJobStatus {
+export function computeJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
   switch (job.jobType) {
     case JobType.FREE:
       return computeFreeJobStatus(job);
@@ -204,7 +206,7 @@ export function computeJobStatus(
   }
 }
 
-function computeFreeJobStatus(job: JobWithEvents): SokosumiJobStatus {
+function computeFreeJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
   const latestJobEvent = getLatestJobEvent(job);
   if (!latestJobEvent) {
     return SokosumiJobStatus.STARTED;
@@ -231,13 +233,13 @@ function computeFreeJobStatus(job: JobWithEvents): SokosumiJobStatus {
   }
 }
 
-function computeDemoJobStatus(_job: Job): SokosumiJobStatus {
+function computeDemoJobStatus(
+  _job: Pick<JobForStatusCompute, "jobType">,
+): SokosumiJobStatus {
   return SokosumiJobStatus.COMPLETED;
 }
 
-function computePaidJobStatus(
-  job: JobWithPurchase & JobWithTransaction & JobWithEvents,
-): SokosumiJobStatus {
+function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
   // 1. If the job has already been refunded, return the refund resolved status
   if (job.refundedTransactionId) {
     return SokosumiJobStatus.REFUND_RESOLVED;
