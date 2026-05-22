@@ -197,8 +197,9 @@ Source files of note:
 
 `provisionInstance` accepts a `sokosumiEnv: "development" | "preprod" | "mainnet"`
 field; the orchestrator uses it to pick the right Sokosumi API base + coworker
-key. `resolveSokosumiEnvForOrchestrator()` derives it from `NETWORK +
-VERCEL_ENV`. No env override on purpose — keep the routing dumb.
+key. Core's `resolveSokosumiEnvForOrchestrator()` passes `"preprod"` or
+`"mainnet"` from `NETWORK` (`"Mainnet"` → `"mainnet"`, else `"preprod"`,
+including local dev defaults).
 
 ### Dev-only inbox poller
 

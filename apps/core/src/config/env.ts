@@ -194,9 +194,8 @@ export function getBetterAuthPublicBaseUrl(): string {
  *   - NETWORK === "Mainnet" → "mainnet"
  *   - otherwise (Preprod, also the default when unset) → "preprod"
  *
- * No "development" branch on the Sokosumi side — local dev still points at
- * the preprod Sokosumi backend, which is what we want for an end-to-end
- * walkthrough of the orchestrator's sokosumi_sync step.
+ * Local dev with default NETWORK=Preprod still reports "preprod" so the
+ * orchestrator's sokosumi_sync step exercises the same path as Vercel preprod.
  *
  * The orchestrator uses this to pick the Sokosumi API base + coworker key.
  */
