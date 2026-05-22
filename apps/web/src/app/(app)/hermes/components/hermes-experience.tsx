@@ -146,6 +146,9 @@ export default function HermesExperience({
    * by settings-panel mutations. In that mode we deliberately:
    *   - never walk uiState backwards (e.g. don't pull a running chat back
    *     to onboarding on a lagging orchestrator read);
+   *   - never apply a lagging instance snapshot when uiState would stay put
+   *     (integrations, transitioning, pendingConfirmations, autonomy, etc.
+   *     must not snap back while the chat stays visible);
    *   - never flip to the global error state on a transient fetch failure
    *     (just skip the refresh — the user is already happily chatting and
    *     a 503 hiccup shouldn't tear that down);
@@ -164,26 +167,34 @@ export default function HermesExperience({
         setErrorMessage(instanceResult.error.message ?? t("fetchFailed"));
         return;
       }
-      const messagesResult = await listHermesMessagesAction({});
-      if (isCancelled?.()) return;
-      if (messagesResult.ok) {
-        setInitialMessages(messagesResult.data);
-      }
       if (!instanceResult.data) {
         if (background) return;
         setUiState("idle");
         setInstance(null);
         return;
       }
-      setInstance(instanceResult.data);
       const next = uiStateForServerStatus(instanceResult.data.status);
       // Forward-only guard for background refreshes — same shape as the
       // provisioning/onboarding polling loop's `isForwardTransition` check.
       // Without this, a stale orchestrator read could yank the user from
-      // running back to onboarding/provisioning.
-      setUiState((current) =>
-        background && !isForwardTransition(current, next) ? current : next,
-      );
+      // running back to onboarding/provisioning, or leave the chat visible
+      // while instance fields (integrations, autonomy, …) snap to older values.
+      let applySnapshot = true;
+      setUiState((current) => {
+        if (background && !isForwardTransition(current, next)) {
+          applySnapshot = false;
+          return current;
+        }
+        return next;
+      });
+      if (!applySnapshot) return;
+
+      const messagesResult = await listHermesMessagesAction({});
+      if (isCancelled?.()) return;
+      if (messagesResult.ok) {
+        setInitialMessages(messagesResult.data);
+      }
+      setInstance(instanceResult.data);
     },
     [t],
   );
@@ -238,7 +249,7 @@ export default function HermesExperience({
         // Ignore stale polls that would walk the state backwards (e.g. a poll
         // racing the orchestrator's status flip right after we POST /onboard).
         if (!isForwardTransition(uiState, next)) {
-          setInstance(result.data);
+          // Stale read — retry without applying snapshot (status or fields).
           timer = setTimeout(() => void tick(), POLL_INTERVAL_MS);
           return;
         }

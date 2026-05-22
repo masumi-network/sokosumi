@@ -814,7 +814,8 @@ export async function ensureMcpServer(
  * Walk every page of `/api/v3/mcp/servers` looking for a server with the
  * exact name. The list endpoint doesn't accept a name filter (unlike
  * `auth_configs?toolkit=…`), so we paginate via `next_cursor` until we
- * find the row or exhaust the list.
+ * find the row or exhaust the list. Stops only when `next_cursor` is absent
+ * (an empty page with a cursor still advances).
  *
  * Page size of 100 is the Composio max; the safety cap (50 pages = 5000
  * rows) keeps a pathological account from spinning forever.
@@ -837,7 +838,7 @@ async function findMcpServerByName(name: string): Promise<string | null> {
     if (hit?.id) return hit.id;
 
     const nextCursor = list.next_cursor;
-    if (!nextCursor || items.length === 0) return null;
+    if (!nextCursor) return null;
     cursor = nextCursor;
   }
 
