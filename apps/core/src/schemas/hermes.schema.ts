@@ -147,7 +147,7 @@ export const hermesRejectConfirmationRequestSchema = z
   .openapi("HermesRejectConfirmationRequest");
 
 export const hermesOnboardingStepStatusSchema = z
-  .enum(["pending", "running", "done", "error"])
+  .enum(["pending", "running", "done", "skipped", "error"])
   .openapi("HermesOnboardingStepStatus");
 
 /**
@@ -156,6 +156,11 @@ export const hermesOnboardingStepStatusSchema = z
  * wire and coerce `"failed"` → `"error"` so the UI loader doesn't crash
  * on a real orchestrator failure. The status emitted to clients is always
  * one of the documented enum values.
+ *
+ * `"skipped"` is also emitted by the orchestrator when a step is short-
+ * circuited (e.g. "Inbox not connected" when the user didn't connect any
+ * mail provider). It passes through as-is and the UI renders it as a
+ * muted "skipped" row rather than a spinner or an error.
  */
 const hermesOnboardingStepStatusWireSchema = z.preprocess(
   (value) => (value === "failed" ? "error" : value),

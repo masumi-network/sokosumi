@@ -173,6 +173,10 @@ export type HermesOnboardingStepStatus =
   | "pending"
   | "running"
   | "done"
+  /** Short-circuited by the orchestrator (e.g. "Inbox not connected" when
+   * the user didn't connect any mail provider). Render as muted, not as
+   * progress or error. */
+  | "skipped"
   | "error";
 
 export interface HermesOnboardingStep {
