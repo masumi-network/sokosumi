@@ -191,27 +191,16 @@ export function getBetterAuthPublicBaseUrl(): string {
 /**
  * Resolve which Sokosumi env label to pass to the Hermes orchestrator.
  *
- * Heuristic, no escape hatch — keep this dumb on purpose:
- *   - VERCEL_ENV undefined  → "development" (local dev)
  *   - NETWORK === "Mainnet" → "mainnet"
- *   - otherwise             → "preprod"
+ *   - otherwise (Preprod, also the default when unset) → "preprod"
  *
- * The orchestrator uses this to pick the right Sokosumi API base + coworker
- * key. If their env config doesn't know our `sokosumiEnv` value yet, the
- * orchestrator just skips the sokosumi_sync step — the rest of onboarding
- * runs normally.
+ * No "development" branch on the Sokosumi side — local dev still points at
+ * the preprod Sokosumi backend, which is what we want for an end-to-end
+ * walkthrough of the orchestrator's sokosumi_sync step.
+ *
+ * The orchestrator uses this to pick the Sokosumi API base + coworker key.
  */
-export function resolveSokosumiEnvForOrchestrator():
-  | "development"
-  | "preprod"
-  | "mainnet" {
+export function resolveSokosumiEnvForOrchestrator(): "preprod" | "mainnet" {
   const env = getEnv();
-  // A "deployed" signal — Vercel sets VERCEL_ENV automatically, but a
-  // non-Vercel host (self-hosted, Docker, staging cluster) won't, so fall
-  // back to NODE_ENV=production. Without this fallback a production
-  // self-hosted core silently downgrades to "development" and points
-  // Hermes microVMs at the wrong Sokosumi backend.
-  const isDeployed = Boolean(env.VERCEL_ENV) || env.NODE_ENV === "production";
-  if (!isDeployed) return "development";
   return env.NETWORK === "Mainnet" ? "mainnet" : "preprod";
 }
