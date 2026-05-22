@@ -1172,11 +1172,13 @@ app.openapi(postChatRoute, async (c) => {
       tags: { context: "hermes_chat_transcript_persist" },
       extra: { userId: userContext.userId },
     });
+    // Hermes already executed this turn. A 503 would invite client retries
+    // (duplicate upstream work) while the local transcript stays empty unless
+    // inbox recovery succeeds. Backfill via inbox sync, then return success.
     await recoverHermesInboxAfterFailedChatRequest(
       userContext.userId,
       c.req.raw.signal,
     );
-    throw serviceUnavailable("Hermes is temporarily unavailable.");
   }
 
   return ok(

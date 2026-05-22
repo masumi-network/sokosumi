@@ -652,7 +652,7 @@ describe("Hermes route contracts", () => {
     }
   });
 
-  it("returns 503 when the transcript cannot be persisted after a successful proxy", async () => {
+  it("returns 200 with assistant content when the transcript cannot be persisted after a successful proxy", async () => {
     hermesMessageCreateMock.mockRejectedValueOnce(new Error("db down"));
 
     const response = await createApp().request("/chat", {
@@ -666,8 +666,8 @@ describe("Hermes route contracts", () => {
 
     const body = await parseJson(response);
 
-    expect(response.status).toBe(503);
-    expect(body.error).toBe("ServiceUnavailable");
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.message.content", "Hello from Hermes.");
     expect(proxyChatCompletionsMock).toHaveBeenCalled();
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),
