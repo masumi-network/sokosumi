@@ -134,13 +134,25 @@ export default function HermesExperience({
    * `GET /me/instance` lazily upserts the Hermes welcome message on first hit —
    * fetching messages in parallel can resolve before that upsert lands, opening
    * the chat without the intro until the next poll.
+   *
+   * `background: true` is the mode used by the 30s running-state refresh and
+   * by settings-panel mutations. In that mode we deliberately:
+   *   - never walk uiState backwards (e.g. don't pull a running chat back
+   *     to onboarding on a lagging orchestrator read);
+   *   - never flip to the global error state on a transient fetch failure
+   *     (just skip the refresh — the user is already happily chatting and
+   *     a 503 hiccup shouldn't tear that down);
+   *   - never clear the local instance when the response transiently lacks
+   *     one (treat as a no-op until the next tick).
    */
   const refetchHermes = useCallback(
-    async (options?: { isCancelled?: () => boolean }) => {
+    async (options?: { isCancelled?: () => boolean; background?: boolean }) => {
       const isCancelled = options?.isCancelled;
+      const background = options?.background ?? false;
       const instanceResult = await getHermesInstanceAction({});
       if (isCancelled?.()) return;
       if (!instanceResult.ok) {
+        if (background) return;
         setUiState("error");
         setErrorMessage(
           instanceResult.error.message ?? "Failed to reach Hermes.",
@@ -153,12 +165,20 @@ export default function HermesExperience({
         setInitialMessages(messagesResult.data);
       }
       if (!instanceResult.data) {
+        if (background) return;
         setUiState("idle");
         setInstance(null);
         return;
       }
       setInstance(instanceResult.data);
-      setUiState(uiStateForServerStatus(instanceResult.data.status));
+      const next = uiStateForServerStatus(instanceResult.data.status);
+      // Forward-only guard for background refreshes — same shape as the
+      // provisioning/onboarding polling loop's `isForwardTransition` check.
+      // Without this, a stale orchestrator read could yank the user from
+      // running back to onboarding/provisioning.
+      setUiState((current) =>
+        background && !isForwardTransition(current, next) ? current : next,
+      );
     },
     [],
   );
@@ -258,7 +278,7 @@ export default function HermesExperience({
     if (uiState !== "running") return;
     let cancelled = false;
     const interval = setInterval(() => {
-      void refetchHermes({ isCancelled: () => cancelled });
+      void refetchHermes({ isCancelled: () => cancelled, background: true });
     }, RUNNING_REFRESH_INTERVAL_MS);
     return () => {
       cancelled = true;
@@ -394,7 +414,7 @@ export default function HermesExperience({
       previewMode={previewMode}
       initialMessages={initialMessages}
       onDestroy={handleDestroy}
-      onRefresh={refetchHermes}
+      onRefresh={() => refetchHermes({ background: true })}
     />
   );
 }
