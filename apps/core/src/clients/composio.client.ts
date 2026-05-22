@@ -235,6 +235,17 @@ interface ComposioMcpServer {
 const authConfigCache = new Map<ComposioToolkit, string>();
 const mcpServerCache = new Map<string, string>();
 
+/**
+ * Single-flight maps for in-flight `ensure*` calls. When two requests miss
+ * the cache concurrently they would each hit Composio's list → create path
+ * and one would lose with a duplicate-name error. Storing the in-flight
+ * Promise here lets the second caller await the first's result instead.
+ * Entries are deleted on settle (success or failure) so a failed lookup
+ * can be retried by the next caller.
+ */
+const authConfigInflight = new Map<ComposioToolkit, Promise<string>>();
+const mcpServerInflight = new Map<string, Promise<string>>();
+
 function mcpCacheKey(toolkit: ComposioToolkit, mode: ComposioMode): string {
   return `${toolkit}:${mode}`;
 }
@@ -675,52 +686,68 @@ export async function ensureAuthConfig(
 ): Promise<string> {
   const cached = authConfigCache.get(toolkit);
   if (cached) return cached;
+  // Coalesce concurrent first-time lookups so we don't race the list→create
+  // path and end up with two POSTs for the same toolkit. The second caller
+  // simply awaits the first call's Promise.
+  const inflight = authConfigInflight.get(toolkit);
+  if (inflight) return inflight;
 
-  // Look for an existing record so restarts don't create duplicates. The
-  // Composio list endpoint filters on `toolkit_slug` — `toolkit` is silently
-  // ignored and returns the full unfiltered page.
-  const listRes = await composioFetch("/api/v3/auth_configs", {
-    searchParams: { toolkit_slug: toolkit, limit: 50 },
-  });
-  const list = await parseResponse<ComposioListResponse<ComposioAuthConfig>>(
-    listRes,
-    "list auth_configs",
-  );
-  const items = list.items ?? list.data ?? [];
-  const name = authConfigName(toolkit);
-  const existing = items.find((item) => item.name === name);
-  if (existing) {
-    authConfigCache.set(toolkit, existing.id);
-    return existing.id;
-  }
-
-  // Composio expects `name` + `type` nested under `auth_config` — top-level
-  // `name` silently becomes an auto-generated `auth_config_<toolkit>_<ts>`.
-  // No `credentials.scopes` here — Google rejects narrowed scopes on
-  // Composio's verified managed client.
-  const createRes = await composioFetch("/api/v3/auth_configs", {
-    method: "POST",
-    jsonBody: {
-      toolkit: { slug: toolkit },
-      auth_config: {
-        name,
-        type: "use_composio_managed_auth",
-      },
-    },
-  });
-  const created = await parseResponse<
-    { auth_config?: ComposioAuthConfig } & ComposioAuthConfig
-  >(createRes, "create auth_config");
-  const id = created.auth_config?.id ?? created.id;
-  if (!id) {
-    throw new ComposioApiError(
-      createRes.status,
-      created,
-      "create auth_config returned no id",
+  const work = (async () => {
+    // Look for an existing record so restarts don't create duplicates. The
+    // Composio list endpoint filters on `toolkit_slug` — `toolkit` is silently
+    // ignored and returns the full unfiltered page.
+    const listRes = await composioFetch("/api/v3/auth_configs", {
+      searchParams: { toolkit_slug: toolkit, limit: 50 },
+    });
+    const list = await parseResponse<ComposioListResponse<ComposioAuthConfig>>(
+      listRes,
+      "list auth_configs",
     );
+    const items = list.items ?? list.data ?? [];
+    const name = authConfigName(toolkit);
+    const existing = items.find((item) => item.name === name);
+    if (existing) {
+      authConfigCache.set(toolkit, existing.id);
+      return existing.id;
+    }
+
+    // Composio expects `name` + `type` nested under `auth_config` — top-level
+    // `name` silently becomes an auto-generated `auth_config_<toolkit>_<ts>`.
+    // No `credentials.scopes` here — Google rejects narrowed scopes on
+    // Composio's verified managed client.
+    const createRes = await composioFetch("/api/v3/auth_configs", {
+      method: "POST",
+      jsonBody: {
+        toolkit: { slug: toolkit },
+        auth_config: {
+          name,
+          type: "use_composio_managed_auth",
+        },
+      },
+    });
+    const created = await parseResponse<
+      { auth_config?: ComposioAuthConfig } & ComposioAuthConfig
+    >(createRes, "create auth_config");
+    const id = created.auth_config?.id ?? created.id;
+    if (!id) {
+      throw new ComposioApiError(
+        createRes.status,
+        created,
+        "create auth_config returned no id",
+      );
+    }
+    authConfigCache.set(toolkit, id);
+    return id;
+  })();
+
+  authConfigInflight.set(toolkit, work);
+  try {
+    return await work;
+  } finally {
+    // Remove from inflight whether we succeeded or failed — a failed
+    // lookup should be retryable by the next caller from scratch.
+    authConfigInflight.delete(toolkit);
   }
-  authConfigCache.set(toolkit, id);
-  return id;
 }
 
 /**
@@ -738,35 +765,49 @@ export async function ensureMcpServer(
   const key = mcpCacheKey(toolkit, mode);
   const cached = mcpServerCache.get(key);
   if (cached) return cached;
+  // Same single-flight pattern as ensureAuthConfig — concurrent first-time
+  // lookups for the same (toolkit, mode) pair would otherwise race the
+  // list→create path and Composio would reject one with a duplicate name.
+  const inflight = mcpServerInflight.get(key);
+  if (inflight) return inflight;
 
-  const name = mcpServerName(toolkit, mode);
-  const existingId = await findMcpServerByName(name);
-  if (existingId) {
-    mcpServerCache.set(key, existingId);
-    return existingId;
-  }
+  const work = (async () => {
+    const name = mcpServerName(toolkit, mode);
+    const existingId = await findMcpServerByName(name);
+    if (existingId) {
+      mcpServerCache.set(key, existingId);
+      return existingId;
+    }
 
-  const createRes = await composioFetch("/api/v3/mcp/servers", {
-    method: "POST",
-    jsonBody: {
-      name,
-      auth_config_ids: [authConfigId],
-      allowed_tools: ALLOWED_TOOLS[toolkit][mode],
-    },
-  });
-  const created = await parseResponse<
-    { mcp_server?: ComposioMcpServer } & ComposioMcpServer
-  >(createRes, "create mcp server");
-  const id = created.mcp_server?.id ?? created.id;
-  if (!id) {
-    throw new ComposioApiError(
-      createRes.status,
-      created,
-      "create mcp server returned no id",
-    );
+    const createRes = await composioFetch("/api/v3/mcp/servers", {
+      method: "POST",
+      jsonBody: {
+        name,
+        auth_config_ids: [authConfigId],
+        allowed_tools: ALLOWED_TOOLS[toolkit][mode],
+      },
+    });
+    const created = await parseResponse<
+      { mcp_server?: ComposioMcpServer } & ComposioMcpServer
+    >(createRes, "create mcp server");
+    const id = created.mcp_server?.id ?? created.id;
+    if (!id) {
+      throw new ComposioApiError(
+        createRes.status,
+        created,
+        "create mcp server returned no id",
+      );
+    }
+    mcpServerCache.set(key, id);
+    return id;
+  })();
+
+  mcpServerInflight.set(key, work);
+  try {
+    return await work;
+  } finally {
+    mcpServerInflight.delete(key);
   }
-  mcpServerCache.set(mcpCacheKey(toolkit, mode), id);
-  return id;
 }
 
 /**
