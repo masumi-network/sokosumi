@@ -166,8 +166,21 @@ export function useComposioOAuth() {
       }
 
       if (result.kind === "timeout") return { ok: false, reason: "timeout" };
-      if (result.kind === "closed")
+
+      // Popup-closed is not necessarily failure: some browsers race the
+      // close event ahead of the callback's postMessage, and Composio may
+      // have a valid ACTIVE connection waiting. Attempt finalize anyway —
+      // the server-side poll will tell us whether the connection is real
+      // (returns "popup_closed" only if finalize also rejects).
+      if (result.kind === "closed") {
+        const recovery = await finalizeHermesIntegrationAction({
+          provider,
+          connectionId,
+          mode,
+        });
+        if (recovery.ok) return { ok: true, integration: recovery.data };
         return { ok: false, reason: "popup_closed" };
+      }
 
       if (result.status === "error") {
         return {

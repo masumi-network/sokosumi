@@ -32,8 +32,22 @@ function readResult(): {
     params.get("id");
   const errorMessage = params.get("error") ?? params.get("error_description");
 
-  const status: Status =
-    rawStatus === "success" || rawStatus === "active" || connectionId
+  // An explicit failure or denial wins over the presence of a connectionId.
+  // Some providers echo the in-flight connection id back even when they're
+  // rejecting the grant (e.g. `?id=…&error=access_denied`); without this
+  // check the opener kicks off finalize against a connection that will
+  // never become ACTIVE and the user sees a confusing "not active yet"
+  // error instead of "you denied access".
+  const isExplicitFailure =
+    rawStatus === "failed" ||
+    rawStatus === "error" ||
+    rawStatus === "expired" ||
+    rawStatus === "inactive" ||
+    Boolean(errorMessage);
+
+  const status: Status = isExplicitFailure
+    ? "error"
+    : rawStatus === "success" || rawStatus === "active" || connectionId
       ? "success"
       : "error";
 

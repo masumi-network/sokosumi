@@ -508,8 +508,19 @@ async function persistHermesWelcomeMessage(args: {
   kind: string | null;
   onboardedAtIso: string;
 }): Promise<void> {
-  const createdAt = new Date(args.onboardedAtIso);
-  if (Number.isNaN(createdAt.getTime())) return;
+  // Fall back to "now" if the orchestrator handed us a malformed timestamp
+  // (and tell Sentry about it) — the previous behaviour was to silently
+  // drop the welcome message entirely, leaving the user with an empty chat
+  // on first open and no signal that anything was wrong.
+  let createdAt = new Date(args.onboardedAtIso);
+  if (Number.isNaN(createdAt.getTime())) {
+    Sentry.captureMessage("hermes_welcome_bad_onboarded_at", {
+      level: "warning",
+      tags: { context: "hermes_welcome_persist" },
+      extra: { userId: args.userId, onboardedAtIso: args.onboardedAtIso },
+    });
+    createdAt = new Date();
+  }
 
   const id = uuidv5(
     `${args.userId}:${args.onboardedAtIso}:${args.kind ?? "none"}`,
