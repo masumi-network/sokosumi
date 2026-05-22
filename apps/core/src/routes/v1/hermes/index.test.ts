@@ -11,6 +11,7 @@ const {
   HermesInstanceNotReadyErrorMock,
   hermesMessageCreateMock,
   hermesMessageFindManyMock,
+  hermesMessageUpsertMock,
   isReservedSecretKeyMock,
   isValidSecretKeyMock,
   prismaTransactionMock,
@@ -41,6 +42,7 @@ const {
     HermesInstanceNotReadyErrorMock,
     hermesMessageCreateMock: vi.fn(),
     hermesMessageFindManyMock: vi.fn(),
+    hermesMessageUpsertMock: vi.fn(),
     isReservedSecretKeyMock: vi.fn(),
     isValidSecretKeyMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
@@ -79,6 +81,7 @@ vi.mock("@/lib/db/prisma", () => ({
       create: hermesMessageCreateMock,
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       findMany: hermesMessageFindManyMock,
+      upsert: hermesMessageUpsertMock,
       count: vi.fn().mockResolvedValue(0),
     },
     user: {
@@ -87,27 +90,35 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/clients/hermes-orchestrator.client", () => ({
-  destroyInstance: vi.fn(),
-  ensureInstanceReady: ensureInstanceReadyMock,
-  getInstance: vi.fn(),
-  HermesInstanceNotReadyError: HermesInstanceNotReadyErrorMock,
-  HermesOrchestratorError: class HermesOrchestratorError extends Error {
-    readonly httpStatus: number;
-    readonly code: string;
+vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/clients/hermes-orchestrator.client")
+    >();
 
-    constructor(httpStatus: number, body: { code?: string; title?: string }) {
-      super(body.title ?? `Hermes orchestrator error (${httpStatus})`);
-      this.httpStatus = httpStatus;
-      this.code = body.code ?? "HERMES_ORCH_ERROR";
-    }
-  },
-  isReservedSecretKey: isReservedSecretKeyMock,
-  isValidSecretKey: isValidSecretKeyMock,
-  provisionInstance: vi.fn(),
-  proxyChatCompletions: proxyChatCompletionsMock,
-  setInstanceSecret: vi.fn(),
-}));
+  return {
+    ...actual,
+    destroyInstance: vi.fn(),
+    ensureInstanceReady: ensureInstanceReadyMock,
+    getInstance: vi.fn(),
+    HermesInstanceNotReadyError: HermesInstanceNotReadyErrorMock,
+    HermesOrchestratorError: class HermesOrchestratorError extends Error {
+      readonly httpStatus: number;
+      readonly code: string;
+
+      constructor(httpStatus: number, body: { code?: string; title?: string }) {
+        super(body.title ?? `Hermes orchestrator error (${httpStatus})`);
+        this.httpStatus = httpStatus;
+        this.code = body.code ?? "HERMES_ORCH_ERROR";
+      }
+    },
+    isReservedSecretKey: isReservedSecretKeyMock,
+    isValidSecretKey: isValidSecretKeyMock,
+    provisionInstance: vi.fn(),
+    proxyChatCompletions: proxyChatCompletionsMock,
+    setInstanceSecret: vi.fn(),
+  };
+});
 
 import {
   destroyInstance,
@@ -146,6 +157,7 @@ describe("Hermes route contracts", () => {
     userFindUniqueMock.mockResolvedValue({ role: "user" });
     hermesMessageFindManyMock.mockResolvedValue([]);
     hermesMessageCreateMock.mockResolvedValue(undefined);
+    hermesMessageUpsertMock.mockResolvedValue(undefined);
     ensureInstanceReadyMock.mockResolvedValue(undefined);
     proxyChatCompletionsMock.mockResolvedValue(
       Response.json({
@@ -585,6 +597,37 @@ describe("Hermes route contracts", () => {
     expect(body.error).toBe("ServiceUnavailable");
     expect(body.message).toBe("Hermes is temporarily unavailable.");
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 for GET /me/instance when onboardedAt is truthy but not ISO-8601", async () => {
+    vi.mocked(getInstance).mockResolvedValue({
+      status: "ready",
+      endpointUrl: null,
+      lastActivityAt: null,
+      onboardedAt: "not-a-valid-iso-datetime",
+      autonomyLevel: "medium",
+      integrations: [],
+      transitioning: false,
+      welcomeMessage: "Welcome back.",
+      welcomeKind: "returning",
+      lastSokosumiSyncAt: null,
+      lastInboxRefreshAt: null,
+      timezone: null,
+      pendingConfirmations: [],
+    });
+
+    const response = await createApp().request("/me/instance", {
+      headers: {
+        Authorization: "Bearer test_api_key",
+      },
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.hasInstance", true);
+    expect(body).toHaveProperty("data.instance.onboardedAt", null);
+    expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
   });
 
   it.each([

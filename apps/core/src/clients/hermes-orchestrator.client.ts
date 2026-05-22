@@ -1,4 +1,5 @@
 import { getEnv } from "@/config/env";
+import { dateTimeSchema } from "@/helpers/datetime";
 
 export type HermesInstanceStatus =
   | "provisioning"
@@ -307,7 +308,7 @@ export async function getInstance(
   > & {
     integrations?: RawIntegrationFromOrchestrator[];
   };
-  return {
+  return normalizeHermesInstancePublic({
     status: data.status,
     endpointUrl: data.endpointUrl ?? null,
     lastActivityAt: data.lastActivityAt ?? null,
@@ -325,7 +326,7 @@ export async function getInstance(
     pendingConfirmations: (data.pendingConfirmations ?? [])
       .map(normalizePendingConfirmation)
       .filter((c): c is HermesPendingConfirmation => c !== null),
-  };
+  });
 }
 
 /**
@@ -945,6 +946,48 @@ function isKnownProvider(value: string): value is HermesIntegrationProvider {
 }
 
 /**
+ * Orchestrator may emit malformed datetime strings. Coerce to null so one bad
+ * field cannot fail `hermesInstanceSchema.parse` on GET /me/instance.
+ */
+function normalizeOrchestratorDateTime(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  const parsed = dateTimeSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Coerce orchestrator datetime fields to ISO-8601 (or null) before API
+ * validation. Used by `getInstance` and by route handlers that may receive
+ * mocked or cached instance payloads.
+ */
+export function normalizeHermesInstancePublic(
+  instance: HermesInstancePublic,
+): HermesInstancePublic {
+  return {
+    ...instance,
+    lastActivityAt: normalizeOrchestratorDateTime(instance.lastActivityAt),
+    onboardedAt: normalizeOrchestratorDateTime(instance.onboardedAt),
+    lastSokosumiSyncAt: normalizeOrchestratorDateTime(
+      instance.lastSokosumiSyncAt,
+    ),
+    lastInboxRefreshAt: normalizeOrchestratorDateTime(
+      instance.lastInboxRefreshAt,
+    ),
+    integrations: instance.integrations.map((integration) => ({
+      ...integration,
+      connectedAt: normalizeOrchestratorDateTime(integration.connectedAt),
+    })),
+    pendingConfirmations: instance.pendingConfirmations
+      .map((confirmation) => {
+        const createdAt = normalizeOrchestratorDateTime(confirmation.createdAt);
+        if (!createdAt) return null;
+        return { ...confirmation, createdAt };
+      })
+      .filter((c): c is HermesPendingConfirmation => c !== null),
+  };
+}
+
+/**
  * Returns null when the orchestrator hands us a provider string our schema
  * doesn't recognize — likely a newer toolkit we haven't shipped UI for yet.
  * Dropping the row is preferable to failing the whole instance-fetch
@@ -966,7 +1009,7 @@ function normalizeIntegration(
   return {
     provider: raw.provider,
     status,
-    connectedAt: raw.connectedAt ?? null,
+    connectedAt: normalizeOrchestratorDateTime(raw.connectedAt),
     mode: raw.mode === "write" ? "write" : "read",
   };
 }

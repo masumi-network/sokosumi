@@ -35,6 +35,7 @@ import {
   isValidSecretKey,
   listInstanceIntegrations,
   listInstanceSchedules,
+  normalizeHermesInstancePublic,
   patchInstance,
   patchSchedule,
   provisionInstance,
@@ -1131,11 +1132,15 @@ app.openapi(getInstanceRoute, async (c) => {
   try {
     const instance = await getInstance(userContext.userId);
     if (instance) {
+      const normalizedInstance = normalizeHermesInstancePublic(instance);
+
       await upsertHermesInstanceForUser(userContext.userId).catch((error) => {
         Sentry.captureException(error, {
           tags: { context: "hermes_instance_backfill" },
         });
       });
+
+      const parsedInstance = hermesInstanceSchema.parse(normalizedInstance);
 
       // Atomic welcome (orchestrator's "ready" payload carries the intro).
       // Persist it on first sight so the chat opens with the welcome
@@ -1143,14 +1148,16 @@ app.openapi(getInstanceRoute, async (c) => {
       // poll-and-drain race. Awaited deliberately: the client typically
       // fetches messages immediately after seeing `status === "ready"`,
       // so persisting in the background would let the first fetch return
-      // an empty inbox and flash empty chat.
-      if (instance.welcomeMessage && instance.onboardedAt) {
+      // an empty inbox and flash empty chat. Only when `onboardedAt` is a
+      // valid ISO timestamp (normalized in the orchestrator client) — a
+      // truthy but malformed value must not persist-then-500 the handler.
+      if (normalizedInstance.welcomeMessage && parsedInstance.onboardedAt) {
         try {
           await persistHermesWelcomeMessage({
             userId: userContext.userId,
-            content: instance.welcomeMessage,
-            kind: instance.welcomeKind,
-            onboardedAtIso: instance.onboardedAt,
+            content: normalizedInstance.welcomeMessage,
+            kind: normalizedInstance.welcomeKind,
+            onboardedAtIso: parsedInstance.onboardedAt,
           });
         } catch (error) {
           Sentry.captureException(error, {
@@ -1158,17 +1165,17 @@ app.openapi(getInstanceRoute, async (c) => {
           });
         }
       }
+
+      return ok(
+        c,
+        hermesGetInstanceEnvelopeSchema.parse({
+          hasInstance: true,
+          instance: parsedInstance,
+        }),
+      );
     }
 
-    return ok(
-      c,
-      instance
-        ? hermesGetInstanceEnvelopeSchema.parse({
-            hasInstance: true,
-            instance: hermesInstanceSchema.parse(instance),
-          })
-        : hermesGetInstanceEnvelopeSchema.parse({ hasInstance: false }),
-    );
+    return ok(c, hermesGetInstanceEnvelopeSchema.parse({ hasInstance: false }));
   } catch (error) {
     return mapOrchestratorError(error, "Failed to fetch Hermes instance");
   }
