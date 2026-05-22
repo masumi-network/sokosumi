@@ -18,7 +18,7 @@ export default function LoadingState() {
   return (
     <FlowBackground
       intensity="subtle"
-      className="flex h-full min-h-[50vh] flex-col overflow-hidden"
+      className="flex h-full min-h-[50vh] flex-col"
     >
       <div
         className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-16 text-center md:py-24"

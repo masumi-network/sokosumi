@@ -14,6 +14,7 @@ import type {
   HermesOnboardingStep,
   HermesOnboardingProgress as ProgressShape,
 } from "@/lib/hermes/types";
+import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
 interface OnboardingProgressProps {
@@ -165,14 +166,14 @@ export default function OnboardingProgress({
   const t = useTranslations("App.Hermes.OnboardingProgress");
   const previewSteps = t.raw("previewSteps") as Record<string, string>;
   const previewSequence = buildPreviewSequence(previewSteps);
-  const hints = t.raw("hints") as string[];
+  const hints = orderedMessageList(t.raw("hints") as Record<string, string>);
   const { progress, pollError } = useOnboardingProgress(
     previewMode,
     previewSequence,
   );
 
   return (
-    <FlowBackground className="flex h-full flex-col overflow-hidden">
+    <FlowBackground className="flex h-full flex-col">
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-4 md:py-6">
         <ProgressPips current="personalizing" />
 

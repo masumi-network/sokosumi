@@ -1727,40 +1727,40 @@
           "never": "nunca",
           "inboxScanned": "Caixa de entrada · analisada",
           "memoryWritten": "Memória · escrita",
-          "demoInbox": [
-            {
+          "demoInbox": {
+            "0": {
               "from": "Hannah",
               "subject": "Revisão do roadmap Q4"
             },
-            {
+            "1": {
               "from": "Alex",
               "subject": "Acordo Cardano — próximos passos"
             },
-            {
+            "2": {
               "from": "CI bot",
               "subject": "Build #2438 falhou"
             }
-          ],
-          "demoMemory": [
-            "A trabalhar no lançamento Q4",
-            "A Hannah é a responsável de produto",
-            "O acordo Cardano fecha a 15 mar"
-          ],
+          },
+          "demoMemory": {
+            "0": "A trabalhar no lançamento Q4",
+            "1": "A Hannah é a responsável de produto",
+            "2": "O acordo Cardano fecha a 15 mar"
+          },
           "actUserMessage": "Marca uma chamada com a Hannah na próxima terça-feira às 10:00.",
           "actWorking": "O Hermes está a trabalhar",
-          "actSteps": [
-            "Encontrou um intervalo livre",
-            "Redigiu o convite",
-            "Contratou o agente Research para contexto"
-          ],
+          "actSteps": {
+            "0": "Encontrou um intervalo livre",
+            "1": "Redigiu o convite",
+            "2": "Contratou o agente Research para contexto"
+          },
           "actHeld": "Terça · 10:00 reservado",
           "overnightTitle": "Esta noite · 4 tarefas",
-          "overnightSchedule": [
-            "Rever o e-mail noturno",
-            "Sincronizar jobs Sokosumi",
-            "Redigir o seu resumo matinal",
-            "Enviar para o chat + Telegram"
-          ]
+          "overnightSchedule": {
+            "0": "Rever o e-mail noturno",
+            "1": "Sincronizar jobs Sokosumi",
+            "2": "Redigir o seu resumo matinal",
+            "3": "Enviar para o chat + Telegram"
+          }
         },
         "journeyEyebrow": "De ponta a ponta",
         "journeyHeading": "Como o Hermes funciona, passo a passo",
@@ -1827,15 +1827,15 @@
         "subtitle": "Isto demora normalmente cerca de um minuto. Pode fechar este separador — o Hermes continua a preparar-se em segundo plano.",
         "settingUp": "A configurar o seu agente…",
         "whileYouWait": "Enquanto espera",
-        "facts": [
-          "O Hermes recebe o seu próprio computador privado e lembra o contexto entre sessões.",
-          "Ligue Gmail, Outlook, Slack, Linear, GitHub, Notion e mais.",
-          "O Hermes pode contratar outros agentes Sokosumi para trabalhar em seu nome.",
-          "Converse aqui, no Telegram, Slack ou onde trabalhar — retome em qualquer lugar.",
-          "Todas as manhãs o Hermes pode enviar um resumo do que precisa da sua atenção.",
-          "Leia a caixa de entrada, redija respostas, agende reuniões — tudo a partir do chat.",
-          "Peça ao Hermes para agendar coisas em linguagem natural: \"todas as segundas às 9:00, resume a minha semana à frente.\""
-        ]
+        "facts": {
+          "0": "O Hermes recebe o seu próprio computador privado e lembra o contexto entre sessões.",
+          "1": "Ligue Gmail, Outlook, Slack, Linear, GitHub, Notion e mais.",
+          "2": "O Hermes pode contratar outros agentes Sokosumi para trabalhar em seu nome.",
+          "3": "Converse aqui, no Telegram, Slack ou onde trabalhar — retome em qualquer lugar.",
+          "4": "Todas as manhãs o Hermes pode enviar um resumo do que precisa da sua atenção.",
+          "5": "Leia a caixa de entrada, redija respostas, agende reuniões — tudo a partir do chat.",
+          "6": "Peça ao Hermes para agendar coisas em linguagem natural: \"todas as segundas às 9:00, resume a minha semana à frente.\""
+        }
       },
       "Running": {
         "statusActive": "Ativo",
@@ -1862,36 +1862,36 @@
           "emptyResponse": "O Hermes devolveu uma resposta vazia.",
           "unreachable": "Não foi possível contactar o Hermes. Verifique a sua ligação."
         },
-        "mockReplies": [
-          "Sou uma resposta simulada da sua pré-visualização local do Hermes. Remova ?state=running para ver o Hermes real ligado ao orquestrador.",
-          "Percebi. Em produção, a sua mensagem passa pelo servidor Sokosumi, o orquestrador devolve o seu endpoint privado e o Hermes responde.",
-          "Isto é o que faria: guardar isto na memória a longo prazo, adicionar um follow-up à sua lista de tarefas e manter o contexto para a próxima sessão."
-        ],
-        "thinkingMessages": [
-          "A pensar",
-          "A consultar os deuses do calendário",
-          "A rever a sua caixa de entrada",
-          "A ler nas entrelinhas",
-          "A preparar uma resposta",
-          "A carregar o seu contexto",
-          "A perguntar por aí",
-          "A escolher a ferramenta certa",
-          "A redigir com cuidado",
-          "A verificar antes de agir",
-          "A fazer a parte aborrecida por si",
-          "A desembaraçar o Slack",
-          "A cruzar a memória",
-          "A caçar um detalhe",
-          "A escolher as palavras",
-          "Quase lá"
-        ],
-        "rotatingHints": [
-          "Mensagem para o Hermes…",
-          "Experimente: agendar um resumo diário da caixa de entrada às 8:00",
-          "Experimente: resumir os meus tópicos Cardano abertos",
-          "Experimente: redigir um follow-up das minhas últimas notas de reunião",
-          "Experimente: o que está em atraso na minha caixa de entrada?"
-        ],
+        "mockReplies": {
+          "0": "Sou uma resposta simulada da sua pré-visualização local do Hermes. Remova ?state=running para ver o Hermes real ligado ao orquestrador.",
+          "1": "Percebi. Em produção, a sua mensagem passa pelo servidor Sokosumi, o orquestrador devolve o seu endpoint privado e o Hermes responde.",
+          "2": "Isto é o que faria: guardar isto na memória a longo prazo, adicionar um follow-up à sua lista de tarefas e manter o contexto para a próxima sessão."
+        },
+        "thinkingMessages": {
+          "0": "A pensar",
+          "1": "A consultar os deuses do calendário",
+          "2": "A rever a sua caixa de entrada",
+          "3": "A ler nas entrelinhas",
+          "4": "A preparar uma resposta",
+          "5": "A carregar o seu contexto",
+          "6": "A perguntar por aí",
+          "7": "A escolher a ferramenta certa",
+          "8": "A redigir com cuidado",
+          "9": "A verificar antes de agir",
+          "10": "A fazer a parte aborrecida por si",
+          "11": "A desembaraçar o Slack",
+          "12": "A cruzar a memória",
+          "13": "A caçar um detalhe",
+          "14": "A escolher as palavras",
+          "15": "Quase lá"
+        },
+        "rotatingHints": {
+          "0": "Mensagem para o Hermes…",
+          "1": "Experimente: agendar um resumo diário da caixa de entrada às 8:00",
+          "2": "Experimente: resumir os meus tópicos Cardano abertos",
+          "3": "Experimente: redigir um follow-up das minhas últimas notas de reunião",
+          "4": "Experimente: o que está em atraso na minha caixa de entrada?"
+        },
         "outboxKinds": {
           "welcome": "Boas-vindas",
           "daily_brief": "Resumo diário",
@@ -2008,18 +2008,18 @@
         "continueWithCount": "A continuar com {count, plural, =0 {nenhuma integração} =1 {# integração} other {# integrações}}",
         "footnote": "Pode adicionar ou remover integrações a qualquer momento nas Definições.",
         "autonomyAriaLabel": "Nível de autonomia do Hermes",
-        "roleOptions": [
-          "Fundador / CEO",
-          "Produto",
-          "Engenharia",
-          "Design",
-          "Marketing",
-          "Vendas",
-          "Operações",
-          "Finanças",
-          "Sucesso do cliente",
-          "Outro"
-        ],
+        "roleOptions": {
+          "0": "Fundador / CEO",
+          "1": "Produto",
+          "2": "Engenharia",
+          "3": "Design",
+          "4": "Marketing",
+          "5": "Vendas",
+          "6": "Operações",
+          "7": "Finanças",
+          "8": "Sucesso do cliente",
+          "9": "Outro"
+        },
         "capabilities": {
           "gmail": "Ler e pesquisar na caixa de entrada, redigir e enviar e-mail",
           "google_calendar": "Ler os seus eventos, verificar disponibilidade, criar e atualizar reuniões",
@@ -2044,14 +2044,14 @@
         "stepFallbackLabel": "A aquecer",
         "footerHint": "Quando terminar, o chat abrirá com uma introdução personalizada do Hermes.",
         "pollError": "Não é possível contactar o orquestrador neste momento — a tentar novamente.",
-        "hints": [
-          "Dica: pergunte \"o que é importante na minha caixa de entrada hoje?\" quando entrar.",
-          "O Hermes lembra os seus projetos, os seus contactos, as suas preferências.",
-          "Experimente: \"todos os dias úteis às 8:00, envie-me o resumo da minha caixa de entrada.\"",
-          "O Hermes pode contratar outros agentes Sokosumi para ajudar na investigação.",
-          "Ligue mais ferramentas depois nas Definições — Slack, Linear, Notion, mais.",
-          "Todas as manhãs o Hermes enviará um resumo do que precisa da sua atenção."
-        ],
+        "hints": {
+          "0": "Dica: pergunte \"o que é importante na minha caixa de entrada hoje?\" quando entrar.",
+          "1": "O Hermes lembra os seus projetos, os seus contactos, as suas preferências.",
+          "2": "Experimente: \"todos os dias úteis às 8:00, envie-me o resumo da minha caixa de entrada.\"",
+          "3": "O Hermes pode contratar outros agentes Sokosumi para ajudar na investigação.",
+          "4": "Ligue mais ferramentas depois nas Definições — Slack, Linear, Notion, mais.",
+          "5": "Todas as manhãs o Hermes enviará um resumo do que precisa da sua atenção."
+        },
         "previewSteps": {
           "memory": "A inicializar a sua memória privada",
           "inbox_scan": "A ler a sua caixa de entrada",

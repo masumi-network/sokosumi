@@ -16,6 +16,7 @@ import type {
   HermesInstancePublic,
   HermesIntegration,
   HermesIntegrationProvider,
+  HermesOnboardingStepStatus,
   HermesPendingConfirmation,
   HermesPersistedMessage,
   HermesSchedule,
@@ -326,7 +327,7 @@ export interface HermesOnboardingProgressPayload {
   steps: Array<{
     id: string;
     label: string;
-    status: "pending" | "running" | "done" | "error";
+    status: HermesOnboardingStepStatus;
     errorMessage?: string | null;
   }>;
   etaSeconds: number | null;

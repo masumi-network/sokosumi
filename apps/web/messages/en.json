@@ -1727,31 +1727,40 @@
           "never": "never",
           "inboxScanned": "Inbox · scanned",
           "memoryWritten": "Memory · written",
-          "demoInbox": [
-            { "from": "Hannah", "subject": "Q4 roadmap review" },
-            { "from": "Alex", "subject": "Cardano deal — next steps" },
-            { "from": "CI bot", "subject": "Build #2438 failed" }
-          ],
-          "demoMemory": [
-            "Working on the Q4 launch",
-            "Hannah is the product lead",
-            "Cardano deal closes Mar 15"
-          ],
+          "demoInbox": {
+            "0": {
+              "from": "Hannah",
+              "subject": "Q4 roadmap review"
+            },
+            "1": {
+              "from": "Alex",
+              "subject": "Cardano deal — next steps"
+            },
+            "2": {
+              "from": "CI bot",
+              "subject": "Build #2438 failed"
+            }
+          },
+          "demoMemory": {
+            "0": "Working on the Q4 launch",
+            "1": "Hannah is the product lead",
+            "2": "Cardano deal closes Mar 15"
+          },
           "actUserMessage": "Set a call with Hannah next Tuesday at 10am.",
           "actWorking": "Hermes is working",
-          "actSteps": [
-            "Found a free slot",
-            "Drafted the invite",
-            "Hired Research agent for context"
-          ],
+          "actSteps": {
+            "0": "Found a free slot",
+            "1": "Drafted the invite",
+            "2": "Hired Research agent for context"
+          },
           "actHeld": "Tuesday · 10:00 AM held",
           "overnightTitle": "Tonight · 4 jobs",
-          "overnightSchedule": [
-            "Pull overnight email",
-            "Sync Sokosumi jobs",
-            "Draft your morning brief",
-            "Push to chat + Telegram"
-          ]
+          "overnightSchedule": {
+            "0": "Pull overnight email",
+            "1": "Sync Sokosumi jobs",
+            "2": "Draft your morning brief",
+            "3": "Push to chat + Telegram"
+          }
         },
         "journeyEyebrow": "End-to-end",
         "journeyHeading": "How Hermes works, step by step",
@@ -1818,15 +1827,15 @@
         "subtitle": "This usually takes about a minute. You can close this tab. Hermes will keep getting ready in the background.",
         "settingUp": "Setting up your agent…",
         "whileYouWait": "While you wait",
-        "facts": [
-          "Hermes gets its own private computer and remembers your context across sessions.",
-          "Connect Gmail, Outlook, Slack, Linear, GitHub, Notion and more.",
-          "Hermes can hire other Sokosumi agents to do work on your behalf.",
-          "Chat from here, Telegram, Slack, or wherever you work — pick up anywhere.",
-          "Every morning Hermes can send a brief of what needs your attention.",
-          "Read your inbox, draft replies, schedule meetings — all from chat.",
-          "Ask Hermes to schedule things in plain English: \"every Monday at 9am, summarise my week ahead.\""
-        ]
+        "facts": {
+          "0": "Hermes gets its own private computer and remembers your context across sessions.",
+          "1": "Connect Gmail, Outlook, Slack, Linear, GitHub, Notion and more.",
+          "2": "Hermes can hire other Sokosumi agents to do work on your behalf.",
+          "3": "Chat from here, Telegram, Slack, or wherever you work — pick up anywhere.",
+          "4": "Every morning Hermes can send a brief of what needs your attention.",
+          "5": "Read your inbox, draft replies, schedule meetings — all from chat.",
+          "6": "Ask Hermes to schedule things in plain English: \"every Monday at 9am, summarise my week ahead.\""
+        }
       },
       "Running": {
         "statusActive": "Active",
@@ -1853,36 +1862,36 @@
           "emptyResponse": "Hermes returned an empty response.",
           "unreachable": "Couldn't reach Hermes. Check your connection."
         },
-        "mockReplies": [
-          "I'm a mock response from your local Hermes preview. Set ?state=running off to see the real Hermes wired through the orchestrator.",
-          "Got it. In production, your message goes through Sokosumi's server, the orchestrator returns your private endpoint, and Hermes responds.",
-          "Here's what I'd do: persist this in long-term memory, add a follow-up to your task list, and keep the context for our next session."
-        ],
-        "thinkingMessages": [
-          "Thinking",
-          "Consulting the calendar gods",
-          "Sifting through your inbox",
-          "Reading between the lines",
-          "Brewing a response",
-          "Pulling up your context",
-          "Asking around",
-          "Picking the right tool",
-          "Drafting carefully",
-          "Double-checking before I act",
-          "Doing the boring part for you",
-          "Untangling Slack",
-          "Cross-referencing memory",
-          "Hunting down a detail",
-          "Choosing my words",
-          "Almost there"
-        ],
-        "rotatingHints": [
-          "Message Hermes…",
-          "Try: schedule a daily inbox brief at 8am",
-          "Try: summarize my open Cardano threads",
-          "Try: draft a follow-up to my last meeting notes",
-          "Try: what's overdue in my inbox?"
-        ],
+        "mockReplies": {
+          "0": "I'm a mock response from your local Hermes preview. Set ?state=running off to see the real Hermes wired through the orchestrator.",
+          "1": "Got it. In production, your message goes through Sokosumi's server, the orchestrator returns your private endpoint, and Hermes responds.",
+          "2": "Here's what I'd do: persist this in long-term memory, add a follow-up to your task list, and keep the context for our next session."
+        },
+        "thinkingMessages": {
+          "0": "Thinking",
+          "1": "Consulting the calendar gods",
+          "2": "Sifting through your inbox",
+          "3": "Reading between the lines",
+          "4": "Brewing a response",
+          "5": "Pulling up your context",
+          "6": "Asking around",
+          "7": "Picking the right tool",
+          "8": "Drafting carefully",
+          "9": "Double-checking before I act",
+          "10": "Doing the boring part for you",
+          "11": "Untangling Slack",
+          "12": "Cross-referencing memory",
+          "13": "Hunting down a detail",
+          "14": "Choosing my words",
+          "15": "Almost there"
+        },
+        "rotatingHints": {
+          "0": "Message Hermes…",
+          "1": "Try: schedule a daily inbox brief at 8am",
+          "2": "Try: summarize my open Cardano threads",
+          "3": "Try: draft a follow-up to my last meeting notes",
+          "4": "Try: what's overdue in my inbox?"
+        },
         "outboxKinds": {
           "welcome": "Welcome",
           "daily_brief": "Daily brief",
@@ -1999,18 +2008,18 @@
         "continueWithCount": "Continuing with {count, plural, =0 {no integrations} =1 {# integration} other {# integrations}}",
         "footnote": "You can add or remove integrations any time from Settings.",
         "autonomyAriaLabel": "Hermes autonomy level",
-        "roleOptions": [
-          "Founder / CEO",
-          "Product",
-          "Engineering",
-          "Design",
-          "Marketing",
-          "Sales",
-          "Operations",
-          "Finance",
-          "Customer Success",
-          "Other"
-        ],
+        "roleOptions": {
+          "0": "Founder / CEO",
+          "1": "Product",
+          "2": "Engineering",
+          "3": "Design",
+          "4": "Marketing",
+          "5": "Sales",
+          "6": "Operations",
+          "7": "Finance",
+          "8": "Customer Success",
+          "9": "Other"
+        },
         "capabilities": {
           "gmail": "Read & search your inbox, draft and send mail",
           "google_calendar": "Read your events, check availability, create & update meetings",
@@ -2035,14 +2044,14 @@
         "stepFallbackLabel": "Warming things up",
         "footerHint": "When this finishes, the chat will open with a personalized intro from Hermes.",
         "pollError": "Can't reach the orchestrator right now — still trying.",
-        "hints": [
-          "Pro tip: ask \"what's important in my inbox today?\" once you're in.",
-          "Hermes remembers your projects, your contacts, your preferences.",
-          "Try: \"every weekday at 8am, send me my inbox brief.\"",
-          "Hermes can hire other Sokosumi agents to help with research.",
-          "Connect more tools later from Settings — Slack, Linear, Notion, more.",
-          "Every morning Hermes will send a brief of what needs your attention."
-        ],
+        "hints": {
+          "0": "Pro tip: ask \"what's important in my inbox today?\" once you're in.",
+          "1": "Hermes remembers your projects, your contacts, your preferences.",
+          "2": "Try: \"every weekday at 8am, send me my inbox brief.\"",
+          "3": "Hermes can hire other Sokosumi agents to help with research.",
+          "4": "Connect more tools later from Settings — Slack, Linear, Notion, more.",
+          "5": "Every morning Hermes will send a brief of what needs your attention."
+        },
         "previewSteps": {
           "memory": "Bootstrapping your private memory",
           "inbox_scan": "Reading your inbox",

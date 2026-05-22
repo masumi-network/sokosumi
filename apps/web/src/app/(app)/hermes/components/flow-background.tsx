@@ -48,8 +48,8 @@ export default function FlowBackground({
       >
         {/* All three blobs use Sokosumi's primary (purple) — varying
          * opacity gives them texture without introducing extra hues. */}
-        <div className="hermes-blob hermes-blob-1 bg-primary/30" />
-        <div className="hermes-blob hermes-blob-2 bg-primary/20" />
+        <div className="hermes-blob hermes-blob-1 bg-primary/40" />
+        <div className="hermes-blob hermes-blob-2 bg-primary/25" />
         <div className="hermes-blob hermes-blob-3 bg-primary/15" />
 
         {/* Soft top wash so the brightest spots don't fight the heading text */}

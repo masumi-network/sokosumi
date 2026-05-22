@@ -60,6 +60,7 @@ import type {
   HermesPendingConfirmation,
   HermesPersistedMessage,
 } from "@/lib/hermes/types";
+import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
 interface RunningStateProps {
@@ -139,7 +140,9 @@ export default function RunningState({
   onRefresh,
 }: RunningStateProps) {
   const t = useTranslations("App.Hermes.Running");
-  const mockReplies = t.raw("mockReplies") as string[];
+  const mockReplies = orderedMessageList(
+    t.raw("mockReplies") as Record<string, string>,
+  );
 
   const [messages, setMessages] = useState<Message[]>(() =>
     (initialMessages ?? [])
@@ -792,7 +795,9 @@ function describeOutboxKind(
  */
 function AssistantTyping() {
   const t = useTranslations("App.Hermes.Running");
-  const thinkingMessages = t.raw("thinkingMessages") as string[];
+  const thinkingMessages = orderedMessageList(
+    t.raw("thinkingMessages") as Record<string, string>,
+  );
 
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
@@ -889,7 +894,9 @@ function Composer({
   attachLabel,
 }: ComposerProps) {
   const t = useTranslations("App.Hermes.Running");
-  const rotatingHints = t.raw("rotatingHints") as string[];
+  const rotatingHints = orderedMessageList(
+    t.raw("rotatingHints") as Record<string, string>,
+  );
   const canSend =
     (input.trim().length > 0 || files.length > 0) && !isReplying && !disabled;
   const status = isReplying ? "streaming" : "ready";

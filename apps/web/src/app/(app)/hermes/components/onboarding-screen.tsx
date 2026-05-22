@@ -35,6 +35,7 @@ import type {
   HermesIntegrationProvider,
   HermesIntegrationStatus,
 } from "@/lib/hermes/types";
+import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
 import AutonomySelector from "./autonomy-selector";
@@ -110,7 +111,9 @@ export default function OnboardingScreen({
   const t = useTranslations("App.Hermes.Onboarding");
   const tProviders = useTranslations("App.Hermes.Onboarding.providers");
   const tOAuth = useTranslations("App.Hermes.Common.oauth");
-  const roleOptions = t.raw("roleOptions") as string[];
+  const roleOptions = orderedMessageList(
+    t.raw("roleOptions") as Record<string, string>,
+  );
   const composioOAuth = useComposioOAuth();
 
   const [name, setName] = useState(defaultName);

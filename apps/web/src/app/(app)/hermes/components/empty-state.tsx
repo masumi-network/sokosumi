@@ -26,6 +26,7 @@ import { type ComponentType, useState } from "react";
 import FlowBackground from "@/app/hermes/components/flow-background";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
+import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
@@ -773,16 +774,17 @@ function ConnectionVisual() {
 
 function InboxMemoryVisual() {
   const t = useTranslations("App.Hermes.EmptyState.visuals");
-  const demoInbox = t.raw("demoInbox") as Array<{
-    from: string;
-    subject: string;
-  }>;
+  const demoInbox = orderedMessageList(
+    t.raw("demoInbox") as Record<string, { from: string; subject: string }>,
+  );
   const inbox = demoInbox.map((row, index) => ({
     ...row,
     status:
       index === demoInbox.length - 1 ? ("warn" as const) : ("read" as const),
   }));
-  const memory = t.raw("demoMemory") as string[];
+  const memory = orderedMessageList(
+    t.raw("demoMemory") as Record<string, string>,
+  );
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -841,7 +843,9 @@ function InboxMemoryVisual() {
 
 function ActVisual() {
   const t = useTranslations("App.Hermes.EmptyState.visuals");
-  const actSteps = t.raw("actSteps") as string[];
+  const actSteps = orderedMessageList(
+    t.raw("actSteps") as Record<string, string>,
+  );
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-2">
@@ -901,7 +905,9 @@ function ActVisual() {
 
 function OvernightVisual() {
   const t = useTranslations("App.Hermes.EmptyState.visuals");
-  const scheduleLabels = t.raw("overnightSchedule") as string[];
+  const scheduleLabels = orderedMessageList(
+    t.raw("overnightSchedule") as Record<string, string>,
+  );
   const schedule: Array<{
     time: string;
     label: string;

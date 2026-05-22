@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import FlowBackground from "@/app/hermes/components/flow-background";
 import ProgressPips from "@/app/hermes/components/progress-pips";
 import RotatingMessages from "@/app/hermes/components/rotating-messages";
+import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 
 /**
  * Indeterminate provisioning view. The orchestrator drives the real machine
@@ -16,10 +17,10 @@ import RotatingMessages from "@/app/hermes/components/rotating-messages";
  */
 export default function ProvisioningState() {
   const t = useTranslations("App.Hermes.Provisioning");
-  const facts = t.raw("facts") as string[];
+  const facts = orderedMessageList(t.raw("facts") as Record<string, string>);
 
   return (
-    <FlowBackground className="flex h-full flex-col overflow-hidden">
+    <FlowBackground className="flex h-full flex-col">
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-8 md:py-12">
         <ProgressPips current="provisioning" />
 
