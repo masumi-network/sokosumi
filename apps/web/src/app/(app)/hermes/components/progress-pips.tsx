@@ -1,15 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { cn } from "@/lib/utils";
 
 const STEPS = ["provisioning", "setup", "personalizing"] as const;
 type Step = (typeof STEPS)[number];
-
-const LABELS: Record<Step, string> = {
-  provisioning: "Spinning up",
-  setup: "Setup",
-  personalizing: "Personalizing",
-};
 
 interface ProgressPipsProps {
   current: Step;
@@ -21,6 +17,7 @@ interface ProgressPipsProps {
  * anchor through the multi-screen flow.
  */
 export default function ProgressPips({ current }: ProgressPipsProps) {
+  const t = useTranslations("App.Hermes.ProgressPips");
   const currentIdx = STEPS.indexOf(current);
 
   return (
@@ -47,7 +44,7 @@ export default function ProgressPips({ current }: ProgressPipsProps) {
                   !isCurrent && !isDone && "bg-muted-foreground/30",
                 )}
               />
-              <span>{LABELS[step]}</span>
+              <span>{t(step)}</span>
             </div>
             {idx < STEPS.length - 1 && (
               <div aria-hidden className="bg-border h-px w-6" />

@@ -1617,19 +1617,139 @@
     "Hermes": {
       "Metadata": {
         "title": "Hermes",
-        "description": "Your private, microVM-isolated AI agent."
+        "description": "Your private AI agent on its own computer."
       },
       "BetaTag": "Beta",
+      "Common": {
+        "hermesAvatarAlt": "Hermes",
+        "cancel": "Cancel",
+        "oauth": {
+          "popupBlocked": "Allow popups for this site to connect an account.",
+          "popupClosed": "Connection cancelled.",
+          "timeout": "Connection timed out.",
+          "connectFailed": "Couldn't connect this provider.",
+          "disconnectFailed": "Couldn't disconnect this provider.",
+          "composioError": "Composio reported an error"
+        }
+      },
+      "ConnectInterstitial": {
+        "title": "Heads up about the next screen",
+        "description": "{provider}'s consent screen will list broad permissions — that's normal. Hermes connects through Composio, our integration provider, and Composio's OAuth app is verified for its full default scope set.",
+        "providerFallback": "The provider",
+        "pickedPrefix": "You picked",
+        "modeReadOnly": "read only",
+        "modeFullAccess": "full access",
+        "pickedSuffix": "for {providerName}.",
+        "bodyWrite": "Hermes will be able to read, send, and act in your account on your behalf.",
+        "bodyReadOnly": "Hermes can only read. Even though {authProvider} may list send/modify permissions, Hermes is locked to read-only on our side — it cannot send or modify anything in your account.",
+        "continueTo": "Continue to {provider}",
+        "continueFallback": "provider",
+        "authProviders": {
+          "gmail": "Google",
+          "google_calendar": "Google",
+          "google_sheets": "Google",
+          "google_docs": "Google",
+          "outlook": "Microsoft",
+          "outlook_calendar": "Microsoft",
+          "teams": "Microsoft",
+          "slack": "Slack",
+          "linear": "Linear",
+          "jira": "Atlassian",
+          "github": "GitHub",
+          "notion": "Notion",
+          "hubspot": "HubSpot",
+          "twitter": "X",
+          "instagram": "Meta",
+          "youtube": "Google",
+          "linkedin": "LinkedIn"
+        }
+      },
+      "ProgressPips": {
+        "provisioning": "Spinning up",
+        "setup": "Setup",
+        "personalizing": "Personalizing"
+      },
+      "Experience": {
+        "fetchFailed": "Failed to reach Hermes.",
+        "provisionTimeout": "Provisioning timed out after 15 minutes. Please try again.",
+        "instanceVanished": "Hermes instance vanished mid-provision.",
+        "provisionFailed": "Failed to provision your Hermes.",
+        "destroyFailed": "Failed to destroy your Hermes.",
+        "onboardingStartFailed": "Couldn't start onboarding."
+      },
       "EmptyState": {
         "eyebrow": "Personal Hermes",
         "title": "Meet Hermes, your personal agent.",
         "subtitle": "Your private AI coworker and main interface to Sokosumi.",
-        "description": "Lives in its own microVM. Connects to your tools, remembers your context, runs while you sleep.",
+        "description": "Gets its own private computer. Connects to your tools, remembers your context, runs while you sleep.",
         "primaryCta": "Activate Hermes",
         "secondaryCta": "Learn more",
+        "integrationsEyebrow": "Integrations",
+        "examplesEyebrow": "Try this",
         "servicesHeading": "Connects to the tools you use",
         "servicesHelp": "Connect once during setup. Hermes can read, search, draft, and act in your accounts. More tool connectors land regularly.",
         "servicesMoreLabel": "and more",
+        "serviceLabels": {
+          "gmail": "Gmail",
+          "outlook": "Outlook",
+          "google_calendar": "Google Calendar",
+          "google_sheets": "Sheets",
+          "google_docs": "Docs",
+          "slack": "Slack",
+          "teams": "Teams",
+          "notion": "Notion",
+          "linear": "Linear",
+          "jira": "Jira",
+          "github": "GitHub",
+          "hubspot": "HubSpot",
+          "twitter": "X",
+          "linkedin": "LinkedIn"
+        },
+        "exampleCategories": {
+          "example1": "Inbox + Research agent",
+          "example2": "Competitor Research + reply",
+          "example3": "Brief agent, daily",
+          "example4": "GitHub + Linear + Slack",
+          "example5": "Reddit Research",
+          "example6": "Watch + refund + Linear"
+        },
+        "visuals": {
+          "activated": "Activated",
+          "microVmLabel": "Your own computer",
+          "filesystem": "Your files",
+          "persistent": "persistent",
+          "secrets": "Secrets",
+          "encrypted": "encrypted",
+          "sharedWithOthers": "Shared with others",
+          "never": "never",
+          "inboxScanned": "Inbox · scanned",
+          "memoryWritten": "Memory · written",
+          "demoInbox": [
+            { "from": "Hannah", "subject": "Q4 roadmap review" },
+            { "from": "Alex", "subject": "Cardano deal — next steps" },
+            { "from": "CI bot", "subject": "Build #2438 failed" }
+          ],
+          "demoMemory": [
+            "Working on the Q4 launch",
+            "Hannah is the product lead",
+            "Cardano deal closes Mar 15"
+          ],
+          "actUserMessage": "Set a call with Hannah next Tuesday at 10am.",
+          "actWorking": "Hermes is working",
+          "actSteps": [
+            "Found a free slot",
+            "Drafted the invite",
+            "Hired Research agent for context"
+          ],
+          "actHeld": "Tuesday · 10:00 AM held",
+          "overnightTitle": "Tonight · 4 jobs",
+          "overnightSchedule": [
+            "Pull overnight email",
+            "Sync Sokosumi jobs",
+            "Draft your morning brief",
+            "Push to chat + Telegram"
+          ]
+        },
         "journeyEyebrow": "End-to-end",
         "journeyHeading": "How Hermes works, step by step",
         "journeyDescription": "From the moment you activate your agent to the brief waiting on your phone tomorrow morning.",
@@ -1637,11 +1757,11 @@
         "journeyStep1Title": "You activate Hermes",
         "journeyStep1Body": "One click from your Sokosumi account. No installs, no API keys to manage. Hermes is bound to your account from this moment on.",
         "journeyStep2Tag": "00:30",
-        "journeyStep2Title": "Your microVM boots",
-        "journeyStep2Body": "An isolated Linux machine spins up just for you. Persistent home directory, encrypted secrets, no shared state with any other user.",
+        "journeyStep2Title": "Your own computer starts up",
+        "journeyStep2Body": "A private computer spins up just for you. Your notes and settings stay put, passwords are locked away, and nothing is shared with anyone else.",
         "journeyStep3Tag": "01:00",
         "journeyStep3Title": "You connect your accounts",
-        "journeyStep3Body": "OAuth into Gmail, Outlook, Calendar, Slack, Notion, Linear, GitHub and more. Tokens never touch Sokosumi. They're scoped to your VM.",
+        "journeyStep3Body": "Sign in to Gmail, Outlook, Calendar, Slack, Notion, Linear, GitHub and more. Your credentials never touch Sokosumi — they stay only on your computer.",
         "journeyStep4Tag": "02:00",
         "journeyStep4Title": "It reads your world",
         "journeyStep4Body": "Hermes scans your inbox, looks at your calendar, syncs your Sokosumi jobs, and builds a private memory of who and what matters.",
@@ -1658,8 +1778,8 @@
         "feature2Title": "Hires specialist agents",
         "feature2Body": "Pulls in any Sokosumi agent on demand.",
         "feature3Title": "Reachable anywhere",
-        "feature3Body": "Chat here, Telegram, Slack, your terminal.",
-        "feature4Title": "Yours, in a microVM",
+        "feature3Body": "Chat here, Telegram, Slack, or wherever you work.",
+        "feature4Title": "Yours, on your own computer",
         "feature4Body": "Isolated by default. Your data stays yours.",
         "feature5Title": "Scheduled tasks",
         "feature5Body": "Daily briefs, follow-ups, reminders. Set once.",
@@ -1682,7 +1802,7 @@
         "examplesPickHint": "Pick a prompt to see how Hermes would reply",
         "sokosumiTitle": "Your main interface to Sokosumi",
         "sokosumiBody": "Hermes reads your tasks, starts jobs through any enabled Sokosumi agent, and brings the results back into the chat. Think of it as your AI desk. The one place you go to get things done across the platform.",
-        "footnote": "Beta access. One Hermes per account. By activating you accept the Beta terms. Hermes executes code on your behalf inside the sandbox.",
+        "footnote": "Beta access. One Hermes per account. By activating you accept the Beta terms. Hermes can run tasks on your behalf on your private computer.",
         "disclaimerHeading": "A few honest things before you start",
         "disclaimer1": "Hermes acts on your behalf. Mail it sends, tickets it opens, and credits it spends are real. Choose your autonomy level carefully.",
         "disclaimer2": "It can make mistakes. Review anything that touches a customer, a teammate, or money before you trust it.",
@@ -1693,7 +1813,17 @@
       "Provisioning": {
         "title": "Spinning up your Hermes",
         "subtitle": "This usually takes about a minute. You can close this tab. Hermes will keep getting ready in the background.",
-        "settingUp": "Setting up your agent…"
+        "settingUp": "Setting up your agent…",
+        "whileYouWait": "While you wait",
+        "facts": [
+          "Hermes gets its own private computer and remembers your context across sessions.",
+          "Connect Gmail, Outlook, Slack, Linear, GitHub, Notion and more.",
+          "Hermes can hire other Sokosumi agents to do work on your behalf.",
+          "Chat from here, Telegram, Slack, or wherever you work — pick up anywhere.",
+          "Every morning Hermes can send a brief of what needs your attention.",
+          "Read your inbox, draft replies, schedule meetings — all from chat.",
+          "Ask Hermes to schedule things in plain English: \"every Monday at 9am, summarise my week ahead.\""
+        ]
       },
       "Running": {
         "statusActive": "Active",
@@ -1707,8 +1837,103 @@
         "send": "Send",
         "stop": "Stop",
         "attach": "Attach files",
+        "removeFile": "Remove",
         "emptyTitle": "Ready when you are",
-        "emptyHint": "Try a daily briefing. \"Every weekday at 9am, summarize my open tasks.\""
+        "emptyHint": "Try a daily briefing. \"Every weekday at 9am, summarize my open tasks.\"",
+        "transitioning": "Hermes is applying your change…",
+        "transitioningHint": "(this takes ~30 seconds)",
+        "composerDisabledPlaceholder": "Hermes is applying your change…",
+        "errors": {
+          "warmingUp": "Your Hermes is still warming up. Try again in a few seconds.",
+          "notReady": "Your Hermes isn't ready yet.",
+          "apiError": "Hermes returned an error ({status}).",
+          "emptyResponse": "Hermes returned an empty response.",
+          "unreachable": "Couldn't reach Hermes. Check your connection."
+        },
+        "mockReplies": [
+          "I'm a mock response from your local Hermes preview. Set ?state=running off to see the real Hermes wired through the orchestrator.",
+          "Got it. In production, your message goes through Sokosumi's server, the orchestrator returns your private endpoint, and Hermes responds.",
+          "Here's what I'd do: persist this in long-term memory, add a follow-up to your task list, and keep the context for our next session."
+        ],
+        "thinkingMessages": [
+          "Thinking",
+          "Consulting the calendar gods",
+          "Sifting through your inbox",
+          "Reading between the lines",
+          "Brewing a response",
+          "Pulling up your context",
+          "Asking around",
+          "Picking the right tool",
+          "Drafting carefully",
+          "Double-checking before I act",
+          "Doing the boring part for you",
+          "Untangling Slack",
+          "Cross-referencing memory",
+          "Hunting down a detail",
+          "Choosing my words",
+          "Almost there"
+        ],
+        "rotatingHints": [
+          "Message Hermes…",
+          "Try: schedule a daily inbox brief at 8am",
+          "Try: summarize my open Cardano threads",
+          "Try: draft a follow-up to my last meeting notes",
+          "Try: what's overdue in my inbox?"
+        ],
+        "outboxKinds": {
+          "welcome": "Welcome",
+          "daily_brief": "Daily brief",
+          "job_complete": "Job complete",
+          "task_result": "Scheduled task",
+          "daily_suggestions": "Suggestions",
+          "reminder": "Reminder",
+          "confirmation_resolved": "Confirmation",
+          "default": "From Hermes"
+        },
+        "integrationsChip": {
+          "connect": "Connect",
+          "integrations": "Integrations",
+          "connectIntegrations": "Connect integrations",
+          "ariaConnected": "{count, plural, one {# integration connected — open settings} other {# integrations connected — open settings}}"
+        },
+        "confirmation": {
+          "heading": "Hermes needs your okay",
+          "approve": "Approve",
+          "reject": "Reject",
+          "approveFailed": "Couldn't approve.",
+          "rejectFailed": "Couldn't reject.",
+          "erroredAfterApproval": "Hermes' action errored after approval.",
+          "approvedToast": "Approved. Hermes will run the action.",
+          "resolvedFallback": "Hermes ran your approved action.",
+          "tools": {
+            "sokosumi_create_task": {
+              "action": "Create a task",
+              "helper": "Adds a task in Sokosumi."
+            },
+            "sokosumi_create_job": {
+              "action": "Run an agent job",
+              "helper": "Spends credits to run a job."
+            },
+            "sokosumi_add_task_comment": {
+              "action": "Add a comment",
+              "helper": "Posts a comment on a task."
+            },
+            "sokosumi_provide_job_input": {
+              "action": "Send job input",
+              "helper": "Fulfills a job that's waiting on you."
+            },
+            "sokosumi_refund_job": {
+              "action": "Request a refund",
+              "helper": "Asks Sokosumi to refund a failed job."
+            }
+          },
+          "taskCard": {
+            "defaultCoworker": "Coworker",
+            "defaultOrganization": "Organization",
+            "defaultTask": "Task",
+            "viewTask": "View task"
+          }
+        }
       },
       "Onboarding": {
         "eyebrow": "Welcome to Hermes",
@@ -1769,7 +1994,34 @@
         "moreLaterHelp": "From Settings, once Hermes is set up.",
         "continueCta": "Set up my agent",
         "continueWithCount": "Continuing with {count, plural, =0 {no integrations} =1 {# integration} other {# integrations}}",
-        "footnote": "You can add or remove integrations any time from Settings."
+        "footnote": "You can add or remove integrations any time from Settings.",
+        "autonomyAriaLabel": "Hermes autonomy level",
+        "roleOptions": [
+          "Founder / CEO",
+          "Product",
+          "Engineering",
+          "Design",
+          "Marketing",
+          "Sales",
+          "Operations",
+          "Finance",
+          "Customer Success",
+          "Other"
+        ],
+        "capabilities": {
+          "gmail": "Read & search your inbox, draft and send mail",
+          "google_calendar": "Read your events, check availability, create & update meetings",
+          "outlook": "Read mail + calendar, draft & send mail, manage events"
+        },
+        "connectReadOnly": "Connect (read only)",
+        "connectError": "Couldn't connect — try again",
+        "connectedReadOnly": "{label} · read only",
+        "connectedFullAccess": "{label} · full access",
+        "fullAccessPrompt": "Need Hermes to send / create on your behalf?",
+        "fullAccessBodyPrefix": "Hermes will be able to",
+        "fullAccessBodyBold": "draft replies and act in your account on your behalf",
+        "fullAccessBodySuffix": "Only enable if you want it sending mail / creating events for you.",
+        "fullAccessCta": "Connect (full access — read + send)"
       },
       "OnboardingProgress": {
         "eyebrow": "Preparing your agent",
@@ -1778,14 +2030,31 @@
         "etaLabel": "About {seconds} seconds remaining",
         "etaSettling": "Almost done…",
         "stepFallbackLabel": "Warming things up",
-        "footerHint": "When this finishes, the chat will open with a personalized intro from Hermes."
+        "footerHint": "When this finishes, the chat will open with a personalized intro from Hermes.",
+        "pollError": "Can't reach the orchestrator right now — still trying.",
+        "hints": [
+          "Pro tip: ask \"what's important in my inbox today?\" once you're in.",
+          "Hermes remembers your projects, your contacts, your preferences.",
+          "Try: \"every weekday at 8am, send me my inbox brief.\"",
+          "Hermes can hire other Sokosumi agents to help with research.",
+          "Connect more tools later from Settings — Slack, Linear, Notion, more.",
+          "Every morning Hermes will send a brief of what needs your attention."
+        ],
+        "previewSteps": {
+          "memory": "Bootstrapping your private memory",
+          "inbox_scan": "Reading your inbox",
+          "web_research": "Checking your public profile",
+          "intro_draft": "Drafting your intro"
+        }
       },
       "Settings": {
         "title": "Hermes settings",
         "subtitle": "Configuration is per-instance. Saving a tool secret restarts your Hermes.",
         "modelSection": "Model",
         "modelLabel": "Model",
+        "modelValue": "deepseek-4-flash",
         "modelProviderLabel": "Provider",
+        "modelProviderValue": "OpenRouter (managed)",
         "modelManagedHelp": "Model selection is managed by the orchestrator. Changing this will require an update from your admin.",
         "autonomySection": "Autonomy",
         "autonomyHelp": "How much initiative Hermes is allowed to take. Lower tiers ask before acting.",

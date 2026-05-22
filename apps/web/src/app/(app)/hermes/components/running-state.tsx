@@ -96,16 +96,6 @@ function persistedToMessage(m: HermesPersistedMessage): Message | null {
   };
 }
 
-const MOCK_REPLIES = [
-  "I'm a mock response from your local Hermes preview. Set ?state=running off to see the real Hermes wired through the orchestrator.",
-  "Got it. In production, your message goes through Sokosumi's server, the orchestrator returns your private endpoint, and Hermes responds.",
-  "Here's what I'd do: persist this in long-term memory, add a follow-up to your task list, and keep the context for our next session.",
-];
-
-function pickReply(turn: number): string {
-  return MOCK_REPLIES[turn % MOCK_REPLIES.length] ?? MOCK_REPLIES[0]!;
-}
-
 interface ChatApiResponse {
   data?: {
     message?: { role?: string; content?: string };
@@ -149,6 +139,7 @@ export default function RunningState({
   onRefresh,
 }: RunningStateProps) {
   const t = useTranslations("App.Hermes.Running");
+  const mockReplies = t.raw("mockReplies") as string[];
 
   const [messages, setMessages] = useState<Message[]>(() =>
     (initialMessages ?? [])
@@ -340,7 +331,8 @@ export default function RunningState({
             {
               id: `a-${Date.now()}`,
               role: "assistant",
-              content: pickReply(turn),
+              content:
+                mockReplies[turn % mockReplies.length] ?? mockReplies[0] ?? "",
               kind: null,
               createdAt: new Date().toISOString(),
             },
@@ -389,8 +381,8 @@ export default function RunningState({
               .catch(() => ({}))) as ChatApiResponse;
             toast.error(
               body.data?.status === "provisioning"
-                ? "Your Hermes is still warming up. Try again in a few seconds."
-                : (body.message ?? "Your Hermes isn't ready yet."),
+                ? t("errors.warmingUp")
+                : (body.message ?? t("errors.notReady")),
             );
             setIsReplying(false);
             return;
@@ -401,7 +393,7 @@ export default function RunningState({
               .json()
               .catch(() => ({}))) as ChatApiResponse;
             toast.error(
-              body.message ?? `Hermes returned an error (${res.status}).`,
+              body.message ?? t("errors.apiError", { status: res.status }),
             );
             setIsReplying(false);
             return;
@@ -410,7 +402,7 @@ export default function RunningState({
           const body = (await res.json()) as ChatApiResponse;
           const reply = body.data?.message?.content ?? "";
           if (!reply) {
-            toast.error("Hermes returned an empty response.");
+            toast.error(t("errors.emptyResponse"));
             setIsReplying(false);
             return;
           }
@@ -428,7 +420,7 @@ export default function RunningState({
           if (error instanceof DOMException && error.name === "AbortError") {
             return;
           }
-          toast.error("Couldn't reach Hermes. Check your connection.");
+          toast.error(t("errors.unreachable"));
         } finally {
           if (abortRef.current === controller) abortRef.current = null;
           // Clear the polling gate synchronously (same pattern as stop()) so the
@@ -438,7 +430,7 @@ export default function RunningState({
         }
       })();
     },
-    [files, isReplying, messages, previewMode],
+    [files, isReplying, messages, mockReplies, previewMode, t],
   );
 
   const stop = useCallback(() => {
@@ -537,9 +529,9 @@ export default function RunningState({
                 aria-hidden
               />
               <span>
-                Hermes is applying your change…{" "}
+                {t("transitioning")}{" "}
                 <span className="text-muted-foreground">
-                  (this takes ~30 seconds)
+                  {t("transitioningHint")}
                 </span>
               </span>
             </div>
@@ -642,6 +634,7 @@ function MessageRow({
   userName?: string | null;
   onSelectSuggestion?: (prompt: string) => void;
 }) {
+  const t = useTranslations("App.Hermes.Running");
   const formatter = useFormatter();
   const isUser = message.role === "user";
   const createdAt = new Date(message.createdAt);
@@ -683,7 +676,7 @@ function MessageRow({
     );
   }
 
-  const chip = describeOutboxKind(message.kind);
+  const chip = describeOutboxKind(message.kind, (key) => t(key));
   // Only the orchestrator's intro/welcome messages carry suggested prompts.
   const showSuggestions =
     onSelectSuggestion !== undefined &&
@@ -699,7 +692,11 @@ function MessageRow({
   // the user doesn't have to read raw JSON in chat.
   const parsedConfirmation =
     message.kind === "confirmation_resolved"
-      ? parseConfirmationResolved(message.content)
+      ? parseConfirmationResolved(message.content, {
+          resolvedFallback: t("confirmation.resolvedFallback"),
+          coworkerFallback: t("confirmation.taskCard.defaultCoworker"),
+          organizationFallback: t("confirmation.taskCard.defaultOrganization"),
+        })
       : null;
 
   return (
@@ -765,19 +762,25 @@ interface OutboxKindChip {
   label: string;
 }
 
-function describeOutboxKind(kind: string | null): OutboxKindChip | null {
+function describeOutboxKind(
+  kind: string | null,
+  t: (key: string) => string,
+): OutboxKindChip | null {
   if (!kind || kind === "text") return null;
   if (kind === "welcome" || kind === "research_intro" || kind === "returning") {
-    return { label: "Welcome" };
+    return { label: t("outboxKinds.welcome") };
   }
-  if (kind === "daily_brief") return { label: "Daily brief" };
-  if (kind === "job_complete") return { label: "Job complete" };
-  if (kind === "task_result") return { label: "Scheduled task" };
-  if (kind === "daily_suggestions") return { label: "Suggestions" };
-  if (kind === "reminder") return { label: "Reminder" };
-  if (kind === "confirmation_resolved") return { label: "Confirmation" };
-  // Unknown future kinds — generic Hermes push.
-  return { label: "From Hermes" };
+  if (kind === "daily_brief") return { label: t("outboxKinds.daily_brief") };
+  if (kind === "job_complete") return { label: t("outboxKinds.job_complete") };
+  if (kind === "task_result") return { label: t("outboxKinds.task_result") };
+  if (kind === "daily_suggestions") {
+    return { label: t("outboxKinds.daily_suggestions") };
+  }
+  if (kind === "reminder") return { label: t("outboxKinds.reminder") };
+  if (kind === "confirmation_resolved") {
+    return { label: t("outboxKinds.confirmation_resolved") };
+  }
+  return { label: t("outboxKinds.default") };
 }
 
 /**
@@ -787,26 +790,10 @@ function describeOutboxKind(kind: string | null): OutboxKindChip | null {
  * stands on its own — no trailing ellipsis here, the typing dots animate
  * separately. New phrases welcome, just keep them short.
  */
-const THINKING_MESSAGES = [
-  "Thinking",
-  "Consulting the calendar gods",
-  "Sifting through your inbox",
-  "Reading between the lines",
-  "Brewing a response",
-  "Pulling up your context",
-  "Asking around",
-  "Picking the right tool",
-  "Drafting carefully",
-  "Double-checking before I act",
-  "Doing the boring part for you",
-  "Untangling Slack",
-  "Cross-referencing memory",
-  "Hunting down a detail",
-  "Choosing my words",
-  "Almost there",
-] as const;
-
 function AssistantTyping() {
+  const t = useTranslations("App.Hermes.Running");
+  const thinkingMessages = t.raw("thinkingMessages") as string[];
+
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
       {/* Avatar with a slow pulse ring so it reads as "working" at a glance */}
@@ -823,7 +810,7 @@ function AssistantTyping() {
           is always something animating even between fades. */}
       <div className="flex min-h-5 items-center gap-1 pt-2">
         <RotatingMessages
-          messages={THINKING_MESSAGES}
+          messages={thinkingMessages}
           intervalMs={2_800}
           className="reasoning-text-shine text-foreground text-sm leading-5"
         />
@@ -842,6 +829,8 @@ function AssistantTyping() {
 }
 
 function AssistantAvatar({ accent = false }: { accent?: boolean } = {}) {
+  const tCommon = useTranslations("App.Hermes.Common");
+
   return (
     <div
       className={cn(
@@ -851,7 +840,7 @@ function AssistantAvatar({ accent = false }: { accent?: boolean } = {}) {
     >
       <Image
         src="/images/hermes/avatar.png"
-        alt="Hermes"
+        alt={tCommon("hermesAvatarAlt")}
         fill
         sizes="32px"
         className="object-cover"
@@ -882,13 +871,6 @@ interface ComposerProps {
  * typed anything. Gives first-session users concrete things to try without
  * adding chrome below the welcome.
  */
-const ROTATING_HINTS = [
-  "Message Hermes…",
-  "Try: schedule a daily inbox brief at 8am",
-  "Try: summarize my open Cardano threads",
-  "Try: draft a follow-up to my last meeting notes",
-  "Try: what's overdue in my inbox?",
-];
 const ROTATE_INTERVAL_MS = 4_500;
 
 function Composer({
@@ -906,6 +888,8 @@ function Composer({
   stopLabel,
   attachLabel,
 }: ComposerProps) {
+  const t = useTranslations("App.Hermes.Running");
+  const rotatingHints = t.raw("rotatingHints") as string[];
   const canSend =
     (input.trim().length > 0 || files.length > 0) && !isReplying && !disabled;
   const status = isReplying ? "streaming" : "ready";
@@ -917,13 +901,15 @@ function Composer({
   useEffect(() => {
     if (input.length > 0 || isReplying) return;
     const id = window.setInterval(
-      () => setHintIdx((i) => (i + 1) % ROTATING_HINTS.length),
+      () => setHintIdx((i) => (i + 1) % rotatingHints.length),
       ROTATE_INTERVAL_MS,
     );
     return () => window.clearInterval(id);
-  }, [input.length, isReplying]);
+  }, [input.length, isReplying, rotatingHints.length]);
   const dynamicPlaceholder =
-    input.length > 0 || isReplying ? placeholder : ROTATING_HINTS[hintIdx]!;
+    input.length > 0 || isReplying
+      ? placeholder
+      : (rotatingHints[hintIdx] ?? placeholder);
 
   return (
     <FileUpload
@@ -950,7 +936,7 @@ function Composer({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={
-              disabled ? "Hermes is applying your change…" : dynamicPlaceholder
+              disabled ? t("composerDisabledPlaceholder") : dynamicPlaceholder
             }
             disableAutoResize
             maxHeight={200}
@@ -976,7 +962,7 @@ function Composer({
                   variant="ghost"
                   size="icon"
                   className="text-muted-foreground hover:text-foreground size-6 shrink-0 rounded-full"
-                  aria-label="Remove"
+                  aria-label={t("removeFile")}
                 >
                   <X className="size-3.5" aria-hidden />
                 </Button>
@@ -1083,6 +1069,7 @@ function IntegrationsChip({
   integrations: HermesIntegrationPublic[];
   onClick: () => void;
 }) {
+  const t = useTranslations("App.Hermes.Running.integrationsChip");
   // Dedupe paired providers (outlook + outlook_calendar share one OAuth)
   // so the chip shows one entry per real service. Otherwise a single
   // Outlook connection looks like "2 connected" with the same icon twice.
@@ -1101,8 +1088,8 @@ function IntegrationsChip({
           className="border-border bg-card text-foreground hover:bg-muted/40 hover:border-foreground/30 inline-flex h-8 items-center gap-2 rounded-full border pl-1.5 pr-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label={
             hasAny
-              ? `${connected.length} integration${connected.length === 1 ? "" : "s"} connected — open settings`
-              : "Connect integrations"
+              ? t("ariaConnected", { count: connected.length })
+              : t("connectIntegrations")
           }
         >
           {hasAny ? (
@@ -1127,13 +1114,13 @@ function IntegrationsChip({
           ) : (
             <>
               <Plug className="text-tertiary-foreground size-3.5" aria-hidden />
-              <span>Connect</span>
+              <span>{t("connect")}</span>
             </>
           )}
         </button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
-        {hasAny ? "Integrations" : "Connect integrations"}
+        {hasAny ? t("integrations") : t("connectIntegrations")}
       </TooltipContent>
     </Tooltip>
   );
@@ -1160,6 +1147,7 @@ function ConfirmationCard({
   confirmation: HermesPendingConfirmation;
   onResolved: (confirmationId: string) => void;
 }) {
+  const t = useTranslations("App.Hermes.Running.confirmation");
   const [busy, setBusy] = useState<"approving" | "rejecting" | null>(null);
 
   const handleApprove = async () => {
@@ -1170,15 +1158,13 @@ function ConfirmationCard({
     });
     setBusy(null);
     if (!result.ok) {
-      toast.error(result.error.message ?? "Couldn't approve.");
+      toast.error(result.error.message ?? t("approveFailed"));
       return;
     }
     if (result.data.status === "errored") {
-      toast.error(
-        result.data.error ?? "Hermes' action errored after approval.",
-      );
+      toast.error(result.data.error ?? t("erroredAfterApproval"));
     } else if (result.data.status === "approved") {
-      toast.success("Approved. Hermes will run the action.");
+      toast.success(t("approvedToast"));
     }
     onResolved(confirmation.id);
   };
@@ -1191,13 +1177,13 @@ function ConfirmationCard({
     });
     setBusy(null);
     if (!result.ok) {
-      toast.error(result.error.message ?? "Couldn't reject.");
+      toast.error(result.error.message ?? t("rejectFailed"));
       return;
     }
     onResolved(confirmation.id);
   };
 
-  const tool = describeConfirmationTool(confirmation.toolName);
+  const tool = describeConfirmationTool(confirmation.toolName, (key) => t(key));
 
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
@@ -1205,7 +1191,7 @@ function ConfirmationCard({
       <div className="border-amber-500/30 bg-amber-500/[0.06] flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border px-4 py-3 backdrop-blur-sm">
         <div className="text-amber-700 dark:text-amber-400 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
           <AlertCircle className="size-3.5" aria-hidden />
-          <span>Hermes needs your okay</span>
+          <span>{t("heading")}</span>
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-foreground text-sm font-semibold tracking-tight">
@@ -1229,7 +1215,7 @@ function ConfirmationCard({
             ) : (
               <Check className="size-3.5" aria-hidden />
             )}
-            <span>Approve</span>
+            <span>{t("approve")}</span>
           </Button>
           <Button
             type="button"
@@ -1244,7 +1230,7 @@ function ConfirmationCard({
             ) : (
               <X className="size-3.5" aria-hidden />
             )}
-            <span>Reject</span>
+            <span>{t("reject")}</span>
           </Button>
         </div>
       </div>
@@ -1285,6 +1271,11 @@ interface ParsedConfirmationResolved {
 
 function parseConfirmationResolved(
   content: string,
+  fallbacks: {
+    resolvedFallback: string;
+    coworkerFallback: string;
+    organizationFallback: string;
+  },
 ): ParsedConfirmationResolved | null {
   if (!content) return null;
   // Find the first opening brace at the start of a line, take everything
@@ -1306,13 +1297,17 @@ function parseConfirmationResolved(
   }
 
   return {
-    summary: summary || "Hermes ran your approved action.",
-    task: extractTaskFromConfirmation(parsed),
+    summary: summary || fallbacks.resolvedFallback,
+    task: extractTaskFromConfirmation(parsed, fallbacks),
   };
 }
 
 function extractTaskFromConfirmation(
   payload: unknown,
+  fallbacks: {
+    coworkerFallback: string;
+    organizationFallback: string;
+  },
 ): ParsedTaskResult | null {
   if (!payload || typeof payload !== "object") return null;
   const root = payload as Record<string, unknown>;
@@ -1340,7 +1335,10 @@ function extractTaskFromConfirmation(
     credits: typeof data.credits === "number" ? data.credits : null,
     coworker: coworker
       ? {
-          name: typeof coworker.name === "string" ? coworker.name : "Coworker",
+          name:
+            typeof coworker.name === "string"
+              ? coworker.name
+              : fallbacks.coworkerFallback,
           image: typeof coworker.image === "string" ? coworker.image : null,
         }
       : null,
@@ -1349,7 +1347,7 @@ function extractTaskFromConfirmation(
           name:
             typeof organization.name === "string"
               ? organization.name
-              : "Organization",
+              : fallbacks.organizationFallback,
           slug:
             typeof organization.slug === "string" ? organization.slug : null,
         }
@@ -1364,6 +1362,8 @@ function extractTaskFromConfirmation(
  * to, status, and a deep link.
  */
 function TaskResultCard({ task }: { task: ParsedTaskResult }) {
+  const t = useTranslations("App.Hermes.Running.confirmation.taskCard");
+
   return (
     <Link
       href={`/tasks/${task.id}`}
@@ -1383,7 +1383,7 @@ function TaskResultCard({ task }: { task: ParsedTaskResult }) {
           </span>
         ) : null}
         <span className="text-foreground text-sm font-medium">
-          {task.coworker?.name ?? "Task"}
+          {task.coworker?.name ?? t("defaultTask")}
         </span>
         {task.organization ? (
           <>
@@ -1412,7 +1412,7 @@ function TaskResultCard({ task }: { task: ParsedTaskResult }) {
       </div>
 
       <div className="text-muted-foreground group-hover/task-card:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors">
-        <span>View task</span>
+        <span>{t("viewTask")}</span>
         <ArrowUpRight className="size-3.5" aria-hidden />
       </div>
     </Link>
@@ -1424,34 +1424,26 @@ function TaskResultCard({ task }: { task: ParsedTaskResult }) {
  * Hides the technical sokosumi_* prefix; falls back to the raw slug for
  * future kinds.
  */
-function describeConfirmationTool(toolName: string): {
+const CONFIRMATION_TOOL_KEYS = [
+  "sokosumi_create_task",
+  "sokosumi_create_job",
+  "sokosumi_add_task_comment",
+  "sokosumi_provide_job_input",
+  "sokosumi_refund_job",
+] as const;
+
+function describeConfirmationTool(
+  toolName: string,
+  t: (key: string) => string,
+): {
   action: string;
   helper: string;
 } {
-  switch (toolName) {
-    case "sokosumi_create_task":
-      return { action: "Create a task", helper: "Adds a task in Sokosumi." };
-    case "sokosumi_create_job":
-      return {
-        action: "Run an agent job",
-        helper: "Spends credits to run a job.",
-      };
-    case "sokosumi_add_task_comment":
-      return {
-        action: "Add a comment",
-        helper: "Posts a comment on a task.",
-      };
-    case "sokosumi_provide_job_input":
-      return {
-        action: "Send job input",
-        helper: "Fulfills a job that's waiting on you.",
-      };
-    case "sokosumi_refund_job":
-      return {
-        action: "Request a refund",
-        helper: "Asks Sokosumi to refund a failed job.",
-      };
-    default:
-      return { action: toolName, helper: "" };
+  if ((CONFIRMATION_TOOL_KEYS as readonly string[]).includes(toolName)) {
+    return {
+      action: t(`tools.${toolName}.action`),
+      helper: t(`tools.${toolName}.helper`),
+    };
   }
+  return { action: toolName, helper: "" };
 }

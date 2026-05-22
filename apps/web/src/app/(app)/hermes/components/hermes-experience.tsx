@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -115,6 +116,7 @@ export default function HermesExperience({
   userEmail,
   userImageUrl,
 }: HermesExperienceProps) {
+  const t = useTranslations("App.Hermes.Experience");
   const params = useSearchParams();
   const previewParam = params?.get("state");
   const previewMode =
@@ -154,9 +156,7 @@ export default function HermesExperience({
       if (!instanceResult.ok) {
         if (background) return;
         setUiState("error");
-        setErrorMessage(
-          instanceResult.error.message ?? "Failed to reach Hermes.",
-        );
+        setErrorMessage(instanceResult.error.message ?? t("fetchFailed"));
         return;
       }
       const messagesResult = await listHermesMessagesAction({});
@@ -180,7 +180,7 @@ export default function HermesExperience({
         background && !isForwardTransition(current, next) ? current : next,
       );
     },
-    [],
+    [t],
   );
 
   // Initial fetch (skipped in preview mode).
@@ -215,16 +215,14 @@ export default function HermesExperience({
       if (cancelled) return;
       if (deadline !== null && Date.now() > deadline) {
         setUiState("error");
-        setErrorMessage(
-          "Provisioning timed out after 15 minutes. Please try again.",
-        );
+        setErrorMessage(t("provisionTimeout"));
         return;
       }
       const result = await getHermesInstanceAction({});
       if (cancelled) return;
       if (!result.ok) {
         setUiState("error");
-        setErrorMessage(result.error.message ?? "Failed to reach Hermes.");
+        setErrorMessage(result.error.message ?? t("fetchFailed"));
         return;
       }
       if (result.data) {
@@ -256,7 +254,7 @@ export default function HermesExperience({
       } else {
         // Provision call succeeded but the instance disappeared — treat as error.
         setUiState("error");
-        setErrorMessage("Hermes instance vanished mid-provision.");
+        setErrorMessage(t("instanceVanished"));
         return;
       }
       timer = setTimeout(() => void tick(), POLL_INTERVAL_MS);
@@ -267,7 +265,7 @@ export default function HermesExperience({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [uiState, previewMode]);
+  }, [uiState, previewMode, t]);
 
   // Low-frequency instance refresh once we're running. The settings panel
   // mutates integration state via local overlay; without a parent refresh the
@@ -292,9 +290,7 @@ export default function HermesExperience({
     const result = await provisionHermesAction({});
     if (!result.ok) {
       setUiState("error");
-      setErrorMessage(
-        result.error.message ?? "Failed to provision your Hermes.",
-      );
+      setErrorMessage(result.error.message ?? t("provisionFailed"));
       return;
     }
     setInstance(result.data);
@@ -306,7 +302,7 @@ export default function HermesExperience({
     // Immediately reflect server-side status — if it already came back as
     // "running" the polling effect will just no-op.
     setUiState(nextUi);
-  }, []);
+  }, [t]);
 
   const handleRetry = useCallback(() => {
     if (previewMode) return;
@@ -323,13 +319,13 @@ export default function HermesExperience({
     }
     const result = await destroyHermesAction({});
     if (!result.ok) {
-      toast.error(result.error.message ?? "Failed to destroy your Hermes.");
+      toast.error(result.error.message ?? t("destroyFailed"));
       return;
     }
     setInstance(null);
     setInitialMessages([]);
     setUiState("idle");
-  }, [previewMode]);
+  }, [previewMode, t]);
 
   /**
    * Kicks off the orchestrator's research-intro flow. After the POST
@@ -366,14 +362,14 @@ export default function HermesExperience({
         autonomyLevel: options.autonomyLevel,
       });
       if (!result.ok) {
-        toast.error(result.error.message ?? "Couldn't start onboarding.");
+        toast.error(result.error.message ?? t("onboardingStartFailed"));
         setUiState("infrastructure_ready");
         return;
       }
       // The polling effect (now active for `onboarding`) will detect when
       // status flips to `ready` and route us to RunningState.
     },
-    [previewMode],
+    [previewMode, t],
   );
 
   if (uiState === "loading") {

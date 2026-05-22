@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 import ConnectInterstitial from "@/app/hermes/components/connect-interstitial";
 import FlowBackground from "@/app/hermes/components/flow-background";
+import { hermesOAuthConnectErrorMessage } from "@/app/hermes/components/hermes-oauth-messages";
 import ProgressPips from "@/app/hermes/components/progress-pips";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -65,19 +66,6 @@ interface OnboardingScreenProps {
  * Hermes doesn't switch behaviour by role, it just talks more like a peer
  * when it knows what the user does.
  */
-const ROLE_OPTIONS = [
-  "Founder / CEO",
-  "Product",
-  "Engineering",
-  "Design",
-  "Marketing",
-  "Sales",
-  "Operations",
-  "Finance",
-  "Customer Success",
-  "Other",
-] as const;
-
 /**
  * Ordered v1 provider list. Each `slug` matches the orchestrator's expected
  * provider string for `POST /v1/instances/:userId/integrations`.
@@ -90,24 +78,22 @@ const PROVIDERS: Array<{
   slug: HermesIntegrationProvider;
   /** Path under /public for the brand SVG. */
   iconSrc: string;
-  /** Concrete capability summary shown once the integration is connected. */
-  capability: string;
+  capabilityKey: "gmail" | "google_calendar" | "outlook";
 }> = [
   {
     slug: "gmail",
     iconSrc: "/icons/gmail.svg",
-    capability: "Read & search your inbox, draft and send mail",
+    capabilityKey: "gmail",
   },
   {
     slug: "google_calendar",
     iconSrc: "/icons/google-calendar.svg",
-    capability:
-      "Read your events, check availability, create & update meetings",
+    capabilityKey: "google_calendar",
   },
   {
     slug: "outlook",
     iconSrc: "/icons/outlook.svg",
-    capability: "Read mail + calendar, draft & send mail, manage events",
+    capabilityKey: "outlook",
   },
 ];
 
@@ -123,6 +109,8 @@ export default function OnboardingScreen({
 }: OnboardingScreenProps) {
   const t = useTranslations("App.Hermes.Onboarding");
   const tProviders = useTranslations("App.Hermes.Onboarding.providers");
+  const tOAuth = useTranslations("App.Hermes.Common.oauth");
+  const roleOptions = t.raw("roleOptions") as string[];
   const composioOAuth = useComposioOAuth();
 
   const [name, setName] = useState(defaultName);
@@ -204,14 +192,11 @@ export default function OnboardingScreen({
 
       const result = await composioOAuth.start(provider, mode);
       if (!result.ok) {
-        const message =
-          result.reason === "popup_blocked"
-            ? "Allow popups for this site to connect an account."
-            : result.reason === "popup_closed"
-              ? "Connection cancelled."
-              : result.reason === "timeout"
-                ? "Connection timed out."
-                : (result.message ?? "Couldn't connect this provider.");
+        const message = hermesOAuthConnectErrorMessage(
+          tOAuth,
+          result.reason,
+          result.message,
+        );
         if (result.reason !== "popup_closed") toast.error(message);
         setOverlay((prev) => ({ ...prev, [provider]: "disconnected" }));
         return;
@@ -221,7 +206,7 @@ export default function OnboardingScreen({
         [provider]: result.integration.status,
       }));
     },
-    [previewMode, composioOAuth],
+    [previewMode, composioOAuth, tOAuth],
   );
 
   const handleDisconnect = useCallback(
@@ -237,9 +222,7 @@ export default function OnboardingScreen({
 
       const result = await disconnectHermesIntegrationAction({ provider });
       if (!result.ok) {
-        toast.error(
-          result.error.message ?? "Couldn't disconnect this provider.",
-        );
+        toast.error(result.error.message ?? tOAuth("disconnectFailed"));
         setOverlay((prev) => ({ ...prev, [provider]: previous }));
         return;
       }
@@ -317,7 +300,7 @@ export default function OnboardingScreen({
                       <SelectValue placeholder={t("rolePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {ROLE_OPTIONS.map((option) => (
+                      {roleOptions.map((option) => (
                         <SelectItem key={option} value={option}>
                           {option}
                         </SelectItem>
@@ -363,12 +346,12 @@ export default function OnboardingScreen({
               description={t("integrationsHelp")}
             >
               <ul className="flex flex-col gap-2">
-                {PROVIDERS.map(({ slug, iconSrc, capability }) => (
+                {PROVIDERS.map(({ slug, iconSrc, capabilityKey }) => (
                   <li key={slug}>
                     <IntegrationRow
                       name={tProviders(slug)}
                       iconSrc={iconSrc}
-                      capability={capability}
+                      capability={t(`capabilities.${capabilityKey}`)}
                       status={effectiveStatus(slug)}
                       connectedMode={
                         integrationByProvider.get(slug)?.mode ?? "read"
@@ -401,29 +384,29 @@ export default function OnboardingScreen({
                 </div>
                 <ul className="flex flex-wrap items-center gap-2">
                   {[
-                    { src: "/icons/slack.svg", label: "Slack" },
-                    { src: "/icons/teams.svg", label: "Teams" },
-                    { src: "/icons/linear.svg", label: "Linear" },
-                    { src: "/icons/jira.svg", label: "Jira" },
-                    { src: "/icons/github.svg", label: "GitHub" },
-                    { src: "/icons/notion.svg", label: "Notion" },
-                    { src: "/icons/google-sheets.svg", label: "Sheets" },
-                    { src: "/icons/google-docs.svg", label: "Docs" },
-                    { src: "/icons/hubspot.svg", label: "HubSpot" },
-                    { src: "/icons/x.svg", label: "X" },
-                    { src: "/icons/linkedin.svg", label: "LinkedIn" },
-                    { src: "/icons/instagram.svg", label: "Instagram" },
-                    { src: "/icons/youtube.svg", label: "YouTube" },
-                  ].map(({ src, label }) => (
+                    { slug: "slack", src: "/icons/slack.svg" },
+                    { slug: "teams", src: "/icons/teams.svg" },
+                    { slug: "linear", src: "/icons/linear.svg" },
+                    { slug: "jira", src: "/icons/jira.svg" },
+                    { slug: "github", src: "/icons/github.svg" },
+                    { slug: "notion", src: "/icons/notion.svg" },
+                    { slug: "google_sheets", src: "/icons/google-sheets.svg" },
+                    { slug: "google_docs", src: "/icons/google-docs.svg" },
+                    { slug: "hubspot", src: "/icons/hubspot.svg" },
+                    { slug: "twitter", src: "/icons/x.svg" },
+                    { slug: "linkedin", src: "/icons/linkedin.svg" },
+                    { slug: "instagram", src: "/icons/instagram.svg" },
+                    { slug: "youtube", src: "/icons/youtube.svg" },
+                  ].map(({ slug, src }) => (
                     <li
-                      key={label}
-                      title={label}
+                      key={slug}
+                      title={tProviders(slug)}
                       className="border-border/60 bg-background flex items-center gap-1.5 rounded-md border px-2 py-1"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={src} alt="" className="size-3.5" />
                       <span className="text-muted-foreground text-[11px]">
-                        {label}
+                        {tProviders(slug)}
                       </span>
                     </li>
                   ))}
@@ -684,6 +667,8 @@ function IntegrationRow({
   onConnectFullAccess,
   onDisconnect,
 }: IntegrationRowProps) {
+  const t = useTranslations("App.Hermes.Onboarding");
+  const tCommon = useTranslations("App.Hermes.Common");
   const isConnected = status === "connected";
   const isConnecting = status === "connecting";
   const isError = status === "error";
@@ -715,7 +700,7 @@ function IntegrationRow({
               : isConnecting
                 ? connectingLabel
                 : isError
-                  ? "Couldn't connect — try again"
+                  ? t("connectError")
                   : capability}
           </div>
         </div>
@@ -736,8 +721,8 @@ function IntegrationRow({
             >
               <Check className="size-3" aria-hidden />
               {connectedMode === "write"
-                ? `${connectedLabel} · full access`
-                : `${connectedLabel} · read only`}
+                ? t("connectedFullAccess", { label: connectedLabel })
+                : t("connectedReadOnly", { label: connectedLabel })}
             </span>
             <Button
               type="button"
@@ -756,7 +741,7 @@ function IntegrationRow({
             size="sm"
             onClick={onConnectReadOnly}
           >
-            {isError ? retryLabel : "Connect (read only)"}
+            {isError ? retryLabel : t("connectReadOnly")}
           </Button>
         )}
       </div>
@@ -769,12 +754,11 @@ function IntegrationRow({
           {showFullAccess ? (
             <div className="flex flex-col gap-2">
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Hermes will be able to{" "}
+                {t("fullAccessBodyPrefix")}{" "}
                 <strong className="text-foreground">
-                  draft replies and act in your account on your behalf
+                  {t("fullAccessBodyBold")}
                 </strong>
-                . Only enable if you want it sending mail / creating events for
-                you.
+                . {t("fullAccessBodySuffix")}
               </p>
               <div className="flex items-center gap-2">
                 <Button
@@ -783,7 +767,7 @@ function IntegrationRow({
                   size="sm"
                   onClick={onConnectFullAccess}
                 >
-                  Connect (full access — read + send)
+                  {t("fullAccessCta")}
                 </Button>
                 <Button
                   type="button"
@@ -792,7 +776,7 @@ function IntegrationRow({
                   onClick={() => setShowFullAccess(false)}
                   className="text-muted-foreground hover:text-foreground text-xs"
                 >
-                  Cancel
+                  {tCommon("cancel")}
                 </Button>
               </div>
             </div>
@@ -802,7 +786,7 @@ function IntegrationRow({
               onClick={() => setShowFullAccess(true)}
               className="text-muted-foreground hover:text-foreground text-xs transition-colors"
             >
-              Need Hermes to send / create on your behalf?
+              {t("fullAccessPrompt")}
             </button>
           )}
         </div>

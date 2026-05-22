@@ -9,15 +9,6 @@ import FlowBackground from "@/app/hermes/components/flow-background";
 import ProgressPips from "@/app/hermes/components/progress-pips";
 import RotatingMessages from "@/app/hermes/components/rotating-messages";
 
-const HINTS = [
-  "Pro tip: ask \"what's important in my inbox today?\" once you're in.",
-  "Hermes remembers your projects, your contacts, your preferences.",
-  'Try: "every weekday at 8am, send me my inbox brief."',
-  "Hermes can hire other Sokosumi agents to help with research.",
-  "Connect more tools later from Settings — Slack, Linear, Notion, more.",
-  "Every morning Hermes will send a brief of what needs your attention.",
-] as const;
-
 import { getHermesOnboardingProgressAction } from "@/lib/actions/hermes";
 import type {
   HermesOnboardingStep,
@@ -39,68 +30,32 @@ const POLL_INTERVAL_MS = 1_000;
  */
 const SKELETON_STEP_COUNT = 5;
 
-/**
- * Step sequence shown in preview mode (`?state=onboarding`). Mirrors the
- * shape the orchestrator returns so the design loop is faithful.
- */
-const PREVIEW_SEQUENCE: HermesOnboardingStep[][] = [
-  [
-    {
-      id: "memory",
-      label: "Bootstrapping your private memory",
-      status: "running",
-    },
-    { id: "inbox_scan", label: "Reading your inbox", status: "pending" },
-    {
-      id: "web_research",
-      label: "Checking your public profile",
-      status: "pending",
-    },
-    { id: "intro_draft", label: "Drafting your intro", status: "pending" },
-  ],
-  [
-    {
-      id: "memory",
-      label: "Bootstrapping your private memory",
-      status: "done",
-    },
-    { id: "inbox_scan", label: "Reading your inbox", status: "running" },
-    {
-      id: "web_research",
-      label: "Checking your public profile",
-      status: "pending",
-    },
-    { id: "intro_draft", label: "Drafting your intro", status: "pending" },
-  ],
-  [
-    {
-      id: "memory",
-      label: "Bootstrapping your private memory",
-      status: "done",
-    },
-    { id: "inbox_scan", label: "Reading your inbox", status: "done" },
-    {
-      id: "web_research",
-      label: "Checking your public profile",
-      status: "running",
-    },
-    { id: "intro_draft", label: "Drafting your intro", status: "pending" },
-  ],
-  [
-    {
-      id: "memory",
-      label: "Bootstrapping your private memory",
-      status: "done",
-    },
-    { id: "inbox_scan", label: "Reading your inbox", status: "done" },
-    {
-      id: "web_research",
-      label: "Checking your public profile",
-      status: "done",
-    },
-    { id: "intro_draft", label: "Drafting your intro", status: "running" },
-  ],
+const PREVIEW_STEP_IDS = [
+  "memory",
+  "inbox_scan",
+  "web_research",
+  "intro_draft",
+] as const;
+
+const PREVIEW_STATUS_SEQUENCE: Array<Array<"pending" | "running" | "done">> = [
+  ["running", "pending", "pending", "pending"],
+  ["done", "running", "pending", "pending"],
+  ["done", "done", "running", "pending"],
+  ["done", "done", "done", "running"],
 ];
+
+function buildPreviewSequence(
+  stepLabels: Record<string, string>,
+): HermesOnboardingStep[][] {
+  return PREVIEW_STATUS_SEQUENCE.map((statuses) =>
+    PREVIEW_STEP_IDS.map((id, index) => ({
+      id,
+      label: stepLabels[id] ?? id,
+      status: statuses[index]!,
+    })),
+  );
+}
+
 const PREVIEW_TICK_MS = 7_000;
 const PREVIEW_TOTAL_SECONDS = 75;
 
@@ -117,11 +72,14 @@ interface ProgressState {
   pollError: boolean;
 }
 
-function useOnboardingProgress(previewMode: boolean): ProgressState {
+function useOnboardingProgress(
+  previewMode: boolean,
+  previewSequence: HermesOnboardingStep[][],
+): ProgressState {
   const [state, setState] = useState<ProgressState>(() => ({
     progress: {
       status: "onboarding",
-      steps: previewMode ? PREVIEW_SEQUENCE[0]! : [],
+      steps: previewMode ? previewSequence[0]! : [],
       etaSeconds: previewMode ? PREVIEW_TOTAL_SECONDS : null,
     },
     pollError: false,
@@ -132,11 +90,11 @@ function useOnboardingProgress(previewMode: boolean): ProgressState {
       // Mock-drive the steps for design iteration.
       let tick = 0;
       const id = setInterval(() => {
-        tick = Math.min(tick + 1, PREVIEW_SEQUENCE.length - 1);
+        tick = Math.min(tick + 1, previewSequence.length - 1);
         setState({
           progress: {
             status: "onboarding",
-            steps: PREVIEW_SEQUENCE[tick]!,
+            steps: previewSequence[tick]!,
             etaSeconds: Math.max(
               0,
               PREVIEW_TOTAL_SECONDS - tick * (PREVIEW_TICK_MS / 1000),
@@ -196,7 +154,7 @@ function useOnboardingProgress(previewMode: boolean): ProgressState {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [previewMode]);
+  }, [previewMode, previewSequence]);
 
   return state;
 }
@@ -205,7 +163,13 @@ export default function OnboardingProgress({
   previewMode,
 }: OnboardingProgressProps) {
   const t = useTranslations("App.Hermes.OnboardingProgress");
-  const { progress, pollError } = useOnboardingProgress(previewMode);
+  const previewSteps = t.raw("previewSteps") as Record<string, string>;
+  const previewSequence = buildPreviewSequence(previewSteps);
+  const hints = t.raw("hints") as string[];
+  const { progress, pollError } = useOnboardingProgress(
+    previewMode,
+    previewSequence,
+  );
 
   return (
     <FlowBackground className="flex h-full flex-col overflow-hidden">
@@ -262,7 +226,7 @@ export default function OnboardingProgress({
           inevitably drifts. Honest copy + something fun to read. */}
         <div className="mt-4 flex min-h-[2rem] items-center justify-center">
           <RotatingMessages
-            messages={HINTS}
+            messages={hints}
             intervalMs={5_500}
             className="text-muted-foreground max-w-md text-center text-xs leading-relaxed"
           />
@@ -276,9 +240,7 @@ export default function OnboardingProgress({
         {pollError ? (
           <div className="border-amber-500/30 bg-amber-500/[0.06] text-amber-700 dark:text-amber-400 mx-auto mt-3 flex max-w-md items-center gap-2 rounded-lg border px-3 py-2">
             <AlertCircle className="size-3.5 shrink-0" aria-hidden />
-            <p className="text-xs leading-relaxed">
-              Can't reach the orchestrator right now — still trying.
-            </p>
+            <p className="text-xs leading-relaxed">{t("pollError")}</p>
           </div>
         ) : null}
       </div>

@@ -8,16 +8,6 @@ import FlowBackground from "@/app/hermes/components/flow-background";
 import ProgressPips from "@/app/hermes/components/progress-pips";
 import RotatingMessages from "@/app/hermes/components/rotating-messages";
 
-const FACTS = [
-  "Hermes lives in its own microVM with persistent memory across sessions.",
-  "Connect Gmail, Outlook, Slack, Linear, GitHub, Notion and more.",
-  "Hermes can hire other Sokosumi agents to do work on your behalf.",
-  "Chat from here, Telegram, Slack, your terminal — pick up anywhere.",
-  "Every morning Hermes can send a brief of what needs your attention.",
-  "Read your inbox, draft replies, schedule meetings — all from chat.",
-  'Ask Hermes to schedule things in plain English: "every Monday at 9am, summarise my week ahead."',
-] as const;
-
 /**
  * Indeterminate provisioning view. The orchestrator drives the real machine
  * boot — we don't have visibility into per-step progress yet, so the UI
@@ -26,6 +16,7 @@ const FACTS = [
  */
 export default function ProvisioningState() {
   const t = useTranslations("App.Hermes.Provisioning");
+  const facts = t.raw("facts") as string[];
 
   return (
     <FlowBackground className="flex h-full flex-col overflow-hidden">
@@ -61,11 +52,11 @@ export default function ProvisioningState() {
           </div>
           <div className="border-border/40 mt-2 w-full max-w-md border-t pt-4">
             <div className="text-muted-foreground text-center text-[11px] font-semibold uppercase tracking-wider">
-              While you wait
+              {t("whileYouWait")}
             </div>
             <div className="mt-3 flex min-h-[3rem] items-center justify-center">
               <RotatingMessages
-                messages={FACTS}
+                messages={facts}
                 intervalMs={5_500}
                 className="text-foreground/80 max-w-md text-center text-sm leading-relaxed"
               />

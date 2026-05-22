@@ -10,6 +10,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { hermesOAuthConnectErrorMessage } from "@/app/hermes/components/hermes-oauth-messages";
 
 import {
   AlertDialog,
@@ -115,6 +116,7 @@ export default function SettingsPanel({
 }: SettingsPanelProps) {
   const t = useTranslations("App.Hermes.Settings");
   const tProviders = useTranslations("App.Hermes.Onboarding.providers");
+  const tOAuth = useTranslations("App.Hermes.Common.oauth");
   const composioOAuth = useComposioOAuth();
 
   const [destroyPending, startDestroyTransition] = useTransition();
@@ -223,14 +225,11 @@ export default function SettingsPanel({
 
       const result = await composioOAuth.start(provider, mode);
       if (!result.ok) {
-        const message =
-          result.reason === "popup_blocked"
-            ? "Allow popups for this site to connect an account."
-            : result.reason === "popup_closed"
-              ? "Connection cancelled."
-              : result.reason === "timeout"
-                ? "Connection timed out."
-                : (result.message ?? "Couldn't connect this provider.");
+        const message = hermesOAuthConnectErrorMessage(
+          tOAuth,
+          result.reason,
+          result.message,
+        );
         if (result.reason !== "popup_closed") toast.error(message);
         setOverlay((prev) => ({ ...prev, [provider]: "disconnected" }));
         return;
@@ -244,7 +243,7 @@ export default function SettingsPanel({
       // for the next background refresh tick.
       void onRefreshInstance?.();
     },
-    [previewMode, composioOAuth, onRefreshInstance],
+    [previewMode, composioOAuth, onRefreshInstance, tOAuth],
   );
 
   const handleDisconnect = useCallback(
@@ -260,9 +259,7 @@ export default function SettingsPanel({
 
       const result = await disconnectHermesIntegrationAction({ provider });
       if (!result.ok) {
-        toast.error(
-          result.error.message ?? "Couldn't disconnect this provider.",
-        );
+        toast.error(result.error.message ?? tOAuth("disconnectFailed"));
         setOverlay((prev) => ({ ...prev, [provider]: previous }));
         return;
       }
@@ -374,12 +371,12 @@ export default function SettingsPanel({
               <div className="border-border/60 bg-card/40 flex flex-col gap-2.5 rounded-xl border px-4 py-3.5">
                 <ReadOnlyField
                   label={t("modelLabel")}
-                  value="deepseek-4-flash"
+                  value={t("modelValue")}
                   mono
                 />
                 <ReadOnlyField
                   label={t("modelProviderLabel")}
-                  value="OpenRouter (managed)"
+                  value={t("modelProviderValue")}
                 />
                 <p className="text-muted-foreground/80 text-xs leading-relaxed">
                   {t("modelManagedHelp")}

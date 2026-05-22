@@ -32,21 +32,38 @@ interface EmptyStateProps {
   onActivate: () => void;
 }
 
-const SERVICE_LOGOS: Array<{ src: string; label: string }> = [
-  { src: "/icons/gmail.svg", label: "Gmail" },
-  { src: "/icons/outlook.svg", label: "Outlook" },
-  { src: "/icons/google-calendar.svg", label: "Google Calendar" },
-  { src: "/icons/google-sheets.svg", label: "Sheets" },
-  { src: "/icons/google-docs.svg", label: "Docs" },
-  { src: "/icons/slack.svg", label: "Slack" },
-  { src: "/icons/teams.svg", label: "Teams" },
-  { src: "/icons/notion.svg", label: "Notion" },
-  { src: "/icons/linear.svg", label: "Linear" },
-  { src: "/icons/jira.svg", label: "Jira" },
-  { src: "/icons/github.svg", label: "GitHub" },
-  { src: "/icons/hubspot.svg", label: "HubSpot" },
-  { src: "/icons/x.svg", label: "X" },
-  { src: "/icons/linkedin.svg", label: "LinkedIn" },
+const SERVICE_LOGOS: Array<{
+  src: string;
+  labelKey:
+    | "gmail"
+    | "outlook"
+    | "google_calendar"
+    | "google_sheets"
+    | "google_docs"
+    | "slack"
+    | "teams"
+    | "notion"
+    | "linear"
+    | "jira"
+    | "github"
+    | "hubspot"
+    | "twitter"
+    | "linkedin";
+}> = [
+  { src: "/icons/gmail.svg", labelKey: "gmail" },
+  { src: "/icons/outlook.svg", labelKey: "outlook" },
+  { src: "/icons/google-calendar.svg", labelKey: "google_calendar" },
+  { src: "/icons/google-sheets.svg", labelKey: "google_sheets" },
+  { src: "/icons/google-docs.svg", labelKey: "google_docs" },
+  { src: "/icons/slack.svg", labelKey: "slack" },
+  { src: "/icons/teams.svg", labelKey: "teams" },
+  { src: "/icons/notion.svg", labelKey: "notion" },
+  { src: "/icons/linear.svg", labelKey: "linear" },
+  { src: "/icons/jira.svg", labelKey: "jira" },
+  { src: "/icons/github.svg", labelKey: "github" },
+  { src: "/icons/hubspot.svg", labelKey: "hubspot" },
+  { src: "/icons/x.svg", labelKey: "twitter" },
+  { src: "/icons/linkedin.svg", labelKey: "linkedin" },
 ];
 
 /**
@@ -174,43 +191,43 @@ const EXAMPLES: Array<{
   key: ExampleKey;
   /** i18n key for the mocked Hermes reply (markdown-lite). */
   replyKey: `${ExampleKey}Reply`;
-  category: string;
+  categoryKey: ExampleKey;
   Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 }> = [
   {
     key: "example1",
     replyKey: "example1Reply",
-    category: "Inbox + Research agent",
+    categoryKey: "example1",
     Icon: Mail,
   },
   {
     key: "example2",
     replyKey: "example2Reply",
-    category: "Competitor Research + reply",
+    categoryKey: "example2",
     Icon: Sparkles,
   },
   {
     key: "example3",
     replyKey: "example3Reply",
-    category: "Brief agent, daily",
+    categoryKey: "example3",
     Icon: Repeat,
   },
   {
     key: "example4",
     replyKey: "example4Reply",
-    category: "GitHub + Linear + Slack",
+    categoryKey: "example4",
     Icon: ListTodo,
   },
   {
     key: "example5",
     replyKey: "example5Reply",
-    category: "Reddit Research",
+    categoryKey: "example5",
     Icon: Sparkles,
   },
   {
     key: "example6",
     replyKey: "example6Reply",
-    category: "Watch + refund + Linear",
+    categoryKey: "example6",
     Icon: Inbox,
   },
 ];
@@ -218,6 +235,8 @@ const EXAMPLES: Array<{
 export default function EmptyState({ onActivate }: EmptyStateProps) {
   const t = useTranslations("App.Hermes.EmptyState");
   const tBeta = useTranslations("App.Hermes");
+  const tCommon = useTranslations("App.Hermes.Common");
+  const tServices = useTranslations("App.Hermes.EmptyState.serviceLabels");
 
   return (
     <FlowBackground>
@@ -233,7 +252,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
             <div className="bg-card border-border/60 ring-background relative size-44 overflow-hidden rounded-full border ring-8 md:size-52">
               <Image
                 src="/images/hermes/avatar.png"
-                alt="Hermes"
+                alt={tCommon("hermesAvatarAlt")}
                 fill
                 sizes="(min-width: 768px) 208px, 176px"
                 priority
@@ -285,7 +304,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
 
         {/* ── Services strip ─────────────────────────────────────── */}
         <Section
-          eyebrow="Integrations"
+          eyebrow={t("integrationsEyebrow")}
           eyebrowColor="text-primary"
           heading={t("servicesHeading")}
           description={t("servicesHelp")}
@@ -295,16 +314,16 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
             {/* Inner panel for a layered look */}
             <div className="border-border/40 bg-background/60 rounded-2xl border p-6 md:p-8">
               <ul className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
-                {SERVICE_LOGOS.map(({ src, label }) => (
+                {SERVICE_LOGOS.map(({ src, labelKey }) => (
                   <li
-                    key={label}
+                    key={labelKey}
                     className="border-border/60 bg-background group flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 transition-colors hover:border-foreground/30 hover:bg-muted/30"
-                    title={label}
+                    title={tServices(labelKey)}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={src} alt="" className="size-5 shrink-0" />
                     <span className="text-foreground text-sm font-medium">
-                      {label}
+                      {tServices(labelKey)}
                     </span>
                   </li>
                 ))}
@@ -368,7 +387,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
 
         {/* ── Things to try (click-through) ─────────────────────── */}
         <Section
-          eyebrow="Try this"
+          eyebrow={t("examplesEyebrow")}
           eyebrowColor="text-muted-foreground"
           heading={t("examplesHeading")}
           description={t("examplesPickHint")}
@@ -598,6 +617,9 @@ function JourneyRow({
 // rather than "marketing illustration".
 
 function ActivationVisual() {
+  const t = useTranslations("App.Hermes.EmptyState.visuals");
+  const tCommon = useTranslations("App.Hermes.Common");
+
   return (
     <div className="relative flex h-56 items-center justify-center">
       <div
@@ -615,14 +637,14 @@ function ActivationVisual() {
           />
         </div>
         <div className="text-foreground text-sm font-semibold tracking-tight">
-          Hermes
+          {tCommon("hermesAvatarAlt")}
         </div>
         <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
           <span
             aria-hidden
             className="size-1.5 animate-pulse rounded-full bg-emerald-500"
           />
-          <span>Activated</span>
+          <span>{t("activated")}</span>
         </div>
         <div className="text-tertiary-foreground font-mono text-xs tabular-nums">
           bound · patrick@yellowhouse.gmbh
@@ -633,14 +655,16 @@ function ActivationVisual() {
 }
 
 function MicroVmVisual() {
+  const t = useTranslations("App.Hermes.EmptyState.visuals");
+
   return (
     <div className="relative flex h-56 items-center justify-center">
       <div className="border-border bg-background/80 relative w-full max-w-xs rounded-2xl border p-5">
-        {/* Label tab — "Your microVM" */}
+        {/* Label tab — "Your own computer" */}
         <div className="bg-card border-border absolute -top-3 left-4 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5">
           <Lock className="text-muted-foreground size-3" aria-hidden />
           <span className="text-foreground text-xs font-medium tracking-wide">
-            Your microVM
+            {t("microVmLabel")}
           </span>
         </div>
 
@@ -657,18 +681,22 @@ function MicroVmVisual() {
         {/* Two clean key-value rows */}
         <dl className="mt-4 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground text-xs">Filesystem</dt>
-            <dd className="text-foreground font-mono text-xs">persistent</dd>
+            <dt className="text-muted-foreground text-xs">{t("filesystem")}</dt>
+            <dd className="text-foreground font-mono text-xs">
+              {t("persistent")}
+            </dd>
           </div>
           <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground text-xs">Secrets</dt>
-            <dd className="text-foreground font-mono text-xs">encrypted</dd>
+            <dt className="text-muted-foreground text-xs">{t("secrets")}</dt>
+            <dd className="text-foreground font-mono text-xs">
+              {t("encrypted")}
+            </dd>
           </div>
           <div className="flex items-center justify-between">
             <dt className="text-muted-foreground text-xs">
-              Shared with others
+              {t("sharedWithOthers")}
             </dt>
-            <dd className="text-foreground font-mono text-xs">never</dd>
+            <dd className="text-foreground font-mono text-xs">{t("never")}</dd>
           </div>
         </dl>
       </div>
@@ -744,26 +772,24 @@ function ConnectionVisual() {
 }
 
 function InboxMemoryVisual() {
-  const inbox: Array<{
+  const t = useTranslations("App.Hermes.EmptyState.visuals");
+  const demoInbox = t.raw("demoInbox") as Array<{
     from: string;
     subject: string;
-    status: "read" | "warn";
-  }> = [
-    { from: "Hannah", subject: "Q4 roadmap review", status: "read" },
-    { from: "Alex", subject: "Cardano deal — next steps", status: "read" },
-    { from: "CI bot", subject: "Build #2438 failed", status: "warn" },
-  ];
-  const memory = [
-    "Working on the Q4 launch",
-    "Hannah is the product lead",
-    "Cardano deal closes Mar 15",
-  ];
+  }>;
+  const inbox = demoInbox.map((row, index) => ({
+    ...row,
+    status:
+      index === demoInbox.length - 1 ? ("warn" as const) : ("read" as const),
+  }));
+  const memory = t.raw("demoMemory") as string[];
+
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="border-border/60 bg-background/60 rounded-xl border p-4">
         <div className="text-tertiary-foreground mb-3 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
           <Inbox className="size-3" aria-hidden />
-          <span>Inbox · scanned</span>
+          <span>{t("inboxScanned")}</span>
         </div>
         <ul className="flex flex-col gap-2">
           {inbox.map((m) => (
@@ -796,7 +822,7 @@ function InboxMemoryVisual() {
       <div className="border-border/60 bg-background/60 rounded-xl border p-4">
         <div className="text-tertiary-foreground mb-3 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
           <Brain className="size-3" aria-hidden />
-          <span>Memory · written</span>
+          <span>{t("memoryWritten")}</span>
         </div>
         <ul className="flex flex-col gap-1.5">
           {memory.map((m) => (
@@ -814,25 +840,28 @@ function InboxMemoryVisual() {
 }
 
 function ActVisual() {
+  const t = useTranslations("App.Hermes.EmptyState.visuals");
+  const actSteps = t.raw("actSteps") as string[];
+
   return (
     <div className="mx-auto flex max-w-md flex-col gap-2">
       {/* User message */}
       <div className="bg-primary text-primary-foreground self-end rounded-2xl rounded-tr-md px-3.5 py-2 text-xs leading-snug shadow-sm">
-        Set a call with Hannah next Tuesday at 10am.
+        {t("actUserMessage")}
       </div>
       {/* Hermes acting */}
       <div className="border-border/60 bg-background/80 self-start rounded-2xl rounded-tl-md border px-3.5 py-2.5">
         <div className="text-tertiary-foreground inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
           <Wand2 className="size-3" aria-hidden />
-          <span>Hermes is working</span>
+          <span>{t("actWorking")}</span>
         </div>
         <ul className="mt-2 flex flex-col gap-1.5">
           {[
-            { src: "/icons/google-calendar.svg", label: "Found a free slot" },
-            { src: "/icons/gmail.svg", label: "Drafted the invite" },
+            { src: "/icons/google-calendar.svg", label: actSteps[0] },
+            { src: "/icons/gmail.svg", label: actSteps[1] },
             {
               src: null,
-              label: "Hired Research agent for context",
+              label: actSteps[2],
               done: false,
             },
           ].map((row, i) => (
@@ -863,7 +892,7 @@ function ActVisual() {
         </ul>
         <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
           <Check className="size-3" aria-hidden />
-          <span>Tuesday · 10:00 AM held</span>
+          <span>{t("actHeld")}</span>
         </div>
       </div>
     </div>
@@ -871,23 +900,26 @@ function ActVisual() {
 }
 
 function OvernightVisual() {
+  const t = useTranslations("App.Hermes.EmptyState.visuals");
+  const scheduleLabels = t.raw("overnightSchedule") as string[];
   const schedule: Array<{
     time: string;
     label: string;
     state: "done" | "active";
   }> = [
-    { time: "03:00", label: "Pull overnight email", state: "done" },
-    { time: "05:30", label: "Sync Sokosumi jobs", state: "done" },
-    { time: "06:45", label: "Draft your morning brief", state: "active" },
-    { time: "08:00", label: "Push to chat + Telegram", state: "active" },
+    { time: "03:00", label: scheduleLabels[0] ?? "", state: "done" },
+    { time: "05:30", label: scheduleLabels[1] ?? "", state: "done" },
+    { time: "06:45", label: scheduleLabels[2] ?? "", state: "active" },
+    { time: "08:00", label: scheduleLabels[3] ?? "", state: "active" },
   ];
+
   return (
     <div className="border-border/60 bg-background/60 mx-auto max-w-md rounded-2xl border p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="inline-flex items-center gap-2">
           <Moon className="text-primary size-4" aria-hidden />
           <span className="text-foreground text-sm font-semibold tracking-tight">
-            Tonight · 4 jobs
+            {t("overnightTitle")}
           </span>
         </div>
         <span className="text-tertiary-foreground font-mono text-xs tabular-nums">
@@ -942,6 +974,7 @@ function OvernightVisual() {
 
 function ExamplesCarousel() {
   const t = useTranslations("App.Hermes.EmptyState");
+  const tCommon = useTranslations("App.Hermes.Common");
   const [activeKey, setActiveKey] = useState<ExampleKey>(EXAMPLES[0]!.key);
   const active = EXAMPLES.find((e) => e.key === activeKey) ?? EXAMPLES[0]!;
 
@@ -950,7 +983,7 @@ function ExamplesCarousel() {
       {/* Pills — horizontally scrollable on narrow viewports */}
       <div className="-mx-2 overflow-x-auto px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex min-w-max items-center gap-2">
-          {EXAMPLES.map(({ key, category, Icon }) => {
+          {EXAMPLES.map(({ key, categoryKey, Icon }) => {
             const isActive = key === activeKey;
             return (
               <button
@@ -967,7 +1000,7 @@ function ExamplesCarousel() {
                 aria-pressed={isActive}
               >
                 <Icon className="size-3.5" aria-hidden />
-                <span>{category}</span>
+                <span>{t(`exampleCategories.${categoryKey}`)}</span>
               </button>
             );
           })}
@@ -1003,7 +1036,7 @@ function ExamplesCarousel() {
           <div className="border-border bg-background min-w-0 flex-1 rounded-2xl rounded-tl-md border px-4 py-3">
             <div className="text-tertiary-foreground mb-2 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
               <Sparkles className="size-3" aria-hidden />
-              <span>Hermes</span>
+              <span>{tCommon("hermesAvatarAlt")}</span>
             </div>
             <MockMarkdown text={t(active.replyKey)} />
           </div>
