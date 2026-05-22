@@ -503,7 +503,13 @@ export default function OnboardingScreen({
                   className="text-muted-foreground hover:text-foreground text-sm transition-colors"
                   onClick={() =>
                     onContinue({
-                      skipResearch: true,
+                      // If the user actually connected an integration before
+                      // hitting "skip for now" we still want the deep
+                      // inbox-aware research path — otherwise we'd waste the
+                      // signal they just gave us. `skipResearch` only buys
+                      // the user a faster (shallow) cold start when there's
+                      // genuinely nothing to read from.
+                      skipResearch: connectedCount === 0,
                       name: name.trim() || null,
                       email: defaultEmail || null,
                       role: role.trim() || null,
