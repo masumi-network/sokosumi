@@ -182,11 +182,18 @@ export default function HermesExperience({
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const deadline = Date.now() + PROVISION_DEADLINE_MS;
+    // Only enforce the 15-minute deadline while the orchestrator is actually
+    // *provisioning*. Once we hit `infrastructure_ready` the user is filling
+    // out the multi-step setup wizard and can take arbitrarily long; the
+    // same applies to `onboarding` which is driven by the orchestrator's own
+    // ETA. Otherwise a user lingering on step 3 of the wizard for >15min
+    // would get bounced to a misleading "provisioning timed out" error.
+    const deadline =
+      uiState === "provisioning" ? Date.now() + PROVISION_DEADLINE_MS : null;
 
     const tick = async () => {
       if (cancelled) return;
-      if (Date.now() > deadline) {
+      if (deadline !== null && Date.now() > deadline) {
         setUiState("error");
         setErrorMessage(
           "Provisioning timed out after 15 minutes. Please try again.",

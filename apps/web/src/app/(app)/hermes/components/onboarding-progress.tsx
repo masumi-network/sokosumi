@@ -104,11 +104,27 @@ const PREVIEW_SEQUENCE: HermesOnboardingStep[][] = [
 const PREVIEW_TICK_MS = 7_000;
 const PREVIEW_TOTAL_SECONDS = 75;
 
-function useOnboardingProgress(previewMode: boolean): ProgressShape {
-  const [progress, setProgress] = useState<ProgressShape>(() => ({
-    status: "onboarding",
-    steps: previewMode ? PREVIEW_SEQUENCE[0]! : [],
-    etaSeconds: previewMode ? PREVIEW_TOTAL_SECONDS : null,
+/** After this many consecutive failed polls we surface a soft warning
+ * instead of leaving the user staring at unchanging skeleton rows
+ * indefinitely. Three because a single hiccup is noise; three in a row
+ * is something the user deserves to know about. */
+const POLL_ERROR_THRESHOLD = 3;
+
+interface ProgressState {
+  progress: ProgressShape;
+  /** True once we've hit `POLL_ERROR_THRESHOLD` consecutive failures
+   * without a successful poll. Resets on any successful poll. */
+  pollError: boolean;
+}
+
+function useOnboardingProgress(previewMode: boolean): ProgressState {
+  const [state, setState] = useState<ProgressState>(() => ({
+    progress: {
+      status: "onboarding",
+      steps: previewMode ? PREVIEW_SEQUENCE[0]! : [],
+      etaSeconds: previewMode ? PREVIEW_TOTAL_SECONDS : null,
+    },
+    pollError: false,
   }));
 
   useEffect(() => {
@@ -117,13 +133,16 @@ function useOnboardingProgress(previewMode: boolean): ProgressShape {
       let tick = 0;
       const id = setInterval(() => {
         tick = Math.min(tick + 1, PREVIEW_SEQUENCE.length - 1);
-        setProgress({
-          status: "onboarding",
-          steps: PREVIEW_SEQUENCE[tick]!,
-          etaSeconds: Math.max(
-            0,
-            PREVIEW_TOTAL_SECONDS - tick * (PREVIEW_TICK_MS / 1000),
-          ),
+        setState({
+          progress: {
+            status: "onboarding",
+            steps: PREVIEW_SEQUENCE[tick]!,
+            etaSeconds: Math.max(
+              0,
+              PREVIEW_TOTAL_SECONDS - tick * (PREVIEW_TICK_MS / 1000),
+            ),
+          },
+          pollError: false,
         });
       }, PREVIEW_TICK_MS);
       return () => clearInterval(id);
@@ -133,6 +152,7 @@ function useOnboardingProgress(previewMode: boolean): ProgressShape {
     // The parent's instance polling will detect the status flip to `ready`
     // and unmount this component — no need to also branch off `status` here.
     let cancelled = false;
+    let consecutiveFailures = 0;
 
     const tick = async () => {
       if (cancelled) return;
@@ -143,11 +163,24 @@ function useOnboardingProgress(previewMode: boolean): ProgressShape {
         return;
       }
       const result = await getHermesOnboardingProgressAction({});
-      if (cancelled || !result.ok) return;
-      setProgress({
-        status: result.data.status as ProgressShape["status"],
-        steps: result.data.steps,
-        etaSeconds: result.data.etaSeconds,
+      if (cancelled) return;
+      if (!result.ok) {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= POLL_ERROR_THRESHOLD) {
+          setState((prev) =>
+            prev.pollError ? prev : { ...prev, pollError: true },
+          );
+        }
+        return;
+      }
+      consecutiveFailures = 0;
+      setState({
+        progress: {
+          status: result.data.status as ProgressShape["status"],
+          steps: result.data.steps,
+          etaSeconds: result.data.etaSeconds,
+        },
+        pollError: false,
       });
     };
 
@@ -165,14 +198,14 @@ function useOnboardingProgress(previewMode: boolean): ProgressShape {
     };
   }, [previewMode]);
 
-  return progress;
+  return state;
 }
 
 export default function OnboardingProgress({
   previewMode,
 }: OnboardingProgressProps) {
   const t = useTranslations("App.Hermes.OnboardingProgress");
-  const progress = useOnboardingProgress(previewMode);
+  const { progress, pollError } = useOnboardingProgress(previewMode);
 
   return (
     <FlowBackground className="flex h-full flex-col overflow-hidden">
@@ -234,6 +267,20 @@ export default function OnboardingProgress({
             className="text-muted-foreground max-w-md text-center text-xs leading-relaxed"
           />
         </div>
+
+        {/* Surface persistent progress-poll failures rather than leaving the
+            user staring at skeleton rows forever. Soft inline notice, not a
+            full error state, because the orchestrator usually recovers on
+            its own and the parent's instance polling still catches the
+            terminal status flip. */}
+        {pollError ? (
+          <div className="border-amber-500/30 bg-amber-500/[0.06] text-amber-700 dark:text-amber-400 mx-auto mt-3 flex max-w-md items-center gap-2 rounded-lg border px-3 py-2">
+            <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+            <p className="text-xs leading-relaxed">
+              Can't reach the orchestrator right now — still trying.
+            </p>
+          </div>
+        ) : null}
       </div>
     </FlowBackground>
   );
