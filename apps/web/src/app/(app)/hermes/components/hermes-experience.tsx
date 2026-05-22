@@ -222,8 +222,11 @@ export default function HermesExperience({
       const result = await getHermesInstanceAction({});
       if (cancelled) return;
       if (!result.ok) {
-        setUiState("error");
-        setErrorMessage(result.error.message ?? t("fetchFailed"));
+        // Transient orchestrator/network blip — same soft handling as
+        // `refetchHermes({ background: true })`. Retry on the next tick
+        // instead of ejecting the user from the setup wizard or onboarding
+        // loader while the instance may still be healthy.
+        timer = setTimeout(() => void tick(), POLL_INTERVAL_MS);
         return;
       }
       if (result.data) {
