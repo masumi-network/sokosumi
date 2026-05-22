@@ -131,6 +131,10 @@ export default function HermesExperience({
     HermesPersistedMessage[]
   >([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  /** True while `POST /me/instance/onboard` is in flight. Keeps the setup
+   * wizard mounted so `OnboardingProgress` does not poll until onboard has
+   * actually started. */
+  const [isStartingOnboarding, setIsStartingOnboarding] = useState(false);
 
   /**
    * Loads instance state then persisted history. Sequenced (not parallel) because
@@ -332,11 +336,11 @@ export default function HermesExperience({
   }, [previewMode, t]);
 
   /**
-   * Kicks off the orchestrator's research-intro flow. After the POST
-   * returns, the orchestrator flips status to `onboarding`; our polling
-   * effect catches it and routes to OnboardingProgress, then to RunningState
-   * once status flips to `ready`. In preview mode we simulate the transition
-   * with a timer so the design loop is walkable without backend.
+   * Kicks off the orchestrator's research-intro flow. The progress screen
+   * mounts only after `POST /me/instance/onboard` succeeds so step polling
+   * does not run against an `infrastructure_ready` instance. Instance
+   * polling then catches `ready` and routes to RunningState. Preview mode
+   * simulates the transition with a timer for design iteration.
    */
   const handleStartOnboarding = useCallback(
     async (options: {
@@ -347,9 +351,8 @@ export default function HermesExperience({
       company: string | null;
       autonomyLevel: HermesAutonomyLevel;
     }) => {
-      setUiState("onboarding");
-
       if (previewMode) {
+        setUiState("onboarding");
         // Mock orchestrator flow: ~30s "research", then flip to running.
         setTimeout(() => {
           setUiState("running");
@@ -357,21 +360,29 @@ export default function HermesExperience({
         return;
       }
 
-      const result = await startHermesOnboardingAction({
-        skipResearch: options.skipResearch,
-        name: options.name,
-        email: options.email,
-        role: options.role,
-        company: options.company,
-        autonomyLevel: options.autonomyLevel,
-      });
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("onboardingStartFailed"));
-        setUiState("infrastructure_ready");
-        return;
+      setIsStartingOnboarding(true);
+      try {
+        const result = await startHermesOnboardingAction({
+          skipResearch: options.skipResearch,
+          name: options.name,
+          email: options.email,
+          role: options.role,
+          company: options.company,
+          autonomyLevel: options.autonomyLevel,
+        });
+        if (!result.ok) {
+          toast.error(result.error.message ?? t("onboardingStartFailed"));
+          return;
+        }
+        // Mount progress UI only after onboard has been accepted — otherwise
+        // OnboardingProgress polls while the instance is still
+        // `infrastructure_ready` and surfaces false "can't reach orchestrator"
+        // warnings.
+        setUiState("onboarding");
+        // Instance polling (now active for `onboarding`) detects `ready`.
+      } finally {
+        setIsStartingOnboarding(false);
       }
-      // The polling effect (now active for `onboarding`) will detect when
-      // status flips to `ready` and route us to RunningState.
     },
     [previewMode, t],
   );
@@ -393,6 +404,7 @@ export default function HermesExperience({
         defaultEmail={userEmail ?? ""}
         integrations={instance?.integrations ?? []}
         previewMode={previewMode}
+        isStarting={isStartingOnboarding}
         onContinue={(opts) => void handleStartOnboarding(opts)}
       />
     );

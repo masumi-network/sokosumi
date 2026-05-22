@@ -51,6 +51,8 @@ interface OnboardingScreenProps {
   defaultEmail: string;
   integrations: HermesIntegration[];
   previewMode: boolean;
+  /** True while the parent is awaiting `POST /me/instance/onboard`. */
+  isStarting?: boolean;
   onContinue: (options: {
     skipResearch: boolean;
     name: string | null;
@@ -106,6 +108,7 @@ export default function OnboardingScreen({
   defaultEmail,
   integrations,
   previewMode,
+  isStarting = false,
   onContinue,
 }: OnboardingScreenProps) {
   const t = useTranslations("App.Hermes.Onboarding");
@@ -453,6 +456,7 @@ export default function OnboardingScreen({
                   size="lg"
                   variant="ghost"
                   className="gap-2"
+                  disabled={isStarting}
                   onClick={goBack}
                 >
                   <ArrowLeft className="size-4" aria-hidden />
@@ -463,6 +467,8 @@ export default function OnboardingScreen({
                   size="lg"
                   variant="primary"
                   className="gap-2"
+                  disabled={isStarting}
+                  aria-busy={isStarting}
                   onClick={() =>
                     onContinue({
                       skipResearch: false,
@@ -474,8 +480,13 @@ export default function OnboardingScreen({
                     })
                   }
                 >
+                  {isStarting ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : null}
                   <span>{t("continueCta")}</span>
-                  <ArrowRight className="size-4" aria-hidden />
+                  {!isStarting ? (
+                    <ArrowRight className="size-4" aria-hidden />
+                  ) : null}
                 </Button>
               </div>
               <p className="text-muted-foreground/80 text-center text-xs">
@@ -486,7 +497,8 @@ export default function OnboardingScreen({
               <div className="border-border/60 mt-2 flex w-full max-w-xs flex-col items-center gap-1 border-t pt-4">
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                  disabled={isStarting}
+                  className="text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50 text-sm transition-colors"
                   onClick={() =>
                     onContinue({
                       // If the user actually connected an integration before
