@@ -242,21 +242,21 @@ export default function OnboardingScreen({
 
   return (
     <FlowBackground>
-      <div className="mx-auto w-full max-w-2xl px-6 py-12 md:py-20">
+      <div className="mx-auto w-full max-w-2xl px-6 py-8 md:py-12">
         <ProgressPips current="setup" />
 
         {/* ── Hero ────────────────────────────────────────────────── */}
-        <div className="mb-8 flex flex-col items-center text-center md:mb-10">
-          <div className="bg-card border-border/60 ring-border/40 relative size-14 overflow-hidden rounded-full border ring-4">
+        <div className="mb-6 flex flex-col items-center text-center md:mb-8">
+          <div className="bg-card border-border/60 ring-border/40 relative size-12 overflow-hidden rounded-full border ring-4">
             <Image
               src="/images/hermes/avatar.png"
               alt=""
               fill
-              sizes="56px"
+              sizes="48px"
               className="object-cover"
             />
           </div>
-          <h1 className="text-foreground mt-5 text-2xl font-semibold tracking-tight md:text-3xl">
+          <h1 className="text-foreground mt-4 text-xl font-semibold tracking-tight md:text-2xl">
             {t("title")}
           </h1>
         </div>
@@ -278,40 +278,46 @@ export default function OnboardingScreen({
               heading={t("identityHeading")}
               description={t("identityHelp")}
             >
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-3">
                 <Field
                   id="hermes-onboarding-name"
                   label={t("nameLabel")}
                   placeholder={t("namePlaceholder")}
                   value={name}
                   onChange={setName}
+                  autoFocus
                 />
-                <Field
-                  id="hermes-onboarding-company"
-                  label={t("companyLabel")}
-                  placeholder={t("companyPlaceholder")}
-                  value={company}
-                  onChange={setCompany}
-                />
-                <div className="flex flex-col gap-1.5 md:col-span-2">
-                  <Label
-                    htmlFor="hermes-onboarding-role"
-                    className="text-foreground text-sm font-medium"
-                  >
-                    {t("roleLabel")}
-                  </Label>
-                  <Select value={role} onValueChange={setRole}>
-                    <SelectTrigger id="hermes-onboarding-role" className="h-10">
-                      <SelectValue placeholder={t("rolePlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLE_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label
+                      htmlFor="hermes-onboarding-role"
+                      className="text-foreground text-sm font-medium"
+                    >
+                      {t("roleLabel")}
+                    </Label>
+                    <Select value={role} onValueChange={setRole}>
+                      <SelectTrigger
+                        id="hermes-onboarding-role"
+                        className="h-10"
+                      >
+                        <SelectValue placeholder={t("rolePlaceholder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Field
+                    id="hermes-onboarding-company"
+                    label={t("companyLabel")}
+                    placeholder={t("companyPlaceholder")}
+                    value={company}
+                    onChange={setCompany}
+                  />
                 </div>
               </div>
             </Section>
@@ -406,7 +412,7 @@ export default function OnboardingScreen({
         </div>
 
         {/* ── Wizard navigation ───────────────────────────────────── */}
-        <div className="mt-10 flex flex-col items-center gap-4 md:mt-12">
+        <div className="mt-8 flex flex-col items-center gap-3 md:mt-10">
           {step < TOTAL_STEPS ? (
             <div className="flex w-full max-w-md items-center justify-between gap-3">
               <Button
@@ -529,7 +535,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-8 md:mt-10">
+    <section className="mt-6 md:mt-8">
       <h2 className="text-foreground text-base font-medium">{heading}</h2>
       {description && (
         <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
@@ -591,6 +597,7 @@ function Field({
   onChange,
   placeholder,
   type = "text",
+  autoFocus,
 }: {
   id: string;
   label: string;
@@ -598,9 +605,10 @@ function Field({
   onChange: (v: string) => void;
   placeholder?: string;
   type?: "text" | "email";
+  autoFocus?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       <Label htmlFor={id} className="text-foreground text-sm font-medium">
         {label}
       </Label>
@@ -612,10 +620,11 @@ function Field({
         placeholder={placeholder}
         autoComplete="off"
         spellCheck={false}
+        autoFocus={autoFocus}
         // Override the default `border-input` (a lighter neutral) so the
         // field chrome matches the dark-bordered cards in the rest of the
         // Hermes onboarding flow.
-        className="border-border bg-card/60 h-11"
+        className="border-border bg-card/60 h-10"
       />
     </div>
   );

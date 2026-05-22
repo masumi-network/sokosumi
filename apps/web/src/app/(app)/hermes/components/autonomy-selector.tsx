@@ -1,6 +1,6 @@
 "use client";
 
-import { Coins, Eye, MessageCircleQuestion, Zap } from "lucide-react";
+import { Check, Coins, Eye, MessageCircleQuestion, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ComponentType } from "react";
 
@@ -73,7 +73,7 @@ export default function AutonomySelector({
 
   return (
     <fieldset
-      className="border-border/60 divide-border/60 flex flex-col divide-y overflow-hidden rounded-xl border"
+      className={cn("flex flex-col", compact ? "gap-1.5" : "gap-2")}
       disabled={disabled}
       aria-label="Hermes autonomy level"
     >
@@ -91,12 +91,23 @@ export default function AutonomySelector({
             <label
               key={optValue}
               className={cn(
-                "group relative flex cursor-pointer items-start gap-3 transition-colors",
+                "group relative flex cursor-pointer items-start gap-3 overflow-hidden rounded-xl border transition-all",
                 compact ? "px-4 py-3" : "px-4 py-3.5",
-                isSelected ? "bg-foreground/[0.03]" : "hover:bg-muted/40",
+                isSelected
+                  ? "border-foreground bg-card shadow-sm"
+                  : "border-border/60 bg-card/40 hover:border-foreground/30 hover:bg-card",
                 disabled && "cursor-not-allowed opacity-60",
               )}
             >
+              {/* Strong left accent bar when selected — the single highest-
+                  contrast cue, paired with the filled icon tile. */}
+              {isSelected ? (
+                <span
+                  aria-hidden
+                  className="bg-foreground pointer-events-none absolute inset-y-0 left-0 w-[3px]"
+                />
+              ) : null}
+
               <input
                 type="radio"
                 name="hermes-autonomy"
@@ -114,7 +125,7 @@ export default function AutonomySelector({
                   compact ? "size-8" : "size-9",
                   isSelected
                     ? "bg-foreground text-background"
-                    : "bg-muted/60 text-muted-foreground",
+                    : "bg-muted text-muted-foreground group-hover:bg-muted/80",
                 )}
               >
                 <Icon className={compact ? "size-4" : "size-[18px]"} />
@@ -124,14 +135,17 @@ export default function AutonomySelector({
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      "text-foreground font-medium tracking-tight",
+                      "tracking-tight transition-colors",
                       compact ? "text-sm" : "text-sm",
+                      isSelected
+                        ? "text-foreground font-semibold"
+                        : "text-foreground font-medium",
                     )}
                   >
                     {t(labelKey)}
                   </span>
                   {recommended ? (
-                    <span className="bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider">
+                    <span className="bg-foreground text-background rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider">
                       {t("autonomyMediumRecommended")}
                     </span>
                   ) : null}
@@ -142,29 +156,18 @@ export default function AutonomySelector({
                     </span>
                   ) : null}
                 </div>
-                <p
-                  className={cn(
-                    "text-muted-foreground mt-1 leading-relaxed",
-                    compact ? "text-xs" : "text-xs",
-                  )}
-                >
+                <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
                   {t(bodyKey)}
                 </p>
               </div>
 
-              <span
-                aria-hidden
-                className={cn(
-                  "mt-1 inline-flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
-                  isSelected
-                    ? "border-foreground bg-foreground"
-                    : "border-border bg-background",
-                )}
-              >
-                {isSelected ? (
-                  <span className="bg-background size-1 rounded-full" />
-                ) : null}
-              </span>
+              {/* Selected-state checkmark — confirms the click landed; replaces
+                  the previous radio dot which read as a generic form control. */}
+              {isSelected ? (
+                <span aria-hidden className="text-foreground mt-1 shrink-0">
+                  <Check className="size-4" />
+                </span>
+              ) : null}
             </label>
           );
         },
