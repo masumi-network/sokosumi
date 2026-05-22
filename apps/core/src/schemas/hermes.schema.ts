@@ -103,6 +103,13 @@ export const hermesScheduleSchema = z
     lastRunAt: dateTimeSchema.nullable(),
     nextRunAt: dateTimeSchema.nullable(),
     systemManaged: z.boolean(),
+    /**
+     * False when the orchestrator omitted a real id and we synthesized one
+     * from (source, index, name) for UI display. PATCH /schedules/{id}
+     * with a synthetic id will fail server-side, so the UI must hide /
+     * disable enable-disable controls for these rows.
+     */
+    addressable: z.boolean().default(true),
   })
   .openapi("HermesSchedule");
 

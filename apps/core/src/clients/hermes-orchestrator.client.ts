@@ -148,6 +148,12 @@ export interface HermesSchedule {
    * older clients; new code should switch on `kind` instead.
    */
   systemManaged: boolean;
+  /**
+   * False when the orchestrator omitted a real id and we synthesized one
+   * for display — PATCH against the fake id would 404, so the UI must
+   * hide / disable enable-disable controls.
+   */
+  addressable: boolean;
 }
 
 /**
@@ -307,7 +313,9 @@ export async function getInstance(
     lastActivityAt: data.lastActivityAt ?? null,
     onboardedAt: data.onboardedAt ?? null,
     autonomyLevel: normalizeAutonomyLevel(data.autonomyLevel),
-    integrations: (data.integrations ?? []).map(normalizeIntegration),
+    integrations: (data.integrations ?? [])
+      .map(normalizeIntegration)
+      .filter((i): i is HermesIntegration => i !== null),
     transitioning: data.transitioning === true,
     welcomeMessage: data.welcomeMessage ?? null,
     welcomeKind: data.welcomeKind ?? null,
@@ -363,8 +371,9 @@ export async function listInstanceSchedules(
       raw.source === "hermes" ? "hermes" : "orchestrator";
     const name = raw.name ?? "unnamed";
     const kind = normalizeScheduleKind(raw.kind, source, name);
+    const hasRealId = typeof raw.id === "string" && raw.id.length > 0;
     return {
-      id: raw.id ?? `${source}-${idx}-${name}`,
+      id: hasRealId ? raw.id! : `${source}-${idx}-${name}`,
       source,
       kind,
       name,
@@ -377,6 +386,9 @@ export async function listInstanceSchedules(
       // Legacy: keep true for the workspace-sync row so older UIs that
       // haven't switched to `kind` yet still hide delete controls.
       systemManaged: kind !== "user",
+      // False when we synthesized the id above — PATCH against a fake id
+      // 404s on the orchestrator, so the UI must hide the toggle.
+      addressable: hasRealId,
     };
   });
 }
@@ -908,9 +920,40 @@ interface RawIntegrationFromOrchestrator {
   mode?: string | null;
 }
 
+const KNOWN_PROVIDERS: ReadonlySet<HermesIntegrationProvider> = new Set([
+  "gmail",
+  "google_calendar",
+  "google_sheets",
+  "google_docs",
+  "outlook",
+  "outlook_calendar",
+  "slack",
+  "teams",
+  "linear",
+  "jira",
+  "github",
+  "notion",
+  "hubspot",
+  "twitter",
+  "instagram",
+  "youtube",
+  "linkedin",
+]);
+
+function isKnownProvider(value: string): value is HermesIntegrationProvider {
+  return KNOWN_PROVIDERS.has(value as HermesIntegrationProvider);
+}
+
+/**
+ * Returns null when the orchestrator hands us a provider string our schema
+ * doesn't recognize — likely a newer toolkit we haven't shipped UI for yet.
+ * Dropping the row is preferable to failing the whole instance-fetch
+ * response with a zod parse error.
+ */
 function normalizeIntegration(
   raw: RawIntegrationFromOrchestrator,
-): HermesIntegration {
+): HermesIntegration | null {
+  if (!isKnownProvider(raw.provider)) return null;
   const status: HermesIntegrationStatus =
     raw.status === "connected"
       ? "connected"
@@ -946,7 +989,9 @@ export async function listInstanceIntegrations(
   const data = (await res.json()) as {
     integrations?: RawIntegrationFromOrchestrator[];
   };
-  return (data.integrations ?? []).map(normalizeIntegration);
+  return (data.integrations ?? [])
+    .map(normalizeIntegration)
+    .filter((i): i is HermesIntegration => i !== null);
 }
 
 export interface ConnectIntegrationInput {
@@ -996,13 +1041,23 @@ export async function connectInstanceIntegration(
   const data = (await res
     .json()
     .catch(() => ({}))) as Partial<RawIntegrationFromOrchestrator>;
-  return normalizeIntegration({
+  // input.provider is statically a known HermesIntegrationProvider; if the
+  // orchestrator echoes back an unknown provider string we fall back to
+  // the one the caller asked for rather than dropping the row (and the
+  // caller is the one whose optimistic UI needs an answer).
+  const normalized = normalizeIntegration({
     provider: data.provider ?? input.provider,
     status: data.status ?? "connecting",
     connectedAt: data.connectedAt ?? null,
     lastError: data.lastError ?? null,
     mode: data.mode ?? input.mode,
-  });
+  }) ?? {
+    provider: input.provider,
+    status: "connecting" as HermesIntegrationStatus,
+    connectedAt: null,
+    mode: input.mode,
+  };
+  return normalized;
 }
 
 /**

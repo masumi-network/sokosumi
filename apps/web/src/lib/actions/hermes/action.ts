@@ -459,6 +459,8 @@ function mapHermesSchedule(raw: {
   lastRunAt: Date | string | null;
   nextRunAt: Date | string | null;
   systemManaged: boolean;
+  /** Optional for back-compat with older core payloads — defaults to true. */
+  addressable?: boolean;
 }): HermesSchedule {
   return {
     id: raw.id,
@@ -474,6 +476,7 @@ function mapHermesSchedule(raw: {
     lastRunAt: toIsoString(raw.lastRunAt),
     nextRunAt: toIsoString(raw.nextRunAt),
     systemManaged: raw.systemManaged,
+    addressable: raw.addressable ?? true,
   };
 }
 

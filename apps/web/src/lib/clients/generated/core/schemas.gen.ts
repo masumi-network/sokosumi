@@ -2508,6 +2508,10 @@ export const HermesScheduleSchema = {
         },
         systemManaged: {
             type: 'boolean'
+        },
+        addressable: {
+            type: 'boolean',
+            default: true
         }
     },
     required: [

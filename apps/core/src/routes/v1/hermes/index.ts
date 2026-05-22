@@ -1524,20 +1524,29 @@ app.openapi(disconnectIntegrationRoute, async (c) => {
   // share one Composio OAuth, so disconnecting one must disconnect both —
   // otherwise the paired half stays "connected" on the orchestrator as a
   // ghost integration.
-  try {
-    for (const orchestratorProvider of pairedOrchestratorProviders(provider)) {
-      await disconnectInstanceIntegration(
-        userContext.userId,
-        orchestratorProvider,
-      );
-    }
-    return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
-  } catch (error) {
+  //
+  // Use Promise.allSettled (not a sequential bail) so a failure on the
+  // second delete doesn't leave the first half deleted with no attempt at
+  // the other — we always at least *try* both, minimizing the orphan
+  // window. If either fails we still surface the error to the client so
+  // it can retry; the next attempt will be a no-op on whichever side
+  // already succeeded (orchestrator returns 404 → mapped to OK in the
+  // client).
+  const results = await Promise.allSettled(
+    pairedOrchestratorProviders(provider).map((orchestratorProvider) =>
+      disconnectInstanceIntegration(userContext.userId, orchestratorProvider),
+    ),
+  );
+  const firstFailure = results.find(
+    (r): r is PromiseRejectedResult => r.status === "rejected",
+  );
+  if (firstFailure) {
     return mapOrchestratorError(
-      error,
+      firstFailure.reason,
       "Failed to disconnect Hermes integration",
     );
   }
+  return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
 });
 
 /**

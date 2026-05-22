@@ -718,6 +718,7 @@ export type HermesSchedule = {
     lastRunAt: Date | null;
     nextRunAt: Date | null;
     systemManaged: boolean;
+    addressable?: boolean;
 };
 
 export const HermesScheduleSource = { ORCHESTRATOR: 'orchestrator', HERMES: 'hermes' } as const;

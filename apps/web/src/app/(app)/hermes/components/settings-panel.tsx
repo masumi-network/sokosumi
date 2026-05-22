@@ -895,21 +895,26 @@ function ScheduleRow({
       />
 
       <div className="flex items-center justify-end pl-9">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs"
-          disabled={toggling}
-          onClick={() => void handleToggle()}
-        >
-          {toggling ? (
-            <Loader2 className="size-3 animate-spin" aria-hidden />
-          ) : null}
-          {schedule.enabled
-            ? t("schedulesDisableLabel")
-            : t("schedulesEnableLabel")}
-        </Button>
+        {/* Synthesized id rows (orchestrator omitted the id) can't be
+            PATCHed — hide the toggle entirely instead of letting the user
+            click into a silent failure. */}
+        {schedule.addressable ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            disabled={toggling}
+            onClick={() => void handleToggle()}
+          >
+            {toggling ? (
+              <Loader2 className="size-3 animate-spin" aria-hidden />
+            ) : null}
+            {schedule.enabled
+              ? t("schedulesDisableLabel")
+              : t("schedulesEnableLabel")}
+          </Button>
+        ) : null}
       </div>
     </li>
   );

@@ -138,6 +138,12 @@ export interface HermesSchedule {
   nextRunAt: string | null;
   /** Legacy mirror of (kind !== "user"). New code should switch on `kind`. */
   systemManaged: boolean;
+  /**
+   * False when the orchestrator omitted a real id and core synthesized one
+   * for display — PATCH against the fake id would 404, so the UI must hide
+   * the toggle/delete controls.
+   */
+  addressable: boolean;
 }
 
 /**
