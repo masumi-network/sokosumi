@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Inbox, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { Inbox, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   useCallback,
@@ -786,7 +786,7 @@ function SchedulesSection({
           {t("schedulesEmpty")}
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="border-border/60 divide-border/60 overflow-hidden rounded-xl border divide-y">
           {schedules.map((s) => (
             <ScheduleRow key={s.id} schedule={s} onChange={onScheduleChange} />
           ))}
@@ -832,87 +832,78 @@ function ScheduleRow({
     onChange(result.data);
   };
 
-  const chip = (() => {
+  // Kind label sits inline as muted text. No colored chip — the panel
+  // background is already busy enough with the integrations card.
+  const kindLabel = (() => {
     switch (schedule.kind) {
       case "user":
-        return {
-          label: t("schedulesKindUserBadge"),
-          className: "bg-primary/10 text-primary",
-        };
+        return t("schedulesKindUserBadge");
       case "system_prompt":
-        return {
-          label: t("schedulesKindSystemPromptBadge"),
-          className: "bg-primary/10 text-primary",
-        };
+        return t("schedulesKindSystemPromptBadge");
       case "system_sweep":
-        return {
-          label: t("schedulesKindSystemSweepBadge"),
-          className: "border-border/60 text-muted-foreground border",
-        };
+        return t("schedulesKindSystemSweepBadge");
     }
   })();
 
   return (
     <li
       className={cn(
-        "border-border/60 bg-background flex flex-col gap-2 rounded-md border px-3 py-2.5 transition-opacity",
-        !schedule.enabled && "opacity-60",
+        "flex items-start gap-3 px-4 py-3 transition-opacity",
+        !schedule.enabled && "opacity-50",
       )}
     >
-      <div className="flex items-center gap-2">
-        <div
-          aria-hidden
-          className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md"
-        >
-          <CalendarClock className="size-3.5" />
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="flex items-baseline gap-2">
+          <span className="text-foreground truncate text-sm font-medium">
+            {schedule.name}
+          </span>
+          <span className="text-muted-foreground/70 text-[10px] font-medium uppercase tracking-wider">
+            {kindLabel}
+          </span>
         </div>
-        <span className="text-foreground flex-1 truncate text-sm font-medium">
-          {schedule.name}
-        </span>
-        <span
-          className={cn(
-            "rounded-full px-1.5 py-0.5 text-xs font-medium uppercase tracking-wider",
-            chip.className,
-          )}
-        >
-          {chip.label}
-        </span>
-      </div>
-
-      {schedule.description ? (
-        <p className="text-muted-foreground pl-9 text-xs leading-relaxed">
-          {schedule.description}
-        </p>
-      ) : null}
-
-      <ScheduleMeta
-        cronExpr={schedule.cronExpr}
-        lastRunAt={schedule.lastRunAt}
-        nextRunAt={schedule.nextRunAt}
-      />
-
-      <div className="flex items-center justify-end pl-9">
-        {/* Synthesized id rows (orchestrator omitted the id) can't be
-            PATCHed — hide the toggle entirely instead of letting the user
-            click into a silent failure. */}
-        {schedule.addressable ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs"
-            disabled={toggling}
-            onClick={() => void handleToggle()}
-          >
-            {toggling ? (
-              <Loader2 className="size-3 animate-spin" aria-hidden />
-            ) : null}
-            {schedule.enabled
-              ? t("schedulesDisableLabel")
-              : t("schedulesEnableLabel")}
-          </Button>
+        <ScheduleMeta
+          cronExpr={schedule.cronExpr}
+          lastRunAt={schedule.lastRunAt}
+          nextRunAt={schedule.nextRunAt}
+        />
+        {schedule.description ? (
+          <p className="text-muted-foreground/80 pt-1 text-xs leading-relaxed">
+            {schedule.description}
+          </p>
         ) : null}
       </div>
+
+      {/* Synthesized id rows (orchestrator omitted the id) can't be PATCHed —
+          hide the toggle so the user doesn't click into a silent failure. */}
+      {schedule.addressable ? (
+        <button
+          type="button"
+          disabled={toggling}
+          onClick={() => void handleToggle()}
+          aria-label={
+            schedule.enabled
+              ? t("schedulesDisableLabel")
+              : t("schedulesEnableLabel")
+          }
+          className={cn(
+            "relative mt-0.5 inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full border transition-colors",
+            schedule.enabled
+              ? "border-foreground bg-foreground"
+              : "border-border bg-muted",
+            toggling && "opacity-60",
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn(
+              "absolute top-1/2 -translate-y-1/2 rounded-full transition-all",
+              schedule.enabled
+                ? "bg-background left-3.5 size-2.5"
+                : "bg-foreground/60 left-0.5 size-2.5",
+            )}
+          />
+        </button>
+      ) : null}
     </li>
   );
 }
@@ -938,31 +929,16 @@ function ScheduleMeta({
   const human = humanizeCron(cronExpr);
 
   return (
-    <div className="text-tertiary-foreground flex flex-col gap-1 pl-9 text-xs">
-      <div
-        className="text-foreground/90 text-sm leading-snug"
-        title={cronExpr || undefined}
-      >
-        {human ?? (
-          <code className="bg-muted/40 rounded px-1.5 py-0.5 text-xs">
-            {cronExpr || "—"}
-          </code>
-        )}
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 tabular-nums">
-        <span>
-          {t("schedulesLastRun")}:{" "}
-          {lastRunAt
-            ? formatter.relativeTime(new Date(lastRunAt))
+    <div className="text-muted-foreground text-xs">
+      <span title={cronExpr || undefined}>{human ?? cronExpr ?? "—"}</span>
+      <span className="text-muted-foreground/60 px-1.5">·</span>
+      <span className="tabular-nums">
+        {nextRunAt
+          ? `${t("schedulesNextRun")} ${formatter.relativeTime(new Date(nextRunAt))}`
+          : lastRunAt
+            ? `${t("schedulesLastRun")} ${formatter.relativeTime(new Date(lastRunAt))}`
             : t("schedulesNeverRan")}
-        </span>
-        {nextRunAt ? (
-          <span>
-            {t("schedulesNextRun")}:{" "}
-            {formatter.relativeTime(new Date(nextRunAt))}
-          </span>
-        ) : null}
-      </div>
+      </span>
     </div>
   );
 }
