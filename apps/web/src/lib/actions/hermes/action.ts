@@ -326,7 +326,10 @@ export interface HermesOnboardingProgressPayload {
   steps: Array<{
     id: string;
     label: string;
-    status: "pending" | "running" | "done" | "error";
+    /** `"skipped"` is emitted by the orchestrator when a step short-circuits
+     * (e.g. "Inbox not connected" when the user didn't connect mail). UI
+     * renders it as a muted/strikethrough row. */
+    status: "pending" | "running" | "done" | "skipped" | "error";
     errorMessage?: string | null;
   }>;
   etaSeconds: number | null;
