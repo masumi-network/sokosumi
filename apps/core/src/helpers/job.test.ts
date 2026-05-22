@@ -150,4 +150,53 @@ describe("getUserJobs", () => {
       }),
     );
   });
+
+  it("filters jobs by projectId", async () => {
+    const tx = createTransactionClient();
+    const projectId = "33333333-3333-4333-8333-333333333333";
+
+    await getUserJobs(orgJobContext, {
+      take: 20,
+      tx,
+      projectId,
+    });
+
+    expect(tx.job.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              userId: "user_123",
+              workspaceId: orgWorkspaceContext.workspaceId,
+            },
+            { projectId },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("filters jobs unassigned to a project", async () => {
+    const tx = createTransactionClient();
+
+    await getUserJobs(orgJobContext, {
+      take: 20,
+      tx,
+      projectId: null,
+    });
+
+    expect(tx.job.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              userId: "user_123",
+              workspaceId: orgWorkspaceContext.workspaceId,
+            },
+            { projectId: null },
+          ],
+        },
+      }),
+    );
+  });
 });
