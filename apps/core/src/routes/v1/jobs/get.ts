@@ -31,6 +31,16 @@ const jobsScopeQuerySchema = z
     example: "workspace",
   });
 
+const projectIdQuerySchema = z
+  .union([z.string().uuid(), z.literal("null")])
+  .optional()
+  .openapi({
+    param: { name: "projectId", in: "query" },
+    description:
+      "Filter jobs by project ID. Use the literal value 'null' to return jobs that are not assigned to a project.",
+    example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+  });
+
 const query = z
   .object({
     agentId: z
@@ -50,6 +60,7 @@ const query = z
         example: AgentJobStatus.COMPLETED,
       }),
     scope: jobsScopeQuerySchema,
+    projectId: projectIdQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
 
@@ -127,7 +138,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
-    const { agentId, scope, status } = queryParams;
+    const { agentId, projectId, scope, status } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const { jobs, count, hasMore } = await getUserJobs(
@@ -137,6 +148,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
       {
         agentId,
+        projectId: projectId === "null" ? null : projectId,
         scope,
         status,
         cursor,

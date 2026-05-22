@@ -65,11 +65,22 @@ const taskScopeQuerySchema = z
     example: "workspace",
   });
 
+const projectIdQuerySchema = z
+  .union([z.string().uuid(), z.literal("null")])
+  .optional()
+  .openapi({
+    param: { name: "projectId", in: "query" },
+    description:
+      "Filter tasks by project ID. Use the literal value 'null' to return tasks that are not assigned to a project.",
+    example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
     status: taskStatusQuerySchema,
     scope: taskScopeQuerySchema,
+    projectId: projectIdQuerySchema,
     coworkerId: z
       .string()
       .optional()
@@ -103,7 +114,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { coworkerId, q, scope, status: statuses } = queryParams;
+    const { coworkerId, projectId, q, scope, status: statuses } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -113,6 +124,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         }
       : {};
+    const projectFilter =
+      projectId === undefined
+        ? {}
+        : { projectId: projectId === "null" ? null : projectId };
 
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
@@ -130,6 +145,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             : {}),
           ...(statuses ? { status: { in: statuses } } : {}),
           ...(coworkerId ? { coworkerId } : {}),
+          ...projectFilter,
           ...searchFilter,
         };
       } else {
@@ -142,6 +158,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           coworkerId: authContext.coworkerId,
           archivedAt: null,
           ...(statuses ? { status: { in: statuses } } : {}),
+          ...projectFilter,
           ...searchFilter,
           NOT: { status: { in: [TaskStatus.DRAFT] } },
         };
@@ -154,6 +171,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...(scope === "owned" ? { userId: authContext.userId } : {}),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
+        ...projectFilter,
         ...searchFilter,
       };
     }
