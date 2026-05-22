@@ -566,6 +566,55 @@ describe("Hermes route contracts", () => {
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
   });
 
+  it("does not persist the user turn before proxy success, so a retry does not duplicate history", async () => {
+    proxyChatCompletionsMock.mockRejectedValueOnce(
+      new TypeError("fetch failed"),
+    );
+
+    const first = await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content: "Hello" }),
+    });
+
+    expect(first.status).toBe(503);
+    expect(hermesMessageCreateMock).not.toHaveBeenCalled();
+
+    proxyChatCompletionsMock.mockResolvedValue(
+      Response.json({
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: "Hello from Hermes.",
+            },
+          },
+        ],
+      }),
+    );
+
+    const second = await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content: "Hello" }),
+    });
+
+    expect(second.status).toBe(200);
+    expect(proxyChatCompletionsMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        messages: [{ role: "user", content: "Hello" }],
+      }),
+    );
+    expect(hermesMessageCreateMock).toHaveBeenCalledTimes(2);
+  });
+
   it("returns 503 when the Hermes proxy fetch fails at the network layer", async () => {
     vi.useFakeTimers();
     proxyChatCompletionsMock.mockRejectedValue(new TypeError("fetch failed"));
@@ -597,19 +646,13 @@ describe("Hermes route contracts", () => {
         expect.objectContaining({ signal: expect.any(AbortSignal) }),
       );
       expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
-      expect(hermesMessageCreateMock).toHaveBeenCalledWith({
-        data: {
-          userId: "user_123",
-          role: "user",
-          content: "Hello",
-        },
-      });
+      expect(hermesMessageCreateMock).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("does not send chat to the instance when the user turn cannot be persisted", async () => {
+  it("returns 503 when the transcript cannot be persisted after a successful proxy", async () => {
     hermesMessageCreateMock.mockRejectedValueOnce(new Error("db down"));
 
     const response = await createApp().request("/chat", {
@@ -625,13 +668,17 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
-    expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
+    expect(proxyChatCompletionsMock).toHaveBeenCalled();
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({
-        tags: { context: "hermes_chat_user_persist" },
+        tags: { context: "hermes_chat_transcript_persist" },
         extra: { userId: "user_123" },
       }),
+    );
+    expect(syncHermesInboxForUserMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 

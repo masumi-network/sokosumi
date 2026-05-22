@@ -1089,21 +1089,6 @@ app.openapi(postChatRoute, async (c) => {
   }
 
   const persistedUserContent = buildPersistedUserContent(trimmed, files);
-  try {
-    await prisma.hermesMessage.create({
-      data: {
-        userId: userContext.userId,
-        role: "user",
-        content: persistedUserContent,
-      },
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: { context: "hermes_chat_user_persist" },
-      extra: { userId: userContext.userId },
-    });
-    throw serviceUnavailable("Hermes is temporarily unavailable.");
-  }
 
   let upstream: Response;
   try {
@@ -1166,18 +1151,32 @@ app.openapi(postChatRoute, async (c) => {
   }
 
   try {
-    await prisma.hermesMessage.create({
-      data: {
-        userId: userContext.userId,
-        role: "assistant",
-        content,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.hermesMessage.create({
+        data: {
+          userId: userContext.userId,
+          role: "user",
+          content: persistedUserContent,
+        },
+      });
+      await tx.hermesMessage.create({
+        data: {
+          userId: userContext.userId,
+          role: "assistant",
+          content,
+        },
+      });
     });
   } catch (error) {
     Sentry.captureException(error, {
-      tags: { context: "hermes_chat_assistant_persist" },
+      tags: { context: "hermes_chat_transcript_persist" },
       extra: { userId: userContext.userId },
     });
+    await recoverHermesInboxAfterFailedChatRequest(
+      userContext.userId,
+      c.req.raw.signal,
+    );
+    throw serviceUnavailable("Hermes is temporarily unavailable.");
   }
 
   return ok(
