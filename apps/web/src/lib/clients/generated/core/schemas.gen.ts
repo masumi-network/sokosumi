@@ -2609,6 +2609,145 @@ export const CreateProjectRequestSchema = {
     ]
 } as const;
 
+export const ProjectStatsBatchSchema = {
+    type: 'object',
+    properties: {
+        projects: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectStatsEntry'
+            }
+        }
+    },
+    required: [
+        'projects'
+    ]
+} as const;
+
+export const ProjectStatsEntrySchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        tasks: {
+            type: 'object',
+            properties: {
+                total: {
+                    type: 'integer',
+                    minimum: 0,
+                    example: 3
+                },
+                byStatus: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ProjectTaskStatusCount'
+                    },
+                    example: []
+                }
+            },
+            required: [
+                'total',
+                'byStatus'
+            ]
+        },
+        jobs: {
+            type: 'object',
+            properties: {
+                total: {
+                    type: 'integer',
+                    minimum: 0,
+                    example: 3
+                },
+                byStatus: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ProjectJobStatusCount'
+                    },
+                    example: []
+                }
+            },
+            required: [
+                'total',
+                'byStatus'
+            ]
+        }
+    },
+    required: [
+        'projectId',
+        'tasks',
+        'jobs'
+    ]
+} as const;
+
+export const ProjectTaskStatusCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            example: 2
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED'
+            ],
+            example: 'READY'
+        }
+    },
+    required: [
+        'count',
+        'status'
+    ]
+} as const;
+
+export const ProjectJobStatusCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            example: 2
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'started',
+                'completed',
+                'processing',
+                'input_required',
+                'result_pending',
+                'failed',
+                'payment_pending',
+                'payment_failed',
+                'refund_pending',
+                'refund_resolved',
+                'dispute_pending',
+                'dispute_resolved'
+            ],
+            example: 'processing'
+        }
+    },
+    required: [
+        'count',
+        'status'
+    ]
+} as const;
+
 export const AddProjectJobRequestSchema = {
     type: 'object',
     properties: {

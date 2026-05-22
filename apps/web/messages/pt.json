@@ -1614,6 +1614,129 @@
         "ctrl": "Ctrl"
       }
     },
+    "Projects": {
+      "title": "Projects",
+      "empty": {
+        "title": "No projects yet",
+        "description": "Create a project to group related tasks and jobs.",
+        "action": "New project"
+      },
+      "list": {
+        "title": "Projects",
+        "description": "Organize work across tasks and jobs.",
+        "loadMore": "Load more",
+        "loading": "Loading projects...",
+        "stats": {
+          "tasks": "Tasks",
+          "jobs": "Jobs",
+          "total": "{count, plural, =0 {0 total} =1 {1 total} other {# total}}",
+          "taskStatusAbbreviations": {
+            "DRAFT": "Draft",
+            "READY": "Ready",
+            "INPUT_REQUIRED": "Input",
+            "AUTHENTICATION_REQUIRED": "Auth",
+            "OUT_OF_CREDITS": "Credits",
+            "CREDITS_TOPPED_UP": "Funded",
+            "RUNNING": "Running",
+            "AWAITING_EXTERNAL": "Waiting",
+            "COMPLETED": "Done",
+            "FAILED": "Failed",
+            "CANCEL_REQUESTED": "Canceling",
+            "CANCELED": "Canceled"
+          },
+          "jobStatusAbbreviations": {
+            "started": "Started",
+            "completed": "Done",
+            "processing": "Working",
+            "input_required": "Input",
+            "result_pending": "Result",
+            "failed": "Failed",
+            "payment_pending": "Paying",
+            "payment_failed": "Payment failed",
+            "refund_pending": "Refunding",
+            "refund_resolved": "Refunded",
+            "dispute_pending": "Dispute",
+            "dispute_resolved": "Resolved"
+          }
+        }
+      },
+      "NewProject": {
+        "title": "New Project",
+        "details": "Details",
+        "detailsDescription": "Name the project and add optional context.",
+        "name": "Project name",
+        "namePlaceholder": "Enter a short title",
+        "description": "Description",
+        "descriptionPlaceholder": "Add project context...",
+        "createProject": "Create Project",
+        "cancel": "Cancel"
+      },
+      "EditProject": {
+        "title": "Edit Project",
+        "details": "Details",
+        "detailsDescription": "Update the project details.",
+        "name": "Project name",
+        "namePlaceholder": "Enter a short title",
+        "description": "Description",
+        "descriptionPlaceholder": "Update project context...",
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "Detail": {
+        "back": "Back to projects",
+        "header": {
+          "updated": "Updated",
+          "created": "Created"
+        },
+        "description": "Description",
+        "emptyDescription": "No description yet.",
+        "jobs": {
+          "title": "Jobs",
+          "empty": "No jobs linked to this project yet.",
+          "add": "Add job",
+          "remove": "Remove job",
+          "pickerTitle": "Add job",
+          "pickerDescription": "Choose an unassigned job to link to this project.",
+          "pickerSearchPlaceholder": "Search jobs...",
+          "pickerEmpty": "No unassigned jobs found.",
+          "pickerLoading": "Loading jobs..."
+        },
+        "tasks": {
+          "title": "Tasks",
+          "empty": "No tasks linked to this project yet.",
+          "add": "Add task",
+          "remove": "Remove task",
+          "pickerTitle": "Add task",
+          "pickerDescription": "Choose an unassigned task to link to this project.",
+          "pickerSearchPlaceholder": "Search tasks...",
+          "pickerEmpty": "No unassigned tasks found.",
+          "pickerLoading": "Loading tasks..."
+        },
+        "actions": {
+          "edit": "Edit",
+          "delete": "Delete",
+          "remove": "Remove",
+          "confirmRemoveJob": "Remove this job from the project?",
+          "confirmRemoveTask": "Remove this task from the project?"
+        },
+        "deleteDialog": {
+          "title": "Delete project",
+          "description": "This will delete the project. Linked tasks and jobs will remain available outside the project.",
+          "confirm": "Delete",
+          "cancel": "Cancel"
+        },
+        "errors": {
+          "create": "Failed to create project",
+          "update": "Failed to update project",
+          "delete": "Failed to delete project",
+          "addJob": "Failed to add job",
+          "removeJob": "Failed to remove job",
+          "addTask": "Failed to add task",
+          "removeTask": "Failed to remove task",
+          "loadMore": "Failed to load more projects"
+        }
+      }
+    },
     "Hermes": {
       "Metadata": {
         "title": "Hermes",
@@ -1718,6 +1841,7 @@
           "myFeed": "O meu feed",
           "filesAndOutputs": "Ficheiros e outputs",
           "taskManager": "Tarefas",
+          "projects": "Projects",
           "scheduledAgents": "Agendamentos",
           "hermes": "Hermes"
         },
