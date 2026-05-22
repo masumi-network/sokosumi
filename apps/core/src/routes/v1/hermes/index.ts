@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { randomUUID } from "node:crypto";
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import {
@@ -114,6 +115,8 @@ const MAX_INLINED_TEXT_UTF16_CODE_UNITS = 200 * 1024;
 /** Max persisted turns sent to the Hermes proxy per request (newest first in DB). */
 const MAX_CHAT_CONTEXT_MESSAGES = 100;
 const CHAT_RECOVERY_RETRY_DELAYS_MS = [2_000, 5_000, 10_000];
+/** Inline transcript retries before returning 200 after a successful proxy. */
+const CHAT_TRANSCRIPT_INLINE_RETRY_DELAYS_MS = [0, 250, 750];
 
 interface DecodedFile {
   name: string;
@@ -552,6 +555,77 @@ async function persistHermesWelcomeMessage(args: {
   });
 
   persistedWelcomeIds.add(id);
+}
+
+interface HermesChatTranscriptTurn {
+  userId: string;
+  userMessageId: string;
+  assistantMessageId: string;
+  userContent: string;
+  assistantContent: string;
+}
+
+async function persistHermesChatTranscript(
+  turn: HermesChatTranscriptTurn,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.hermesMessage.upsert({
+      where: { id: turn.userMessageId },
+      create: {
+        id: turn.userMessageId,
+        userId: turn.userId,
+        role: "user",
+        content: turn.userContent,
+      },
+      update: {},
+    });
+    await tx.hermesMessage.upsert({
+      where: { id: turn.assistantMessageId },
+      create: {
+        id: turn.assistantMessageId,
+        userId: turn.userId,
+        role: "assistant",
+        content: turn.assistantContent,
+      },
+      update: {},
+    });
+  });
+}
+
+async function persistHermesChatTranscriptWithRetries(
+  turn: HermesChatTranscriptTurn,
+  delaysMs: readonly number[],
+  options: { signal?: AbortSignal } = {},
+): Promise<boolean> {
+  for (const delayMs of delaysMs) {
+    if (options.signal?.aborted) return false;
+    if (delayMs > 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, delayMs);
+      });
+      if (options.signal?.aborted) return false;
+    }
+
+    try {
+      await persistHermesChatTranscript(turn);
+      return true;
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: { context: "hermes_chat_transcript_persist" },
+        extra: { userId: turn.userId },
+      });
+    }
+  }
+
+  return false;
+}
+
+function scheduleHermesChatTranscriptRecovery(
+  turn: HermesChatTranscriptTurn,
+): void {
+  waitUntil(
+    persistHermesChatTranscriptWithRetries(turn, CHAT_RECOVERY_RETRY_DELAYS_MS),
+  );
 }
 
 async function recoverHermesInboxAfterChatFailure(
@@ -1150,35 +1224,24 @@ app.openapi(postChatRoute, async (c) => {
     throw serviceUnavailable("Hermes returned an empty response.");
   }
 
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.hermesMessage.create({
-        data: {
-          userId: userContext.userId,
-          role: "user",
-          content: persistedUserContent,
-        },
-      });
-      await tx.hermesMessage.create({
-        data: {
-          userId: userContext.userId,
-          role: "assistant",
-          content,
-        },
-      });
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: { context: "hermes_chat_transcript_persist" },
-      extra: { userId: userContext.userId },
-    });
+  const transcriptTurn: HermesChatTranscriptTurn = {
+    userId: userContext.userId,
+    userMessageId: randomUUID(),
+    assistantMessageId: randomUUID(),
+    userContent: persistedUserContent,
+    assistantContent: content,
+  };
+
+  const transcriptPersisted = await persistHermesChatTranscriptWithRetries(
+    transcriptTurn,
+    CHAT_TRANSCRIPT_INLINE_RETRY_DELAYS_MS,
+    { signal: c.req.raw.signal },
+  );
+  if (!transcriptPersisted) {
     // Hermes already executed this turn. A 503 would invite client retries
-    // (duplicate upstream work) while the local transcript stays empty unless
-    // inbox recovery succeeds. Backfill via inbox sync, then return success.
-    await recoverHermesInboxAfterFailedChatRequest(
-      userContext.userId,
-      c.req.raw.signal,
-    );
+    // (duplicate upstream work). Inbox sync only ingests orchestrator outbox
+    // traffic, not synchronous /chat turns — retry the local transcript directly.
+    scheduleHermesChatTranscriptRecovery(transcriptTurn);
   }
 
   return ok(

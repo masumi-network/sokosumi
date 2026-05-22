@@ -195,11 +195,15 @@ describe("Hermes route contracts", () => {
       if (typeof arg === "function") {
         return await (
           arg as (tx: {
-            hermesMessage: { create: typeof hermesMessageCreateMock };
+            hermesMessage: {
+              create: typeof hermesMessageCreateMock;
+              upsert: typeof hermesMessageUpsertMock;
+            };
           }) => Promise<unknown>
         )({
           hermesMessage: {
             create: hermesMessageCreateMock,
+            upsert: hermesMessageUpsertMock,
           },
         });
       }
@@ -266,7 +270,7 @@ describe("Hermes route contracts", () => {
     expect(body).toHaveProperty("meta.timestamp");
     expect(body).toHaveProperty("meta.requestId", "req_hermes_route_test");
     expect(body).not.toHaveProperty("message");
-    expect(hermesMessageCreateMock).toHaveBeenCalledTimes(2);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(2);
   });
 
   it("loads a bounded recent window of persisted history for the proxy", async () => {
@@ -612,7 +616,7 @@ describe("Hermes route contracts", () => {
         messages: [{ role: "user", content: "Hello" }],
       }),
     );
-    expect(hermesMessageCreateMock).toHaveBeenCalledTimes(2);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(2);
   });
 
   it("returns 503 when the Hermes proxy fetch fails at the network layer", async () => {
@@ -653,33 +657,66 @@ describe("Hermes route contracts", () => {
   });
 
   it("returns 200 with assistant content when the transcript cannot be persisted after a successful proxy", async () => {
-    hermesMessageCreateMock.mockRejectedValueOnce(new Error("db down"));
+    vi.useFakeTimers();
+    hermesMessageUpsertMock.mockRejectedValue(new Error("db down"));
 
-    const response = await createApp().request("/chat", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer test_api_key",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ content: "Hello" }),
-    });
+    try {
+      const responsePromise = createApp().request("/chat", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "Hello" }),
+      });
 
-    const body = await parseJson(response);
+      await vi.runAllTimersAsync();
+      const response = await responsePromise;
+      const body = await parseJson(response);
 
-    expect(response.status).toBe(200);
-    expect(body).toHaveProperty("data.message.content", "Hello from Hermes.");
-    expect(proxyChatCompletionsMock).toHaveBeenCalled();
-    expect(captureExceptionMock).toHaveBeenCalledWith(
-      expect.any(Error),
-      expect.objectContaining({
-        tags: { context: "hermes_chat_transcript_persist" },
-        extra: { userId: "user_123" },
-      }),
-    );
-    expect(syncHermesInboxForUserMock).toHaveBeenCalledWith(
-      "user_123",
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
-    );
+      expect(response.status).toBe(200);
+      expect(body).toHaveProperty("data.message.content", "Hello from Hermes.");
+      expect(proxyChatCompletionsMock).toHaveBeenCalled();
+      expect(captureExceptionMock).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: { context: "hermes_chat_transcript_persist" },
+          extra: { userId: "user_123" },
+        }),
+      );
+      expect(syncHermesInboxForUserMock).not.toHaveBeenCalled();
+      expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("persists the chat transcript on inline retry after a transient DB failure", async () => {
+    vi.useFakeTimers();
+    hermesMessageUpsertMock
+      .mockRejectedValueOnce(new Error("db down"))
+      .mockResolvedValue(undefined);
+
+    try {
+      const responsePromise = createApp().request("/chat", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "Hello" }),
+      });
+
+      await vi.runAllTimersAsync();
+      const response = await responsePromise;
+
+      expect(response.status).toBe(200);
+      expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(3);
+      expect(waitUntilMock).not.toHaveBeenCalled();
+      expect(syncHermesInboxForUserMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each([
