@@ -16,6 +16,8 @@ const POPUP_FEATURES = "popup=yes,width=560,height=720,noopener=no";
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 const POPUP_POLL_INTERVAL_MS = 500;
 const MESSAGE_TYPE = "sokosumi:composio:result" as const;
+const ACK_TYPE = "sokosumi:composio:ack" as const;
+const LOG_PREFIX = "[composio-oauth]";
 
 interface CallbackMessage {
   type: typeof MESSAGE_TYPE;
@@ -123,6 +125,13 @@ export function useComposioOAuth() {
       }
       popup.focus();
 
+      // eslint-disable-next-line no-console
+      console.log(LOG_PREFIX, "popup opened, waiting for callback", {
+        provider,
+        mode,
+        connectionId,
+      });
+
       // Race: callback message wins, popup close loses, timeout loses last.
       const result = await new Promise<
         | {
@@ -135,8 +144,33 @@ export function useComposioOAuth() {
         | { kind: "timeout" }
       >((resolve) => {
         const onMessage = (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) return;
+          if (event.origin !== window.location.origin) {
+            // eslint-disable-next-line no-console
+            console.warn(LOG_PREFIX, "rejected message from origin", {
+              origin: event.origin,
+              expected: window.location.origin,
+            });
+            return;
+          }
           if (!isCallbackMessage(event.data)) return;
+          // eslint-disable-next-line no-console
+          console.log(LOG_PREFIX, "accepted callback message", {
+            status: event.data.status,
+            hasConnectionId: event.data.connectionId !== null,
+            hasError: event.data.errorMessage !== null,
+          });
+          // Ack the popup so it can close immediately instead of waiting
+          // out its 1.5s fallback timer.
+          if (event.source && "postMessage" in event.source) {
+            try {
+              (event.source as Window).postMessage(
+                { type: ACK_TYPE },
+                window.location.origin,
+              );
+            } catch {
+              /* popup may already be closing — best-effort */
+            }
+          }
           resolve({
             kind: "message",
             connectionId: event.data.connectionId,
@@ -165,7 +199,11 @@ export function useComposioOAuth() {
         }
       }
 
-      if (result.kind === "timeout") return { ok: false, reason: "timeout" };
+      if (result.kind === "timeout") {
+        // eslint-disable-next-line no-console
+        console.warn(LOG_PREFIX, "popup timeout");
+        return { ok: false, reason: "timeout" };
+      }
 
       // Popup-closed is not necessarily failure: some browsers race the
       // close event ahead of the callback's postMessage, and Composio may
@@ -173,16 +211,26 @@ export function useComposioOAuth() {
       // the server-side poll will tell us whether the connection is real
       // (returns "popup_closed" only if finalize also rejects).
       if (result.kind === "closed") {
+        // eslint-disable-next-line no-console
+        console.log(LOG_PREFIX, "popup closed without message, attempting recovery finalize");
         const recovery = await finalizeHermesIntegrationAction({
           provider,
           connectionId,
           mode,
         });
         if (recovery.ok) return { ok: true, integration: recovery.data };
+        // eslint-disable-next-line no-console
+        console.warn(LOG_PREFIX, "recovery finalize failed", {
+          message: recovery.error.message,
+        });
         return { ok: false, reason: "popup_closed" };
       }
 
       if (result.status === "error") {
+        // eslint-disable-next-line no-console
+        console.warn(LOG_PREFIX, "callback reported error", {
+          errorMessage: result.errorMessage,
+        });
         return {
           ok: false,
           reason: "error",
@@ -194,12 +242,22 @@ export function useComposioOAuth() {
       // initiate gave us (Composio sometimes omits it on the redirect).
       const finalConnectionId = result.connectionId ?? connectionId;
 
+      // eslint-disable-next-line no-console
+      console.log(LOG_PREFIX, "calling finalize", {
+        provider,
+        mode,
+        connectionId: finalConnectionId,
+      });
       const finalize = await finalizeHermesIntegrationAction({
         provider,
         connectionId: finalConnectionId,
         mode,
       });
       if (!finalize.ok) {
+        // eslint-disable-next-line no-console
+        console.warn(LOG_PREFIX, "finalize failed", {
+          message: finalize.error.message,
+        });
         return {
           ok: false,
           reason: "error",
@@ -207,6 +265,10 @@ export function useComposioOAuth() {
         };
       }
 
+      // eslint-disable-next-line no-console
+      console.log(LOG_PREFIX, "finalize succeeded", {
+        provider: finalize.data.provider,
+      });
       return { ok: true, integration: finalize.data };
     },
     [cleanup],

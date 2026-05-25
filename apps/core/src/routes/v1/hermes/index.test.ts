@@ -99,6 +99,12 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: {
       findMany: coworkerFindManyMock,
     },
+    hermesPendingConnection: {
+      upsert: vi.fn().mockResolvedValue(undefined),
+      findUnique: vi.fn().mockResolvedValue(null),
+      delete: vi.fn().mockResolvedValue(undefined),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
     member: {
       findFirst: memberFindFirstMock,
     },

@@ -78,8 +78,9 @@ model User {
   noticeAcknowledgments NoticeAcknowledgment[]
 
   // Hermes (per-user private agent — single conversation)
-  hermesMessages HermesMessage[]
-  hermesInstance HermesInstance?
+  hermesMessages           HermesMessage[]
+  hermesInstance           HermesInstance?
+  hermesPendingConnections HermesPendingConnection[]
 
   @@unique([email])
   @@unique([stripeCustomerId])
@@ -1432,4 +1433,32 @@ model HermesInstance {
   /// Lets the cron query "all instances due for polling, sorted by last poll".
   @@index([lastPolledAt])
   @@map("hermesInstance")
+}
+
+/// Short-lived claim record written by the `initiate` integration handler
+/// and consumed by `finalize`. Keyed by Composio's connection_id (the only
+/// thing the popup callback knows). Lives in Postgres rather than process
+/// memory because Vercel runs each handler on a different Lambda — an
+/// in-memory map will miss across cold starts and the user sees
+/// "unknown or expired connection — restart the integration flow."
+///
+/// Rows are deleted on a successful match; expired rows are pruned
+/// opportunistically by `rememberPendingConnection`.
+model HermesPendingConnection {
+  /// Composio's connection_id, returned by `initiateConnection`.
+  connectionId String   @id
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Hermes integration provider slug (gmail, linear, slack, …). Stored as a
+  /// string instead of an enum so a new provider doesn't need a DB migration.
+  provider     String
+  /// Access mode the user picked at the interstitial (read | write). Pinned
+  /// here so a client can't initiate `read` and then call `finalize` with
+  /// `mode: "write"` to bypass the read-only promise.
+  mode         String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("hermesPendingConnection")
 }

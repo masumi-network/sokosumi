@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { getEnv } from "@/config/env";
 import { dateTimeSchema } from "@/helpers/datetime";
 
@@ -1124,6 +1125,20 @@ export async function connectInstanceIntegration(
     body.mcpToken = input.mcpToken;
   }
 
+  Sentry.addBreadcrumb({
+    category: "hermes_orchestrator",
+    message: "POST /integrations",
+    level: "info",
+    data: {
+      userId,
+      provider: input.provider,
+      mode: input.mode,
+      // Redact mcpToken; log only whether one was sent.
+      mcpUrlLength: input.mcpUrl.length,
+      hasMcpToken: Boolean(input.mcpToken && input.mcpToken.length > 0),
+    },
+  });
+
   const res = await orchFetch(
     `/v1/instances/${encodeURIComponent(userId)}/integrations`,
     {
@@ -1133,7 +1148,17 @@ export async function connectInstanceIntegration(
   );
 
   if (!res.ok && res.status !== 202 && res.status !== 200) {
-    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
+    const errBody = await readErrorBody(res);
+    Sentry.captureMessage("hermes_orchestrator_integrations_failed", {
+      level: "error",
+      tags: {
+        context: "hermes_orchestrator",
+        provider: input.provider,
+        http_status: String(res.status),
+      },
+      extra: { userId, body: errBody },
+    });
+    throw new HermesOrchestratorError(res.status, errBody);
   }
 
   const data = (await res

@@ -1851,7 +1851,7 @@ app.openapi(initiateIntegrationRoute, async (c) => {
       userId: userContext.userId,
       callbackUrl,
     });
-    rememberPendingConnection(connectionId, {
+    await rememberPendingConnection(connectionId, {
       userId: userContext.userId,
       provider,
       mode,
@@ -1869,26 +1869,28 @@ app.openapi(initiateIntegrationRoute, async (c) => {
   }
 });
 
-const FINALIZE_POLL_INTERVAL_MS = 750;
-const FINALIZE_POLL_MAX_ATTEMPTS = 8;
+// Composio's INITIALIZING window after OAuth completion is typically
+// 1-3s but spikes higher under load. The previous 8 × 750ms ≈ 6s budget
+// was tight enough to time-out on busy days; bump to 40 × 1.5s ≈ 60s
+// per Composio's own recommendation and give long-tail OAuths a chance.
+const FINALIZE_POLL_INTERVAL_MS = 1500;
+const FINALIZE_POLL_MAX_ATTEMPTS = 40;
 
 /**
- * Short-lived map of `connectionId -> { userId, provider, mode, expiresAt }`
- * populated by initiate and consumed by finalize. The full triple is captured
- * so finalize can reject any client-supplied mismatch:
+ * Pending-connection claim written by `initiate` and consumed by
+ * `finalize`. Persisted in Postgres rather than in-process memory — on
+ * Vercel, initiate and finalize run on different Lambda instances and an
+ * in-memory map misses on every cold-pair, surfacing as the spurious
+ * "Unknown or expired connection — restart the integration flow" toast.
+ *
+ * The triple is captured so finalize can reject mismatches:
  *
  *   - `userId` — guards against another user finalizing this connection
  *   - `provider` / `mode` — guards against a client that initiated `read`
  *     OAuth from passing `mode: "write"` to finalize and bypassing the
  *     interstitial's read-only promise (Bugbot HIGH).
  *
- * IN-MEMORY LIMITATION: this map is per-process. If core ever runs as
- * multiple replicas behind a load balancer, initiate and finalize can land
- * on different instances and finalize will (incorrectly) report "unknown
- * connection". Today we run a single core instance; if that changes this
- * needs to move to Redis or a small DB table keyed by connectionId.
- *
- * Entries are NOT deleted on a mismatched / failed finalize — only on a
+ * Rows are NOT deleted on a mismatched / failed finalize — only on a
  * successful match — so:
  *   1. A guessed/leaked `connectionId` from another user can't DoS the
  *      legitimate user by erasing their pending entry on the mismatch
@@ -1898,29 +1900,42 @@ const FINALIZE_POLL_MAX_ATTEMPTS = 8;
  *      (Bugbot medium).
  */
 const PENDING_CONNECTION_TTL_MS = 15 * 60_000;
-interface PendingConnection {
-  userId: string;
-  provider: HermesIntegrationProvider;
-  mode: HermesIntegrationMode;
-  expiresAt: number;
-}
-const pendingConnections = new Map<string, PendingConnection>();
 
-function rememberPendingConnection(
+async function rememberPendingConnection(
   connectionId: string,
-  entry: Omit<PendingConnection, "expiresAt">,
-): void {
-  pendingConnections.set(connectionId, {
-    ...entry,
-    expiresAt: Date.now() + PENDING_CONNECTION_TTL_MS,
+  entry: {
+    userId: string;
+    provider: HermesIntegrationProvider;
+    mode: HermesIntegrationMode;
+  },
+): Promise<void> {
+  const expiresAt = new Date(Date.now() + PENDING_CONNECTION_TTL_MS);
+  // Upsert by connectionId: if Composio ever reuses one in a retry burst
+  // we overwrite rather than throwing on the PK collision.
+  await prisma.hermesPendingConnection.upsert({
+    where: { connectionId },
+    create: {
+      connectionId,
+      userId: entry.userId,
+      provider: entry.provider,
+      mode: entry.mode,
+      expiresAt,
+    },
+    update: {
+      userId: entry.userId,
+      provider: entry.provider,
+      mode: entry.mode,
+      expiresAt,
+    },
   });
-  // Opportunistic GC on write so the map can't grow unbounded.
-  if (pendingConnections.size > 256) {
-    const now = Date.now();
-    for (const [key, value] of pendingConnections) {
-      if (value.expiresAt < now) pendingConnections.delete(key);
-    }
-  }
+  // Best-effort opportunistic GC. Bounded by query, not by table scan.
+  await prisma.hermesPendingConnection
+    .deleteMany({ where: { expiresAt: { lt: new Date() } } })
+    .catch((error) => {
+      Sentry.captureException(error, {
+        tags: { context: "hermes_pending_connection_gc" },
+      });
+    });
 }
 
 type VerifyResult =
@@ -1930,25 +1945,28 @@ type VerifyResult =
       reason: "unknown" | "expired" | "user_mismatch" | "claim_mismatch";
     };
 
-/**
- * Check finalize's `{userId, provider, mode}` triple against the entry the
- * initiate stored under `connectionId`. Does NOT delete on failure so
- * legitimate retries / cross-user probes can't invalidate the real pending
- * entry. Caller deletes via {@link clearPendingConnection} only after a
- * fully successful registration.
- */
-function verifyPendingConnection(
+async function verifyPendingConnection(
   connectionId: string,
   claim: {
     userId: string;
     provider: HermesIntegrationProvider;
     mode: HermesIntegrationMode;
   },
-): VerifyResult {
-  const entry = pendingConnections.get(connectionId);
+): Promise<VerifyResult> {
+  const entry = await prisma.hermesPendingConnection.findUnique({
+    where: { connectionId },
+    select: {
+      userId: true,
+      provider: true,
+      mode: true,
+      expiresAt: true,
+    },
+  });
   if (!entry) return { ok: false, reason: "unknown" };
-  if (entry.expiresAt < Date.now()) {
-    pendingConnections.delete(connectionId);
+  if (entry.expiresAt.getTime() < Date.now()) {
+    await prisma.hermesPendingConnection
+      .delete({ where: { connectionId } })
+      .catch(() => {});
     return { ok: false, reason: "expired" };
   }
   if (entry.userId !== claim.userId)
@@ -1959,8 +1977,12 @@ function verifyPendingConnection(
   return { ok: true };
 }
 
-function clearPendingConnection(connectionId: string): void {
-  pendingConnections.delete(connectionId);
+async function clearPendingConnection(connectionId: string): Promise<void> {
+  await prisma.hermesPendingConnection
+    .delete({ where: { connectionId } })
+    .catch(() => {
+      // Already gone (race with another finalize, GC, etc.) — fine.
+    });
 }
 
 app.openapi(finalizeIntegrationRoute, async (c) => {
@@ -1968,17 +1990,38 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   const { provider, connectionId, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
 
+  // Breadcrumb every finalize attempt — paired with the orchestrator-side
+  // log added in hermes-as-service commit e76ea0c, we can now trace any
+  // "unknown connection" report end-to-end.
+  Sentry.addBreadcrumb({
+    category: "composio_finalize",
+    message: "finalize received",
+    level: "info",
+    data: { userId: userContext.userId, provider, mode, connectionId },
+  });
+
   // Verify the connection matches what initiate captured for this user. We
   // explicitly check provider + mode (not just userId) so a client cannot
   // initiate "read" OAuth and then call finalize with mode: "write" to get
   // the write-scoped MCP — the interstitial showed the user a read-only
   // confirmation, finalize must honour that.
-  const verify = verifyPendingConnection(connectionId, {
+  const verify = await verifyPendingConnection(connectionId, {
     userId: userContext.userId,
     provider,
     mode,
   });
   if (!verify.ok) {
+    // Distinct Sentry events per reason — `unknown` was the symptom for the
+    // Vercel multi-Lambda bug; if it spikes again after the Postgres fix
+    // we want to know immediately rather than discover it in user reports.
+    Sentry.captureMessage(
+      `composio_finalize_verify_failed:${verify.reason}`,
+      {
+        level: "warning",
+        tags: { context: "composio_finalize", verify_reason: verify.reason },
+        extra: { userId: userContext.userId, provider, mode, connectionId },
+      },
+    );
     if (verify.reason === "claim_mismatch") {
       // Distinct message so callers (and logs) can tell the upgrade attempt
       // apart from a stale connectionId.
@@ -1992,11 +2035,13 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   }
 
   // Poll Composio until the connection is ACTIVE. The callback page typically
-  // fires immediately after the OAuth redirect lands, so a handful of short
-  // polls is enough.
+  // fires immediately after the OAuth redirect lands; under load Composio
+  // may sit in INITIALIZING for several seconds before flipping.
   let lastStatus: string = "INITIATED";
+  let pollAttempts = 0;
   try {
     for (let attempt = 0; attempt < FINALIZE_POLL_MAX_ATTEMPTS; attempt++) {
+      pollAttempts = attempt + 1;
       const { status } = await getConnection(connectionId);
       lastStatus = status;
       if (status === "ACTIVE") break;
@@ -2024,10 +2069,28 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   }
 
   if (lastStatus !== "ACTIVE") {
+    Sentry.captureMessage("composio_finalize_not_active", {
+      level: "warning",
+      tags: { context: "composio_finalize", last_status: lastStatus },
+      extra: {
+        userId: userContext.userId,
+        provider,
+        mode,
+        connectionId,
+        pollAttempts,
+        budgetMs: FINALIZE_POLL_MAX_ATTEMPTS * FINALIZE_POLL_INTERVAL_MS,
+      },
+    });
     throw badRequest(
       `Composio connection not active yet (status: ${lastStatus.toLowerCase()})`,
     );
   }
+  Sentry.addBreadcrumb({
+    category: "composio_finalize",
+    message: "composio status active",
+    level: "info",
+    data: { pollAttempts, connectionId },
+  });
 
   let mcpUrl: string;
   try {
@@ -2083,7 +2146,7 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   // Registration succeeded — release the pending entry. (Earlier failures
   // intentionally leave it in place so the client can retry without going
   // through the full OAuth round-trip again.)
-  clearPendingConnection(connectionId);
+  await clearPendingConnection(connectionId);
 
   return ok(
     c,
