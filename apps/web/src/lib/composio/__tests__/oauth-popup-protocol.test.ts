@@ -1,0 +1,63 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  buildComposioCallbackInlineScript,
+  COMPOSIO_OAUTH_ACK_TYPE,
+  COMPOSIO_OAUTH_BROADCAST_CHANNEL,
+  COMPOSIO_OAUTH_MESSAGE_TYPE,
+  isComposioOAuthAckPayload,
+  isComposioOAuthCallbackPayload,
+  parseComposioCallbackSearchParams,
+  readPopupClosed,
+} from "@/lib/composio/oauth-popup-protocol";
+
+describe("oauth-popup-protocol", () => {
+  it("recognizes callback payloads", () => {
+    expect(
+      isComposioOAuthCallbackPayload({
+        type: COMPOSIO_OAUTH_MESSAGE_TYPE,
+        status: "success",
+        connectionId: "conn_1",
+        errorMessage: null,
+      }),
+    ).toBe(true);
+    expect(isComposioOAuthCallbackPayload({ type: "other" })).toBe(false);
+  });
+
+  it("recognizes ack payloads", () => {
+    expect(isComposioOAuthAckPayload({ type: COMPOSIO_OAUTH_ACK_TYPE })).toBe(
+      true,
+    );
+  });
+
+  it("reads popup.closed when the browser allows it", () => {
+    const popup = { closed: false } as Window;
+    expect(readPopupClosed(popup)).toBe(false);
+  });
+
+  it("parses Composio callback query params", () => {
+    expect(
+      parseComposioCallbackSearchParams(
+        "?status=success&connected_account_id=ca_123",
+      ),
+    ).toEqual({
+      status: "success",
+      connectionId: "ca_123",
+      errorMessage: null,
+    });
+    expect(
+      parseComposioCallbackSearchParams("?id=ca_456&error=access_denied"),
+    ).toEqual({
+      status: "error",
+      connectionId: "ca_456",
+      errorMessage: "access_denied",
+    });
+  });
+
+  it("builds a self-contained inline callback script", () => {
+    const script = buildComposioCallbackInlineScript();
+    expect(script).toContain(COMPOSIO_OAUTH_BROADCAST_CHANNEL);
+    expect(script).toContain("BroadcastChannel");
+    expect(script).toContain("window.close");
+  });
+});
