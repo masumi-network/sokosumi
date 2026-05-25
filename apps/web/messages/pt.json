@@ -2053,9 +2053,11 @@
           "5": "Todas as manhãs o Hermes enviará um resumo do que precisa da sua atenção."
         },
         "previewSteps": {
-          "memory": "A inicializar a sua memória privada",
+          "save_details": "A guardar os seus detalhes",
+          "connect_integrations": "A ligar as suas integrações",
           "inbox_scan": "A ler a sua caixa de entrada",
           "web_research": "A verificar o seu perfil público",
+          "sokosumi_sync": "A ler o seu espaço de trabalho Sokosumi",
           "intro_draft": "A redigir a sua introdução"
         }
       },

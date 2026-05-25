@@ -2022,9 +2022,11 @@
           "5": "Jeden Morgen schickt Hermes einen Brief, was deine Aufmerksamkeit braucht."
         },
         "previewSteps": {
-          "memory": "Dein privates Gedächtnis wird aufgebaut",
+          "save_details": "Deine Details werden gespeichert",
+          "connect_integrations": "Integrationen werden verbunden",
           "inbox_scan": "Posteingang wird gelesen",
           "web_research": "Öffentliches Profil wird geprüft",
+          "sokosumi_sync": "Sokosumi-Workspace wird gelesen",
           "intro_draft": "Intro wird entworfen"
         }
       },

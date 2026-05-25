@@ -2053,9 +2053,11 @@
           "5": "每天早上 Hermes 会发送需要你关注事项的简报。"
         },
         "previewSteps": {
-          "memory": "正在初始化你的私有记忆",
+          "save_details": "正在保存你的详细信息",
+          "connect_integrations": "正在连接你的集成",
           "inbox_scan": "正在读取你的收件箱",
           "web_research": "正在查看你的公开资料",
+          "sokosumi_sync": "正在读取你的 Sokosumi 工作区",
           "intro_draft": "正在起草你的介绍"
         }
       },

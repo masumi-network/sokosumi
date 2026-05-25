@@ -2053,9 +2053,11 @@
           "5": "Chaque matin Hermes enverra un brief de ce qui requiert votre attention."
         },
         "previewSteps": {
-          "memory": "Initialisation de votre mémoire privée",
+          "save_details": "Enregistrement de vos informations",
+          "connect_integrations": "Connexion à vos intégrations",
           "inbox_scan": "Lecture de votre boîte de réception",
           "web_research": "Vérification de votre profil public",
+          "sokosumi_sync": "Lecture de votre espace de travail Sokosumi",
           "intro_draft": "Rédaction de votre introduction"
         }
       },

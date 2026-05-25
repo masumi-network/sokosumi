@@ -2,7 +2,7 @@
  * Sync App.Hermes translations across locale catalogs:
  * 1. Start from en.json structure (source of truth)
  * 2. Overlay legacy translations from main branch
- * 3. Apply flat overrides from messages/hermes-translations/{locale}.json
+ * 3. Apply nested overrides from messages/hermes-translations/{locale}.json
  * 4. Remove deprecated Provisioning.step1–step4 keys
  */
 import { execSync } from "node:child_process";
@@ -54,20 +54,6 @@ function stripProvisioningSteps(provisioning) {
   return rest;
 }
 
-function unflatten(flat) {
-  const root = {};
-  for (const [dotPath, value] of Object.entries(flat)) {
-    const parts = dotPath.split(".");
-    let current = root;
-    for (let i = 0; i < parts.length - 1; i++) {
-      current[parts[i]] ??= {};
-      current = current[parts[i]];
-    }
-    current[parts[parts.length - 1]] = value;
-  }
-  return root;
-}
-
 function flatten(obj, prefix = "") {
   const out = {};
   for (const [key, value] of Object.entries(obj)) {
@@ -81,8 +67,13 @@ function flatten(obj, prefix = "") {
   return out;
 }
 
-function applyFlatOverrides(tree, flatOverrides) {
-  const merged = deepMerge(tree, unflatten(flatOverrides));
+function readHermesOverrides(overridePath) {
+  const overrides = JSON.parse(fs.readFileSync(overridePath, "utf8"));
+  return overrides.App?.Hermes ?? overrides;
+}
+
+function applyHermesOverrides(tree, overrides) {
+  const merged = deepMerge(tree, overrides);
   merged.Provisioning = stripProvisioningSteps(merged.Provisioning);
   return merged;
 }
@@ -113,11 +104,11 @@ for (const locale of LOCALES) {
   }
 
   const overridePath = path.join(overridesDir, `${locale}.json`);
-  const flatOverrides = JSON.parse(fs.readFileSync(overridePath, "utf8"));
+  const hermesOverrides = readHermesOverrides(overridePath);
 
-  const hermes = applyFlatOverrides(
+  const hermes = applyHermesOverrides(
     deepMerge(JSON.parse(JSON.stringify(enHermes)), legacyHermes),
-    flatOverrides,
+    hermesOverrides,
   );
 
   localeData.App.Hermes = hermes;
