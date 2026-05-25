@@ -212,7 +212,10 @@ export function useComposioOAuth() {
       // (returns "popup_closed" only if finalize also rejects).
       if (result.kind === "closed") {
         // eslint-disable-next-line no-console
-        console.log(LOG_PREFIX, "popup closed without message, attempting recovery finalize");
+        console.log(
+          LOG_PREFIX,
+          "popup closed without message, attempting recovery finalize",
+        );
         const recovery = await finalizeHermesIntegrationAction({
           provider,
           connectionId,

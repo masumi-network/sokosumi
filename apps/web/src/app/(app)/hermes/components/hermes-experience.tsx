@@ -147,7 +147,7 @@ export default function HermesExperience({
   const effectiveActiveOrgId =
     activeOrganizationId ??
     (effectiveOrganizations !== organizations
-      ? effectiveOrganizations[1]?.id ?? null
+      ? (effectiveOrganizations[1]?.id ?? null)
       : null);
   const t = useTranslations("App.Hermes.Experience");
   const params = useSearchParams();

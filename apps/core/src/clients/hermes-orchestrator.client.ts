@@ -578,9 +578,7 @@ export async function approveConfirmation(
   overrides?: HermesApproveConfirmationOverrides,
 ): Promise<HermesConfirmationResolveResult> {
   const jsonBody =
-    overrides && Object.keys(overrides).length > 0
-      ? { overrides }
-      : undefined;
+    overrides && Object.keys(overrides).length > 0 ? { overrides } : undefined;
   const res = await orchFetch(
     `/v1/instances/${encodeURIComponent(userId)}/confirmations/${encodeURIComponent(confirmationId)}/approve`,
     { method: "POST", jsonBody },

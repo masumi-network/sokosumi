@@ -997,11 +997,9 @@ describe("Hermes route contracts", () => {
         where: { userId: "user_123", organizationId: orgId },
       }),
     );
-    expect(approveConfirmationMock).toHaveBeenCalledWith(
-      "user_123",
-      "conf_1",
-      { organizationId: orgId },
-    );
+    expect(approveConfirmationMock).toHaveBeenCalledWith("user_123", "conf_1", {
+      organizationId: orgId,
+    });
   });
 
   it("rejects approve with overrides for an org the user is not a member of", async () => {
@@ -1040,11 +1038,9 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(200);
     expect(memberFindFirstMock).not.toHaveBeenCalled();
-    expect(approveConfirmationMock).toHaveBeenCalledWith(
-      "user_123",
-      "conf_1",
-      { organizationId: null },
-    );
+    expect(approveConfirmationMock).toHaveBeenCalledWith("user_123", "conf_1", {
+      organizationId: null,
+    });
   });
 
   it("approves without overrides when body is omitted (Hermes' original args stand)", async () => {

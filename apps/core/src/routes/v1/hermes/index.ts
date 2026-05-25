@@ -124,7 +124,8 @@ const CHAT_TRANSCRIPT_INLINE_RETRY_DELAYS_MS = [0, 250, 750];
  * find coworker/organization ids embedded in confirmation summaries the
  * orchestrator writes — see `enrichPendingConfirmations`.
  */
-const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+const UUID_PATTERN =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 interface DecodedFile {
   name: string;
@@ -2014,14 +2015,11 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
     // Distinct Sentry events per reason — `unknown` was the symptom for the
     // Vercel multi-Lambda bug; if it spikes again after the Postgres fix
     // we want to know immediately rather than discover it in user reports.
-    Sentry.captureMessage(
-      `composio_finalize_verify_failed:${verify.reason}`,
-      {
-        level: "warning",
-        tags: { context: "composio_finalize", verify_reason: verify.reason },
-        extra: { userId: userContext.userId, provider, mode, connectionId },
-      },
-    );
+    Sentry.captureMessage(`composio_finalize_verify_failed:${verify.reason}`, {
+      level: "warning",
+      tags: { context: "composio_finalize", verify_reason: verify.reason },
+      extra: { userId: userContext.userId, provider, mode, connectionId },
+    });
     if (verify.reason === "claim_mismatch") {
       // Distinct message so callers (and logs) can tell the upgrade attempt
       // apart from a stale connectionId.

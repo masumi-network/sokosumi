@@ -1238,7 +1238,8 @@ function buildMockPendingConfirmations(
 function renderConfirmationSummary(
   confirmation: HermesPendingConfirmation,
 ): React.ReactNode {
-  const { summary, referencedCoworkers, referencedOrganizations } = confirmation;
+  const { summary, referencedCoworkers, referencedOrganizations } =
+    confirmation;
   if (
     referencedCoworkers.length === 0 &&
     referencedOrganizations.length === 0
@@ -1310,13 +1311,10 @@ function OrgRefChip({
 }
 
 /**
- * Inline approve/reject card for medium-autonomy gates. Per the orchestrator
- * spec, the card hides on every 200 — including when `status === "errored"`.
- * Errors are surfaced as a toast instead of pinning a resolved card in the
- * chat (otherwise an erroring approval would block the next confirmation
- * from being interactive). The parent owns the "dismissed" set so the card
- * stays hidden across re-polls even if the orchestrator hasn't dropped the
- * row from `pendingConfirmations` yet.
+ * Inline approve/reject card for medium-autonomy gates. Only a successful
+ * `status === "approved"` moves the card into the read-only audit trail.
+ * When the orchestrator returns `status === "errored"` (HTTP 200), we show
+ * a toast and leave the card interactive so the user can retry or reject.
  */
 /**
  * Tools whose queued args take an `organizationId` — those are the ones
@@ -1416,9 +1414,12 @@ function ConfirmationCard({
     }
     if (result.data.status === "errored") {
       toast.error(result.data.error ?? t("erroredAfterApproval"));
-    } else if (result.data.status === "approved") {
-      toast.success(t("approvedToast"));
+      return;
     }
+    if (result.data.status !== "approved") {
+      return;
+    }
+    toast.success(t("approvedToast"));
     onResolved(confirmation.id, {
       status: "approved",
       organizationId: showOrgPicker ? chosenOrgId : undefined,

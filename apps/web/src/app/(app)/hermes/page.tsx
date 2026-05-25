@@ -33,9 +33,12 @@ export default async function HermesPage() {
   const memberships = session
     ? await userService
         .getMyMembersWithOrganizations()
-        .catch(() => [] as Awaited<
-          ReturnType<typeof userService.getMyMembersWithOrganizations>
-        >)
+        .catch(
+          () =>
+            [] as Awaited<
+              ReturnType<typeof userService.getMyMembersWithOrganizations>
+            >,
+        )
     : ([] as Awaited<
         ReturnType<typeof userService.getMyMembersWithOrganizations>
       >);
