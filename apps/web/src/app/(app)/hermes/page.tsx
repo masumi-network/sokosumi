@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import HermesExperience from "@/app/hermes/components/hermes-experience";
+import LoadingState from "@/app/hermes/components/loading-state";
 import { getSession } from "@/lib/auth/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,6 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function HermesPage() {
   const session = await getSession();
   const userName = session?.user.name ?? null;
+  const userEmail = session?.user.email ?? null;
   const userImageUrl = session?.user.image
     ? session.user.image
     : session?.user.email
@@ -24,8 +26,12 @@ export default async function HermesPage() {
       : null;
 
   return (
-    <Suspense fallback={null}>
-      <HermesExperience userName={userName} userImageUrl={userImageUrl} />
+    <Suspense fallback={<LoadingState />}>
+      <HermesExperience
+        userName={userName}
+        userEmail={userEmail}
+        userImageUrl={userImageUrl}
+      />
     </Suspense>
   );
 }

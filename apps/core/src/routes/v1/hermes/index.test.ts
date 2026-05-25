@@ -11,11 +11,14 @@ const {
   HermesInstanceNotReadyErrorMock,
   hermesMessageCreateMock,
   hermesMessageFindManyMock,
+  hermesMessageUpsertMock,
   isReservedSecretKeyMock,
   isValidSecretKeyMock,
   prismaTransactionMock,
   proxyChatCompletionsMock,
+  syncHermesInboxForUserMock,
   userFindUniqueMock,
+  waitUntilMock,
 } = vi.hoisted(() => {
   class HermesInstanceNotReadyErrorMock extends Error {
     readonly status:
@@ -41,11 +44,14 @@ const {
     HermesInstanceNotReadyErrorMock,
     hermesMessageCreateMock: vi.fn(),
     hermesMessageFindManyMock: vi.fn(),
+    hermesMessageUpsertMock: vi.fn(),
     isReservedSecretKeyMock: vi.fn(),
     isValidSecretKeyMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
     proxyChatCompletionsMock: vi.fn(),
+    syncHermesInboxForUserMock: vi.fn(),
     userFindUniqueMock: vi.fn(),
+    waitUntilMock: vi.fn(),
   };
 });
 
@@ -79,6 +85,7 @@ vi.mock("@/lib/db/prisma", () => ({
       create: hermesMessageCreateMock,
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       findMany: hermesMessageFindManyMock,
+      upsert: hermesMessageUpsertMock,
       count: vi.fn().mockResolvedValue(0),
     },
     user: {
@@ -87,26 +94,42 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/clients/hermes-orchestrator.client", () => ({
-  destroyInstance: vi.fn(),
-  ensureInstanceReady: ensureInstanceReadyMock,
-  getInstance: vi.fn(),
-  HermesInstanceNotReadyError: HermesInstanceNotReadyErrorMock,
-  HermesOrchestratorError: class HermesOrchestratorError extends Error {
-    readonly httpStatus: number;
-    readonly code: string;
+vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/clients/hermes-orchestrator.client")
+    >();
 
-    constructor(httpStatus: number, body: { code?: string; title?: string }) {
-      super(body.title ?? `Hermes orchestrator error (${httpStatus})`);
-      this.httpStatus = httpStatus;
-      this.code = body.code ?? "HERMES_ORCH_ERROR";
-    }
-  },
-  isReservedSecretKey: isReservedSecretKeyMock,
-  isValidSecretKey: isValidSecretKeyMock,
-  provisionInstance: vi.fn(),
-  proxyChatCompletions: proxyChatCompletionsMock,
-  setInstanceSecret: vi.fn(),
+  return {
+    ...actual,
+    destroyInstance: vi.fn(),
+    ensureInstanceReady: ensureInstanceReadyMock,
+    getInstance: vi.fn(),
+    HermesInstanceNotReadyError: HermesInstanceNotReadyErrorMock,
+    HermesOrchestratorError: class HermesOrchestratorError extends Error {
+      readonly httpStatus: number;
+      readonly code: string;
+
+      constructor(httpStatus: number, body: { code?: string; title?: string }) {
+        super(body.title ?? `Hermes orchestrator error (${httpStatus})`);
+        this.httpStatus = httpStatus;
+        this.code = body.code ?? "HERMES_ORCH_ERROR";
+      }
+    },
+    isReservedSecretKey: isReservedSecretKeyMock,
+    isValidSecretKey: isValidSecretKeyMock,
+    provisionInstance: vi.fn(),
+    proxyChatCompletions: proxyChatCompletionsMock,
+    setInstanceSecret: vi.fn(),
+  };
+});
+
+vi.mock("@/services/hermes-inbox-sync.service", () => ({
+  syncHermesInboxForUser: syncHermesInboxForUserMock,
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: waitUntilMock,
 }));
 
 import {
@@ -146,7 +169,12 @@ describe("Hermes route contracts", () => {
     userFindUniqueMock.mockResolvedValue({ role: "user" });
     hermesMessageFindManyMock.mockResolvedValue([]);
     hermesMessageCreateMock.mockResolvedValue(undefined);
+    hermesMessageUpsertMock.mockResolvedValue(undefined);
     ensureInstanceReadyMock.mockResolvedValue(undefined);
+    syncHermesInboxForUserMock.mockResolvedValue({
+      userId: "user_123",
+      outcome: "no_messages",
+    });
     proxyChatCompletionsMock.mockResolvedValue(
       Response.json({
         choices: [
@@ -167,11 +195,15 @@ describe("Hermes route contracts", () => {
       if (typeof arg === "function") {
         return await (
           arg as (tx: {
-            hermesMessage: { create: typeof hermesMessageCreateMock };
+            hermesMessage: {
+              create: typeof hermesMessageCreateMock;
+              upsert: typeof hermesMessageUpsertMock;
+            };
           }) => Promise<unknown>
         )({
           hermesMessage: {
             create: hermesMessageCreateMock,
+            upsert: hermesMessageUpsertMock,
           },
         });
       }
@@ -179,6 +211,9 @@ describe("Hermes route contracts", () => {
     isReservedSecretKeyMock.mockReturnValue(false);
     isValidSecretKeyMock.mockReturnValue(true);
     vi.mocked(getInstance).mockResolvedValue(null);
+    waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
+      promise.catch(() => undefined);
+    });
   });
 
   it("returns 401 when authentication is missing", async () => {
@@ -235,7 +270,7 @@ describe("Hermes route contracts", () => {
     expect(body).toHaveProperty("meta.timestamp");
     expect(body).toHaveProperty("meta.requestId", "req_hermes_route_test");
     expect(body).not.toHaveProperty("message");
-    expect(hermesMessageCreateMock).toHaveBeenCalledTimes(2);
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(2);
   });
 
   it("loads a bounded recent window of persisted history for the proxy", async () => {
@@ -535,10 +570,12 @@ describe("Hermes route contracts", () => {
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
   });
 
-  it("returns 503 when the Hermes proxy fetch fails at the network layer", async () => {
-    proxyChatCompletionsMock.mockRejectedValue(new TypeError("fetch failed"));
+  it("does not persist the user turn before proxy success, so a retry does not duplicate history", async () => {
+    proxyChatCompletionsMock.mockRejectedValueOnce(
+      new TypeError("fetch failed"),
+    );
 
-    const response = await createApp().request("/chat", {
+    const first = await createApp().request("/chat", {
       method: "POST",
       headers: {
         Authorization: "Bearer test_api_key",
@@ -547,18 +584,139 @@ describe("Hermes route contracts", () => {
       body: JSON.stringify({ content: "Hello" }),
     });
 
-    const body = await parseJson(response);
+    expect(first.status).toBe(503);
+    expect(hermesMessageCreateMock).not.toHaveBeenCalled();
 
-    expect(response.status).toBe(503);
-    expect(body.error).toBe("ServiceUnavailable");
-    expect(body.message).toBe("Hermes is temporarily unavailable.");
-    expect(captureExceptionMock).toHaveBeenCalledWith(
-      expect.any(TypeError),
-      expect.objectContaining({
-        tags: { context: "hermes_proxy_fetch" },
-        extra: { userId: "user_123" },
+    proxyChatCompletionsMock.mockResolvedValue(
+      Response.json({
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: "Hello from Hermes.",
+            },
+          },
+        ],
       }),
     );
+
+    const second = await createApp().request("/chat", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test_api_key",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content: "Hello" }),
+    });
+
+    expect(second.status).toBe(200);
+    expect(proxyChatCompletionsMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.objectContaining({
+        messages: [{ role: "user", content: "Hello" }],
+      }),
+    );
+    expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns 503 when the Hermes proxy fetch fails at the network layer", async () => {
+    vi.useFakeTimers();
+    proxyChatCompletionsMock.mockRejectedValue(new TypeError("fetch failed"));
+
+    try {
+      const response = await createApp().request("/chat", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "Hello" }),
+      });
+
+      const body = await parseJson(response);
+
+      expect(response.status).toBe(503);
+      expect(body.error).toBe("ServiceUnavailable");
+      expect(body.message).toBe("Hermes is temporarily unavailable.");
+      expect(captureExceptionMock).toHaveBeenCalledWith(
+        expect.any(TypeError),
+        expect.objectContaining({
+          tags: { context: "hermes_proxy_fetch" },
+          extra: { userId: "user_123" },
+        }),
+      );
+      expect(syncHermesInboxForUserMock).toHaveBeenCalledWith(
+        "user_123",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
+      expect(hermesMessageCreateMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns 200 with assistant content when the transcript cannot be persisted after a successful proxy", async () => {
+    vi.useFakeTimers();
+    hermesMessageUpsertMock.mockRejectedValue(new Error("db down"));
+
+    try {
+      const responsePromise = createApp().request("/chat", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "Hello" }),
+      });
+
+      await vi.runAllTimersAsync();
+      const response = await responsePromise;
+      const body = await parseJson(response);
+
+      expect(response.status).toBe(200);
+      expect(body).toHaveProperty("data.message.content", "Hello from Hermes.");
+      expect(proxyChatCompletionsMock).toHaveBeenCalled();
+      expect(captureExceptionMock).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: { context: "hermes_chat_transcript_persist" },
+          extra: { userId: "user_123" },
+        }),
+      );
+      expect(syncHermesInboxForUserMock).not.toHaveBeenCalled();
+      expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("persists the chat transcript on inline retry after a transient DB failure", async () => {
+    vi.useFakeTimers();
+    hermesMessageUpsertMock
+      .mockRejectedValueOnce(new Error("db down"))
+      .mockResolvedValue(undefined);
+
+    try {
+      const responsePromise = createApp().request("/chat", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "Hello" }),
+      });
+
+      await vi.runAllTimersAsync();
+      const response = await responsePromise;
+
+      expect(response.status).toBe(200);
+      expect(hermesMessageUpsertMock).toHaveBeenCalledTimes(3);
+      expect(waitUntilMock).not.toHaveBeenCalled();
+      expect(syncHermesInboxForUserMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each([
@@ -585,6 +743,37 @@ describe("Hermes route contracts", () => {
     expect(body.error).toBe("ServiceUnavailable");
     expect(body.message).toBe("Hermes is temporarily unavailable.");
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 for GET /me/instance and skips welcome persist when onboardedAt is null", async () => {
+    vi.mocked(getInstance).mockResolvedValue({
+      status: "ready",
+      endpointUrl: null,
+      lastActivityAt: null,
+      onboardedAt: null,
+      autonomyLevel: "medium",
+      integrations: [],
+      transitioning: false,
+      welcomeMessage: "Welcome back.",
+      welcomeKind: "returning",
+      lastSokosumiSyncAt: null,
+      lastInboxRefreshAt: null,
+      timezone: null,
+      pendingConfirmations: [],
+    });
+
+    const response = await createApp().request("/me/instance", {
+      headers: {
+        Authorization: "Bearer test_api_key",
+      },
+    });
+
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.hasInstance", true);
+    expect(body).toHaveProperty("data.instance.onboardedAt", null);
+    expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
   });
 
   it.each([

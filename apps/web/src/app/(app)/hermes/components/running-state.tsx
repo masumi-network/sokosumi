@@ -1,7 +1,16 @@
 "use client";
 
-import { Plus, Settings2, X } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowUpRight,
+  Check,
+  Loader2,
+  Plug,
+  Plus,
+  X,
+} from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   type FormEvent,
@@ -12,6 +21,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import RotatingMessages from "@/app/hermes/components/rotating-messages";
 import SettingsPanel from "@/app/hermes/components/settings-panel";
 import { ArrowUpIcon, StopIcon } from "@/components/chat/icons";
 import {
@@ -21,6 +31,7 @@ import {
   PromptInputToolbar,
   PromptInputTools,
 } from "@/components/chat/prompt-input";
+import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,13 +50,21 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  approveHermesConfirmationAction,
   listHermesMessagesAction,
   markHermesInboxSeenAction,
+  rejectHermesConfirmationAction,
 } from "@/lib/actions/hermes";
+import {
+  type HermesUiMessage,
+  mergeHermesMessageLists,
+} from "@/lib/hermes/merge-persisted-messages";
 import type {
   HermesInstancePublic,
+  HermesPendingConfirmation,
   HermesPersistedMessage,
 } from "@/lib/hermes/types";
+import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
 interface RunningStateProps {
@@ -55,16 +74,12 @@ interface RunningStateProps {
   previewMode: boolean;
   initialMessages?: HermesPersistedMessage[];
   onDestroy: () => Promise<void> | void;
+  /** Re-pull the instance from the orchestrator. SettingsPanel calls this
+   * after mutations so the integrations chip / autonomy badge don't drift. */
+  onRefresh?: () => void | Promise<void>;
 }
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  /** Outbox kind for agent-initiated pushes (task_result, reminder, …). Null for normal chat turns. */
-  kind: string | null;
-  createdAt: string;
-}
+type Message = HermesUiMessage;
 
 const POLL_INTERVAL_MS = 5_000;
 
@@ -79,14 +94,18 @@ function persistedToMessage(m: HermesPersistedMessage): Message | null {
   };
 }
 
-const MOCK_REPLIES = [
-  "I'm a mock response from your local Hermes preview. Set ?state=running off to see the real Hermes wired through the orchestrator.",
-  "Got it. In production, your message goes through Sokosumi's server, the orchestrator returns your private endpoint, and Hermes responds.",
-  "Here's what I'd do: persist this in long-term memory, add a follow-up to your task list, and keep the context for our next session.",
-];
+function persistedToMessages(messages: HermesPersistedMessage[]): Message[] {
+  return messages
+    .map(persistedToMessage)
+    .filter((m): m is Message => m !== null);
+}
 
-function pickReply(turn: number): string {
-  return MOCK_REPLIES[turn % MOCK_REPLIES.length] ?? MOCK_REPLIES[0]!;
+function hasSameMessageIds(left: Message[], right: Message[]): boolean {
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i++) {
+    if (left[i]!.id !== right[i]!.id) return false;
+  }
+  return true;
 }
 
 interface ChatApiResponse {
@@ -129,18 +148,48 @@ export default function RunningState({
   previewMode,
   initialMessages,
   onDestroy,
+  onRefresh,
 }: RunningStateProps) {
   const t = useTranslations("App.Hermes.Running");
+  const mockReplies = orderedMessageList(
+    t.raw("mockReplies") as Record<string, string>,
+  );
 
   const [messages, setMessages] = useState<Message[]>(() =>
-    (initialMessages ?? [])
-      .map(persistedToMessage)
-      .filter((m): m is Message => m !== null),
+    persistedToMessages(initialMessages ?? []),
   );
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [isReplying, setIsReplying] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Confirmation IDs the user already approved/rejected. We hide them
+  // optimistically the moment the orchestrator returns 200, then prune
+  // the set once the next poll confirms the row left `pendingConfirmations`
+  // server-side. Without this, an "errored" approval would leave a stuck
+  // resolved card on screen forever.
+  const [dismissedConfirmationIds, setDismissedConfirmationIds] = useState<
+    Set<string>
+  >(() => new Set());
+
+  // Reconcile dismissed set with the latest poll: if an id is no longer in
+  // pendingConfirmations, the orchestrator agreed and we can stop tracking
+  // it locally. Keeps the set from growing unbounded.
+  useEffect(() => {
+    if (!instance) return;
+    const live = new Set(instance.pendingConfirmations.map((c) => c.id));
+    setDismissedConfirmationIds((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (live.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [instance]);
 
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -151,6 +200,15 @@ export default function RunningState({
   useEffect(() => {
     isReplyingRef.current = isReplying;
   }, [isReplying]);
+
+  useEffect(() => {
+    if (!initialMessages) return;
+    const serverMessages = persistedToMessages(initialMessages);
+    setMessages((prev) => {
+      const merged = mergeHermesMessageLists(prev, serverMessages);
+      return hasSameMessageIds(prev, merged) ? prev : merged;
+    });
+  }, [initialMessages]);
 
   useEffect(() => {
     return () => {
@@ -198,18 +256,10 @@ export default function RunningState({
       }
 
       setMessages((prev) => {
+        const merged = mergeHermesMessageLists(prev, next);
         // Cheap shallow check to avoid unnecessary rerenders + scroll jitter.
-        if (prev.length === next.length) {
-          let same = true;
-          for (let i = 0; i < prev.length; i++) {
-            if (prev[i]!.id !== next[i]!.id) {
-              same = false;
-              break;
-            }
-          }
-          if (same) return prev;
-        }
-        return next;
+        if (hasSameMessageIds(prev, merged)) return prev;
+        return merged;
       });
     };
 
@@ -235,11 +285,18 @@ export default function RunningState({
   }, [previewMode]);
 
   // Auto-scroll to bottom on new messages (or when typing indicator flips on).
-  // Uses requestAnimationFrame so the scroll fires AFTER the new content has
-  // committed and scrollHeight reflects it. We don't try to be clever about
-  // "user scrolled up reading history" — for chat with this volume of agent
-  // pushes, jumping to the latest is the right default.
+  // Two exceptions:
+  //  1. First-ever message lands (0 → 1) — that's the welcome, user should
+  //     start reading from the top of it, not jumped to the bottom.
+  //  2. Initial mount with history already populated — `requestAnimationFrame`
+  //     still scrolls so returning users land at the latest message, which is
+  //     the standard chat behaviour.
+  const prevMessagesLengthRef = useRef(0);
   useEffect(() => {
+    const prevLen = prevMessagesLengthRef.current;
+    prevMessagesLengthRef.current = messages.length;
+    if (prevLen === 0 && messages.length === 1) return;
+
     const el = scrollerRef.current;
     if (!el) return;
     const id = requestAnimationFrame(() => {
@@ -287,7 +344,8 @@ export default function RunningState({
             {
               id: `a-${Date.now()}`,
               role: "assistant",
-              content: pickReply(turn),
+              content:
+                mockReplies[turn % mockReplies.length] ?? mockReplies[0] ?? "",
               kind: null,
               createdAt: new Date().toISOString(),
             },
@@ -336,8 +394,8 @@ export default function RunningState({
               .catch(() => ({}))) as ChatApiResponse;
             toast.error(
               body.data?.status === "provisioning"
-                ? "Your Hermes is still warming up. Try again in a few seconds."
-                : (body.message ?? "Your Hermes isn't ready yet."),
+                ? t("errors.warmingUp")
+                : (body.message ?? t("errors.notReady")),
             );
             setIsReplying(false);
             return;
@@ -348,7 +406,7 @@ export default function RunningState({
               .json()
               .catch(() => ({}))) as ChatApiResponse;
             toast.error(
-              body.message ?? `Hermes returned an error (${res.status}).`,
+              body.message ?? t("errors.apiError", { status: res.status }),
             );
             setIsReplying(false);
             return;
@@ -357,7 +415,7 @@ export default function RunningState({
           const body = (await res.json()) as ChatApiResponse;
           const reply = body.data?.message?.content ?? "";
           if (!reply) {
-            toast.error("Hermes returned an empty response.");
+            toast.error(t("errors.emptyResponse"));
             setIsReplying(false);
             return;
           }
@@ -375,17 +433,26 @@ export default function RunningState({
           if (error instanceof DOMException && error.name === "AbortError") {
             return;
           }
-          toast.error("Couldn't reach Hermes. Check your connection.");
+          toast.error(t("errors.unreachable"));
         } finally {
           if (abortRef.current === controller) abortRef.current = null;
           // Clear the polling gate synchronously (same pattern as stop()) so the
           // inbox poller is not blocked until the next React commit.
           isReplyingRef.current = false;
           setIsReplying(false);
+
+          const result = await listHermesMessagesAction({});
+          if (result.ok) {
+            const next = persistedToMessages(result.data);
+            setMessages((prev) => {
+              const merged = mergeHermesMessageLists(prev, next);
+              return hasSameMessageIds(prev, merged) ? prev : merged;
+            });
+          }
         }
       })();
     },
-    [files, isReplying, messages, previewMode],
+    [files, isReplying, messages, mockReplies, previewMode, t],
   );
 
   const stop = useCallback(() => {
@@ -414,75 +481,100 @@ export default function RunningState({
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
-      <div className="relative flex h-full min-h-0 w-full flex-col">
-        {/* Floating top-right controls */}
-        <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSettingsOpen(true)}
-                className="text-tertiary-foreground hover:text-foreground size-8"
-                aria-label={t("settingsCta")}
-              >
-                <Settings2 className="size-4" aria-hidden />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">{t("settingsCta")}</TooltipContent>
-          </Tooltip>
-        </div>
+      {/* Floating top-right control — the integrations chip doubles as the
+          entry point into Settings (covers autonomy, schedules, danger zone)
+          so we don't need a separate gear button competing for attention. */}
+      <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
+        <IntegrationsChip
+          integrations={instance?.integrations ?? []}
+          onClick={() => setSettingsOpen(true)}
+        />
+      </div>
 
-        {/* Scrollable content area */}
-        <div className="absolute inset-x-0 top-0 bottom-32 overflow-hidden">
-          <div
-            ref={scrollerRef}
-            className="h-full w-full overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {isEmpty ? (
-              <WelcomeBlock firstName={firstName} />
-            ) : (
-              <div className="flex flex-col items-center pt-12 pb-40 md:pt-8">
-                <div className="flex w-full max-w-4xl flex-col gap-1">
-                  {messages.map((msg) => (
-                    <MessageRow
-                      key={msg.id}
-                      message={msg}
-                      userImageUrl={userImageUrl}
-                      userName={userName}
-                    />
-                  ))}
-                  {isReplying ? <AssistantTyping /> : null}
-                </div>
-              </div>
-            )}
+      {/* Scrollable content area — flex-grows to fill remaining height,
+          composer below sits at natural height. No more manual bottom
+          offset to keep in sync with the composer's height. */}
+      <div
+        ref={scrollerRef}
+        className="min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {isEmpty ? (
+          <WelcomeBlock firstName={firstName} />
+        ) : (
+          <div className="flex flex-col items-center pt-12 pb-6 md:pt-8">
+            <div className="flex w-full max-w-4xl flex-col gap-1">
+              {messages.map((msg) => (
+                <MessageRow
+                  key={msg.id}
+                  message={msg}
+                  userImageUrl={userImageUrl}
+                  userName={userName}
+                  onSelectSuggestion={(prompt) => {
+                    setInput(prompt);
+                    composerRef.current?.focus();
+                  }}
+                />
+              ))}
+              {isReplying ? <AssistantTyping /> : null}
+              {(instance?.pendingConfirmations ?? [])
+                .filter((c) => !dismissedConfirmationIds.has(c.id))
+                .map((confirmation) => (
+                  <ConfirmationCard
+                    key={confirmation.id}
+                    confirmation={confirmation}
+                    onResolved={(id) =>
+                      setDismissedConfirmationIds((prev) => {
+                        const next = new Set(prev);
+                        next.add(id);
+                        return next;
+                      })
+                    }
+                  />
+                ))}
+            </div>
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Gradient fade above composer */}
+      {/* Composer (natural height, anchored at bottom of flex column) */}
+      <div className="bg-background relative mx-auto flex w-full shrink-0 flex-col items-center px-4 pt-2 pb-4">
+        {/* Soft fade from scroll area into composer */}
         <div
           aria-hidden
-          className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-5 h-32 bg-linear-to-t to-transparent"
+          className="from-background pointer-events-none absolute -top-8 right-0 left-0 z-5 h-8 bg-linear-to-t to-transparent"
         />
-
-        {/* Composer */}
-        <div className="bg-background/80 absolute inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-4 backdrop-blur-sm">
-          <div className="w-full max-w-4xl">
-            <Composer
-              ref={composerRef}
-              input={input}
-              setInput={setInput}
-              files={files}
-              setFiles={setFiles}
-              onSubmit={handleSubmit}
-              isReplying={isReplying}
-              onStop={stop}
-              placeholder={t("composerPlaceholder")}
-              sendLabel={t("send")}
-              stopLabel={t("stop")}
-              attachLabel={t("attach")}
-            />
+        {instance?.transitioning ? (
+          <div className="mb-2 w-full max-w-4xl">
+            <div className="border-primary/30 bg-primary/5 text-foreground flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm">
+              <Loader2
+                className="text-primary size-4 shrink-0 animate-spin"
+                aria-hidden
+              />
+              <span>
+                {t("transitioning")}{" "}
+                <span className="text-muted-foreground">
+                  {t("transitioningHint")}
+                </span>
+              </span>
+            </div>
           </div>
+        ) : null}
+        <div className="w-full max-w-4xl">
+          <Composer
+            ref={composerRef}
+            input={input}
+            setInput={setInput}
+            files={files}
+            setFiles={setFiles}
+            onSubmit={handleSubmit}
+            isReplying={isReplying}
+            disabled={instance?.transitioning === true}
+            onStop={stop}
+            placeholder={t("composerPlaceholder")}
+            sendLabel={t("send")}
+            stopLabel={t("stop")}
+            attachLabel={t("attach")}
+          />
         </div>
       </div>
 
@@ -490,7 +582,12 @@ export default function RunningState({
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         previewMode={previewMode}
+        integrations={instance?.integrations ?? []}
+        autonomyLevel={instance?.autonomyLevel ?? "medium"}
+        lastSokosumiSyncAt={instance?.lastSokosumiSyncAt ?? null}
+        lastInboxRefreshAt={instance?.lastInboxRefreshAt ?? null}
         onDestroy={onDestroy}
+        onRefreshInstance={onRefresh}
       />
     </div>
   );
@@ -499,24 +596,28 @@ export default function RunningState({
 function WelcomeBlock({ firstName }: { firstName: string | null }) {
   const t = useTranslations("App.Hermes.Running");
   const greeting = firstName
-    ? `${t("emptyTitle")}, ${firstName.toLowerCase()}`
+    ? `${t("emptyTitle")}, ${firstName}`
     : t("emptyTitle");
 
+  // The orchestrator's welcome typically lands within ~2s of arriving here
+  // (it's bundled into the instance "ready" response). Showing the empty
+  // greeting immediately and then replacing it with the real welcome reads
+  // as a glitch — hold the empty state for a moment so it only renders if
+  // there's a true cold start with no welcome incoming.
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setShow(true), 2_500);
+    return () => window.clearTimeout(t);
+  }, []);
+  if (!show) return null;
+
   return (
-    <div className="mt-[-80px] flex h-full flex-col items-start justify-center px-4 font-mono">
-      <div className="mx-auto w-full max-w-2xl">
-        <div className="text-tertiary-foreground mb-2 text-[11px] tracking-wide">
-          ┌─[ hermes://chat ]
-        </div>
-        <h1 className="text-foreground flex items-baseline gap-1.5 text-2xl font-semibold tracking-tight md:text-3xl">
-          <span className="text-tertiary-foreground">{">"}</span>
-          <span>{greeting}</span>
-          <span
-            aria-hidden
-            className="bg-foreground inline-block h-[0.85em] w-[0.5em] animate-pulse"
-          />
+    <div className="mt-[-80px] flex h-full flex-col items-center justify-center px-6">
+      <div className="mx-auto w-full max-w-xl text-center">
+        <h1 className="text-foreground text-3xl font-semibold tracking-tight md:text-4xl">
+          {greeting}
         </h1>
-        <p className="text-muted-foreground mt-3 ml-5 max-w-xl text-sm leading-relaxed">
+        <p className="text-muted-foreground mt-4 text-base leading-relaxed">
           {t("emptyHint")}
         </p>
       </div>
@@ -524,15 +625,38 @@ function WelcomeBlock({ firstName }: { firstName: string | null }) {
   );
 }
 
+/**
+ * Pull suggested prompts out of a welcome-style message. The orchestrator
+ * formats them as markdown list items of the form:
+ *   - **Label** — "Quoted prompt to send to Hermes."
+ * We extract the quoted text and render it as click-to-send chips below
+ * the message. Best-effort: returns [] if no quoted strings are found.
+ */
+function extractSuggestedPrompts(content: string): string[] {
+  const prompts: string[] = [];
+  for (const line of content.split("\n")) {
+    if (!line.startsWith("-") && !line.startsWith("*")) continue;
+    // Match the FIRST `"..."` on the line. Use a non-greedy match to handle
+    // multiple quoted segments on one line gracefully (we only chip the first).
+    const match = line.match(/["“]([^"“”]{8,200})["”]/);
+    if (match?.[1]) prompts.push(match[1].trim());
+  }
+  // De-dup while preserving order, cap at 6 to keep the strip readable.
+  return Array.from(new Set(prompts)).slice(0, 6);
+}
+
 function MessageRow({
   message,
   userImageUrl,
   userName,
+  onSelectSuggestion,
 }: {
   message: Message;
   userImageUrl?: string | null;
   userName?: string | null;
+  onSelectSuggestion?: (prompt: string) => void;
 }) {
+  const t = useTranslations("App.Hermes.Running");
   const formatter = useFormatter();
   const isUser = message.role === "user";
   const createdAt = new Date(message.createdAt);
@@ -574,21 +698,77 @@ function MessageRow({
     );
   }
 
-  const chip = describeOutboxKind(message.kind);
+  const chip = describeOutboxKind(message.kind, (key) => t(key));
+  // Only the orchestrator's intro/welcome messages carry suggested prompts.
+  const showSuggestions =
+    onSelectSuggestion !== undefined &&
+    (message.kind === "research_intro" ||
+      message.kind === "welcome" ||
+      message.kind === "returning");
+  const suggestions = showSuggestions
+    ? extractSuggestedPrompts(message.content)
+    : [];
+
+  // Detect orchestrator-pushed "confirmation_resolved" messages with a
+  // sokosumi_create_task payload and split them into prose + task card so
+  // the user doesn't have to read raw JSON in chat.
+  const parsedConfirmation =
+    message.kind === "confirmation_resolved"
+      ? parseConfirmationResolved(message.content, {
+          resolvedFallback: t("confirmation.resolvedFallback"),
+          coworkerFallback: t("confirmation.taskCard.defaultCoworker"),
+          organizationFallback: t("confirmation.taskCard.defaultOrganization"),
+        })
+      : null;
 
   return (
     <div className="group/message flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
       <AssistantAvatar accent={Boolean(chip)} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {chip ? (
-          <span className="border-border/60 text-tertiary-foreground bg-muted/40 inline-flex w-fit items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium tracking-wide">
-            <span aria-hidden>{chip.icon}</span>
-            <span>{chip.label}</span>
+          <span className="border-border/60 text-tertiary-foreground bg-muted/40 inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium uppercase tracking-wider">
+            {chip.label}
           </span>
         ) : null}
-        <div className="text-foreground min-h-5 bg-transparent pt-1 pr-10 pb-1 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
-          {message.content}
-        </div>
+        {parsedConfirmation ? (
+          <div className="flex flex-col gap-3 pt-1 pr-10 pb-1">
+            <p className="text-foreground text-sm leading-relaxed">
+              {parsedConfirmation.summary}
+            </p>
+            {parsedConfirmation.task ? (
+              <TaskResultCard task={parsedConfirmation.task} />
+            ) : null}
+          </div>
+        ) : (
+          <Markdown className="text-foreground pt-1 pr-10 pb-1 text-sm">
+            {message.content}
+          </Markdown>
+        )}
+        {suggestions.length > 0 ? (
+          <div className="mt-4 mb-2 flex flex-col gap-2 pr-10 sm:flex-row sm:flex-wrap">
+            {suggestions.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => onSelectSuggestion?.(prompt)}
+                className={cn(
+                  "group/chip border-border bg-card hover:border-foreground/30 hover:bg-muted/40 text-foreground",
+                  "inline-flex max-w-full items-center gap-2.5 rounded-lg border px-4 py-2.5 text-sm font-medium",
+                  "transition-colors active:scale-[0.98]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                )}
+              >
+                <span className="truncate text-left">{prompt}</span>
+                <span
+                  aria-hidden
+                  className="text-muted-foreground group-hover/chip:text-primary shrink-0 transition-transform group-hover/chip:translate-x-0.5"
+                >
+                  →
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
         <time
           dateTime={message.createdAt}
           className="text-tertiary-foreground pb-2 text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
@@ -601,34 +781,71 @@ function MessageRow({
 }
 
 interface OutboxKindChip {
-  icon: string;
   label: string;
 }
 
-function describeOutboxKind(kind: string | null): OutboxKindChip | null {
+function describeOutboxKind(
+  kind: string | null,
+  t: (key: string) => string,
+): OutboxKindChip | null {
   if (!kind || kind === "text") return null;
-  if (kind === "welcome") {
-    return { icon: "👋", label: "Welcome" };
+  if (kind === "welcome" || kind === "research_intro" || kind === "returning") {
+    return { label: t("outboxKinds.welcome") };
   }
-  if (kind === "task_result") {
-    return { icon: "📋", label: "Scheduled task" };
+  if (kind === "daily_brief") return { label: t("outboxKinds.daily_brief") };
+  if (kind === "job_complete") return { label: t("outboxKinds.job_complete") };
+  if (kind === "task_result") return { label: t("outboxKinds.task_result") };
+  if (kind === "daily_suggestions") {
+    return { label: t("outboxKinds.daily_suggestions") };
   }
-  if (kind === "reminder") {
-    return { icon: "🔔", label: "Reminder" };
+  if (kind === "reminder") return { label: t("outboxKinds.reminder") };
+  if (kind === "confirmation_resolved") {
+    return { label: t("outboxKinds.confirmation_resolved") };
   }
-  // Future kinds (research_intro, daily_suggestions) will land here once
-  // the orchestrator tags them properly. Until then they arrive as
-  // task_result and use the 📋 chip.
-  return { icon: "📨", label: "From Hermes" };
+  return { label: t("outboxKinds.default") };
 }
 
+/**
+ * Pool of "thinking" messages that cycle while Hermes drafts a reply. Mix
+ * of straight-faced and lightly silly so users have something to read
+ * during long inference runs without it feeling robotic. Each phrase
+ * stands on its own — no trailing ellipsis here, the typing dots animate
+ * separately. New phrases welcome, just keep them short.
+ */
 function AssistantTyping() {
+  const t = useTranslations("App.Hermes.Running");
+  const thinkingMessages = orderedMessageList(
+    t.raw("thinkingMessages") as Record<string, string>,
+  );
+
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
-      <AssistantAvatar />
-      <div className="flex min-h-5 items-center pt-2">
-        <span className="reasoning-text-shine text-sm leading-5">
-          Thinking…
+      {/* Avatar with a slow pulse ring so it reads as "working" at a glance */}
+      <span className="relative shrink-0">
+        <span
+          aria-hidden
+          className="bg-primary/30 absolute inset-0 animate-ping rounded-full"
+        />
+        <AssistantAvatar />
+      </span>
+
+      {/* Rotating phrase + three pulsing dots. Phrase change has its own
+          fade (from RotatingMessages); the dots run independently so there
+          is always something animating even between fades. */}
+      <div className="flex min-h-5 items-center gap-1 pt-2">
+        <RotatingMessages
+          messages={thinkingMessages}
+          intervalMs={2_800}
+          className="reasoning-text-shine text-foreground text-sm leading-5"
+        />
+        <span aria-hidden className="text-foreground/70 inline-flex gap-0.5">
+          <span className="animate-thinking-dot inline-block">.</span>
+          <span className="animate-thinking-dot inline-block [animation-delay:200ms]">
+            .
+          </span>
+          <span className="animate-thinking-dot inline-block [animation-delay:400ms]">
+            .
+          </span>
         </span>
       </div>
     </div>
@@ -636,6 +853,8 @@ function AssistantTyping() {
 }
 
 function AssistantAvatar({ accent = false }: { accent?: boolean } = {}) {
+  const tCommon = useTranslations("App.Hermes.Common");
+
   return (
     <div
       className={cn(
@@ -645,7 +864,7 @@ function AssistantAvatar({ accent = false }: { accent?: boolean } = {}) {
     >
       <Image
         src="/images/hermes/avatar.png"
-        alt="Hermes"
+        alt={tCommon("hermesAvatarAlt")}
         fill
         sizes="32px"
         className="object-cover"
@@ -662,12 +881,21 @@ interface ComposerProps {
   setFiles: (files: File[]) => void;
   onSubmit: (e: FormEvent<HTMLFormElement>) => void;
   isReplying: boolean;
+  /** When true (e.g. orchestrator is mid-apply), block the user from sending. */
+  disabled?: boolean;
   onStop: () => void;
   placeholder: string;
   sendLabel: string;
   stopLabel: string;
   attachLabel: string;
 }
+
+/**
+ * Rotating hints shown in the composer placeholder when the user hasn't
+ * typed anything. Gives first-session users concrete things to try without
+ * adding chrome below the welcome.
+ */
+const ROTATE_INTERVAL_MS = 4_500;
 
 function Composer({
   ref,
@@ -677,14 +905,37 @@ function Composer({
   setFiles,
   onSubmit,
   isReplying,
+  disabled = false,
   onStop,
   placeholder,
   sendLabel,
   stopLabel,
   attachLabel,
 }: ComposerProps) {
-  const canSend = (input.trim().length > 0 || files.length > 0) && !isReplying;
+  const t = useTranslations("App.Hermes.Running");
+  const rotatingHints = orderedMessageList(
+    t.raw("rotatingHints") as Record<string, string>,
+  );
+  const canSend =
+    (input.trim().length > 0 || files.length > 0) && !isReplying && !disabled;
   const status = isReplying ? "streaming" : "ready";
+
+  // Rotate hint placeholders while the composer is empty + idle. As soon as
+  // the user types or starts a turn, freeze on the default placeholder so we
+  // don't visually fight the typing experience.
+  const [hintIdx, setHintIdx] = useState(0);
+  useEffect(() => {
+    if (input.length > 0 || isReplying) return;
+    const id = window.setInterval(
+      () => setHintIdx((i) => (i + 1) % rotatingHints.length),
+      ROTATE_INTERVAL_MS,
+    );
+    return () => window.clearInterval(id);
+  }, [input.length, isReplying, rotatingHints.length]);
+  const dynamicPlaceholder =
+    input.length > 0 || isReplying
+      ? placeholder
+      : (rotatingHints[hintIdx] ?? placeholder);
 
   return (
     <FileUpload
@@ -697,7 +948,10 @@ function Composer({
     >
       <PromptInput
         onSubmit={onSubmit}
-        className="border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border transition-all duration-200"
+        className={cn(
+          "border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border transition-all duration-200",
+          disabled && "opacity-60 pointer-events-none",
+        )}
       >
         <FileUploadDropzone
           className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
@@ -707,11 +961,14 @@ function Composer({
             ref={ref}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={placeholder}
+            placeholder={
+              disabled ? t("composerDisabledPlaceholder") : dynamicPlaceholder
+            }
             disableAutoResize
             maxHeight={200}
             minHeight={44}
             autoFocus
+            disabled={disabled}
             className="placeholder:text-muted-foreground grow resize-none border-0! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
           />
         </FileUploadDropzone>
@@ -731,7 +988,7 @@ function Composer({
                   variant="ghost"
                   size="icon"
                   className="text-muted-foreground hover:text-foreground size-6 shrink-0 rounded-full"
-                  aria-label="Remove"
+                  aria-label={t("removeFile")}
                 >
                   <X className="size-3.5" aria-hidden />
                 </Button>
@@ -781,4 +1038,438 @@ function Composer({
       </PromptInput>
     </FileUpload>
   );
+}
+
+const INTEGRATION_ICON_BY_PROVIDER: Record<HermesIntegrationProvider, string> =
+  {
+    gmail: "/icons/gmail.svg",
+    google_calendar: "/icons/google-calendar.svg",
+    google_sheets: "/icons/google-sheets.svg",
+    google_docs: "/icons/google-docs.svg",
+    outlook: "/icons/outlook.svg",
+    outlook_calendar: "/icons/outlook.svg",
+    slack: "/icons/slack.svg",
+    teams: "/icons/teams.svg",
+    linear: "/icons/linear.svg",
+    jira: "/icons/jira.svg",
+    github: "/icons/github.svg",
+    notion: "/icons/notion.svg",
+    hubspot: "/icons/hubspot.svg",
+    twitter: "/icons/x.svg",
+    instagram: "/icons/instagram.svg",
+    youtube: "/icons/youtube.svg",
+    linkedin: "/icons/linkedin.svg",
+  };
+
+/**
+ * Some Composio toolkits cover multiple orchestrator provider strings
+ * from a single OAuth (Outlook's mail + calendar share one consent and
+ * land as two integration rows). The chat chip should treat those as
+ * one connected service so the count + icon stack reflect reality.
+ */
+function canonicalServiceKey(provider: HermesIntegrationProvider): string {
+  if (provider === "outlook" || provider === "outlook_calendar") {
+    return "outlook";
+  }
+  return provider;
+}
+
+function dedupeServiceIntegrations(
+  integrations: HermesIntegrationPublic[],
+): HermesIntegrationPublic[] {
+  const seen = new Set<string>();
+  const result: HermesIntegrationPublic[] = [];
+  for (const integration of integrations) {
+    const key = canonicalServiceKey(integration.provider);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(integration);
+  }
+  return result;
+}
+
+function IntegrationsChip({
+  integrations,
+  onClick,
+}: {
+  integrations: HermesIntegrationPublic[];
+  onClick: () => void;
+}) {
+  const t = useTranslations("App.Hermes.Running.integrationsChip");
+  // Dedupe paired providers (outlook + outlook_calendar share one OAuth)
+  // so the chip shows one entry per real service. Otherwise a single
+  // Outlook connection looks like "2 connected" with the same icon twice.
+  const connected = dedupeServiceIntegrations(
+    integrations.filter((i) => i.status === "connected"),
+  );
+  const stacked = connected.slice(0, 3);
+  const hasAny = connected.length > 0;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          className="border-border bg-card text-foreground hover:bg-muted/40 hover:border-foreground/30 inline-flex h-8 items-center gap-2 rounded-full border pl-1.5 pr-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label={
+            hasAny
+              ? t("ariaConnected", { count: connected.length })
+              : t("connectIntegrations")
+          }
+        >
+          {hasAny ? (
+            <>
+              <span className="flex items-center -space-x-1.5">
+                {stacked.map((i) => (
+                  <span
+                    key={i.provider}
+                    className="border-card bg-background inline-flex size-5 items-center justify-center rounded-full border-2"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={INTEGRATION_ICON_BY_PROVIDER[i.provider]}
+                      alt=""
+                      className="size-3"
+                    />
+                  </span>
+                ))}
+              </span>
+              <span className="tabular-nums">{connected.length}</span>
+            </>
+          ) : (
+            <>
+              <Plug className="text-tertiary-foreground size-3.5" aria-hidden />
+              <span>{t("connect")}</span>
+            </>
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        {hasAny ? t("integrations") : t("connectIntegrations")}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+type HermesIntegrationPublic = NonNullable<
+  RunningStateProps["instance"]
+>["integrations"][number];
+type HermesIntegrationProvider = HermesIntegrationPublic["provider"];
+
+/**
+ * Inline approve/reject card for medium-autonomy gates. Per the orchestrator
+ * spec, the card hides on every 200 — including when `status === "errored"`.
+ * Errors are surfaced as a toast instead of pinning a resolved card in the
+ * chat (otherwise an erroring approval would block the next confirmation
+ * from being interactive). The parent owns the "dismissed" set so the card
+ * stays hidden across re-polls even if the orchestrator hasn't dropped the
+ * row from `pendingConfirmations` yet.
+ */
+function ConfirmationCard({
+  confirmation,
+  onResolved,
+}: {
+  confirmation: HermesPendingConfirmation;
+  onResolved: (confirmationId: string) => void;
+}) {
+  const t = useTranslations("App.Hermes.Running.confirmation");
+  const [busy, setBusy] = useState<"approving" | "rejecting" | null>(null);
+
+  const handleApprove = async () => {
+    if (busy) return;
+    setBusy("approving");
+    const result = await approveHermesConfirmationAction({
+      confirmationId: confirmation.id,
+    });
+    setBusy(null);
+    if (!result.ok) {
+      toast.error(result.error.message ?? t("approveFailed"));
+      return;
+    }
+    if (result.data.status === "errored") {
+      toast.error(result.data.error ?? t("erroredAfterApproval"));
+    } else if (result.data.status === "approved") {
+      toast.success(t("approvedToast"));
+    }
+    onResolved(confirmation.id);
+  };
+
+  const handleReject = async () => {
+    if (busy) return;
+    setBusy("rejecting");
+    const result = await rejectHermesConfirmationAction({
+      confirmationId: confirmation.id,
+    });
+    setBusy(null);
+    if (!result.ok) {
+      toast.error(result.error.message ?? t("rejectFailed"));
+      return;
+    }
+    onResolved(confirmation.id);
+  };
+
+  const tool = describeConfirmationTool(confirmation.toolName, (key) => t(key));
+
+  return (
+    <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
+      <AssistantAvatar accent />
+      <div className="border-amber-500/30 bg-amber-500/6 flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border px-4 py-3 backdrop-blur-sm">
+        <div className="text-amber-700 dark:text-amber-400 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
+          <AlertCircle className="size-3.5" aria-hidden />
+          <span>{t("heading")}</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="text-foreground text-sm font-semibold tracking-tight">
+            {tool.action}
+          </div>
+          <p className="text-foreground/90 text-sm leading-relaxed">
+            {confirmation.summary}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="primary"
+            className="gap-1.5"
+            disabled={busy !== null}
+            onClick={() => void handleApprove()}
+          >
+            {busy === "approving" ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Check className="size-3.5" aria-hidden />
+            )}
+            <span>{t("approve")}</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            disabled={busy !== null}
+            onClick={() => void handleReject()}
+          >
+            {busy === "rejecting" ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <X className="size-3.5" aria-hidden />
+            )}
+            <span>{t("reject")}</span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Confirmation-resolved message rendering
+//
+// The orchestrator pushes a `confirmation_resolved` outbox message after the
+// user approves a tool call, with body shaped like:
+//
+//   The user approved your earlier sokosumi_create_task request. The action
+//   was executed; here's the result you can act on:
+//   { ...big JSON blob... }
+//
+// Dumping that JSON in chat is hostile. Parse it, render the prose intro,
+// and if the payload is a known shape (currently sokosumi_create_task)
+// render a Task Card linking to /tasks/:id instead.
+
+interface ParsedTaskResult {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string | null;
+  credits: number | null;
+  coworker: { name: string; image: string | null } | null;
+  organization: { name: string; slug: string | null } | null;
+}
+
+interface ParsedConfirmationResolved {
+  /** Prose lead-in with the JSON block stripped out. */
+  summary: string;
+  /** Populated when the JSON payload matched the sokosumi_create_task shape. */
+  task: ParsedTaskResult | null;
+}
+
+function parseConfirmationResolved(
+  content: string,
+  fallbacks: {
+    resolvedFallback: string;
+    coworkerFallback: string;
+    organizationFallback: string;
+  },
+): ParsedConfirmationResolved | null {
+  if (!content) return null;
+  // Find the first opening brace at the start of a line, take everything
+  // from there as the JSON region. The intro prose is whatever comes before.
+  const braceIdx = content.search(/^\s*{/m);
+  if (braceIdx < 0) {
+    // No JSON in the body — just return the message as-is so the caller
+    // can render it as plain markdown again.
+    return null;
+  }
+  const summary = content.slice(0, braceIdx).trim();
+  const rawJson = content.slice(braceIdx).trim();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    return { summary: summary || content, task: null };
+  }
+
+  return {
+    summary: summary || fallbacks.resolvedFallback,
+    task: extractTaskFromConfirmation(parsed, fallbacks),
+  };
+}
+
+function extractTaskFromConfirmation(
+  payload: unknown,
+  fallbacks: {
+    coworkerFallback: string;
+    organizationFallback: string;
+  },
+): ParsedTaskResult | null {
+  if (!payload || typeof payload !== "object") return null;
+  const root = payload as Record<string, unknown>;
+  const taskWrapper = root.task as Record<string, unknown> | undefined;
+  const data = (taskWrapper?.data ?? taskWrapper) as
+    | Record<string, unknown>
+    | undefined;
+  if (!data || typeof data !== "object") return null;
+
+  const id = typeof data.id === "string" ? data.id : null;
+  const name = typeof data.name === "string" ? data.name : null;
+  if (!id || !name) return null;
+
+  const coworker = data.coworker as Record<string, unknown> | null | undefined;
+  const organization = data.organization as
+    | Record<string, unknown>
+    | null
+    | undefined;
+
+  return {
+    id,
+    name,
+    description: typeof data.description === "string" ? data.description : null,
+    status: typeof data.status === "string" ? data.status : null,
+    credits: typeof data.credits === "number" ? data.credits : null,
+    coworker: coworker
+      ? {
+          name:
+            typeof coworker.name === "string"
+              ? coworker.name
+              : fallbacks.coworkerFallback,
+          image: typeof coworker.image === "string" ? coworker.image : null,
+        }
+      : null,
+    organization: organization
+      ? {
+          name:
+            typeof organization.name === "string"
+              ? organization.name
+              : fallbacks.organizationFallback,
+          slug:
+            typeof organization.slug === "string" ? organization.slug : null,
+        }
+      : null,
+  };
+}
+
+/**
+ * A compact card for `sokosumi_create_task` results pushed via
+ * `confirmation_resolved`. Replaces what would otherwise be a 60-line raw
+ * JSON dump with the bits a human actually wants: name, who it's assigned
+ * to, status, and a deep link.
+ */
+function TaskResultCard({ task }: { task: ParsedTaskResult }) {
+  const t = useTranslations("App.Hermes.Running.confirmation.taskCard");
+
+  return (
+    <Link
+      href={`/tasks/${task.id}`}
+      className="border-border bg-card/60 hover:border-foreground/30 hover:bg-card group/task-card flex max-w-2xl flex-col gap-3 rounded-2xl border p-4 transition-colors"
+    >
+      <div className="flex items-center gap-2">
+        {task.coworker?.image ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={task.coworker.image}
+            alt=""
+            className="border-border size-6 shrink-0 rounded-full border"
+          />
+        ) : task.coworker ? (
+          <span className="bg-muted text-muted-foreground inline-flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+            {task.coworker.name.charAt(0).toUpperCase()}
+          </span>
+        ) : null}
+        <span className="text-foreground text-sm font-medium">
+          {task.coworker?.name ?? t("defaultTask")}
+        </span>
+        {task.organization ? (
+          <>
+            <span className="text-tertiary-foreground text-xs">·</span>
+            <span className="text-muted-foreground text-xs">
+              {task.organization.name}
+            </span>
+          </>
+        ) : null}
+        {task.status ? (
+          <span className="border-border/60 text-muted-foreground ml-auto rounded-full border px-1.5 py-0.5 text-xs font-medium uppercase tracking-wider">
+            {task.status.toLowerCase()}
+          </span>
+        ) : null}
+      </div>
+
+      <div>
+        <div className="text-foreground text-base font-semibold tracking-tight">
+          {task.name}
+        </div>
+        {task.description ? (
+          <p className="text-muted-foreground mt-1 line-clamp-3 text-sm leading-relaxed">
+            {task.description}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="text-muted-foreground group-hover/task-card:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors">
+        <span>{t("viewTask")}</span>
+        <ArrowUpRight className="size-3.5" aria-hidden />
+      </div>
+    </Link>
+  );
+}
+
+/**
+ * Maps a tool slug to user-facing copy for the confirmation card.
+ * Hides the technical sokosumi_* prefix; falls back to the raw slug for
+ * future kinds.
+ */
+const CONFIRMATION_TOOL_KEYS = [
+  "sokosumi_create_task",
+  "sokosumi_create_job",
+  "sokosumi_add_task_comment",
+  "sokosumi_provide_job_input",
+  "sokosumi_refund_job",
+] as const;
+
+function describeConfirmationTool(
+  toolName: string,
+  t: (key: string) => string,
+): {
+  action: string;
+  helper: string;
+} {
+  if ((CONFIRMATION_TOOL_KEYS as readonly string[]).includes(toolName)) {
+    return {
+      action: t(`tools.${toolName}.action`),
+      helper: t(`tools.${toolName}.helper`),
+    };
+  }
+  return { action: toolName, helper: "" };
 }

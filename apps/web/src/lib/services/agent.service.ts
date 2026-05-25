@@ -168,17 +168,29 @@ export const agentService = (() => {
     if (!session) {
       return [];
     }
-    return await prisma.$transaction(async (tx) => {
-      const list = await agentListRepository.upsertAgentListForUserId(
-        session.user.id,
-        type,
-        tx,
-      );
-      const creditCosts = await creditCostRepository.getCreditCosts(tx);
-      return list.agents.filter((agent) =>
-        isAgentAvailable(agent, creditCosts),
-      );
-    });
+    // Sidebar list is nice-to-have, not load-bearing — same defense as
+    // breadcrumb-navigation: on Neon cold-start timeouts we surface an empty
+    // list rather than throwing into the React tree (which Next's dev overlay
+    // surfaces and which boots users out of /hermes).
+    return await prisma
+      .$transaction(async (tx) => {
+        const list = await agentListRepository.upsertAgentListForUserId(
+          session.user.id,
+          type,
+          tx,
+        );
+        const creditCosts = await creditCostRepository.getCreditCosts(tx);
+        return list.agents.filter((agent) =>
+          isAgentAvailable(agent, creditCosts),
+        );
+      })
+      .catch((error) => {
+        console.warn(
+          "[agent.service] getAgentsByListType timed out, using empty fallback",
+          { type, message: (error as Error)?.message },
+        );
+        return [] as AgentWithRelations[];
+      });
   };
 
   // Public API
@@ -200,11 +212,13 @@ export const agentService = (() => {
      * @returns Array of available agents with valid pricing.
      */
     getAvailableAgents: async (): Promise<AgentWithRelations[]> => {
-      return await prisma.$transaction(async (tx) => {
-        const { availableAgents } =
-          await getAvailableOnlineAgentsAndCreditCosts(tx);
-        return availableAgents;
-      });
+      // Reads only — no need for an interactive transaction. Neon pooled
+      // connections frequently time out on `prisma.$transaction(async (tx) => ...)`
+      // for read-only work because each interactive transaction reserves a
+      // dedicated session from a small pool. Plain reads sidestep that.
+      const { availableAgents } =
+        await getAvailableOnlineAgentsAndCreditCosts(prisma);
+      return availableAgents;
     },
 
     /**
@@ -242,29 +256,29 @@ export const agentService = (() => {
     getAvailableAgentsWithCreditsPrice: async (): Promise<
       AgentWithCreditsPrice[]
     > => {
-      return await prisma.$transaction(async (tx) => {
-        const { availableAgents, creditCosts } =
-          await getAvailableOnlineAgentsAndCreditCosts(tx);
-        const creditCostByUnit = buildCreditCostByUnitMap(creditCosts);
+      // Reads only — see note on getAvailableAgents above. Plain reads avoid
+      // Neon pooled-connection transaction-acquisition timeouts.
+      const { availableAgents, creditCosts } =
+        await getAvailableOnlineAgentsAndCreditCosts(prisma);
+      const creditCostByUnit = buildCreditCostByUnitMap(creditCosts);
 
-        const agentsWithCreditsPrice: AgentWithCreditsPrice[] = [];
-        for (const agent of availableAgents) {
-          try {
-            const creditsPriceCents = computeAgentCreditsPriceCents(
-              agent,
-              creditCostByUnit,
-            );
-            agentsWithCreditsPrice.push({
-              ...agent,
-              creditsPrice: {
-                cents: creditsPriceCents,
-              },
-            });
-          } catch {}
-        }
+      const agentsWithCreditsPrice: AgentWithCreditsPrice[] = [];
+      for (const agent of availableAgents) {
+        try {
+          const creditsPriceCents = computeAgentCreditsPriceCents(
+            agent,
+            creditCostByUnit,
+          );
+          agentsWithCreditsPrice.push({
+            ...agent,
+            creditsPrice: {
+              cents: creditsPriceCents,
+            },
+          });
+        } catch {}
+      }
 
-        return agentsWithCreditsPrice;
-      });
+      return agentsWithCreditsPrice;
     },
 
     /**

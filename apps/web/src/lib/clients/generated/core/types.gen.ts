@@ -520,6 +520,9 @@ export type HermesInstanceNotReady = {
 
 export const HermesInstanceStatus = {
     PROVISIONING: 'provisioning',
+    INFRASTRUCTURE_READY: 'infrastructure_ready',
+    ONBOARDING: 'onboarding',
+    READY: 'ready',
     RUNNING: 'running',
     SUSPENDED: 'suspended',
     ERROR: 'error'
@@ -557,6 +560,78 @@ export type HermesInstance = {
     status: HermesInstanceStatus;
     endpointUrl: string | null;
     lastActivityAt: Date | null;
+    onboardedAt: Date | null;
+    autonomyLevel?: HermesAutonomyLevel;
+    integrations: Array<HermesIntegration>;
+    transitioning?: boolean;
+    lastSokosumiSyncAt?: Date | null;
+    lastInboxRefreshAt?: Date | null;
+    timezone?: string | null;
+    pendingConfirmations?: Array<HermesPendingConfirmation>;
+};
+
+export const HermesAutonomyLevel = {
+    LOW: 'low',
+    MEDIUM: 'medium',
+    HIGH: 'high'
+} as const;
+
+export type HermesAutonomyLevel = typeof HermesAutonomyLevel[keyof typeof HermesAutonomyLevel];
+
+export type HermesIntegration = {
+    provider: HermesIntegrationProvider;
+    status: HermesIntegrationStatus;
+    connectedAt: Date | null;
+    mode?: HermesIntegrationMode;
+};
+
+export const HermesIntegrationProvider = {
+    GMAIL: 'gmail',
+    GOOGLE_CALENDAR: 'google_calendar',
+    GOOGLE_SHEETS: 'google_sheets',
+    GOOGLE_DOCS: 'google_docs',
+    OUTLOOK: 'outlook',
+    OUTLOOK_CALENDAR: 'outlook_calendar',
+    SLACK: 'slack',
+    TEAMS: 'teams',
+    LINEAR: 'linear',
+    JIRA: 'jira',
+    GITHUB: 'github',
+    NOTION: 'notion',
+    HUBSPOT: 'hubspot',
+    TWITTER: 'twitter',
+    INSTAGRAM: 'instagram',
+    YOUTUBE: 'youtube',
+    LINKEDIN: 'linkedin'
+} as const;
+
+export type HermesIntegrationProvider = typeof HermesIntegrationProvider[keyof typeof HermesIntegrationProvider];
+
+export const HermesIntegrationStatus = {
+    DISCONNECTED: 'disconnected',
+    CONNECTING: 'connecting',
+    CONNECTED: 'connected',
+    ERROR: 'error'
+} as const;
+
+export type HermesIntegrationStatus = typeof HermesIntegrationStatus[keyof typeof HermesIntegrationStatus];
+
+export const HermesIntegrationMode = { READ: 'read', WRITE: 'write' } as const;
+
+export type HermesIntegrationMode = typeof HermesIntegrationMode[keyof typeof HermesIntegrationMode];
+
+export type HermesPendingConfirmation = {
+    id: string;
+    toolName: string;
+    summary: string;
+    createdAt: Date;
+};
+
+export type HermesUpdateInstanceRequest = {
+    autonomyLevel?: HermesAutonomyLevel;
+    name?: string;
+    email?: string;
+    timezone?: string;
 };
 
 export type HermesEmptyResponse = {
@@ -590,6 +665,113 @@ export type MarkHermesInboxSeenRequest = {
 export type SetHermesSecretRequest = {
     key: string;
     value: string;
+};
+
+export type HermesStartOnboardingRequest = {
+    name?: string;
+    email?: string;
+    role?: string;
+    company?: string;
+    researchDepth?: 'deep' | 'shallow';
+    autonomyLevel?: HermesAutonomyLevel;
+};
+
+export type HermesOnboardingProgress = {
+    status: HermesInstanceStatus;
+    steps: Array<HermesOnboardingStep>;
+    etaSeconds: number | null;
+};
+
+export type HermesOnboardingStep = {
+    id: string;
+    label: string;
+    status: HermesOnboardingStepStatus;
+    errorMessage?: string | null;
+};
+
+export const HermesOnboardingStepStatus = {
+    PENDING: 'pending',
+    RUNNING: 'running',
+    DONE: 'done',
+    SKIPPED: 'skipped',
+    ERROR: 'error'
+} as const;
+
+export type HermesOnboardingStepStatus = typeof HermesOnboardingStepStatus[keyof typeof HermesOnboardingStepStatus];
+
+export type HermesIntegrationsList = {
+    integrations: Array<HermesIntegration>;
+};
+
+export type HermesSchedulesList = {
+    schedules: Array<HermesSchedule>;
+};
+
+export type HermesSchedule = {
+    id: string;
+    source: HermesScheduleSource;
+    kind: HermesScheduleKind;
+    name: string;
+    description?: string | null;
+    cronExpr: string;
+    timezone?: string | null;
+    enabled: boolean;
+    lastRunAt: Date | null;
+    nextRunAt: Date | null;
+    systemManaged: boolean;
+    addressable?: boolean;
+};
+
+export const HermesScheduleSource = { ORCHESTRATOR: 'orchestrator', HERMES: 'hermes' } as const;
+
+export type HermesScheduleSource = typeof HermesScheduleSource[keyof typeof HermesScheduleSource];
+
+export const HermesScheduleKind = {
+    USER: 'user',
+    SYSTEM_PROMPT: 'system_prompt',
+    SYSTEM_SWEEP: 'system_sweep'
+} as const;
+
+export type HermesScheduleKind = typeof HermesScheduleKind[keyof typeof HermesScheduleKind];
+
+export type HermesPatchScheduleRequest = {
+    enabled?: boolean;
+};
+
+export type HermesConfirmationResolveResponse = {
+    status: HermesConfirmationStatus;
+    result?: string | null;
+    error?: string | null;
+};
+
+export const HermesConfirmationStatus = {
+    APPROVED: 'approved',
+    REJECTED: 'rejected',
+    ERRORED: 'errored',
+    ALREADY_RESOLVED: 'already_resolved'
+} as const;
+
+export type HermesConfirmationStatus = typeof HermesConfirmationStatus[keyof typeof HermesConfirmationStatus];
+
+export type HermesRejectConfirmationRequest = {
+    reason?: string;
+};
+
+export type HermesInitiateIntegrationResponse = {
+    provider: HermesIntegrationProvider;
+    redirectUrl: string;
+    connectionId: string;
+};
+
+export type HermesInitiateIntegrationRequest = {
+    provider: HermesIntegrationProvider;
+    mode?: HermesIntegrationMode;
+};
+
+export type HermesFinalizeIntegrationRequest = {
+    provider: HermesIntegrationProvider;
+    connectionId: string;
+    mode?: HermesIntegrationMode;
 };
 
 /**
@@ -5426,6 +5608,113 @@ export type GetHermesMeInstanceResponses = {
 
 export type GetHermesMeInstanceResponse = GetHermesMeInstanceResponses[keyof GetHermesMeInstanceResponses];
 
+export type PatchHermesMeInstanceData = {
+    body?: HermesUpdateInstanceRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance';
+};
+
+export type PatchHermesMeInstanceErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchHermesMeInstanceError = PatchHermesMeInstanceErrors[keyof PatchHermesMeInstanceErrors];
+
+export type PatchHermesMeInstanceResponses = {
+    /**
+     * Updated Hermes instance
+     */
+    200: {
+        data: HermesInstance;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchHermesMeInstanceResponse = PatchHermesMeInstanceResponses[keyof PatchHermesMeInstanceResponses];
+
 export type PostHermesMeInstanceData = {
     body?: never;
     headers?: {
@@ -5852,6 +6141,915 @@ export type PostHermesMeSecretsResponses = {
 };
 
 export type PostHermesMeSecretsResponse = PostHermesMeSecretsResponses[keyof PostHermesMeSecretsResponses];
+
+export type PostHermesMeInstanceOnboardData = {
+    body?: HermesStartOnboardingRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/onboard';
+};
+
+export type PostHermesMeInstanceOnboardErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostHermesMeInstanceOnboardError = PostHermesMeInstanceOnboardErrors[keyof PostHermesMeInstanceOnboardErrors];
+
+export type PostHermesMeInstanceOnboardResponses = {
+    /**
+     * Onboarding kicked off; poll /me/instance and /me/instance/onboarding-progress
+     */
+    200: {
+        data: HermesEmptyResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostHermesMeInstanceOnboardResponse = PostHermesMeInstanceOnboardResponses[keyof PostHermesMeInstanceOnboardResponses];
+
+export type GetHermesMeInstanceOnboardingProgressData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/onboarding-progress';
+};
+
+export type GetHermesMeInstanceOnboardingProgressErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHermesMeInstanceOnboardingProgressError = GetHermesMeInstanceOnboardingProgressErrors[keyof GetHermesMeInstanceOnboardingProgressErrors];
+
+export type GetHermesMeInstanceOnboardingProgressResponses = {
+    /**
+     * Onboarding progress
+     */
+    200: {
+        data: HermesOnboardingProgress;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHermesMeInstanceOnboardingProgressResponse = GetHermesMeInstanceOnboardingProgressResponses[keyof GetHermesMeInstanceOnboardingProgressResponses];
+
+export type GetHermesMeInstanceIntegrationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/integrations';
+};
+
+export type GetHermesMeInstanceIntegrationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHermesMeInstanceIntegrationsError = GetHermesMeInstanceIntegrationsErrors[keyof GetHermesMeInstanceIntegrationsErrors];
+
+export type GetHermesMeInstanceIntegrationsResponses = {
+    /**
+     * Connected integrations
+     */
+    200: {
+        data: HermesIntegrationsList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHermesMeInstanceIntegrationsResponse = GetHermesMeInstanceIntegrationsResponses[keyof GetHermesMeInstanceIntegrationsResponses];
+
+export type GetHermesMeInstanceSchedulesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/schedules';
+};
+
+export type GetHermesMeInstanceSchedulesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSchedulesError = GetHermesMeInstanceSchedulesErrors[keyof GetHermesMeInstanceSchedulesErrors];
+
+export type GetHermesMeInstanceSchedulesResponses = {
+    /**
+     * Scheduled tasks
+     */
+    200: {
+        data: HermesSchedulesList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSchedulesResponse = GetHermesMeInstanceSchedulesResponses[keyof GetHermesMeInstanceSchedulesResponses];
+
+export type PatchHermesMeInstanceSchedulesByScheduleIdData = {
+    body?: HermesPatchScheduleRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        scheduleId: string;
+    };
+    query?: never;
+    url: '/hermes/me/instance/schedules/{scheduleId}';
+};
+
+export type PatchHermesMeInstanceSchedulesByScheduleIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchHermesMeInstanceSchedulesByScheduleIdError = PatchHermesMeInstanceSchedulesByScheduleIdErrors[keyof PatchHermesMeInstanceSchedulesByScheduleIdErrors];
+
+export type PatchHermesMeInstanceSchedulesByScheduleIdResponses = {
+    /**
+     * Updated schedule
+     */
+    200: {
+        data: HermesSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchHermesMeInstanceSchedulesByScheduleIdResponse = PatchHermesMeInstanceSchedulesByScheduleIdResponses[keyof PatchHermesMeInstanceSchedulesByScheduleIdResponses];
+
+export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        confirmationId: string;
+    };
+    query?: never;
+    url: '/hermes/me/instance/confirmations/{confirmationId}/approve';
+};
+
+export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveError = PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors[keyof PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors];
+
+export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses = {
+    /**
+     * Confirmation resolved
+     */
+    200: {
+        data: HermesConfirmationResolveResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponse = PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses[keyof PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses];
+
+export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectData = {
+    body?: HermesRejectConfirmationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        confirmationId: string;
+    };
+    query?: never;
+    url: '/hermes/me/instance/confirmations/{confirmationId}/reject';
+};
+
+export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectError = PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors[keyof PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors];
+
+export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponses = {
+    /**
+     * Confirmation rejected
+     */
+    200: {
+        data: HermesConfirmationResolveResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponse = PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponses[keyof PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponses];
+
+export type DeleteHermesMeInstanceIntegrationsByProviderData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        provider: HermesIntegrationProvider;
+    };
+    query?: never;
+    url: '/hermes/me/instance/integrations/{provider}';
+};
+
+export type DeleteHermesMeInstanceIntegrationsByProviderErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteHermesMeInstanceIntegrationsByProviderError = DeleteHermesMeInstanceIntegrationsByProviderErrors[keyof DeleteHermesMeInstanceIntegrationsByProviderErrors];
+
+export type DeleteHermesMeInstanceIntegrationsByProviderResponses = {
+    /**
+     * Integration disconnected
+     */
+    200: {
+        data: HermesEmptyResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteHermesMeInstanceIntegrationsByProviderResponse = DeleteHermesMeInstanceIntegrationsByProviderResponses[keyof DeleteHermesMeInstanceIntegrationsByProviderResponses];
+
+export type PostHermesMeInstanceIntegrationsInitiateData = {
+    body?: HermesInitiateIntegrationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/integrations/initiate';
+};
+
+export type PostHermesMeInstanceIntegrationsInitiateErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostHermesMeInstanceIntegrationsInitiateError = PostHermesMeInstanceIntegrationsInitiateErrors[keyof PostHermesMeInstanceIntegrationsInitiateErrors];
+
+export type PostHermesMeInstanceIntegrationsInitiateResponses = {
+    /**
+     * OAuth flow initiated
+     */
+    200: {
+        data: HermesInitiateIntegrationResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostHermesMeInstanceIntegrationsInitiateResponse = PostHermesMeInstanceIntegrationsInitiateResponses[keyof PostHermesMeInstanceIntegrationsInitiateResponses];
+
+export type PostHermesMeInstanceIntegrationsFinalizeData = {
+    body?: HermesFinalizeIntegrationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/integrations/finalize';
+};
+
+export type PostHermesMeInstanceIntegrationsFinalizeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostHermesMeInstanceIntegrationsFinalizeError = PostHermesMeInstanceIntegrationsFinalizeErrors[keyof PostHermesMeInstanceIntegrationsFinalizeErrors];
+
+export type PostHermesMeInstanceIntegrationsFinalizeResponses = {
+    /**
+     * Integration finalized
+     */
+    200: {
+        data: HermesIntegration;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostHermesMeInstanceIntegrationsFinalizeResponse = PostHermesMeInstanceIntegrationsFinalizeResponses[keyof PostHermesMeInstanceIntegrationsFinalizeResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;

@@ -1,106 +1,70 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 
-import { cn } from "@/lib/utils";
-
-const STEP_KEYS = ["step1", "step2", "step3", "step4"] as const;
-const STEP_INTERVAL_MS = 6_000;
+import FlowBackground from "@/app/hermes/components/flow-background";
+import ProgressPips from "@/app/hermes/components/progress-pips";
+import RotatingMessages from "@/app/hermes/components/rotating-messages";
+import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 
 /**
- * Indeterminate provisioning view, ASCII/terminal style. Steps illustrate
- * the orchestrator's bootstrap stages and step forward at a steady cadence;
- * the parent component decides when to navigate away based on the actual
- * instance status. The last step holds with a spinner if provisioning takes
- * longer than expected (~30s happy path, occasionally up to a couple of
- * minutes).
+ * Indeterminate provisioning view. The orchestrator drives the real machine
+ * boot — we don't have visibility into per-step progress yet, so the UI
+ * shows a single honest "Setting up your agent…" with a calm shimmer rather
+ * than a fake-paced step list that misleads the user about timing.
  */
 export default function ProvisioningState() {
   const t = useTranslations("App.Hermes.Provisioning");
-  const [stepIndex, setStepIndex] = useState(0);
-
-  useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 0; i < STEP_KEYS.length; i++) {
-      timers.push(
-        setTimeout(
-          () => setStepIndex(Math.min(i + 1, STEP_KEYS.length - 1)),
-          STEP_INTERVAL_MS * (i + 1),
-        ),
-      );
-    }
-    return () => {
-      for (const timer of timers) clearTimeout(timer);
-    };
-  }, []);
+  const facts = orderedMessageList(t.raw("facts") as Record<string, string>);
 
   return (
-    <div className="text-foreground mx-auto w-full max-w-4xl px-4 py-12 font-mono md:py-16">
-      <div className="text-tertiary-foreground mb-6 flex items-center justify-between text-[11px] tracking-wide">
-        <span>┌─[ /hermes ]</span>
-        <span className="border-border/60 rounded-sm border px-1.5 py-0 text-[10px] uppercase tracking-widest">
-          provisioning
-        </span>
-      </div>
+    <FlowBackground className="flex h-full flex-col">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-8 md:py-12">
+        <ProgressPips current="provisioning" />
 
-      <div className="border-border/60 bg-muted/10 rounded-md border p-5 md:p-6">
-        <div className="text-foreground flex items-baseline gap-1.5 text-base md:text-lg">
-          <span className="text-tertiary-foreground">{">"}</span>
-          <span>{t("title").toLowerCase()}</span>
-          <span
-            aria-hidden
-            className="bg-foreground inline-block h-[0.85em] w-[0.5em] animate-pulse"
-          />
+        {/* ── Hero with Hermes avatar ─────────────────────────────── */}
+        <div className="flex flex-col items-center text-center">
+          <div className="bg-card border-border/60 ring-border/40 relative size-20 overflow-hidden rounded-full border ring-4 md:size-24">
+            <Image
+              src="/images/hermes/avatar.png"
+              alt=""
+              fill
+              sizes="96px"
+              className="object-cover"
+            />
+          </div>
+          <h1 className="text-foreground mt-6 text-3xl font-semibold tracking-tight md:text-4xl">
+            {t("title")}
+          </h1>
+          <p className="text-muted-foreground mt-4 max-w-md text-base leading-relaxed">
+            {t("subtitle")}
+          </p>
         </div>
-        <p className="text-muted-foreground mt-2 ml-5 text-xs leading-relaxed">
-          {t("subtitle").toLowerCase()}
-        </p>
+
+        {/* ── Loader status + rotating Hermes facts ───────────────── */}
+        <div className="border-border/60 bg-card/60 mt-12 flex flex-col items-center gap-4 rounded-2xl border px-6 py-8 backdrop-blur-md">
+          <div className="inline-flex items-center gap-3">
+            <Loader2 className="text-primary size-4 animate-spin" aria-hidden />
+            <span className="reasoning-text-shine text-foreground text-sm font-medium">
+              {t("settingUp")}
+            </span>
+          </div>
+          <div className="border-border/40 mt-2 w-full max-w-md border-t pt-4">
+            <div className="text-muted-foreground text-center text-[11px] font-semibold uppercase tracking-wider">
+              {t("whileYouWait")}
+            </div>
+            <div className="mt-3 flex min-h-[3rem] items-center justify-center">
+              <RotatingMessages
+                messages={facts}
+                intervalMs={5_500}
+                className="text-foreground/80 max-w-md text-center text-sm leading-relaxed"
+              />
+            </div>
+          </div>
+        </div>
       </div>
-
-      <ol className="mt-6 flex flex-col gap-1 text-sm">
-        {STEP_KEYS.map((key, idx) => {
-          const isDone = idx < stepIndex;
-          const isActive = idx === stepIndex;
-          const isPending = idx > stepIndex;
-
-          const marker = isDone ? "[✓]" : isActive ? "[…]" : "[ ]";
-
-          return (
-            <li
-              key={key}
-              className={cn(
-                "flex items-baseline gap-3 px-2 py-1.5 transition-colors",
-                isActive && "bg-muted/40 rounded-sm",
-              )}
-            >
-              <span
-                className={cn(
-                  "tabular-nums",
-                  isDone && "text-foreground",
-                  isActive && "text-foreground animate-pulse",
-                  isPending && "text-tertiary-foreground/60",
-                )}
-              >
-                {marker}
-              </span>
-              <span
-                className={cn(
-                  isPending ? "text-tertiary-foreground" : "text-foreground",
-                  isActive && "font-medium",
-                )}
-              >
-                {t(key).toLowerCase()}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-
-      <div className="text-tertiary-foreground mt-10 flex items-center justify-between border-t pt-4 text-[11px] tracking-wide">
-        <span>└─[ ~30s typical ]</span>
-        <span>v0.1 · beta</span>
-      </div>
-    </div>
+    </FlowBackground>
   );
 }

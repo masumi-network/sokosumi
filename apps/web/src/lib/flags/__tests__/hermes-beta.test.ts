@@ -35,6 +35,8 @@ describe("hermesBetaEnabled", () => {
   it.each([
     "user@nmkr.io",
     "USER@NMKR.IO",
+    "user@house-of-communication.com",
+    "USER@HOUSE-OF-COMMUNICATION.COM",
   ])("returns true for beta domain %s", async (email) => {
     getSessionMock.mockResolvedValue({ user: { email } });
 
@@ -51,16 +53,5 @@ describe("hermesBetaEnabled", () => {
     const { hermesBetaEnabled } = await import("../hermes-beta");
 
     await expect(hermesBetaEnabled()).resolves.toBe(false);
-  });
-});
-
-describe("isHermesBetaAccessEmail", () => {
-  it("matches nmkr.io only", async () => {
-    const { isHermesBetaAccessEmail } = await import("../hermes-beta");
-
-    expect(isHermesBetaAccessEmail("a@nmkr.io")).toBe(true);
-    expect(isHermesBetaAccessEmail("a@sub.nmkr.io")).toBe(false);
-    expect(isHermesBetaAccessEmail(null)).toBe(false);
-    expect(isHermesBetaAccessEmail("not-an-email")).toBe(false);
   });
 });

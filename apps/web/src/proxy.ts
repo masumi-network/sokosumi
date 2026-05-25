@@ -22,6 +22,11 @@ const EXCLUDED_PATHS = [
   "/favicon.ico",
   "/apple-touch-icon",
   "/maintenance",
+  // Composio OAuth redirects back to /composio/callback in a popup. The page
+  // is purely client-side (URL params → postMessage → window.close) and the
+  // popup may not carry the parent's session cookie, so it must not be
+  // gated by the session check.
+  "/composio/callback",
 ];
 
 export async function proxy(request: NextRequest) {
@@ -84,9 +89,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - images directory in /public (public static images)
+     * - icons directory in /public (public static brand SVGs)
      * - legal directory in /public (public static legal documents)
      * - js directory in /public (public static js files)
      */
-    "/((?!api|_next/static|_next/image|images|public|legal|js).*)",
+    "/((?!api|_next/static|_next/image|images|icons|public|legal|js).*)",
   ],
 };
