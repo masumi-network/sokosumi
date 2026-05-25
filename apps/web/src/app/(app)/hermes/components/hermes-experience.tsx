@@ -35,10 +35,20 @@ type UiState =
   | "running"
   | "error";
 
+export interface HermesOrganizationOption {
+  id: string;
+  name: string;
+  slug: string | null;
+}
+
 interface HermesExperienceProps {
   userName?: string | null;
   userEmail?: string | null;
   userImageUrl?: string | null;
+  /** Orgs the user is a member of — drives the confirmation-card dropdown. */
+  organizations?: HermesOrganizationOption[];
+  /** Active org from the user's session; pre-selected in the dropdown. */
+  activeOrganizationId?: string | null;
 }
 
 const POLL_INTERVAL_MS = 5_000;
@@ -116,7 +126,29 @@ export default function HermesExperience({
   userName,
   userEmail,
   userImageUrl,
+  organizations = [],
+  activeOrganizationId = null,
 }: HermesExperienceProps) {
+  // Preview mode (`?state=running`) is server-data-free, so inject some
+  // realistic-looking orgs the dropdown can render. Real sessions pass
+  // their actual memberships through the page.
+  const effectiveOrganizations =
+    organizations.length > 0
+      ? organizations
+      : typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("mock") ===
+            "confirmation"
+        ? [
+            { id: "org_personal_demo", name: "My Workspace", slug: "personal" },
+            { id: "org_sokosumi", name: "Sokosumi Inc", slug: "sokosumi" },
+            { id: "org_acme", name: "Acme Robotics", slug: "acme" },
+          ]
+        : organizations;
+  const effectiveActiveOrgId =
+    activeOrganizationId ??
+    (effectiveOrganizations !== organizations
+      ? effectiveOrganizations[1]?.id ?? null
+      : null);
   const t = useTranslations("App.Hermes.Experience");
   const params = useSearchParams();
   const previewParam = params?.get("state");
@@ -435,6 +467,8 @@ export default function HermesExperience({
       instance={instance}
       previewMode={previewMode}
       initialMessages={initialMessages}
+      organizations={effectiveOrganizations}
+      activeOrganizationId={effectiveActiveOrgId}
       onDestroy={handleDestroy}
       onRefresh={() => refetchHermes({ background: true })}
     />

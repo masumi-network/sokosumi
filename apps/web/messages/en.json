@@ -1917,6 +1917,11 @@
           "erroredAfterApproval": "Hermes' action errored after approval.",
           "approvedToast": "Approved. Hermes will run the action.",
           "resolvedFallback": "Hermes ran your approved action.",
+          "organizationLabel": "Create in",
+          "organizationPersonal": "Personal",
+          "costNotice": "Cost can't be calculated up front. Any credits this work uses will be deducted from your balance as it runs.",
+          "approvedStatus": "Approved",
+          "rejectedStatus": "Rejected",
           "tools": {
             "sokosumi_create_task": {
               "action": "Create a task",
@@ -1972,7 +1977,7 @@
         "autonomyMediumBody": "Hermes can act, but checks in over chat before spending credits or making non-trivial changes. Recommended.",
         "autonomyMediumRecommended": "Recommended",
         "autonomyHighLabel": "Autonomous",
-        "autonomyHighBody": "The true agent experience. Hermes acts on its own. Opens tickets, sends mail, and spends your Sokosumi credits to hire other agents when it judges the work is worth it. Bounded by cost rules (refuses if balance would drop below 10 credits; asks if a single job exceeds 25% of your balance). Best once you trust how it works.",
+        "autonomyHighBody": "The true agent experience. Hermes acts on its own without asking you. Opens tickets, sends mail, and spends your Sokosumi credits to hire other agents when it judges the work is worth it. Best once you trust how it works.",
         "autonomyHighSpendBadge": "Spends credits",
         "integrationsHeading": "Integrations",
         "integrationsHelp": "Hermes connects through Composio. You authorize each provider in a popup; tokens never touch Sokosumi.",

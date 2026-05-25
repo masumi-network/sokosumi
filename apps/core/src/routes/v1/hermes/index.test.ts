@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 
 const {
+  approveConfirmationMock,
   authGetSessionMock,
   authVerifyApiKeyMock,
   captureExceptionMock,
+  coworkerFindManyMock,
   ensureInstanceReadyMock,
   HermesInstanceNotReadyErrorMock,
   hermesMessageCreateMock,
@@ -14,6 +16,8 @@ const {
   hermesMessageUpsertMock,
   isReservedSecretKeyMock,
   isValidSecretKeyMock,
+  memberFindFirstMock,
+  organizationFindManyMock,
   prismaTransactionMock,
   proxyChatCompletionsMock,
   syncHermesInboxForUserMock,
@@ -37,9 +41,11 @@ const {
   }
 
   return {
+    approveConfirmationMock: vi.fn(),
     authGetSessionMock: vi.fn(),
     authVerifyApiKeyMock: vi.fn(),
     captureExceptionMock: vi.fn(),
+    coworkerFindManyMock: vi.fn(),
     ensureInstanceReadyMock: vi.fn(),
     HermesInstanceNotReadyErrorMock,
     hermesMessageCreateMock: vi.fn(),
@@ -47,6 +53,8 @@ const {
     hermesMessageUpsertMock: vi.fn(),
     isReservedSecretKeyMock: vi.fn(),
     isValidSecretKeyMock: vi.fn(),
+    memberFindFirstMock: vi.fn(),
+    organizationFindManyMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
     proxyChatCompletionsMock: vi.fn(),
     syncHermesInboxForUserMock: vi.fn(),
@@ -88,6 +96,15 @@ vi.mock("@/lib/db/prisma", () => ({
       upsert: hermesMessageUpsertMock,
       count: vi.fn().mockResolvedValue(0),
     },
+    coworker: {
+      findMany: coworkerFindManyMock,
+    },
+    member: {
+      findFirst: memberFindFirstMock,
+    },
+    organization: {
+      findMany: organizationFindManyMock,
+    },
     user: {
       findUnique: userFindUniqueMock,
     },
@@ -102,6 +119,7 @@ vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
 
   return {
     ...actual,
+    approveConfirmation: approveConfirmationMock,
     destroyInstance: vi.fn(),
     ensureInstanceReady: ensureInstanceReadyMock,
     getInstance: vi.fn(),
@@ -174,6 +192,14 @@ describe("Hermes route contracts", () => {
     syncHermesInboxForUserMock.mockResolvedValue({
       userId: "user_123",
       outcome: "no_messages",
+    });
+    coworkerFindManyMock.mockResolvedValue([]);
+    memberFindFirstMock.mockResolvedValue(null);
+    organizationFindManyMock.mockResolvedValue([]);
+    approveConfirmationMock.mockResolvedValue({
+      status: "approved",
+      result: null,
+      error: null,
     });
     proxyChatCompletionsMock.mockResolvedValue(
       Response.json({
@@ -776,6 +802,73 @@ describe("Hermes route contracts", () => {
     expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
   });
 
+  it("enriches pending confirmations with referenced coworkers + organizations on GET /me/instance", async () => {
+    const coworkerId = "0e8c93b0-5332-4734-b603-ea18d17b50c5";
+    const orgId = "11111111-2222-3333-4444-555555555555";
+    const strangerId = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+
+    vi.mocked(getInstance).mockResolvedValue({
+      status: "ready",
+      endpointUrl: null,
+      lastActivityAt: null,
+      onboardedAt: null,
+      autonomyLevel: "medium",
+      integrations: [],
+      transitioning: false,
+      welcomeMessage: null,
+      welcomeKind: null,
+      lastSokosumiSyncAt: null,
+      lastInboxRefreshAt: null,
+      timezone: null,
+      pendingConfirmations: [
+        {
+          id: "conf_1",
+          toolName: "sokosumi_create_task",
+          summary: `Create a new task and assign it to coworker ${coworkerId} in organization ${orgId}. Unknown user ${strangerId}.`,
+          createdAt: "2026-05-25T10:00:00.000Z",
+          referencedCoworkers: [],
+          referencedOrganizations: [],
+        },
+      ],
+    });
+    coworkerFindManyMock.mockResolvedValue([
+      { id: coworkerId, name: "Hannah", image: "https://img/hannah.png" },
+    ]);
+    organizationFindManyMock.mockResolvedValue([
+      { id: orgId, name: "Sokosumi Inc", slug: "sokosumi" },
+    ]);
+
+    const response = await createApp().request("/me/instance", {
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "user_123",
+          id: { in: expect.arrayContaining([coworkerId, orgId, strangerId]) },
+        }),
+      }),
+    );
+    const data = body.data as {
+      instance: {
+        pendingConfirmations: Array<{
+          referencedCoworkers: Array<{ id: string; name: string }>;
+          referencedOrganizations: Array<{ id: string; name: string }>;
+        }>;
+      };
+    };
+    const [conf] = data.instance.pendingConfirmations;
+    expect(conf.referencedCoworkers).toEqual([
+      { id: coworkerId, name: "Hannah", image: "https://img/hannah.png" },
+    ]);
+    expect(conf.referencedOrganizations).toEqual([
+      { id: orgId, name: "Sokosumi Inc", slug: "sokosumi" },
+    ]);
+  });
+
   it.each([
     401, 403, 429,
   ] as const)("returns 503 when GET /me/instance fails with orchestrator HTTP %i", async (httpStatus) => {
@@ -874,5 +967,94 @@ describe("Hermes route contracts", () => {
 
     expect(okResponse?.description).toContain("data.message");
     expect(conflictResponse?.description).toContain("data/meta envelope");
+  });
+
+  it("forwards approve-time organization override after membership check", async () => {
+    const orgId = "11111111-2222-3333-4444-555555555555";
+    memberFindFirstMock.mockResolvedValue({ id: "mem_1" });
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ overrides: { organizationId: orgId } }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(memberFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user_123", organizationId: orgId },
+      }),
+    );
+    expect(approveConfirmationMock).toHaveBeenCalledWith(
+      "user_123",
+      "conf_1",
+      { organizationId: orgId },
+    );
+  });
+
+  it("rejects approve with overrides for an org the user is not a member of", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          overrides: { organizationId: "ffffffff-ffff-ffff-ffff-ffffffffffff" },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(approveConfirmationMock).not.toHaveBeenCalled();
+  });
+
+  it("treats explicit null organizationId as personal scope and skips membership check", async () => {
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ overrides: { organizationId: null } }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
+    expect(approveConfirmationMock).toHaveBeenCalledWith(
+      "user_123",
+      "conf_1",
+      { organizationId: null },
+    );
+  });
+
+  it("approves without overrides when body is omitted (Hermes' original args stand)", async () => {
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer test_api_key" },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(approveConfirmationMock).toHaveBeenCalledWith(
+      "user_123",
+      "conf_1",
+      undefined,
+    );
   });
 });

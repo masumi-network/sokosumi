@@ -33,6 +33,7 @@ import {
   type HermesIntegrationMode,
   type HermesIntegrationProvider,
   HermesOrchestratorError,
+  type HermesPendingConfirmation,
   isReservedSecretKey,
   isValidSecretKey,
   listInstanceIntegrations,
@@ -70,6 +71,7 @@ import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth, withGlobalHeaderParameters } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import {
+  hermesApproveConfirmationRequestSchema,
   hermesChatRequestSchema,
   hermesChatResponseSchema,
   hermesConfirmationResolveResponseSchema,
@@ -116,6 +118,13 @@ const MAX_CHAT_CONTEXT_MESSAGES = 100;
 const CHAT_RECOVERY_RETRY_DELAYS_MS = [2_000, 5_000, 10_000];
 /** Inline transcript retries before returning 200 after a successful proxy. */
 const CHAT_TRANSCRIPT_INLINE_RETRY_DELAYS_MS = [0, 250, 750];
+
+/**
+ * RFC-4122 UUID matcher (any version, dashed canonical form). Used to
+ * find coworker/organization ids embedded in confirmation summaries the
+ * orchestrator writes — see `enrichPendingConfirmations`.
+ */
+const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 interface DecodedFile {
   name: string;
@@ -416,6 +425,87 @@ function buildPersistedUserContent(
   return trimmed
     ? `${trimmed}\n\nAttached files: ${names}`
     : `Attached files: ${names}`;
+}
+
+/**
+ * Resolve UUIDs the orchestrator embeds in confirmation summaries
+ * (e.g. "assign to coworker 0e8c93b0-…") into coworker / organization
+ * records so the UI can render avatar + name chips instead of raw ids.
+ *
+ * Scoped to the caller — we only look up rows the user owns / belongs
+ * to, so an attacker can't enumerate someone else's coworkers by
+ * feeding crafted summaries through the orchestrator.
+ *
+ * Best-effort: a DB hiccup here must not 500 the whole instance fetch.
+ */
+async function enrichPendingConfirmations(
+  confirmations: HermesPendingConfirmation[],
+  userId: string,
+): Promise<HermesPendingConfirmation[]> {
+  if (confirmations.length === 0) return confirmations;
+
+  const allIds = new Set<string>();
+  for (const confirmation of confirmations) {
+    const matches = confirmation.summary.match(UUID_PATTERN);
+    if (!matches) continue;
+    for (const id of matches) allIds.add(id.toLowerCase());
+  }
+  if (allIds.size === 0) return confirmations;
+
+  const ids = Array.from(allIds);
+  let coworkers: Array<{ id: string; name: string; image: string | null }> = [];
+  let organizations: Array<{ id: string; name: string; slug: string | null }> =
+    [];
+  try {
+    [coworkers, organizations] = await Promise.all([
+      prisma.coworker.findMany({
+        where: { id: { in: ids }, userId },
+        select: { id: true, name: true, image: true },
+      }),
+      prisma.organization.findMany({
+        where: {
+          id: { in: ids },
+          members: { some: { userId } },
+        },
+        select: { id: true, name: true, slug: true },
+      }),
+    ]);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_confirmation_enrich" },
+    });
+    return confirmations;
+  }
+
+  const coworkerById = new Map(coworkers.map((c) => [c.id, c]));
+  const orgById = new Map(organizations.map((o) => [o.id, o]));
+
+  return confirmations.map((confirmation) => {
+    const matches = confirmation.summary.match(UUID_PATTERN);
+    if (!matches) return confirmation;
+    const seen = new Set<string>();
+    const refCoworkers: HermesPendingConfirmation["referencedCoworkers"] = [];
+    const refOrgs: HermesPendingConfirmation["referencedOrganizations"] = [];
+    for (const raw of matches) {
+      const id = raw.toLowerCase();
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const coworker = coworkerById.get(id);
+      if (coworker) {
+        refCoworkers.push(coworker);
+        continue;
+      }
+      const organization = orgById.get(id);
+      if (organization) {
+        refOrgs.push(organization);
+      }
+    }
+    return {
+      ...confirmation,
+      referencedCoworkers: refCoworkers,
+      referencedOrganizations: refOrgs,
+    };
+  });
 }
 
 function mapComposioError(error: unknown, fallback: string): never {
@@ -982,12 +1072,20 @@ const approveConfirmationRoute = withGlobalHeaderParameters(
     method: "post",
     path: "/me/instance/confirmations/{confirmationId}/approve",
     description:
-      "Approve a medium-autonomy pending tool call. The orchestrator runs it and returns the result.",
+      "Approve a medium-autonomy pending tool call. Optional `overrides.organizationId` reroutes the queued tool args to a different org the caller is a member of.",
     tags: TAGS,
     request: {
       params: z.object({
         confirmationId: z.string().min(1),
       }),
+      body: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: hermesApproveConfirmationRequestSchema,
+          },
+        },
+      },
     },
     responses: {
       200: jsonSuccessResponse(
@@ -1263,7 +1361,17 @@ app.openapi(getInstanceRoute, async (c) => {
         });
       });
 
-      const parsedInstance = hermesInstanceSchema.parse(instance);
+      // Resolve any coworker / organization UUIDs the orchestrator inlined
+      // into confirmation summaries BEFORE we hand the instance to Zod —
+      // the schema's `referencedCoworkers` field expects the enriched shape.
+      const enrichedConfirmations = await enrichPendingConfirmations(
+        instance.pendingConfirmations,
+        userContext.userId,
+      );
+      const parsedInstance = hermesInstanceSchema.parse({
+        ...instance,
+        pendingConfirmations: enrichedConfirmations,
+      });
 
       // Atomic welcome (orchestrator's "ready" payload carries the intro).
       // Persist it on first sight so the chat opens with the welcome
@@ -1610,11 +1718,41 @@ app.openapi(patchScheduleRoute, async (c) => {
 app.openapi(approveConfirmationRoute, async (c) => {
   const userContext = requireUserContext(c.var.authContext);
   const { confirmationId } = c.req.valid("param");
+  // Body is optional on this route — when the client posts no payload Hono
+  // returns `undefined` and we treat it as the no-overrides case (Hermes'
+  // original args stand).
+  const body = c.req.valid("json") ?? {};
+
+  let overrides: { organizationId?: string | null } | undefined;
+  if (body.overrides) {
+    overrides = {};
+    if ("organizationId" in body.overrides) {
+      const requestedOrgId = body.overrides.organizationId ?? null;
+      if (requestedOrgId !== null) {
+        // Authorization: the user must actually belong to the org they're
+        // routing this confirmation into — otherwise approving with a
+        // crafted id would let a member of org A create resources in
+        // unrelated org B. The orchestrator trusts us, so the check has
+        // to land here.
+        const membership = await prisma.member.findFirst({
+          where: { userId: userContext.userId, organizationId: requestedOrgId },
+          select: { id: true },
+        });
+        if (!membership) {
+          throw badRequest(
+            "You are not a member of the organization you tried to approve into.",
+          );
+        }
+      }
+      overrides.organizationId = requestedOrgId;
+    }
+  }
 
   try {
     const result = await approveConfirmation(
       userContext.userId,
       confirmationId,
+      overrides,
     );
     return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
   } catch (error) {

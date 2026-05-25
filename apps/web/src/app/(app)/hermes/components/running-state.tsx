@@ -3,7 +3,9 @@
 import {
   AlertCircle,
   ArrowUpRight,
+  Building2,
   Check,
+  Coins,
   Loader2,
   Plug,
   Plus,
@@ -12,7 +14,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import {
+import React, {
   type FormEvent,
   useCallback,
   useEffect,
@@ -45,6 +47,13 @@ import {
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -67,12 +76,22 @@ import type {
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
+interface HermesOrganizationOption {
+  id: string;
+  name: string;
+  slug: string | null;
+}
+
 interface RunningStateProps {
   userName?: string | null;
   userImageUrl?: string | null;
   instance: HermesInstancePublic | null;
   previewMode: boolean;
   initialMessages?: HermesPersistedMessage[];
+  /** Orgs the user is a member of (for the confirmation-card dropdown). */
+  organizations?: HermesOrganizationOption[];
+  /** Active org from the session — pre-selected in the dropdown. */
+  activeOrganizationId?: string | null;
   onDestroy: () => Promise<void> | void;
   /** Re-pull the instance from the orchestrator. SettingsPanel calls this
    * after mutations so the integrations chip / autonomy badge don't drift. */
@@ -147,6 +166,8 @@ export default function RunningState({
   instance,
   previewMode,
   initialMessages,
+  organizations = [],
+  activeOrganizationId = null,
   onDestroy,
   onRefresh,
 }: RunningStateProps) {
@@ -162,34 +183,24 @@ export default function RunningState({
   const [files, setFiles] = useState<File[]>([]);
   const [isReplying, setIsReplying] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // Confirmation IDs the user already approved/rejected. We hide them
-  // optimistically the moment the orchestrator returns 200, then prune
-  // the set once the next poll confirms the row left `pendingConfirmations`
-  // server-side. Without this, an "errored" approval would leave a stuck
-  // resolved card on screen forever.
-  const [dismissedConfirmationIds, setDismissedConfirmationIds] = useState<
-    Set<string>
-  >(() => new Set());
-
-  // Reconcile dismissed set with the latest poll: if an id is no longer in
-  // pendingConfirmations, the orchestrator agreed and we can stop tracking
-  // it locally. Keeps the set from growing unbounded.
-  useEffect(() => {
-    if (!instance) return;
-    const live = new Set(instance.pendingConfirmations.map((c) => c.id));
-    setDismissedConfirmationIds((prev) => {
-      let changed = false;
-      const next = new Set<string>();
-      for (const id of prev) {
-        if (live.has(id)) {
-          next.add(id);
-        } else {
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [instance]);
+  // Dev-only mock confirmations injected via `?state=running&mock=confirmation`
+  // (plus optional `&coworkerId=…&coworkerName=…`). Lets you eyeball the
+  // ConfirmationCard chips without waiting for Hermes to actually emit a
+  // sokosumi_create_task call. Captured once on mount; never repolls.
+  const [mockConfirmations] = useState<HermesPendingConfirmation[]>(() => {
+    if (!previewMode) return [];
+    if (typeof window === "undefined") return [];
+    return buildMockPendingConfirmations(window.location.search);
+  });
+  // Confirmations the user has already resolved this session. We snapshot
+  // the full confirmation + the resolution (approved vs rejected + the org
+  // they picked, when relevant) so the card can stay in the chat as a
+  // read-only audit trail even after the orchestrator drops it from
+  // `pendingConfirmations`. The chronological order of resolution is
+  // what we render — Map iteration order preserves insertion.
+  const [resolvedConfirmations, setResolvedConfirmations] = useState<
+    Map<string, ResolvedConfirmationEntry>
+  >(() => new Map());
 
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -477,7 +488,19 @@ export default function RunningState({
   );
 
   const firstName = userName?.split(" ")[0] ?? null;
-  const isEmpty = messages.length === 0;
+  // Active (still-pending) cards — interactive. We exclude anything the
+  // user has already resolved this session so the optimistic transition
+  // to "resolved" doesn't briefly render the same id twice while the
+  // orchestrator catches up.
+  const pendingCards = [
+    ...(instance?.pendingConfirmations ?? []),
+    ...mockConfirmations,
+  ].filter((c) => !resolvedConfirmations.has(c.id));
+  const resolvedCards = Array.from(resolvedConfirmations.values());
+  const isEmpty =
+    messages.length === 0 &&
+    pendingCards.length === 0 &&
+    resolvedCards.length === 0;
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
@@ -516,21 +539,33 @@ export default function RunningState({
                 />
               ))}
               {isReplying ? <AssistantTyping /> : null}
-              {(instance?.pendingConfirmations ?? [])
-                .filter((c) => !dismissedConfirmationIds.has(c.id))
-                .map((confirmation) => (
-                  <ConfirmationCard
-                    key={confirmation.id}
-                    confirmation={confirmation}
-                    onResolved={(id) =>
-                      setDismissedConfirmationIds((prev) => {
-                        const next = new Set(prev);
-                        next.add(id);
-                        return next;
-                      })
-                    }
-                  />
-                ))}
+              {resolvedCards.map((entry) => (
+                <ConfirmationCard
+                  key={`resolved-${entry.confirmation.id}`}
+                  confirmation={entry.confirmation}
+                  organizations={organizations}
+                  activeOrganizationId={activeOrganizationId}
+                  resolution={entry.resolution}
+                  onResolved={() => {}}
+                />
+              ))}
+              {pendingCards.map((confirmation) => (
+                <ConfirmationCard
+                  key={confirmation.id}
+                  confirmation={confirmation}
+                  organizations={organizations}
+                  activeOrganizationId={activeOrganizationId}
+                  resolution={null}
+                  onResolved={(id, resolution) =>
+                    setResolvedConfirmations((prev) => {
+                      if (prev.has(id)) return prev;
+                      const next = new Map(prev);
+                      next.set(id, { confirmation, resolution });
+                      return next;
+                    })
+                  }
+                />
+              ))}
             </div>
           </div>
         )}
@@ -1158,6 +1193,123 @@ type HermesIntegrationPublic = NonNullable<
 type HermesIntegrationProvider = HermesIntegrationPublic["provider"];
 
 /**
+ * Same RFC-4122 UUID pattern the server uses to resolve coworker /
+ * organization ids in the summary. Splitting on this lets us interleave
+ * `<CoworkerRefChip>` / `<OrgRefChip>` exactly where the orchestrator
+ * wrote the id.
+ */
+const SUMMARY_UUID_PATTERN =
+  /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
+
+/**
+ * Dev preview: synthesizes a fake pending confirmation referencing a real
+ * coworker so the ConfirmationCard renders with avatar + name chips
+ * locally, without waiting on the orchestrator. Activated by
+ * `?state=running&mock=confirmation`. Optional overrides via
+ * `&coworkerId=<uuid>&coworkerName=<name>&coworkerImage=<url>`.
+ */
+function buildMockPendingConfirmations(
+  search: string,
+): HermesPendingConfirmation[] {
+  const params = new URLSearchParams(search);
+  if (params.get("mock") !== "confirmation") return [];
+  const coworkerId =
+    params.get("coworkerId") ?? "0e8c93b0-5332-4734-b603-ea18d17b50c5";
+  const coworkerName = params.get("coworkerName") ?? "Hannah";
+  const coworkerImage = params.get("coworkerImage");
+  return [
+    {
+      id: "mock-confirmation-1",
+      toolName: "sokosumi_create_task",
+      summary: `Create a new task "Research: Teodor Petricevic — UNDP AltFinLab" and assign it to coworker ${coworkerId}.`,
+      createdAt: new Date().toISOString(),
+      referencedCoworkers: [
+        {
+          id: coworkerId,
+          name: coworkerName,
+          image: coworkerImage,
+        },
+      ],
+      referencedOrganizations: [],
+    },
+  ];
+}
+
+function renderConfirmationSummary(
+  confirmation: HermesPendingConfirmation,
+): React.ReactNode {
+  const { summary, referencedCoworkers, referencedOrganizations } = confirmation;
+  if (
+    referencedCoworkers.length === 0 &&
+    referencedOrganizations.length === 0
+  ) {
+    return summary;
+  }
+  const coworkerById = new Map(
+    referencedCoworkers.map((c) => [c.id.toLowerCase(), c]),
+  );
+  const orgById = new Map(
+    referencedOrganizations.map((o) => [o.id.toLowerCase(), o]),
+  );
+
+  return summary.split(SUMMARY_UUID_PATTERN).map((part, index) => {
+    const key = `${index}-${part}`;
+    const lower = part.toLowerCase();
+    const coworker = coworkerById.get(lower);
+    if (coworker) {
+      return <CoworkerRefChip key={key} coworker={coworker} />;
+    }
+    const organization = orgById.get(lower);
+    if (organization) {
+      return <OrgRefChip key={key} organization={organization} />;
+    }
+    // Unresolved chunk — either non-UUID prose or an id we couldn't
+    // attribute to this user. Render verbatim.
+    return <React.Fragment key={key}>{part}</React.Fragment>;
+  });
+}
+
+function CoworkerRefChip({
+  coworker,
+}: {
+  coworker: HermesPendingConfirmation["referencedCoworkers"][number];
+}) {
+  return (
+    <span className="border-border/60 bg-card/80 text-foreground mx-0.5 inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border px-1.5 py-0.5 align-middle text-xs font-medium">
+      {coworker.image ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={coworker.image}
+          alt=""
+          className="border-border size-4 shrink-0 rounded-full border"
+        />
+      ) : (
+        <span className="bg-muted text-muted-foreground inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
+          {coworker.name.charAt(0).toUpperCase()}
+        </span>
+      )}
+      <span className="truncate">{coworker.name}</span>
+    </span>
+  );
+}
+
+function OrgRefChip({
+  organization,
+}: {
+  organization: HermesPendingConfirmation["referencedOrganizations"][number];
+}) {
+  return (
+    <span className="border-border/60 bg-card/80 text-foreground mx-0.5 inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border px-1.5 py-0.5 align-middle text-xs font-medium">
+      <Building2
+        className="text-muted-foreground size-3.5 shrink-0"
+        aria-hidden
+      />
+      <span className="truncate">{organization.name}</span>
+    </span>
+  );
+}
+
+/**
  * Inline approve/reject card for medium-autonomy gates. Per the orchestrator
  * spec, the card hides on every 200 — including when `status === "errored"`.
  * Errors are surfaced as a toast instead of pinning a resolved card in the
@@ -1166,22 +1318,97 @@ type HermesIntegrationProvider = HermesIntegrationPublic["provider"];
  * stays hidden across re-polls even if the orchestrator hasn't dropped the
  * row from `pendingConfirmations` yet.
  */
+/**
+ * Tools whose queued args take an `organizationId` — those are the ones
+ * the user can reroute at approve time via the dropdown. Other tools
+ * (add_task_comment, provide_job_input, refund_job) don't carry an org
+ * because they target an existing resource that already has one.
+ */
+const ORG_AWARE_TOOLS = new Set([
+  "sokosumi_create_task",
+  "sokosumi_create_job",
+]);
+
+/**
+ * Tools that may spend credits. `sokosumi_create_job` always does; tasks
+ * spend once a coworker actually runs against them. Either way we want
+ * the user to see the "costs deduct from credits" notice before they
+ * approve.
+ */
+const COST_BEARING_TOOLS = new Set([
+  "sokosumi_create_task",
+  "sokosumi_create_job",
+]);
+
+const PERSONAL_SCOPE_VALUE = "__personal__";
+
+/**
+ * Captures what the user did with a confirmation so the card can be
+ * re-rendered as a read-only audit trail. `organizationId === undefined`
+ * means the tool wasn't org-aware (no dropdown was shown); `null` means
+ * the user explicitly picked personal scope.
+ */
+interface ConfirmationResolution {
+  status: "approved" | "rejected";
+  organizationId?: string | null;
+}
+
+interface ResolvedConfirmationEntry {
+  confirmation: HermesPendingConfirmation;
+  resolution: ConfirmationResolution;
+}
+
 function ConfirmationCard({
   confirmation,
   onResolved,
+  organizations,
+  activeOrganizationId,
+  resolution,
 }: {
   confirmation: HermesPendingConfirmation;
-  onResolved: (confirmationId: string) => void;
+  onResolved: (
+    confirmationId: string,
+    resolution: ConfirmationResolution,
+  ) => void;
+  organizations: HermesOrganizationOption[];
+  activeOrganizationId: string | null;
+  /** Non-null means the user already resolved this card; render read-only. */
+  resolution: ConfirmationResolution | null;
 }) {
   const t = useTranslations("App.Hermes.Running.confirmation");
   const [busy, setBusy] = useState<"approving" | "rejecting" | null>(null);
 
+  // Pre-select the user's active org if we have one; otherwise default to
+  // personal scope so the dropdown is never empty.
+  const isResolved = resolution !== null;
+  const showOrgPicker =
+    ORG_AWARE_TOOLS.has(confirmation.toolName) && organizations.length > 0;
+  const showCostNotice = COST_BEARING_TOOLS.has(confirmation.toolName);
+  const defaultOrgValue =
+    activeOrganizationId &&
+    organizations.some((o) => o.id === activeOrganizationId)
+      ? activeOrganizationId
+      : PERSONAL_SCOPE_VALUE;
+  const [selectedOrgValue, setSelectedOrgValue] = useState<string>(() => {
+    if (resolution && resolution.organizationId !== undefined) {
+      return resolution.organizationId ?? PERSONAL_SCOPE_VALUE;
+    }
+    return defaultOrgValue;
+  });
+
   const handleApprove = async () => {
-    if (busy) return;
+    if (busy || isResolved) return;
     setBusy("approving");
-    const result = await approveHermesConfirmationAction({
-      confirmationId: confirmation.id,
-    });
+    const chosenOrgId =
+      selectedOrgValue === PERSONAL_SCOPE_VALUE ? null : selectedOrgValue;
+    const result = await approveHermesConfirmationAction(
+      showOrgPicker
+        ? {
+            confirmationId: confirmation.id,
+            organizationId: chosenOrgId,
+          }
+        : { confirmationId: confirmation.id },
+    );
     setBusy(null);
     if (!result.ok) {
       toast.error(result.error.message ?? t("approveFailed"));
@@ -1192,11 +1419,14 @@ function ConfirmationCard({
     } else if (result.data.status === "approved") {
       toast.success(t("approvedToast"));
     }
-    onResolved(confirmation.id);
+    onResolved(confirmation.id, {
+      status: "approved",
+      organizationId: showOrgPicker ? chosenOrgId : undefined,
+    });
   };
 
   const handleReject = async () => {
-    if (busy) return;
+    if (busy || isResolved) return;
     setBusy("rejecting");
     const result = await rejectHermesConfirmationAction({
       confirmationId: confirmation.id,
@@ -1206,59 +1436,144 @@ function ConfirmationCard({
       toast.error(result.error.message ?? t("rejectFailed"));
       return;
     }
-    onResolved(confirmation.id);
+    onResolved(confirmation.id, { status: "rejected" });
   };
 
   const tool = describeConfirmationTool(confirmation.toolName, (key) => t(key));
+  const summaryFragments = renderConfirmationSummary(confirmation);
+
+  // Resolved cards: same layout, muted chrome, status pill instead of
+  // buttons, dropdown locked to the user's earlier choice. Renders as a
+  // read-only audit trail in the chat.
+  const isApproved = resolution?.status === "approved";
 
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
-      <AssistantAvatar accent />
-      <div className="border-amber-500/30 bg-amber-500/6 flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border px-4 py-3 backdrop-blur-sm">
-        <div className="text-amber-700 dark:text-amber-400 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
-          <AlertCircle className="size-3.5" aria-hidden />
-          <span>{t("heading")}</span>
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-foreground text-sm font-semibold tracking-tight">
-            {tool.action}
-          </div>
-          <p className="text-foreground/90 text-sm leading-relaxed">
-            {confirmation.summary}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 pt-1">
-          <Button
-            type="button"
-            size="sm"
-            variant="primary"
-            className="gap-1.5"
-            disabled={busy !== null}
-            onClick={() => void handleApprove()}
-          >
-            {busy === "approving" ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : (
+      <AssistantAvatar accent={!isResolved} />
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border px-4 py-3 backdrop-blur-sm",
+          isResolved
+            ? "border-border/60 bg-muted/30"
+            : "border-amber-500/30 bg-amber-500/6",
+        )}
+      >
+        <div
+          className={cn(
+            "inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider",
+            isResolved
+              ? "text-muted-foreground"
+              : "text-amber-700 dark:text-amber-400",
+          )}
+        >
+          {isResolved ? (
+            isApproved ? (
               <Check className="size-3.5" aria-hidden />
-            )}
-            <span>{t("approve")}</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
-            disabled={busy !== null}
-            onClick={() => void handleReject()}
-          >
-            {busy === "rejecting" ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
             ) : (
               <X className="size-3.5" aria-hidden />
-            )}
-            <span>{t("reject")}</span>
-          </Button>
+            )
+          ) : (
+            <AlertCircle className="size-3.5" aria-hidden />
+          )}
+          <span>
+            {isResolved
+              ? isApproved
+                ? t("approvedStatus")
+                : t("rejectedStatus")
+              : t("heading")}
+          </span>
         </div>
+        <div className="flex flex-col gap-1">
+          <div
+            className={cn(
+              "text-sm font-semibold tracking-tight",
+              isResolved ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {tool.action}
+          </div>
+          <p
+            className={cn(
+              "text-sm leading-relaxed",
+              isResolved ? "text-muted-foreground" : "text-foreground/90",
+            )}
+          >
+            {summaryFragments}
+          </p>
+        </div>
+        {showOrgPicker ? (
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor={`confirm-org-${confirmation.id}`}
+              className="text-muted-foreground text-xs font-medium uppercase tracking-wider"
+            >
+              {t("organizationLabel")}
+            </label>
+            <Select
+              value={selectedOrgValue}
+              onValueChange={setSelectedOrgValue}
+              disabled={busy !== null || isResolved}
+            >
+              <SelectTrigger
+                id={`confirm-org-${confirmation.id}`}
+                size="sm"
+                className="w-full max-w-xs"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={PERSONAL_SCOPE_VALUE}>
+                  {t("organizationPersonal")}
+                </SelectItem>
+                {organizations.map((org) => (
+                  <SelectItem key={org.id} value={org.id}>
+                    {org.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+        {showCostNotice && !isResolved ? (
+          <div className="border-border/60 bg-muted/30 text-muted-foreground flex items-start gap-2 rounded-md border px-2.5 py-2 text-xs leading-relaxed">
+            <Coins className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            <span>{t("costNotice")}</span>
+          </div>
+        ) : null}
+        {isResolved ? null : (
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              className="gap-1.5"
+              disabled={busy !== null}
+              onClick={() => void handleApprove()}
+            >
+              {busy === "approving" ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Check className="size-3.5" aria-hidden />
+              )}
+              <span>{t("approve")}</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              disabled={busy !== null}
+              onClick={() => void handleReject()}
+            >
+              {busy === "rejecting" ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <X className="size-3.5" aria-hidden />
+              )}
+              <span>{t("reject")}</span>
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

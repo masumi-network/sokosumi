@@ -161,12 +161,31 @@ export interface HermesSchedule {
  * A medium-autonomy gate. The orchestrator intercepted a write/spend tool
  * call from Hermes; the user has to approve or reject before it runs.
  */
+export interface HermesConfirmationCoworkerRef {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
+export interface HermesConfirmationOrganizationRef {
+  id: string;
+  name: string;
+  slug: string | null;
+}
+
 export interface HermesPendingConfirmation {
   id: string;
   toolName: string;
   /** One-paragraph plain-English summary of what Hermes wants to do. */
   summary: string;
   createdAt: string;
+  /**
+   * Coworkers / organizations whose UUIDs appear inline in `summary`,
+   * resolved server-side. Empty arrays when the orchestrator didn't
+   * mention any (or the ids didn't match the caller's resources).
+   */
+  referencedCoworkers: HermesConfirmationCoworkerRef[];
+  referencedOrganizations: HermesConfirmationOrganizationRef[];
 }
 
 export type HermesOnboardingStepStatus =
@@ -246,7 +265,14 @@ function normalizePendingConfirmation(
   const summary = raw.summary;
   const createdAt = raw.createdAt ?? raw.created_at;
   if (!id || !toolName || !summary || !createdAt) return null;
-  return { id, toolName, summary, createdAt };
+  return {
+    id,
+    toolName,
+    summary,
+    createdAt,
+    referencedCoworkers: [],
+    referencedOrganizations: [],
+  };
 }
 
 function normalizeAutonomyLevel(value: unknown): HermesAutonomyLevel {
@@ -524,17 +550,39 @@ export interface HermesConfirmationResolveResult {
   error?: string | null;
 }
 
+export interface HermesApproveConfirmationOverrides {
+  /**
+   * Forces the queued tool call to execute against this organization
+   * before the orchestrator runs it (e.g. `sokosumi_create_task` lands in
+   * this org). `null` means personal scope (no org). Omit the whole field
+   * to leave the args as Hermes proposed.
+   *
+   * IMPORTANT: the caller is responsible for verifying membership — we
+   * just forward what we're given. Core's route handler does the check.
+   */
+  organizationId?: string | null;
+}
+
 /**
  * POST /v1/instances/:userId/confirmations/:id/approve
  * The orchestrator runs the queued tool call and returns its result.
+ *
+ * `overrides` is forwarded to the orchestrator as the request body. The
+ * orchestrator is free to ignore fields it doesn't understand; today only
+ * `organizationId` is consumed (see `prompts/hermes-orchestrator-approve-overrides.md`).
  */
 export async function approveConfirmation(
   userId: string,
   confirmationId: string,
+  overrides?: HermesApproveConfirmationOverrides,
 ): Promise<HermesConfirmationResolveResult> {
+  const jsonBody =
+    overrides && Object.keys(overrides).length > 0
+      ? { overrides }
+      : undefined;
   const res = await orchFetch(
     `/v1/instances/${encodeURIComponent(userId)}/confirmations/${encodeURIComponent(confirmationId)}/approve`,
-    { method: "POST" },
+    { method: "POST", jsonBody },
   );
 
   if (!res.ok) {
