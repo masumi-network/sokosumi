@@ -1,6 +1,8 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useCallback, useEffect, useRef } from "react";
+
 import {
   finalizeHermesIntegrationAction,
   initiateHermesIntegrationAction,
@@ -19,7 +21,7 @@ import type {
 
 const POPUP_FEATURES = "popup=yes,width=560,height=720,noopener=no";
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
-const LOG_PREFIX = "[composio-oauth]";
+const SENTRY_CONTEXT = "composio_oauth";
 
 export type ComposioOAuthResult =
   | { ok: true; integration: HermesIntegration }
@@ -33,6 +35,45 @@ interface CallbackResult {
   connectionId: string | null;
   status: "success" | "error";
   errorMessage: string | null;
+}
+
+function addOAuthBreadcrumb(
+  message: string,
+  data: {
+    provider: HermesIntegrationProvider;
+    mode: HermesIntegrationMode;
+  } & Record<string, unknown>,
+): void {
+  Sentry.addBreadcrumb({
+    category: SENTRY_CONTEXT,
+    message,
+    level: "info",
+    data,
+  });
+}
+
+function captureOAuthFailure(
+  reason:
+    | "popup_blocked"
+    | "initiate_failed"
+    | "timeout"
+    | "callback_error"
+    | "finalize_failed",
+  data: {
+    provider: HermesIntegrationProvider;
+    mode: HermesIntegrationMode;
+  } & Record<string, unknown>,
+): void {
+  Sentry.captureMessage(`composio_oauth_${reason}`, {
+    level: "warning",
+    tags: {
+      context: SENTRY_CONTEXT,
+      reason,
+      provider: data.provider,
+      mode: data.mode,
+    },
+    extra: data,
+  });
 }
 
 function parseCallbackPayload(data: unknown): CallbackResult | null {
@@ -102,9 +143,11 @@ export function useComposioOAuth() {
         POPUP_FEATURES,
       );
       if (!popup) {
+        captureOAuthFailure("popup_blocked", { provider, mode });
         return { ok: false, reason: "popup_blocked" };
       }
       popupRef.current = popup;
+      addOAuthBreadcrumb("popup opened", { provider, mode });
 
       const initiate = await initiateHermesIntegrationAction({
         provider,
@@ -116,6 +159,11 @@ export function useComposioOAuth() {
         } catch {
           /* ignore */
         }
+        captureOAuthFailure("initiate_failed", {
+          provider,
+          mode,
+          message: initiate.error.message ?? null,
+        });
         return {
           ok: false,
           reason: "error",
@@ -130,13 +178,6 @@ export function useComposioOAuth() {
         popup.location.replace(redirectUrl);
       }
       popup.focus();
-
-      // eslint-disable-next-line no-console
-      console.log(LOG_PREFIX, "popup opened, waiting for callback", {
-        provider,
-        mode,
-        connectionId,
-      });
 
       const result = await new Promise<
         { kind: "callback"; payload: CallbackResult } | { kind: "timeout" }
@@ -157,8 +198,9 @@ export function useComposioOAuth() {
           payload: CallbackResult,
           ackTarget: Window | MessageEventSource | null,
         ) => {
-          // eslint-disable-next-line no-console
-          console.log(LOG_PREFIX, "accepted callback", {
+          addOAuthBreadcrumb("callback received", {
+            provider,
+            mode,
             status: payload.status,
             hasConnectionId: payload.connectionId !== null,
             hasError: payload.errorMessage !== null,
@@ -169,11 +211,6 @@ export function useComposioOAuth() {
 
         const onMessage = (event: MessageEvent) => {
           if (event.origin !== window.location.origin) {
-            // eslint-disable-next-line no-console
-            console.warn(LOG_PREFIX, "rejected message from origin", {
-              origin: event.origin,
-              expected: window.location.origin,
-            });
             return;
           }
           const payload = parseCallbackPayload(event.data);
@@ -210,15 +247,16 @@ export function useComposioOAuth() {
       }
 
       if (result.kind === "timeout") {
-        // eslint-disable-next-line no-console
-        console.warn(LOG_PREFIX, "popup timeout");
+        captureOAuthFailure("timeout", { provider, mode });
         return { ok: false, reason: "timeout" };
       }
 
       if (result.payload.status === "error") {
-        // eslint-disable-next-line no-console
-        console.warn(LOG_PREFIX, "callback reported error", {
-          errorMessage: result.payload.errorMessage,
+        captureOAuthFailure("callback_error", {
+          provider,
+          mode,
+          message: result.payload.errorMessage,
+          hasConnectionId: result.payload.connectionId !== null,
         });
         return {
           ok: false,
@@ -229,21 +267,16 @@ export function useComposioOAuth() {
 
       const finalConnectionId = result.payload.connectionId ?? connectionId;
 
-      // eslint-disable-next-line no-console
-      console.log(LOG_PREFIX, "calling finalize", {
-        provider,
-        mode,
-        connectionId: finalConnectionId,
-      });
       const finalize = await finalizeHermesIntegrationAction({
         provider,
         connectionId: finalConnectionId,
         mode,
       });
       if (!finalize.ok) {
-        // eslint-disable-next-line no-console
-        console.warn(LOG_PREFIX, "finalize failed", {
-          message: finalize.error.message,
+        captureOAuthFailure("finalize_failed", {
+          provider,
+          mode,
+          message: finalize.error.message ?? null,
         });
         return {
           ok: false,
@@ -252,9 +285,10 @@ export function useComposioOAuth() {
         };
       }
 
-      // eslint-disable-next-line no-console
-      console.log(LOG_PREFIX, "finalize succeeded", {
-        provider: finalize.data.provider,
+      addOAuthBreadcrumb("finalize succeeded", {
+        provider,
+        mode,
+        integrationProvider: finalize.data.provider,
       });
       return { ok: true, integration: finalize.data };
     },

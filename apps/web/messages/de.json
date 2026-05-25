@@ -1886,6 +1886,11 @@
           "erroredAfterApproval": "Hermes' Aktion ist nach der Freigabe fehlgeschlagen.",
           "approvedToast": "Freigegeben. Hermes führt die Aktion aus.",
           "resolvedFallback": "Hermes hat deine freigegebene Aktion ausgeführt.",
+          "organizationLabel": "Create in",
+          "organizationPersonal": "Personal",
+          "costNotice": "Cost can't be calculated up front. Any credits this work uses will be deducted from your balance as it runs.",
+          "approvedStatus": "Approved",
+          "rejectedStatus": "Rejected",
           "tools": {
             "sokosumi_create_task": {
               "action": "Task anlegen",

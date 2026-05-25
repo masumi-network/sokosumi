@@ -1917,6 +1917,11 @@
           "erroredAfterApproval": "A ação do Hermes falhou após aprovação.",
           "approvedToast": "Aprovado. O Hermes executará a ação.",
           "resolvedFallback": "O Hermes executou a sua ação aprovada.",
+          "organizationLabel": "Create in",
+          "organizationPersonal": "Personal",
+          "costNotice": "Cost can't be calculated up front. Any credits this work uses will be deducted from your balance as it runs.",
+          "approvedStatus": "Approved",
+          "rejectedStatus": "Rejected",
           "tools": {
             "sokosumi_create_task": {
               "action": "Criar uma tarefa",

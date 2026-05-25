@@ -52,6 +52,29 @@ describe("oauth-popup-protocol", () => {
       connectionId: "ca_456",
       errorMessage: "access_denied",
     });
+    expect(
+      parseComposioCallbackSearchParams(
+        "?status=failed&connected_account_id=ca_failed",
+      ),
+    ).toEqual({
+      status: "error",
+      connectionId: "ca_failed",
+      errorMessage: null,
+    });
+    expect(
+      parseComposioCallbackSearchParams(
+        "?status=expired&connectionId=ca_expired",
+      ),
+    ).toEqual({
+      status: "error",
+      connectionId: "ca_expired",
+      errorMessage: null,
+    });
+    expect(parseComposioCallbackSearchParams("?foo=bar")).toEqual({
+      status: "error",
+      connectionId: null,
+      errorMessage: null,
+    });
   });
 
   it("builds a self-contained inline callback script", () => {

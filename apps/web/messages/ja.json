@@ -1917,6 +1917,11 @@
           "erroredAfterApproval": "承認後に Hermes のアクションでエラーが発生しました。",
           "approvedToast": "承認しました。Hermes がアクションを実行します。",
           "resolvedFallback": "Hermes が承認されたアクションを実行しました。",
+          "organizationLabel": "Create in",
+          "organizationPersonal": "Personal",
+          "costNotice": "Cost can't be calculated up front. Any credits this work uses will be deducted from your balance as it runs.",
+          "approvedStatus": "Approved",
+          "rejectedStatus": "Rejected",
           "tools": {
             "sokosumi_create_task": {
               "action": "タスクを作成",

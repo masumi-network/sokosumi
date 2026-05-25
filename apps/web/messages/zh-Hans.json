@@ -1917,6 +1917,11 @@
           "erroredAfterApproval": "Hermes 的操作在批准后出错。",
           "approvedToast": "已批准。Hermes 将执行该操作。",
           "resolvedFallback": "Hermes 已执行你批准的操作。",
+          "organizationLabel": "Create in",
+          "organizationPersonal": "Personal",
+          "costNotice": "Cost can't be calculated up front. Any credits this work uses will be deducted from your balance as it runs.",
+          "approvedStatus": "Approved",
+          "rejectedStatus": "Rejected",
           "tools": {
             "sokosumi_create_task": {
               "action": "创建任务",

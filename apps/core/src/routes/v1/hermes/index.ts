@@ -125,7 +125,7 @@ const CHAT_TRANSCRIPT_INLINE_RETRY_DELAYS_MS = [0, 250, 750];
  * orchestrator writes — see `enrichPendingConfirmations`.
  */
 const UUID_PATTERN =
-  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 interface DecodedFile {
   name: string;
@@ -181,6 +181,13 @@ function isHermesBinaryFileAttachmentMime(type: string): boolean {
 
 function isValidRole(role: string): role is "user" | "assistant" | "system" {
   return role === "user" || role === "assistant" || role === "system";
+}
+
+function findUuidMatches(value: string): string[] {
+  return Array.from(
+    value.matchAll(new RegExp(UUID_PATTERN.source, "gi")),
+    ([match]) => match,
+  );
 }
 
 function decodeDataUrl(
@@ -447,8 +454,7 @@ async function enrichPendingConfirmations(
 
   const allIds = new Set<string>();
   for (const confirmation of confirmations) {
-    const matches = confirmation.summary.match(UUID_PATTERN);
-    if (!matches) continue;
+    const matches = findUuidMatches(confirmation.summary);
     for (const id of matches) allIds.add(id.toLowerCase());
   }
   if (allIds.size === 0) return confirmations;
@@ -478,12 +484,12 @@ async function enrichPendingConfirmations(
     return confirmations;
   }
 
-  const coworkerById = new Map(coworkers.map((c) => [c.id, c]));
-  const orgById = new Map(organizations.map((o) => [o.id, o]));
+  const coworkerById = new Map(coworkers.map((c) => [c.id.toLowerCase(), c]));
+  const orgById = new Map(organizations.map((o) => [o.id.toLowerCase(), o]));
 
   return confirmations.map((confirmation) => {
-    const matches = confirmation.summary.match(UUID_PATTERN);
-    if (!matches) return confirmation;
+    const matches = findUuidMatches(confirmation.summary);
+    if (matches.length === 0) return confirmation;
     const seen = new Set<string>();
     const refCoworkers: HermesPendingConfirmation["referencedCoworkers"] = [];
     const refOrgs: HermesPendingConfirmation["referencedOrganizations"] = [];

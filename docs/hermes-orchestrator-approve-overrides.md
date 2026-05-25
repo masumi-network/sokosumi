@@ -109,6 +109,42 @@ curl -X POST https://orchestrator-production-35d4.up.railway.app/v1/instances/<U
 #    whatever Hermes originally proposed.
 ```
 
+## PR / deploy checklist
+
+1. **Migration first:** run
+   `20260525120000_add_hermes_pending_connection` in every environment before
+   deploying Core/Web changes that use Composio initiate/finalize.
+2. **Orchestrator:** deploy the orchestrator change that reads
+   `overrides.organizationId` before relying on the UI dropdown for production
+   task/job placement. The expected contract is described above in this doc.
+3. **Manual QA:** verify Composio OAuth initiate → finalize on a cold Core
+   instance, confirmation chips, approval with an organization selected, and
+   approval with explicit personal scope.
+4. **i18n:** spot-check at least one non-English locale confirmation card after
+   message sync.
+5. **Finalize:** keep the current 60 second finalize poll budget on the hosted
+   Vercel runtime; see the timeout note below before changing Vercel runtime or
+   plan settings.
+
+## Finalize timeout budget
+
+Core is a Hono Node service (`apps/core/src/index.ts`) deployed with Vercel
+project config in `apps/core/vercel.json`. There is currently no
+`functions.maxDuration` override in that config, so hosted duration follows the
+project's Vercel defaults.
+
+Vercel's current Fluid Compute default for Node.js functions is 300 seconds
+(5 minutes), with a 300 second maximum on Hobby and 800 seconds on Pro /
+Enterprise. The Hermes finalize loop is 40 attempts at 1.5 seconds, roughly
+60 seconds before returning `composio_finalize_not_active`, which is safely
+inside that hosted default.
+
+Recommendation: keep the 60 second finalize poll budget. If this project is
+ever moved to a legacy non-Fluid Vercel runtime, add an explicit
+`functions.maxDuration` override or reduce the poll count to avoid a platform
+504 (`FUNCTION_INVOCATION_TIMEOUT`) before Core can return the retryable
+Composio response.
+
 ## Sokosumi-side references (for context, no changes needed)
 
 - Schema: `apps/core/src/schemas/hermes.schema.ts` →

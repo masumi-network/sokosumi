@@ -1276,7 +1276,7 @@ function CoworkerRefChip({
   coworker: HermesPendingConfirmation["referencedCoworkers"][number];
 }) {
   return (
-    <span className="border-border/60 bg-card/80 text-foreground mx-0.5 inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border px-1.5 py-0.5 align-middle text-xs font-medium">
+    <span className="border-border/60 bg-card/80 text-foreground mx-0.5 inline-flex max-w-56 items-center gap-1.5 rounded-md border px-1.5 py-0.5 align-middle text-xs font-medium">
       {coworker.image ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
@@ -1300,7 +1300,7 @@ function OrgRefChip({
   organization: HermesPendingConfirmation["referencedOrganizations"][number];
 }) {
   return (
-    <span className="border-border/60 bg-card/80 text-foreground mx-0.5 inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border px-1.5 py-0.5 align-middle text-xs font-medium">
+    <span className="border-border/60 bg-card/80 text-foreground mx-0.5 inline-flex max-w-56 items-center gap-1.5 rounded-md border px-1.5 py-0.5 align-middle text-xs font-medium">
       <Building2
         className="text-muted-foreground size-3.5 shrink-0"
         aria-hidden
@@ -1379,8 +1379,7 @@ function ConfirmationCard({
   // Pre-select the user's active org if we have one; otherwise default to
   // personal scope so the dropdown is never empty.
   const isResolved = resolution !== null;
-  const showOrgPicker =
-    ORG_AWARE_TOOLS.has(confirmation.toolName) && organizations.length > 0;
+  const showOrgPicker = ORG_AWARE_TOOLS.has(confirmation.toolName);
   const showCostNotice = COST_BEARING_TOOLS.has(confirmation.toolName);
   const defaultOrgValue =
     activeOrganizationId &&
