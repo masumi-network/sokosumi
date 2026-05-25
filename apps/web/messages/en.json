@@ -2176,9 +2176,11 @@
           "5": "Every morning Hermes will send a brief of what needs your attention."
         },
         "previewSteps": {
-          "memory": "Bootstrapping your private memory",
+          "save_details": "Saving your details",
+          "connect_integrations": "Connecting to your integrations",
           "inbox_scan": "Reading your inbox",
           "web_research": "Checking your public profile",
+          "sokosumi_sync": "Reading your Sokosumi workspace",
           "intro_draft": "Drafting your intro"
         }
       },
