@@ -5,14 +5,17 @@ import type {
 
 export const CONFIRMATION_PERSONAL_SCOPE_VALUE = "__personal__";
 
-/** Org Hermes pinned in the summary (exactly one referenced, member org). */
+/**
+ * Org Hermes pinned in the summary (exactly one referenced org).
+ * Core resolves `referencedOrganizations` with a membership check, so a
+ * single entry is authoritative even when the client's `organizations`
+ * list is empty or stale.
+ */
 function getHermesPinnedOrgValue(
   confirmation: Pick<HermesPendingConfirmation, "referencedOrganizations">,
-  organizations: ReadonlyArray<Pick<HermesOrganizationOption, "id">>,
 ): string | null {
-  const memberOrgIds = new Set(organizations.map((o) => o.id));
   const referenced = confirmation.referencedOrganizations;
-  if (referenced.length === 1 && memberOrgIds.has(referenced[0].id)) {
+  if (referenced.length === 1) {
     return referenced[0].id;
   }
   return null;
@@ -28,7 +31,7 @@ export function resolveConfirmationOrgPickerValue(
   organizations: ReadonlyArray<Pick<HermesOrganizationOption, "id">>,
   activeOrganizationId: string | null,
 ): string {
-  const pinnedOrgValue = getHermesPinnedOrgValue(confirmation, organizations);
+  const pinnedOrgValue = getHermesPinnedOrgValue(confirmation);
   if (pinnedOrgValue) return pinnedOrgValue;
   const memberOrgIds = new Set(organizations.map((o) => o.id));
   if (activeOrganizationId && memberOrgIds.has(activeOrganizationId)) {
@@ -48,11 +51,10 @@ export function shouldSendOrganizationOverride(
   selectedOrgValue: string,
   initialOrgValue: string,
   confirmation: Pick<HermesPendingConfirmation, "referencedOrganizations">,
-  organizations: ReadonlyArray<Pick<HermesOrganizationOption, "id">>,
 ): boolean {
   if (!showOrgPicker) return false;
   if (selectedOrgValue !== initialOrgValue) return true;
-  return getHermesPinnedOrgValue(confirmation, organizations) === null;
+  return getHermesPinnedOrgValue(confirmation) === null;
 }
 
 export function selectedOrgValueToOrganizationId(

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import React, {
   type FormEvent,
@@ -172,6 +173,7 @@ export default function RunningState({
   onDestroy,
   onRefresh,
 }: RunningStateProps) {
+  const searchParams = useSearchParams();
   const t = useTranslations("App.Hermes.Running");
   const mockReplies = orderedMessageList(
     t.raw("mockReplies") as Record<string, string>,
@@ -190,8 +192,7 @@ export default function RunningState({
   // sokosumi_create_task call. Captured once on mount; never repolls.
   const [mockConfirmations] = useState<HermesPendingConfirmation[]>(() => {
     if (!previewMode) return [];
-    if (typeof window === "undefined") return [];
-    return buildMockPendingConfirmations(window.location.search);
+    return buildMockPendingConfirmations(searchParams);
   });
   // Confirmations the user has already resolved this session. We snapshot
   // the full confirmation + the resolution (approved vs rejected + the org
@@ -1210,9 +1211,8 @@ const SUMMARY_UUID_PATTERN =
  * `&coworkerId=<uuid>&coworkerName=<name>&coworkerImage=<url>`.
  */
 function buildMockPendingConfirmations(
-  search: string,
+  params: Pick<URLSearchParams, "get">,
 ): HermesPendingConfirmation[] {
-  const params = new URLSearchParams(search);
   if (params.get("mock") !== "confirmation") return [];
   const coworkerId =
     params.get("coworkerId") ?? "0e8c93b0-5332-4734-b603-ea18d17b50c5";
@@ -1401,7 +1401,6 @@ function ConfirmationCard({
       selectedOrgValue,
       initialOrgValue,
       confirmation,
-      organizations,
     );
     const result = await approveHermesConfirmationAction(
       sendOrgOverride
@@ -1457,7 +1456,6 @@ function ConfirmationCard({
       selectedOrgValue,
       initialOrgValue,
       confirmation,
-      organizations,
     );
     const result = await rejectHermesConfirmationAction({
       confirmationId: confirmation.id,

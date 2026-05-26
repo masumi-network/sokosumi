@@ -119,6 +119,13 @@ function isForwardTransition(from: UiState, to: UiState): boolean {
   return STATE_RANK[to] >= STATE_RANK[from];
 }
 
+/** Injected when `?mock=confirmation` preview has no real org memberships. */
+const MOCK_CONFIRMATION_PREVIEW_ORGANIZATIONS: HermesOrganizationOption[] = [
+  { id: "org_personal_demo", name: "My Workspace", slug: "personal" },
+  { id: "org_sokosumi", name: "Sokosumi Inc", slug: "sokosumi" },
+  { id: "org_acme", name: "Acme Robotics", slug: "acme" },
+];
+
 export default function HermesExperience({
   userName,
   userEmail,
@@ -126,31 +133,26 @@ export default function HermesExperience({
   organizations = [],
   activeOrganizationId = null,
 }: HermesExperienceProps) {
-  // Preview mode (`?state=running`) is server-data-free, so inject some
-  // realistic-looking orgs the dropdown can render. Real sessions pass
-  // their actual memberships through the page.
-  const effectiveOrganizations =
-    organizations.length > 0
-      ? organizations
-      : typeof window !== "undefined" &&
-          new URLSearchParams(window.location.search).get("mock") ===
-            "confirmation"
-        ? [
-            { id: "org_personal_demo", name: "My Workspace", slug: "personal" },
-            { id: "org_sokosumi", name: "Sokosumi Inc", slug: "sokosumi" },
-            { id: "org_acme", name: "Acme Robotics", slug: "acme" },
-          ]
-        : organizations;
-  const effectiveActiveOrgId =
-    activeOrganizationId ??
-    (effectiveOrganizations !== organizations
-      ? (effectiveOrganizations[1]?.id ?? null)
-      : null);
-  const t = useTranslations("App.Hermes.Experience");
   const params = useSearchParams();
-  const previewParam = params?.get("state");
+  const isMockConfirmationPreview = params.get("mock") === "confirmation";
+  const previewParam = params.get("state");
   const previewMode =
     previewParam !== null && PREVIEW_STATES.has(previewParam as UiState);
+
+  // Preview mode (`?state=running`) is server-data-free, so inject some
+  // realistic-looking orgs the dropdown can render. Real sessions pass
+  // their actual memberships through the page. Read `mock` from
+  // `useSearchParams()` — not `window` — so SSR and hydration agree.
+  const usesMockConfirmationOrgs =
+    organizations.length === 0 && isMockConfirmationPreview;
+  const effectiveOrganizations = usesMockConfirmationOrgs
+    ? MOCK_CONFIRMATION_PREVIEW_ORGANIZATIONS
+    : organizations;
+  const effectiveActiveOrgId =
+    activeOrganizationId ??
+    (usesMockConfirmationOrgs ? (effectiveOrganizations[1]?.id ?? null) : null);
+
+  const t = useTranslations("App.Hermes.Experience");
 
   const [uiState, setUiState] = useState<UiState>(
     previewMode ? (previewParam as UiState) : "loading",

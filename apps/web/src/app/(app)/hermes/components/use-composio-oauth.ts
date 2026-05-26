@@ -21,6 +21,8 @@ import type {
 
 const POPUP_FEATURES = "popup=yes,width=560,height=720,noopener=no";
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
+/** Poll only when `readPopupClosed` can return `true` (not COOP-blocked `null`). */
+const POPUP_POLL_INTERVAL_MS = 500;
 const SENTRY_CONTEXT = "composio_oauth";
 
 export type ComposioOAuthResult =
@@ -58,7 +60,8 @@ function captureOAuthFailure(
     | "initiate_failed"
     | "timeout"
     | "callback_error"
-    | "finalize_failed",
+    | "finalize_failed"
+    | "popup_closed",
   data: {
     provider: HermesIntegrationProvider;
     mode: HermesIntegrationMode;
@@ -102,7 +105,8 @@ function sendCallbackAck(target: Window | MessageEventSource | null): void {
  *
  *   1. Server-side `initiate` call → returns Composio redirect URL + connectionId.
  *   2. Open the URL in a popup window.
- *   3. Listen for the callback page (BroadcastChannel + postMessage) or timeout.
+ *   3. Listen for callback (BroadcastChannel + postMessage), popup close, or timeout.
+ *      On close without callback, attempt recovery finalize (server polls Composio).
  *   4. Server-side `finalize` call → verifies + registers MCP with orchestrator.
  *
  * Returns a discriminated union so the caller can update its UI overlay
@@ -114,6 +118,7 @@ export function useComposioOAuth() {
     null,
   );
   const broadcastRef = useRef<BroadcastChannel | null>(null);
+  const pollerRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
 
   const cleanup = useCallback(() => {
@@ -123,6 +128,10 @@ export function useComposioOAuth() {
     }
     broadcastRef.current?.close();
     broadcastRef.current = null;
+    if (pollerRef.current !== null) {
+      window.clearInterval(pollerRef.current);
+      pollerRef.current = null;
+    }
     if (timeoutRef.current !== null) {
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -180,13 +189,16 @@ export function useComposioOAuth() {
       popup.focus();
 
       const result = await new Promise<
-        { kind: "callback"; payload: CallbackResult } | { kind: "timeout" }
+        | { kind: "callback"; payload: CallbackResult }
+        | { kind: "closed" }
+        | { kind: "timeout" }
       >((resolve) => {
         let settled = false;
 
         const finish = (
           value:
             | { kind: "callback"; payload: CallbackResult }
+            | { kind: "closed" }
             | { kind: "timeout" },
         ) => {
           if (settled) return;
@@ -228,9 +240,16 @@ export function useComposioOAuth() {
           onCallback(payload, popup);
         };
 
-        // Do not poll `popup.closed` while Composio is cross-origin — COOP
-        // blocks the getter (console warning) and may lie about closed state.
-        // Callback delivery uses BroadcastChannel + postMessage instead.
+        // COOP may block `popup.closed` on third-party OAuth pages — use
+        // readPopupClosed so we only resolve "closed" on an explicit `true`,
+        // not on blocked access (`null`). When the popup closes without a
+        // callback (race, BroadcastChannel miss, user dismiss after OAuth),
+        // attempt recovery finalize with the initiate connectionId.
+        pollerRef.current = window.setInterval(() => {
+          if (readPopupClosed(popup) === true) {
+            finish({ kind: "closed" });
+          }
+        }, POPUP_POLL_INTERVAL_MS);
 
         timeoutRef.current = window.setTimeout(() => {
           finish({ kind: "timeout" });
@@ -249,6 +268,36 @@ export function useComposioOAuth() {
       if (result.kind === "timeout") {
         captureOAuthFailure("timeout", { provider, mode });
         return { ok: false, reason: "timeout" };
+      }
+
+      if (result.kind === "closed") {
+        addOAuthBreadcrumb("popup closed without callback, recovery finalize", {
+          provider,
+          mode,
+        });
+        const recovery = await finalizeHermesIntegrationAction({
+          provider,
+          connectionId,
+          mode,
+        });
+        if (recovery.ok) {
+          addOAuthBreadcrumb("recovery finalize succeeded", {
+            provider,
+            mode,
+            integrationProvider: recovery.data.provider,
+          });
+          return { ok: true, integration: recovery.data };
+        }
+        captureOAuthFailure("popup_closed", {
+          provider,
+          mode,
+          message: recovery.error.message ?? null,
+        });
+        return {
+          ok: false,
+          reason: "popup_closed",
+          message: recovery.error.message ?? undefined,
+        };
       }
 
       if (result.payload.status === "error") {

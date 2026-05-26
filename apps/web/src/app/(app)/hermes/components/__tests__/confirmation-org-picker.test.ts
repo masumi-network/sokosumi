@@ -43,6 +43,19 @@ describe("resolveConfirmationOrgPickerValue", () => {
     );
     expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
   });
+
+  it("pins to a single referenced org when the client organizations list is empty", () => {
+    const value = resolveConfirmationOrgPickerValue(
+      {
+        referencedOrganizations: [
+          { id: "org-b", name: "Org B", slug: "org-b" },
+        ],
+      },
+      [],
+      "org-a",
+    );
+    expect(value).toBe("org-b");
+  });
 });
 
 describe("shouldSendOrganizationOverride", () => {
@@ -58,7 +71,17 @@ describe("shouldSendOrganizationOverride", () => {
         "org-b",
         "org-b",
         pinnedConfirmation,
-        organizations,
+      ),
+    ).toBe(false);
+  });
+
+  it("omits overrides when Core pinned one org even if picker still shows personal", () => {
+    expect(
+      shouldSendOrganizationOverride(
+        true,
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        pinnedConfirmation,
       ),
     ).toBe(false);
   });
@@ -70,7 +93,6 @@ describe("shouldSendOrganizationOverride", () => {
         "org-a",
         "org-a",
         unpinnedConfirmation,
-        organizations,
       ),
     ).toBe(true);
   });
@@ -82,7 +104,6 @@ describe("shouldSendOrganizationOverride", () => {
         "org-a",
         "org-b",
         pinnedConfirmation,
-        organizations,
       ),
     ).toBe(true);
   });
@@ -94,7 +115,6 @@ describe("shouldSendOrganizationOverride", () => {
         "org-a",
         "org-b",
         unpinnedConfirmation,
-        organizations,
       ),
     ).toBe(false);
   });
