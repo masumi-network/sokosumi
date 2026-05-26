@@ -2,7 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.0.0",
+  "packageManager": "pnpm@11.3.0",
   "scripts": {
     "dev": "pnpm -r dev",
     "web:dev": "pnpm --filter web dev",
@@ -76,7 +76,7 @@
   },
   "devDependencies": {
     "chrome-launcher": "1.2.1",
-    "lighthouse": "13.1.0",
-    "@biomejs/biome": "2.4.13"
+    "lighthouse": "13.3.0",
+    "@biomejs/biome": "2.4.15"
   }
 }
