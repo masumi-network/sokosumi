@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
     // pnpm dlx puppeteer browsers install chrome
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle2" });
+    await page.setContent(html, { waitUntil: "load" });
     await page.emulateMediaType("print");
 
     const pdfBuffer = await page.pdf({
