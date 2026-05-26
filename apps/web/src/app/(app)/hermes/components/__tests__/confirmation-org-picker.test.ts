@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CONFIRMATION_PERSONAL_SCOPE_VALUE,
+  mergeConfirmationOrgPickerOptions,
   resolveConfirmationOrgPickerValue,
   selectedOrgValueToOrganizationId,
   shouldSendOrganizationOverride,
@@ -11,6 +12,24 @@ const organizations = [
   { id: "org-a", name: "Org A" },
   { id: "org-b", name: "Org B" },
 ];
+
+describe("mergeConfirmationOrgPickerOptions", () => {
+  it("appends referenced organizations missing from the client list", () => {
+    const options = mergeConfirmationOrgPickerOptions([], {
+      referencedOrganizations: [{ id: "org-b", name: "Org B", slug: "org-b" }],
+    });
+    expect(options).toEqual([{ id: "org-b", name: "Org B", slug: "org-b" }]);
+  });
+
+  it("deduplicates when a referenced org is already in the membership list", () => {
+    const options = mergeConfirmationOrgPickerOptions(organizations, {
+      referencedOrganizations: [
+        { id: "org-a", name: "Referenced A", slug: "ref-a" },
+      ],
+    });
+    expect(options).toEqual(organizations);
+  });
+});
 
 describe("resolveConfirmationOrgPickerValue", () => {
   it("prefers a single referenced organization over the active org", () => {

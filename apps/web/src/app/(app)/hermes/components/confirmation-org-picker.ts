@@ -26,6 +26,25 @@ function getHermesPinnedOrgValue(
  * org referenced in the summary (Hermes' likely intent) over the session
  * active org so approving without changes can omit overrides.
  */
+/**
+ * Options for the confirmation org `Select`. Merges membership orgs with
+ * any `referencedOrganizations` missing from the client list so a
+ * Hermes-pinned value always has a matching `SelectItem`.
+ */
+export function mergeConfirmationOrgPickerOptions(
+  organizations: ReadonlyArray<HermesOrganizationOption>,
+  confirmation: Pick<HermesPendingConfirmation, "referencedOrganizations">,
+): HermesOrganizationOption[] {
+  const byId = new Map(organizations.map((org) => [org.id, org]));
+  const merged = [...organizations];
+  for (const referenced of confirmation.referencedOrganizations) {
+    if (byId.has(referenced.id)) continue;
+    byId.set(referenced.id, referenced);
+    merged.push(referenced);
+  }
+  return merged;
+}
+
 export function resolveConfirmationOrgPickerValue(
   confirmation: Pick<HermesPendingConfirmation, "referencedOrganizations">,
   organizations: ReadonlyArray<Pick<HermesOrganizationOption, "id">>,

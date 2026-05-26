@@ -26,6 +26,7 @@ import { toast } from "sonner";
 
 import {
   CONFIRMATION_PERSONAL_SCOPE_VALUE,
+  mergeConfirmationOrgPickerOptions,
   resolveConfirmationOrgPickerValue,
   selectedOrgValueToOrganizationId,
   shouldSendOrganizationOverride,
@@ -1381,6 +1382,10 @@ function ConfirmationCard({
   const isResolved = resolution !== null;
   const showOrgPicker = ORG_AWARE_TOOLS.has(confirmation.toolName);
   const showCostNotice = COST_BEARING_TOOLS.has(confirmation.toolName);
+  const orgPickerOptions = mergeConfirmationOrgPickerOptions(
+    organizations,
+    confirmation,
+  );
   const initialOrgValue =
     resolution && resolution.organizationId !== undefined
       ? (resolution.organizationId ?? CONFIRMATION_PERSONAL_SCOPE_VALUE)
@@ -1585,7 +1590,7 @@ function ConfirmationCard({
                 <SelectItem value={CONFIRMATION_PERSONAL_SCOPE_VALUE}>
                   {t("organizationPersonal")}
                 </SelectItem>
-                {organizations.map((org) => (
+                {orgPickerOptions.map((org) => (
                   <SelectItem key={org.id} value={org.id}>
                     {org.name}
                   </SelectItem>

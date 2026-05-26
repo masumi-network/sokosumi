@@ -2,13 +2,6 @@ packages:
   - apps/*
   - packages/*
 
-# pnpm 11 re-validates every lockfile entry against minimumReleaseAge before
-# install (default 1440 minutes). Vercel/CI has no global ~/.config/pnpm/rc
-# override, so fresh transitive versions in pnpm-lock.yaml fail with
-# ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION until they age out. Set explicitly
-# so local dev and CI behave the same (matches common global dev setting).
-minimumReleaseAge: 0
-
 fetchTimeout: 300000
 fetchRetries: 5
 fetchRetryMintimeout: 15000
