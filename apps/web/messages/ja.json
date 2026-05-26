@@ -2058,9 +2058,11 @@
           "5": "毎朝、注意が必要なことを Hermes がブリーフで送ります。"
         },
         "previewSteps": {
-          "memory": "プライベートメモリを構築中",
+          "save_details": "詳細を保存中",
+          "connect_integrations": "連携を接続中",
           "inbox_scan": "受信トレイを読み取り中",
           "web_research": "公開プロフィールを確認中",
+          "sokosumi_sync": "Sokosumi ワークスペースを読み取り中",
           "intro_draft": "イントロを下書き中"
         }
       },

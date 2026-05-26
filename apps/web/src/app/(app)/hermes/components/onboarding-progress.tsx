@@ -3,7 +3,7 @@
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import FlowBackground from "@/app/hermes/components/flow-background";
 import ProgressPips from "@/app/hermes/components/progress-pips";
@@ -24,31 +24,33 @@ interface OnboardingProgressProps {
 const POLL_INTERVAL_MS = 1_000;
 
 /**
- * Step ids we know the orchestrator emits, in the order it emits them. Used
- * for both the preview-mode mock and as the skeleton-state default before
- * the first real poll lands — rendering known labels (rather than shimmer
- * bars) lets the user start reading immediately. Order matters: the first
- * id renders as "running" in the skeleton.
+ * Production onboarding step order. Used for both the preview-mode mock and
+ * the skeleton-state default before the first real poll lands. The UI keeps
+ * these rows stable and merges orchestrator statuses onto them.
  */
-const PREVIEW_STEP_IDS = [
-  "memory",
+const HERMES_ONBOARDING_STEP_IDS = [
+  "save_details",
+  "connect_integrations",
   "inbox_scan",
   "web_research",
+  "sokosumi_sync",
   "intro_draft",
 ] as const;
 
 const PREVIEW_STATUS_SEQUENCE: Array<Array<"pending" | "running" | "done">> = [
-  ["running", "pending", "pending", "pending"],
-  ["done", "running", "pending", "pending"],
-  ["done", "done", "running", "pending"],
-  ["done", "done", "done", "running"],
+  ["running", "pending", "pending", "pending", "pending", "pending"],
+  ["done", "running", "pending", "pending", "pending", "pending"],
+  ["done", "done", "running", "pending", "pending", "pending"],
+  ["done", "done", "done", "running", "pending", "pending"],
+  ["done", "done", "done", "done", "running", "pending"],
+  ["done", "done", "done", "done", "done", "running"],
 ];
 
 function buildPreviewSequence(
   stepLabels: Record<string, string>,
 ): HermesOnboardingStep[][] {
   return PREVIEW_STATUS_SEQUENCE.map((statuses) =>
-    PREVIEW_STEP_IDS.map((id, index) => ({
+    HERMES_ONBOARDING_STEP_IDS.map((id, index) => ({
       id,
       label: stepLabels[id] ?? id,
       status: statuses[index]!,
@@ -60,13 +62,13 @@ function buildPreviewSequence(
  * Skeleton step list used before the first real poll resolves. First step
  * is "running" so the user sees a live spinner; the rest are pending. The
  * labels come from i18n previewSteps so the user reads real copy from the
- * first paint — when the orchestrator's real labels arrive they replace
- * these in place (same ids → same React keys → no list reshuffle).
+ * first paint. When the orchestrator's statuses arrive, they update these
+ * rows in place.
  */
 function buildSkeletonSteps(
   stepLabels: Record<string, string>,
 ): HermesOnboardingStep[] {
-  return PREVIEW_STEP_IDS.map((id, index) => ({
+  return HERMES_ONBOARDING_STEP_IDS.map((id, index) => ({
     id,
     label: stepLabels[id] ?? id,
     status: index === 0 ? "running" : "pending",
@@ -180,16 +182,26 @@ export default function OnboardingProgress({
   previewMode,
 }: OnboardingProgressProps) {
   const t = useTranslations("App.Hermes.OnboardingProgress");
-  const previewSteps = t.raw("previewSteps") as Record<string, string>;
-  const previewSequence = buildPreviewSequence(previewSteps);
-  const skeletonSteps = buildSkeletonSteps(previewSteps);
-  const hints = orderedMessageList(t.raw("hints") as Record<string, string>);
+  const previewSteps = useMemo(
+    () => t.raw("previewSteps") as Record<string, string>,
+    [t],
+  );
+  const previewSequence = useMemo(
+    () => buildPreviewSequence(previewSteps),
+    [previewSteps],
+  );
+  const skeletonSteps = useMemo(
+    () => buildSkeletonSteps(previewSteps),
+    [previewSteps],
+  );
+  const hints = useMemo(
+    () => orderedMessageList(t.raw("hints") as Record<string, string>),
+    [t],
+  );
   const { progress, pollError } = useOnboardingProgress(
     previewMode,
     previewSequence,
   );
-  // Show seeded labels until the first real orchestrator response arrives —
-  // shimmer bars read as "broken" to users; real labels read as "starting".
   const displaySteps =
     progress.steps.length > 0 ? progress.steps : skeletonSteps;
 
@@ -218,12 +230,7 @@ export default function OnboardingProgress({
         </div>
 
         {/* ── Steps ───────────────────────────────────────────────── */}
-        {/*
-        Before the orchestrator returns the real step list we render
-        shimmer placeholders (not text). When real labels arrive the
-        transition reads as loading→loaded, never as text swapping.
-      */}
-        <ol className="border-border/60 bg-card/40 flex flex-col rounded-xl border">
+        <ol className="border-border/60 bg-card/40 flex flex-col overflow-hidden rounded-xl border">
           {displaySteps.map((step, index) => (
             <StepRow
               key={step.id}
@@ -237,7 +244,7 @@ export default function OnboardingProgress({
           ETA is wildly variable (Composio MCP cold-start, OAuth verification,
           Gmail inbox size) so a per-second number reads as broken when it
           inevitably drifts. Honest copy + something fun to read. */}
-        <div className="mt-4 flex min-h-[2rem] items-center justify-center">
+        <div className="mt-4 flex min-h-8 items-center justify-center">
           <RotatingMessages
             messages={hints}
             intervalMs={5_500}
@@ -251,7 +258,7 @@ export default function OnboardingProgress({
             its own and the parent's instance polling still catches the
             terminal status flip. */}
         {pollError ? (
-          <div className="border-amber-500/30 bg-amber-500/[0.06] text-amber-700 dark:text-amber-400 mx-auto mt-3 flex max-w-md items-center gap-2 rounded-lg border px-3 py-2">
+          <div className="border-amber-500/30 bg-amber-500/6 text-amber-700 dark:text-amber-400 mx-auto mt-3 flex max-w-md items-center gap-2 rounded-lg border px-3 py-2">
             <AlertCircle className="size-3.5 shrink-0" aria-hidden />
             <p className="text-xs leading-relaxed">{t("pollError")}</p>
           </div>
