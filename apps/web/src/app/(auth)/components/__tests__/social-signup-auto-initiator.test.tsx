@@ -90,7 +90,7 @@ describe("SocialSignupAutoInitiator", () => {
       redirect_uri: "https://consumer.example.com/callback",
       code_challenge: "test-challenge",
       code_challenge_method: "S256",
-      scope: "openid offline_access",
+      scope: "openid",
       state: "test-state",
       response_type: "code",
       exp: "1772367377",

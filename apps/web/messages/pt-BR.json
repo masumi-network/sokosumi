@@ -2772,7 +2772,8 @@
           "authorizationFailed": "Falha na autorização",
           "missingCode": "Nenhum código de autorização encontrado na URL",
           "missingCodeVerifier": "Digite o code verifier",
-          "missingCredentials": "Client ID e Client Secret são obrigatórios",
+          "missingCredentials": "O Client ID é obrigatório. Deixe o Client Secret em branco para clientes públicos.",
+          "invalidIssuer": "O valor iss na URL não corresponde ao servidor de autorização deste site. Use a URL de callback retornada na resposta de autorização sem modificar os parâmetros de consulta.",
           "tokenExchangeFailed": "Falha ao trocar o código de autorização por token"
         },
         "clientIdLabel": "ID do cliente",

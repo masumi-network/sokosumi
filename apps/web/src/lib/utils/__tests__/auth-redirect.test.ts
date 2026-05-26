@@ -78,14 +78,14 @@ describe("buildOAuthConsentReturnUrl", () => {
         redirect_uri: "https://example.com/callback",
         code_challenge: "challenge_1",
         code_challenge_method: "S256",
-        scope: "openid offline_access",
+        scope: "openid",
         state: "state_1",
         response_type: "code",
         exp: "1772367377",
         sig: "signed-value",
       }),
     ).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid+offline_access&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
+      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
     );
   });
 
@@ -105,13 +105,13 @@ describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
       client_id: "client_1",
       redirect_uri: "https://example.com/callback",
       code_challenge: "challenge_1",
-      scope: "openid offline_access",
+      scope: "openid",
       state: "state_1",
       response_type: "code",
     });
 
     expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&scope=openid+offline_access&state=state_1&response_type=code",
+      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&scope=openid&state=state_1&response_type=code",
     );
   });
 
@@ -121,7 +121,7 @@ describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
       redirect_uri: "https://example.com/callback",
       code_challenge: "challenge_1",
       code_challenge_method: "S256",
-      scope: "openid offline_access",
+      scope: "openid",
       state: "state_1",
       response_type: "code",
       exp: "1772367377",
@@ -131,7 +131,7 @@ describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
     });
 
     expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid+offline_access&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
+      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
     );
   });
 });
