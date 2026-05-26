@@ -1,5 +1,6 @@
 import { sanitizeFileName } from "@sokosumi/utils";
 import { type NextRequest, NextResponse } from "next/server";
+import type { Page } from "puppeteer-core";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
@@ -88,6 +89,36 @@ function getOriginFromHeaders(request: NextRequest): string {
   return `${protocol}://${hostname}`;
 }
 
+const IMAGE_LOAD_TIMEOUT_MS = 30_000;
+
+async function waitForDocumentImages(page: Page): Promise<void> {
+  await page.evaluate(async (timeoutMs) => {
+    for (const img of document.images) {
+      img.loading = "eager";
+    }
+
+    await Promise.all(
+      Array.from(document.images).map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if (img.complete) {
+              resolve();
+              return;
+            }
+
+            const timer = window.setTimeout(resolve, timeoutMs);
+            const finish = () => {
+              window.clearTimeout(timer);
+              resolve();
+            };
+            img.addEventListener("load", finish, { once: true });
+            img.addEventListener("error", finish, { once: true });
+          }),
+      ),
+    );
+  }, IMAGE_LOAD_TIMEOUT_MS);
+}
+
 function wrapHtmlDocument(html: string, origin: string): string {
   const hasHtmlTag = /<html[\s>]/i.test(html);
   const hasHeadTag = /<head[\s>]/i.test(html);
@@ -162,6 +193,7 @@ export async function POST(request: NextRequest) {
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "load" });
+    await waitForDocumentImages(page);
     await page.emulateMediaType("print");
 
     const pdfBuffer = await page.pdf({
