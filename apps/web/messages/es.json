@@ -1885,6 +1885,8 @@
           "rejectFailed": "No se pudo rechazar.",
           "erroredAfterApproval": "La acción de Hermes falló tras la aprobación.",
           "approvedToast": "Aprobado. Hermes ejecutará la acción.",
+          "alreadyResolvedToast": "Esto ya se gestionó.",
+          "alreadyResolvedStatus": "Ya gestionado",
           "resolvedFallback": "Hermes ejecutó tu acción aprobada.",
           "organizationLabel": "Create in",
           "organizationPersonal": "Personal",

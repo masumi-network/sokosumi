@@ -1916,6 +1916,8 @@
           "rejectFailed": "Impossibile rifiutare.",
           "erroredAfterApproval": "L'azione di Hermes è andata in errore dopo l'approvazione.",
           "approvedToast": "Approvato. Hermes eseguirà l'azione.",
+          "alreadyResolvedToast": "Questa richiesta è già stata gestita.",
+          "alreadyResolvedStatus": "Già gestita",
           "resolvedFallback": "Hermes ha eseguito l'azione approvata.",
           "organizationLabel": "Create in",
           "organizationPersonal": "Personal",

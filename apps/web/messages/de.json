@@ -1885,6 +1885,8 @@
           "rejectFailed": "Ablehnung fehlgeschlagen.",
           "erroredAfterApproval": "Hermes' Aktion ist nach der Freigabe fehlgeschlagen.",
           "approvedToast": "Freigegeben. Hermes führt die Aktion aus.",
+          "alreadyResolvedToast": "Das wurde bereits bearbeitet.",
+          "alreadyResolvedStatus": "Bereits bearbeitet",
           "resolvedFallback": "Hermes hat deine freigegebene Aktion ausgeführt.",
           "organizationLabel": "Create in",
           "organizationPersonal": "Personal",

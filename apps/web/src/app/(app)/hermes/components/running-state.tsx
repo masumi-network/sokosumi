@@ -23,6 +23,12 @@ import React, {
 } from "react";
 import { toast } from "sonner";
 
+import {
+  CONFIRMATION_PERSONAL_SCOPE_VALUE,
+  resolveConfirmationOrgPickerValue,
+  selectedOrgValueToOrganizationId,
+  shouldSendOrganizationOverride,
+} from "@/app/hermes/components/confirmation-org-picker";
 import RotatingMessages from "@/app/hermes/components/rotating-messages";
 import SettingsPanel from "@/app/hermes/components/settings-panel";
 import { ArrowUpIcon, StopIcon } from "@/components/chat/icons";
@@ -1311,10 +1317,12 @@ function OrgRefChip({
 }
 
 /**
- * Inline approve/reject card for medium-autonomy gates. Only a successful
- * `status === "approved"` moves the card into the read-only audit trail.
+ * Inline approve/reject card for medium-autonomy gates. A successful approve
+ * with `status === "approved"` moves the card into the read-only audit trail.
  * When the orchestrator returns `status === "errored"` (HTTP 200), we show
  * a toast and leave the card interactive so the user can retry or reject.
+ * `already_resolved` / `rejected` on approve still settle the card — the
+ * gate was handled elsewhere (another tab, stale list, etc.).
  */
 /**
  * Tools whose queued args take an `organizationId` — those are the ones
@@ -1338,8 +1346,6 @@ const COST_BEARING_TOOLS = new Set([
   "sokosumi_create_job",
 ]);
 
-const PERSONAL_SCOPE_VALUE = "__personal__";
-
 /**
  * Captures what the user did with a confirmation so the card can be
  * re-rendered as a read-only audit trail. `organizationId === undefined`
@@ -1347,7 +1353,7 @@ const PERSONAL_SCOPE_VALUE = "__personal__";
  * the user explicitly picked personal scope.
  */
 interface ConfirmationResolution {
-  status: "approved" | "rejected";
+  status: "approved" | "rejected" | "already_resolved";
   organizationId?: string | null;
 }
 
@@ -1376,30 +1382,31 @@ function ConfirmationCard({
   const t = useTranslations("App.Hermes.Running.confirmation");
   const [busy, setBusy] = useState<"approving" | "rejecting" | null>(null);
 
-  // Pre-select the user's active org if we have one; otherwise default to
-  // personal scope so the dropdown is never empty.
   const isResolved = resolution !== null;
   const showOrgPicker = ORG_AWARE_TOOLS.has(confirmation.toolName);
   const showCostNotice = COST_BEARING_TOOLS.has(confirmation.toolName);
-  const defaultOrgValue =
-    activeOrganizationId &&
-    organizations.some((o) => o.id === activeOrganizationId)
-      ? activeOrganizationId
-      : PERSONAL_SCOPE_VALUE;
-  const [selectedOrgValue, setSelectedOrgValue] = useState<string>(() => {
-    if (resolution && resolution.organizationId !== undefined) {
-      return resolution.organizationId ?? PERSONAL_SCOPE_VALUE;
-    }
-    return defaultOrgValue;
-  });
+  const initialOrgValue =
+    resolution && resolution.organizationId !== undefined
+      ? (resolution.organizationId ?? CONFIRMATION_PERSONAL_SCOPE_VALUE)
+      : resolveConfirmationOrgPickerValue(
+          confirmation,
+          organizations,
+          activeOrganizationId,
+        );
+  const [selectedOrgValue, setSelectedOrgValue] =
+    useState<string>(initialOrgValue);
 
   const handleApprove = async () => {
     if (busy || isResolved) return;
     setBusy("approving");
-    const chosenOrgId =
-      selectedOrgValue === PERSONAL_SCOPE_VALUE ? null : selectedOrgValue;
+    const chosenOrgId = selectedOrgValueToOrganizationId(selectedOrgValue);
+    const sendOrgOverride = shouldSendOrganizationOverride(
+      showOrgPicker,
+      selectedOrgValue,
+      initialOrgValue,
+    );
     const result = await approveHermesConfirmationAction(
-      showOrgPicker
+      sendOrgOverride
         ? {
             confirmationId: confirmation.id,
             organizationId: chosenOrgId,
@@ -1411,23 +1418,47 @@ function ConfirmationCard({
       toast.error(result.error.message ?? t("approveFailed"));
       return;
     }
-    if (result.data.status === "errored") {
+    const { status } = result.data;
+    const resolutionOrgId = sendOrgOverride ? chosenOrgId : undefined;
+
+    if (status === "errored") {
       toast.error(result.data.error ?? t("erroredAfterApproval"));
       return;
     }
-    if (result.data.status !== "approved") {
+    if (status === "approved") {
+      toast.success(t("approvedToast"));
+      onResolved(confirmation.id, {
+        status: "approved",
+        organizationId: resolutionOrgId,
+      });
       return;
     }
-    toast.success(t("approvedToast"));
-    onResolved(confirmation.id, {
-      status: "approved",
-      organizationId: showOrgPicker ? chosenOrgId : undefined,
-    });
+    if (status === "already_resolved") {
+      toast.info(t("alreadyResolvedToast"));
+      onResolved(confirmation.id, {
+        status: "already_resolved",
+        organizationId: resolutionOrgId,
+      });
+      return;
+    }
+    if (status === "rejected") {
+      toast.info(t("alreadyResolvedToast"));
+      onResolved(confirmation.id, {
+        status: "rejected",
+        organizationId: resolutionOrgId,
+      });
+    }
   };
 
   const handleReject = async () => {
     if (busy || isResolved) return;
     setBusy("rejecting");
+    const chosenOrgId = selectedOrgValueToOrganizationId(selectedOrgValue);
+    const sendOrgOverride = shouldSendOrganizationOverride(
+      showOrgPicker,
+      selectedOrgValue,
+      initialOrgValue,
+    );
     const result = await rejectHermesConfirmationAction({
       confirmationId: confirmation.id,
     });
@@ -1436,7 +1467,10 @@ function ConfirmationCard({
       toast.error(result.error.message ?? t("rejectFailed"));
       return;
     }
-    onResolved(confirmation.id, { status: "rejected" });
+    onResolved(confirmation.id, {
+      status: "rejected",
+      organizationId: sendOrgOverride ? chosenOrgId : undefined,
+    });
   };
 
   const tool = describeConfirmationTool(confirmation.toolName, (key) => t(key));
@@ -1446,6 +1480,7 @@ function ConfirmationCard({
   // buttons, dropdown locked to the user's earlier choice. Renders as a
   // read-only audit trail in the chat.
   const isApproved = resolution?.status === "approved";
+  const isAlreadyResolved = resolution?.status === "already_resolved";
 
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
@@ -1467,7 +1502,7 @@ function ConfirmationCard({
           )}
         >
           {isResolved ? (
-            isApproved ? (
+            isApproved || isAlreadyResolved ? (
               <Check className="size-3.5" aria-hidden />
             ) : (
               <X className="size-3.5" aria-hidden />
@@ -1479,7 +1514,9 @@ function ConfirmationCard({
             {isResolved
               ? isApproved
                 ? t("approvedStatus")
-                : t("rejectedStatus")
+                : isAlreadyResolved
+                  ? t("alreadyResolvedStatus")
+                  : t("rejectedStatus")
               : t("heading")}
           </span>
         </div>
@@ -1522,7 +1559,7 @@ function ConfirmationCard({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={PERSONAL_SCOPE_VALUE}>
+                <SelectItem value={CONFIRMATION_PERSONAL_SCOPE_VALUE}>
                   {t("organizationPersonal")}
                 </SelectItem>
                 {organizations.map((org) => (

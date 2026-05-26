@@ -1916,6 +1916,8 @@
           "rejectFailed": "Couldn't reject.",
           "erroredAfterApproval": "Hermes' action errored after approval.",
           "approvedToast": "Approved. Hermes will run the action.",
+          "alreadyResolvedToast": "This was already handled.",
+          "alreadyResolvedStatus": "Already handled",
           "resolvedFallback": "Hermes ran your approved action.",
           "organizationLabel": "Create in",
           "organizationPersonal": "Personal",

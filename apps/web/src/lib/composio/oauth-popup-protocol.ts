@@ -94,7 +94,8 @@ export function buildComposioCallbackInlineScript(): string {
   const messageType = COMPOSIO_OAUTH_MESSAGE_TYPE;
   const ackType = COMPOSIO_OAUTH_ACK_TYPE;
 
-  return `(function(){try{
+  return `(function(){
+try{
 var p=new URLSearchParams(window.location.search);
 var rawStatus=(p.get("status")||"").toLowerCase();
 var connectionId=p.get("connectedAccountId")||p.get("connected_account_id")||p.get("connectionId")||p.get("id");
@@ -110,11 +111,16 @@ if(!ev.data||ev.data.type!==${JSON.stringify(ackType)})return;
 window.removeEventListener("message",onAck);
 closePopup();
 });
+}catch(e){return;}
+try{
+if(typeof BroadcastChannel!=="undefined"){
 var bc=new BroadcastChannel(${JSON.stringify(channel)});
 bc.postMessage(payload);
 bc.close();
+}
+}catch(e){}
 if(window.opener){try{window.opener.postMessage(payload,origin)}catch(e){}}
 closePopup();
 setTimeout(closePopup,150);
-}catch(e){}})();`;
+})();`;
 }

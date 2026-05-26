@@ -83,4 +83,11 @@ describe("oauth-popup-protocol", () => {
     expect(script).toContain("BroadcastChannel");
     expect(script).toContain("window.close");
   });
+
+  it("isolates BroadcastChannel failures from opener postMessage delivery", () => {
+    const script = buildComposioCallbackInlineScript();
+    expect(script).toContain('typeof BroadcastChannel!=="undefined"');
+    // Opener delivery must run after the BroadcastChannel try/catch, not inside it.
+    expect(script).toMatch(/\}catch\(e\)\{\}\s*if\(window\.opener\)/);
+  });
 });

@@ -1916,6 +1916,8 @@
           "rejectFailed": "无法拒绝。",
           "erroredAfterApproval": "Hermes 的操作在批准后出错。",
           "approvedToast": "已批准。Hermes 将执行该操作。",
+          "alreadyResolvedToast": "此请求已处理。",
+          "alreadyResolvedStatus": "已处理",
           "resolvedFallback": "Hermes 已执行你批准的操作。",
           "organizationLabel": "Create in",
           "organizationPersonal": "Personal",
