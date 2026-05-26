@@ -46,16 +46,57 @@ describe("resolveConfirmationOrgPickerValue", () => {
 });
 
 describe("shouldSendOrganizationOverride", () => {
-  it("omits overrides when the user leaves the initial selection", () => {
-    expect(shouldSendOrganizationOverride(true, "org-b", "org-b")).toBe(false);
+  const pinnedConfirmation = {
+    referencedOrganizations: [{ id: "org-b", name: "Org B", slug: "org-b" }],
+  };
+  const unpinnedConfirmation = { referencedOrganizations: [] };
+
+  it("omits overrides when Hermes pinned one org and the user leaves it", () => {
+    expect(
+      shouldSendOrganizationOverride(
+        true,
+        "org-b",
+        "org-b",
+        pinnedConfirmation,
+        organizations,
+      ),
+    ).toBe(false);
+  });
+
+  it("sends overrides for the active-org default when no org is pinned", () => {
+    expect(
+      shouldSendOrganizationOverride(
+        true,
+        "org-a",
+        "org-a",
+        unpinnedConfirmation,
+        organizations,
+      ),
+    ).toBe(true);
   });
 
   it("sends overrides when the user changes the dropdown", () => {
-    expect(shouldSendOrganizationOverride(true, "org-a", "org-b")).toBe(true);
+    expect(
+      shouldSendOrganizationOverride(
+        true,
+        "org-a",
+        "org-b",
+        pinnedConfirmation,
+        organizations,
+      ),
+    ).toBe(true);
   });
 
   it("never sends overrides for tools without an org picker", () => {
-    expect(shouldSendOrganizationOverride(false, "org-a", "org-b")).toBe(false);
+    expect(
+      shouldSendOrganizationOverride(
+        false,
+        "org-a",
+        "org-b",
+        unpinnedConfirmation,
+        organizations,
+      ),
+    ).toBe(false);
   });
 });
 

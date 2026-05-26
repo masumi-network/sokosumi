@@ -1880,6 +1880,11 @@ app.openapi(initiateIntegrationRoute, async (c) => {
 // 1-3s but spikes higher under load. The previous 8 × 750ms ≈ 6s budget
 // was tight enough to time-out on busy days; bump to 40 × 1.5s ≈ 60s
 // per Composio's own recommendation and give long-tail OAuths a chance.
+//
+// Hosted Core must allow the full poll window to finish in one invocation
+// (see `functions.maxDuration` in apps/core/vercel.json). Without that
+// override, Vercel's legacy 10–15s defaults can kill finalize mid-poll and
+// the client sees a 504 instead of `composio_finalize_not_active`.
 const FINALIZE_POLL_INTERVAL_MS = 1500;
 const FINALIZE_POLL_MAX_ATTEMPTS = 40;
 

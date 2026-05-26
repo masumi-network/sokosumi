@@ -129,21 +129,16 @@ curl -X POST https://orchestrator-production-35d4.up.railway.app/v1/instances/<U
 ## Finalize timeout budget
 
 Core is a Hono Node service (`apps/core/src/index.ts`) deployed with Vercel
-project config in `apps/core/vercel.json`. There is currently no
-`functions.maxDuration` override in that config, so hosted duration follows the
-project's Vercel defaults.
+project config in `apps/core/vercel.json`. The bundled entry
+`dist/index.js` sets `functions.maxDuration` to **120 seconds** so a single
+finalize request can run the full Composio poll loop (40 × 1.5s ≈ 60s of
+sleep budget, plus status checks and orchestrator registration) without the
+platform terminating the invocation early.
 
-Vercel's current Fluid Compute default for Node.js functions is 300 seconds
-(5 minutes), with a 300 second maximum on Hobby and 800 seconds on Pro /
-Enterprise. The Hermes finalize loop is 40 attempts at 1.5 seconds, roughly
-60 seconds before returning `composio_finalize_not_active`, which is safely
-inside that hosted default.
-
-Recommendation: keep the 60 second finalize poll budget. If this project is
-ever moved to a legacy non-Fluid Vercel runtime, add an explicit
-`functions.maxDuration` override or reduce the poll count to avoid a platform
-504 (`FUNCTION_INVOCATION_TIMEOUT`) before Core can return the retryable
-Composio response.
+If finalize polling constants change, keep `maxDuration` above the poll sleep
+budget plus ~30s headroom for Composio and orchestrator calls. Sync cron
+routes that use `waitUntil()` also rely on this ceiling (default
+`LOCK_TIMEOUT` is 120s in `apps/core/.env.example`).
 
 ## Sokosumi-side references (for context, no changes needed)
 

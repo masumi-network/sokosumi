@@ -1405,6 +1405,8 @@ function ConfirmationCard({
       showOrgPicker,
       selectedOrgValue,
       initialOrgValue,
+      confirmation,
+      organizations,
     );
     const result = await approveHermesConfirmationAction(
       sendOrgOverride
@@ -1459,6 +1461,8 @@ function ConfirmationCard({
       showOrgPicker,
       selectedOrgValue,
       initialOrgValue,
+      confirmation,
+      organizations,
     );
     const result = await rejectHermesConfirmationAction({
       confirmationId: confirmation.id,
