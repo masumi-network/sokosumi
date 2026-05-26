@@ -1317,12 +1317,13 @@ function OrgRefChip({
 }
 
 /**
- * Inline approve/reject card for medium-autonomy gates. A successful approve
- * with `status === "approved"` moves the card into the read-only audit trail.
- * When the orchestrator returns `status === "errored"` (HTTP 200), we show
- * a toast and leave the card interactive so the user can retry or reject.
- * `already_resolved` / `rejected` on approve still settle the card — the
- * gate was handled elsewhere (another tab, stale list, etc.).
+ * Inline approve/reject card for medium-autonomy gates. Approve/reject only
+ * move the card into the read-only audit trail when the orchestrator reports
+ * the matching terminal status (`approved` / `rejected`). When the
+ * orchestrator returns `status === "errored"` (HTTP 200), we show a toast and
+ * leave the card interactive so the user can retry. `already_resolved` and
+ * the opposite resolution on either action still settle the card — the gate
+ * was handled elsewhere (another tab, stale list, etc.).
  */
 /**
  * Tools whose queued args take an `organizationId` — those are the ones
@@ -1467,10 +1468,35 @@ function ConfirmationCard({
       toast.error(result.error.message ?? t("rejectFailed"));
       return;
     }
-    onResolved(confirmation.id, {
-      status: "rejected",
-      organizationId: sendOrgOverride ? chosenOrgId : undefined,
-    });
+    const { status } = result.data;
+    const resolutionOrgId = sendOrgOverride ? chosenOrgId : undefined;
+
+    if (status === "errored") {
+      toast.error(result.data.error ?? t("rejectFailed"));
+      return;
+    }
+    if (status === "rejected") {
+      onResolved(confirmation.id, {
+        status: "rejected",
+        organizationId: resolutionOrgId,
+      });
+      return;
+    }
+    if (status === "already_resolved") {
+      toast.info(t("alreadyResolvedToast"));
+      onResolved(confirmation.id, {
+        status: "already_resolved",
+        organizationId: resolutionOrgId,
+      });
+      return;
+    }
+    if (status === "approved") {
+      toast.info(t("alreadyResolvedToast"));
+      onResolved(confirmation.id, {
+        status: "approved",
+        organizationId: resolutionOrgId,
+      });
+    }
   };
 
   const tool = describeConfirmationTool(confirmation.toolName, (key) => t(key));
