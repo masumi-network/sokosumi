@@ -317,8 +317,8 @@ importers:
         specifier: 4.0.6
         version: 4.0.6(@opentelemetry/api@1.9.1)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       gravatar-url:
-        specifier: 4.0.1
-        version: 4.0.1
+        specifier: 4.0.2
+        version: 4.0.2
       happy-dom:
         specifier: 20.9.0
         version: 20.9.0
@@ -6502,8 +6502,8 @@ packages:
   graphmatch@1.1.1:
     resolution: {integrity: sha512-5ykVn/EXM1hF0XCaWh05VbYvEiOL2lY1kBxZtaYsyvjp7cmWOU1XsAdfQBwClraEofXDT197lFbXOEVMHpvQOg==}
 
-  gravatar-url@4.0.1:
-    resolution: {integrity: sha512-AiU83cghGg2D8vAUwrMXCByejkkm4RtLwMNGmPU7VhqBYhsxcBCV0SAzRpYNbUCpTci5v46J/KFKPmDYaG2oyA==}
+  gravatar-url@4.0.2:
+    resolution: {integrity: sha512-2xF6Pv7fowoe6iKOShXD7FiH8CtTfLU38ba0Xh82mf5/rqqoOCulhAne3R2nPwRI9/jNKogXhDfqRoWS95ryGg==}
     engines: {node: '>=12'}
 
   hachure-fill@0.5.2:
@@ -15662,7 +15662,7 @@ snapshots:
 
   graphmatch@1.1.1: {}
 
-  gravatar-url@4.0.1:
+  gravatar-url@4.0.2:
     dependencies:
       md5-hex: 4.0.0
       type-fest: 1.4.0
