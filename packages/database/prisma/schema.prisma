@@ -1156,8 +1156,6 @@ model Coworker {
   image       String?
   metadata    Json?
 
-  supportsConversationsApi Boolean @default(true)
-
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
