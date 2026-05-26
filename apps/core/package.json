@@ -55,7 +55,7 @@
     "@vercel/related-projects": "1.0.1",
     "ably": "2.21.0",
     "ai": "6.0.168",
-    "better-auth": "1.6.9",
+    "better-auth": "1.6.11",
     "cron-parser": "5.5.0",
     "dotenv": "17.4.2",
     "hono": "4.12.18",
@@ -65,7 +65,7 @@
     "postmark": "4.0.7",
     "resumable-stream": "^2.2.12",
     "slugify": "1.6.9",
-    "stripe": "22.1.0",
+    "stripe": "22.1.1",
     "uuid": "14.0.0"
   },
   "devDependencies": {
