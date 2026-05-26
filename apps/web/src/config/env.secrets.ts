@@ -20,10 +20,13 @@ const envSecretsSchema = z.object({
 
   CORE_APP_BASE_URL: z.url().default("http://localhost:8787"),
 
+  // Cron auth — shared bearer for /api/internal/* cron routes.
+  CRON_SECRET: z.string().min(1).optional(),
+
   CHROMIUM_EXECUTABLE_URL: z
     .url()
     .default(
-      "https://github.com/Sparticuz/chromium/releases/download/v147.0.2/chromium-v147.0.2-pack.x64.tar",
+      "https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.x64.tar",
     ),
 
   // Usercentrics
@@ -57,7 +60,6 @@ const envSecretsSchema = z.object({
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
   STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
   STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
-  STRIPE_ENTERPRISE_SUBSCRIPTION_PRODUCT_ID: z.string().min(1).optional(),
 
   // OpenRouter
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),

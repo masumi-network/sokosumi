@@ -1,4 +1,6 @@
 import { z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 
@@ -56,3 +58,47 @@ export const addProjectTaskRequestSchema = z
     taskId: z.string().min(1).openapi({ example: "tsk_abc" }),
   })
   .openapi("AddProjectTaskRequest");
+
+const statusCountBaseSchema = z.object({
+  count: z.number().int().nonnegative().openapi({ example: 2 }),
+});
+
+export const taskStatusCountSchema = statusCountBaseSchema
+  .extend({
+    status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+  })
+  .openapi("ProjectTaskStatusCount");
+
+export const jobStatusCountSchema = statusCountBaseSchema
+  .extend({
+    status: z
+      .enum(SokosumiJobStatus)
+      .openapi({ example: SokosumiJobStatus.PROCESSING }),
+  })
+  .openapi("ProjectJobStatusCount");
+
+export const projectResourceStatsSchema = <
+  TStatusCountSchema extends z.ZodType,
+>(
+  statusCountSchema: TStatusCountSchema,
+) =>
+  z.object({
+    total: z.number().int().nonnegative().openapi({ example: 3 }),
+    byStatus: z.array(statusCountSchema).openapi({ example: [] }),
+  });
+
+export const projectStatsEntrySchema = z
+  .object({
+    projectId: z.string().uuid().openapi({
+      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+    }),
+    tasks: projectResourceStatsSchema(taskStatusCountSchema),
+    jobs: projectResourceStatsSchema(jobStatusCountSchema),
+  })
+  .openapi("ProjectStatsEntry");
+
+export const projectStatsBatchSchema = z
+  .object({
+    projects: z.array(projectStatsEntrySchema),
+  })
+  .openapi("ProjectStatsBatch");

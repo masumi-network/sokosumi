@@ -42,6 +42,7 @@ const handleCustomerCreatedEventMock = vi.fn();
 const handleCustomerUpdatedEventMock = vi.fn();
 const handleInvoicePaidEventMock = vi.fn();
 const handleSubscriptionDeletedEventMock = vi.fn();
+const reconcileActiveStripeBackedSubscriptionMock = vi.fn();
 const workspaceUpsertMock = vi.fn();
 
 function getDefaultEnvSecrets() {
@@ -275,6 +276,8 @@ vi.mock("@/lib/stripe/webhook-handlers", () => ({
     handleInvoicePaidEventMock(...args),
   handleSubscriptionDeletedEvent: (...args: unknown[]) =>
     handleSubscriptionDeletedEventMock(...args),
+  reconcileActiveStripeBackedSubscription: (...args: unknown[]) =>
+    reconcileActiveStripeBackedSubscriptionMock(...args),
 }));
 
 describe("web auth config", () => {
@@ -430,6 +433,65 @@ describe("web auth config", () => {
     expect(handleSubscriptionDeletedEventMock).toHaveBeenCalledWith({
       id: "sub_123",
     });
+  });
+
+  it.each([
+    "onSubscriptionCreated",
+    "onSubscriptionUpdate",
+  ] as const)("reconciles local free rows from Better Auth subscription callback %s", async (callbackName) => {
+    await import("../auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [
+        {
+          subscription: {
+            onSubscriptionCreated: (params: {
+              event: {
+                id: string;
+                type: string;
+              };
+              subscription: {
+                id: string;
+                referenceId: string;
+                stripeSubscriptionId?: string | null;
+              };
+            }) => Promise<void>;
+            onSubscriptionUpdate: (params: {
+              event: {
+                id: string;
+                type: string;
+              };
+              subscription: {
+                id: string;
+                referenceId: string;
+                stripeSubscriptionId?: string | null;
+              };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    const subscription = {
+      id: "sub_local_enterprise",
+      referenceId: "org-enterprise",
+      stripeSubscriptionId: "sub_enterprise",
+    };
+
+    await config.subscription[callbackName]({
+      event: {
+        id: "evt_enterprise",
+        type:
+          callbackName === "onSubscriptionCreated"
+            ? "customer.subscription.created"
+            : "customer.subscription.updated",
+      },
+      subscription,
+    });
+
+    expect(reconcileActiveStripeBackedSubscriptionMock).toHaveBeenCalledWith(
+      subscription,
+    );
   });
 
   it("disables cross-subdomain cookies on localhost", async () => {

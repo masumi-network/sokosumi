@@ -1,4 +1,5 @@
 export * from "./leave-organization-modal";
+export * from "./organization-bulk-invite";
 export * from "./organization-information";
 export * from "./organization-logo";
 export * from "./organization-member-invite";

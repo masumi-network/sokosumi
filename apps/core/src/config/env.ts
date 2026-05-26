@@ -73,6 +73,18 @@ const envSchema = z.object({
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
   OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
+  // Hermes Orchestrator
+  HERMES_ORCH_BASE_URL: z.url(),
+  HERMES_ORCH_TOKEN: z.string().min(1),
+  HERMES_INBOX_POLLING_ENABLED: z
+    .string()
+    .default("false")
+    .transform((val: string) => val.trim().toLowerCase() === "true"),
+
+  // Composio (managed OAuth + MCP broker for Hermes integrations)
+  COMPOSIO_API_KEY: z.string().startsWith("ak_").optional(),
+  COMPOSIO_API_BASE_URL: z.url().default("https://backend.composio.dev"),
+
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().min(1),
@@ -174,4 +186,20 @@ export function getBetterAuthPublicBaseUrl(): string {
     vercelProductionUrl: env.VERCEL_PROJECT_PRODUCTION_URL,
     fallbackUrl: env.BETTER_AUTH_URL,
   });
+}
+
+/**
+ * Resolve which Sokosumi env label to pass to the Hermes orchestrator.
+ *
+ *   - NETWORK === "Mainnet" → "mainnet"
+ *   - otherwise (Preprod, also the default when unset) → "preprod"
+ *
+ * Local dev with default NETWORK=Preprod still reports "preprod" so the
+ * orchestrator's sokosumi_sync step exercises the same path as Vercel preprod.
+ *
+ * The orchestrator uses this to pick the Sokosumi API base + coworker key.
+ */
+export function resolveSokosumiEnvForOrchestrator(): "preprod" | "mainnet" {
+  const env = getEnv();
+  return env.NETWORK === "Mainnet" ? "mainnet" : "preprod";
 }

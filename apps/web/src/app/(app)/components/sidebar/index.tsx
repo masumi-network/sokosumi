@@ -22,6 +22,7 @@ import ProfileSwitch from "./components/profile-switch";
 interface SidebarProps {
   creditsData: UserCreditsData | null;
   currentTimestampMs: number;
+  hermesMenuEnabled: boolean;
   organizationName: string | null;
   session: Session;
 }
@@ -29,6 +30,7 @@ interface SidebarProps {
 export default function Sidebar({
   creditsData,
   currentTimestampMs,
+  hermesMenuEnabled,
   organizationName,
   session,
 }: SidebarProps) {
@@ -44,7 +46,7 @@ export default function Sidebar({
         <div className="flex flex-col gap-0">
           <NewChatTaskActions />
           <SidebarSeparator className="mx-0 mt-2" />
-          <MenuItems />
+          <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
         </div>
         {/* Divider */}
         <SidebarSeparator className="mx-0" />

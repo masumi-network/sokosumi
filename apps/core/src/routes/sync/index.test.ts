@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   acquireLockMock,
   syncFreeSubscriptionRenewalMock,
+  syncHermesInboxMock,
   releaseLockMock,
   syncAgentSummariesMock,
   syncJobsMock,
@@ -14,6 +15,7 @@ const {
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
+  syncHermesInboxMock: vi.fn(),
   releaseLockMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncJobsMock: vi.fn(),
@@ -56,6 +58,12 @@ vi.mock("@/services/source-import-sync.service", () => ({
 vi.mock("@/services/free-subscription-sync.service", () => ({
   freeSubscriptionSyncService: {
     renewLocalFreeSubscriptions: syncFreeSubscriptionRenewalMock,
+  },
+}));
+
+vi.mock("@/services/hermes-inbox-sync.service", () => ({
+  hermesInboxSyncService: {
+    pollInboxes: syncHermesInboxMock,
   },
 }));
 
@@ -134,6 +142,19 @@ describe("sync routes", () => {
     });
     syncSourceImportMock.mockResolvedValue(3);
     syncFreeSubscriptionRenewalMock.mockResolvedValue(undefined);
+    syncHermesInboxMock.mockResolvedValue({
+      status: "ok",
+      polled: 0,
+      totalMessages: 0,
+      breakdown: {
+        messages: 0,
+        no_messages: 0,
+        skipped_not_implemented: 0,
+        skipped_not_pollable: 0,
+        skipped_instance_missing: 0,
+        error: 0,
+      },
+    });
     syncStripeCustomersMock.mockResolvedValue(undefined);
   });
 
@@ -223,6 +244,35 @@ describe("sync routes", () => {
     expect(syncJobsMock).not.toHaveBeenCalled();
   });
 
+  it("returns 401 for missing cron auth on Hermes inbox sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/hermes/poll-inboxes",
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(syncHermesInboxMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for invalid cron auth on Hermes inbox sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/hermes/poll-inboxes",
+      {
+        headers: {
+          Authorization: "Bearer invalid",
+        },
+      },
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(syncHermesInboxMock).not.toHaveBeenCalled();
+  });
+
   it("returns 409 when job schedules sync lock is already held", async () => {
     acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
     const app = await createApp();
@@ -249,6 +299,23 @@ describe("sync routes", () => {
 
     expect(response.status).toBe(409);
     expect(syncJobsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when Hermes inbox sync lock is already held", async () => {
+    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/hermes/poll-inboxes",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(syncHermesInboxMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 and starts registry sync exactly once in background", async () => {
@@ -313,6 +380,32 @@ describe("sync routes", () => {
       expect.objectContaining({
         deadlineMs: expect.any(Number),
         msRemaining: expect.any(Function),
+        shouldContinue: expect.any(Function),
+      }),
+    );
+  });
+
+  it("returns 200 and starts Hermes inbox sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/hermes/poll-inboxes",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("hermes-poll-inboxes-sync");
+
+    await flushMicrotasks();
+    expect(syncHermesInboxMock).toHaveBeenCalledTimes(1);
+    expect(syncHermesInboxMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        abortSignal: expect.any(Object),
+        deadlineMs: expect.any(Number),
         shouldContinue: expect.any(Function),
       }),
     );

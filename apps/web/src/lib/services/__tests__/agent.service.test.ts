@@ -170,12 +170,19 @@ describe("agent.service", () => {
     const { agentService } = await import("../agent.service");
     const result = await agentService.getAvailableAgentsWithCreditsPrice();
 
+    // `getAvailableAgentsWithCreditsPrice` no longer wraps its two reads in
+    // `prisma.$transaction` (the wrapper was timing out on Neon's pooled
+    // endpoint — see agent.service.ts comment). Both repo calls now hit
+    // `prisma` directly, so the mock receives the prisma stub itself rather
+    // than the interactive-transaction `tx` object.
     expect(getShownAgentsWithRelationsByStatusMock).toHaveBeenCalledWith(
       AgentStatus.ONLINE,
-      txMock,
+      expect.objectContaining({ $transaction: expect.any(Function) }),
     );
     expect(getCreditCostsMock).toHaveBeenCalledTimes(1);
-    expect(getCreditCostsMock).toHaveBeenCalledWith(txMock);
+    expect(getCreditCostsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ $transaction: expect.any(Function) }),
+    );
     expect(getCreditCostByUnitMock).not.toHaveBeenCalled();
     expect(result).toEqual(
       expect.arrayContaining([

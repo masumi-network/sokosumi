@@ -17,6 +17,7 @@ import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
 import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
+import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import {
@@ -28,6 +29,7 @@ import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
 import EmailVerificationNotice from "./components/email-verification-notice";
 import Header from "./components/header";
+import HeaderGate from "./components/header-gate";
 import LowCreditsNotice from "./components/low-credits-notice";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { OnboardingDialogLoader } from "./components/onboarding-dialog-loader";
@@ -65,12 +67,14 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     activeOrganization,
     creditsResultRaw,
     coworkersResult,
+    hermesMenuEnabled,
   ] = await Promise.all([
     userService.showOnboarding(session),
     getPendingNoticesAction(),
     userService.getActiveOrganization(),
     coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers("chat").catch(() => []),
+    hermesBetaEnabled(),
   ]);
   const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
@@ -133,6 +137,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
             <Sidebar
               creditsData={creditsData}
               currentTimestampMs={currentTimestampMs}
+              hermesMenuEnabled={hermesMenuEnabled}
               organizationName={activeOrganization?.name ?? null}
               session={session}
             />
@@ -141,7 +146,9 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                 className="flex min-w-0 flex-1 flex-col overflow-clip"
                 data-app-content-inner
               >
-                <Header className="h-16 p-4" />
+                <HeaderGate>
+                  <Header className="h-16 p-4" />
+                </HeaderGate>
                 <main
                   className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
                   data-app-main

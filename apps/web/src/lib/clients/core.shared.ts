@@ -7,6 +7,7 @@ import {
 } from "@/lib/clients/core.job-share";
 import type {
   CreateConversationMessageRequest,
+  DeleteHermesMeInstanceIntegrationsByProviderData,
   DeleteJobsByIdShareError,
   DeleteTasksByIdShareError,
   GetAgentsByIdJobsData,
@@ -14,9 +15,17 @@ import type {
   GetAgentsData,
   GetCategoriesData,
   GetCoworkersData,
+  GetHermesMeMessagesData,
   GetJobsData,
   GetShareByTokenError,
   GetTasksData,
+  HermesFinalizeIntegrationRequest,
+  HermesInitiateIntegrationRequest,
+  HermesPatchScheduleRequest,
+  HermesRejectConfirmationRequest,
+  HermesStartOnboardingRequest,
+  HermesUpdateInstanceRequest,
+  MarkHermesInboxSeenRequest,
   PaginationMetadata,
   PatchJobsByIdData,
   PostAgentsByIdJobsData,
@@ -25,8 +34,11 @@ import type {
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
   PutTasksByIdShareError,
+  SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
+  deleteHermesMeInstance as coreDeleteHermesMeInstance,
+  deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
@@ -41,6 +53,12 @@ import {
   getConversationsById as coreGetConversationsById,
   getConversationsByIdMessages as coreGetConversationsByIdMessages,
   getCoworkers as coreGetCoworkers,
+  getHermesMeInstance as coreGetHermesMeInstance,
+  getHermesMeInstanceIntegrations as coreGetHermesMeInstanceIntegrations,
+  getHermesMeInstanceOnboardingProgress as coreGetHermesMeInstanceOnboardingProgress,
+  getHermesMeInstanceSchedules as coreGetHermesMeInstanceSchedules,
+  getHermesMeMessages as coreGetHermesMeMessages,
+  getHermesMeUnreadCount as coreGetHermesMeUnreadCount,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getShareByToken as coreGetShareByToken,
@@ -52,11 +70,21 @@ import {
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
+  patchHermesMeInstance as corePatchHermesMeInstance,
+  patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
+  postHermesMeInboxSeen as corePostHermesMeInboxSeen,
+  postHermesMeInstance as corePostHermesMeInstance,
+  postHermesMeInstanceConfirmationsByConfirmationIdApprove as corePostHermesMeInstanceConfirmationsByConfirmationIdApprove,
+  postHermesMeInstanceConfirmationsByConfirmationIdReject as corePostHermesMeInstanceConfirmationsByConfirmationIdReject,
+  postHermesMeInstanceIntegrationsFinalize as corePostHermesMeInstanceIntegrationsFinalize,
+  postHermesMeInstanceIntegrationsInitiate as corePostHermesMeInstanceIntegrationsInitiate,
+  postHermesMeInstanceOnboard as corePostHermesMeInstanceOnboard,
+  postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
@@ -743,6 +771,235 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getHermesInstance() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetHermesMeInstance({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch Hermes instance",
+    );
+  }
+
+  async function provisionHermesInstance() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostHermesMeInstance({
+          client,
+        }),
+      "Failed to provision Hermes instance",
+    );
+  }
+
+  async function updateHermesInstance(body: HermesUpdateInstanceRequest) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchHermesMeInstance({
+          client,
+          body,
+        }),
+      "Failed to update Hermes instance",
+    );
+  }
+
+  async function destroyHermesInstance() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteHermesMeInstance({
+          client,
+        }),
+      "Failed to destroy Hermes instance",
+    );
+  }
+
+  async function getHermesMessages(query?: GetHermesMeMessagesData["query"]) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetHermesMeMessages({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Hermes messages",
+    );
+  }
+
+  async function getHermesUnreadCount() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetHermesMeUnreadCount({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch Hermes unread count",
+    );
+  }
+
+  async function markHermesInboxSeen(body?: MarkHermesInboxSeenRequest) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostHermesMeInboxSeen({
+          client,
+          body,
+        }),
+      "Failed to mark Hermes inbox as seen",
+    );
+  }
+
+  async function setHermesSecret(body: SetHermesSecretRequest) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostHermesMeSecrets({
+          client,
+          body,
+        }),
+      "Failed to write Hermes secret",
+    );
+  }
+
+  async function startHermesOnboarding(body: HermesStartOnboardingRequest) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostHermesMeInstanceOnboard({
+          client,
+          body,
+        }),
+      "Failed to start Hermes onboarding",
+    );
+  }
+
+  async function getHermesOnboardingProgress() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetHermesMeInstanceOnboardingProgress({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch Hermes onboarding progress",
+    );
+  }
+
+  async function listHermesIntegrations() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetHermesMeInstanceIntegrations({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to list Hermes integrations",
+    );
+  }
+
+  async function listHermesSchedules() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetHermesMeInstanceSchedules({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to list Hermes schedules",
+    );
+  }
+
+  async function patchHermesSchedule(
+    scheduleId: string,
+    body: HermesPatchScheduleRequest,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchHermesMeInstanceSchedulesByScheduleId({
+          client,
+          path: { scheduleId },
+          body,
+        }),
+      "Failed to update Hermes schedule",
+    );
+  }
+
+  async function approveHermesConfirmation(confirmationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostHermesMeInstanceConfirmationsByConfirmationIdApprove({
+          client,
+          path: { confirmationId },
+        }),
+      "Failed to approve Hermes confirmation",
+    );
+  }
+
+  async function rejectHermesConfirmation(
+    confirmationId: string,
+    body: HermesRejectConfirmationRequest,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostHermesMeInstanceConfirmationsByConfirmationIdReject({
+          client,
+          path: { confirmationId },
+          body,
+        }),
+      "Failed to reject Hermes confirmation",
+    );
+  }
+
+  async function disconnectHermesIntegration(
+    path: DeleteHermesMeInstanceIntegrationsByProviderData["path"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteHermesMeInstanceIntegrationsByProvider({
+          client,
+          path,
+        }),
+      "Failed to disconnect Hermes integration",
+    );
+  }
+
+  async function initiateHermesIntegration(
+    body: HermesInitiateIntegrationRequest,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostHermesMeInstanceIntegrationsInitiate({
+          client,
+          body,
+        }),
+      "Failed to start integration OAuth",
+    );
+  }
+
+  async function finalizeHermesIntegration(
+    body: HermesFinalizeIntegrationRequest,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostHermesMeInstanceIntegrationsFinalize({
+          client,
+          body,
+        }),
+      "Failed to finalize integration",
+    );
+  }
+
   async function createMyFileUploadSession(
     body: NonNullable<PostUsersByIdUploadsData["body"]>,
   ) {
@@ -946,6 +1203,19 @@ export function createCoreClient(getClient: GetClient) {
     getConversation,
     getConversationMessages,
     getConversations,
+    getHermesInstance,
+    getHermesMessages,
+    getHermesOnboardingProgress,
+    getHermesUnreadCount,
+    listHermesIntegrations,
+    listHermesSchedules,
+    patchHermesSchedule,
+    approveHermesConfirmation,
+    rejectHermesConfirmation,
+    startHermesOnboarding,
+    disconnectHermesIntegration,
+    initiateHermesIntegration,
+    finalizeHermesIntegration,
     getAgentById,
     getAgentJobs,
     getAgentInputSchema,
@@ -959,10 +1229,14 @@ export function createCoreClient(getClient: GetClient) {
     getMyOrganizations,
     getPendingNotices,
     getSharedResourceByToken,
+    destroyHermesInstance,
+    markHermesInboxSeen,
     moveJobToWorkspace,
     moveTaskToWorkspace,
     patchJob,
+    provisionHermesInstance,
     requestJobRefund,
+    setHermesSecret,
     getTaskById,
     getTaskLinks,
     getTasks,
@@ -970,6 +1244,7 @@ export function createCoreClient(getClient: GetClient) {
     putJobShare,
     putTaskShare,
     updateConversation,
+    updateHermesInstance,
   };
 }
 

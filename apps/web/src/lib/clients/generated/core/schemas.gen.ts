@@ -1858,6 +1858,804 @@ export const PatchCreditCostRequestSchema = {
     ]
 } as const;
 
+export const HermesChatResponseSchema = {
+    type: 'object',
+    properties: {
+        message: {
+            type: 'object',
+            properties: {
+                role: {
+                    type: 'string',
+                    enum: [
+                        'assistant'
+                    ]
+                },
+                content: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'role',
+                'content'
+            ]
+        }
+    },
+    required: [
+        'message'
+    ]
+} as const;
+
+export const HermesInstanceNotReadySchema = {
+    type: 'object',
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HermesInstanceStatus'
+                },
+                {
+                    type: 'string',
+                    enum: [
+                        'missing'
+                    ]
+                }
+            ]
+        }
+    },
+    required: [
+        'status'
+    ]
+} as const;
+
+export const HermesInstanceStatusSchema = {
+    type: 'string',
+    enum: [
+        'provisioning',
+        'infrastructure_ready',
+        'onboarding',
+        'ready',
+        'running',
+        'suspended',
+        'error'
+    ]
+} as const;
+
+export const HermesChatRequestSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string'
+        },
+        files: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesUploadedFile'
+            }
+        }
+    }
+} as const;
+
+export const HermesUploadedFileSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1
+        },
+        type: {
+            type: 'string',
+            minLength: 1
+        },
+        dataUrl: {
+            type: 'string',
+            minLength: 1
+        }
+    },
+    required: [
+        'name',
+        'type',
+        'dataUrl'
+    ]
+} as const;
+
+export const HermesGetInstanceEnvelopeSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/HermesGetInstanceNone'
+        },
+        {
+            $ref: '#/components/schemas/HermesGetInstanceSome'
+        }
+    ],
+    discriminator: {
+        propertyName: 'hasInstance',
+        mapping: {
+            false: '#/components/schemas/HermesGetInstanceNone',
+            true: '#/components/schemas/HermesGetInstanceSome'
+        }
+    }
+} as const;
+
+export const HermesGetInstanceNoneSchema = {
+    type: 'object',
+    properties: {
+        hasInstance: {
+            type: 'boolean',
+            enum: [
+                false
+            ]
+        }
+    },
+    required: [
+        'hasInstance'
+    ]
+} as const;
+
+export const HermesGetInstanceSomeSchema = {
+    type: 'object',
+    properties: {
+        hasInstance: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        instance: {
+            $ref: '#/components/schemas/HermesInstance'
+        }
+    },
+    required: [
+        'hasInstance',
+        'instance'
+    ]
+} as const;
+
+export const HermesInstanceSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            $ref: '#/components/schemas/HermesInstanceStatus'
+        },
+        endpointUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        },
+        lastActivityAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        onboardedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        autonomyLevel: {
+            $ref: '#/components/schemas/HermesAutonomyLevel'
+        },
+        integrations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesIntegration'
+            }
+        },
+        transitioning: {
+            type: 'boolean',
+            default: false
+        },
+        lastSokosumiSyncAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            default: null,
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastInboxRefreshAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            default: null,
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
+        pendingConfirmations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesPendingConfirmation'
+            },
+            default: []
+        }
+    },
+    required: [
+        'status',
+        'endpointUrl',
+        'lastActivityAt',
+        'onboardedAt',
+        'integrations'
+    ]
+} as const;
+
+export const HermesAutonomyLevelSchema = {
+    type: 'string',
+    enum: [
+        'low',
+        'medium',
+        'high'
+    ],
+    default: 'medium'
+} as const;
+
+export const HermesIntegrationSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            $ref: '#/components/schemas/HermesIntegrationProvider'
+        },
+        status: {
+            $ref: '#/components/schemas/HermesIntegrationStatus'
+        },
+        connectedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        mode: {
+            $ref: '#/components/schemas/HermesIntegrationMode'
+        }
+    },
+    required: [
+        'provider',
+        'status',
+        'connectedAt'
+    ]
+} as const;
+
+export const HermesIntegrationProviderSchema = {
+    type: 'string',
+    enum: [
+        'gmail',
+        'google_calendar',
+        'google_sheets',
+        'google_docs',
+        'outlook',
+        'outlook_calendar',
+        'slack',
+        'teams',
+        'linear',
+        'jira',
+        'github',
+        'notion',
+        'hubspot',
+        'twitter',
+        'instagram',
+        'youtube',
+        'linkedin'
+    ]
+} as const;
+
+export const HermesIntegrationStatusSchema = {
+    type: 'string',
+    enum: [
+        'disconnected',
+        'connecting',
+        'connected',
+        'error'
+    ]
+} as const;
+
+export const HermesIntegrationModeSchema = {
+    type: 'string',
+    enum: [
+        'read',
+        'write'
+    ],
+    default: 'read'
+} as const;
+
+export const HermesPendingConfirmationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            minLength: 1
+        },
+        toolName: {
+            type: 'string',
+            minLength: 1
+        },
+        summary: {
+            type: 'string',
+            minLength: 1
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'toolName',
+        'summary',
+        'createdAt'
+    ]
+} as const;
+
+export const HermesUpdateInstanceRequestSchema = {
+    type: 'object',
+    properties: {
+        autonomyLevel: {
+            $ref: '#/components/schemas/HermesAutonomyLevel'
+        },
+        name: {
+            type: 'string',
+            minLength: 1
+        },
+        email: {
+            type: 'string',
+            format: 'email'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    }
+} as const;
+
+export const HermesEmptyResponseSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
+export const HermesPersistedMessageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        role: {
+            $ref: '#/components/schemas/HermesChatMessageRole'
+        },
+        content: {
+            type: 'string'
+        },
+        kind: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'role',
+        'content',
+        'kind',
+        'createdAt'
+    ]
+} as const;
+
+export const HermesChatMessageRoleSchema = {
+    type: 'string',
+    enum: [
+        'user',
+        'assistant',
+        'system'
+    ]
+} as const;
+
+export const HermesUnreadCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'count'
+    ]
+} as const;
+
+export const MarkHermesInboxSeenRequestSchema = {
+    type: 'object',
+    properties: {
+        asOfIso: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    }
+} as const;
+
+export const SetHermesSecretRequestSchema = {
+    type: 'object',
+    properties: {
+        key: {
+            type: 'string',
+            minLength: 1
+        },
+        value: {
+            type: 'string'
+        }
+    },
+    required: [
+        'key',
+        'value'
+    ]
+} as const;
+
+export const HermesStartOnboardingRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1
+        },
+        email: {
+            type: 'string',
+            format: 'email'
+        },
+        role: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        },
+        company: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
+        researchDepth: {
+            type: 'string',
+            enum: [
+                'deep',
+                'shallow'
+            ]
+        },
+        autonomyLevel: {
+            $ref: '#/components/schemas/HermesAutonomyLevel'
+        }
+    }
+} as const;
+
+export const HermesOnboardingProgressSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            $ref: '#/components/schemas/HermesInstanceStatus'
+        },
+        steps: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesOnboardingStep'
+            }
+        },
+        etaSeconds: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        }
+    },
+    required: [
+        'status',
+        'steps',
+        'etaSeconds'
+    ]
+} as const;
+
+export const HermesOnboardingStepSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            minLength: 1
+        },
+        label: {
+            type: 'string',
+            minLength: 1
+        },
+        status: {
+            $ref: '#/components/schemas/HermesOnboardingStepStatus'
+        },
+        errorMessage: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'status'
+    ]
+} as const;
+
+export const HermesOnboardingStepStatusSchema = {
+    type: 'string',
+    enum: [
+        'pending',
+        'running',
+        'done',
+        'skipped',
+        'error'
+    ]
+} as const;
+
+export const HermesIntegrationsListSchema = {
+    type: 'object',
+    properties: {
+        integrations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesIntegration'
+            }
+        }
+    },
+    required: [
+        'integrations'
+    ]
+} as const;
+
+export const HermesSchedulesListSchema = {
+    type: 'object',
+    properties: {
+        schedules: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesSchedule'
+            }
+        }
+    },
+    required: [
+        'schedules'
+    ]
+} as const;
+
+export const HermesScheduleSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            minLength: 1
+        },
+        source: {
+            $ref: '#/components/schemas/HermesScheduleSource'
+        },
+        kind: {
+            $ref: '#/components/schemas/HermesScheduleKind'
+        },
+        name: {
+            type: 'string',
+            minLength: 1
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
+        cronExpr: {
+            type: 'string'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
+        enabled: {
+            type: 'boolean'
+        },
+        lastRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        systemManaged: {
+            type: 'boolean'
+        },
+        addressable: {
+            type: 'boolean',
+            default: true
+        }
+    },
+    required: [
+        'id',
+        'source',
+        'kind',
+        'name',
+        'cronExpr',
+        'enabled',
+        'lastRunAt',
+        'nextRunAt',
+        'systemManaged'
+    ]
+} as const;
+
+export const HermesScheduleSourceSchema = {
+    type: 'string',
+    enum: [
+        'orchestrator',
+        'hermes'
+    ]
+} as const;
+
+export const HermesScheduleKindSchema = {
+    type: 'string',
+    enum: [
+        'user',
+        'system_prompt',
+        'system_sweep'
+    ]
+} as const;
+
+export const HermesPatchScheduleRequestSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        }
+    }
+} as const;
+
+export const HermesConfirmationResolveResponseSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            $ref: '#/components/schemas/HermesConfirmationStatus'
+        },
+        result: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'status'
+    ]
+} as const;
+
+export const HermesConfirmationStatusSchema = {
+    type: 'string',
+    enum: [
+        'approved',
+        'rejected',
+        'errored',
+        'already_resolved'
+    ]
+} as const;
+
+export const HermesRejectConfirmationRequestSchema = {
+    type: 'object',
+    properties: {
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        }
+    }
+} as const;
+
+export const HermesInitiateIntegrationResponseSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            $ref: '#/components/schemas/HermesIntegrationProvider'
+        },
+        redirectUrl: {
+            type: 'string',
+            format: 'uri'
+        },
+        connectionId: {
+            type: 'string',
+            minLength: 1
+        }
+    },
+    required: [
+        'provider',
+        'redirectUrl',
+        'connectionId'
+    ]
+} as const;
+
+export const HermesInitiateIntegrationRequestSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            $ref: '#/components/schemas/HermesIntegrationProvider'
+        },
+        mode: {
+            $ref: '#/components/schemas/HermesIntegrationMode'
+        }
+    },
+    required: [
+        'provider'
+    ]
+} as const;
+
+export const HermesFinalizeIntegrationRequestSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            $ref: '#/components/schemas/HermesIntegrationProvider'
+        },
+        connectionId: {
+            type: 'string',
+            minLength: 1
+        },
+        mode: {
+            $ref: '#/components/schemas/HermesIntegrationMode'
+        }
+    },
+    required: [
+        'provider',
+        'connectionId'
+    ]
+} as const;
+
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
