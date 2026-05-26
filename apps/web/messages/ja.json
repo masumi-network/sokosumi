@@ -2765,7 +2765,8 @@
           "authorizationFailed": "認可に失敗しました",
           "missingCode": "URLに認可コードが見つかりません",
           "missingCodeVerifier": "コードベリファイアを入力してください",
-          "missingCredentials": "クライアントIDとクライアントシークレットが必要です",
+          "missingCredentials": "クライアントIDが必要です。パブリッククライアントの場合はクライアントシークレットを空のままにしてください。",
+          "invalidIssuer": "URL の iss の値がこのサイトの認可サーバーと一致しません。認可レスポンスで返されたコールバック URL を、クエリパラメータを変更せずに使用してください。",
           "tokenExchangeFailed": "認可コードのトークン交換に失敗しました"
         },
         "clientIdLabel": "クライアントID",

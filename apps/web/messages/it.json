@@ -2765,7 +2765,8 @@
           "authorizationFailed": "Autorizzazione non riuscita",
           "missingCode": "Nessun codice di autorizzazione trovato nell’URL",
           "missingCodeVerifier": "Inserisci il code verifier",
-          "missingCredentials": "ID client e client secret sono obbligatori",
+          "missingCredentials": "L’ID client è obbligatorio. Lascia vuoto il client secret per i client pubblici.",
+          "invalidIssuer": "Il valore iss nell’URL non corrisponde al server di autorizzazione di questo sito. Usa l’URL di callback restituita dalla risposta di autorizzazione senza modificare i parametri di query.",
           "tokenExchangeFailed": "Impossibile scambiare il codice di autorizzazione con un token"
         },
         "clientIdLabel": "ID client",
