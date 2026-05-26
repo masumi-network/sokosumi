@@ -76,17 +76,12 @@ import {
 } from "@/lib/hermes/merge-persisted-messages";
 import type {
   HermesInstancePublic,
+  HermesOrganizationOption,
   HermesPendingConfirmation,
   HermesPersistedMessage,
 } from "@/lib/hermes/types";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
-
-interface HermesOrganizationOption {
-  id: string;
-  name: string;
-  slug: string | null;
-}
 
 interface RunningStateProps {
   userName?: string | null;

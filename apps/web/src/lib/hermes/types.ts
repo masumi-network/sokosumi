@@ -158,6 +158,9 @@ export interface HermesConfirmationOrganizationRef {
   slug: string | null;
 }
 
+/** Organization the user belongs to (confirmation picker, session scope). */
+export type HermesOrganizationOption = HermesConfirmationOrganizationRef;
+
 /**
  * Medium-autonomy gate. Hermes wanted to run a write/spend tool; the
  * orchestrator intercepted, the tool hasn't run yet, the user has to say yes.

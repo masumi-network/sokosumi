@@ -23,8 +23,11 @@ import type {
   HermesAutonomyLevel,
   HermesInstancePublic,
   HermesInstanceStatus,
+  HermesOrganizationOption,
   HermesPersistedMessage,
 } from "@/lib/hermes/types";
+
+export type { HermesOrganizationOption };
 
 type UiState =
   | "loading"
@@ -34,12 +37,6 @@ type UiState =
   | "onboarding"
   | "running"
   | "error";
-
-export interface HermesOrganizationOption {
-  id: string;
-  name: string;
-  slug: string | null;
-}
 
 interface HermesExperienceProps {
   userName?: string | null;
