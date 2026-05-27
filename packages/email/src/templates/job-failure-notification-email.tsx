@@ -1,6 +1,4 @@
-import { Container } from "@react-email/container";
-import { Section } from "@react-email/section";
-import { Text } from "@react-email/text";
+import { Container, Section, Text } from "react-email";
 
 import { EmailShell } from "../components/email-shell.js";
 
