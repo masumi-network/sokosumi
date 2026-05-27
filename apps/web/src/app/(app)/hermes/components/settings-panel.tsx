@@ -692,7 +692,7 @@ function SyncStatusSection({
 }) {
   const t = useTranslations("App.Hermes.Settings");
   const formatter = useFormatter();
-  const now = useNow();
+  const now = useNow({ updateInterval: 60_000 });
 
   return (
     <PanelSection title={t("syncSection")} description={t("syncHelp")}>
@@ -933,7 +933,7 @@ function ScheduleMeta({
 }) {
   const t = useTranslations("App.Hermes.Settings");
   const formatter = useFormatter();
-  const now = useNow();
+  const now = useNow({ updateInterval: 60_000 });
   const human = humanizeCron(cronExpr);
 
   return (
