@@ -99,7 +99,7 @@ describe("MessageList", () => {
         parts: [{ type: "text", text: "Next calendar day" }],
         createdAt: new Date("2026-05-11T10:00:00.000Z"),
       },
-    ] satisfies UIMessage[];
+    ] as UIMessage[];
     const chats = [
       {
         id: "conversation-1",
