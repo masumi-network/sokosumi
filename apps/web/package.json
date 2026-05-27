@@ -106,7 +106,7 @@
     "puppeteer-core": "25.0.4",
     "radix-ui": "1.4.3",
     "react": "19.2.6",
-    "react-day-picker": "9.14.0",
+    "react-day-picker": "10.0.1",
     "react-dom": "19.2.6",
     "react-error-boundary": "6.1.2",
     "react-fast-marquee": "1.6.5",
