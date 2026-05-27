@@ -2710,7 +2710,8 @@
           "authorizationFailed": "Autorisierung fehlgeschlagen",
           "missingCode": "Kein Autorisierungscode in der URL gefunden",
           "missingCodeVerifier": "Bitte gib den Code-Verifier ein",
-          "missingCredentials": "Client-ID und Client-Secret sind erforderlich",
+          "missingCredentials": "Client-ID ist erforderlich. Client-Secret bei öffentlichen Clients leer lassen.",
+          "invalidIssuer": "Der iss-Wert in der URL stimmt nicht mit dem Authorization Server dieser Website überein. Verwenden Sie die Callback-URL aus der Autorisierungsantwort ohne Änderung der Abfrageparameter.",
           "tokenExchangeFailed": "Autorisierungscode konnte nicht gegen Token getauscht werden"
         },
         "clientIdLabel": "Client-ID",
