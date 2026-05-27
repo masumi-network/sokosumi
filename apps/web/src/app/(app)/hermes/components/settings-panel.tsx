@@ -1,7 +1,7 @@
 "use client";
 
 import { Inbox, Loader2, RefreshCw, Trash2 } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
@@ -692,6 +692,7 @@ function SyncStatusSection({
 }) {
   const t = useTranslations("App.Hermes.Settings");
   const formatter = useFormatter();
+  const now = useNow();
 
   return (
     <PanelSection title={t("syncSection")} description={t("syncHelp")}>
@@ -702,7 +703,10 @@ function SyncStatusSection({
           value={
             lastSokosumiSyncAt
               ? t("syncLastRun", {
-                  when: formatter.relativeTime(new Date(lastSokosumiSyncAt)),
+                  when: formatter.relativeTime(
+                    new Date(lastSokosumiSyncAt),
+                    now,
+                  ),
                 })
               : t("syncWorkspaceNever")
           }
@@ -714,7 +718,10 @@ function SyncStatusSection({
           value={
             lastInboxRefreshAt
               ? t("syncLastRun", {
-                  when: formatter.relativeTime(new Date(lastInboxRefreshAt)),
+                  when: formatter.relativeTime(
+                    new Date(lastInboxRefreshAt),
+                    now,
+                  ),
                 })
               : t("syncInboxNever")
           }
@@ -926,6 +933,7 @@ function ScheduleMeta({
 }) {
   const t = useTranslations("App.Hermes.Settings");
   const formatter = useFormatter();
+  const now = useNow();
   const human = humanizeCron(cronExpr);
 
   return (
@@ -934,9 +942,9 @@ function ScheduleMeta({
       <span className="text-muted-foreground/60 px-1.5">·</span>
       <span className="tabular-nums">
         {nextRunAt
-          ? `${t("schedulesNextRun")} ${formatter.relativeTime(new Date(nextRunAt))}`
+          ? `${t("schedulesNextRun")} ${formatter.relativeTime(new Date(nextRunAt), now)}`
           : lastRunAt
-            ? `${t("schedulesLastRun")} ${formatter.relativeTime(new Date(lastRunAt))}`
+            ? `${t("schedulesLastRun")} ${formatter.relativeTime(new Date(lastRunAt), now)}`
             : t("schedulesNeverRan")}
       </span>
     </div>
