@@ -1,9 +1,5 @@
-import { Button } from "@react-email/button";
-import { Container } from "@react-email/container";
-import { Link } from "@react-email/link";
 import { render } from "@react-email/render";
-import { Section } from "@react-email/section";
-import { Text } from "@react-email/text";
+import { Button, Container, Link, Section, Text } from "react-email";
 
 import { EmailShell } from "../components/email-shell.js";
 import type { RenderedEmail } from "../types.js";
