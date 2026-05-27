@@ -4,6 +4,7 @@ import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { CROSS_ORIGIN_OPENER_POLICY } from "./src/config/document-security-headers";
 import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
 import {
   getCoreRelatedProjectName,
@@ -20,6 +21,19 @@ const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
 );
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: CROSS_ORIGIN_OPENER_POLICY,
+          },
+        ],
+      },
+    ];
+  },
   env: {
     NEXT_PUBLIC_NETWORK: process.env.NETWORK,
     NEXT_PUBLIC_CORE_APP_BASE_URL: browserCoreApiBaseUrl,

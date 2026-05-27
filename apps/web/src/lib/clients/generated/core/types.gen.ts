@@ -625,6 +625,20 @@ export type HermesPendingConfirmation = {
     toolName: string;
     summary: string;
     createdAt: Date;
+    referencedCoworkers?: Array<HermesConfirmationCoworkerRef>;
+    referencedOrganizations?: Array<HermesConfirmationOrganizationRef>;
+};
+
+export type HermesConfirmationCoworkerRef = {
+    id: string;
+    name: string;
+    image: string | null;
+};
+
+export type HermesConfirmationOrganizationRef = {
+    id: string;
+    name: string;
+    slug: string | null;
 };
 
 export type HermesUpdateInstanceRequest = {
@@ -752,6 +766,12 @@ export const HermesConfirmationStatus = {
 } as const;
 
 export type HermesConfirmationStatus = typeof HermesConfirmationStatus[keyof typeof HermesConfirmationStatus];
+
+export type HermesApproveConfirmationRequest = {
+    overrides?: {
+        organizationId?: string | null;
+    };
+};
 
 export type HermesRejectConfirmationRequest = {
     reason?: string;
@@ -939,6 +959,32 @@ export type Project = {
 export type CreateProjectRequest = {
     name: string;
     description?: string | null;
+};
+
+export type ProjectStatsBatch = {
+    projects: Array<ProjectStatsEntry>;
+};
+
+export type ProjectStatsEntry = {
+    projectId: string;
+    tasks: {
+        total: number;
+        byStatus: Array<ProjectTaskStatusCount>;
+    };
+    jobs: {
+        total: number;
+        byStatus: Array<ProjectJobStatusCount>;
+    };
+};
+
+export type ProjectTaskStatusCount = {
+    count: number;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+};
+
+export type ProjectJobStatusCount = {
+    count: number;
+    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
 };
 
 export type AddProjectJobRequest = {
@@ -6563,7 +6609,7 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdResponses = {
 export type PatchHermesMeInstanceSchedulesByScheduleIdResponse = PatchHermesMeInstanceSchedulesByScheduleIdResponses[keyof PatchHermesMeInstanceSchedulesByScheduleIdResponses];
 
 export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveData = {
-    body?: never;
+    body?: HermesApproveConfirmationRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -8628,6 +8674,92 @@ export type PostProjectsResponses = {
 
 export type PostProjectsResponse = PostProjectsResponses[keyof PostProjectsResponses];
 
+export type GetProjectsStatsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Optional comma-separated project IDs. Omit to return stats for all workspace projects.
+         */
+        projectIds?: Array<string>;
+    };
+    url: '/projects/stats';
+};
+
+export type GetProjectsStatsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsStatsError = GetProjectsStatsErrors[keyof GetProjectsStatsErrors];
+
+export type GetProjectsStatsResponses = {
+    /**
+     * Project stats
+     */
+    200: {
+        data: ProjectStatsBatch;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsStatsResponse = GetProjectsStatsResponses[keyof GetProjectsStatsResponses];
+
 export type PostProjectsByIdJobsData = {
     body?: AddProjectJobRequest;
     headers?: {
@@ -9280,6 +9412,10 @@ export type GetJobsData = {
          * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all jobs in the active workspace.
          */
         scope?: 'workspace' | 'owned';
+        /**
+         * Filter jobs by project ID. Use the literal value 'null' to return jobs that are not assigned to a project.
+         */
+        projectId?: string | 'null';
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -11530,6 +11666,10 @@ export type GetTasksData = {
          * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
          */
         scope?: 'workspace' | 'owned';
+        /**
+         * Filter tasks by project ID. Use the literal value 'null' to return tasks that are not assigned to a project.
+         */
+        projectId?: string | 'null';
         /**
          * Filter tasks by coworker ID
          */

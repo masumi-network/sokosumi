@@ -1727,40 +1727,40 @@
           "never": "永不",
           "inboxScanned": "收件箱 · 已扫描",
           "memoryWritten": "记忆 · 已写入",
-          "demoInbox": {
-            "0": {
+          "demoInbox": [
+            {
               "from": "Hannah",
               "subject": "Q4 路线图评审"
             },
-            "1": {
+            {
               "from": "Alex",
               "subject": "Cardano 交易 — 后续步骤"
             },
-            "2": {
+            {
               "from": "CI bot",
               "subject": "构建 #2438 失败"
             }
-          },
-          "demoMemory": {
-            "0": "正在推进 Q4 发布",
-            "1": "Hannah 是产品负责人",
-            "2": "Cardano 交易将于 3 月 15 日截止"
-          },
+          ],
+          "demoMemory": [
+            "正在推进 Q4 发布",
+            "Hannah 是产品负责人",
+            "Cardano 交易将于 3 月 15 日截止"
+          ],
           "actUserMessage": "安排下周二上午 10 点与 Hannah 通话。",
           "actWorking": "Hermes 正在工作",
-          "actSteps": {
-            "0": "找到空闲时段",
-            "1": "起草了邀请",
-            "2": "聘请 Research 智能体获取背景信息"
-          },
+          "actSteps": [
+            "找到空闲时段",
+            "起草了邀请",
+            "聘请 Research 智能体获取背景信息"
+          ],
           "actHeld": "周二 · 上午 10:00 已预留",
           "overnightTitle": "今晚 · 4 项任务",
-          "overnightSchedule": {
-            "0": "拉取夜间邮件",
-            "1": "同步 Sokosumi 任务",
-            "2": "起草你的晨间简报",
-            "3": "推送到聊天 + Telegram"
-          }
+          "overnightSchedule": [
+            "拉取夜间邮件",
+            "同步 Sokosumi 任务",
+            "起草你的晨间简报",
+            "推送到聊天 + Telegram"
+          ]
         },
         "journeyEyebrow": "端到端",
         "journeyHeading": "Hermes 如何工作，一步步来",
@@ -1827,15 +1827,15 @@
         "subtitle": "通常大约需要一分钟。你可以关闭此标签页 — Hermes 会在后台继续准备。",
         "settingUp": "正在设置你的智能体…",
         "whileYouWait": "等待期间",
-        "facts": {
-          "0": "Hermes 拥有专属私有计算机，并在会话间记住你的上下文。",
-          "1": "连接 Gmail、Outlook、Slack、Linear、GitHub、Notion 等。",
-          "2": "Hermes 可以聘请其他 Sokosumi 智能体代你工作。",
-          "3": "在此、Telegram、Slack 或你工作的任何地方聊天——随时继续。",
-          "4": "每天早上 Hermes 可以发送需要你关注事项的简报。",
-          "5": "读取收件箱、起草回复、安排会议——全部在聊天中完成。",
-          "6": "用自然语言让 Hermes 安排任务：「每周一上午 9 点，总结我接下来一周的安排。」"
-        }
+        "facts": [
+          "Hermes 拥有专属私有计算机，并在会话间记住你的上下文。",
+          "连接 Gmail、Outlook、Slack、Linear、GitHub、Notion 等。",
+          "Hermes 可以聘请其他 Sokosumi 智能体代你工作。",
+          "在此、Telegram、Slack 或你工作的任何地方聊天——随时继续。",
+          "每天早上 Hermes 可以发送需要你关注事项的简报。",
+          "读取收件箱、起草回复、安排会议——全部在聊天中完成。",
+          "用自然语言让 Hermes 安排任务：「每周一上午 9 点，总结我接下来一周的安排。」"
+        ]
       },
       "Running": {
         "statusActive": "运行中",
@@ -1862,36 +1862,36 @@
           "emptyResponse": "Hermes 返回了空响应。",
           "unreachable": "无法连接 Hermes。请检查网络连接。"
         },
-        "mockReplies": {
-          "0": "这是本地 Hermes 预览的模拟回复。关闭 ?state=running 可查看通过编排器连接的真实 Hermes。",
-          "1": "收到。在生产环境中，你的消息会经过 Sokosumi 服务器，编排器返回你的私有端点，Hermes 再响应。",
-          "2": "我会这样做：写入长期记忆、在任务列表添加跟进，并为下次会话保留上下文。"
-        },
-        "thinkingMessages": {
-          "0": "思考中",
-          "1": "正在请教日历之神",
-          "2": "翻阅你的收件箱",
-          "3": "字里行间细读",
-          "4": "酝酿回复",
-          "5": "加载你的上下文",
-          "6": "四处打听",
-          "7": "挑选合适工具",
-          "8": "谨慎起草",
-          "9": "行动前再三确认",
-          "10": "替你完成枯燥部分",
-          "11": "理清 Slack",
-          "12": "交叉核对记忆",
-          "13": "追查一个细节",
-          "14": "斟酌措辞",
-          "15": "快好了"
-        },
-        "rotatingHints": {
-          "0": "给 Hermes 发消息…",
-          "1": "试试：每天上午 8 点安排收件箱简报",
-          "2": "试试：总结我未完结的 Cardano 线程",
-          "3": "试试：根据上次会议笔记起草跟进",
-          "4": "试试：我的收件箱里有什么逾期了？"
-        },
+        "mockReplies": [
+          "这是本地 Hermes 预览的模拟回复。关闭 ?state=running 可查看通过编排器连接的真实 Hermes。",
+          "收到。在生产环境中，你的消息会经过 Sokosumi 服务器，编排器返回你的私有端点，Hermes 再响应。",
+          "我会这样做：写入长期记忆、在任务列表添加跟进，并为下次会话保留上下文。"
+        ],
+        "thinkingMessages": [
+          "思考中",
+          "正在请教日历之神",
+          "翻阅你的收件箱",
+          "字里行间细读",
+          "酝酿回复",
+          "加载你的上下文",
+          "四处打听",
+          "挑选合适工具",
+          "谨慎起草",
+          "行动前再三确认",
+          "替你完成枯燥部分",
+          "理清 Slack",
+          "交叉核对记忆",
+          "追查一个细节",
+          "斟酌措辞",
+          "快好了"
+        ],
+        "rotatingHints": [
+          "给 Hermes 发消息…",
+          "试试：每天上午 8 点安排收件箱简报",
+          "试试：总结我未完结的 Cardano 线程",
+          "试试：根据上次会议笔记起草跟进",
+          "试试：我的收件箱里有什么逾期了？"
+        ],
         "outboxKinds": {
           "welcome": "欢迎",
           "daily_brief": "每日简报",
@@ -1916,7 +1916,15 @@
           "rejectFailed": "无法拒绝。",
           "erroredAfterApproval": "Hermes 的操作在批准后出错。",
           "approvedToast": "已批准。Hermes 将执行该操作。",
+          "rejectedToast": "已拒绝。Hermes 将不会执行该操作。",
+          "alreadyResolvedToast": "此项已经处理过了。",
+          "alreadyResolvedStatus": "已处理",
           "resolvedFallback": "Hermes 已执行你批准的操作。",
+          "organizationLabel": "创建于",
+          "organizationPersonal": "个人",
+          "costNotice": "无法提前计算费用。此工作使用的积分将在运行过程中从您的余额中扣除。",
+          "approvedStatus": "已批准",
+          "rejectedStatus": "已拒绝",
           "tools": {
             "sokosumi_create_task": {
               "action": "创建任务",
@@ -2008,18 +2016,18 @@
         "continueWithCount": "继续，{count, plural, =0 {未连接任何集成} =1 {已连接 # 个集成} other {已连接 # 个集成}}",
         "footnote": "你可随时在设置中添加或移除集成。",
         "autonomyAriaLabel": "Hermes 自主级别",
-        "roleOptions": {
-          "0": "创始人 / CEO",
-          "1": "产品",
-          "2": "工程",
-          "3": "设计",
-          "4": "市场",
-          "5": "销售",
-          "6": "运营",
-          "7": "财务",
-          "8": "客户成功",
-          "9": "其他"
-        },
+        "roleOptions": [
+          "创始人 / CEO",
+          "产品",
+          "工程",
+          "设计",
+          "市场",
+          "销售",
+          "运营",
+          "财务",
+          "客户成功",
+          "其他"
+        ],
         "capabilities": {
           "gmail": "读取和搜索收件箱，起草并发送邮件",
           "google_calendar": "读取事件、查看空闲时间、创建和更新会议",
@@ -2044,14 +2052,14 @@
         "stepFallbackLabel": "正在预热",
         "footerHint": "完成后，聊天将打开并显示来自 Hermes 的个性化介绍。",
         "pollError": "目前无法连接编排器 — 仍在重试。",
-        "hints": {
-          "0": "小贴士：进入后问「今天我的收件箱有什么重要的？」",
-          "1": "Hermes 会记住你的项目、联系人和偏好。",
-          "2": "试试：「每个工作日上午 8 点，把收件箱简报发给我。」",
-          "3": "Hermes 可以聘请其他 Sokosumi 智能体协助研究。",
-          "4": "稍后在设置中连接更多工具 — Slack、Linear、Notion 等。",
-          "5": "每天早上 Hermes 会发送需要你关注事项的简报。"
-        },
+        "hints": [
+          "小贴士：进入后问「今天我的收件箱有什么重要的？」",
+          "Hermes 会记住你的项目、联系人和偏好。",
+          "试试：「每个工作日上午 8 点，把收件箱简报发给我。」",
+          "Hermes 可以聘请其他 Sokosumi 智能体协助研究。",
+          "稍后在设置中连接更多工具 — Slack、Linear、Notion 等。",
+          "每天早上 Hermes 会发送需要你关注事项的简报。"
+        ],
         "previewSteps": {
           "save_details": "正在保存你的详细信息",
           "connect_integrations": "正在连接你的集成",

@@ -315,6 +315,7 @@
       "approve": "批准",
       "approveFailed": "无法批准。",
       "approvedToast": "已批准。Hermes 将执行该操作。",
+      "rejectedToast": "已拒绝。Hermes 将不会执行该操作。",
       "erroredAfterApproval": "Hermes 的操作在批准后出错。",
       "heading": "Hermes 需要你的确认",
       "reject": "拒绝",

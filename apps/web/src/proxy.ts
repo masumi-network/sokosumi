@@ -2,6 +2,7 @@ import { resolveBetterAuthCookiePrefix } from "@sokosumi/utils";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { applyDocumentSecurityHeaders } from "@/config/document-security-headers";
 import { getEnvSecrets } from "@/config/env.secrets";
 
 const EXCLUDED_PATHS = [
@@ -53,10 +54,11 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Create response early so we can always set pathname headers
+  // Create response early so we can always set pathname + document headers
   const response = NextResponse.next();
   response.headers.set("x-pathname", pathname);
   response.headers.set("x-search-params", searchParams);
+  applyDocumentSecurityHeaders(response);
 
   // Skip session check for excluded paths (but still set headers above)
   if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {

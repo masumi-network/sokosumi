@@ -4,16 +4,34 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 
 const {
+  addBreadcrumbMock,
+  approveConfirmationMock,
   authGetSessionMock,
   authVerifyApiKeyMock,
+  buildMcpUrlMock,
   captureExceptionMock,
+  captureMessageMock,
+  composioToolkitForProviderMock,
+  connectInstanceIntegrationMock,
+  disconnectInstanceIntegrationMock,
+  coworkerFindManyMock,
   ensureInstanceReadyMock,
+  ensureAuthConfigMock,
+  ensureMcpServerMock,
+  getConnectionMock,
   HermesInstanceNotReadyErrorMock,
+  hermesPendingConnectionDeleteManyMock,
+  hermesPendingConnectionDeleteMock,
+  hermesPendingConnectionFindUniqueMock,
+  hermesPendingConnectionUpsertMock,
   hermesMessageCreateMock,
   hermesMessageFindManyMock,
   hermesMessageUpsertMock,
+  initiateConnectionMock,
   isReservedSecretKeyMock,
   isValidSecretKeyMock,
+  memberFindFirstMock,
+  organizationFindManyMock,
   prismaTransactionMock,
   proxyChatCompletionsMock,
   syncHermesInboxForUserMock,
@@ -37,16 +55,34 @@ const {
   }
 
   return {
+    addBreadcrumbMock: vi.fn(),
+    approveConfirmationMock: vi.fn(),
     authGetSessionMock: vi.fn(),
     authVerifyApiKeyMock: vi.fn(),
+    buildMcpUrlMock: vi.fn(),
     captureExceptionMock: vi.fn(),
+    captureMessageMock: vi.fn(),
+    composioToolkitForProviderMock: vi.fn(),
+    connectInstanceIntegrationMock: vi.fn(),
+    disconnectInstanceIntegrationMock: vi.fn(),
+    coworkerFindManyMock: vi.fn(),
     ensureInstanceReadyMock: vi.fn(),
+    ensureAuthConfigMock: vi.fn(),
+    ensureMcpServerMock: vi.fn(),
+    getConnectionMock: vi.fn(),
     HermesInstanceNotReadyErrorMock,
+    hermesPendingConnectionDeleteManyMock: vi.fn(),
+    hermesPendingConnectionDeleteMock: vi.fn(),
+    hermesPendingConnectionFindUniqueMock: vi.fn(),
+    hermesPendingConnectionUpsertMock: vi.fn(),
     hermesMessageCreateMock: vi.fn(),
     hermesMessageFindManyMock: vi.fn(),
     hermesMessageUpsertMock: vi.fn(),
+    initiateConnectionMock: vi.fn(),
     isReservedSecretKeyMock: vi.fn(),
     isValidSecretKeyMock: vi.fn(),
+    memberFindFirstMock: vi.fn(),
+    organizationFindManyMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
     proxyChatCompletionsMock: vi.fn(),
     syncHermesInboxForUserMock: vi.fn(),
@@ -59,7 +95,9 @@ vi.mock("@sentry/node", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@sentry/node")>();
   return {
     ...actual,
+    addBreadcrumb: addBreadcrumbMock,
     captureException: captureExceptionMock,
+    captureMessage: captureMessageMock,
   };
 });
 
@@ -88,6 +126,21 @@ vi.mock("@/lib/db/prisma", () => ({
       upsert: hermesMessageUpsertMock,
       count: vi.fn().mockResolvedValue(0),
     },
+    coworker: {
+      findMany: coworkerFindManyMock,
+    },
+    hermesPendingConnection: {
+      upsert: hermesPendingConnectionUpsertMock,
+      findUnique: hermesPendingConnectionFindUniqueMock,
+      delete: hermesPendingConnectionDeleteMock,
+      deleteMany: hermesPendingConnectionDeleteManyMock,
+    },
+    member: {
+      findFirst: memberFindFirstMock,
+    },
+    organization: {
+      findMany: organizationFindManyMock,
+    },
     user: {
       findUnique: userFindUniqueMock,
     },
@@ -102,6 +155,9 @@ vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
 
   return {
     ...actual,
+    approveConfirmation: approveConfirmationMock,
+    connectInstanceIntegration: connectInstanceIntegrationMock,
+    disconnectInstanceIntegration: disconnectInstanceIntegrationMock,
     destroyInstance: vi.fn(),
     ensureInstanceReady: ensureInstanceReadyMock,
     getInstance: vi.fn(),
@@ -123,6 +179,26 @@ vi.mock("@/clients/hermes-orchestrator.client", async (importOriginal) => {
     setInstanceSecret: vi.fn(),
   };
 });
+
+vi.mock("@/clients/composio.client", () => ({
+  buildMcpUrl: buildMcpUrlMock,
+  ComposioApiError: class ComposioApiError extends Error {
+    readonly httpStatus: number;
+    readonly body: unknown;
+
+    constructor(message: string, httpStatus = 500, body: unknown = null) {
+      super(message);
+      this.httpStatus = httpStatus;
+      this.body = body;
+    }
+  },
+  ComposioConfigError: class ComposioConfigError extends Error {},
+  composioToolkitForProvider: composioToolkitForProviderMock,
+  ensureAuthConfig: ensureAuthConfigMock,
+  ensureMcpServer: ensureMcpServerMock,
+  getConnection: getConnectionMock,
+  initiateConnection: initiateConnectionMock,
+}));
 
 vi.mock("@/services/hermes-inbox-sync.service", () => ({
   syncHermesInboxForUser: syncHermesInboxForUserMock,
@@ -174,6 +250,34 @@ describe("Hermes route contracts", () => {
     syncHermesInboxForUserMock.mockResolvedValue({
       userId: "user_123",
       outcome: "no_messages",
+    });
+    coworkerFindManyMock.mockResolvedValue([]);
+    memberFindFirstMock.mockResolvedValue(null);
+    organizationFindManyMock.mockResolvedValue([]);
+    hermesPendingConnectionUpsertMock.mockResolvedValue(undefined);
+    hermesPendingConnectionFindUniqueMock.mockResolvedValue(null);
+    hermesPendingConnectionDeleteMock.mockResolvedValue(undefined);
+    hermesPendingConnectionDeleteManyMock.mockResolvedValue({ count: 0 });
+    composioToolkitForProviderMock.mockReturnValue("gmail");
+    ensureAuthConfigMock.mockResolvedValue("auth_config_1");
+    ensureMcpServerMock.mockResolvedValue("mcp_server_1");
+    initiateConnectionMock.mockResolvedValue({
+      redirectUrl: "https://composio.example/oauth",
+      connectionId: "conn_123",
+    });
+    getConnectionMock.mockResolvedValue({ status: "ACTIVE" });
+    buildMcpUrlMock.mockReturnValue("https://mcp.example/gmail/user_123");
+    connectInstanceIntegrationMock.mockResolvedValue({
+      provider: "gmail",
+      status: "connected",
+      connectedAt: "2026-05-25T10:00:00.000Z",
+      mode: "read",
+    });
+    disconnectInstanceIntegrationMock.mockResolvedValue(undefined);
+    approveConfirmationMock.mockResolvedValue({
+      status: "approved",
+      result: null,
+      error: null,
     });
     proxyChatCompletionsMock.mockResolvedValue(
       Response.json({
@@ -776,6 +880,237 @@ describe("Hermes route contracts", () => {
     expect(hermesMessageUpsertMock).not.toHaveBeenCalled();
   });
 
+  it("enriches pending confirmations with referenced coworkers + organizations on GET /me/instance", async () => {
+    const coworkerId = "0e8c93b0-5332-4734-b603-ea18d17b50c5";
+    const orgId = "11111111-2222-3333-4444-555555555555";
+    const strangerId = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+
+    vi.mocked(getInstance).mockResolvedValue({
+      status: "ready",
+      endpointUrl: null,
+      lastActivityAt: null,
+      onboardedAt: null,
+      autonomyLevel: "medium",
+      integrations: [],
+      transitioning: false,
+      welcomeMessage: null,
+      welcomeKind: null,
+      lastSokosumiSyncAt: null,
+      lastInboxRefreshAt: null,
+      timezone: null,
+      pendingConfirmations: [
+        {
+          id: "conf_1",
+          toolName: "sokosumi_create_task",
+          summary: `Create a new task and assign it to coworker ${coworkerId.toUpperCase()} in organization ${orgId.toUpperCase()}. Unknown user ${strangerId}.`,
+          createdAt: "2026-05-25T10:00:00.000Z",
+          referencedCoworkers: [],
+          referencedOrganizations: [],
+        },
+      ],
+    });
+    coworkerFindManyMock.mockResolvedValue([
+      { id: coworkerId, name: "Hannah", image: "https://img/hannah.png" },
+    ]);
+    organizationFindManyMock.mockResolvedValue([
+      { id: orgId, name: "Sokosumi Inc", slug: "sokosumi" },
+    ]);
+
+    const response = await createApp().request("/me/instance", {
+      headers: { Authorization: "Bearer test_api_key" },
+    });
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "user_123",
+          id: { in: expect.arrayContaining([coworkerId, orgId, strangerId]) },
+        }),
+      }),
+    );
+    const data = body.data as {
+      instance: {
+        pendingConfirmations: Array<{
+          referencedCoworkers: Array<{ id: string; name: string }>;
+          referencedOrganizations: Array<{ id: string; name: string }>;
+        }>;
+      };
+    };
+    const [conf] = data.instance.pendingConfirmations;
+    expect(conf.referencedCoworkers).toEqual([
+      { id: coworkerId, name: "Hannah", image: "https://img/hannah.png" },
+    ]);
+    expect(conf.referencedOrganizations).toEqual([
+      { id: orgId, name: "Sokosumi Inc", slug: "sokosumi" },
+    ]);
+  });
+
+  it("persists the pending connection claim when initiating integration OAuth", async () => {
+    const response = await createApp().request(
+      "/me/instance/integrations/initiate",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ provider: "gmail", mode: "read" }),
+      },
+    );
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data.provider", "gmail");
+    expect(body).toHaveProperty(
+      "data.redirectUrl",
+      "https://composio.example/oauth",
+    );
+    expect(hermesPendingConnectionUpsertMock).toHaveBeenCalledWith({
+      where: { connectionId: "conn_123" },
+      create: {
+        connectionId: "conn_123",
+        userId: "user_123",
+        provider: "gmail",
+        mode: "read",
+        expiresAt: expect.any(Date),
+      },
+      update: {
+        userId: "user_123",
+        provider: "gmail",
+        mode: "read",
+        expiresAt: expect.any(Date),
+      },
+    });
+    expect(hermesPendingConnectionDeleteManyMock).toHaveBeenCalledWith({
+      where: { expiresAt: { lt: expect.any(Date) } },
+    });
+  });
+
+  it("finalizes an active integration and clears the pending connection", async () => {
+    hermesPendingConnectionFindUniqueMock.mockResolvedValue({
+      userId: "user_123",
+      provider: "gmail",
+      mode: "read",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const response = await createApp().request(
+      "/me/instance/integrations/finalize",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "gmail",
+          connectionId: "conn_123",
+          mode: "read",
+        }),
+      },
+    );
+    const body = await parseJson(response);
+
+    expect(response.status).toBe(200);
+    expect(getConnectionMock).toHaveBeenCalledWith("conn_123");
+    expect(connectInstanceIntegrationMock).toHaveBeenCalledWith("user_123", {
+      provider: "gmail",
+      mcpUrl: "https://mcp.example/gmail/user_123",
+      mode: "read",
+    });
+    expect(hermesPendingConnectionDeleteMock).toHaveBeenCalledWith({
+      where: { connectionId: "conn_123" },
+    });
+    expect(body).toHaveProperty("data.provider", "gmail");
+    expect(body).toHaveProperty("data.status", "connected");
+  });
+
+  it("rejects finalize for an unknown pending connection", async () => {
+    hermesPendingConnectionFindUniqueMock.mockResolvedValue(null);
+
+    const response = await createApp().request(
+      "/me/instance/integrations/finalize",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "gmail",
+          connectionId: "conn_unknown",
+          mode: "read",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(getConnectionMock).not.toHaveBeenCalled();
+    expect(hermesPendingConnectionDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects finalize for an expired pending connection and removes it", async () => {
+    hermesPendingConnectionFindUniqueMock.mockResolvedValue({
+      userId: "user_123",
+      provider: "gmail",
+      mode: "read",
+      expiresAt: new Date(Date.now() - 60_000),
+    });
+
+    const response = await createApp().request(
+      "/me/instance/integrations/finalize",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "gmail",
+          connectionId: "conn_expired",
+          mode: "read",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(getConnectionMock).not.toHaveBeenCalled();
+    expect(hermesPendingConnectionDeleteMock).toHaveBeenCalledWith({
+      where: { connectionId: "conn_expired" },
+    });
+  });
+
+  it("rejects finalize when provider or mode does not match the pending claim", async () => {
+    hermesPendingConnectionFindUniqueMock.mockResolvedValue({
+      userId: "user_123",
+      provider: "gmail",
+      mode: "read",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const response = await createApp().request(
+      "/me/instance/integrations/finalize",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "slack",
+          connectionId: "conn_123",
+          mode: "read",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(getConnectionMock).not.toHaveBeenCalled();
+    expect(hermesPendingConnectionDeleteMock).not.toHaveBeenCalled();
+  });
+
   it.each([
     401, 403, 429,
   ] as const)("returns 503 when GET /me/instance fails with orchestrator HTTP %i", async (httpStatus) => {
@@ -874,5 +1209,94 @@ describe("Hermes route contracts", () => {
 
     expect(okResponse?.description).toContain("data.message");
     expect(conflictResponse?.description).toContain("data/meta envelope");
+  });
+
+  it("forwards approve-time organization override after membership check", async () => {
+    const orgId = "11111111-2222-3333-4444-555555555555";
+    memberFindFirstMock.mockResolvedValue({ id: "mem_1" });
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          overrides: { organizationId: orgId },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(memberFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user_123", organizationId: orgId },
+      }),
+    );
+    expect(approveConfirmationMock).toHaveBeenCalledWith("user_123", "conf_1", {
+      organizationId: orgId,
+    });
+  });
+
+  it("rejects approve with overrides for an org the user is not a member of", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
+
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          overrides: { organizationId: "ffffffff-ffff-ffff-ffff-ffffffffffff" },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(approveConfirmationMock).not.toHaveBeenCalled();
+  });
+
+  it("treats explicit null organization overrides as personal scope and skips membership check", async () => {
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test_api_key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          overrides: { organizationId: null },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
+    expect(approveConfirmationMock).toHaveBeenCalledWith("user_123", "conf_1", {
+      organizationId: null,
+    });
+  });
+
+  it("approves without overrides when body is omitted (Hermes' original args stand)", async () => {
+    const response = await createApp().request(
+      "/me/instance/confirmations/conf_1/approve",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer test_api_key" },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(approveConfirmationMock).toHaveBeenCalledWith(
+      "user_123",
+      "conf_1",
+      undefined,
+    );
   });
 });

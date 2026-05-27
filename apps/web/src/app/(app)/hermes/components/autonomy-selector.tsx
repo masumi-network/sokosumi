@@ -94,7 +94,7 @@ export default function AutonomySelector({
                 "group relative flex cursor-pointer items-start gap-3 rounded-xl border transition-colors",
                 compact ? "px-4 py-3" : "px-4 py-3.5",
                 isSelected
-                  ? "border-foreground bg-card shadow-sm"
+                  ? "border-border/60 bg-card shadow-sm"
                   : "border-border/60 bg-card/40 hover:border-foreground/30 hover:bg-card",
                 disabled && "cursor-not-allowed opacity-60",
               )}

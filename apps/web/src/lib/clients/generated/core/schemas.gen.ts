@@ -2193,6 +2193,20 @@ export const HermesPendingConfirmationSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        referencedCoworkers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesConfirmationCoworkerRef'
+            },
+            default: []
+        },
+        referencedOrganizations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesConfirmationOrganizationRef'
+            },
+            default: []
         }
     },
     required: [
@@ -2200,6 +2214,54 @@ export const HermesPendingConfirmationSchema = {
         'toolName',
         'summary',
         'createdAt'
+    ]
+} as const;
+
+export const HermesConfirmationCoworkerRefSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            minLength: 1
+        },
+        name: {
+            type: 'string'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'image'
+    ]
+} as const;
+
+export const HermesConfirmationOrganizationRefSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            minLength: 1
+        },
+        name: {
+            type: 'string'
+        },
+        slug: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
     ]
 } as const;
 
@@ -2586,6 +2648,24 @@ export const HermesConfirmationStatusSchema = {
         'errored',
         'already_resolved'
     ]
+} as const;
+
+export const HermesApproveConfirmationRequestSchema = {
+    type: 'object',
+    properties: {
+        overrides: {
+            type: 'object',
+            properties: {
+                organizationId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    minLength: 1
+                }
+            }
+        }
+    }
 } as const;
 
 export const HermesRejectConfirmationRequestSchema = {
@@ -3127,6 +3207,145 @@ export const CreateProjectRequestSchema = {
     },
     required: [
         'name'
+    ]
+} as const;
+
+export const ProjectStatsBatchSchema = {
+    type: 'object',
+    properties: {
+        projects: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectStatsEntry'
+            }
+        }
+    },
+    required: [
+        'projects'
+    ]
+} as const;
+
+export const ProjectStatsEntrySchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        tasks: {
+            type: 'object',
+            properties: {
+                total: {
+                    type: 'integer',
+                    minimum: 0,
+                    example: 3
+                },
+                byStatus: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ProjectTaskStatusCount'
+                    },
+                    example: []
+                }
+            },
+            required: [
+                'total',
+                'byStatus'
+            ]
+        },
+        jobs: {
+            type: 'object',
+            properties: {
+                total: {
+                    type: 'integer',
+                    minimum: 0,
+                    example: 3
+                },
+                byStatus: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ProjectJobStatusCount'
+                    },
+                    example: []
+                }
+            },
+            required: [
+                'total',
+                'byStatus'
+            ]
+        }
+    },
+    required: [
+        'projectId',
+        'tasks',
+        'jobs'
+    ]
+} as const;
+
+export const ProjectTaskStatusCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            example: 2
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED'
+            ],
+            example: 'READY'
+        }
+    },
+    required: [
+        'count',
+        'status'
+    ]
+} as const;
+
+export const ProjectJobStatusCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            example: 2
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'started',
+                'completed',
+                'processing',
+                'input_required',
+                'result_pending',
+                'failed',
+                'payment_pending',
+                'payment_failed',
+                'refund_pending',
+                'refund_resolved',
+                'dispute_pending',
+                'dispute_resolved'
+            ],
+            example: 'processing'
+        }
+    },
+    required: [
+        'count',
+        'status'
     ]
 } as const;
 
