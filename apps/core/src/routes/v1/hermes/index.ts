@@ -33,6 +33,7 @@ import {
   type HermesIntegrationMode,
   type HermesIntegrationProvider,
   HermesOrchestratorError,
+  type HermesPendingConfirmation,
   isReservedSecretKey,
   isValidSecretKey,
   listInstanceIntegrations,
@@ -70,6 +71,7 @@ import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth, withGlobalHeaderParameters } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import {
+  hermesApproveConfirmationRequestSchema,
   hermesChatRequestSchema,
   hermesChatResponseSchema,
   hermesConfirmationResolveResponseSchema,
@@ -116,6 +118,14 @@ const MAX_CHAT_CONTEXT_MESSAGES = 100;
 const CHAT_RECOVERY_RETRY_DELAYS_MS = [2_000, 5_000, 10_000];
 /** Inline transcript retries before returning 200 after a successful proxy. */
 const CHAT_TRANSCRIPT_INLINE_RETRY_DELAYS_MS = [0, 250, 750];
+
+/**
+ * RFC-4122 UUID matcher (any version, dashed canonical form). Used to
+ * find coworker/organization ids embedded in confirmation summaries the
+ * orchestrator writes — see `enrichPendingConfirmations`.
+ */
+const UUID_PATTERN =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 interface DecodedFile {
   name: string;
@@ -171,6 +181,13 @@ function isHermesBinaryFileAttachmentMime(type: string): boolean {
 
 function isValidRole(role: string): role is "user" | "assistant" | "system" {
   return role === "user" || role === "assistant" || role === "system";
+}
+
+function findUuidMatches(value: string): string[] {
+  return Array.from(
+    value.matchAll(new RegExp(UUID_PATTERN.source, "gi")),
+    ([match]) => match,
+  );
 }
 
 function decodeDataUrl(
@@ -416,6 +433,86 @@ function buildPersistedUserContent(
   return trimmed
     ? `${trimmed}\n\nAttached files: ${names}`
     : `Attached files: ${names}`;
+}
+
+/**
+ * Resolve UUIDs the orchestrator embeds in confirmation summaries
+ * (e.g. "assign to coworker 0e8c93b0-…") into coworker / organization
+ * records so the UI can render avatar + name chips instead of raw ids.
+ *
+ * Scoped to the caller — we only look up rows the user owns / belongs
+ * to, so an attacker can't enumerate someone else's coworkers by
+ * feeding crafted summaries through the orchestrator.
+ *
+ * Best-effort: a DB hiccup here must not 500 the whole instance fetch.
+ */
+async function enrichPendingConfirmations(
+  confirmations: HermesPendingConfirmation[],
+  userId: string,
+): Promise<HermesPendingConfirmation[]> {
+  if (confirmations.length === 0) return confirmations;
+
+  const allIds = new Set<string>();
+  for (const confirmation of confirmations) {
+    const matches = findUuidMatches(confirmation.summary);
+    for (const id of matches) allIds.add(id.toLowerCase());
+  }
+  if (allIds.size === 0) return confirmations;
+
+  const ids = Array.from(allIds);
+  let coworkers: Array<{ id: string; name: string; image: string | null }> = [];
+  let organizations: Array<{ id: string; name: string; slug: string | null }> =
+    [];
+  try {
+    [coworkers, organizations] = await Promise.all([
+      prisma.coworker.findMany({
+        where: { id: { in: ids }, userId },
+        select: { id: true, name: true, image: true },
+      }),
+      prisma.organization.findMany({
+        where: {
+          id: { in: ids },
+          members: { some: { userId } },
+        },
+        select: { id: true, name: true, slug: true },
+      }),
+    ]);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_confirmation_enrich" },
+    });
+    return confirmations;
+  }
+
+  const coworkerById = new Map(coworkers.map((c) => [c.id.toLowerCase(), c]));
+  const orgById = new Map(organizations.map((o) => [o.id.toLowerCase(), o]));
+
+  return confirmations.map((confirmation) => {
+    const matches = findUuidMatches(confirmation.summary);
+    if (matches.length === 0) return confirmation;
+    const seen = new Set<string>();
+    const refCoworkers: HermesPendingConfirmation["referencedCoworkers"] = [];
+    const refOrgs: HermesPendingConfirmation["referencedOrganizations"] = [];
+    for (const raw of matches) {
+      const id = raw.toLowerCase();
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const coworker = coworkerById.get(id);
+      if (coworker) {
+        refCoworkers.push(coworker);
+        continue;
+      }
+      const organization = orgById.get(id);
+      if (organization) {
+        refOrgs.push(organization);
+      }
+    }
+    return {
+      ...confirmation,
+      referencedCoworkers: refCoworkers,
+      referencedOrganizations: refOrgs,
+    };
+  });
 }
 
 function mapComposioError(error: unknown, fallback: string): never {
@@ -982,12 +1079,20 @@ const approveConfirmationRoute = withGlobalHeaderParameters(
     method: "post",
     path: "/me/instance/confirmations/{confirmationId}/approve",
     description:
-      "Approve a medium-autonomy pending tool call. The orchestrator runs it and returns the result.",
+      "Approve a medium-autonomy pending tool call. Optional org overrides reroute or clear the queued tool args.",
     tags: TAGS,
     request: {
       params: z.object({
         confirmationId: z.string().min(1),
       }),
+      body: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: hermesApproveConfirmationRequestSchema,
+          },
+        },
+      },
     },
     responses: {
       200: jsonSuccessResponse(
@@ -1263,7 +1368,17 @@ app.openapi(getInstanceRoute, async (c) => {
         });
       });
 
-      const parsedInstance = hermesInstanceSchema.parse(instance);
+      // Resolve any coworker / organization UUIDs the orchestrator inlined
+      // into confirmation summaries BEFORE we hand the instance to Zod —
+      // the schema's `referencedCoworkers` field expects the enriched shape.
+      const enrichedConfirmations = await enrichPendingConfirmations(
+        instance.pendingConfirmations,
+        userContext.userId,
+      );
+      const parsedInstance = hermesInstanceSchema.parse({
+        ...instance,
+        pendingConfirmations: enrichedConfirmations,
+      });
 
       // Atomic welcome (orchestrator's "ready" payload carries the intro).
       // Persist it on first sight so the chat opens with the welcome
@@ -1610,11 +1725,41 @@ app.openapi(patchScheduleRoute, async (c) => {
 app.openapi(approveConfirmationRoute, async (c) => {
   const userContext = requireUserContext(c.var.authContext);
   const { confirmationId } = c.req.valid("param");
+  // Body is optional on this route — when the client posts no payload Hono
+  // returns `undefined` and we treat it as the no-overrides case (Hermes'
+  // original args stand).
+  const body = c.req.valid("json") ?? {};
+
+  let overrides: { organizationId?: string | null } | undefined;
+  if (body.overrides) {
+    overrides = {};
+    if ("organizationId" in body.overrides) {
+      const requestedOrgId = body.overrides.organizationId ?? null;
+      if (requestedOrgId !== null) {
+        // Authorization: the user must actually belong to the org they're
+        // routing this confirmation into — otherwise approving with a
+        // crafted id would let a member of org A create resources in
+        // unrelated org B. The orchestrator trusts us, so the check has
+        // to land here.
+        const membership = await prisma.member.findFirst({
+          where: { userId: userContext.userId, organizationId: requestedOrgId },
+          select: { id: true },
+        });
+        if (!membership) {
+          throw badRequest(
+            "You are not a member of the organization you tried to approve into.",
+          );
+        }
+      }
+      overrides.organizationId = requestedOrgId;
+    }
+  }
 
   try {
     const result = await approveConfirmation(
       userContext.userId,
       confirmationId,
+      overrides,
     );
     return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
   } catch (error) {
@@ -1713,7 +1858,7 @@ app.openapi(initiateIntegrationRoute, async (c) => {
       userId: userContext.userId,
       callbackUrl,
     });
-    rememberPendingConnection(connectionId, {
+    await rememberPendingConnection(connectionId, {
       userId: userContext.userId,
       provider,
       mode,
@@ -1731,26 +1876,33 @@ app.openapi(initiateIntegrationRoute, async (c) => {
   }
 });
 
-const FINALIZE_POLL_INTERVAL_MS = 750;
-const FINALIZE_POLL_MAX_ATTEMPTS = 8;
+// Composio's INITIALIZING window after OAuth completion is typically
+// 1-3s but spikes higher under load. The previous 8 × 750ms ≈ 6s budget
+// was tight enough to time-out on busy days; bump to 40 × 1.5s ≈ 60s
+// per Composio's own recommendation and give long-tail OAuths a chance.
+//
+// Hosted Core must allow the full poll window to finish in one invocation
+// (see `functions.maxDuration` in apps/core/vercel.json). Without that
+// override, Vercel's legacy 10–15s defaults can kill finalize mid-poll and
+// the client sees a 504 instead of `composio_finalize_not_active`.
+const FINALIZE_POLL_INTERVAL_MS = 1500;
+const FINALIZE_POLL_MAX_ATTEMPTS = 40;
 
 /**
- * Short-lived map of `connectionId -> { userId, provider, mode, expiresAt }`
- * populated by initiate and consumed by finalize. The full triple is captured
- * so finalize can reject any client-supplied mismatch:
+ * Pending-connection claim written by `initiate` and consumed by
+ * `finalize`. Persisted in Postgres rather than in-process memory — on
+ * Vercel, initiate and finalize run on different Lambda instances and an
+ * in-memory map misses on every cold-pair, surfacing as the spurious
+ * "Unknown or expired connection — restart the integration flow" toast.
+ *
+ * The triple is captured so finalize can reject mismatches:
  *
  *   - `userId` — guards against another user finalizing this connection
  *   - `provider` / `mode` — guards against a client that initiated `read`
  *     OAuth from passing `mode: "write"` to finalize and bypassing the
  *     interstitial's read-only promise (Bugbot HIGH).
  *
- * IN-MEMORY LIMITATION: this map is per-process. If core ever runs as
- * multiple replicas behind a load balancer, initiate and finalize can land
- * on different instances and finalize will (incorrectly) report "unknown
- * connection". Today we run a single core instance; if that changes this
- * needs to move to Redis or a small DB table keyed by connectionId.
- *
- * Entries are NOT deleted on a mismatched / failed finalize — only on a
+ * Rows are NOT deleted on a mismatched / failed finalize — only on a
  * successful match — so:
  *   1. A guessed/leaked `connectionId` from another user can't DoS the
  *      legitimate user by erasing their pending entry on the mismatch
@@ -1760,29 +1912,42 @@ const FINALIZE_POLL_MAX_ATTEMPTS = 8;
  *      (Bugbot medium).
  */
 const PENDING_CONNECTION_TTL_MS = 15 * 60_000;
-interface PendingConnection {
-  userId: string;
-  provider: HermesIntegrationProvider;
-  mode: HermesIntegrationMode;
-  expiresAt: number;
-}
-const pendingConnections = new Map<string, PendingConnection>();
 
-function rememberPendingConnection(
+async function rememberPendingConnection(
   connectionId: string,
-  entry: Omit<PendingConnection, "expiresAt">,
-): void {
-  pendingConnections.set(connectionId, {
-    ...entry,
-    expiresAt: Date.now() + PENDING_CONNECTION_TTL_MS,
+  entry: {
+    userId: string;
+    provider: HermesIntegrationProvider;
+    mode: HermesIntegrationMode;
+  },
+): Promise<void> {
+  const expiresAt = new Date(Date.now() + PENDING_CONNECTION_TTL_MS);
+  // Upsert by connectionId: if Composio ever reuses one in a retry burst
+  // we overwrite rather than throwing on the PK collision.
+  await prisma.hermesPendingConnection.upsert({
+    where: { connectionId },
+    create: {
+      connectionId,
+      userId: entry.userId,
+      provider: entry.provider,
+      mode: entry.mode,
+      expiresAt,
+    },
+    update: {
+      userId: entry.userId,
+      provider: entry.provider,
+      mode: entry.mode,
+      expiresAt,
+    },
   });
-  // Opportunistic GC on write so the map can't grow unbounded.
-  if (pendingConnections.size > 256) {
-    const now = Date.now();
-    for (const [key, value] of pendingConnections) {
-      if (value.expiresAt < now) pendingConnections.delete(key);
-    }
-  }
+  // Best-effort opportunistic GC. Bounded by query, not by table scan.
+  await prisma.hermesPendingConnection
+    .deleteMany({ where: { expiresAt: { lt: new Date() } } })
+    .catch((error) => {
+      Sentry.captureException(error, {
+        tags: { context: "hermes_pending_connection_gc" },
+      });
+    });
 }
 
 type VerifyResult =
@@ -1792,25 +1957,28 @@ type VerifyResult =
       reason: "unknown" | "expired" | "user_mismatch" | "claim_mismatch";
     };
 
-/**
- * Check finalize's `{userId, provider, mode}` triple against the entry the
- * initiate stored under `connectionId`. Does NOT delete on failure so
- * legitimate retries / cross-user probes can't invalidate the real pending
- * entry. Caller deletes via {@link clearPendingConnection} only after a
- * fully successful registration.
- */
-function verifyPendingConnection(
+async function verifyPendingConnection(
   connectionId: string,
   claim: {
     userId: string;
     provider: HermesIntegrationProvider;
     mode: HermesIntegrationMode;
   },
-): VerifyResult {
-  const entry = pendingConnections.get(connectionId);
+): Promise<VerifyResult> {
+  const entry = await prisma.hermesPendingConnection.findUnique({
+    where: { connectionId },
+    select: {
+      userId: true,
+      provider: true,
+      mode: true,
+      expiresAt: true,
+    },
+  });
   if (!entry) return { ok: false, reason: "unknown" };
-  if (entry.expiresAt < Date.now()) {
-    pendingConnections.delete(connectionId);
+  if (entry.expiresAt.getTime() < Date.now()) {
+    await prisma.hermesPendingConnection
+      .delete({ where: { connectionId } })
+      .catch(() => {});
     return { ok: false, reason: "expired" };
   }
   if (entry.userId !== claim.userId)
@@ -1821,8 +1989,12 @@ function verifyPendingConnection(
   return { ok: true };
 }
 
-function clearPendingConnection(connectionId: string): void {
-  pendingConnections.delete(connectionId);
+async function clearPendingConnection(connectionId: string): Promise<void> {
+  await prisma.hermesPendingConnection
+    .delete({ where: { connectionId } })
+    .catch(() => {
+      // Already gone (race with another finalize, GC, etc.) — fine.
+    });
 }
 
 app.openapi(finalizeIntegrationRoute, async (c) => {
@@ -1830,17 +2002,35 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   const { provider, connectionId, mode } = c.req.valid("json");
   const toolkit = composioToolkitForProvider(provider);
 
+  // Breadcrumb every finalize attempt — paired with the orchestrator-side
+  // log added in hermes-as-service commit e76ea0c, we can now trace any
+  // "unknown connection" report end-to-end.
+  Sentry.addBreadcrumb({
+    category: "composio_finalize",
+    message: "finalize received",
+    level: "info",
+    data: { userId: userContext.userId, provider, mode, connectionId },
+  });
+
   // Verify the connection matches what initiate captured for this user. We
   // explicitly check provider + mode (not just userId) so a client cannot
   // initiate "read" OAuth and then call finalize with mode: "write" to get
   // the write-scoped MCP — the interstitial showed the user a read-only
   // confirmation, finalize must honour that.
-  const verify = verifyPendingConnection(connectionId, {
+  const verify = await verifyPendingConnection(connectionId, {
     userId: userContext.userId,
     provider,
     mode,
   });
   if (!verify.ok) {
+    // Distinct Sentry events per reason — `unknown` was the symptom for the
+    // Vercel multi-Lambda bug; if it spikes again after the Postgres fix
+    // we want to know immediately rather than discover it in user reports.
+    Sentry.captureMessage(`composio_finalize_verify_failed:${verify.reason}`, {
+      level: "warning",
+      tags: { context: "composio_finalize", verify_reason: verify.reason },
+      extra: { userId: userContext.userId, provider, mode, connectionId },
+    });
     if (verify.reason === "claim_mismatch") {
       // Distinct message so callers (and logs) can tell the upgrade attempt
       // apart from a stale connectionId.
@@ -1854,11 +2044,13 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   }
 
   // Poll Composio until the connection is ACTIVE. The callback page typically
-  // fires immediately after the OAuth redirect lands, so a handful of short
-  // polls is enough.
+  // fires immediately after the OAuth redirect lands; under load Composio
+  // may sit in INITIALIZING for several seconds before flipping.
   let lastStatus: string = "INITIATED";
+  let pollAttempts = 0;
   try {
     for (let attempt = 0; attempt < FINALIZE_POLL_MAX_ATTEMPTS; attempt++) {
+      pollAttempts = attempt + 1;
       const { status } = await getConnection(connectionId);
       lastStatus = status;
       if (status === "ACTIVE") break;
@@ -1886,10 +2078,28 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   }
 
   if (lastStatus !== "ACTIVE") {
+    Sentry.captureMessage("composio_finalize_not_active", {
+      level: "warning",
+      tags: { context: "composio_finalize", last_status: lastStatus },
+      extra: {
+        userId: userContext.userId,
+        provider,
+        mode,
+        connectionId,
+        pollAttempts,
+        budgetMs: FINALIZE_POLL_MAX_ATTEMPTS * FINALIZE_POLL_INTERVAL_MS,
+      },
+    });
     throw badRequest(
       `Composio connection not active yet (status: ${lastStatus.toLowerCase()})`,
     );
   }
+  Sentry.addBreadcrumb({
+    category: "composio_finalize",
+    message: "composio status active",
+    level: "info",
+    data: { pollAttempts, connectionId },
+  });
 
   let mcpUrl: string;
   try {
@@ -1945,7 +2155,7 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   // Registration succeeded — release the pending entry. (Earlier failures
   // intentionally leave it in place so the client can retry without going
   // through the full OAuth round-trip again.)
-  clearPendingConnection(connectionId);
+  await clearPendingConnection(connectionId);
 
   return ok(
     c,

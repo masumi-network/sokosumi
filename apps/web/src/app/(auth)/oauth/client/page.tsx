@@ -90,7 +90,7 @@ export default function CreateOAuthClientPage() {
       const result = await authClient.oauth2.createClient({
         redirect_uris: redirectUris,
         client_name: values.name,
-        scope: "openid offline_access",
+        scope: "openid",
       });
 
       if (result.error) {

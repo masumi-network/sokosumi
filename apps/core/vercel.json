@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "dist/index.js": {
+      "maxDuration": 120
+    }
+  },
   "relatedProjects": [
     "prj_q93ayf8IpLM1QNdnlBZw02jMoTyC",
     "prj_DsK6SqWjSU47g7O3unja5h4jtxMk"

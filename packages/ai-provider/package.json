@@ -26,6 +26,7 @@
     "lint:write": "biome lint --write .",
     "check": "biome check .",
     "check:write": "biome check --write .",
+    "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "test": "vitest run",
@@ -33,14 +34,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/provider": "3.0.8",
+    "@ai-sdk/provider": "3.0.10",
     "@sokosumi/chat": "workspace:*",
     "@sokosumi/utils": "workspace:*"
   },
   "devDependencies": {
-    "@ai-sdk/provider-utils": "^4.0.23",
-    "@types/node": "24.12.2",
+    "@ai-sdk/provider-utils": "4.0.27",
+    "@types/node": "24.12.4",
     "typescript": "6.0.3",
-    "vitest": "4.1.5"
+    "vitest": "4.1.7"
   }
 }

@@ -317,6 +317,7 @@
       "approve": "Aprovar",
       "approveFailed": "Não foi possível aprovar.",
       "approvedToast": "Aprovado. O Hermes executará a ação.",
+      "rejectedToast": "Rejeitado. O Hermes não executará a ação.",
       "erroredAfterApproval": "A ação do Hermes falhou após aprovação.",
       "heading": "O Hermes precisa da sua aprovação",
       "reject": "Rejeitar",

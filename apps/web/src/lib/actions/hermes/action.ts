@@ -70,12 +70,32 @@ function mapHermesPendingConfirmation(raw: {
   toolName: string;
   summary: string;
   createdAt: Date | string;
+  referencedCoworkers?: ReadonlyArray<{
+    id: string;
+    name: string;
+    image: string | null;
+  }>;
+  referencedOrganizations?: ReadonlyArray<{
+    id: string;
+    name: string;
+    slug: string | null;
+  }>;
 }): HermesPendingConfirmation {
   return {
     id: raw.id,
     toolName: raw.toolName,
     summary: raw.summary,
     createdAt: toIsoString(raw.createdAt) ?? new Date(0).toISOString(),
+    referencedCoworkers: (raw.referencedCoworkers ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      image: c.image,
+    })),
+    referencedOrganizations: (raw.referencedOrganizations ?? []).map((o) => ({
+      id: o.id,
+      name: o.name,
+      slug: o.slug,
+    })),
   };
 }
 
@@ -551,12 +571,32 @@ function mapConfirmationResolveResult(raw: {
   };
 }
 
+interface ApproveConfirmationArgs extends ResolveConfirmationArgs {
+  /**
+   * If provided, the orchestrator reroutes the queued tool call to this
+   * org before running it. `null` = personal scope (no org). Omit the
+   * key entirely to leave Hermes' original args alone.
+   */
+  organizationId?: string | null;
+}
+
 export const approveHermesConfirmationAction = withSession<
-  ResolveConfirmationArgs,
+  ApproveConfirmationArgs,
   Result<HermesConfirmationResolveResult, ActionError>
->(async ({ confirmationId }) => {
+>(async (args) => {
   try {
-    const response = await coreClient.approveHermesConfirmation(confirmationId);
+    const body =
+      "organizationId" in args
+        ? {
+            overrides: {
+              organizationId: args.organizationId ?? null,
+            },
+          }
+        : undefined;
+    const response = await coreClient.approveHermesConfirmation(
+      args.confirmationId,
+      body,
+    );
     return Ok(mapConfirmationResolveResult(response.data));
   } catch (error) {
     return Err(toActionError(error));

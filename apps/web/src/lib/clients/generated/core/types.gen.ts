@@ -625,6 +625,20 @@ export type HermesPendingConfirmation = {
     toolName: string;
     summary: string;
     createdAt: Date;
+    referencedCoworkers?: Array<HermesConfirmationCoworkerRef>;
+    referencedOrganizations?: Array<HermesConfirmationOrganizationRef>;
+};
+
+export type HermesConfirmationCoworkerRef = {
+    id: string;
+    name: string;
+    image: string | null;
+};
+
+export type HermesConfirmationOrganizationRef = {
+    id: string;
+    name: string;
+    slug: string | null;
 };
 
 export type HermesUpdateInstanceRequest = {
@@ -752,6 +766,12 @@ export const HermesConfirmationStatus = {
 } as const;
 
 export type HermesConfirmationStatus = typeof HermesConfirmationStatus[keyof typeof HermesConfirmationStatus];
+
+export type HermesApproveConfirmationRequest = {
+    overrides?: {
+        organizationId?: string | null;
+    };
+};
 
 export type HermesRejectConfirmationRequest = {
     reason?: string;
@@ -6589,7 +6609,7 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdResponses = {
 export type PatchHermesMeInstanceSchedulesByScheduleIdResponse = PatchHermesMeInstanceSchedulesByScheduleIdResponses[keyof PatchHermesMeInstanceSchedulesByScheduleIdResponses];
 
 export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveData = {
-    body?: never;
+    body?: HermesApproveConfirmationRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.

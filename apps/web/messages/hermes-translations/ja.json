@@ -316,6 +316,7 @@
       "approve": "承認",
       "approveFailed": "承認できませんでした。",
       "approvedToast": "承認しました。Hermes がアクションを実行します。",
+      "rejectedToast": "却下しました。Hermes はアクションを実行しません。",
       "erroredAfterApproval": "承認後に Hermes のアクションでエラーが発生しました。",
       "heading": "Hermes の承認が必要です",
       "reject": "却下",

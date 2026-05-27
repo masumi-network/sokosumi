@@ -34,28 +34,17 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@react-email/body": "0.3.0",
-    "@react-email/button": "0.2.1",
-    "@react-email/container": "0.0.16",
-    "@react-email/head": "0.0.13",
-    "@react-email/heading": "0.0.16",
-    "@react-email/hr": "0.0.12",
-    "@react-email/html": "0.0.12",
-    "@react-email/link": "0.0.13",
-    "@react-email/preview": "0.0.14",
-    "@react-email/render": "2.0.7",
-    "@react-email/section": "0.0.17",
-    "@react-email/tailwind": "2.0.7",
-    "@react-email/text": "0.1.6",
-    "react": "19.2.5",
-    "react-dom": "19.2.5",
-    "use-intl": "4.9.2"
+    "@react-email/render": "2.0.8",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-email": "6.4.0",
+    "use-intl": "4.12.0"
   },
   "devDependencies": {
-    "@types/node": "24.12.2",
-    "@types/react": "19.2.14",
+    "@types/node": "24.12.4",
+    "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "typescript": "6.0.3",
-    "vitest": "4.1.5"
+    "vitest": "4.1.7"
   }
 }

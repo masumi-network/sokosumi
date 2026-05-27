@@ -2193,6 +2193,20 @@ export const HermesPendingConfirmationSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        referencedCoworkers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesConfirmationCoworkerRef'
+            },
+            default: []
+        },
+        referencedOrganizations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HermesConfirmationOrganizationRef'
+            },
+            default: []
         }
     },
     required: [
@@ -2200,6 +2214,54 @@ export const HermesPendingConfirmationSchema = {
         'toolName',
         'summary',
         'createdAt'
+    ]
+} as const;
+
+export const HermesConfirmationCoworkerRefSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            minLength: 1
+        },
+        name: {
+            type: 'string'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'image'
+    ]
+} as const;
+
+export const HermesConfirmationOrganizationRefSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            minLength: 1
+        },
+        name: {
+            type: 'string'
+        },
+        slug: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
     ]
 } as const;
 
@@ -2586,6 +2648,24 @@ export const HermesConfirmationStatusSchema = {
         'errored',
         'already_resolved'
     ]
+} as const;
+
+export const HermesApproveConfirmationRequestSchema = {
+    type: 'object',
+    properties: {
+        overrides: {
+            type: 'object',
+            properties: {
+                organizationId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    minLength: 1
+                }
+            }
+        }
+    }
 } as const;
 
 export const HermesRejectConfirmationRequestSchema = {
