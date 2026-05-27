@@ -146,15 +146,36 @@ export interface HermesSchedule {
   addressable: boolean;
 }
 
+export interface HermesConfirmationCoworkerRef {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
+export interface HermesConfirmationOrganizationRef {
+  id: string;
+  name: string;
+  slug: string | null;
+}
+
+/** Organization the user belongs to (confirmation picker, session scope). */
+export type HermesOrganizationOption = HermesConfirmationOrganizationRef;
+
 /**
  * Medium-autonomy gate. Hermes wanted to run a write/spend tool; the
  * orchestrator intercepted, the tool hasn't run yet, the user has to say yes.
+ *
+ * `referencedCoworkers` / `referencedOrganizations` are resolved server-side
+ * from UUIDs the orchestrator inlined into `summary`, so the UI can render
+ * avatar + name chips instead of raw ids.
  */
 export interface HermesPendingConfirmation {
   id: string;
   toolName: string;
   summary: string;
   createdAt: string;
+  referencedCoworkers: HermesConfirmationCoworkerRef[];
+  referencedOrganizations: HermesConfirmationOrganizationRef[];
 }
 
 export type HermesConfirmationStatus =

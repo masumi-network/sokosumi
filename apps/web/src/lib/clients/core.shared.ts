@@ -19,6 +19,7 @@ import type {
   GetJobsData,
   GetShareByTokenError,
   GetTasksData,
+  HermesApproveConfirmationRequest,
   HermesFinalizeIntegrationRequest,
   HermesInitiateIntegrationRequest,
   HermesPatchScheduleRequest,
@@ -930,13 +931,17 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function approveHermesConfirmation(confirmationId: string) {
+  async function approveHermesConfirmation(
+    confirmationId: string,
+    body?: HermesApproveConfirmationRequest,
+  ) {
     return executeOperation(
       getClient,
       (client) =>
         corePostHermesMeInstanceConfirmationsByConfirmationIdApprove({
           client,
           path: { confirmationId },
+          body,
         }),
       "Failed to approve Hermes confirmation",
     );

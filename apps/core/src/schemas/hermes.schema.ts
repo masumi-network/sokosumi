@@ -57,12 +57,36 @@ export const hermesIntegrationSchema = z
   })
   .openapi("HermesIntegration");
 
+export const hermesConfirmationCoworkerRefSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string(),
+    image: z.string().nullable(),
+  })
+  .openapi("HermesConfirmationCoworkerRef");
+
+export const hermesConfirmationOrganizationRefSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string(),
+    slug: z.string().nullable(),
+  })
+  .openapi("HermesConfirmationOrganizationRef");
+
 export const hermesPendingConfirmationSchema = z
   .object({
     id: z.string().min(1),
     toolName: z.string().min(1),
     summary: z.string().min(1),
     createdAt: dateTimeSchema,
+    // Coworkers and organizations referenced by UUID in `summary`, resolved
+    // server-side so the UI can swap raw ids for name + avatar chips.
+    referencedCoworkers: z
+      .array(hermesConfirmationCoworkerRefSchema)
+      .default([]),
+    referencedOrganizations: z
+      .array(hermesConfirmationOrganizationRefSchema)
+      .default([]),
   })
   .openapi("HermesPendingConfirmation");
 
@@ -145,6 +169,22 @@ export const hermesRejectConfirmationRequestSchema = z
     reason: z.string().min(1).max(500).optional(),
   })
   .openapi("HermesRejectConfirmationRequest");
+
+/**
+ * Optional approve-time overrides. The orchestrator merges these into the
+ * queued tool args before executing. `organizationId` is nullable so
+ * personal scope can clear stale queued org args. Omit the whole
+ * `overrides` block to keep the tool args exactly as Hermes proposed.
+ */
+export const hermesApproveConfirmationRequestSchema = z
+  .object({
+    overrides: z
+      .object({
+        organizationId: z.string().min(1).nullable().optional(),
+      })
+      .optional(),
+  })
+  .openapi("HermesApproveConfirmationRequest");
 
 export const hermesOnboardingStepStatusSchema = z
   .enum(["pending", "running", "done", "skipped", "error"])
