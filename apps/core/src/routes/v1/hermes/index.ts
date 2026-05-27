@@ -1079,7 +1079,7 @@ const approveConfirmationRoute = withGlobalHeaderParameters(
     method: "post",
     path: "/me/instance/confirmations/{confirmationId}/approve",
     description:
-      "Approve a medium-autonomy pending tool call. Optional `overrides.organizationId` reroutes the queued tool args to a different org the caller is a member of.",
+      "Approve a medium-autonomy pending tool call. Optional org overrides reroute or clear the queued tool args.",
     tags: TAGS,
     request: {
       params: z.object({

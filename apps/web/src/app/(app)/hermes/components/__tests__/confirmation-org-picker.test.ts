@@ -1,17 +1,31 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildConfirmationApproveOrganizationOverride,
+  buildCurrentConfirmationApproveOrganizationOverride,
   CONFIRMATION_PERSONAL_SCOPE_VALUE,
+  isConfirmationOrgAwareTool,
   mergeConfirmationOrgPickerOptions,
   resolveConfirmationOrgPickerValue,
-  selectedOrgValueToOrganizationId,
-  shouldSendOrganizationOverride,
 } from "@/app/hermes/components/confirmation-org-picker";
 
 const organizations = [
   { id: "org-a", name: "Org A" },
   { id: "org-b", name: "Org B" },
 ];
+
+describe("isConfirmationOrgAwareTool", () => {
+  it.each([
+    "sokosumi_create_task",
+    "sokosumi_create_job",
+  ])("shows the same organization picker path for %s", (toolName) => {
+    expect(isConfirmationOrgAwareTool(toolName)).toBe(true);
+  });
+
+  it("does not show the organization picker for resource-scoped tools", () => {
+    expect(isConfirmationOrgAwareTool("sokosumi_add_task_comment")).toBe(false);
+  });
+});
 
 describe("mergeConfirmationOrgPickerOptions", () => {
   it("appends referenced organizations missing from the client list", () => {
@@ -32,7 +46,7 @@ describe("mergeConfirmationOrgPickerOptions", () => {
 });
 
 describe("resolveConfirmationOrgPickerValue", () => {
-  it("prefers a single referenced organization over the active org", () => {
+  it("defaults to personal scope even when one organization is referenced", () => {
     const value = resolveConfirmationOrgPickerValue(
       {
         referencedOrganizations: [
@@ -42,16 +56,16 @@ describe("resolveConfirmationOrgPickerValue", () => {
       organizations,
       "org-a",
     );
-    expect(value).toBe("org-b");
+    expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
   });
 
-  it("falls back to the active org when no org is referenced", () => {
+  it("falls back to personal scope when no org is referenced", () => {
     const value = resolveConfirmationOrgPickerValue(
       { referencedOrganizations: [] },
       organizations,
       "org-a",
     );
-    expect(value).toBe("org-a");
+    expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
   });
 
   it("falls back to personal scope when there is no active org", () => {
@@ -63,7 +77,7 @@ describe("resolveConfirmationOrgPickerValue", () => {
     expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
   });
 
-  it("pins to a single referenced org when the client organizations list is empty", () => {
+  it("defaults to personal scope when the client organizations list is empty", () => {
     const value = resolveConfirmationOrgPickerValue(
       {
         referencedOrganizations: [
@@ -73,80 +87,43 @@ describe("resolveConfirmationOrgPickerValue", () => {
       [],
       "org-a",
     );
-    expect(value).toBe("org-b");
+    expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
   });
 });
 
-describe("shouldSendOrganizationOverride", () => {
-  const pinnedConfirmation = {
-    referencedOrganizations: [{ id: "org-b", name: "Org B", slug: "org-b" }],
-  };
-  const unpinnedConfirmation = { referencedOrganizations: [] };
-
-  it("omits overrides when Hermes pinned one org and the user leaves it", () => {
+describe("buildConfirmationApproveOrganizationOverride", () => {
+  it("clears organization id for personal scope", () => {
     expect(
-      shouldSendOrganizationOverride(
-        true,
-        "org-b",
-        "org-b",
-        pinnedConfirmation,
-      ),
-    ).toBe(false);
-  });
-
-  it("omits overrides when Core pinned one org even if picker still shows personal", () => {
-    expect(
-      shouldSendOrganizationOverride(
-        true,
+      buildConfirmationApproveOrganizationOverride(
         CONFIRMATION_PERSONAL_SCOPE_VALUE,
-        CONFIRMATION_PERSONAL_SCOPE_VALUE,
-        pinnedConfirmation,
+        organizations,
       ),
-    ).toBe(false);
+    ).toEqual({ organizationId: null });
   });
 
-  it("sends overrides for the active-org default when no org is pinned", () => {
+  it("passes through selected organization id", () => {
     expect(
-      shouldSendOrganizationOverride(
-        true,
-        "org-a",
-        "org-a",
-        unpinnedConfirmation,
+      buildConfirmationApproveOrganizationOverride("org-a", organizations),
+    ).toEqual({ organizationId: "org-a" });
+  });
+
+  it("reads the current ref value so fast personal approval clears stale orgs", () => {
+    const selectedOrgValueRef = { current: "org-a" };
+    const staleSelectedOrgValue = selectedOrgValueRef.current;
+
+    selectedOrgValueRef.current = CONFIRMATION_PERSONAL_SCOPE_VALUE;
+
+    expect(
+      buildCurrentConfirmationApproveOrganizationOverride(
+        selectedOrgValueRef,
+        organizations,
       ),
-    ).toBe(true);
-  });
-
-  it("sends overrides when the user changes the dropdown", () => {
+    ).toEqual({ organizationId: null });
     expect(
-      shouldSendOrganizationOverride(
-        true,
-        "org-a",
-        "org-b",
-        pinnedConfirmation,
+      buildConfirmationApproveOrganizationOverride(
+        staleSelectedOrgValue,
+        organizations,
       ),
-    ).toBe(true);
-  });
-
-  it("never sends overrides for tools without an org picker", () => {
-    expect(
-      shouldSendOrganizationOverride(
-        false,
-        "org-a",
-        "org-b",
-        unpinnedConfirmation,
-      ),
-    ).toBe(false);
-  });
-});
-
-describe("selectedOrgValueToOrganizationId", () => {
-  it("maps personal scope to null", () => {
-    expect(
-      selectedOrgValueToOrganizationId(CONFIRMATION_PERSONAL_SCOPE_VALUE),
-    ).toBeNull();
-  });
-
-  it("passes through organization ids", () => {
-    expect(selectedOrgValueToOrganizationId("org-a")).toBe("org-a");
+    ).toEqual({ organizationId: "org-a" });
   });
 });

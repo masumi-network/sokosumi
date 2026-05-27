@@ -1223,7 +1223,9 @@ describe("Hermes route contracts", () => {
           Authorization: "Bearer test_api_key",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ overrides: { organizationId: orgId } }),
+        body: JSON.stringify({
+          overrides: { organizationId: orgId },
+        }),
       },
     );
 
@@ -1259,7 +1261,7 @@ describe("Hermes route contracts", () => {
     expect(approveConfirmationMock).not.toHaveBeenCalled();
   });
 
-  it("treats explicit null organizationId as personal scope and skips membership check", async () => {
+  it("treats explicit null organization overrides as personal scope and skips membership check", async () => {
     const response = await createApp().request(
       "/me/instance/confirmations/conf_1/approve",
       {
@@ -1268,7 +1270,9 @@ describe("Hermes route contracts", () => {
           Authorization: "Bearer test_api_key",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ overrides: { organizationId: null } }),
+        body: JSON.stringify({
+          overrides: { organizationId: null },
+        }),
       },
     );
 

@@ -587,7 +587,11 @@ export const approveHermesConfirmationAction = withSession<
   try {
     const body =
       "organizationId" in args
-        ? { overrides: { organizationId: args.organizationId ?? null } }
+        ? {
+            overrides: {
+              organizationId: args.organizationId ?? null,
+            },
+          }
         : undefined;
     const response = await coreClient.approveHermesConfirmation(
       args.confirmationId,

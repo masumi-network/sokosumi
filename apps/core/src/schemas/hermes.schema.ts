@@ -172,10 +172,9 @@ export const hermesRejectConfirmationRequestSchema = z
 
 /**
  * Optional approve-time overrides. The orchestrator merges these into the
- * queued tool args before executing. Today only `organizationId` is wired
- * up; null means "personal scope, no org". Send the field to opt in to
- * an override; omit the whole `overrides` block to keep the tool args
- * exactly as Hermes proposed.
+ * queued tool args before executing. `organizationId` is nullable so
+ * personal scope can clear stale queued org args. Omit the whole
+ * `overrides` block to keep the tool args exactly as Hermes proposed.
  */
 export const hermesApproveConfirmationRequestSchema = z
   .object({

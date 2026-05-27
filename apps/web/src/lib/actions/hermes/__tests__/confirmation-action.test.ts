@@ -65,7 +65,7 @@ describe("approveHermesConfirmationAction", () => {
     });
   });
 
-  it("forwards an organization override", async () => {
+  it("forwards the organization override used by task and job confirmations", async () => {
     const result = await approveHermesConfirmationAction({
       confirmationId: "conf_1",
       organizationId: "org-1",

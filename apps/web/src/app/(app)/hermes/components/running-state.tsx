@@ -25,11 +25,11 @@ import React, {
 import { toast } from "sonner";
 
 import {
+  buildCurrentConfirmationApproveOrganizationOverride,
   CONFIRMATION_PERSONAL_SCOPE_VALUE,
+  isConfirmationOrgAwareTool,
   mergeConfirmationOrgPickerOptions,
   resolveConfirmationOrgPickerValue,
-  selectedOrgValueToOrganizationId,
-  shouldSendOrganizationOverride,
 } from "@/app/hermes/components/confirmation-org-picker";
 import RotatingMessages from "@/app/hermes/components/rotating-messages";
 import SettingsPanel from "@/app/hermes/components/settings-panel";
@@ -522,7 +522,7 @@ export default function RunningState({
           offset to keep in sync with the composer's height. */}
       <div
         ref={scrollerRef}
-        className="min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="scrollbar-none min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {isEmpty ? (
           <WelcomeBlock firstName={firstName} />
@@ -1007,7 +1007,7 @@ function Composer({
             minHeight={44}
             autoFocus
             disabled={disabled}
-            className="placeholder:text-muted-foreground grow resize-none border-0! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
+            className="placeholder:text-muted-foreground scrollbar-none grow resize-none border-0! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
           />
         </FileUploadDropzone>
 
@@ -1209,21 +1209,30 @@ const SUMMARY_UUID_PATTERN =
  * coworker so the ConfirmationCard renders with avatar + name chips
  * locally, without waiting on the orchestrator. Activated by
  * `?state=running&mock=confirmation`. Optional overrides via
- * `&coworkerId=<uuid>&coworkerName=<name>&coworkerImage=<url>`.
+ * `&toolName=sokosumi_create_job&coworkerId=<uuid>&coworkerName=<name>&coworkerImage=<url>`.
  */
 function buildMockPendingConfirmations(
   params: Pick<URLSearchParams, "get">,
 ): HermesPendingConfirmation[] {
   if (params.get("mock") !== "confirmation") return [];
+  const requestedToolName = params.get("toolName");
+  const toolName =
+    requestedToolName && isConfirmationOrgAwareTool(requestedToolName)
+      ? requestedToolName
+      : "sokosumi_create_task";
   const coworkerId =
     params.get("coworkerId") ?? "0e8c93b0-5332-4734-b603-ea18d17b50c5";
   const coworkerName = params.get("coworkerName") ?? "Hannah";
   const coworkerImage = params.get("coworkerImage");
+  const summary =
+    toolName === "sokosumi_create_job"
+      ? `Create a new job "Research: Teodor Petricevic — UNDP AltFinLab" and assign it to coworker ${coworkerId}.`
+      : `Create a new task "Research: Teodor Petricevic — UNDP AltFinLab" and assign it to coworker ${coworkerId}.`;
   return [
     {
       id: "mock-confirmation-1",
-      toolName: "sokosumi_create_task",
-      summary: `Create a new task "Research: Teodor Petricevic — UNDP AltFinLab" and assign it to coworker ${coworkerId}.`,
+      toolName,
+      summary,
       createdAt: new Date().toISOString(),
       referencedCoworkers: [
         {
@@ -1322,17 +1331,6 @@ function OrgRefChip({
  * was handled elsewhere (another tab, stale list, etc.).
  */
 /**
- * Tools whose queued args take an `organizationId` — those are the ones
- * the user can reroute at approve time via the dropdown. Other tools
- * (add_task_comment, provide_job_input, refund_job) don't carry an org
- * because they target an existing resource that already has one.
- */
-const ORG_AWARE_TOOLS = new Set([
-  "sokosumi_create_task",
-  "sokosumi_create_job",
-]);
-
-/**
  * Tools that may spend credits. `sokosumi_create_job` always does; tasks
  * spend once a coworker actually runs against them. Either way we want
  * the user to see the "costs deduct from credits" notice before they
@@ -1380,7 +1378,7 @@ function ConfirmationCard({
   const [busy, setBusy] = useState<"approving" | "rejecting" | null>(null);
 
   const isResolved = resolution !== null;
-  const showOrgPicker = ORG_AWARE_TOOLS.has(confirmation.toolName);
+  const showOrgPicker = isConfirmationOrgAwareTool(confirmation.toolName);
   const showCostNotice = COST_BEARING_TOOLS.has(confirmation.toolName);
   const orgPickerOptions = mergeConfirmationOrgPickerOptions(
     organizations,
@@ -1396,22 +1394,27 @@ function ConfirmationCard({
         );
   const [selectedOrgValue, setSelectedOrgValue] =
     useState<string>(initialOrgValue);
+  const selectedOrgRef = useRef(initialOrgValue);
+
+  const handleOrgValueChange = (value: string) => {
+    selectedOrgRef.current = value;
+    setSelectedOrgValue(value);
+  };
 
   const handleApprove = async () => {
     if (busy || isResolved) return;
     setBusy("approving");
-    const chosenOrgId = selectedOrgValueToOrganizationId(selectedOrgValue);
-    const sendOrgOverride = shouldSendOrganizationOverride(
-      showOrgPicker,
-      selectedOrgValue,
-      initialOrgValue,
-      confirmation,
-    );
+    const organizationOverride = showOrgPicker
+      ? buildCurrentConfirmationApproveOrganizationOverride(
+          selectedOrgRef,
+          orgPickerOptions,
+        )
+      : undefined;
     const result = await approveHermesConfirmationAction(
-      sendOrgOverride
+      organizationOverride
         ? {
             confirmationId: confirmation.id,
-            organizationId: chosenOrgId,
+            ...organizationOverride,
           }
         : { confirmationId: confirmation.id },
     );
@@ -1421,7 +1424,7 @@ function ConfirmationCard({
       return;
     }
     const { status } = result.data;
-    const resolutionOrgId = sendOrgOverride ? chosenOrgId : undefined;
+    const resolutionOrgId = organizationOverride?.organizationId;
 
     if (status === "errored") {
       toast.error(result.data.error ?? t("erroredAfterApproval"));
@@ -1455,13 +1458,12 @@ function ConfirmationCard({
   const handleReject = async () => {
     if (busy || isResolved) return;
     setBusy("rejecting");
-    const chosenOrgId = selectedOrgValueToOrganizationId(selectedOrgValue);
-    const sendOrgOverride = shouldSendOrganizationOverride(
-      showOrgPicker,
-      selectedOrgValue,
-      initialOrgValue,
-      confirmation,
-    );
+    const resolutionOrgId = showOrgPicker
+      ? buildCurrentConfirmationApproveOrganizationOverride(
+          selectedOrgRef,
+          orgPickerOptions,
+        ).organizationId
+      : undefined;
     const result = await rejectHermesConfirmationAction({
       confirmationId: confirmation.id,
     });
@@ -1471,7 +1473,6 @@ function ConfirmationCard({
       return;
     }
     const { status } = result.data;
-    const resolutionOrgId = sendOrgOverride ? chosenOrgId : undefined;
 
     if (status === "errored") {
       toast.error(result.data.error ?? t("rejectFailed"));
@@ -1576,7 +1577,7 @@ function ConfirmationCard({
             </label>
             <Select
               value={selectedOrgValue}
-              onValueChange={setSelectedOrgValue}
+              onValueChange={handleOrgValueChange}
               disabled={busy !== null || isResolved}
             >
               <SelectTrigger

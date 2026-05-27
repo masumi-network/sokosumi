@@ -1,28 +1,22 @@
-# Hermes Orchestrator — accept `overrides` on the approve endpoint
+# Hermes Orchestrator approve overrides
 
 ## Why
 
-Today `POST /v1/instances/:userId/confirmations/:id/approve` takes no body —
-the queued tool call runs with the exact args Hermes proposed. When Hermes
-queues a `sokosumi_create_task` (or `sokosumi_create_job`) the user has no
-way to say "yes, but create it in *this* org instead of the one Hermes
-picked." Today's UX is reject-with-reason-and-hope-Hermes-re-proposes,
-which is slow and brittle.
+`POST /v1/instances/:userId/confirmations/:id/approve` can approve a queued
+Hermes tool call exactly as proposed, or approve it with an organization
+override. This lets the Sokosumi UI answer "yes, but file this in this
+workspace" without rejecting the confirmation and asking Hermes to propose the
+same action again.
 
-We want to surface an inline org dropdown in the confirmation card on the
-Sokosumi web side. The dropdown is pre-selected to the user's active
-organization. On approve we POST the chosen org id; the orchestrator
-substitutes it into the queued tool args before executing.
-
-The Sokosumi side is already shipped — Core forwards `overrides` verbatim
-to the orchestrator and the UI is live behind preview mode. The
-orchestrator just needs to start reading the field.
+The orchestrator contract is final as of commit `ca3a8e9`. Sokosumi Core and
+Web use this as the shared approve-time contract for `sokosumi_create_task` and
+`sokosumi_create_job`.
 
 ## Contract
 
 **Endpoint:** `POST /v1/instances/:userId/confirmations/:id/approve`
 
-**Request body (new — currently silently ignored):**
+**Request body with an organization override:**
 
 ```json
 {
@@ -32,96 +26,139 @@ orchestrator just needs to start reading the field.
 }
 ```
 
-- `overrides` — optional object. Absent / empty body means "use Hermes'
-  original args" (current behavior — must keep working).
-- `overrides.organizationId` — optional. When present, treat as the
-  authoritative `organizationId` for the queued tool args before running
-  the tool. Two value shapes:
-  - **String UUID** — substitute this org into the args.
-  - **`null`** — explicitly personal scope (no org). Strip / null out
-    `organizationId` in the args. Distinct from "field omitted."
-- Forward-compatible: ignore unknown fields under `overrides`. We expect
-  to add more keys (e.g. `coworkerId`) later without bumping the route.
+**Request body with explicit personal scope:**
+
+```json
+{
+  "overrides": {
+    "organizationId": null
+  }
+}
+```
+
+- `overrides` is optional. Omit it, send no JSON body, or send `{}` to keep
+  Hermes' original queued args.
+- `overrides.organizationId` is optional. When present, it is authoritative for
+  the queued tool args before execution.
+- A string `organizationId` files the task or job in that organization. The id
+  can be a UUID or cuid, up to 64 characters, using alphanumeric characters,
+  `_`, and `-`.
+- Literal JSON `null` means personal scope. The orchestrator creates the task
+  without `X-Delegation-Organization-Id`, so it lands in the user's private
+  board.
+- Unknown fields under `overrides` should be ignored for forward
+  compatibility.
 
 **Response:** unchanged. Same `{ status, result?, error? }` envelope.
 
 ## Substitution rules
 
-| Tool                       | Field to substitute        | When override absent             |
-| -------------------------- | -------------------------- | -------------------------------- |
-| `sokosumi_create_task`     | `organization_id` in args  | Use whatever Hermes proposed     |
-| `sokosumi_create_job`      | `organization_id` in args  | Use whatever Hermes proposed     |
-| Any other tool             | n/a — ignore the override  | Run unchanged                    |
+| Tool                   | Field to substitute          | When override absent         |
+| ---------------------- | ---------------------------- | ---------------------------- |
+| `sokosumi_create_task` | `organization_id` in args    | Use whatever Hermes proposed |
+| `sokosumi_create_job`  | `organization_id` in args    | Use whatever Hermes proposed |
+| Any other tool         | n/a - ignore the override    | Run unchanged                |
 
-For `sokosumi_create_task` / `sokosumi_create_job`:
+For `sokosumi_create_task` and `sokosumi_create_job`:
 
-- If the queued args already have `organization_id` and an override is
-  provided, **replace** it.
-- If the override is `null`, **delete** the key (or set to `null` per the
-  Sokosumi API contract — both are accepted by Core today).
-- Other tools should never receive this override; if a client sends one,
-  log it and ignore it (don't error).
+- If the queued args already have `organization_id` and an override string is
+  provided, replace it.
+- If the override is `null`, delete the key or set it to `null` per the
+  Sokosumi API contract. Core accepts both.
+- Personal scope is verified for `sokosumi_create_task` today.
+- `sokosumi_create_job` accepts the same override shape at the route layer.
+  The Sokosumi UI exposes Personal for jobs the same way it does for tasks; QA
+  should monitor the newer dispatcher path.
+- Other tools should never receive this override. If a client sends one, log it
+  and ignore it rather than erroring.
+
+## Personal-scope coworker authorization
+
+For personal-scope task creation, the coworker must be whitelisted in personal
+scope. If it is not, the orchestrator returns an error with that exact message
+so the UI can surface it. Sokosumi Web displays `status === "errored"` response
+messages directly in the confirmation toast.
 
 ## Authorization
 
-**Core has already verified membership** before forwarding to the
-orchestrator — the orchestrator should trust the override as-is. If
-that assumption ever changes, add a defense-in-depth check, but the
-authoritative gate stays in Core because that's where the Prisma session
-+ memberships live. Reference: `apps/core/src/routes/v1/hermes/index.ts`
-in the Sokosumi monorepo — search for `memberFindFirst` in the
-`approveConfirmation` handler.
+Core performs a defense-in-depth membership check before forwarding a string
+organization override to the orchestrator. Reference:
+`apps/core/src/routes/v1/hermes/index.ts` -> `approveConfirmationRoute`, which
+uses `prisma.member.findFirst`.
+
+The orchestrator also validates the string `organizationId` against the user's
+organization memberships. Literal `null` skips membership lookup because it is
+personal scope.
+
+## Sokosumi Web behavior
+
+- The confirmation card shows the same organization picker for
+  `sokosumi_create_task` and `sokosumi_create_job`.
+- The picker defaults to Personal, not the active organization.
+- Approving an org-aware confirmation always sends an explicit override:
+  `{ "organizationId": null }` for Personal or `{ "organizationId": "<id>" }`
+  for a selected organization.
+- Overrides are omitted only when the tool is not org-aware and no picker is
+  shown.
 
 ## Backwards compatibility
 
-This is a **strictly additive** change. All existing callers POST with
-no body and must keep working unchanged. The orchestrator should:
+This is a strictly additive change. Existing callers that post with no body
+must keep working unchanged.
 
-1. If `Content-Type` is missing or not `application/json` — keep current
-   no-body behavior.
-2. If body is `{}` or `{"overrides": {}}` — treat as no override.
-3. If body contains an `overrides.organizationId` value — apply per the
-   rules above.
+1. If `Content-Type` is missing or not `application/json`, keep current no-body
+   behavior.
+2. If body is `{}` or `{"overrides": {}}`, treat it as no override.
+3. If body contains `overrides.organizationId`, apply the rules above.
 
 ## Edge cases worth getting right
 
-- **Confirmation already resolved:** unchanged. Override doesn't change
-  the "already_resolved" path.
-- **Tool isn't org-aware:** silently drop the override, run the tool
-  with its original args. Don't error — the UI may not always know
-  which tools are org-aware.
-- **Org id is malformed (not a UUID):** return a 400 with a descriptive
-  message. Don't let it reach the Sokosumi API.
-- **Telemetry:** log the override that was applied (org id, tool name,
-  confirmation id) at info level so we can audit if a user complains
-  "Hermes created the task in the wrong workspace."
+- **Confirmation already resolved:** unchanged. Override does not change the
+  `already_resolved` path.
+- **Tool is not org-aware:** silently drop the override and run the tool with
+  its original args.
+- **Malformed org id:** return a descriptive 400 from the orchestrator. The id
+  must be UUID or cuid shaped, up to 64 characters, with alphanumeric
+  characters, `_`, and `-`.
+- **Telemetry:** log the applied override with org id, tool name, and
+  confirmation id so workspace-placement reports are auditable.
 
-## Quick test recipe once shipped
+## Quick test recipe
 
 ```bash
-# 1. Trigger a confirmation by asking Hermes to create a task in chat.
-# 2. From a shell with the test user's bearer token:
+# Organization override for a task or job confirmation.
 curl -X POST https://orchestrator-production-35d4.up.railway.app/v1/instances/<USER_ID>/confirmations/<CONF_ID>/approve \
   -H "Authorization: Bearer $HERMES_ORCH_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"overrides":{"organizationId":"<ORG_UUID>"}}'
-# 3. Verify the resulting Sokosumi task is filed under <ORG_UUID>, not
-#    whatever Hermes originally proposed.
+  -d '{"overrides":{"organizationId":"<ORG_ID>"}}'
+
+# Personal scope for a task or job confirmation.
+curl -X POST https://orchestrator-production-35d4.up.railway.app/v1/instances/<USER_ID>/confirmations/<CONF_ID>/approve \
+  -H "Authorization: Bearer $HERMES_ORCH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"overrides":{"organizationId":null}}'
+
+# Keep Hermes' original queued args.
+curl -X POST https://orchestrator-production-35d4.up.railway.app/v1/instances/<USER_ID>/confirmations/<CONF_ID>/approve \
+  -H "Authorization: Bearer $HERMES_ORCH_TOKEN"
 ```
+
+For local Web QA, use `?state=running&mock=confirmation` for the default task
+card or `?state=running&mock=confirmation&toolName=sokosumi_create_job` for the
+job confirmation card. Both should show the same Personal default and
+organization override picker.
 
 ## PR / deploy checklist
 
 1. **Migration first:** run
    `20260525120000_add_hermes_pending_connection` in every environment before
    deploying Core/Web changes that use Composio initiate/finalize.
-2. **Orchestrator:** deploy the orchestrator change that reads
-   `overrides.organizationId` before relying on the UI dropdown for production
-   task/job placement. The expected contract is described above in this doc.
-3. **Manual QA:** verify Composio OAuth initiate → finalize on a cold Core
-   instance, confirmation chips, approval with an organization selected, and
-   approval with explicit personal scope.
-4. **i18n:** spot-check at least one non-English locale confirmation card after
-   message sync.
+2. **Orchestrator:** verify the deployed orchestrator includes commit
+   `ca3a8e9` or newer before relying on approve-time placement.
+3. **Manual QA:** verify task and job confirmations with an organization
+   selected, with explicit personal scope, and with omitted overrides.
+4. **Personal coworker error:** verify a personal-scope task for a coworker not
+   whitelisted in personal scope surfaces the orchestrator error text in the UI.
 5. **Finalize:** keep the current 60 second finalize poll budget on the hosted
    Vercel runtime; see the timeout note below before changing Vercel runtime or
    plan settings.
@@ -129,24 +166,27 @@ curl -X POST https://orchestrator-production-35d4.up.railway.app/v1/instances/<U
 ## Finalize timeout budget
 
 Core is a Hono Node service (`apps/core/src/index.ts`) deployed with Vercel
-project config in `apps/core/vercel.json`. The bundled entry
-`dist/index.js` sets `functions.maxDuration` to **120 seconds** so a single
-finalize request can run the full Composio poll loop (40 × 1.5s ≈ 60s of
-sleep budget, plus status checks and orchestrator registration) without the
-platform terminating the invocation early.
+project config in `apps/core/vercel.json`. The bundled entry `dist/index.js`
+sets `functions.maxDuration` to **120 seconds** so a single finalize request
+can run the full Composio poll loop (40 * 1.5s = about 60s of sleep budget,
+plus status checks and orchestrator registration) without the platform
+terminating the invocation early.
 
 If finalize polling constants change, keep `maxDuration` above the poll sleep
-budget plus ~30s headroom for Composio and orchestrator calls. Sync cron
+budget plus about 30s headroom for Composio and orchestrator calls. Sync cron
 routes that use `waitUntil()` also rely on this ceiling (default
 `LOCK_TIMEOUT` is 120s in `apps/core/.env.example`).
 
-## Sokosumi-side references (for context, no changes needed)
+## Sokosumi-side references
 
-- Schema: `apps/core/src/schemas/hermes.schema.ts` →
+- Schema: `apps/core/src/schemas/hermes.schema.ts` ->
   `hermesApproveConfirmationRequestSchema`.
-- Client wrapper: `apps/core/src/clients/hermes-orchestrator.client.ts` →
+- Client wrapper: `apps/core/src/clients/hermes-orchestrator.client.ts` ->
   `approveConfirmation(userId, confirmationId, overrides?)`.
-- Membership check + forwarding: `apps/core/src/routes/v1/hermes/index.ts`
-  → `app.openapi(approveConfirmationRoute, …)`.
-- UI dropdown: `apps/web/src/app/(app)/hermes/components/running-state.tsx`
-  → `ConfirmationCard` (gated on `ORG_AWARE_TOOLS`).
+- Membership check and forwarding:
+  `apps/core/src/routes/v1/hermes/index.ts` -> `approveConfirmationRoute`.
+- UI dropdown:
+  `apps/web/src/app/(app)/hermes/components/running-state.tsx` ->
+  `ConfirmationCard`, using `isConfirmationOrgAwareTool`.
+- Picker helpers:
+  `apps/web/src/app/(app)/hermes/components/confirmation-org-picker.ts`.

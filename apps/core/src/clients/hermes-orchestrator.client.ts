@@ -555,8 +555,7 @@ export interface HermesApproveConfirmationOverrides {
   /**
    * Forces the queued tool call to execute against this organization
    * before the orchestrator runs it (e.g. `sokosumi_create_task` lands in
-   * this org). `null` means personal scope (no org). Omit the whole field
-   * to leave the args as Hermes proposed.
+   * this org). `null` means personal scope (no org).
    *
    * IMPORTANT: the caller is responsible for verifying membership — we
    * just forward what we're given. Core's route handler does the check.
@@ -569,8 +568,8 @@ export interface HermesApproveConfirmationOverrides {
  * The orchestrator runs the queued tool call and returns its result.
  *
  * `overrides` is forwarded to the orchestrator as the request body. The
- * orchestrator is free to ignore fields it doesn't understand; today only
- * `organizationId` is consumed (see `prompts/hermes-orchestrator-approve-overrides.md`).
+ * orchestrator is free to ignore fields it doesn't understand; today
+ * `organizationId` is consumed.
  */
 export async function approveConfirmation(
   userId: string,
