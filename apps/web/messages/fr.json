@@ -1727,40 +1727,40 @@
           "never": "jamais",
           "inboxScanned": "Boîte de réception · analysée",
           "memoryWritten": "Mémoire · enregistrée",
-          "demoInbox": {
-            "0": {
+          "demoInbox": [
+            {
               "from": "Hannah",
               "subject": "Revue de la feuille de route Q4"
             },
-            "1": {
+            {
               "from": "Alex",
               "subject": "Affaire Cardano — prochaines étapes"
             },
-            "2": {
+            {
               "from": "CI bot",
               "subject": "Build #2438 échoué"
             }
-          },
-          "demoMemory": {
-            "0": "Travaille sur le lancement Q4",
-            "1": "Hannah est la responsable produit",
-            "2": "L'affaire Cardano se conclut le 15 mars"
-          },
+          ],
+          "demoMemory": [
+            "Travaille sur le lancement Q4",
+            "Hannah est la responsable produit",
+            "L'affaire Cardano se conclut le 15 mars"
+          ],
           "actUserMessage": "Planifie un appel avec Hannah mardi prochain à 10 h.",
           "actWorking": "Hermes travaille",
-          "actSteps": {
-            "0": "Créneau libre trouvé",
-            "1": "Invitation rédigée",
-            "2": "Agent Research engagé pour le contexte"
-          },
+          "actSteps": [
+            "Créneau libre trouvé",
+            "Invitation rédigée",
+            "Agent Research engagé pour le contexte"
+          ],
           "actHeld": "Mardi · 10 h00 réservé",
           "overnightTitle": "Ce soir · 4 tâches",
-          "overnightSchedule": {
-            "0": "Récupérer les e-mails de la nuit",
-            "1": "Synchroniser les jobs Sokosumi",
-            "2": "Rédiger votre brief du matin",
-            "3": "Envoyer vers le chat + Telegram"
-          }
+          "overnightSchedule": [
+            "Récupérer les e-mails de la nuit",
+            "Synchroniser les jobs Sokosumi",
+            "Rédiger votre brief du matin",
+            "Envoyer vers le chat + Telegram"
+          ]
         },
         "journeyEyebrow": "De bout en bout",
         "journeyHeading": "Comment Hermes fonctionne, étape par étape",
@@ -1827,15 +1827,15 @@
         "subtitle": "Cela prend généralement environ une minute. Vous pouvez fermer cet onglet — Hermes continue de se préparer en arrière-plan.",
         "settingUp": "Configuration de votre agent…",
         "whileYouWait": "Pendant l'attente",
-        "facts": {
-          "0": "Hermes dispose de son propre ordinateur privé et retient votre contexte d'une session à l'autre.",
-          "1": "Connectez Gmail, Outlook, Slack, Linear, GitHub, Notion et plus.",
-          "2": "Hermes peut engager d'autres agents Sokosumi pour travailler en votre nom.",
-          "3": "Discutez ici, sur Telegram, Slack ou là où vous travaillez — reprenez n'importe où.",
-          "4": "Chaque matin Hermes peut envoyer un brief de ce qui requiert votre attention.",
-          "5": "Lisez votre boîte de réception, rédigez des réponses, planifiez des réunions — tout depuis le chat.",
-          "6": "Demandez à Hermes de planifier en langage naturel : « chaque lundi à 9 h, résume ma semaine à venir »."
-        }
+        "facts": [
+          "Hermes dispose de son propre ordinateur privé et retient votre contexte d'une session à l'autre.",
+          "Connectez Gmail, Outlook, Slack, Linear, GitHub, Notion et plus.",
+          "Hermes peut engager d'autres agents Sokosumi pour travailler en votre nom.",
+          "Discutez ici, sur Telegram, Slack ou là où vous travaillez — reprenez n'importe où.",
+          "Chaque matin Hermes peut envoyer un brief de ce qui requiert votre attention.",
+          "Lisez votre boîte de réception, rédigez des réponses, planifiez des réunions — tout depuis le chat.",
+          "Demandez à Hermes de planifier en langage naturel : « chaque lundi à 9 h, résume ma semaine à venir »."
+        ]
       },
       "Running": {
         "statusActive": "Actif",
@@ -1862,36 +1862,36 @@
           "emptyResponse": "Hermes a renvoyé une réponse vide.",
           "unreachable": "Impossible de joindre Hermes. Vérifiez votre connexion."
         },
-        "mockReplies": {
-          "0": "Je suis une réponse simulée de votre aperçu Hermes local. Désactivez ?state=running pour voir le vrai Hermes connecté via l'orchestrateur.",
-          "1": "Compris. En production, votre message passe par le serveur Sokosumi, l'orchestrateur renvoie votre point de terminaison privé, et Hermes répond.",
-          "2": "Voici ce que je ferais : enregistrer cela en mémoire à long terme, ajouter un suivi à votre liste de tâches, et conserver le contexte pour notre prochaine session."
-        },
-        "thinkingMessages": {
-          "0": "Réflexion",
-          "1": "Consultation des dieux du calendrier",
-          "2": "Parcours de votre boîte de réception",
-          "3": "Lecture entre les lignes",
-          "4": "Préparation d'une réponse",
-          "5": "Chargement de votre contexte",
-          "6": "Demande autour de moi",
-          "7": "Choix du bon outil",
-          "8": "Rédaction soignée",
-          "9": "Double vérification avant d'agir",
-          "10": "Je m'occupe de la partie ennuyeuse",
-          "11": "Démêlage de Slack",
-          "12": "Recoupement avec la mémoire",
-          "13": "Recherche d'un détail",
-          "14": "Choix des mots",
-          "15": "Presque terminé"
-        },
-        "rotatingHints": {
-          "0": "Message à Hermes…",
-          "1": "Essayez : planifier un brief quotidien de la boîte de réception à 8 h",
-          "2": "Essayez : résumer mes fils Cardano ouverts",
-          "3": "Essayez : rédiger un suivi à partir de mes dernières notes de réunion",
-          "4": "Essayez : qu'est-ce qui est en retard dans ma boîte de réception ?"
-        },
+        "mockReplies": [
+          "Je suis une réponse simulée de votre aperçu Hermes local. Désactivez ?state=running pour voir le vrai Hermes connecté via l'orchestrateur.",
+          "Compris. En production, votre message passe par le serveur Sokosumi, l'orchestrateur renvoie votre point de terminaison privé, et Hermes répond.",
+          "Voici ce que je ferais : enregistrer cela en mémoire à long terme, ajouter un suivi à votre liste de tâches, et conserver le contexte pour notre prochaine session."
+        ],
+        "thinkingMessages": [
+          "Réflexion",
+          "Consultation des dieux du calendrier",
+          "Parcours de votre boîte de réception",
+          "Lecture entre les lignes",
+          "Préparation d'une réponse",
+          "Chargement de votre contexte",
+          "Demande autour de moi",
+          "Choix du bon outil",
+          "Rédaction soignée",
+          "Double vérification avant d'agir",
+          "Je m'occupe de la partie ennuyeuse",
+          "Démêlage de Slack",
+          "Recoupement avec la mémoire",
+          "Recherche d'un détail",
+          "Choix des mots",
+          "Presque terminé"
+        ],
+        "rotatingHints": [
+          "Message à Hermes…",
+          "Essayez : planifier un brief quotidien de la boîte de réception à 8 h",
+          "Essayez : résumer mes fils Cardano ouverts",
+          "Essayez : rédiger un suivi à partir de mes dernières notes de réunion",
+          "Essayez : qu'est-ce qui est en retard dans ma boîte de réception ?"
+        ],
         "outboxKinds": {
           "welcome": "Bienvenue",
           "daily_brief": "Brief quotidien",
@@ -1916,14 +1916,15 @@
           "rejectFailed": "Impossible de refuser.",
           "erroredAfterApproval": "L'action d'Hermes a échoué après approbation.",
           "approvedToast": "Approuvé. Hermes exécutera l'action.",
-          "alreadyResolvedToast": "Cette demande a déjà été traitée.",
-          "alreadyResolvedStatus": "Déjà traitée",
+          "rejectedToast": "Refusé. Hermes n'exécutera pas l'action.",
+          "alreadyResolvedToast": "This was already handled.",
+          "alreadyResolvedStatus": "Already handled",
           "resolvedFallback": "Hermes a exécuté votre action approuvée.",
-          "organizationLabel": "Create in",
-          "organizationPersonal": "Personal",
-          "costNotice": "Cost can't be calculated up front. Any credits this work uses will be deducted from your balance as it runs.",
-          "approvedStatus": "Approved",
-          "rejectedStatus": "Rejected",
+          "organizationLabel": "Créer dans",
+          "organizationPersonal": "Personnel",
+          "costNotice": "Le coût ne peut pas être calculé à l'avance. Les crédits utilisés par ce travail seront déduits de votre solde au fur et à mesure.",
+          "approvedStatus": "Approuvé",
+          "rejectedStatus": "Refusé",
           "tools": {
             "sokosumi_create_task": {
               "action": "Créer une tâche",
@@ -2015,18 +2016,18 @@
         "continueWithCount": "Poursuite avec {count, plural, =0 {aucune intégration} =1 {# intégration} other {# intégrations}}",
         "footnote": "Vous pouvez ajouter ou retirer des intégrations à tout moment depuis les paramètres.",
         "autonomyAriaLabel": "Niveau d'autonomie Hermes",
-        "roleOptions": {
-          "0": "Fondateur / PDG",
-          "1": "Produit",
-          "2": "Ingénierie",
-          "3": "Design",
-          "4": "Marketing",
-          "5": "Ventes",
-          "6": "Opérations",
-          "7": "Finance",
-          "8": "Customer Success",
-          "9": "Autre"
-        },
+        "roleOptions": [
+          "Fondateur / PDG",
+          "Produit",
+          "Ingénierie",
+          "Design",
+          "Marketing",
+          "Ventes",
+          "Opérations",
+          "Finance",
+          "Customer Success",
+          "Autre"
+        ],
         "capabilities": {
           "gmail": "Lire et rechercher dans votre boîte de réception, rédiger et envoyer des e-mails",
           "google_calendar": "Lire vos événements, vérifier les disponibilités, créer et mettre à jour des réunions",
@@ -2051,14 +2052,14 @@
         "stepFallbackLabel": "Mise en route",
         "footerHint": "À la fin, le chat s'ouvrira avec une introduction personnalisée d'Hermes.",
         "pollError": "Impossible de joindre l'orchestrateur pour le moment — nouvelle tentative en cours.",
-        "hints": {
-          "0": "Astuce : demandez « qu'est-ce d'important dans ma boîte de réception aujourd'hui ? » une fois connecté.",
-          "1": "Hermes retient vos projets, vos contacts, vos préférences.",
-          "2": "Essayez : « chaque jour ouvré à 8 h, envoie-moi mon brief de boîte de réception ».",
-          "3": "Hermes peut engager d'autres agents Sokosumi pour la recherche.",
-          "4": "Connectez d'autres outils plus tard depuis les paramètres — Slack, Linear, Notion, et plus.",
-          "5": "Chaque matin Hermes enverra un brief de ce qui requiert votre attention."
-        },
+        "hints": [
+          "Astuce : demandez « qu'est-ce d'important dans ma boîte de réception aujourd'hui ? » une fois connecté.",
+          "Hermes retient vos projets, vos contacts, vos préférences.",
+          "Essayez : « chaque jour ouvré à 8 h, envoie-moi mon brief de boîte de réception ».",
+          "Hermes peut engager d'autres agents Sokosumi pour la recherche.",
+          "Connectez d'autres outils plus tard depuis les paramètres — Slack, Linear, Notion, et plus.",
+          "Chaque matin Hermes enverra un brief de ce qui requiert votre attention."
+        ],
         "previewSteps": {
           "save_details": "Enregistrement de vos informations",
           "connect_integrations": "Connexion à vos intégrations",

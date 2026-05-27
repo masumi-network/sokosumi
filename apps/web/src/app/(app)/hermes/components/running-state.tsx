@@ -1479,6 +1479,7 @@ function ConfirmationCard({
       return;
     }
     if (status === "rejected") {
+      toast.success(t("rejectedToast"));
       onResolved(confirmation.id, {
         status: "rejected",
         organizationId: resolutionOrgId,

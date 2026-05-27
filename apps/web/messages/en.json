@@ -1916,6 +1916,7 @@
           "rejectFailed": "Couldn't reject.",
           "erroredAfterApproval": "Hermes' action errored after approval.",
           "approvedToast": "Approved. Hermes will run the action.",
+          "rejectedToast": "Rejected. Hermes will not run the action.",
           "alreadyResolvedToast": "This was already handled.",
           "alreadyResolvedStatus": "Already handled",
           "resolvedFallback": "Hermes ran your approved action.",

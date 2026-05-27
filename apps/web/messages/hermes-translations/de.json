@@ -317,6 +317,7 @@
       "approve": "Freigeben",
       "approveFailed": "Freigabe fehlgeschlagen.",
       "approvedToast": "Freigegeben. Hermes führt die Aktion aus.",
+      "rejectedToast": "Abgelehnt. Hermes führt die Aktion nicht aus.",
       "erroredAfterApproval": "Hermes' Aktion ist nach der Freigabe fehlgeschlagen.",
       "heading": "Hermes braucht dein Okay",
       "reject": "Ablehnen",
