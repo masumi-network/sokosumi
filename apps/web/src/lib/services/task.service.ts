@@ -35,6 +35,7 @@ interface CreateTaskInput {
   name: string;
   description: string | null;
   coworkerId: string | null;
+  projectId?: string | null;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
 }
 
@@ -42,6 +43,7 @@ interface PatchTaskInput {
   name?: string;
   description?: string | null;
   coworkerId?: string | null;
+  projectId?: string | null;
 }
 
 interface CreateTaskEventInput {

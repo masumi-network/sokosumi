@@ -20,6 +20,7 @@ import {
 interface CreateTaskParameters extends AuthenticatedRequest {
   description: string;
   coworkerId: string | null;
+  projectId?: string | null;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
 }
 
@@ -28,6 +29,7 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   name: string;
   description: string;
   coworkerId: string | null;
+  projectId?: string | null;
   currentStatus: TaskStatus;
   desiredStatus: TaskStatus;
 }
@@ -69,6 +71,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   taskId: string;
   description: string;
   coworkerId: string | null;
+  projectId?: string | null;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   type: TaskLinkType;
   direction?: "outgoing" | "incoming";
@@ -89,6 +92,17 @@ function normalizeLinkNote(note?: string | null): string | null | undefined {
 
   const trimmedNote = note?.trim();
   return trimmedNote ? trimmedNote : null;
+}
+
+function normalizeOptionalProjectId(
+  projectId?: string | null,
+): string | null | undefined {
+  if (typeof projectId === "undefined") {
+    return undefined;
+  }
+
+  const trimmedProjectId = projectId?.trim();
+  return trimmedProjectId ? trimmedProjectId : null;
 }
 
 function taskLinkTypeAndDirectionToRelation(
@@ -123,6 +137,7 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
 async function createTaskFromDescription(input: {
   description: string;
   coworkerId: string | null;
+  projectId?: string | null;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
@@ -134,11 +149,13 @@ async function createTaskFromDescription(input: {
     await openrouterClient.generateTaskName(trimmedDescription);
   const candidate = generatedName ?? buildFallbackName(input.description);
   const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
+  const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
 
   return taskService.createTask({
     name,
     description: trimmedDescription,
     coworkerId: input.coworkerId ? input.coworkerId : null,
+    projectId: normalizedProjectId ?? null,
     status: input.status,
   });
 }
@@ -261,15 +278,17 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
 }
 
 export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
-  async ({ description, coworkerId, status }) => {
+  async ({ description, coworkerId, projectId, status }) => {
     try {
       const task = await createTaskFromDescription({
         description,
         coworkerId,
+        projectId,
         status,
       });
 
       revalidatePath("/tasks");
+      revalidatePath("/projects");
       return { taskId: task.id };
     } catch (error) {
       console.error("Failed to create task", error);
@@ -284,6 +303,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
     name,
     description,
     coworkerId,
+    projectId,
     currentStatus,
     desiredStatus,
   }) => {
@@ -297,10 +317,14 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
     }
 
     try {
+      const normalizedProjectId = normalizeOptionalProjectId(projectId);
       await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
         coworkerId: coworkerId?.trim() ? coworkerId : null,
+        ...(typeof normalizedProjectId !== "undefined"
+          ? { projectId: normalizedProjectId }
+          : {}),
       });
 
       if (desiredStatus !== currentStatus) {
@@ -311,6 +335,9 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
 
       revalidatePath("/tasks");
       revalidatePath(`/tasks/${taskId}`);
+      if (typeof normalizedProjectId !== "undefined") {
+        revalidatePath("/projects");
+      }
       return { taskId };
     } catch (error) {
       console.error("Failed to update task", error);
@@ -485,6 +512,7 @@ export const createTaskAndLink = withSession<
     taskId,
     description,
     coworkerId,
+    projectId,
     status,
     type,
     direction,
@@ -508,6 +536,7 @@ export const createTaskAndLink = withSession<
       createdTask = await createTaskFromDescription({
         description,
         coworkerId,
+        projectId,
         status,
       });
 
