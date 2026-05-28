@@ -1,5 +1,10 @@
 import * as Sentry from "@sentry/nextjs";
 
+import {
+  beforeSendClientEvent,
+  THIRD_PARTY_ANALYTICS_IGNORE_ERRORS,
+} from "@/lib/sentry/client-filters";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -9,6 +14,9 @@ Sentry.init({
   // sendDefaultPii: true,
   // TODO: Uncomment this when Sentry team fixed open issue
   // https://github.com/getsentry/sentry-javascript/issues/16542
+
+  beforeSend: beforeSendClientEvent,
+  ignoreErrors: [...THIRD_PARTY_ANALYTICS_IGNORE_ERRORS],
 
   integrations: [Sentry.replayIntegration({})],
 
