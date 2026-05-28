@@ -1,5 +1,11 @@
 import * as Sentry from "@sentry/nextjs";
 
+import {
+  beforeSendBrowserEvent,
+  buildIgnoredThirdPartyFetchErrorPatterns,
+  SENTRY_DENIED_THIRD_PARTY_SCRIPT_URL_PATTERNS,
+} from "@/lib/sentry/browser-error-filters";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -9,6 +15,10 @@ Sentry.init({
   // sendDefaultPii: true,
   // TODO: Uncomment this when Sentry team fixed open issue
   // https://github.com/getsentry/sentry-javascript/issues/16542
+
+  beforeSend: beforeSendBrowserEvent,
+  denyUrls: [...SENTRY_DENIED_THIRD_PARTY_SCRIPT_URL_PATTERNS],
+  ignoreErrors: buildIgnoredThirdPartyFetchErrorPatterns(),
 
   integrations: [Sentry.replayIntegration({})],
 
