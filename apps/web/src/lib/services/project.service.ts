@@ -3,12 +3,19 @@ import "server-only";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  JobSummary,
   Project,
   ProjectDeleted,
   ProjectStatsEntry,
+  TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
 
 interface ListProjectsParams {
+  cursor?: string | null;
+  limit?: number;
+}
+
+interface ListProjectResourcesParams {
   cursor?: string | null;
   limit?: number;
 }
@@ -99,6 +106,46 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function listProjectJobs(
+    projectId: string,
+    params: ListProjectResourcesParams = {},
+  ): Promise<{
+    jobs: JobSummary[];
+    pagination: CoreApiPagination | null;
+  }> {
+    const result = await coreClient.getJobs({
+      scope: "workspace",
+      projectId,
+      cursor: params.cursor ?? undefined,
+      limit: params.limit,
+    });
+
+    return {
+      jobs: result.data,
+      pagination: result.meta?.pagination ?? null,
+    };
+  }
+
+  async function listProjectTasks(
+    projectId: string,
+    params: ListProjectResourcesParams = {},
+  ): Promise<{
+    tasks: TaskListItem[];
+    pagination: CoreApiPagination | null;
+  }> {
+    const result = await coreClient.getTasks({
+      scope: "workspace",
+      projectId,
+      cursor: params.cursor ?? undefined,
+      limit: params.limit,
+    });
+
+    return {
+      tasks: result.data,
+      pagination: result.meta?.pagination ?? null,
+    };
+  }
+
   async function addJob(projectId: string, jobId: string): Promise<Project> {
     const result = await coreClient.postProjectsByIdJobs(projectId, {
       jobId,
@@ -159,6 +206,8 @@ export const projectService = (() => {
     createProject,
     patchProject,
     deleteProject,
+    listProjectJobs,
+    listProjectTasks,
     addJob,
     removeJob,
     addTask,

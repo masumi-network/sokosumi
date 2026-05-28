@@ -1616,123 +1616,126 @@
       }
     },
     "Projects": {
-      "title": "Projects",
+      "title": "Progetti",
       "empty": {
-        "title": "No projects yet",
-        "description": "Create a project to group related tasks and jobs.",
-        "action": "New project"
+        "title": "Nessun progetto ancora",
+        "description": "Crea un progetto per raggruppare task e job correlati.",
+        "action": "Nuovo progetto"
       },
       "list": {
-        "loadMore": "Load more",
-        "loading": "Loading projects...",
+        "loadMore": "Carica altro",
+        "loading": "Caricamento progetti...",
         "stats": {
-          "tasks": "Tasks",
-          "jobs": "Jobs",
-          "total": "{count, plural, =0 {0 total} =1 {1 total} other {# total}}",
+          "tasks": "Task",
+          "jobs": "Job",
+          "total": "{count, plural, =0 {0 totali} =1 {1 totale} other {# totali}}",
           "taskStatusAbbreviations": {
-            "DRAFT": "Draft",
-            "READY": "Ready",
+            "DRAFT": "Bozza",
+            "READY": "Pronto",
             "INPUT_REQUIRED": "Input",
             "AUTHENTICATION_REQUIRED": "Auth",
-            "OUT_OF_CREDITS": "Credits",
-            "CREDITS_TOPPED_UP": "Funded",
-            "RUNNING": "Running",
-            "AWAITING_EXTERNAL": "Waiting",
-            "COMPLETED": "Done",
-            "FAILED": "Failed",
-            "CANCEL_REQUESTED": "Canceling",
-            "CANCELED": "Canceled"
+            "OUT_OF_CREDITS": "Crediti",
+            "CREDITS_TOPPED_UP": "Ricaricato",
+            "RUNNING": "In corso",
+            "AWAITING_EXTERNAL": "In attesa",
+            "COMPLETED": "Fatto",
+            "FAILED": "Errore",
+            "CANCEL_REQUESTED": "Annullamento",
+            "CANCELED": "Annullato"
           },
           "jobStatusAbbreviations": {
-            "started": "Started",
-            "completed": "Done",
-            "processing": "Working",
+            "started": "Avviato",
+            "completed": "Fatto",
+            "processing": "In corso",
             "input_required": "Input",
-            "result_pending": "Result",
-            "failed": "Failed",
-            "payment_pending": "Paying",
-            "payment_failed": "Payment failed",
-            "refund_pending": "Refunding",
-            "refund_resolved": "Refunded",
-            "dispute_pending": "Dispute",
-            "dispute_resolved": "Resolved"
+            "result_pending": "Risultato",
+            "failed": "Errore",
+            "payment_pending": "Pagamento",
+            "payment_failed": "Pagamento fallito",
+            "refund_pending": "Rimborso",
+            "refund_resolved": "Rimborsato",
+            "dispute_pending": "Contestazione",
+            "dispute_resolved": "Risolta"
           }
         }
       },
       "NewProject": {
-        "title": "New Project",
-        "details": "Details",
-        "detailsDescription": "Name the project and add optional context.",
-        "name": "Project name",
-        "namePlaceholder": "Enter a short title",
-        "description": "Description",
-        "descriptionPlaceholder": "Add project context...",
-        "createProject": "Create Project",
-        "cancel": "Cancel"
+        "title": "Nuovo progetto",
+        "details": "Dettagli",
+        "detailsDescription": "Dai un nome al progetto e aggiungi un contesto facoltativo.",
+        "name": "Nome del progetto",
+        "namePlaceholder": "Inserisci un titolo breve",
+        "description": "Descrizione",
+        "descriptionPlaceholder": "Aggiungi il contesto del progetto...",
+        "createProject": "Crea progetto",
+        "cancel": "Annulla"
       },
       "EditProject": {
-        "title": "Edit Project",
-        "details": "Details",
-        "detailsDescription": "Update the project details.",
-        "name": "Project name",
-        "namePlaceholder": "Enter a short title",
-        "description": "Description",
-        "descriptionPlaceholder": "Update project context...",
-        "save": "Save",
-        "cancel": "Cancel"
+        "title": "Modifica progetto",
+        "details": "Dettagli",
+        "detailsDescription": "Aggiorna i dettagli del progetto.",
+        "name": "Nome del progetto",
+        "namePlaceholder": "Inserisci un titolo breve",
+        "description": "Descrizione",
+        "descriptionPlaceholder": "Aggiorna il contesto del progetto...",
+        "save": "Salva",
+        "cancel": "Annulla"
       },
       "Detail": {
-        "back": "Back to projects",
+        "back": "Torna ai progetti",
         "header": {
-          "updated": "Updated",
-          "created": "Created"
+          "updated": "Aggiornato",
+          "created": "Creato"
         },
-        "description": "Description",
-        "emptyDescription": "No description yet.",
+        "description": "Descrizione",
+        "emptyDescription": "Nessuna descrizione ancora.",
         "jobs": {
-          "title": "Jobs",
-          "empty": "No jobs linked to this project yet.",
-          "add": "Add job",
-          "remove": "Remove job",
-          "pickerTitle": "Add job",
-          "pickerDescription": "Choose an unassigned job to link to this project.",
-          "pickerSearchPlaceholder": "Search jobs...",
-          "pickerEmpty": "No unassigned jobs found.",
-          "pickerLoading": "Loading jobs..."
+          "title": "Job",
+          "empty": "Nessun job collegato a questo progetto.",
+          "add": "Aggiungi job",
+          "remove": "Rimuovi job",
+          "pickerTitle": "Aggiungi job",
+          "pickerDescription": "Scegli un job non assegnato da collegare a questo progetto.",
+          "pickerSearchPlaceholder": "Cerca job...",
+          "pickerEmpty": "Nessun job non assegnato trovato.",
+          "pickerLoading": "Caricamento job...",
+          "pickerError": "Impossibile caricare i job.",
+          "untitled": "Job senza titolo"
         },
         "tasks": {
-          "title": "Tasks",
-          "empty": "No tasks linked to this project yet.",
-          "add": "Add task",
-          "remove": "Remove task",
-          "pickerTitle": "Add task",
-          "pickerDescription": "Choose an unassigned task to link to this project.",
-          "pickerSearchPlaceholder": "Search tasks...",
-          "pickerEmpty": "No unassigned tasks found.",
-          "pickerLoading": "Loading tasks..."
+          "title": "Task",
+          "empty": "Nessun task collegato a questo progetto.",
+          "add": "Aggiungi task",
+          "remove": "Rimuovi task",
+          "pickerTitle": "Aggiungi task",
+          "pickerDescription": "Scegli un task non assegnato da collegare a questo progetto.",
+          "pickerSearchPlaceholder": "Cerca task...",
+          "pickerEmpty": "Nessun task non assegnato trovato.",
+          "pickerLoading": "Caricamento task...",
+          "pickerError": "Impossibile caricare i task."
         },
         "actions": {
-          "edit": "Edit",
-          "delete": "Delete",
-          "remove": "Remove",
-          "confirmRemoveJob": "Remove this job from the project?",
-          "confirmRemoveTask": "Remove this task from the project?"
+          "edit": "Modifica",
+          "delete": "Elimina",
+          "remove": "Rimuovi",
+          "confirmRemoveJob": "Rimuovere questo job dal progetto?",
+          "confirmRemoveTask": "Rimuovere questo task dal progetto?"
         },
         "deleteDialog": {
-          "title": "Delete project",
-          "description": "This will delete the project. Linked tasks and jobs will remain available outside the project.",
-          "confirm": "Delete",
-          "cancel": "Cancel"
+          "title": "Elimina progetto",
+          "description": "Questo eliminerà il progetto. Task e job collegati resteranno disponibili fuori dal progetto.",
+          "confirm": "Elimina",
+          "cancel": "Annulla"
         },
         "errors": {
-          "create": "Failed to create project",
-          "update": "Failed to update project",
-          "delete": "Failed to delete project",
-          "addJob": "Failed to add job",
-          "removeJob": "Failed to remove job",
-          "addTask": "Failed to add task",
-          "removeTask": "Failed to remove task",
-          "loadMore": "Failed to load more projects"
+          "create": "Impossibile creare il progetto",
+          "update": "Impossibile aggiornare il progetto",
+          "delete": "Impossibile eliminare il progetto",
+          "addJob": "Impossibile aggiungere il job",
+          "removeJob": "Impossibile rimuovere il job",
+          "addTask": "Impossibile aggiungere il task",
+          "removeTask": "Impossibile rimuovere il task",
+          "loadMore": "Impossibile caricare altri progetti"
         }
       }
     },
@@ -2279,7 +2282,7 @@
           "myFeed": "Il mio feed",
           "filesAndOutputs": "File e output",
           "taskManager": "Attività",
-          "projects": "Projects",
+          "projects": "Progetti",
           "scheduledAgents": "Pianificazioni",
           "hermes": "Hermes"
         },

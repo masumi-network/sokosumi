@@ -1616,123 +1616,126 @@
       }
     },
     "Projects": {
-      "title": "Projects",
+      "title": "プロジェクト",
       "empty": {
-        "title": "No projects yet",
-        "description": "Create a project to group related tasks and jobs.",
-        "action": "New project"
+        "title": "まだプロジェクトがありません",
+        "description": "関連するタスクとジョブをまとめるためにプロジェクトを作成してください。",
+        "action": "新しいプロジェクト"
       },
       "list": {
-        "loadMore": "Load more",
-        "loading": "Loading projects...",
+        "loadMore": "さらに読み込む",
+        "loading": "プロジェクトを読み込み中...",
         "stats": {
-          "tasks": "Tasks",
-          "jobs": "Jobs",
-          "total": "{count, plural, =0 {0 total} =1 {1 total} other {# total}}",
+          "tasks": "タスク",
+          "jobs": "ジョブ",
+          "total": "{count, plural, =0 {合計0件} =1 {合計1件} other {合計#件}}",
           "taskStatusAbbreviations": {
-            "DRAFT": "Draft",
-            "READY": "Ready",
-            "INPUT_REQUIRED": "Input",
-            "AUTHENTICATION_REQUIRED": "Auth",
-            "OUT_OF_CREDITS": "Credits",
-            "CREDITS_TOPPED_UP": "Funded",
-            "RUNNING": "Running",
-            "AWAITING_EXTERNAL": "Waiting",
-            "COMPLETED": "Done",
-            "FAILED": "Failed",
-            "CANCEL_REQUESTED": "Canceling",
-            "CANCELED": "Canceled"
+            "DRAFT": "下書き",
+            "READY": "準備完了",
+            "INPUT_REQUIRED": "入力",
+            "AUTHENTICATION_REQUIRED": "認証",
+            "OUT_OF_CREDITS": "クレジット不足",
+            "CREDITS_TOPPED_UP": "補充済み",
+            "RUNNING": "実行中",
+            "AWAITING_EXTERNAL": "待機中",
+            "COMPLETED": "完了",
+            "FAILED": "失敗",
+            "CANCEL_REQUESTED": "キャンセル中",
+            "CANCELED": "キャンセル済み"
           },
           "jobStatusAbbreviations": {
-            "started": "Started",
-            "completed": "Done",
-            "processing": "Working",
-            "input_required": "Input",
-            "result_pending": "Result",
-            "failed": "Failed",
-            "payment_pending": "Paying",
-            "payment_failed": "Payment failed",
-            "refund_pending": "Refunding",
-            "refund_resolved": "Refunded",
-            "dispute_pending": "Dispute",
-            "dispute_resolved": "Resolved"
+            "started": "開始",
+            "completed": "完了",
+            "processing": "処理中",
+            "input_required": "入力",
+            "result_pending": "結果待ち",
+            "failed": "失敗",
+            "payment_pending": "支払い中",
+            "payment_failed": "支払い失敗",
+            "refund_pending": "返金中",
+            "refund_resolved": "返金済み",
+            "dispute_pending": "係争中",
+            "dispute_resolved": "解決済み"
           }
         }
       },
       "NewProject": {
-        "title": "New Project",
-        "details": "Details",
-        "detailsDescription": "Name the project and add optional context.",
-        "name": "Project name",
-        "namePlaceholder": "Enter a short title",
-        "description": "Description",
-        "descriptionPlaceholder": "Add project context...",
-        "createProject": "Create Project",
-        "cancel": "Cancel"
+        "title": "新しいプロジェクト",
+        "details": "詳細",
+        "detailsDescription": "プロジェクト名を付けて、必要に応じて補足情報を追加してください。",
+        "name": "プロジェクト名",
+        "namePlaceholder": "短いタイトルを入力",
+        "description": "説明",
+        "descriptionPlaceholder": "プロジェクトの補足情報を追加...",
+        "createProject": "プロジェクトを作成",
+        "cancel": "キャンセル"
       },
       "EditProject": {
-        "title": "Edit Project",
-        "details": "Details",
-        "detailsDescription": "Update the project details.",
-        "name": "Project name",
-        "namePlaceholder": "Enter a short title",
-        "description": "Description",
-        "descriptionPlaceholder": "Update project context...",
-        "save": "Save",
-        "cancel": "Cancel"
+        "title": "プロジェクトを編集",
+        "details": "詳細",
+        "detailsDescription": "プロジェクトの詳細を更新します。",
+        "name": "プロジェクト名",
+        "namePlaceholder": "短いタイトルを入力",
+        "description": "説明",
+        "descriptionPlaceholder": "プロジェクトの補足情報を更新...",
+        "save": "保存",
+        "cancel": "キャンセル"
       },
       "Detail": {
-        "back": "Back to projects",
+        "back": "プロジェクト一覧に戻る",
         "header": {
-          "updated": "Updated",
-          "created": "Created"
+          "updated": "更新日",
+          "created": "作成日"
         },
-        "description": "Description",
-        "emptyDescription": "No description yet.",
+        "description": "説明",
+        "emptyDescription": "まだ説明がありません。",
         "jobs": {
-          "title": "Jobs",
-          "empty": "No jobs linked to this project yet.",
-          "add": "Add job",
-          "remove": "Remove job",
-          "pickerTitle": "Add job",
-          "pickerDescription": "Choose an unassigned job to link to this project.",
-          "pickerSearchPlaceholder": "Search jobs...",
-          "pickerEmpty": "No unassigned jobs found.",
-          "pickerLoading": "Loading jobs..."
+          "title": "ジョブ",
+          "empty": "このプロジェクトに紐づくジョブはまだありません。",
+          "add": "ジョブを追加",
+          "remove": "ジョブを削除",
+          "pickerTitle": "ジョブを追加",
+          "pickerDescription": "未割り当てのジョブを選んでこのプロジェクトに紐づけます。",
+          "pickerSearchPlaceholder": "ジョブを検索...",
+          "pickerEmpty": "未割り当てのジョブが見つかりません。",
+          "pickerLoading": "ジョブを読み込み中...",
+          "pickerError": "ジョブの読み込みに失敗しました。",
+          "untitled": "無題のジョブ"
         },
         "tasks": {
-          "title": "Tasks",
-          "empty": "No tasks linked to this project yet.",
-          "add": "Add task",
-          "remove": "Remove task",
-          "pickerTitle": "Add task",
-          "pickerDescription": "Choose an unassigned task to link to this project.",
-          "pickerSearchPlaceholder": "Search tasks...",
-          "pickerEmpty": "No unassigned tasks found.",
-          "pickerLoading": "Loading tasks..."
+          "title": "タスク",
+          "empty": "このプロジェクトに紐づくタスクはまだありません。",
+          "add": "タスクを追加",
+          "remove": "タスクを削除",
+          "pickerTitle": "タスクを追加",
+          "pickerDescription": "未割り当てのタスクを選んでこのプロジェクトに紐づけます。",
+          "pickerSearchPlaceholder": "タスクを検索...",
+          "pickerEmpty": "未割り当てのタスクが見つかりません。",
+          "pickerLoading": "タスクを読み込み中...",
+          "pickerError": "タスクの読み込みに失敗しました。"
         },
         "actions": {
-          "edit": "Edit",
-          "delete": "Delete",
-          "remove": "Remove",
-          "confirmRemoveJob": "Remove this job from the project?",
-          "confirmRemoveTask": "Remove this task from the project?"
+          "edit": "編集",
+          "delete": "削除",
+          "remove": "削除",
+          "confirmRemoveJob": "このジョブをプロジェクトから削除しますか？",
+          "confirmRemoveTask": "このタスクをプロジェクトから削除しますか？"
         },
         "deleteDialog": {
-          "title": "Delete project",
-          "description": "This will delete the project. Linked tasks and jobs will remain available outside the project.",
-          "confirm": "Delete",
-          "cancel": "Cancel"
+          "title": "プロジェクトを削除",
+          "description": "この操作でプロジェクトが削除されます。紐づいたタスクとジョブはプロジェクト外で引き続き利用できます。",
+          "confirm": "削除",
+          "cancel": "キャンセル"
         },
         "errors": {
-          "create": "Failed to create project",
-          "update": "Failed to update project",
-          "delete": "Failed to delete project",
-          "addJob": "Failed to add job",
-          "removeJob": "Failed to remove job",
-          "addTask": "Failed to add task",
-          "removeTask": "Failed to remove task",
-          "loadMore": "Failed to load more projects"
+          "create": "プロジェクトの作成に失敗しました",
+          "update": "プロジェクトの更新に失敗しました",
+          "delete": "プロジェクトの削除に失敗しました",
+          "addJob": "ジョブの追加に失敗しました",
+          "removeJob": "ジョブの削除に失敗しました",
+          "addTask": "タスクの追加に失敗しました",
+          "removeTask": "タスクの削除に失敗しました",
+          "loadMore": "追加のプロジェクトの読み込みに失敗しました"
         }
       }
     },
@@ -2279,7 +2282,7 @@
           "myFeed": "マイフィード",
           "filesAndOutputs": "ファイルと出力",
           "taskManager": "タスク",
-          "projects": "Projects",
+          "projects": "プロジェクト",
           "scheduledAgents": "スケジュール",
           "hermes": "Hermes"
         },

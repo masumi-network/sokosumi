@@ -1616,123 +1616,126 @@
       }
     },
     "Projects": {
-      "title": "Projects",
+      "title": "项目",
       "empty": {
-        "title": "No projects yet",
-        "description": "Create a project to group related tasks and jobs.",
-        "action": "New project"
+        "title": "还没有项目",
+        "description": "创建一个项目来归类相关任务和作业。",
+        "action": "新建项目"
       },
       "list": {
-        "loadMore": "Load more",
-        "loading": "Loading projects...",
+        "loadMore": "加载更多",
+        "loading": "正在加载项目...",
         "stats": {
-          "tasks": "Tasks",
-          "jobs": "Jobs",
-          "total": "{count, plural, =0 {0 total} =1 {1 total} other {# total}}",
+          "tasks": "任务",
+          "jobs": "作业",
+          "total": "{count, plural, =0 {共 0 个} =1 {共 1 个} other {共 # 个}}",
           "taskStatusAbbreviations": {
-            "DRAFT": "Draft",
-            "READY": "Ready",
-            "INPUT_REQUIRED": "Input",
-            "AUTHENTICATION_REQUIRED": "Auth",
-            "OUT_OF_CREDITS": "Credits",
-            "CREDITS_TOPPED_UP": "Funded",
-            "RUNNING": "Running",
-            "AWAITING_EXTERNAL": "Waiting",
-            "COMPLETED": "Done",
-            "FAILED": "Failed",
-            "CANCEL_REQUESTED": "Canceling",
-            "CANCELED": "Canceled"
+            "DRAFT": "草稿",
+            "READY": "就绪",
+            "INPUT_REQUIRED": "需输入",
+            "AUTHENTICATION_REQUIRED": "需认证",
+            "OUT_OF_CREDITS": "额度不足",
+            "CREDITS_TOPPED_UP": "已充值",
+            "RUNNING": "运行中",
+            "AWAITING_EXTERNAL": "等待中",
+            "COMPLETED": "已完成",
+            "FAILED": "失败",
+            "CANCEL_REQUESTED": "取消中",
+            "CANCELED": "已取消"
           },
           "jobStatusAbbreviations": {
-            "started": "Started",
-            "completed": "Done",
-            "processing": "Working",
-            "input_required": "Input",
-            "result_pending": "Result",
-            "failed": "Failed",
-            "payment_pending": "Paying",
-            "payment_failed": "Payment failed",
-            "refund_pending": "Refunding",
-            "refund_resolved": "Refunded",
-            "dispute_pending": "Dispute",
-            "dispute_resolved": "Resolved"
+            "started": "已开始",
+            "completed": "已完成",
+            "processing": "处理中",
+            "input_required": "需输入",
+            "result_pending": "待结果",
+            "failed": "失败",
+            "payment_pending": "待支付",
+            "payment_failed": "支付失败",
+            "refund_pending": "退款中",
+            "refund_resolved": "已退款",
+            "dispute_pending": "争议中",
+            "dispute_resolved": "已解决"
           }
         }
       },
       "NewProject": {
-        "title": "New Project",
-        "details": "Details",
-        "detailsDescription": "Name the project and add optional context.",
-        "name": "Project name",
-        "namePlaceholder": "Enter a short title",
-        "description": "Description",
-        "descriptionPlaceholder": "Add project context...",
-        "createProject": "Create Project",
-        "cancel": "Cancel"
+        "title": "新建项目",
+        "details": "详情",
+        "detailsDescription": "为项目命名，并可选添加上下文说明。",
+        "name": "项目名称",
+        "namePlaceholder": "输入简短标题",
+        "description": "描述",
+        "descriptionPlaceholder": "添加项目背景...",
+        "createProject": "创建项目",
+        "cancel": "取消"
       },
       "EditProject": {
-        "title": "Edit Project",
-        "details": "Details",
-        "detailsDescription": "Update the project details.",
-        "name": "Project name",
-        "namePlaceholder": "Enter a short title",
-        "description": "Description",
-        "descriptionPlaceholder": "Update project context...",
-        "save": "Save",
-        "cancel": "Cancel"
+        "title": "编辑项目",
+        "details": "详情",
+        "detailsDescription": "更新项目详情。",
+        "name": "项目名称",
+        "namePlaceholder": "输入简短标题",
+        "description": "描述",
+        "descriptionPlaceholder": "更新项目背景...",
+        "save": "保存",
+        "cancel": "取消"
       },
       "Detail": {
-        "back": "Back to projects",
+        "back": "返回项目列表",
         "header": {
-          "updated": "Updated",
-          "created": "Created"
+          "updated": "更新时间",
+          "created": "创建时间"
         },
-        "description": "Description",
-        "emptyDescription": "No description yet.",
+        "description": "描述",
+        "emptyDescription": "暂无描述。",
         "jobs": {
-          "title": "Jobs",
-          "empty": "No jobs linked to this project yet.",
-          "add": "Add job",
-          "remove": "Remove job",
-          "pickerTitle": "Add job",
-          "pickerDescription": "Choose an unassigned job to link to this project.",
-          "pickerSearchPlaceholder": "Search jobs...",
-          "pickerEmpty": "No unassigned jobs found.",
-          "pickerLoading": "Loading jobs..."
+          "title": "作业",
+          "empty": "此项目尚未关联作业。",
+          "add": "添加作业",
+          "remove": "移除作业",
+          "pickerTitle": "添加作业",
+          "pickerDescription": "选择一个未分配的作业并关联到此项目。",
+          "pickerSearchPlaceholder": "搜索作业...",
+          "pickerEmpty": "未找到未分配的作业。",
+          "pickerLoading": "正在加载作业...",
+          "pickerError": "加载作业失败。",
+          "untitled": "未命名作业"
         },
         "tasks": {
-          "title": "Tasks",
-          "empty": "No tasks linked to this project yet.",
-          "add": "Add task",
-          "remove": "Remove task",
-          "pickerTitle": "Add task",
-          "pickerDescription": "Choose an unassigned task to link to this project.",
-          "pickerSearchPlaceholder": "Search tasks...",
-          "pickerEmpty": "No unassigned tasks found.",
-          "pickerLoading": "Loading tasks..."
+          "title": "任务",
+          "empty": "此项目尚未关联任务。",
+          "add": "添加任务",
+          "remove": "移除任务",
+          "pickerTitle": "添加任务",
+          "pickerDescription": "选择一个未分配的任务并关联到此项目。",
+          "pickerSearchPlaceholder": "搜索任务...",
+          "pickerEmpty": "未找到未分配的任务。",
+          "pickerLoading": "正在加载任务...",
+          "pickerError": "加载任务失败。"
         },
         "actions": {
-          "edit": "Edit",
-          "delete": "Delete",
-          "remove": "Remove",
-          "confirmRemoveJob": "Remove this job from the project?",
-          "confirmRemoveTask": "Remove this task from the project?"
+          "edit": "编辑",
+          "delete": "删除",
+          "remove": "移除",
+          "confirmRemoveJob": "要从项目中移除此作业吗？",
+          "confirmRemoveTask": "要从项目中移除此任务吗？"
         },
         "deleteDialog": {
-          "title": "Delete project",
-          "description": "This will delete the project. Linked tasks and jobs will remain available outside the project.",
-          "confirm": "Delete",
-          "cancel": "Cancel"
+          "title": "删除项目",
+          "description": "这将删除该项目。已关联的任务和作业仍可在项目外使用。",
+          "confirm": "删除",
+          "cancel": "取消"
         },
         "errors": {
-          "create": "Failed to create project",
-          "update": "Failed to update project",
-          "delete": "Failed to delete project",
-          "addJob": "Failed to add job",
-          "removeJob": "Failed to remove job",
-          "addTask": "Failed to add task",
-          "removeTask": "Failed to remove task",
-          "loadMore": "Failed to load more projects"
+          "create": "创建项目失败",
+          "update": "更新项目失败",
+          "delete": "删除项目失败",
+          "addJob": "添加作业失败",
+          "removeJob": "移除作业失败",
+          "addTask": "添加任务失败",
+          "removeTask": "移除任务失败",
+          "loadMore": "加载更多项目失败"
         }
       }
     },
@@ -2279,7 +2282,7 @@
           "myFeed": "我的动态",
           "filesAndOutputs": "文件与输出",
           "taskManager": "任务",
-          "projects": "Projects",
+          "projects": "项目",
           "scheduledAgents": "日程",
           "hermes": "Hermes"
         },

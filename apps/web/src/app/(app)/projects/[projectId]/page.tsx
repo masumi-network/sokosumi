@@ -4,8 +4,12 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { ProjectDescription } from "@/app/projects/components/project-description";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
+import { ProjectJobsSection } from "@/app/projects/components/project-jobs-section";
+import { ProjectTasksSection } from "@/app/projects/components/project-tasks-section";
 import { projectService } from "@/lib/services/project.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
+
+const PROJECT_DETAIL_RESOURCE_LIMIT = 100;
 
 export default async function ProjectDetailPage({
   params,
@@ -13,7 +17,15 @@ export default async function ProjectDetailPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  const project = await projectService.getProjectById(projectId);
+  const [project, projectJobsResult, projectTasksResult] = await Promise.all([
+    projectService.getProjectById(projectId),
+    projectService.listProjectJobs(projectId, {
+      limit: PROJECT_DETAIL_RESOURCE_LIMIT,
+    }),
+    projectService.listProjectTasks(projectId, {
+      limit: PROJECT_DETAIL_RESOURCE_LIMIT,
+    }),
+  ]);
 
   if (!project) {
     return notFound();
@@ -63,6 +75,53 @@ export default async function ProjectDetailPage({
             title={t("description")}
             description={project.description}
             emptyLabel={t("emptyDescription")}
+          />
+
+          <ProjectJobsSection
+            projectId={project.id}
+            jobs={projectJobsResult.jobs}
+            labels={{
+              title: t("jobs.title"),
+              empty: t("jobs.empty"),
+              add: t("jobs.add"),
+              remove: t("jobs.remove"),
+              pickerTitle: t("jobs.pickerTitle"),
+              pickerDescription: t("jobs.pickerDescription"),
+              pickerSearchPlaceholder: t("jobs.pickerSearchPlaceholder"),
+              pickerEmpty: t("jobs.pickerEmpty"),
+              pickerLoading: t("jobs.pickerLoading"),
+              pickerError: t("jobs.pickerError"),
+              confirmRemove: t("actions.confirmRemoveJob"),
+              cancel: t("deleteDialog.cancel"),
+              untitled: t("jobs.untitled"),
+              errors: {
+                add: t("errors.addJob"),
+                remove: t("errors.removeJob"),
+              },
+            }}
+          />
+
+          <ProjectTasksSection
+            projectId={project.id}
+            tasks={projectTasksResult.tasks}
+            labels={{
+              title: t("tasks.title"),
+              empty: t("tasks.empty"),
+              add: t("tasks.add"),
+              remove: t("tasks.remove"),
+              pickerTitle: t("tasks.pickerTitle"),
+              pickerDescription: t("tasks.pickerDescription"),
+              pickerSearchPlaceholder: t("tasks.pickerSearchPlaceholder"),
+              pickerEmpty: t("tasks.pickerEmpty"),
+              pickerLoading: t("tasks.pickerLoading"),
+              pickerError: t("tasks.pickerError"),
+              confirmRemove: t("actions.confirmRemoveTask"),
+              cancel: t("deleteDialog.cancel"),
+              errors: {
+                add: t("errors.addTask"),
+                remove: t("errors.removeTask"),
+              },
+            }}
           />
         </div>
       </div>

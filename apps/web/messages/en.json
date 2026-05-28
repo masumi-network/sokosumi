@@ -1698,7 +1698,9 @@
           "pickerDescription": "Choose an unassigned job to link to this project.",
           "pickerSearchPlaceholder": "Search jobs...",
           "pickerEmpty": "No unassigned jobs found.",
-          "pickerLoading": "Loading jobs..."
+          "pickerLoading": "Loading jobs...",
+          "pickerError": "Failed to load jobs.",
+          "untitled": "Untitled job"
         },
         "tasks": {
           "title": "Tasks",
@@ -1709,7 +1711,8 @@
           "pickerDescription": "Choose an unassigned task to link to this project.",
           "pickerSearchPlaceholder": "Search tasks...",
           "pickerEmpty": "No unassigned tasks found.",
-          "pickerLoading": "Loading tasks..."
+          "pickerLoading": "Loading tasks...",
+          "pickerError": "Failed to load tasks."
         },
         "actions": {
           "edit": "Edit",
