@@ -25,6 +25,7 @@ export function getJobStatusDotColorClass(
       return "bg-green-500";
     case SokosumiJobStatus.FAILED:
     case SokosumiJobStatus.PAYMENT_FAILED:
+    case SokosumiJobStatus.RESULT_PENDING:
       return "bg-red-500";
     case SokosumiJobStatus.INPUT_REQUIRED:
       return "bg-yellow-500";
@@ -34,7 +35,6 @@ export function getJobStatusDotColorClass(
     case SokosumiJobStatus.STARTED:
     case SokosumiJobStatus.PAYMENT_PENDING:
     case SokosumiJobStatus.PROCESSING:
-    case SokosumiJobStatus.RESULT_PENDING:
     default:
       return "bg-sky-500";
   }
