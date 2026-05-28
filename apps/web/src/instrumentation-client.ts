@@ -1,5 +1,10 @@
 import * as Sentry from "@sentry/nextjs";
 
+import {
+  filterThirdPartyAnalyticsFetchError,
+  thirdPartyAnalyticsFetchIgnorePatterns,
+} from "@/lib/sentry/third-party-analytics-errors";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -26,6 +31,9 @@ Sentry.init({
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
+
+  ignoreErrors: thirdPartyAnalyticsFetchIgnorePatterns,
+  beforeSend: filterThirdPartyAnalyticsFetchError,
 });
 
 // This export will instrument router navigations, and is only relevant if you enable tracing.
