@@ -13,6 +13,11 @@ const JOBS_LAST_SEEN_AT_STORAGE_KEY = "sokosumi.tasks.jobs.lastSeenAt";
 const RECENT_SECTION_COLOR_CLASS = "bg-violet-500";
 const RECENT_RETENTION_MS = 1000 * 60 * 60 * 24;
 
+interface RecentJobsReference {
+  lastSeenAt: number;
+  referenceTs: number;
+}
+
 export type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 
 interface JobsListViewProps {
@@ -35,32 +40,29 @@ export function JobsListView({
   columnLabels,
   labels,
 }: JobsListViewProps) {
-  const [lastSeenAt] = useState(() => {
-    if (typeof window === "undefined") {
-      return 0;
-    }
+  const [recentJobsReference, setRecentJobsReference] =
+    useState<RecentJobsReference | null>(null);
+
+  useEffect(() => {
+    const referenceTs = Date.now();
+    let lastSeenAt = 0;
 
     try {
       const rawValue = window.localStorage.getItem(
         JOBS_LAST_SEEN_AT_STORAGE_KEY,
       );
       const parsedValue = Number(rawValue);
-      return Number.isFinite(parsedValue) ? parsedValue : 0;
-    } catch {
-      return 0;
-    }
-  });
-  const [recentReferenceTs] = useState(() => Date.now());
+      lastSeenAt = Number.isFinite(parsedValue) ? parsedValue : 0;
 
-  useEffect(() => {
-    try {
       window.localStorage.setItem(
         JOBS_LAST_SEEN_AT_STORAGE_KEY,
-        String(Date.now()),
+        String(referenceTs),
       );
     } catch {
       // No-op when localStorage is unavailable.
     }
+
+    setRecentJobsReference({ lastSeenAt, referenceTs });
   }, []);
 
   const sortedJobs = useMemo(
@@ -73,20 +75,21 @@ export function JobsListView({
     [jobs],
   );
 
-  const recentJobs = useMemo(
-    () =>
-      sortedJobs.filter((job) => {
-        if (job.status !== SokosumiJobStatus.COMPLETED) return false;
-        if (!job.completedAt) return false;
-        const retentionFloor = recentReferenceTs - RECENT_RETENTION_MS;
-        const effectiveLastSeenAt =
-          lastSeenAt > 0
-            ? Math.max(lastSeenAt, retentionFloor)
-            : retentionFloor;
-        return new Date(job.completedAt).getTime() > effectiveLastSeenAt;
-      }),
-    [lastSeenAt, recentReferenceTs, sortedJobs],
-  );
+  const recentJobs = useMemo(() => {
+    if (recentJobsReference === null) return [];
+
+    return sortedJobs.filter((job) => {
+      if (job.status !== SokosumiJobStatus.COMPLETED) return false;
+      if (!job.completedAt) return false;
+      const retentionFloor =
+        recentJobsReference.referenceTs - RECENT_RETENTION_MS;
+      const effectiveLastSeenAt =
+        recentJobsReference.lastSeenAt > 0
+          ? Math.max(recentJobsReference.lastSeenAt, retentionFloor)
+          : retentionFloor;
+      return new Date(job.completedAt).getTime() > effectiveLastSeenAt;
+    });
+  }, [recentJobsReference, sortedJobs]);
 
   const recentJobIds = useMemo(
     () => new Set(recentJobs.map((job) => job.id)),

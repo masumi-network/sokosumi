@@ -315,20 +315,7 @@ export function TasksView({
     defaultViewMode ?? "board",
   );
   const [activeTab, setActiveTab] = useState<TasksTabValue>("tasks");
-  const [guideCompleted, setGuideCompleted] = useState<boolean>(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    try {
-      return (
-        window.localStorage.getItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY) ===
-        "true"
-      );
-    } catch {
-      return false;
-    }
-  });
+  const [guideCompleted, setGuideCompleted] = useState<boolean | null>(null);
   const [forceShowGuide, setForceShowGuide] = useState(false);
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [jobsItems, setJobsItems] = useState<TasksViewJob[]>(jobs);
@@ -369,6 +356,18 @@ export function TasksView({
     () => router.refresh(),
     TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
   );
+
+  useEffect(() => {
+    try {
+      setGuideCompleted(
+        window.localStorage.getItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY) ===
+          "true",
+      );
+    } catch {
+      // Ignore storage errors.
+    }
+  }, []);
+
   const serverTasksFiltersResetKey = useMemo(
     () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
     [activeOrganizationId, initialFilters],
@@ -790,7 +789,7 @@ export function TasksView({
       activeTab,
       taskCount: items.length,
       viewMode,
-      guideCompleted,
+      guideCompleted: guideCompleted === true,
     }) || forceShowGuide;
   const activeDragTask = useMemo(
     () =>
