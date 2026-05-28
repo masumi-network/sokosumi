@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 
+import { sentryBeforeSend } from "@/lib/sentry/third-party-fetch-errors";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -23,6 +25,8 @@ Sentry.init({
 
   // Define how likely Replay events are sampled when an error occurs.
   replaysOnErrorSampleRate: 1.0,
+
+  beforeSend: sentryBeforeSend,
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
