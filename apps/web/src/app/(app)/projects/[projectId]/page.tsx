@@ -71,7 +71,13 @@ export default async function ProjectDetailPage({
       }),
       projectService.getProjectsStats([project.id]),
     ]);
-  const projectStats = projectStatsResult[0];
+  const projectStats = projectStatsResult.find(
+    (entry) => entry.projectId === project.id,
+  );
+
+  if (!projectStats) {
+    notFound();
+  }
 
   const [t, statsT, locale] = await Promise.all([
     getTranslations("App.Projects.Detail"),

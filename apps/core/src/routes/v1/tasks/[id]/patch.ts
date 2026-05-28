@@ -5,7 +5,7 @@ import {
   requireTaskAssignableCoworker,
   requireTaskOwnership,
 } from "@/helpers/access-control";
-import { conflict, forbidden, notFound } from "@/helpers/error";
+import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
@@ -117,10 +117,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (!project) {
           throw notFound("Project not found");
-        }
-
-        if (task.projectId !== null && task.projectId !== projectId) {
-          throw conflict("Task is already assigned to a project");
         }
       }
 

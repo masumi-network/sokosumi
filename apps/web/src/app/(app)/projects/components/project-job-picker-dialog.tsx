@@ -3,7 +3,7 @@
 import type { SokosumiJobStatus } from "@sokosumi/database";
 import { BriefcaseBusiness, Loader2 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-
+import { UNASSIGNED_PROJECT_QUERY } from "@/app/projects/constants";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import {
   CommandDialog,
@@ -61,7 +61,7 @@ export function ProjectJobPickerDialog({
     try {
       const response = (await coreClient.getJobs({
         scope: "workspace",
-        projectId: "null",
+        projectId: UNASSIGNED_PROJECT_QUERY,
         limit: JOB_PICKER_PAGE_SIZE,
       })) as GetJobsResponse;
 

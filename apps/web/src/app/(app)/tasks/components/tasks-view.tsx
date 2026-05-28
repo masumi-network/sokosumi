@@ -397,6 +397,7 @@ export function TasksView({
   );
   const selectedProjectId =
     routeFilters.projectId ?? jobsRouteFilters.projectId;
+  const defaultProjectId = selectedProjectId;
   const selectedProjectName = selectedProjectId
     ? (projectNameById.get(selectedProjectId) ?? null)
     : null;
@@ -1085,6 +1086,7 @@ export function TasksView({
       key={createTaskModalResetKey}
       initialOpen={initialCreateTaskOpen}
       initialCoworkerId={initialCoworkerId}
+      initialProjectId={defaultProjectId}
     >
       {userId ? (
         <DynamicAblyProvider>
@@ -1129,6 +1131,8 @@ export function TasksView({
       )}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        defaultProjectId={defaultProjectId}
         agentNameById={agentNameById}
       />
     </CreateTaskModalProvider>

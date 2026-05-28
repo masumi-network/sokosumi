@@ -189,6 +189,8 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     initialCreateTaskOpen && coworkerSlugParam
       ? findCoworkerIdBySlug(coworkerOptions, coworkerSlugParam)
       : null;
+  const initialProjectId =
+    activeFilters.projectId ?? activeJobsListFilters.projectId;
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
@@ -218,7 +220,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         defaultViewMode={defaultViewMode}
         initialCreateTaskOpen={initialCreateTaskOpen}
         initialCoworkerId={initialCoworkerId}
-        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}`}
+        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}-${initialProjectId ?? ""}`}
         labels={{
           tabs: {
             tasks: t("Tabs.tasks"),

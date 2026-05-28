@@ -230,7 +230,7 @@ describe("PATCH /tasks/{id}", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects moving a task directly between projects", async () => {
+  it("moves a task directly between projects", async () => {
     const app = createApp();
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
@@ -250,7 +250,13 @@ describe("PATCH /tasks/{id}", () => {
       }),
     });
 
-    expect(response.status).toBe(409);
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          projectId: PROJECT_ID,
+        }),
+      }),
+    );
   });
 });

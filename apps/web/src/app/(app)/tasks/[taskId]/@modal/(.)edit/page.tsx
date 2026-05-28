@@ -7,12 +7,16 @@ import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/tas
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
+
+const PROJECT_FILTER_OPTIONS_LIMIT = 100;
 
 export default async function TaskEditModalPage({
   params,
@@ -60,12 +64,17 @@ export default async function TaskEditModalPage({
     );
   }
 
-  const [taskCoworkers, agents] = await Promise.all([
+  const [taskCoworkers, agents, projectsPage] = await Promise.all([
     coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
+    projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
   ]);
 
   const coworkerOptions = getCoworkerOptions(taskCoworkers);
+  const projectOptions = await buildProjectOptions(
+    projectsPage.projects,
+    taskResult.projectId ?? null,
+  );
   const agentNameById = buildAgentNameById(agents);
 
   const [tEdit, tActions] = await Promise.all([
@@ -83,6 +92,10 @@ export default async function TaskEditModalPage({
         name: tEdit("name"),
         namePlaceholder: tEdit("namePlaceholder"),
         descriptionPlaceholder: tEdit("descriptionPlaceholder"),
+        projectLabel: tEdit("projectLabel"),
+        projectNone: tEdit("projectNone"),
+        projectSearchPlaceholder: tEdit("projectSearchPlaceholder"),
+        projectEmptyResults: tEdit("projectEmptyResults"),
         coworker: tEdit("coworker"),
         coworkerDescription: tEdit("coworkerDescription"),
         status: tEdit("status"),
@@ -108,13 +121,43 @@ export default async function TaskEditModalPage({
         ctrl: tEdit("ctrl"),
       }}
       coworkerOptions={coworkerOptions}
+      projectOptions={projectOptions}
       agentNameById={agentNameById}
       initialValues={{
         name: taskResult.name,
         description: taskResult.description ?? "",
         coworkerId: taskResult.coworkerId ?? "",
+        projectId: taskResult.projectId ?? null,
         status: taskResult.status,
       }}
     />
   );
+}
+
+async function buildProjectOptions(
+  projects: Array<{ id: string; name: string }>,
+  selectedProjectId: string | null,
+): Promise<ProjectFilterOption[]> {
+  const projectOptions = projects.map((project) => ({
+    id: project.id,
+    name: project.name,
+  }));
+
+  if (
+    !selectedProjectId ||
+    projectOptions.some((project) => project.id === selectedProjectId)
+  ) {
+    return projectOptions;
+  }
+
+  const selectedProject =
+    await projectService.getProjectById(selectedProjectId);
+  if (!selectedProject) {
+    return projectOptions;
+  }
+
+  return [
+    { id: selectedProject.id, name: selectedProject.name },
+    ...projectOptions,
+  ];
 }

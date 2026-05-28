@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getTaskByIdMock = vi.fn();
 const listCoworkersMock = vi.fn();
+const listProjectsMock = vi.fn();
 const getAvailableAgentsWithCreditsPriceMock = vi.fn();
 const getSessionMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
@@ -65,6 +66,13 @@ vi.mock("@/lib/services/coworker.service", () => ({
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     getTaskById: (...args: unknown[]) => getTaskByIdMock(...args),
+  },
+}));
+
+vi.mock("@/lib/services/project.service", () => ({
+  projectService: {
+    listProjects: (...args: unknown[]) => listProjectsMock(...args),
+    getProjectById: vi.fn(),
   },
 }));
 
@@ -162,6 +170,10 @@ describe("EditTaskPage", () => {
       },
     });
     listCoworkersMock.mockResolvedValue([{ id: "cow_123", name: "Coworker" }]);
+    listProjectsMock.mockResolvedValue({
+      projects: [{ id: "project_1", name: "Project" }],
+      pagination: { nextCursor: null },
+    });
     getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([
       { id: "agent_123", name: "Agent" },
     ]);
@@ -178,11 +190,13 @@ describe("EditTaskPage", () => {
 
     expect(autoContextSwitchMock).not.toHaveBeenCalled();
     expect(listCoworkersMock).toHaveBeenCalledWith("tasks");
+    expect(listProjectsMock).toHaveBeenCalledWith({ limit: 100 });
     expect(getAvailableAgentsWithCreditsPriceMock).toHaveBeenCalled();
     expect(taskEditModalMock).toHaveBeenCalledWith(
       expect.objectContaining({
         taskId: "task_1",
         coworkerOptions: [{ value: "cow_123", label: "Coworker" }],
+        projectOptions: [{ id: "project_1", name: "Project" }],
         agentNameById: {
           agent_123: "Agent",
         },
@@ -190,6 +204,7 @@ describe("EditTaskPage", () => {
           name: "Task",
           description: "Desc",
           coworkerId: "cow_123",
+          projectId: null,
           status: "READY",
         },
       }),

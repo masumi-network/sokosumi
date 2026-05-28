@@ -23,6 +23,7 @@ import type { Task } from "@/lib/clients/generated/core/types.gen";
 import prisma from "@/lib/db/prisma";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
@@ -204,9 +205,13 @@ async function TaskOverviewSection({
   coworkersPromise: Promise<CoworkersResult>;
   agentsPromise: Promise<AgentsResult>;
 }) {
-  const [coworkers, agents, t] = await Promise.all([
+  const projectPromise = task.projectId
+    ? projectService.getProjectById(task.projectId).catch(() => null)
+    : Promise.resolve(null);
+  const [coworkers, agents, project, t] = await Promise.all([
     coworkersPromise,
     agentsPromise,
+    projectPromise,
     getTranslations("App.Tasks.Detail"),
   ]);
   const { task: taskWithCoworker, agentNameById } = buildTaskDetailContext(
@@ -227,12 +232,14 @@ async function TaskOverviewSection({
 
       <TaskMetadata
         task={task}
+        project={project ? { id: project.id, name: project.name } : null}
         labels={{
           propertiesTitle: t("properties"),
           status: t("status"),
           owner: t("owner"),
           organization: t("organization"),
           personalWorkspace: t("personalWorkspace"),
+          project: t("project"),
           coworker: t("coworker"),
           created: t("created"),
           updated: t("updated"),

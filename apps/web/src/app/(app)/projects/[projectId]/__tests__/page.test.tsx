@@ -126,4 +126,27 @@ describe("ProjectDetailPage", () => {
     ]);
     expect(notFoundMock).not.toHaveBeenCalled();
   });
+
+  it("calls notFound when stats are missing for an existing project", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+    projectServiceMock.getProjectsStats.mockResolvedValue([]);
+    projectServiceMock.listProjectJobs.mockResolvedValue({
+      jobs: [],
+      pagination: null,
+    });
+    projectServiceMock.listProjectTasks.mockResolvedValue({
+      tasks: [],
+      pagination: null,
+    });
+
+    const { default: ProjectDetailPage } = await import("../page");
+
+    await expect(
+      ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    ).rejects.toThrow("NOT_FOUND");
+
+    expect(notFoundMock).toHaveBeenCalledOnce();
+  });
 });

@@ -161,6 +161,7 @@ describe("task link actions", () => {
       name: "A".repeat(DEFAULT_TASK_NAME_MAX_LENGTH),
       description: "Created related task",
       coworkerId: null,
+      projectId: null,
       status: TaskStatus.READY,
     });
   });
@@ -310,6 +311,7 @@ describe("task link actions", () => {
       name: "Generated task name",
       description: "Created related task",
       coworkerId: null,
+      projectId: null,
       status: TaskStatus.READY,
     });
     expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
