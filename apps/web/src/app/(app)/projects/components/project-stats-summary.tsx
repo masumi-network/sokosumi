@@ -163,7 +163,6 @@ function getJobStatusDotColorClass(status: ProjectJobStatus): string {
       return "bg-green-500";
     case "failed":
     case "payment_failed":
-    case "result_pending":
       return "bg-red-500";
     case "input_required":
       return "bg-yellow-500";
@@ -173,6 +172,7 @@ function getJobStatusDotColorClass(status: ProjectJobStatus): string {
     case "started":
     case "payment_pending":
     case "processing":
+    case "result_pending":
       return "bg-sky-500";
   }
 }

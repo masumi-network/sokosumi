@@ -1,9 +1,9 @@
 "use server";
 
-import type { ProjectStatsEntry } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 
 import { PROJECTS_PAGE_LIMIT } from "./constants";
+import { buildStatsByProjectId } from "./stats";
 
 export async function loadMoreProjects(cursor: string | null) {
   const page = await projectService.listProjects({
@@ -18,10 +18,4 @@ export async function loadMoreProjects(cursor: string | null) {
     nextCursor: page.pagination?.nextCursor ?? null,
     statsByProjectId: buildStatsByProjectId(stats),
   };
-}
-
-function buildStatsByProjectId(stats: ProjectStatsEntry[]) {
-  return Object.fromEntries(
-    stats.map((entry) => [entry.projectId, entry]),
-  ) as Record<string, ProjectStatsEntry>;
 }

@@ -2,9 +2,9 @@ import { getTranslations } from "next-intl/server";
 
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import { PROJECTS_PAGE_LIMIT } from "@/app/projects/constants";
+import { buildStatsByProjectId } from "@/app/projects/stats";
 import type {
   ProjectJobStatusCount,
-  ProjectStatsEntry,
   ProjectTaskStatusCount,
 } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
@@ -116,10 +116,4 @@ export default async function ProjectsPage({
       />
     </div>
   );
-}
-
-function buildStatsByProjectId(stats: ProjectStatsEntry[]) {
-  return Object.fromEntries(
-    stats.map((entry) => [entry.projectId, entry]),
-  ) as Record<string, ProjectStatsEntry>;
 }
