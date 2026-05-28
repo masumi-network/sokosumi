@@ -84,7 +84,7 @@ describe("TaskShareModal", () => {
 
     expect(routerRefreshMock).toHaveBeenCalled();
     expect(
-      screen.getByRole("link", {
+      await screen.findByRole("link", {
         name: "http://localhost:3000/share/public-token",
       }),
     ).toBeInTheDocument();
