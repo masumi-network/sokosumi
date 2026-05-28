@@ -41,6 +41,7 @@ describe("beforeSendClientEvent", () => {
   it("drops third-party analytics fetch error events", () => {
     const result = beforeSendClientEvent(
       {
+        type: "error",
         exception: {
           values: [
             {
@@ -57,6 +58,7 @@ describe("beforeSendClientEvent", () => {
 
   it("keeps application fetch error events", () => {
     const event = {
+      type: "error",
       exception: {
         values: [
           {
