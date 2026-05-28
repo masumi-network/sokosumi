@@ -241,7 +241,8 @@
       "connections": "Conexiones",
       "feed": "My Feed",
       "hermes": "Hermes",
-      "new": "Nuevo"
+      "new": "Nuevo",
+      "projects": "Proyectos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1591,8 +1592,6 @@
         "action": "New project"
       },
       "list": {
-        "title": "Projects",
-        "description": "Organize work across tasks and jobs.",
         "loadMore": "Load more",
         "loading": "Loading projects...",
         "stats": {

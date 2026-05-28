@@ -241,7 +241,8 @@
       "connections": "接続",
       "feed": "マイフィード",
       "hermes": "Hermes",
-      "new": "新規"
+      "new": "新規",
+      "projects": "プロジェクト"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1622,8 +1623,6 @@
         "action": "New project"
       },
       "list": {
-        "title": "Projects",
-        "description": "Organize work across tasks and jobs.",
         "loadMore": "Load more",
         "loading": "Loading projects...",
         "stats": {

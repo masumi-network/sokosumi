@@ -1,0 +1,175 @@
+"use client";
+
+import { Loader2 } from "lucide-react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
+
+import { loadMoreProjects } from "@/app/projects/actions";
+import { Button } from "@/components/ui/button";
+import type {
+  Project,
+  ProjectStatsEntry,
+} from "@/lib/clients/generated/core/types.gen";
+
+import { AddProjectButton } from "./add-project-button";
+import {
+  CreateProjectModal,
+  CreateProjectModalProvider,
+} from "./create-project-modal";
+import { ProjectListItem } from "./project-list-item";
+import type { ProjectStatsSummaryLabels } from "./project-stats-summary";
+
+export interface ProjectsViewLabels {
+  newProject: string;
+  empty: {
+    title: string;
+    description: string;
+    action: string;
+  };
+  loadMore: string;
+  loading: string;
+  loadMoreError: string;
+  rowActions: {
+    edit: string;
+    delete: string;
+  };
+  deleteDialog: {
+    title: string;
+    description: string;
+    confirm: string;
+    cancel: string;
+    error: string;
+  };
+  stats: ProjectStatsSummaryLabels;
+}
+
+interface ProjectsViewProps {
+  projects: Project[];
+  statsByProjectId: Record<string, ProjectStatsEntry>;
+  nextCursor: string | null;
+  initialCreateProjectOpen: boolean;
+  createProjectModalResetKey: string;
+  labels: ProjectsViewLabels;
+}
+
+export function ProjectsView({
+  projects,
+  statsByProjectId,
+  nextCursor,
+  initialCreateProjectOpen,
+  createProjectModalResetKey,
+  labels,
+}: ProjectsViewProps) {
+  const [items, setItems] = useState(projects);
+  const [statsById, setStatsById] = useState(statsByProjectId);
+  const [cursor, setCursor] = useState(nextCursor);
+  const [isPending, startTransition] = useTransition();
+  const hasProjects = items.length > 0;
+
+  function handleLoadMore() {
+    if (!cursor || isPending) return;
+
+    startTransition(async () => {
+      try {
+        const result = await loadMoreProjects(cursor);
+        setItems((prev) => appendUniqueProjects(prev, result.projects));
+        setStatsById((prev) => ({
+          ...prev,
+          ...result.statsByProjectId,
+        }));
+        setCursor(result.nextCursor);
+      } catch {
+        toast.error(labels.loadMoreError);
+      }
+    });
+  }
+
+  function handleProjectDeleted(projectId: string) {
+    setItems((prev) => prev.filter((project) => project.id !== projectId));
+    setStatsById((prev) => {
+      const { [projectId]: _deletedStats, ...remainingStats } = prev;
+      return remainingStats;
+    });
+  }
+
+  return (
+    <CreateProjectModalProvider
+      key={createProjectModalResetKey}
+      initialOpen={initialCreateProjectOpen}
+    >
+      <div className="flex flex-col gap-5">
+        <div className="flex justify-end">
+          <AddProjectButton label={labels.newProject} className="self-start" />
+        </div>
+
+        {hasProjects ? (
+          <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
+            <div className="divide-border/50 divide-y px-2">
+              {items.map((project) => (
+                <ProjectListItem
+                  key={project.id}
+                  project={project}
+                  stats={statsById[project.id]}
+                  labels={{
+                    actions: labels.rowActions,
+                    deleteDialog: labels.deleteDialog,
+                    stats: labels.stats,
+                  }}
+                  onDeleted={handleProjectDeleted}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <ProjectsEmptyState labels={labels.empty} />
+        )}
+
+        {cursor ? (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  {labels.loading}
+                </>
+              ) : (
+                labels.loadMore
+              )}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+      <CreateProjectModal />
+    </CreateProjectModalProvider>
+  );
+}
+
+function ProjectsEmptyState({
+  labels,
+}: {
+  labels: ProjectsViewLabels["empty"];
+}) {
+  return (
+    <div className="bg-muted/30 border-border/50 flex min-h-[320px] flex-col items-center justify-center rounded-xl border px-6 py-12 text-center">
+      <div className="max-w-sm">
+        <h2 className="text-foreground text-lg font-semibold">
+          {labels.title}
+        </h2>
+        <p className="text-muted-foreground mt-2 text-sm">
+          {labels.description}
+        </p>
+        <AddProjectButton label={labels.action} className="mt-6" />
+      </div>
+    </div>
+  );
+}
+
+function appendUniqueProjects(prev: Project[], next: Project[]) {
+  const existingIds = new Set(prev.map((project) => project.id));
+  const uniqueProjects = next.filter((project) => !existingIds.has(project.id));
+  return [...prev, ...uniqueProjects];
+}

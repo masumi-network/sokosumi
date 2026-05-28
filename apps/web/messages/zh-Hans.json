@@ -241,7 +241,8 @@
       "connections": "连接",
       "feed": "我的动态",
       "hermes": "Hermes",
-      "new": "新建"
+      "new": "新建",
+      "projects": "项目"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1622,8 +1623,6 @@
         "action": "New project"
       },
       "list": {
-        "title": "Projects",
-        "description": "Organize work across tasks and jobs.",
         "loadMore": "Load more",
         "loading": "Loading projects...",
         "stats": {
