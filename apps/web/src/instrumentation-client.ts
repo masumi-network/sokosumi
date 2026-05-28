@@ -1,5 +1,10 @@
 import * as Sentry from "@sentry/nextjs";
 
+import {
+  sentryClientDenyUrls,
+  shouldDropClientSentryEvent,
+} from "@/lib/sentry/client-event-filters";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -23,6 +28,16 @@ Sentry.init({
 
   // Define how likely Replay events are sampled when an error occurs.
   replaysOnErrorSampleRate: 1.0,
+
+  denyUrls: sentryClientDenyUrls,
+
+  beforeSend(event, hint) {
+    if (shouldDropClientSentryEvent(event, hint)) {
+      return null;
+    }
+
+    return event;
+  },
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
