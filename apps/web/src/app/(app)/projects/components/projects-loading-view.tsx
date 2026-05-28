@@ -44,8 +44,8 @@ function ProjectListItemSkeleton() {
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          <ProjectStatsLineSkeleton chipCount={2} />
-          <ProjectStatsLineSkeleton chipCount={1} />
+          <Skeleton className="h-5 w-10 rounded-full" />
+          <Skeleton className="h-5 w-10 rounded-full" />
         </div>
       </div>
 
@@ -53,16 +53,5 @@ function ProjectListItemSkeleton() {
         <Skeleton className="size-8 rounded-md" />
       </div>
     </article>
-  );
-}
-
-function ProjectStatsLineSkeleton({ chipCount }: { chipCount: number }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <Skeleton className="h-5 w-10 rounded-full" />
-      {Array.from({ length: chipCount }, (_, index) => (
-        <Skeleton key={index} className="h-5 w-16 rounded-full" />
-      ))}
-    </div>
   );
 }

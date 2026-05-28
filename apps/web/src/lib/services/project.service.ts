@@ -6,6 +6,7 @@ import type {
   JobSummary,
   Project,
   ProjectDeleted,
+  ProjectListItem,
   ProjectStatsEntry,
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
@@ -32,7 +33,7 @@ interface PatchProjectInput {
 
 export const projectService = (() => {
   async function listProjects(params: ListProjectsParams = {}): Promise<{
-    projects: Project[];
+    projects: ProjectListItem[];
     pagination: CoreApiPagination | null;
   }> {
     const result = await coreClient.getProjects({

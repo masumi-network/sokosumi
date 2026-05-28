@@ -6,10 +6,7 @@ import { toast } from "sonner";
 
 import { loadMoreProjects } from "@/app/projects/actions";
 import { Button } from "@/components/ui/button";
-import type {
-  Project,
-  ProjectStatsEntry,
-} from "@/lib/clients/generated/core/types.gen";
+import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 
 import { AddProjectButton } from "./add-project-button";
 import {
@@ -17,7 +14,6 @@ import {
   CreateProjectModalProvider,
 } from "./create-project-modal";
 import { ProjectListItem } from "./project-list-item";
-import type { ProjectStatsSummaryLabels } from "./project-stats-summary";
 
 export interface ProjectsViewLabels {
   newProject: string;
@@ -40,12 +36,14 @@ export interface ProjectsViewLabels {
     cancel: string;
     error: string;
   };
-  stats: ProjectStatsSummaryLabels;
+  counts: {
+    tasks: string;
+    jobs: string;
+  };
 }
 
 interface ProjectsViewProps {
-  projects: Project[];
-  statsByProjectId: Record<string, ProjectStatsEntry>;
+  projects: ProjectListItemType[];
   nextCursor: string | null;
   initialCreateProjectOpen: boolean;
   createProjectModalResetKey: string;
@@ -54,14 +52,12 @@ interface ProjectsViewProps {
 
 export function ProjectsView({
   projects,
-  statsByProjectId,
   nextCursor,
   initialCreateProjectOpen,
   createProjectModalResetKey,
   labels,
 }: ProjectsViewProps) {
   const [items, setItems] = useState(projects);
-  const [statsById, setStatsById] = useState(statsByProjectId);
   const [cursor, setCursor] = useState(nextCursor);
   const [isPending, startTransition] = useTransition();
   const hasLoadedProjects = items.length > 0;
@@ -74,10 +70,6 @@ export function ProjectsView({
       try {
         const result = await loadMoreProjects({ cursor });
         setItems((prev) => appendUniqueProjects(prev, result.projects));
-        setStatsById((prev) => ({
-          ...prev,
-          ...result.statsByProjectId,
-        }));
         setCursor(result.nextCursor);
       } catch {
         toast.error(labels.loadMoreError);
@@ -87,10 +79,6 @@ export function ProjectsView({
 
   function handleProjectDeleted(projectId: string) {
     setItems((prev) => prev.filter((project) => project.id !== projectId));
-    setStatsById((prev) => {
-      const { [projectId]: _deletedStats, ...remainingStats } = prev;
-      return remainingStats;
-    });
   }
 
   return (
@@ -110,11 +98,10 @@ export function ProjectsView({
                 <ProjectListItem
                   key={project.id}
                   project={project}
-                  stats={statsById[project.id]}
                   labels={{
                     actions: labels.rowActions,
                     deleteDialog: labels.deleteDialog,
-                    stats: labels.stats,
+                    counts: labels.counts,
                   }}
                   onDeleted={handleProjectDeleted}
                 />
@@ -169,7 +156,10 @@ function ProjectsEmptyState({
   );
 }
 
-function appendUniqueProjects(prev: Project[], next: Project[]) {
+function appendUniqueProjects(
+  prev: ProjectListItemType[],
+  next: ProjectListItemType[],
+) {
   const existingIds = new Set(prev.map((project) => project.id));
   const uniqueProjects = next.filter((project) => !existingIds.has(project.id));
   return [...prev, ...uniqueProjects];

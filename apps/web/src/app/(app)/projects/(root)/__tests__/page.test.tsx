@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { projectServiceMock, projectsViewMock } = vi.hoisted(() => ({
   projectServiceMock: {
-    getProjectsStats: vi.fn(),
     listProjects: vi.fn(),
   },
   projectsViewMock: vi.fn(),
@@ -23,10 +22,7 @@ vi.mock("@/app/projects/components/projects-view", () => ({
     projects: Array<{ id: string; name: string }>;
     labels: {
       empty: { title: string };
-      stats: {
-        taskStatusLabels: Record<string, string>;
-        jobStatusLabels: Record<string, string>;
-      };
+      counts: { tasks: string; jobs: string };
     };
   }) => {
     projectsViewMock(props);
@@ -50,6 +46,8 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     description: null,
     createdAt: "2026-05-27T10:00:00.000Z",
     updatedAt: "2026-05-27T10:00:00.000Z",
+    taskCount: 0,
+    jobCount: 0,
     ...overrides,
   };
 }
@@ -59,23 +57,10 @@ describe("ProjectsPage", () => {
     vi.clearAllMocks();
   });
 
-  it("loads projects, fetches row stats for the page ids, and passes labels to the view", async () => {
+  it("loads projects with embedded counts and passes labels to the view", async () => {
     const projects = [
       buildProject(),
       buildProject({ id: "project-2", name: "Redesign" }),
-    ];
-    const stats = [
-      {
-        projectId: "project-1",
-        tasks: {
-          total: 2,
-          byStatus: [{ status: "READY", count: 2 }],
-        },
-        jobs: {
-          total: 1,
-          byStatus: [{ status: "completed", count: 1 }],
-        },
-      },
     ];
 
     projectServiceMock.listProjects.mockResolvedValue({
@@ -87,7 +72,6 @@ describe("ProjectsPage", () => {
         total: 3,
       },
     });
-    projectServiceMock.getProjectsStats.mockResolvedValue(stats);
 
     const { default: ProjectsPage } = await import("../page");
 
@@ -102,29 +86,17 @@ describe("ProjectsPage", () => {
     expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
       limit: 20,
     });
-    expect(projectServiceMock.getProjectsStats).toHaveBeenCalledWith([
-      "project-1",
-      "project-2",
-    ]);
     expect(projectsViewMock).toHaveBeenCalledWith(
       expect.objectContaining({
         initialCreateProjectOpen: true,
         nextCursor: "project-3",
-        statsByProjectId: {
-          "project-1": stats[0],
-        },
         labels: expect.objectContaining({
           empty: expect.objectContaining({
             title: "App.Projects.empty.title",
           }),
-          stats: expect.objectContaining({
-            taskStatusLabels: expect.objectContaining({
-              READY: "App.Projects.list.stats.taskStatusAbbreviations.READY",
-            }),
-            jobStatusLabels: expect.objectContaining({
-              completed:
-                "App.Projects.list.stats.jobStatusAbbreviations.completed",
-            }),
+          counts: expect.objectContaining({
+            tasks: "App.Projects.list.stats.tasks",
+            jobs: "App.Projects.list.stats.jobs",
           }),
         }),
       }),

@@ -395,7 +395,7 @@ export const patchHermesMeInstanceSchedulesByScheduleId = <ThrowOnError extends 
 });
 
 /**
- * Approve a medium-autonomy pending tool call. Optional `overrides.organizationId` reroutes the queued tool args to a different org the caller is a member of.
+ * Approve a medium-autonomy pending tool call. Optional org overrides reroute or clear the queued tool args.
  */
 export const postHermesMeInstanceConfirmationsByConfirmationIdApprove = <ThrowOnError extends boolean = false>(options: Options<PostHermesMeInstanceConfirmationsByConfirmationIdApproveData, ThrowOnError>) => (options.client ?? client).post<PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses, PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors, ThrowOnError>({
     responseTransformer: postHermesMeInstanceConfirmationsByConfirmationIdApproveResponseTransformer,

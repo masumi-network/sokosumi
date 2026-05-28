@@ -3142,6 +3142,33 @@ export const UserSchema = {
     ]
 } as const;
 
+export const ProjectListItemSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Project'
+        },
+        {
+            type: 'object',
+            properties: {
+                taskCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    example: 2
+                },
+                jobCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    example: 1
+                }
+            },
+            required: [
+                'taskCount',
+                'jobCount'
+            ]
+        }
+    ]
+} as const;
+
 export const ProjectSchema = {
     type: 'object',
     properties: {

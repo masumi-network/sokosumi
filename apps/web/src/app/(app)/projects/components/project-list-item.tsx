@@ -1,6 +1,13 @@
 "use client";
 
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  ListTodo,
+  type LucideIcon,
+  MoreHorizontal,
+  Pencil,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -22,15 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { deleteProject } from "@/lib/actions/project/action";
-import type {
-  Project,
-  ProjectStatsEntry,
-} from "@/lib/clients/generated/core/types.gen";
-
-import {
-  ProjectStatsSummary,
-  type ProjectStatsSummaryLabels,
-} from "./project-stats-summary";
+import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 
 interface ProjectListItemLabels {
   actions: {
@@ -44,19 +43,20 @@ interface ProjectListItemLabels {
     cancel: string;
     error: string;
   };
-  stats: ProjectStatsSummaryLabels;
+  counts: {
+    tasks: string;
+    jobs: string;
+  };
 }
 
 interface ProjectListItemProps {
-  project: Project;
-  stats?: ProjectStatsEntry;
+  project: ProjectListItemType;
   labels: ProjectListItemLabels;
   onDeleted: (projectId: string) => void;
 }
 
 export function ProjectListItem({
   project,
-  stats,
   labels,
   onDeleted,
 }: ProjectListItemProps) {
@@ -94,7 +94,7 @@ export function ProjectListItem({
         </div>
 
         <div className="flex shrink-0 items-center">
-          <ProjectStatsSummary stats={stats} labels={labels.stats} />
+          <ProjectResourceCounts project={project} labels={labels.counts} />
         </div>
       </Link>
 
@@ -160,5 +160,48 @@ export function ProjectListItem({
         </AlertDialog>
       </div>
     </article>
+  );
+}
+
+function ProjectResourceCounts({
+  project,
+  labels,
+}: {
+  project: ProjectListItemType;
+  labels: ProjectListItemLabels["counts"];
+}) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 text-xs">
+      <ResourceCountPill
+        icon={ListTodo}
+        ariaLabel={labels.tasks}
+        total={project.taskCount}
+      />
+      <ResourceCountPill
+        icon={Sparkles}
+        ariaLabel={labels.jobs}
+        total={project.jobCount}
+      />
+    </div>
+  );
+}
+
+function ResourceCountPill({
+  icon: Icon,
+  ariaLabel,
+  total,
+}: {
+  icon: LucideIcon;
+  ariaLabel: string;
+  total: number;
+}) {
+  return (
+    <span
+      className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
+      aria-label={`${ariaLabel}: ${total}`}
+    >
+      <Icon className="size-3.5 shrink-0" aria-hidden />
+      {total}
+    </span>
   );
 }

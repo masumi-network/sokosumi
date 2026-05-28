@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { projectServiceMock, notFoundMock } = vi.hoisted(() => ({
   projectServiceMock: {
     getProjectById: vi.fn(),
+    getProjectsStats: vi.fn(),
     listProjectJobs: vi.fn(),
     listProjectTasks: vi.fn(),
   },
@@ -75,14 +76,28 @@ describe("ProjectDetailPage", () => {
     expect(projectServiceMock.getProjectById).toHaveBeenCalledWith(
       "project-missing",
     );
+    expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
     expect(projectServiceMock.listProjectJobs).not.toHaveBeenCalled();
     expect(projectServiceMock.listProjectTasks).not.toHaveBeenCalled();
     expect(notFoundMock).toHaveBeenCalledOnce();
   });
 
-  it("loads jobs and tasks in parallel after the project exists", async () => {
+  it("loads jobs, tasks, and stats in parallel after the project exists", async () => {
     const project = buildProject();
     projectServiceMock.getProjectById.mockResolvedValue(project);
+    projectServiceMock.getProjectsStats.mockResolvedValue([
+      {
+        projectId: "project-1",
+        tasks: {
+          total: 0,
+          byStatus: [],
+        },
+        jobs: {
+          total: 0,
+          byStatus: [],
+        },
+      },
+    ]);
     projectServiceMock.listProjectJobs.mockResolvedValue({
       jobs: [],
       pagination: null,
@@ -106,6 +121,9 @@ describe("ProjectDetailPage", () => {
       "project-1",
       { limit: 100 },
     );
+    expect(projectServiceMock.getProjectsStats).toHaveBeenCalledWith([
+      "project-1",
+    ]);
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 });

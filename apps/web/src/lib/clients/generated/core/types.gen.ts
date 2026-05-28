@@ -947,6 +947,11 @@ export type User = {
     role: string;
 };
 
+export type ProjectListItem = Project & {
+    taskCount: number;
+    jobCount: number;
+};
+
 export type Project = {
     id: string;
     workspaceId: string;
@@ -8595,7 +8600,7 @@ export type GetProjectsResponses = {
      * Projects in the workspace
      */
     200: {
-        data: Array<Project>;
+        data: Array<ProjectListItem>;
         meta: {
             timestamp: Date;
             requestId: string;

@@ -5,7 +5,6 @@ import { UnAuthenticatedError } from "@/lib/auth/errors";
 const getSessionMock = vi.fn();
 
 const projectServiceMock = {
-  getProjectsStats: vi.fn(),
   listProjects: vi.fn(),
 };
 
@@ -25,6 +24,8 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     description: null,
     createdAt: "2026-05-27T10:00:00.000Z",
     updatedAt: "2026-05-27T10:00:00.000Z",
+    taskCount: 0,
+    jobCount: 0,
     ...overrides,
   };
 }
@@ -38,34 +39,10 @@ describe("loadMoreProjects", () => {
     });
   });
 
-  it("loads the next projects page and returns stats keyed by project id", async () => {
+  it("loads the next projects page with embedded counts", async () => {
     const projects = [
       buildProject(),
       buildProject({ id: "project-2", name: "Redesign" }),
-    ];
-    const stats = [
-      {
-        projectId: "project-1",
-        tasks: {
-          total: 2,
-          byStatus: [{ status: "READY", count: 2 }],
-        },
-        jobs: {
-          total: 1,
-          byStatus: [{ status: "completed", count: 1 }],
-        },
-      },
-      {
-        projectId: "project-2",
-        tasks: {
-          total: 0,
-          byStatus: [],
-        },
-        jobs: {
-          total: 0,
-          byStatus: [],
-        },
-      },
     ];
 
     projectServiceMock.listProjects.mockResolvedValue({
@@ -77,7 +54,6 @@ describe("loadMoreProjects", () => {
         total: 3,
       },
     });
-    projectServiceMock.getProjectsStats.mockResolvedValue(stats);
 
     const { loadMoreProjects } = await import("../actions");
     const result = await loadMoreProjects({ cursor: "project-0" });
@@ -86,17 +62,9 @@ describe("loadMoreProjects", () => {
       cursor: "project-0",
       limit: 20,
     });
-    expect(projectServiceMock.getProjectsStats).toHaveBeenCalledWith([
-      "project-1",
-      "project-2",
-    ]);
     expect(result).toEqual({
       projects,
       nextCursor: "project-3",
-      statsByProjectId: {
-        "project-1": stats[0],
-        "project-2": stats[1],
-      },
     });
   });
 
@@ -109,6 +77,5 @@ describe("loadMoreProjects", () => {
       UnAuthenticatedError,
     );
     expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
-    expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
   });
 });

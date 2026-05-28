@@ -5,11 +5,49 @@ import { ProjectDescription } from "@/app/projects/components/project-descriptio
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { ProjectJobsSection } from "@/app/projects/components/project-jobs-section";
+import { ProjectStatsSummary } from "@/app/projects/components/project-stats-summary";
 import { ProjectTasksSection } from "@/app/projects/components/project-tasks-section";
+import type {
+  ProjectJobStatusCount,
+  ProjectTaskStatusCount,
+} from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
 const PROJECT_DETAIL_RESOURCE_LIMIT = 100;
+
+type ProjectTaskStatus = ProjectTaskStatusCount["status"];
+type ProjectJobStatus = ProjectJobStatusCount["status"];
+
+const TASK_STATUSES: ProjectTaskStatus[] = [
+  "DRAFT",
+  "READY",
+  "INPUT_REQUIRED",
+  "AUTHENTICATION_REQUIRED",
+  "OUT_OF_CREDITS",
+  "CREDITS_TOPPED_UP",
+  "RUNNING",
+  "AWAITING_EXTERNAL",
+  "COMPLETED",
+  "FAILED",
+  "CANCEL_REQUESTED",
+  "CANCELED",
+];
+
+const JOB_STATUSES: ProjectJobStatus[] = [
+  "started",
+  "completed",
+  "processing",
+  "input_required",
+  "result_pending",
+  "failed",
+  "payment_pending",
+  "payment_failed",
+  "refund_pending",
+  "refund_resolved",
+  "dispute_pending",
+  "dispute_resolved",
+];
 
 export default async function ProjectDetailPage({
   params,
@@ -23,17 +61,21 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [projectJobsResult, projectTasksResult] = await Promise.all([
-    projectService.listProjectJobs(project.id, {
-      limit: PROJECT_DETAIL_RESOURCE_LIMIT,
-    }),
-    projectService.listProjectTasks(project.id, {
-      limit: PROJECT_DETAIL_RESOURCE_LIMIT,
-    }),
-  ]);
+  const [projectJobsResult, projectTasksResult, projectStatsResult] =
+    await Promise.all([
+      projectService.listProjectJobs(project.id, {
+        limit: PROJECT_DETAIL_RESOURCE_LIMIT,
+      }),
+      projectService.listProjectTasks(project.id, {
+        limit: PROJECT_DETAIL_RESOURCE_LIMIT,
+      }),
+      projectService.getProjectsStats([project.id]),
+    ]);
+  const projectStats = projectStatsResult[0];
 
-  const [t, locale] = await Promise.all([
+  const [t, statsT, locale] = await Promise.all([
     getTranslations("App.Projects.Detail"),
+    getTranslations("App.Projects.list.stats"),
     getLocale(),
   ]);
 
@@ -72,6 +114,26 @@ export default async function ProjectDetailPage({
         />
 
         <div className="mt-6 space-y-8">
+          <ProjectStatsSummary
+            stats={projectStats}
+            labels={{
+              tasks: statsT("tasks"),
+              jobs: statsT("jobs"),
+              taskStatusLabels: Object.fromEntries(
+                TASK_STATUSES.map((status) => [
+                  status,
+                  statsT(`taskStatusAbbreviations.${status}`),
+                ]),
+              ) as Record<ProjectTaskStatus, string>,
+              jobStatusLabels: Object.fromEntries(
+                JOB_STATUSES.map((status) => [
+                  status,
+                  statsT(`jobStatusAbbreviations.${status}`),
+                ]),
+              ) as Record<ProjectJobStatus, string>,
+            }}
+          />
+
           <ProjectDescription
             title={t("description")}
             description={project.description}
