@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 
+import { shouldDropThirdPartyClientError } from "@/lib/sentry/should-drop-third-party-client-error";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -23,6 +25,23 @@ Sentry.init({
 
   // Define how likely Replay events are sampled when an error occurs.
   replaysOnErrorSampleRate: 1.0,
+
+  denyUrls: [
+    /plausible\.io/i,
+    /px\.ads\.linkedin\.com/i,
+    /li\.lms-analytics/i,
+    /googlesyndication\.com/i,
+    /usercentrics\.eu/i,
+    /frame_ant/i,
+    /injectScriptAdjust/i,
+  ],
+
+  beforeSend(event) {
+    if (shouldDropThirdPartyClientError(event)) {
+      return null;
+    }
+    return event;
+  },
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
