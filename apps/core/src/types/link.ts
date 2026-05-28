@@ -18,8 +18,14 @@ export type LinkWithJobId = Omit<LinkWithJobIdRaw, "event"> & {
 
 export function flattenLinkJobId(link: LinkWithJobIdRaw): LinkWithJobId {
   const { event, ...rest } = link;
+  const jobId = event?.jobId;
+  if (!jobId) {
+    throw new Error(
+      `Link ${rest.id} is missing job event (eventId=${rest.eventId})`,
+    );
+  }
   return {
     ...rest,
-    jobId: event.jobId,
+    jobId,
   };
 }
