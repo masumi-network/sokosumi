@@ -315,7 +315,7 @@ export function TasksView({
     defaultViewMode ?? "board",
   );
   const [activeTab, setActiveTab] = useState<TasksTabValue>("tasks");
-  const [guideCompleted, setGuideCompleted] = useState(false);
+  const [guideCompleted, setGuideCompleted] = useState<boolean | null>(null);
   const [forceShowGuide, setForceShowGuide] = useState(false);
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [jobsItems, setJobsItems] = useState<TasksViewJob[]>(jobs);
@@ -789,7 +789,7 @@ export function TasksView({
       activeTab,
       taskCount: items.length,
       viewMode,
-      guideCompleted,
+      guideCompleted: guideCompleted === false,
     }) || forceShowGuide;
   const activeDragTask = useMemo(
     () =>
