@@ -6,6 +6,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
+import { CoworkerConversationError } from "./coworker-conversation";
 import mountPostChat from "./post";
 
 const {
@@ -72,10 +73,15 @@ vi.mock("@/helpers/access-control", () => ({
   requireCoworkerChatCapability: requireCoworkerChatCapabilityMock,
 }));
 
-vi.mock("./coworker-conversation", () => ({
-  createCoworkerConversation: (...args: unknown[]) =>
-    createCoworkerConversationMock(...args),
-}));
+vi.mock("./coworker-conversation", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./coworker-conversation")>();
+  return {
+    ...actual,
+    createCoworkerConversation: (...args: unknown[]) =>
+      createCoworkerConversationMock(...args),
+  };
+});
 
 vi.mock("@/clients/openrouter.client", () => ({
   openrouterClient: {
@@ -1706,7 +1712,7 @@ describe("POST /chat", () => {
     expect(streamTextMock).not.toHaveBeenCalled();
   });
 
-  it("returns 503 when creating the remote coworker conversation fails", async () => {
+  it("returns 503 when creating the remote coworker conversation fails unexpectedly", async () => {
     const cid = "550e8400-e29b-41d4-a716-446655440000";
     conversationFindFirstMock.mockResolvedValueOnce({
       id: cid,
@@ -1730,6 +1736,38 @@ describe("POST /chat", () => {
     });
 
     expect(response.status).toBe(503);
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when coworker provider billing is required", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { coworker_slug: "ops-agent" },
+      providerConversationId: null,
+    });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+    createCoworkerConversationMock.mockRejectedValueOnce(
+      new CoworkerConversationError(
+        "Conversations API request failed",
+        403,
+        "billing_required",
+      ),
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.text()).toContain("billing setup");
     expect(streamTextMock).not.toHaveBeenCalled();
   });
 
