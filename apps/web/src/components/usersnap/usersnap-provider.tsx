@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { authClient } from "@/lib/auth/auth.client";
 
+import { isUsersnapLoadFailure } from "./is-usersnap-load-failure";
 import { UsersnapContext } from "./usersnap-context";
 
 export const UsersnapProvider = ({
@@ -22,22 +23,38 @@ export const UsersnapProvider = ({
     if (!usersnapSpaceApiKey) {
       return;
     }
-    loadSpace(usersnapSpaceApiKey).then((api) => {
-      let userPromps = {};
-      const user = session?.user;
-      if (user) {
-        userPromps = {
-          user: {
-            email: user.email,
-            userId: user.id,
-          },
-        };
-      }
-      api.init({
-        ...userPromps,
+
+    let cancelled = false;
+
+    void loadSpace(usersnapSpaceApiKey)
+      .then((api) => {
+        if (cancelled) {
+          return;
+        }
+
+        const user = session?.user;
+        api.init(
+          user
+            ? {
+                user: {
+                  email: user.email,
+                  userId: user.id,
+                },
+              }
+            : {},
+        );
+        setUsersnapApi(api);
+      })
+      .catch((reason: unknown) => {
+        if (cancelled || !isUsersnapLoadFailure(reason)) {
+          return;
+        }
+        // Invalid/paused Usersnap space: degrade silently (no feedback widget).
       });
-      setUsersnapApi(api);
-    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [session, usersnapSpaceApiKey]);
 
   return (

@@ -4,6 +4,11 @@ Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
+  // Usersnap rejects loadSpace with a string when the space key is invalid or paused.
+  ignoreErrors: [
+    /^Non-Error promise rejection captured with value: Failed to load the widget/,
+  ],
+
   // Adds request headers and IP for users, for more info visit:
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
   // sendDefaultPii: true,
