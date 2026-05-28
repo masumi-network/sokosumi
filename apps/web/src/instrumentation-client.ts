@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 
+import { USERSNAP_WIDGET_LOAD_FAILURE_MESSAGE } from "@/components/usersnap/usersnap-errors";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -26,6 +28,14 @@ Sentry.init({
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
+
+  // Usersnap loadSpace rejects with a string when the space key is invalid or paused.
+  ignoreErrors: [
+    USERSNAP_WIDGET_LOAD_FAILURE_MESSAGE,
+    new RegExp(
+      `Non-Error promise rejection captured with value: ${USERSNAP_WIDGET_LOAD_FAILURE_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+    ),
+  ],
 });
 
 // This export will instrument router navigations, and is only relevant if you enable tracing.
