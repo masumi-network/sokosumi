@@ -1,5 +1,11 @@
 import * as Sentry from "@sentry/nextjs";
 
+import {
+  CLIENT_DENY_URLS,
+  CLIENT_IGNORE_ERRORS,
+  filterClientSentryEvent,
+} from "@/lib/sentry/client-error-filters";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -9,6 +15,10 @@ Sentry.init({
   // sendDefaultPii: true,
   // TODO: Uncomment this when Sentry team fixed open issue
   // https://github.com/getsentry/sentry-javascript/issues/16542
+
+  denyUrls: CLIENT_DENY_URLS,
+  ignoreErrors: CLIENT_IGNORE_ERRORS,
+  beforeSend: filterClientSentryEvent,
 
   integrations: [Sentry.replayIntegration({})],
 
