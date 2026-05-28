@@ -5047,6 +5047,14 @@ export const TaskListItemSchema = {
         organization: {
             $ref: '#/components/schemas/OrganizationSummary'
         },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
         coworkerId: {
             type: [
                 'string',
@@ -5116,6 +5124,7 @@ export const TaskListItemSchema = {
         'user',
         'organizationId',
         'organization',
+        'projectId',
         'coworkerId',
         'coworker',
         'name',
@@ -5194,6 +5203,14 @@ export const TaskSchema = {
         },
         organization: {
             $ref: '#/components/schemas/OrganizationSummary'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
         coworkerId: {
             type: [
@@ -5285,6 +5302,7 @@ export const TaskSchema = {
         'user',
         'organizationId',
         'organization',
+        'projectId',
         'coworkerId',
         'coworker',
         'name',

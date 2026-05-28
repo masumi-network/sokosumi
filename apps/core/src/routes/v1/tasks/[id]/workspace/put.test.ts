@@ -57,6 +57,7 @@ interface TaskRecord {
   id: string;
   userId: string;
   organizationId: string | null;
+  projectId: string | null;
   workspaceId: string;
   workspace: {
     organizationId: string | null;
@@ -87,6 +88,7 @@ function createTaskRecord(overrides: Partial<TaskRecord> = {}): TaskRecord {
     id: "tsk_123",
     userId: "user_123",
     organizationId: "org_current",
+    projectId: null,
     workspaceId: "11111111-1111-7111-8111-111111111111",
     workspace: {
       organizationId: "org_current",
@@ -112,6 +114,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     updatedAt: "2026-03-25T10:00:00.000Z",
     userId: "user_123",
     organizationId,
+    projectId: null,
     user: { id: "user_123", name: "Task owner", image: null },
     organization:
       organizationId === null

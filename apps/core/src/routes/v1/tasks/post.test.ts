@@ -10,11 +10,13 @@ import mountPostTask, { createTaskRequestSchema } from "./post";
 
 const {
   mapTaskMock,
+  projectFindFirstMock,
   prismaTransactionMock,
   requireTaskAssignableCoworkerMock,
   taskCreateMock,
 } = vi.hoisted(() => ({
   mapTaskMock: vi.fn(),
+  projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   taskCreateMock: vi.fn(),
@@ -87,6 +89,19 @@ describe("createTaskRequestSchema", () => {
     expect(result.status).toBe(TaskStatus.READY);
   });
 
+  it("accepts a projectId", () => {
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+
+    const result = createTaskRequestSchema.parse({
+      name: "Project task",
+      description: null,
+      projectId,
+      coworkerId: null,
+    });
+
+    expect(result.projectId).toBe(projectId);
+  });
+
   it("rejects unsupported status values", () => {
     Object.values(TaskStatus).forEach((status) => {
       if (status !== TaskStatus.DRAFT && status !== TaskStatus.READY) {
@@ -132,6 +147,7 @@ describe("POST /tasks", () => {
   }
 
   beforeEach(() => {
+    vi.clearAllMocks();
     taskCreateMock.mockResolvedValue({ id: "tsk_123" });
     mapTaskMock.mockReturnValue({
       id: "tsk_123",
@@ -139,6 +155,7 @@ describe("POST /tasks", () => {
       updatedAt: "2026-04-02T08:00:00.000Z",
       userId: "user_123",
       organizationId: "org_123",
+      projectId: null,
       user: {
         id: "user_123",
         name: "Ada Lovelace",
@@ -172,6 +189,9 @@ describe("POST /tasks", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
+          project: {
+            findFirst: projectFindFirstMock,
+          },
           task: {
             create: taskCreateMock,
           },
@@ -204,8 +224,69 @@ describe("POST /tasks", () => {
           userId: "user_123",
           organizationId: "org_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          projectId: null,
         }),
       }),
     );
+  });
+
+  it("verifies and persists a project assignment on create", async () => {
+    const app = createApp();
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    projectFindFirstMock.mockResolvedValue({ id: projectId });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Project Task",
+        description: null,
+        projectId,
+        coworkerId: null,
+        status: TaskStatus.DRAFT,
+        origin: TaskEventOrigin.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(projectFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: projectId,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+      select: { id: true },
+    });
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          projectId,
+        }),
+      }),
+    );
+  });
+
+  it("rejects a project from outside the active workspace", async () => {
+    const app = createApp();
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    projectFindFirstMock.mockResolvedValue(null);
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Project Task",
+        description: null,
+        projectId,
+        coworkerId: null,
+        status: TaskStatus.DRAFT,
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 });

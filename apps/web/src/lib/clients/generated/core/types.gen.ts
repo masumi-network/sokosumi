@@ -1325,6 +1325,7 @@ export type TaskListItem = {
     user: UserSummary;
     organizationId: string | null;
     organization: OrganizationSummary;
+    projectId: string | null;
     coworkerId: string | null;
     coworker: CoworkerSummary;
     name: string;
@@ -1351,6 +1352,7 @@ export type Task = {
     user: UserSummary;
     organizationId: string | null;
     organization: OrganizationSummary;
+    projectId: string | null;
     coworkerId: string | null;
     coworker: CoworkerSummary;
     name: string;
@@ -11755,6 +11757,7 @@ export type PostTasksData = {
     body?: {
         name: string;
         description?: string | null;
+        projectId?: string | null;
         coworkerId?: string | null;
         status?: 'DRAFT' | 'READY';
         /**
@@ -11812,6 +11815,19 @@ export type PostTasksErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         meta: {
@@ -12294,6 +12310,7 @@ export type PatchTasksByIdData = {
     body?: {
         name?: string;
         description?: string | null;
+        projectId?: string | null;
         coworkerId?: string | null;
     };
     path: {
@@ -12347,6 +12364,19 @@ export type PatchTasksByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         meta: {
