@@ -22,22 +22,37 @@ export const UsersnapProvider = ({
     if (!usersnapSpaceApiKey) {
       return;
     }
-    loadSpace(usersnapSpaceApiKey).then((api) => {
-      let userPromps = {};
-      const user = session?.user;
-      if (user) {
-        userPromps = {
-          user: {
-            email: user.email,
-            userId: user.id,
-          },
-        };
-      }
-      api.init({
-        ...userPromps,
+
+    let cancelled = false;
+
+    loadSpace(usersnapSpaceApiKey)
+      .then((api) => {
+        if (cancelled) {
+          return;
+        }
+
+        const user = session?.user;
+        api.init(
+          user
+            ? {
+                user: {
+                  email: user.email,
+                  userId: user.id,
+                },
+              }
+            : {},
+        );
+        setUsersnapApi(api);
+      })
+      .catch(() => {
+        // @usersnap/browser rejects with a string when the widget script fails
+        // (invalid key, paused project, blocked by ad blockers, etc.). Feedback
+        // is optional; swallow so Sentry does not report unhandled rejections.
       });
-      setUsersnapApi(api);
-    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [session, usersnapSpaceApiKey]);
 
   return (

@@ -4,6 +4,11 @@ Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
+  ignoreErrors: [
+    // Usersnap widget load failures (invalid key, paused project, blocked script).
+    /Failed to load the widget: Wrong API key or paused project/,
+  ],
+
   // Adds request headers and IP for users, for more info visit:
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
   // sendDefaultPii: true,
