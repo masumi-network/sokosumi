@@ -1716,6 +1716,7 @@
           "pickerError": "Falha ao carregar tarefas."
         },
         "actions": {
+          "viewDetails": "Ver detalhes",
           "edit": "Editar",
           "delete": "Excluir",
           "remove": "Remover",

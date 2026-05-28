@@ -26,6 +26,7 @@ export interface ProjectsViewLabels {
   loading: string;
   loadMoreError: string;
   rowActions: {
+    viewDetails: string;
     edit: string;
     delete: string;
   };

@@ -1716,6 +1716,7 @@
           "pickerError": "Impossibile caricare i task."
         },
         "actions": {
+          "viewDetails": "Visualizza dettagli",
           "edit": "Modifica",
           "delete": "Elimina",
           "remove": "Rimuovi",

@@ -1716,6 +1716,7 @@
           "pickerError": "加载任务失败。"
         },
         "actions": {
+          "viewDetails": "查看详情",
           "edit": "编辑",
           "delete": "删除",
           "remove": "移除",

@@ -1716,6 +1716,7 @@
           "pickerError": "Impossible de charger les tâches."
         },
         "actions": {
+          "viewDetails": "Voir les détails",
           "edit": "Modifier",
           "delete": "Supprimer",
           "remove": "Retirer",

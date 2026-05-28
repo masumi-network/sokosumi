@@ -1685,6 +1685,7 @@
           "pickerError": "No se pudieron cargar las tareas."
         },
         "actions": {
+          "viewDetails": "Ver detalles",
           "edit": "Editar",
           "delete": "Eliminar",
           "remove": "Quitar",

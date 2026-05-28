@@ -1685,6 +1685,7 @@
           "pickerError": "Tasks konnten nicht geladen werden."
         },
         "actions": {
+          "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
           "delete": "Löschen",
           "remove": "Entfernen",

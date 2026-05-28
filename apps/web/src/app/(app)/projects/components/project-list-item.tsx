@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Eye,
   ListTodo,
   type LucideIcon,
   MoreHorizontal,
@@ -33,6 +34,7 @@ import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/gener
 
 interface ProjectListItemLabels {
   actions: {
+    viewDetails: string;
     edit: string;
     delete: string;
   };
@@ -116,6 +118,12 @@ export function ProjectListItem({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/projects/${project.id}`}>
+                  <Eye className="size-4" aria-hidden />
+                  {labels.actions.viewDetails}
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/projects/${project.id}/edit`}>
                   <Pencil className="size-4" aria-hidden />

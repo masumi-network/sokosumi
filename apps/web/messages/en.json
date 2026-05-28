@@ -1716,6 +1716,7 @@
           "pickerError": "Failed to load tasks."
         },
         "actions": {
+          "viewDetails": "View details",
           "edit": "Edit",
           "delete": "Delete",
           "remove": "Remove",
