@@ -10,8 +10,8 @@ import {
 } from "@/app/hermes/components/confirmation-org-picker";
 
 const organizations = [
-  { id: "org-a", name: "Org A" },
-  { id: "org-b", name: "Org B" },
+  { id: "org-a", name: "Org A", slug: "org-a" },
+  { id: "org-b", name: "Org B", slug: "org-b" },
 ];
 
 describe("isConfirmationOrgAwareTool", () => {
