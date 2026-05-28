@@ -1,8 +1,16 @@
 import * as Sentry from "@sentry/nextjs";
 
+import {
+  CLIENT_IGNORE_ERRORS,
+  filterClientSentryEvent,
+} from "@/lib/sentry/client-error-filters";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+
+  ignoreErrors: CLIENT_IGNORE_ERRORS,
+  beforeSend: filterClientSentryEvent,
 
   // Adds request headers and IP for users, for more info visit:
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
