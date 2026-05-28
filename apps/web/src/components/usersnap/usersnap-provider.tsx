@@ -22,22 +22,39 @@ export const UsersnapProvider = ({
     if (!usersnapSpaceApiKey) {
       return;
     }
-    loadSpace(usersnapSpaceApiKey).then((api) => {
-      let userPromps = {};
-      const user = session?.user;
-      if (user) {
-        userPromps = {
-          user: {
-            email: user.email,
-            userId: user.id,
-          },
-        };
-      }
-      api.init({
-        ...userPromps,
+
+    let cancelled = false;
+
+    loadSpace(usersnapSpaceApiKey)
+      .then((api) => {
+        if (cancelled) {
+          return;
+        }
+
+        const user = session?.user;
+        api.init(
+          user
+            ? {
+                user: {
+                  email: user.email,
+                  userId: user.id,
+                },
+              }
+            : {},
+        );
+        setUsersnapApi(api);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        console.warn("Usersnap widget failed to load:", error);
       });
-      setUsersnapApi(api);
-    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [session, usersnapSpaceApiKey]);
 
   return (
