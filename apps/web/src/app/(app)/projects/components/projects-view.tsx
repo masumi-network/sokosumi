@@ -64,7 +64,8 @@ export function ProjectsView({
   const [statsById, setStatsById] = useState(statsByProjectId);
   const [cursor, setCursor] = useState(nextCursor);
   const [isPending, startTransition] = useTransition();
-  const hasProjects = items.length > 0;
+  const hasLoadedProjects = items.length > 0;
+  const showEmptyState = !hasLoadedProjects && cursor === null;
 
   function handleLoadMore() {
     if (!cursor || isPending) return;
@@ -102,7 +103,7 @@ export function ProjectsView({
           <AddProjectButton label={labels.newProject} className="self-start" />
         </div>
 
-        {hasProjects ? (
+        {hasLoadedProjects ? (
           <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
             <div className="divide-border/50 divide-y px-2">
               {items.map((project) => (
@@ -120,9 +121,9 @@ export function ProjectsView({
               ))}
             </div>
           </div>
-        ) : (
+        ) : showEmptyState ? (
           <ProjectsEmptyState labels={labels.empty} />
-        )}
+        ) : null}
 
         {cursor ? (
           <div className="flex justify-center">
