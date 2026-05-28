@@ -1725,6 +1725,7 @@
           "pickerError": "Failed to load tasks."
         },
         "actions": {
+          "moreActions": "More actions",
           "viewDetails": "View details",
           "edit": "Edit",
           "delete": "Delete",

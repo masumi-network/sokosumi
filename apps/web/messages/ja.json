@@ -1725,6 +1725,7 @@
           "pickerError": "タスクの読み込みに失敗しました。"
         },
         "actions": {
+          "moreActions": "その他の操作",
           "viewDetails": "詳細を表示",
           "edit": "編集",
           "delete": "削除",

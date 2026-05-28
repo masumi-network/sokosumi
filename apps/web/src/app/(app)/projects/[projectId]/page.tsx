@@ -105,6 +105,7 @@ export default async function ProjectDetailPage({
             <ProjectDetailActions
               projectId={project.id}
               labels={{
+                moreActions: t("actions.moreActions"),
                 edit: t("actions.edit"),
                 delete: t("actions.delete"),
                 deleteDialog: {

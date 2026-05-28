@@ -34,6 +34,7 @@ import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/gener
 
 interface ProjectListItemLabels {
   actions: {
+    moreActions: string;
     viewDetails: string;
     edit: string;
     delete: string;
@@ -112,7 +113,7 @@ export function ProjectListItem({
                 variant="ghost"
                 size="icon"
                 className="size-8"
-                aria-label={labels.actions.edit}
+                aria-label={labels.actions.moreActions}
               >
                 <MoreHorizontal className="size-4" aria-hidden />
               </Button>

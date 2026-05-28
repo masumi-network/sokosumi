@@ -3,7 +3,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import { ListTodo, Loader2 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { UNASSIGNED_PROJECT_QUERY } from "@/app/projects/constants";
+import { unassignedWorkspaceTasksQuery } from "@/app/projects/constants";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import {
   CommandDialog,
@@ -60,12 +60,12 @@ export function ProjectTaskPickerDialog({
     setError(null);
 
     try {
-      const response = (await coreClient.getTasks({
-        q: searchQuery || undefined,
-        scope: "workspace",
-        projectId: UNASSIGNED_PROJECT_QUERY,
-        limit: TASK_PICKER_PAGE_SIZE,
-      })) as GetTasksResponse;
+      const response = (await coreClient.getTasks(
+        unassignedWorkspaceTasksQuery({
+          q: searchQuery || undefined,
+          limit: TASK_PICKER_PAGE_SIZE,
+        }),
+      )) as GetTasksResponse;
 
       if (requestId !== requestIdRef.current) return;
 

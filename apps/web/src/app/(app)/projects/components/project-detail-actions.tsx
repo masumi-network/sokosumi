@@ -26,6 +26,7 @@ import {
 import { deleteProject } from "@/lib/actions/project/action";
 
 interface ProjectDetailActionsLabels {
+  moreActions: string;
   edit: string;
   delete: string;
   deleteDialog: {
@@ -72,7 +73,7 @@ export function ProjectDetailActions({
             variant="ghost"
             size="icon"
             className="size-9"
-            aria-label={labels.delete}
+            aria-label={labels.moreActions}
           >
             <MoreHorizontal className="size-4" aria-hidden />
           </Button>

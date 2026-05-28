@@ -50,6 +50,7 @@ export default async function ProjectsPage({
           loading: t("list.loading"),
           loadMoreError: t("Detail.errors.loadMore"),
           rowActions: {
+            moreActions: t("Detail.actions.moreActions"),
             viewDetails: t("Detail.actions.viewDetails"),
             edit: t("Detail.actions.edit"),
             delete: t("Detail.actions.delete"),
