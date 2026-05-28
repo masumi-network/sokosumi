@@ -789,7 +789,7 @@ export function TasksView({
       activeTab,
       taskCount: items.length,
       viewMode,
-      guideCompleted: guideCompleted === false,
+      guideCompleted: guideCompleted === true,
     }) || forceShowGuide;
   const activeDragTask = useMemo(
     () =>

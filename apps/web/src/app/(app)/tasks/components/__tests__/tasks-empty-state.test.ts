@@ -45,4 +45,15 @@ describe("shouldShowTasksEmptyStateOverlay", () => {
       }),
     ).toBe(false);
   });
+
+  it("returns false when the guide is completed", () => {
+    expect(
+      shouldShowTasksEmptyStateOverlay({
+        activeTab: "tasks",
+        taskCount: 0,
+        viewMode: "board",
+        guideCompleted: true,
+      }),
+    ).toBe(false);
+  });
 });
