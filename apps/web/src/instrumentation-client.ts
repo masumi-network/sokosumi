@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 
+import { shouldIgnoreClientError } from "@/lib/sentry/client-error-filter";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -26,6 +28,22 @@ Sentry.init({
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
+
+  denyUrls: [
+    /px\.ads\.linkedin\.com/i,
+    /plausible\.io/i,
+    /pagead2\.googlesyndication\.com/i,
+    /google-analytics\.com/i,
+    /web\.cmp\.usercentrics\.eu/i,
+    /li\.lms-analytics/i,
+  ],
+
+  beforeSend(event, hint) {
+    if (shouldIgnoreClientError(event, hint)) {
+      return null;
+    }
+    return event;
+  },
 });
 
 // This export will instrument router navigations, and is only relevant if you enable tracing.
