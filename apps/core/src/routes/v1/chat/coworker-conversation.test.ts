@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createCoworkerConversation } from "./coworker-conversation";
+import {
+  COWORKER_CHAT_BILLING_MESSAGE,
+  CoworkerConversationError,
+  createCoworkerConversation,
+  throwCoworkerRemoteConversationHttpError,
+} from "./coworker-conversation";
 
 const fetchMock = vi.fn();
 
@@ -104,5 +109,66 @@ describe("coworker-conversation", () => {
         sokosumi_conversation_id: "conv-local-1",
       },
     });
+  });
+
+  it("throws CoworkerConversationError with billing_required on OpenAI 403", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      text: async () =>
+        JSON.stringify({
+          error: {
+            message: "Account setup or billing required",
+            type: "invalid_request_error",
+            code: "billing_required",
+          },
+        }),
+    });
+
+    await expect(
+      createCoworkerConversation({
+        responsesApiBaseUrl: DEFAULT_BASE_URL,
+        sokosumiUserId: "user_1",
+        sokosumiOrganizationId: null,
+        coworkerSlug: "ops-agent",
+        sokosumiConversationId: "conv-local-1",
+      }),
+    ).rejects.toMatchObject({
+      name: "CoworkerConversationError",
+      upstreamStatus: 403,
+      upstreamCode: "billing_required",
+    });
+  });
+});
+
+describe("throwCoworkerRemoteConversationHttpError", () => {
+  it("maps billing_required to 403 with a user-facing message", () => {
+    expect(() =>
+      throwCoworkerRemoteConversationHttpError(
+        new CoworkerConversationError(
+          "Conversations API request failed",
+          403,
+          "billing_required",
+        ),
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        status: 403,
+        message: COWORKER_CHAT_BILLING_MESSAGE,
+      }),
+    );
+  });
+
+  it("maps unexpected upstream 5xx to 503 without reporting to Sentry", () => {
+    expect(() =>
+      throwCoworkerRemoteConversationHttpError(
+        new CoworkerConversationError("Conversations API request failed", 502),
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        status: 503,
+        cause: expect.objectContaining({ reportToSentry: false }),
+      }),
+    );
   });
 });

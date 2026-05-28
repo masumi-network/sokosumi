@@ -2,17 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sourceImportService } from "./source-import.service";
 
-const {
-  captureExceptionMock,
-  prismaTransactionMock,
-  upsertLinkMock,
-  upsertOutputBlobMock,
-} = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
-  upsertLinkMock: vi.fn(),
-  upsertOutputBlobMock: vi.fn(),
-}));
+const { captureExceptionMock, upsertLinkMock, upsertOutputBlobMock } =
+  vi.hoisted(() => ({
+    captureExceptionMock: vi.fn(),
+    upsertLinkMock: vi.fn(),
+    upsertOutputBlobMock: vi.fn(),
+  }));
 
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
@@ -28,17 +23,12 @@ vi.mock("@sokosumi/database/repositories", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    $transaction: prismaTransactionMock,
-  },
+  default: {},
 }));
 
 describe("sourceImportService.enqueueFromMarkdown", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({});
-    });
   });
 
   it("upserts unique file blobs and http links from markdown", async () => {
@@ -53,7 +43,6 @@ describe("sourceImportService.enqueueFromMarkdown", () => {
       ].join("\n"),
     );
 
-    expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
     expect(upsertOutputBlobMock).toHaveBeenCalledTimes(1);
     expect(upsertOutputBlobMock).toHaveBeenCalledWith(
       {
@@ -61,7 +50,7 @@ describe("sourceImportService.enqueueFromMarkdown", () => {
         sourceUrl: "https://example.com/result.pdf",
         name: "result.pdf",
       },
-      {},
+      expect.anything(),
     );
     expect(upsertLinkMock).toHaveBeenCalledTimes(1);
     expect(upsertLinkMock).toHaveBeenCalledWith(
@@ -70,7 +59,7 @@ describe("sourceImportService.enqueueFromMarkdown", () => {
         url: "https://example.com/page",
         title: undefined,
       },
-      {},
+      expect.anything(),
     );
   });
 
@@ -91,10 +80,9 @@ describe("sourceImportService.enqueueFromMarkdown", () => {
     expect(upsertLinkMock).toHaveBeenCalledTimes(1);
   });
 
-  it("skips transaction work when markdown contains no importable links", async () => {
+  it("skips upserts when markdown contains no importable links", async () => {
     await sourceImportService.enqueueFromMarkdown("event_1", "No links here");
 
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(upsertOutputBlobMock).not.toHaveBeenCalled();
     expect(upsertLinkMock).not.toHaveBeenCalled();
   });

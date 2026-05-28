@@ -66,7 +66,10 @@ import {
   AI_SDK_CHAT_MESSAGES_REQUIREMENT,
   aiSdkChatRequestSchema,
 } from "@/schemas/chat-request.schema.js";
-import { createCoworkerConversation } from "./coworker-conversation";
+import {
+  createCoworkerConversation,
+  throwCoworkerRemoteConversationHttpError,
+} from "./coworker-conversation";
 
 import { mapChatRequestToUiMessages } from "./map-chat-request-to-ui-messages.js";
 
@@ -679,9 +682,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             sokosumiConversationId: internalConversationId,
           });
         } catch (error) {
-          throw serviceUnavailable(
-            `Coworker chat could not create a remote conversation: ${error instanceof Error ? error.message : String(error)}`,
-          );
+          throwCoworkerRemoteConversationHttpError(error);
         }
         const updated = await prisma.conversation.updateMany({
           where: {

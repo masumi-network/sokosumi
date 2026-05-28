@@ -1,5 +1,6 @@
 import { JobType, SokosumiJobStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -221,5 +222,44 @@ describe("JobsListView", () => {
     expect(screen.queryByText(labels.emptyRecent)).toBeInTheDocument();
     expect(screen.getByText("Failed one")).toBeInTheDocument();
     expect(screen.getByText("Completed one")).toBeInTheDocument();
+  });
+
+  it("keeps the first client render aligned with the server render when last-seen storage exists", () => {
+    const jobs: TasksViewJob[] = [
+      createJob({
+        id: "job-fresh-completed",
+        name: "Fresh completed job",
+        status: SokosumiJobStatus.COMPLETED,
+        createdAt: "2026-02-11T11:45:00.000Z",
+        completedAt: "2026-02-11T11:50:00.000Z",
+      }),
+    ];
+    const view = (
+      <JobsListView
+        jobs={jobs}
+        agentPreviewById={{
+          "agent-1": { name: "Agent name", icon: null },
+        }}
+        columnLabels={columnLabels}
+        labels={labels}
+      />
+    );
+    const originalWindow = globalThis.window;
+
+    try {
+      vi.stubGlobal("window", undefined);
+      const serverHtml = renderToString(view);
+
+      vi.stubGlobal("window", originalWindow);
+      window.localStorage.setItem(
+        "sokosumi.tasks.jobs.lastSeenAt",
+        String(new Date("2026-02-11T11:55:00.000Z").getTime()),
+      );
+      const clientHtml = renderToString(view);
+
+      expect(clientHtml).toBe(serverHtml);
+    } finally {
+      vi.stubGlobal("window", originalWindow);
+    }
   });
 });

@@ -20,6 +20,16 @@ async function consumeResponseBody(response: Response): Promise<string | null> {
   }
 }
 
+function isWebhookBackpressureResponse(
+  response: Response,
+  responseBody: string | null,
+): boolean {
+  if (response.status !== 400 || !responseBody) return false;
+
+  const normalizedBody = responseBody.toLowerCase();
+  return normalizedBody.includes("queue") && normalizedBody.includes("full");
+}
+
 /**
  * Calls a webhook with timeout and proper error handling.
  *
@@ -83,6 +93,17 @@ async function callWebHookWithRetry(
     } else {
       error = new Error(String(fetchError));
     }
+  }
+
+  if (response && isWebhookBackpressureResponse(response, responseBody)) {
+    console.warn(
+      `Webhook ${webhookType} receiver reported queue backpressure; skipping Sentry report.`,
+      {
+        responseStatus: response.status,
+        responseStatusText: response.statusText,
+      },
+    );
+    return;
   }
 
   // Report failure to Sentry with detailed context
