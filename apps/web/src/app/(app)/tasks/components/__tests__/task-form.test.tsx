@@ -306,7 +306,7 @@ describe("TaskForm", () => {
     expect(sokoButton).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("applies stored create-modal coworker from localStorage on first render", () => {
+  it("applies stored create-modal coworker from localStorage after mount", () => {
     writeCreateTaskModalLastCoworkerId("coworker-1");
     render(
       <TaskForm
