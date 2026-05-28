@@ -24,44 +24,42 @@ export const sourceImportService = {
       return;
     }
 
-    await prisma.$transaction(async (tx) => {
-      for (const url of fileLinks) {
-        if (!isHttpUrl(url)) {
-          continue;
-        }
-
-        try {
-          await blobRepository.upsertOutputBlob(
-            {
-              eventId: jobEventId,
-              sourceUrl: url,
-              name: getUrlBasename(url) ?? undefined,
-            },
-            tx,
-          );
-        } catch (error) {
-          Sentry.captureException(error);
-        }
+    for (const url of fileLinks) {
+      if (!isHttpUrl(url)) {
+        continue;
       }
 
-      for (const url of httpLinks) {
-        if (!isHttpUrl(url)) {
-          continue;
-        }
-
-        try {
-          await linkRepository.upsertLink(
-            {
-              eventId: jobEventId,
-              url,
-              title: undefined,
-            },
-            tx,
-          );
-        } catch (error) {
-          Sentry.captureException(error);
-        }
+      try {
+        await blobRepository.upsertOutputBlob(
+          {
+            eventId: jobEventId,
+            sourceUrl: url,
+            name: getUrlBasename(url) ?? undefined,
+          },
+          prisma,
+        );
+      } catch (error) {
+        Sentry.captureException(error);
       }
-    });
+    }
+
+    for (const url of httpLinks) {
+      if (!isHttpUrl(url)) {
+        continue;
+      }
+
+      try {
+        await linkRepository.upsertLink(
+          {
+            eventId: jobEventId,
+            url,
+            title: undefined,
+          },
+          prisma,
+        );
+      } catch (error) {
+        Sentry.captureException(error);
+      }
+    }
   },
 };
