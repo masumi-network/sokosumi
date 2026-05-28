@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 
+import { shouldDropClientSentryEvent } from "@/lib/observability/sentry-client-filters";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -26,6 +28,10 @@ Sentry.init({
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
+
+  beforeSend(event, hint) {
+    return shouldDropClientSentryEvent(event, hint) ? null : event;
+  },
 });
 
 // This export will instrument router navigations, and is only relevant if you enable tracing.
