@@ -14,7 +14,6 @@ import { DeploymentRefreshHandler } from "@/components/deployment-refresh-handle
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { Toaster } from "@/components/ui/sonner";
-import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { ThemeProvider } from "@/contexts/theme-context";
@@ -51,7 +50,6 @@ export default async function RootLayout({
   const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
   const ucDataSettingsId = getEnvSecrets().USER_CENTRICS_DATA_SETTINGS_ID;
   const draftUserCentrics = getEnvSecrets().DRAFT_USER_CENTRICS;
-  const usersnapSpaceApiKey = getEnvSecrets().USERSNAP_SPACE_API_KEY;
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
@@ -84,19 +82,17 @@ export default async function RootLayout({
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       {gaId && <GoogleAnalytics gaId={gaId} />}
       <body className="bg-background min-h-svh max-w-dvw antialiased">
-        <UsersnapProvider usersnapSpaceApiKey={usersnapSpaceApiKey}>
-          <NuqsAdapter>
-            <ThemeProvider>
-              <NextIntlClientProvider messages={messages}>
-                <GlobalModalsContextProvider>
-                  <div className="bg-background">{children}</div>
-                </GlobalModalsContextProvider>
-                {/* Toaster */}
-                <Toaster />
-              </NextIntlClientProvider>
-            </ThemeProvider>
-          </NuqsAdapter>
-        </UsersnapProvider>
+        <NuqsAdapter>
+          <ThemeProvider>
+            <NextIntlClientProvider messages={messages}>
+              <GlobalModalsContextProvider>
+                <div className="bg-background">{children}</div>
+              </GlobalModalsContextProvider>
+              {/* Toaster */}
+              <Toaster />
+            </NextIntlClientProvider>
+          </ThemeProvider>
+        </NuqsAdapter>
         <ClientAnalytics />
         <DeploymentRefreshHandler />
       </body>
