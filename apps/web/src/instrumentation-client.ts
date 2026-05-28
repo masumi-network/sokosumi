@@ -4,6 +4,10 @@ Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
+  // Usersnap load failures are handled in UsersnapProvider; ignore any that
+  // still reach the global unhandledrejection handler (SOKOSUMI-C).
+  ignoreErrors: [/Failed to load the widget/],
+
   // Adds request headers and IP for users, for more info visit:
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
   // sendDefaultPii: true,
