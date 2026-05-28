@@ -2394,30 +2394,30 @@
       }
     },
     "MCP": {
-      "generateButton": "Generar tu URL de MCP de Sokosumi",
-      "urlLabel": "Tu URL de conexión MCP",
-      "existingKeyNote": "Nota: Esta es una conexión MCP generada anteriormente. La API Key real está oculta por seguridad.",
-      "existingKeyNote2": "Puedes regenerar la Key para obtener una nueva.",
+      "generateButton": "Show Sokosumi MCP URL",
+      "urlLabel": "Sokosumi MCP Server URL",
+      "existingKeyNote": "This hosted MCP connection uses OAuth. Your MCP client will ask you to sign in with Sokosumi when connecting.",
+      "existingKeyNote2": "No API key needs to be copied into the client.",
       "existingKey": "TU_KEY_EXISTENTE",
       "keyDisabled": "Tu conexión MCP existe pero está desactivada.",
       "keyDisabledNote": "Puedes activarla o crear una nueva.",
       "enableKey": "Activar Key",
       "createNewKey": "Crear nueva Key",
-      "regenerateKey": "Regenerar Key",
-      "setupPreviewTitle": "Cómo usar tu URL MCP con Claude",
+      "regenerateKey": "Refresh URL",
+      "setupPreviewTitle": "How to connect with OAuth",
       "docsLink": "Ver documentación de MCP",
       "loadError": "No se pudo cargar la información de conexión MCP. Por favor, inténtalo de nuevo.",
       "copyError": "No se pudo copiar la URL al portapapeles",
       "retry": "Intentar de nuevo",
       "loading": "Cargando información de conexión MCP...",
       "Instructions": {
-        "title": "Cómo conectar Claude con Sokosumi",
-        "step1": "Abre Claude y haz clic en \"Settings\"",
+        "title": "How to connect an MCP client to Sokosumi",
+        "step1": "Open your MCP client settings",
         "step2": "Haz clic en \"Connectors\"",
         "step3": "Haz clic en \"Add custom connector\"",
-        "step4": "Introduce un nombre (p. ej. \"Sokosumi\") y pega tu URL de conexión MCP en el campo URL. Deja la configuración avanzada vacía. Haz clic en \"Add\"",
+        "step4": "Enter a name (e.g., \"Sokosumi\") and paste the MCP server URL in the URL field. Leave Advanced Settings empty. Click \"Add\"",
         "step5": {
-          "text": "¡Listo! Tu Claude ya puede interactuar con los Agents de Sokosumi. Por ejemplo:",
+          "text": "Complete the Sokosumi sign-in when your client opens the browser. Then try asking:",
           "example": "¿Qué Agents están disponibles actualmente en Sokosumi?"
         }
       }

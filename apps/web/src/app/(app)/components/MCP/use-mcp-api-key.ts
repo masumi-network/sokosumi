@@ -1,12 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 
-import type { ApiKeyRecord } from "@/app/connections/components/api-keys/types";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { authClient } from "@/lib/auth/auth.client";
 
 interface UseMcpApiKeyReturn {
   mcpUrl: string | null;
@@ -19,44 +15,9 @@ interface UseMcpApiKeyReturn {
   isKeyDisabled: boolean;
 }
 
-const MCP_KEY_NAME = "MCP";
-
-function buildMcpUrl(apiKey: string, network: string): string {
-  const baseUrl = getEnvPublicConfig().NEXT_PUBLIC_MCP_URL;
-  return `${baseUrl}/mcp?api_key=${apiKey}&network=${network}`;
-}
-
-function getPersonalMcpKeys(apiKeys: ApiKeyRecord[]): ApiKeyRecord[] {
-  return apiKeys.filter(
-    (key) =>
-      key.name === MCP_KEY_NAME && (key.configId ?? "default") === "default",
-  );
-}
-
-function getLastTouchedAtMs(apiKey: ApiKeyRecord): number {
-  const timestamp = new Date(apiKey.updatedAt ?? apiKey.createdAt).getTime();
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
-
-function selectCanonicalMcpKey(apiKeys: ApiKeyRecord[]): ApiKeyRecord | null {
-  const candidates = getPersonalMcpKeys(apiKeys);
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  return [...candidates].sort((a, b) => {
-    const enabledRank = Number(Boolean(b.enabled)) - Number(Boolean(a.enabled));
-    if (enabledRank !== 0) {
-      return enabledRank;
-    }
-
-    const lastTouchedRank = getLastTouchedAtMs(b) - getLastTouchedAtMs(a);
-    if (lastTouchedRank !== 0) {
-      return lastTouchedRank;
-    }
-
-    return b.id.localeCompare(a.id);
-  })[0];
+function buildMcpUrl(): string {
+  const baseUrl = getEnvPublicConfig().NEXT_PUBLIC_MCP_URL.replace(/\/$/, "");
+  return `${baseUrl}/mcp`;
 }
 
 export function useMcpApiKey(
@@ -68,172 +29,54 @@ export function useMcpApiKey(
   const [error, setError] = useState<string | null>(null);
   const [isKeyExisting, setIsExistingKey] = useState<boolean>(false);
   const [isKeyDisabled, setIsKeyDisabled] = useState<boolean>(false);
-  const [existingKeyId, setExistingKeyId] = useState<string | null>(null);
-
-  const t = useTranslations("App.MCP");
-  const network = getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
-  const existingKeyUrl = buildMcpUrl(t("existingKey"), network);
 
   const resetState = useCallback(() => {
     setMcpUrl(null);
     setIsExistingKey(false);
     setIsKeyDisabled(false);
-    setExistingKeyId(null);
     setError(null);
   }, []);
 
-  const loadExistingKey = useCallback(async () => {
+  const loadMcpConnection = useCallback(() => {
     setError(null);
+    setMcpUrl(buildMcpUrl());
+    setIsExistingKey(false);
+    setIsKeyDisabled(false);
+    setIsLoading(false);
+  }, []);
 
-    try {
-      const result = await authClient.apiKey.list();
-      if (!result.data) {
-        const errorMessage =
-          result.error?.message ?? "Failed to load existing MCP keys";
-        setError(errorMessage);
-        toast.error(errorMessage);
-        return;
-      }
-
-      const mcpKey = selectCanonicalMcpKey(result.data.apiKeys);
-
-      if (!mcpKey) {
-        return;
-      }
-
-      setIsExistingKey(true);
-      setExistingKeyId(mcpKey.id);
-
-      if (mcpKey.enabled) {
-        setMcpUrl(existingKeyUrl);
-        setIsKeyDisabled(false);
-      } else {
-        setMcpUrl(null);
-        setIsKeyDisabled(true);
-      }
-    } catch (error) {
-      console.error("Failed to check existing MCP key:", error);
-      const errorMessage =
-        "Failed to load MCP connection information. Please try again.";
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [existingKeyUrl]);
-
-  // Effect is necessary: Fetches data from external system (API) when dialog opens.
+  // Effect is necessary: syncs the displayed MCP URL with the connection view.
   useEffect(() => {
     if (!open) {
+      resetState();
       return;
     }
 
     resetState();
     setIsLoading(true);
-    void loadExistingKey();
-  }, [open, loadExistingKey, resetState]);
+    loadMcpConnection();
+  }, [open, loadMcpConnection, resetState]);
 
   const generateMcpUrl = useCallback(async () => {
     if (isLoading) return;
 
     setIsLoading(true);
     setError(null);
-    try {
-      const listResult = await authClient.apiKey.list();
-      if (!listResult.data) {
-        const errorMessage =
-          listResult.error?.message ?? "Failed to load existing MCP keys";
-        setError(errorMessage);
-        toast.error(errorMessage);
-        return;
-      }
-
-      const mcpKeys = getPersonalMcpKeys(listResult.data.apiKeys);
-      const deleteResults = await Promise.all(
-        mcpKeys.map(async (key) => ({
-          keyId: key.id,
-          result: await authClient.apiKey.delete({
-            keyId: key.id,
-          }),
-        })),
-      );
-      const failedDelete = deleteResults.find(
-        ({ result }) => result.data == null,
-      );
-
-      if (failedDelete) {
-        const errorMessage =
-          failedDelete.result.error?.message ??
-          `Failed to delete existing MCP key (${failedDelete.keyId})`;
-        setError(errorMessage);
-        toast.error(errorMessage);
-        return;
-      }
-
-      const result = await authClient.apiKey.create({
-        name: MCP_KEY_NAME,
-      });
-
-      if (result.data) {
-        const url = buildMcpUrl(result.data.key, network);
-        setMcpUrl(url);
-        setIsExistingKey(false); // This is a new key
-        setIsKeyDisabled(false); // Reset disabled state
-        setExistingKeyId(result.data.id); // Store new key ID
-        toast.success("MCP connection URL generated successfully!");
-      } else {
-        const errorMessage =
-          result.error?.message ?? "Failed to generate MCP URL";
-        setError(errorMessage);
-        toast.error(errorMessage);
-      }
-    } catch (error) {
-      console.error("Failed to generate MCP URL:", error);
-      const errorMessage = "Failed to generate MCP URL. Please try again.";
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isLoading, network]);
+    setMcpUrl(buildMcpUrl());
+    setIsExistingKey(false);
+    setIsKeyDisabled(false);
+    setIsLoading(false);
+  }, [isLoading]);
 
   const enableKey = useCallback(async () => {
-    if (!existingKeyId || isLoading) return;
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await authClient.apiKey.update({
-        keyId: existingKeyId,
-        enabled: true,
-      });
-
-      if (result.data) {
-        // Show the URL for the now-enabled key
-        setMcpUrl(existingKeyUrl);
-        setIsKeyDisabled(false);
-        toast.success("MCP connection enabled successfully!");
-      } else {
-        const errorMessage =
-          result.error?.message ?? "Failed to enable MCP key";
-        setError(errorMessage);
-        toast.error(errorMessage);
-      }
-    } catch (error) {
-      console.error("Failed to enable MCP key:", error);
-      const errorMessage = "Failed to enable MCP key. Please try again.";
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [existingKeyId, existingKeyUrl, isLoading]);
+    await generateMcpUrl();
+  }, [generateMcpUrl]);
 
   const retryLoad = useCallback(() => {
     resetState();
     setIsLoading(true);
-    void loadExistingKey();
-  }, [loadExistingKey, resetState]);
+    loadMcpConnection();
+  }, [loadMcpConnection, resetState]);
 
   return {
     mcpUrl,

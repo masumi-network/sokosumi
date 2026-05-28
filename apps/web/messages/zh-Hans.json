@@ -2456,30 +2456,30 @@
       }
     },
     "MCP": {
-      "generateButton": "生成您的 Sokosumi MCP URL",
-      "urlLabel": "您的 MCP 连接 URL",
-      "existingKeyNote": "注意：这是之前生成的 MCP 连接。出于安全原因，实际 API 密钥已隐藏。",
-      "existingKeyNote2": "您可以重新生成密钥以获取新的密钥。",
+      "generateButton": "Show Sokosumi MCP URL",
+      "urlLabel": "Sokosumi MCP Server URL",
+      "existingKeyNote": "This hosted MCP connection uses OAuth. Your MCP client will ask you to sign in with Sokosumi when connecting.",
+      "existingKeyNote2": "No API key needs to be copied into the client.",
       "existingKey": "YOUR_EXISTING_KEY",
       "keyDisabled": "您的 MCP 连接已存在，但处于停用状态。",
       "keyDisabledNote": "您可以启用它或创建新的连接。",
       "enableKey": "启用密钥",
       "createNewKey": "创建新密钥",
-      "regenerateKey": "重新生成密钥",
-      "setupPreviewTitle": "如何在 Claude 中使用您的 MCP URL",
+      "regenerateKey": "Refresh URL",
+      "setupPreviewTitle": "How to connect with OAuth",
       "docsLink": "查看 MCP 文档",
       "loadError": "加载 MCP 连接信息失败。请重试。",
       "copyError": "复制 URL 到剪贴板失败",
       "retry": "重试",
       "loading": "正在加载 MCP 连接信息...",
       "Instructions": {
-        "title": "如何将 Claude 连接到 Sokosumi",
-        "step1": "打开 Claude 并点击 \"Settings\"",
+        "title": "How to connect an MCP client to Sokosumi",
+        "step1": "Open your MCP client settings",
         "step2": "点击 \"Connectors\"",
         "step3": "点击 \"Add custom connector\"",
-        "step4": "输入名称（例如 \"Sokosumi\"），并将您的 MCP 连接 URL 粘贴到 URL 字段中。\"Advanced Settings\" 留空。点击 \"Add\"",
+        "step4": "Enter a name (e.g., \"Sokosumi\") and paste the MCP server URL in the URL field. Leave Advanced Settings empty. Click \"Add\"",
         "step5": {
-          "text": "成功！您的 Claude 现在可以与 Sokosumi 智能体交互。您可以尝试询问：",
+          "text": "Complete the Sokosumi sign-in when your client opens the browser. Then try asking:",
           "example": "Sokosumi 上目前有哪些智能体可用？"
         }
       }

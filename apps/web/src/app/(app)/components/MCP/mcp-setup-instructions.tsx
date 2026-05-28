@@ -14,7 +14,7 @@ export function McpSetupInstructions() {
       <div className="bg-muted/30 rounded-lg border p-4">
         <Image
           src="/images/mcp-setup-demo.gif"
-          alt="MCP Setup Demo - Visual guide showing how to connect Claude to Sokosumi"
+          alt="MCP setup demo - visual guide showing how to connect an MCP client to Sokosumi"
           width={600}
           height={400}
           className="w-full rounded-md"
