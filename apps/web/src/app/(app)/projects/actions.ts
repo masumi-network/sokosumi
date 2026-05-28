@@ -1,11 +1,28 @@
 "use server";
 
 import { projectService } from "@/lib/services/project.service";
+import {
+  type AuthenticatedRequest,
+  withSession,
+} from "@/middleware/auth-middleware";
 
 import { PROJECTS_PAGE_LIMIT } from "./constants";
 import { buildStatsByProjectId } from "./stats";
 
-export async function loadMoreProjects(cursor: string | null) {
+interface LoadMoreProjectsParams extends AuthenticatedRequest {
+  cursor: string | null;
+}
+
+export const loadMoreProjects = withSession<
+  LoadMoreProjectsParams,
+  {
+    projects: Awaited<
+      ReturnType<typeof projectService.listProjects>
+    >["projects"];
+    nextCursor: string | null;
+    statsByProjectId: ReturnType<typeof buildStatsByProjectId>;
+  }
+>(async ({ cursor }) => {
   const page = await projectService.listProjects({
     cursor,
     limit: PROJECTS_PAGE_LIMIT,
@@ -18,4 +35,4 @@ export async function loadMoreProjects(cursor: string | null) {
     nextCursor: page.pagination?.nextCursor ?? null,
     statsByProjectId: buildStatsByProjectId(stats),
   };
-}
+});

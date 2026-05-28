@@ -72,7 +72,7 @@ export function ProjectsView({
 
     startTransition(async () => {
       try {
-        const result = await loadMoreProjects(cursor);
+        const result = await loadMoreProjects({ cursor });
         setItems((prev) => appendUniqueProjects(prev, result.projects));
         setStatsById((prev) => ({
           ...prev,

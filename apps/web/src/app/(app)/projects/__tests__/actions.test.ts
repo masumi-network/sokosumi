@@ -1,9 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { UnAuthenticatedError } from "@/lib/auth/errors";
+
+const getSessionMock = vi.fn();
+
 const projectServiceMock = {
   getProjectsStats: vi.fn(),
   listProjects: vi.fn(),
 };
+
+vi.mock("@/lib/auth/utils", () => ({
+  getSession: (...args: unknown[]) => getSessionMock(...args),
+}));
 
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
@@ -24,6 +32,10 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
 describe("loadMoreProjects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    });
   });
 
   it("loads the next projects page and returns stats keyed by project id", async () => {
@@ -68,7 +80,7 @@ describe("loadMoreProjects", () => {
     projectServiceMock.getProjectsStats.mockResolvedValue(stats);
 
     const { loadMoreProjects } = await import("../actions");
-    const result = await loadMoreProjects("project-0");
+    const result = await loadMoreProjects({ cursor: "project-0" });
 
     expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
       cursor: "project-0",
@@ -86,5 +98,17 @@ describe("loadMoreProjects", () => {
         "project-2": stats[1],
       },
     });
+  });
+
+  it("rejects unauthenticated callers before loading projects", async () => {
+    getSessionMock.mockResolvedValue(null);
+
+    const { loadMoreProjects } = await import("../actions");
+
+    await expect(loadMoreProjects({ cursor: "project-0" })).rejects.toThrow(
+      UnAuthenticatedError,
+    );
+    expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
+    expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
   });
 });

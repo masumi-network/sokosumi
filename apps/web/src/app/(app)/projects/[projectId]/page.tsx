@@ -17,19 +17,20 @@ export default async function ProjectDetailPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  const [project, projectJobsResult, projectTasksResult] = await Promise.all([
-    projectService.getProjectById(projectId),
-    projectService.listProjectJobs(projectId, {
+  const project = await projectService.getProjectById(projectId);
+
+  if (!project) {
+    notFound();
+  }
+
+  const [projectJobsResult, projectTasksResult] = await Promise.all([
+    projectService.listProjectJobs(project.id, {
       limit: PROJECT_DETAIL_RESOURCE_LIMIT,
     }),
-    projectService.listProjectTasks(projectId, {
+    projectService.listProjectTasks(project.id, {
       limit: PROJECT_DETAIL_RESOURCE_LIMIT,
     }),
   ]);
-
-  if (!project) {
-    return notFound();
-  }
 
   const [t, locale] = await Promise.all([
     getTranslations("App.Projects.Detail"),
