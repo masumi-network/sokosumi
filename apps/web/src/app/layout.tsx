@@ -73,7 +73,7 @@ export default async function RootLayout({
               {...(draftUserCentrics && { "data-draft": "true" })}
               data-settings-id={ucDataSettingsId}
               async
-              strategy="beforeInteractive"
+              strategy="afterInteractive"
             />
           </>
         )}
