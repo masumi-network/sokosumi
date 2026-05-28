@@ -1,5 +1,11 @@
 import * as Sentry from "@sentry/nextjs";
 
+import {
+  beforeSendDropThirdPartyAnalytics,
+  THIRD_PARTY_ANALYTICS_DENY_URLS,
+  THIRD_PARTY_ANALYTICS_IGNORE_ERRORS,
+} from "@/lib/sentry/third-party-analytics-filters";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -11,6 +17,10 @@ Sentry.init({
   // https://github.com/getsentry/sentry-javascript/issues/16542
 
   integrations: [Sentry.replayIntegration({})],
+
+  ignoreErrors: THIRD_PARTY_ANALYTICS_IGNORE_ERRORS,
+  denyUrls: THIRD_PARTY_ANALYTICS_DENY_URLS,
+  beforeSend: beforeSendDropThirdPartyAnalytics,
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 0.005,
