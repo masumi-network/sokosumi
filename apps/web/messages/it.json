@@ -1392,6 +1392,7 @@
         "scopeWorkspace": "Spazio di lavoro",
         "coworkerLabel": "Coworker",
         "statusLabel": "Stato",
+        "projectLabel": "Progetto",
         "statusOptions": {
           "DRAFT": "Bozza",
           "READY": "Pronto",

@@ -33,6 +33,7 @@ const labels = {
   scopeWorkspace: "Workspace",
   coworkerLabel: "Coworker",
   statusLabel: "Status",
+  projectLabel: "Project",
   statusOptions: {
     [TaskStatus.DRAFT]: "Draft",
     [TaskStatus.READY]: "Ready",
@@ -61,6 +62,12 @@ function renderTasksViewFilters(activeOrganizationId: string | null) {
           image: "elena.png",
         },
       ]}
+      projectOptions={[
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          name: "Research",
+        },
+      ]}
       labels={labels}
     />,
   );
@@ -85,15 +92,17 @@ describe("TasksViewFilters", () => {
       "scope",
       "coworker",
       "status",
+      "project",
     ]);
   });
 
-  it("only shows coworker and status sections in personal context", () => {
+  it("only hides the scope section in personal context", () => {
     const props = renderTasksViewFilters(null);
 
     expect(props.sections.map((section) => section.id)).toEqual([
       "coworker",
       "status",
+      "project",
     ]);
   });
 });

@@ -10,6 +10,12 @@ export interface TasksFilters {
   scope: TasksScope;
   coworkerId: string | null;
   status: TaskStatus | null;
+  projectId: string | null;
+}
+
+export interface ProjectFilterOption {
+  id: string;
+  name: string;
 }
 
 /** App Router `searchParams` values can be `string | string[]` when a key is repeated. */
@@ -19,15 +25,19 @@ export interface TasksFiltersSearchParams {
   scope?: TasksFilterQueryParam;
   coworkerId?: TasksFilterQueryParam;
   status?: TasksFilterQueryParam;
+  projectId?: TasksFilterQueryParam;
 }
 
 export const TASKS_FILTER_PARAM_KEYS = {
   scope: "scope",
   coworkerId: "coworkerId",
   status: "status",
+  projectId: "projectId",
 } as const;
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Matches `URLSearchParams#get`: first value wins when the key is repeated. */
 export function firstQueryString(
@@ -73,6 +83,15 @@ export function sanitizeTasksStatusInput(raw: unknown): TaskStatus | null {
   return isTaskStatusValue(normalized) ? normalized : null;
 }
 
+export function sanitizeProjectIdFilterInput(raw: unknown): string | null {
+  if (typeof raw !== "string") {
+    return null;
+  }
+
+  const normalized = raw.trim();
+  return UUID_PATTERN.test(normalized) ? normalized : null;
+}
+
 export function getDefaultTasksScope(
   activeOrganizationId: string | null,
 ): TasksScope {
@@ -108,6 +127,7 @@ export function getTasksFiltersFromSearchParams(
   searchParams: URLSearchParams,
   activeOrganizationId: string | null,
   coworkerOptions: ReadonlyArray<{ id: string }>,
+  projectOptions?: ReadonlyArray<ProjectFilterOption>,
 ): TasksFilters {
   const parsed = parseTasksFilters(
     {
@@ -115,6 +135,8 @@ export function getTasksFiltersFromSearchParams(
       coworkerId:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.coworkerId) ?? undefined,
       status: searchParams.get(TASKS_FILTER_PARAM_KEYS.status) ?? undefined,
+      projectId:
+        searchParams.get(TASKS_FILTER_PARAM_KEYS.projectId) ?? undefined,
     },
     activeOrganizationId,
   );
@@ -125,10 +147,17 @@ export function getTasksFiltersFromSearchParams(
     parsed.coworkerId && validCoworkerIds.has(parsed.coworkerId)
       ? parsed.coworkerId
       : null;
+  const projectId =
+    projectOptions === undefined ||
+    (parsed.projectId &&
+      projectOptions.some((project) => project.id === parsed.projectId))
+      ? parsed.projectId
+      : null;
 
   return {
     ...parsed,
     coworkerId,
+    projectId,
   };
 }
 
@@ -143,11 +172,15 @@ export function parseTasksFilters(
   const coworkerId = normalizeOptionalString(searchParams.coworkerId);
   const rawStatus = normalizeOptionalString(searchParams.status);
   const status = sanitizeTasksStatusInput(rawStatus);
+  const projectId = sanitizeProjectIdFilterInput(
+    normalizeOptionalString(searchParams.projectId),
+  );
 
   return {
     scope,
     coworkerId,
     status,
+    projectId,
   };
 }
 
@@ -180,6 +213,12 @@ export function buildTasksFiltersSearchParams(
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.status);
   }
 
+  if (filters.projectId) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.projectId, filters.projectId);
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.projectId);
+  }
+
   return nextSearchParams;
 }
 
@@ -187,7 +226,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.coworkerId ?? "all"}:${filters.status ?? "all"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.coworkerId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}`;
 }
 
 export function isTaskOwnerEditable(

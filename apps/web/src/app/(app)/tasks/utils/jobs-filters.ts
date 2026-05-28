@@ -4,6 +4,8 @@ import {
   firstQueryString,
   getDefaultTasksScope,
   normalizeOptionalString,
+  type ProjectFilterOption,
+  sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
   type TasksFilterQueryParam,
   type TasksScope,
@@ -13,18 +15,21 @@ export interface JobsListFilters {
   scope: TasksScope;
   agentId: string | null;
   jobStatus: AgentJobStatus | null;
+  projectId: string | null;
 }
 
 export interface JobsListFiltersSearchParams {
   scope?: TasksFilterQueryParam;
   agentId?: TasksFilterQueryParam;
   jobStatus?: TasksFilterQueryParam;
+  projectId?: TasksFilterQueryParam;
 }
 
 export const JOBS_LIST_FILTER_PARAM_KEYS = {
   scope: "scope",
   agentId: "agentId",
   jobStatus: "jobStatus",
+  projectId: "projectId",
 } as const;
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
@@ -112,6 +117,9 @@ export function parseJobsListFilters(
     jobStatus: sanitizeAgentJobStatusInput(
       normalizeOptionalString(searchParams.jobStatus),
     ),
+    projectId: sanitizeProjectIdFilterInput(
+      normalizeOptionalString(searchParams.projectId),
+    ),
   };
 }
 
@@ -119,18 +127,32 @@ export function getJobsListFiltersFromSearchParams(
   searchParams: URLSearchParams,
   activeOrganizationId: string | null,
   agentOptions: ReadonlyArray<AgentOptionLike>,
+  projectOptions?: ReadonlyArray<ProjectFilterOption>,
 ): JobsListFilters {
-  return parseJobsListFilters(
+  const parsed = parseJobsListFilters(
     {
       scope: searchParams.get(JOBS_LIST_FILTER_PARAM_KEYS.scope) ?? undefined,
       agentId:
         searchParams.get(JOBS_LIST_FILTER_PARAM_KEYS.agentId) ?? undefined,
       jobStatus:
         searchParams.get(JOBS_LIST_FILTER_PARAM_KEYS.jobStatus) ?? undefined,
+      projectId:
+        searchParams.get(JOBS_LIST_FILTER_PARAM_KEYS.projectId) ?? undefined,
     },
     activeOrganizationId,
     agentOptions,
   );
+  const projectId =
+    projectOptions === undefined ||
+    (parsed.projectId &&
+      projectOptions.some((project) => project.id === parsed.projectId))
+      ? parsed.projectId
+      : null;
+
+  return {
+    ...parsed,
+    projectId,
+  };
 }
 
 export function buildJobsListFiltersSearchParams(
@@ -162,6 +184,15 @@ export function buildJobsListFiltersSearchParams(
     nextSearchParams.delete(JOBS_LIST_FILTER_PARAM_KEYS.jobStatus);
   }
 
+  if (filters.projectId) {
+    nextSearchParams.set(
+      JOBS_LIST_FILTER_PARAM_KEYS.projectId,
+      filters.projectId,
+    );
+  } else {
+    nextSearchParams.delete(JOBS_LIST_FILTER_PARAM_KEYS.projectId);
+  }
+
   return nextSearchParams;
 }
 
@@ -169,7 +200,7 @@ export function getJobsListFiltersResetKey(
   filters: JobsListFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.agentId ?? "all"}:${filters.jobStatus ?? "all"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.agentId ?? "all"}:${filters.jobStatus ?? "all"}:${filters.projectId ?? "all"}`;
 }
 
 /** Minimal job fields needed when merging a refetched first page with prior pages. */

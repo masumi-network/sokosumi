@@ -6,6 +6,7 @@ import {
 } from "@/app/tasks/utils/jobs-filters";
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import {
+  sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
   sanitizeTasksStatusInput,
   TasksScope,
@@ -26,6 +27,7 @@ interface LoadMoreTasksColumnParams {
   scope: TasksScope | null;
   coworkerId: string | null;
   status: Task["status"] | null;
+  projectId: string | null;
 }
 
 export async function loadMoreTasksColumn({
@@ -34,6 +36,7 @@ export async function loadMoreTasksColumn({
   scope,
   coworkerId,
   status,
+  projectId,
 }: LoadMoreTasksColumnParams) {
   const [session, coworkers, agents] = await Promise.all([
     getSession(),
@@ -51,6 +54,7 @@ export async function loadMoreTasksColumn({
   const sanitizedCoworkerId =
     coworkerId && coworkersById.has(coworkerId) ? coworkerId : null;
   const sanitizedStatus = sanitizeTasksStatusInput(status);
+  const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
   const page = await getTasksColumnPage({
     columnId,
     cursor,
@@ -58,6 +62,7 @@ export async function loadMoreTasksColumn({
     scope: sanitizedScope,
     coworkerId: sanitizedCoworkerId,
     status: sanitizedStatus,
+    projectId: sanitizedProjectId,
     coworkersById,
     agentsById,
   });
@@ -73,6 +78,7 @@ export async function loadMoreJobs(
   scope: TasksScope | null,
   agentId: string | null,
   jobStatus: string | null,
+  projectId: string | null,
 ) {
   const [session, coworkers, agents] = await Promise.all([
     getSession(),
@@ -83,10 +89,12 @@ export async function loadMoreJobs(
   const sanitizedScope = sanitizeTasksScopeInput(scope, activeOrganizationId);
   const sanitizedAgentId = sanitizeJobAgentIdForPersistedFilter(agentId);
   const sanitizedJobStatus = sanitizeAgentJobStatusInput(jobStatus);
+  const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
   const jobsPage = await taskService.listJobs({
     scope: sanitizedScope,
     agentId: sanitizedAgentId ?? undefined,
     status: sanitizedJobStatus ?? undefined,
+    projectId: sanitizedProjectId ?? undefined,
     cursor,
     limit: 20,
   });

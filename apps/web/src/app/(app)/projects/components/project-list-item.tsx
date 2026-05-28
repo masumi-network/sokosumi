@@ -79,7 +79,7 @@ export function ProjectListItem({
   return (
     <article className="-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50">
       <Link
-        href={`/projects/${project.id}`}
+        href={`/tasks?projectId=${project.id}`}
         className="flex min-w-0 flex-1 flex-col gap-2 rounded-lg px-2 py-3 transition-colors active:scale-[0.995] sm:flex-row sm:items-center sm:gap-4"
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">

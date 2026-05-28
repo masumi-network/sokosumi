@@ -9,9 +9,13 @@ import {
   isTaskDraggableForViewFilters,
   isTaskOwnerEditable,
   parseTasksFilters,
+  sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
   sanitizeTasksStatusInput,
 } from "@/app/tasks/utils/tasks-filters";
+
+const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
+const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;
 
 describe("tasks-filters", () => {
   it("defaults to workspace scope when an organization is active", () => {
@@ -20,6 +24,7 @@ describe("tasks-filters", () => {
       scope: "workspace",
       coworkerId: null,
       status: null,
+      projectId: null,
     });
   });
 
@@ -29,6 +34,7 @@ describe("tasks-filters", () => {
       scope: "owned",
       coworkerId: null,
       status: null,
+      projectId: null,
     });
   });
 
@@ -37,6 +43,7 @@ describe("tasks-filters", () => {
       scope: "owned",
       coworkerId: null,
       status: null,
+      projectId: null,
     });
   });
 
@@ -73,11 +80,21 @@ describe("tasks-filters", () => {
     });
   });
 
+  describe("sanitizeProjectIdFilterInput", () => {
+    it("accepts UUID strings and drops invalid values", () => {
+      expect(sanitizeProjectIdFilterInput(` ${PROJECT_ID} `)).toBe(PROJECT_ID);
+      expect(sanitizeProjectIdFilterInput("not-a-uuid")).toBeNull();
+      expect(sanitizeProjectIdFilterInput("null")).toBeNull();
+      expect(sanitizeProjectIdFilterInput(null)).toBeNull();
+    });
+  });
+
   it("maps URL search params to filters with coworker allowlist", () => {
     const params = new URLSearchParams({
       scope: "owned",
       coworkerId: "coworker-1",
       status: TaskStatus.READY,
+      projectId: PROJECT_ID,
     });
 
     expect(
@@ -86,6 +103,7 @@ describe("tasks-filters", () => {
       scope: "owned",
       coworkerId: "coworker-1",
       status: TaskStatus.READY,
+      projectId: PROJECT_ID,
     });
 
     expect(
@@ -94,6 +112,36 @@ describe("tasks-filters", () => {
       scope: "owned",
       coworkerId: null,
       status: TaskStatus.READY,
+      projectId: PROJECT_ID,
+    });
+  });
+
+  it("maps URL search params to filters with project allowlist", () => {
+    const params = new URLSearchParams({
+      projectId: PROJECT_ID,
+    });
+
+    expect(
+      getTasksFiltersFromSearchParams(params, "org-1", [], projectOptions),
+    ).toEqual({
+      scope: "workspace",
+      coworkerId: null,
+      status: null,
+      projectId: PROJECT_ID,
+    });
+
+    expect(
+      getTasksFiltersFromSearchParams(
+        params,
+        "org-1",
+        [],
+        [{ id: "44444444-4444-4444-8444-444444444444", name: "Other" }],
+      ),
+    ).toEqual({
+      scope: "workspace",
+      coworkerId: null,
+      status: null,
+      projectId: null,
     });
   });
 
@@ -104,6 +152,7 @@ describe("tasks-filters", () => {
           scope: "owned",
           coworkerId: "coworker-1",
           status: TaskStatus.READY,
+          projectId: PROJECT_ID,
         },
         "org-1",
       ),
@@ -111,6 +160,7 @@ describe("tasks-filters", () => {
       scope: "owned",
       coworkerId: "coworker-1",
       status: TaskStatus.READY,
+      projectId: PROJECT_ID,
     });
   });
 
@@ -121,6 +171,7 @@ describe("tasks-filters", () => {
           scope: ["workspace", "owned"],
           coworkerId: ["coworker-1", "coworker-2"],
           status: [TaskStatus.READY, TaskStatus.FAILED],
+          projectId: [PROJECT_ID, "44444444-4444-4444-8444-444444444444"],
         },
         "org-1",
       ),
@@ -128,6 +179,7 @@ describe("tasks-filters", () => {
       scope: "workspace",
       coworkerId: "coworker-1",
       status: TaskStatus.READY,
+      projectId: PROJECT_ID,
     });
   });
 
@@ -143,12 +195,13 @@ describe("tasks-filters", () => {
         scope: "owned",
         coworkerId: "coworker-1",
         status: TaskStatus.READY,
+        projectId: PROJECT_ID,
       },
       "org-1",
     );
 
     expect(nextSearchParams.toString()).toBe(
-      "create=true&coworker=elena&scope=owned&coworkerId=coworker-1&status=READY",
+      "create=true&coworker=elena&scope=owned&coworkerId=coworker-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
     );
   });
 
@@ -156,6 +209,7 @@ describe("tasks-filters", () => {
     const currentSearchParams = new URLSearchParams({
       coworkerId: "coworker-1",
       status: TaskStatus.READY,
+      projectId: PROJECT_ID,
     });
 
     const nextSearchParams = buildTasksFiltersSearchParams(
@@ -164,6 +218,7 @@ describe("tasks-filters", () => {
         scope: "workspace",
         coworkerId: null,
         status: null,
+        projectId: null,
       },
       "org-1",
     );
@@ -178,10 +233,13 @@ describe("tasks-filters", () => {
           scope: "workspace",
           coworkerId: "coworker-1",
           status: TaskStatus.READY,
+          projectId: PROJECT_ID,
         },
         "org-1",
       ),
-    ).toBe("org-1:workspace:coworker-1:READY");
+    ).toBe(
+      "org-1:workspace:coworker-1:READY:33333333-3333-4333-8333-333333333333",
+    );
   });
 
   it("allows only owners to edit tasks in workspace scope", () => {
@@ -195,6 +253,7 @@ describe("tasks-filters", () => {
           scope: "workspace",
           coworkerId: null,
           status: null,
+          projectId: null,
         },
         "org-1",
       ),
@@ -207,6 +266,7 @@ describe("tasks-filters", () => {
           scope: "workspace",
           coworkerId: null,
           status: null,
+          projectId: null,
         },
         "org-1",
       ),
@@ -219,6 +279,7 @@ describe("tasks-filters", () => {
           scope: "owned",
           coworkerId: null,
           status: null,
+          projectId: null,
         },
         null,
       ),
@@ -230,11 +291,13 @@ describe("tasks-filters", () => {
       scope: "workspace" as const,
       coworkerId: null,
       status: null,
+      projectId: null,
     };
     const ownedFilters = {
       scope: "owned" as const,
       coworkerId: null,
       status: null,
+      projectId: null,
     };
 
     it("disallows drag when the URL implies owned but the server list was still workspace (coworker task)", () => {

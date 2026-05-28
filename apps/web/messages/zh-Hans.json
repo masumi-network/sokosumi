@@ -1392,6 +1392,7 @@
         "scopeWorkspace": "工作区",
         "coworkerLabel": "Coworker",
         "statusLabel": "状态",
+        "projectLabel": "项目",
         "statusOptions": {
           "DRAFT": "草稿",
           "READY": "就绪",

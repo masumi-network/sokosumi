@@ -15,6 +15,7 @@ import type {
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
   coworkerId?: string;
+  projectId?: string;
   q?: string;
   scope?: "workspace" | "owned";
   cursor?: string | null;
@@ -24,6 +25,7 @@ interface ListTasksParams {
 interface ListJobsParams {
   scope?: "workspace" | "owned";
   agentId?: string;
+  projectId?: string;
   status?: AgentJobStatus;
   cursor?: string | null;
   limit?: number;
@@ -62,6 +64,7 @@ export const taskService = (() => {
           ? [params.status]
           : undefined,
       coworkerId: params.coworkerId,
+      projectId: params.projectId,
       q: params.q,
       scope: params.scope,
       cursor: params.cursor ?? undefined,
@@ -86,6 +89,7 @@ export const taskService = (() => {
     const result = await coreClient.getJobs({
       scope: params.scope,
       agentId: params.agentId,
+      projectId: params.projectId,
       status: params.status,
       cursor: params.cursor ?? undefined,
       limit: params.limit,

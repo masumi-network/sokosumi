@@ -20,6 +20,8 @@ const agentOptions = [
     image: null,
   },
 ] as const;
+const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
+const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;
 
 describe("jobs-filters", () => {
   it("parses valid jobs filters from App Router search params", () => {
@@ -29,6 +31,7 @@ describe("jobs-filters", () => {
           scope: ["workspace", "owned"],
           agentId: ["agent-1", "agent-2"],
           jobStatus: [AgentJobStatus.RUNNING, AgentJobStatus.COMPLETED],
+          projectId: [PROJECT_ID, "44444444-4444-4444-8444-444444444444"],
         },
         "org-1",
         agentOptions,
@@ -37,6 +40,7 @@ describe("jobs-filters", () => {
       scope: "workspace",
       agentId: "agent-1",
       jobStatus: AgentJobStatus.RUNNING,
+      projectId: PROJECT_ID,
     });
   });
 
@@ -47,6 +51,7 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: "missing-agent",
           jobStatus: "not-a-status",
+          projectId: "not-a-project",
         },
         "org-1",
         agentOptions,
@@ -55,6 +60,7 @@ describe("jobs-filters", () => {
       scope: "workspace",
       agentId: null,
       jobStatus: null,
+      projectId: null,
     });
   });
 
@@ -63,6 +69,7 @@ describe("jobs-filters", () => {
       scope: "owned",
       agentId: "agent-1",
       jobStatus: AgentJobStatus.COMPLETED,
+      projectId: PROJECT_ID,
     });
 
     expect(
@@ -71,6 +78,38 @@ describe("jobs-filters", () => {
       scope: "owned",
       agentId: "agent-1",
       jobStatus: AgentJobStatus.COMPLETED,
+      projectId: PROJECT_ID,
+    });
+  });
+
+  it("maps URL search params to filters with a project allowlist", () => {
+    const params = new URLSearchParams({
+      projectId: PROJECT_ID,
+    });
+
+    expect(
+      getJobsListFiltersFromSearchParams(
+        params,
+        "org-1",
+        agentOptions,
+        projectOptions,
+      ),
+    ).toEqual({
+      scope: "workspace",
+      agentId: null,
+      jobStatus: null,
+      projectId: PROJECT_ID,
+    });
+
+    expect(
+      getJobsListFiltersFromSearchParams(params, "org-1", agentOptions, [
+        { id: "44444444-4444-4444-8444-444444444444", name: "Other" },
+      ]),
+    ).toEqual({
+      scope: "workspace",
+      agentId: null,
+      jobStatus: null,
+      projectId: null,
     });
   });
 
@@ -86,12 +125,13 @@ describe("jobs-filters", () => {
         scope: "owned",
         agentId: "agent-1",
         jobStatus: AgentJobStatus.RUNNING,
+        projectId: PROJECT_ID,
       },
       "org-1",
     );
 
     expect(nextSearchParams.toString()).toBe(
-      "create=true&coworker=elena&scope=owned&agentId=agent-1&jobStatus=RUNNING",
+      "create=true&coworker=elena&scope=owned&agentId=agent-1&jobStatus=RUNNING&projectId=33333333-3333-4333-8333-333333333333",
     );
   });
 
@@ -99,6 +139,7 @@ describe("jobs-filters", () => {
     const currentSearchParams = new URLSearchParams({
       agentId: "agent-1",
       jobStatus: AgentJobStatus.COMPLETED,
+      projectId: PROJECT_ID,
     });
 
     const nextSearchParams = buildJobsListFiltersSearchParams(
@@ -107,6 +148,7 @@ describe("jobs-filters", () => {
         scope: "workspace",
         agentId: null,
         jobStatus: null,
+        projectId: null,
       },
       "org-1",
     );
@@ -142,10 +184,13 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: "agent-1",
           jobStatus: AgentJobStatus.COMPLETED,
+          projectId: PROJECT_ID,
         },
         "org-1",
       ),
-    ).toBe("org-1:workspace:agent-1:COMPLETED");
+    ).toBe(
+      "org-1:workspace:agent-1:COMPLETED:33333333-3333-4333-8333-333333333333",
+    );
   });
 
   describe("tasksViewJobStillEligibleForJobsListFilters", () => {
@@ -161,6 +206,7 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: "agent-2",
           jobStatus: AgentJobStatus.RUNNING,
+          projectId: null,
         }),
       ).toBe(false);
     });
@@ -173,6 +219,7 @@ describe("jobs-filters", () => {
             scope: "workspace",
             agentId: null,
             jobStatus: AgentJobStatus.RUNNING,
+            projectId: null,
           },
         ),
       ).toBe(false);
@@ -184,6 +231,7 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: null,
           jobStatus: AgentJobStatus.RUNNING,
+          projectId: null,
         }),
       ).toBe(true);
     });
@@ -194,6 +242,7 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: null,
           jobStatus: AgentJobStatus.AWAITING_INPUT,
+          projectId: null,
         }),
       ).toBe(false);
     });
@@ -206,6 +255,7 @@ describe("jobs-filters", () => {
             scope: "workspace",
             agentId: null,
             jobStatus: AgentJobStatus.AWAITING_INPUT,
+            projectId: null,
           },
         ),
       ).toBe(true);
@@ -219,6 +269,7 @@ describe("jobs-filters", () => {
             scope: "workspace",
             agentId: null,
             jobStatus: AgentJobStatus.AWAITING_INPUT,
+            projectId: null,
           },
         ),
       ).toBe(false);
@@ -232,6 +283,7 @@ describe("jobs-filters", () => {
             scope: "workspace",
             agentId: null,
             jobStatus: AgentJobStatus.FAILED,
+            projectId: null,
           },
         ),
       ).toBe(true);
@@ -245,6 +297,7 @@ describe("jobs-filters", () => {
             scope: "workspace",
             agentId: null,
             jobStatus: AgentJobStatus.AWAITING_PAYMENT,
+            projectId: null,
           },
         ),
       ).toBe(true);
@@ -256,6 +309,7 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: null,
           jobStatus: AgentJobStatus.AWAITING_PAYMENT,
+          projectId: null,
         }),
       ).toBe(false);
     });
@@ -275,6 +329,7 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: null,
           jobStatus: null,
+          projectId: null,
         }),
       ).toEqual([refreshed[0], prev[0], prev[1]]);
     });
@@ -292,6 +347,7 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: null,
           jobStatus: AgentJobStatus.RUNNING,
+          projectId: null,
         }),
       ).toEqual([refreshed[0]]);
     });
@@ -317,6 +373,7 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: null,
           jobStatus: AgentJobStatus.AWAITING_INPUT,
+          projectId: null,
         }),
       ).toEqual([refreshed[0]]);
     });
@@ -338,6 +395,7 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: null,
           jobStatus: AgentJobStatus.FAILED,
+          projectId: null,
         }),
       ).toEqual([refreshed[0], prev[1]]);
     });
@@ -363,6 +421,7 @@ describe("jobs-filters", () => {
           scope: "workspace",
           agentId: null,
           jobStatus: AgentJobStatus.AWAITING_PAYMENT,
+          projectId: null,
         }),
       ).toEqual([refreshed[0], prev[1]]);
     });

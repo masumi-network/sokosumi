@@ -19,6 +19,7 @@ interface GetTasksColumnPageParams {
   scope: TasksScope;
   coworkerId: string | null;
   status: TaskStatus | null;
+  projectId: string | null;
   coworkersById: Map<string, Coworker>;
   agentsById: Map<string, AgentWithCreditsPrice>;
 }
@@ -35,6 +36,7 @@ export async function getTasksColumnPage({
   scope,
   coworkerId,
   status,
+  projectId,
   coworkersById,
   agentsById,
 }: GetTasksColumnPageParams): Promise<GetTasksColumnPageResult> {
@@ -53,6 +55,7 @@ export async function getTasksColumnPage({
     status: statuses,
     scope,
     coworkerId: coworkerId ?? undefined,
+    projectId: projectId ?? undefined,
     cursor,
     limit,
   });

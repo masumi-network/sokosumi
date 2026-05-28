@@ -1392,6 +1392,7 @@
         "scopeWorkspace": "ワークスペース",
         "coworkerLabel": "Coworker",
         "statusLabel": "ステータス",
+        "projectLabel": "プロジェクト",
         "statusOptions": {
           "DRAFT": "下書き",
           "READY": "準備完了",

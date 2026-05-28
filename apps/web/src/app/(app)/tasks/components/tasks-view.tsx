@@ -42,6 +42,7 @@ import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
   isTaskDraggableForViewFilters,
+  type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
@@ -199,6 +200,7 @@ interface TasksViewProps {
   columnNextCursorById: Record<KanbanColumnId, string | null>;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
+  projectOptions: ProjectFilterOption[];
   jobAgentOptions: Array<{ id: string; name: string; image: string | null }>;
   agentNameById: Map<string, string>;
   userId?: string | null;
@@ -224,6 +226,7 @@ interface TasksViewProps {
       scopeWorkspace: string;
       coworkerLabel: string;
       statusLabel: string;
+      projectLabel: string;
       statusOptions: Record<TaskStatus, string>;
     };
     columns: Record<KanbanColumnId, string>;
@@ -279,6 +282,7 @@ export function TasksView({
   columnNextCursorById: initialColumnNextCursorById,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
+  projectOptions,
   jobAgentOptions,
   agentNameById,
   userId,
@@ -299,8 +303,9 @@ export function TasksView({
         searchParams,
         activeOrganizationId,
         coworkerOptions,
+        projectOptions,
       ),
-    [activeOrganizationId, coworkerOptions, searchParams],
+    [activeOrganizationId, coworkerOptions, projectOptions, searchParams],
   );
   const jobsRouteFilters = useMemo(
     () =>
@@ -308,8 +313,9 @@ export function TasksView({
         searchParams,
         activeOrganizationId,
         jobAgentOptions,
+        projectOptions,
       ),
-    [activeOrganizationId, jobAgentOptions, searchParams],
+    [activeOrganizationId, jobAgentOptions, projectOptions, searchParams],
   );
   const [viewMode, setViewMode] = useState<TasksViewMode>(
     defaultViewMode ?? "board",
@@ -386,6 +392,15 @@ export function TasksView({
     () => getJobsListFiltersResetKey(jobsRouteFilters, activeOrganizationId),
     [activeOrganizationId, jobsRouteFilters],
   );
+  const projectNameById = useMemo(
+    () => new Map(projectOptions.map((project) => [project.id, project.name])),
+    [projectOptions],
+  );
+  const selectedProjectId =
+    routeFilters.projectId ?? jobsRouteFilters.projectId;
+  const selectedProjectName = selectedProjectId
+    ? (projectNameById.get(selectedProjectId) ?? null)
+    : null;
   const isTaskPaginationInSync =
     routeTasksFiltersResetKey === serverTasksFiltersResetKey;
   const isJobsPaginationInSync =
@@ -645,6 +660,7 @@ export function TasksView({
           scope: routeFilters.scope,
           coworkerId: routeFilters.coworkerId,
           status: routeFilters.status,
+          projectId: routeFilters.projectId,
         });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
@@ -677,6 +693,7 @@ export function TasksView({
       isTaskPaginationInSync,
       labels.loadMoreError,
       routeFilters.coworkerId,
+      routeFilters.projectId,
       routeFilters.scope,
       routeFilters.status,
     ],
@@ -697,6 +714,7 @@ export function TasksView({
           jobsRouteFilters.scope,
           jobsRouteFilters.agentId,
           jobsRouteFilters.jobStatus,
+          jobsRouteFilters.projectId,
         );
         hasAppendedJobsViaPaginationRef.current = true;
         setJobsItems((prev) => appendUniqueJobs(prev, result.jobs));
@@ -722,6 +740,7 @@ export function TasksView({
           jobsRouteFilters.scope,
           jobsRouteFilters.agentId,
           jobsRouteFilters.jobStatus,
+          jobsRouteFilters.projectId,
         );
         setJobsItems((prev) =>
           mergeTopPageJobsWithListFilters(prev, result.jobs, jobsRouteFilters),
@@ -854,7 +873,7 @@ export function TasksView({
       className="flex h-full min-h-0 flex-1 flex-col gap-5"
     >
       <div className="flex flex-row items-center justify-between gap-3">
-        <div className="w-full">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
             <TabsTrigger
               value="tasks"
@@ -869,6 +888,11 @@ export function TasksView({
               {labels.tabs.jobs}
             </TabsTrigger>
           </TabsList>
+          {selectedProjectName ? (
+            <p className="text-muted-foreground truncate text-sm font-medium">
+              {selectedProjectName}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -888,6 +912,7 @@ export function TasksView({
             <TasksViewFilters
               activeOrganizationId={activeOrganizationId}
               coworkerOptions={coworkerOptions}
+              projectOptions={projectOptions}
               labels={labels.filters}
             />
           ) : null}
@@ -902,6 +927,7 @@ export function TasksView({
             <JobsViewFilters
               activeOrganizationId={activeOrganizationId}
               agentOptions={jobAgentOptions}
+              projectOptions={projectOptions}
               filtersLabels={{
                 title: labels.filters.title,
                 searchPlaceholder: labels.filters.searchPlaceholder,
@@ -910,6 +936,7 @@ export function TasksView({
                 scopeLabel: labels.filters.scopeLabel,
                 scopeOwned: labels.filters.scopeOwned,
                 scopeWorkspace: labels.filters.scopeWorkspace,
+                projectLabel: labels.filters.projectLabel,
               }}
               labels={{
                 filterButton: labels.jobs.filterButton,

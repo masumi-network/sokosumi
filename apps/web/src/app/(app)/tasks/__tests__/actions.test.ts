@@ -43,6 +43,8 @@ vi.mock("@/lib/auth/utils", () => ({
 
 import { loadMoreJobs, loadMoreTasksColumn } from "../actions";
 
+const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
+
 describe("loadMoreTasksColumn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,6 +76,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "workspace",
       coworkerId: "coworker-1",
       status: null,
+      projectId: PROJECT_ID,
     });
 
     expect(getTasksColumnPageMock).toHaveBeenCalledTimes(1);
@@ -85,6 +88,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "workspace",
       coworkerId: "coworker-1",
       status: null,
+      projectId: PROJECT_ID,
     });
     expect(callArg.coworkersById).toBeInstanceOf(Map);
     expect(callArg.agentsById).toBeInstanceOf(Map);
@@ -111,6 +115,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "owned",
       coworkerId: "removed-coworker",
       status: null,
+      projectId: null,
     });
 
     expect(getTasksColumnPageMock).toHaveBeenCalledTimes(1);
@@ -133,6 +138,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "malicious" as never,
       coworkerId: null,
       status: null,
+      projectId: null,
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
@@ -157,6 +163,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "workspace",
       coworkerId: null,
       status: null,
+      projectId: null,
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
@@ -178,6 +185,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "owned",
       coworkerId: null,
       status: "malicious" as never,
+      projectId: null,
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
@@ -199,6 +207,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "owned",
       coworkerId: null,
       status: TaskStatus.READY,
+      projectId: null,
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
@@ -245,12 +254,14 @@ describe("loadMoreJobs", () => {
       "workspace",
       "agent-1",
       AgentJobStatus.RUNNING,
+      PROJECT_ID,
     );
 
     expect(listJobsMock).toHaveBeenCalledWith({
       scope: "workspace",
       agentId: "agent-1",
       status: AgentJobStatus.RUNNING,
+      projectId: PROJECT_ID,
       cursor: "job-1",
       limit: 20,
     });
@@ -281,12 +292,13 @@ describe("loadMoreJobs", () => {
       agentPreviewById: {},
     });
 
-    await loadMoreJobs(null, "workspace", null, null);
+    await loadMoreJobs(null, "workspace", null, null, null);
 
     expect(listJobsMock).toHaveBeenCalledWith({
       scope: "owned",
       agentId: undefined,
       status: undefined,
+      projectId: undefined,
       cursor: null,
       limit: 20,
     });
@@ -311,12 +323,14 @@ describe("loadMoreJobs", () => {
       "workspace",
       "offline-agent",
       "not-a-status" as never,
+      null,
     );
 
     expect(listJobsMock).toHaveBeenCalledWith({
       scope: "workspace",
       agentId: "offline-agent",
       status: undefined,
+      projectId: undefined,
       cursor: null,
       limit: 20,
     });
@@ -341,12 +355,14 @@ describe("loadMoreJobs", () => {
       "workspace",
       tooLongAgentId,
       "not-a-status" as never,
+      null,
     );
 
     expect(listJobsMock).toHaveBeenCalledWith({
       scope: "workspace",
       agentId: undefined,
       status: undefined,
+      projectId: undefined,
       cursor: null,
       limit: 20,
     });
