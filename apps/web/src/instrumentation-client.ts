@@ -1,8 +1,12 @@
 import * as Sentry from "@sentry/nextjs";
 
+import { browserNoiseSentryClientOptions } from "@/lib/sentry/client-event-filter";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+
+  ...browserNoiseSentryClientOptions,
 
   // Adds request headers and IP for users, for more info visit:
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
