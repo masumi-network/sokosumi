@@ -1,4 +1,4 @@
-import type { Prisma } from "../generated/prisma/client.js";
+import type { Link, Prisma } from "../generated/prisma/client.js";
 import {
   flattenLinkJobId,
   type LinkWithJobId,
@@ -13,8 +13,8 @@ export const linkRepository = {
       title?: string;
     },
     tx: Prisma.TransactionClient,
-  ): Promise<LinkWithJobId> {
-    const link = await tx.link.upsert({
+  ): Promise<Link> {
+    return tx.link.upsert({
       where: {
         eventId_url: { eventId: data.eventId, url: data.url },
       },
@@ -26,9 +26,7 @@ export const linkRepository = {
         url: data.url,
         title: data.title,
       },
-      include: linkInclude,
     });
-    return flattenLinkJobId(link);
   },
 
   async getLinksByEventId(
