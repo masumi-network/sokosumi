@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 
+import { beforeSendDropThirdPartyAnalytics } from "@/lib/sentry/third-party-error-filter";
+
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -26,6 +28,15 @@ Sentry.init({
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
+
+  ignoreErrors: [
+    /^Failed to fetch \(plausible\.io\)$/i,
+    /^TypeError: Failed to fetch \(plausible\.io\)$/i,
+  ],
+
+  denyUrls: [/plausible\.io/i],
+
+  beforeSend: beforeSendDropThirdPartyAnalytics,
 });
 
 // This export will instrument router navigations, and is only relevant if you enable tracing.
