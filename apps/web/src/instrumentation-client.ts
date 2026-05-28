@@ -26,9 +26,6 @@ Sentry.init({
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
-
-  // Usersnap rejects with a plain string when the space API key is invalid or paused.
-  ignoreErrors: [/^Failed to load the widget:/],
 });
 
 // This export will instrument router navigations, and is only relevant if you enable tracing.
