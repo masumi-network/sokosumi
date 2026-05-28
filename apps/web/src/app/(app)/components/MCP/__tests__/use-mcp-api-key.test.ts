@@ -23,7 +23,7 @@ describe("useMcpApiKey", () => {
     });
 
     expect(result.current.mcpUrl).toBe("https://mcp.example.com/mcp");
-    expect(result.current.isKeyExisting).toBe(false);
+    expect(result.current.isKeyExisting).toBe(true);
     expect(result.current.isKeyDisabled).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -60,5 +60,6 @@ describe("useMcpApiKey", () => {
     });
 
     expect(result.current.mcpUrl).toBe("https://mcp.example.com/mcp");
+    expect(result.current.isKeyExisting).toBe(true);
   });
 });

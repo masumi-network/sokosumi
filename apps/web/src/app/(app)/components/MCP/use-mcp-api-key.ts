@@ -40,7 +40,7 @@ export function useMcpApiKey(
   const loadMcpConnection = useCallback(() => {
     setError(null);
     setMcpUrl(buildMcpUrl());
-    setIsExistingKey(false);
+    setIsExistingKey(true);
     setIsKeyDisabled(false);
     setIsLoading(false);
   }, []);
@@ -63,7 +63,7 @@ export function useMcpApiKey(
     setIsLoading(true);
     setError(null);
     setMcpUrl(buildMcpUrl());
-    setIsExistingKey(false);
+    setIsExistingKey(true);
     setIsKeyDisabled(false);
     setIsLoading(false);
   }, [isLoading]);

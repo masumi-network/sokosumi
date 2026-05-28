@@ -2394,30 +2394,30 @@
       }
     },
     "MCP": {
-      "generateButton": "Show Sokosumi MCP URL",
-      "urlLabel": "Sokosumi MCP Server URL",
-      "existingKeyNote": "This hosted MCP connection uses OAuth. Your MCP client will ask you to sign in with Sokosumi when connecting.",
-      "existingKeyNote2": "No API key needs to be copied into the client.",
+      "generateButton": "Mostrar URL MCP de Sokosumi",
+      "urlLabel": "URL del servidor MCP de Sokosumi",
+      "existingKeyNote": "Esta conexión MCP alojada usa OAuth. Tu cliente MCP te pedirá iniciar sesión en Sokosumi al conectarte.",
+      "existingKeyNote2": "No es necesario copiar ninguna API Key en el cliente.",
       "existingKey": "TU_KEY_EXISTENTE",
       "keyDisabled": "Tu conexión MCP existe pero está desactivada.",
       "keyDisabledNote": "Puedes activarla o crear una nueva.",
       "enableKey": "Activar Key",
       "createNewKey": "Crear nueva Key",
-      "regenerateKey": "Refresh URL",
-      "setupPreviewTitle": "How to connect with OAuth",
+      "regenerateKey": "Actualizar URL",
+      "setupPreviewTitle": "Cómo conectar con OAuth",
       "docsLink": "Ver documentación de MCP",
       "loadError": "No se pudo cargar la información de conexión MCP. Por favor, inténtalo de nuevo.",
       "copyError": "No se pudo copiar la URL al portapapeles",
       "retry": "Intentar de nuevo",
       "loading": "Cargando información de conexión MCP...",
       "Instructions": {
-        "title": "How to connect an MCP client to Sokosumi",
-        "step1": "Open your MCP client settings",
+        "title": "Cómo conectar un cliente MCP a Sokosumi",
+        "step1": "Abre la configuración de tu cliente MCP",
         "step2": "Haz clic en \"Connectors\"",
         "step3": "Haz clic en \"Add custom connector\"",
-        "step4": "Enter a name (e.g., \"Sokosumi\") and paste the MCP server URL in the URL field. Leave Advanced Settings empty. Click \"Add\"",
+        "step4": "Introduce un nombre (p. ej. \"Sokosumi\") y pega la URL del servidor MCP en el campo URL. Deja la configuración avanzada vacía. Haz clic en \"Add\"",
         "step5": {
-          "text": "Complete the Sokosumi sign-in when your client opens the browser. Then try asking:",
+          "text": "Completa el inicio de sesión en Sokosumi cuando tu cliente abra el navegador. Luego prueba a preguntar:",
           "example": "¿Qué Agents están disponibles actualmente en Sokosumi?"
         }
       }
