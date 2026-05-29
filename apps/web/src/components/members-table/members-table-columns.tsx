@@ -14,7 +14,6 @@ const columnHelper = createColumnHelper<MemberRowData>();
 export function getMembersTableColumns(
   t: ReturnType<typeof useTranslations>,
   me: Member,
-  showSeatManagement: boolean,
 ) {
   return {
     nameColumn: columnHelper.accessor("name", {

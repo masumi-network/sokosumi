@@ -73,7 +73,7 @@ function getColumns(
   showSeatManagement: boolean,
 ) {
   const { nameColumn, emailColumn, roleColumn, seatColumn, actionColumn } =
-    getMembersTableColumns(t, me, showSeatManagement);
+    getMembersTableColumns(t, me);
   const isOwnerOrAdmin =
     me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
 
