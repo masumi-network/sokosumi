@@ -181,6 +181,10 @@
         "seat": "Seat",
         "actions": "Actions"
       },
+      "Seat": {
+        "assigned": "Assigned",
+        "unassigned": "Unassigned"
+      },
       "MemberActions": {
         "assignSeat": "Assign seat",
         "remove": "Remove",

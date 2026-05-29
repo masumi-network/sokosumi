@@ -3,7 +3,6 @@
 import type { Member } from "@sokosumi/database";
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
-import { getPlanTranslationKey } from "@/components/billing/subscription-plan-utils";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
@@ -63,7 +62,7 @@ export function getMembersTableColumns(
       minSize: 120,
       header: () => <div>{t("Header.seat")}</div>,
       cell: ({ row }) => (
-        <SeatPlanCell member={row.original.member} paidPlan={paidPlan} />
+        <SeatStatusCell member={row.original.member} paidPlan={paidPlan} />
       ),
     }) as ColumnDef<MemberRowData>,
 
@@ -87,28 +86,27 @@ export function getMembersTableColumns(
   };
 }
 
-function SeatPlanCell({
+function SeatStatusCell({
   member,
   paidPlan,
 }: {
   member: MemberRowData["member"];
   paidPlan: SubscriptionPlanName | null;
 }) {
-  const tPlans = useTranslations("App.Subscriptions");
+  const t = useTranslations("Components.MembersTable.Seat");
 
   if (!member) {
     return null;
   }
 
-  const isPaidSeat = member.seatAssignedAt !== null && paidPlan !== null;
-  const plan: SubscriptionPlanName = isPaidSeat ? paidPlan : "free";
-  const label = tPlans(`Plans.${getPlanTranslationKey(plan)}.name`);
+  const isAssigned = member.seatAssignedAt !== null && paidPlan !== null;
+  const label = isAssigned ? t("assigned") : t("unassigned");
 
   return (
     <div className="p-2">
       <span
         className={
-          isPaidSeat
+          isAssigned
             ? "bg-primary/10 text-primary inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
             : "bg-muted text-muted-foreground inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
         }

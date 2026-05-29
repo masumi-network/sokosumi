@@ -181,6 +181,10 @@
         "actions": "操作",
         "seat": "Seat"
       },
+      "Seat": {
+        "assigned": "已分配",
+        "unassigned": "未分配"
+      },
       "MemberActions": {
         "remove": "移除",
         "changeToOwner": "设为所有者",

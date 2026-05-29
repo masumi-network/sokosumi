@@ -181,6 +181,10 @@
         "actions": "Azioni",
         "seat": "Seat"
       },
+      "Seat": {
+        "assigned": "Assegnato",
+        "unassigned": "Non assegnato"
+      },
       "MemberActions": {
         "remove": "Rimuovi",
         "changeToOwner": "Imposta come proprietario",

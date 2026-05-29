@@ -181,6 +181,10 @@
         "actions": "操作",
         "seat": "Seat"
       },
+      "Seat": {
+        "assigned": "割り当て済み",
+        "unassigned": "未割り当て"
+      },
       "MemberActions": {
         "remove": "削除",
         "changeToOwner": "オーナーに変更",
