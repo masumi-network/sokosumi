@@ -2456,33 +2456,10 @@
       }
     },
     "MCP": {
-      "generateButton": "显示 Sokosumi MCP URL",
-      "urlLabel": "Sokosumi MCP 服务器 URL",
+      "urlLabel": "MCP 服务器 URL",
       "existingKeyNote": "此托管 MCP 连接使用 OAuth。连接时，您的 MCP 客户端会要求您登录 Sokosumi。",
-      "existingKeyNote2": "无需将 API 密钥复制到客户端。",
-      "existingKey": "YOUR_EXISTING_KEY",
-      "keyDisabled": "您的 MCP 连接已存在，但处于停用状态。",
-      "keyDisabledNote": "您可以启用它或创建新的连接。",
-      "enableKey": "启用密钥",
-      "createNewKey": "创建新密钥",
-      "regenerateKey": "刷新 URL",
-      "setupPreviewTitle": "如何使用 OAuth 连接",
       "docsLink": "查看 MCP 文档",
-      "loadError": "加载 MCP 连接信息失败。请重试。",
-      "copyError": "复制 URL 到剪贴板失败",
-      "retry": "重试",
-      "loading": "正在加载 MCP 连接信息...",
-      "Instructions": {
-        "title": "如何将 MCP 客户端连接到 Sokosumi",
-        "step1": "打开您的 MCP 客户端设置",
-        "step2": "点击 \"Connectors\"",
-        "step3": "点击 \"Add custom connector\"",
-        "step4": "输入名称（例如 \"Sokosumi\"），并将 MCP 服务器 URL 粘贴到 URL 字段中。\"Advanced Settings\" 留空。点击 \"Add\"",
-        "step5": {
-          "text": "当客户端打开浏览器时，完成 Sokosumi 登录。然后尝试询问：",
-          "example": "Sokosumi 上目前有哪些智能体可用？"
-        }
-      }
+      "copyError": "复制 URL 到剪贴板失败"
     },
     "Account": {
       "Name": {

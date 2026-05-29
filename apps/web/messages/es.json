@@ -2394,33 +2394,10 @@
       }
     },
     "MCP": {
-      "generateButton": "Mostrar URL MCP de Sokosumi",
-      "urlLabel": "URL del servidor MCP de Sokosumi",
+      "urlLabel": "URL del servidor MCP",
       "existingKeyNote": "Esta conexión MCP alojada usa OAuth. Tu cliente MCP te pedirá iniciar sesión en Sokosumi al conectarte.",
-      "existingKeyNote2": "No es necesario copiar ninguna API Key en el cliente.",
-      "existingKey": "TU_KEY_EXISTENTE",
-      "keyDisabled": "Tu conexión MCP existe pero está desactivada.",
-      "keyDisabledNote": "Puedes activarla o crear una nueva.",
-      "enableKey": "Activar Key",
-      "createNewKey": "Crear nueva Key",
-      "regenerateKey": "Actualizar URL",
-      "setupPreviewTitle": "Cómo conectar con OAuth",
       "docsLink": "Ver documentación de MCP",
-      "loadError": "No se pudo cargar la información de conexión MCP. Por favor, inténtalo de nuevo.",
-      "copyError": "No se pudo copiar la URL al portapapeles",
-      "retry": "Intentar de nuevo",
-      "loading": "Cargando información de conexión MCP...",
-      "Instructions": {
-        "title": "Cómo conectar un cliente MCP a Sokosumi",
-        "step1": "Abre la configuración de tu cliente MCP",
-        "step2": "Haz clic en \"Connectors\"",
-        "step3": "Haz clic en \"Add custom connector\"",
-        "step4": "Introduce un nombre (p. ej. \"Sokosumi\") y pega la URL del servidor MCP en el campo URL. Deja la configuración avanzada vacía. Haz clic en \"Add\"",
-        "step5": {
-          "text": "Completa el inicio de sesión en Sokosumi cuando tu cliente abra el navegador. Luego prueba a preguntar:",
-          "example": "¿Qué Agents están disponibles actualmente en Sokosumi?"
-        }
-      }
+      "copyError": "No se pudo copiar la URL al portapapeles"
     },
     "Account": {
       "Name": {

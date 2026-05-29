@@ -2456,33 +2456,10 @@
       }
     },
     "MCP": {
-      "generateButton": "Sokosumi MCP URLを表示",
-      "urlLabel": "Sokosumi MCPサーバーURL",
+      "urlLabel": "MCPサーバーURL",
       "existingKeyNote": "このホスト型MCP接続はOAuthを使用します。接続時にMCPクライアントがSokosumiへのサインインを求めます。",
-      "existingKeyNote2": "APIキーをクライアントにコピーする必要はありません。",
-      "existingKey": "YOUR_EXISTING_KEY",
-      "keyDisabled": "MCP接続は存在しますが無効になっています。",
-      "keyDisabledNote": "有効化するか、新しく作成できます。",
-      "enableKey": "キーを有効化",
-      "createNewKey": "新しいキーを作成",
-      "regenerateKey": "URLを更新",
-      "setupPreviewTitle": "OAuthで接続する方法",
       "docsLink": "MCPドキュメントを見る",
-      "loadError": "MCP接続情報の読み込みに失敗しました。もう一度お試しください。",
-      "copyError": "URLのクリップボードへのコピーに失敗しました",
-      "retry": "再試行",
-      "loading": "MCP接続情報を読み込んでいます...",
-      "Instructions": {
-        "title": "MCPクライアントをSokosumiに接続する方法",
-        "step1": "MCPクライアントの設定を開きます",
-        "step2": "「Connectors」をクリックします",
-        "step3": "「Add custom connector」をクリックします",
-        "step4": "名前（例:「Sokosumi」）を入力し、URL欄にMCPサーバーURLを貼り付けます。Advanced Settingsは空欄のままにしてください。「Add」をクリックします",
-        "step5": {
-          "text": "クライアントがブラウザを開いたら、Sokosumiへのサインインを完了してください。その後、次のように質問してみてください:",
-          "example": "Sokosumiで現在利用可能なエージェントは何ですか？"
-        }
-      }
+      "copyError": "URLのクリップボードへのコピーに失敗しました"
     },
     "Account": {
       "Name": {

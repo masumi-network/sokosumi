@@ -2456,33 +2456,10 @@
       }
     },
     "MCP": {
-      "generateButton": "Mostra URL MCP di Sokosumi",
-      "urlLabel": "URL del server MCP di Sokosumi",
+      "urlLabel": "URL del server MCP",
       "existingKeyNote": "Questa connessione MCP ospitata usa OAuth. Il tuo client MCP ti chiederà di accedere a Sokosumi durante la connessione.",
-      "existingKeyNote2": "Non è necessario copiare alcuna API key nel client.",
-      "existingKey": "YOUR_EXISTING_KEY",
-      "keyDisabled": "La tua connessione MCP esiste ma è disattivata.",
-      "keyDisabledNote": "Puoi abilitarla o crearne una nuova.",
-      "enableKey": "Abilita chiave",
-      "createNewKey": "Crea nuova chiave",
-      "regenerateKey": "Aggiorna URL",
-      "setupPreviewTitle": "Come connettersi con OAuth",
       "docsLink": "Visualizza la documentazione MCP",
-      "loadError": "Impossibile caricare le informazioni della connessione MCP. Riprova.",
-      "copyError": "Impossibile copiare l’URL negli appunti",
-      "retry": "Riprova",
-      "loading": "Caricamento informazioni della connessione MCP...",
-      "Instructions": {
-        "title": "Come connettere un client MCP a Sokosumi",
-        "step1": "Apri le impostazioni del tuo client MCP",
-        "step2": "Fai clic su \"Connettori\"",
-        "step3": "Fai clic su \"Aggiungi connettore personalizzato\"",
-        "step4": "Inserisci un nome (ad es. \"Sokosumi\") e incolla l’URL del server MCP nel campo URL. Lascia vuote le impostazioni avanzate. Fai clic su \"Add\"",
-        "step5": {
-          "text": "Completa l’accesso a Sokosumi quando il client apre il browser. Poi prova a chiedere:",
-          "example": "Quali agenti sono attualmente disponibili su Sokosumi?"
-        }
-      }
+      "copyError": "Impossibile copiare l’URL negli appunti"
     },
     "Account": {
       "Name": {
