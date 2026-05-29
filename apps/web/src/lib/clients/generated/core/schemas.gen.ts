@@ -3500,6 +3500,7 @@ export const JobSchema = {
                 'string',
                 'null'
             ],
+            format: 'uuid',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
         taskId: {
@@ -3880,6 +3881,7 @@ export const JobSchema = {
         'agentId',
         'userId',
         'user',
+        'projectId',
         'jobType',
         'status',
         'credits',

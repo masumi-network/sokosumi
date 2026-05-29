@@ -1021,7 +1021,7 @@ export type Job = {
     user: UserSummary;
     organizationId?: string | null;
     organization?: OrganizationSummary;
-    projectId?: string | null;
+    projectId: string | null;
     taskId?: string | null;
     name?: string | null;
     jobType: 'FREE' | 'PAID' | 'DEMO';
