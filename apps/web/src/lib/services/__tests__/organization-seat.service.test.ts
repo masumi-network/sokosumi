@@ -19,6 +19,13 @@ const assignSeatMock = vi.fn();
 const unassignSeatMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const memberCountMock = vi.fn();
+const grantUnusedSeatSubscriptionCreditsIfEligibleMock = vi.fn();
+const transactionMock = vi.fn();
+
+vi.mock("@/lib/services/organization-seat-credits.service", () => ({
+  grantUnusedSeatSubscriptionCreditsIfEligible: (...args: unknown[]) =>
+    grantUnusedSeatSubscriptionCreditsIfEligibleMock(...args),
+}));
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
@@ -38,6 +45,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
+    $transaction: (...args: unknown[]) => transactionMock(...args),
     member: {
       count: (...args: unknown[]) => memberCountMock(...args),
     },
@@ -47,6 +55,13 @@ vi.mock("@/lib/db/prisma", () => ({
 describe("organizationSeatService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    transactionMock.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => callback({}),
+    );
+    grantUnusedSeatSubscriptionCreditsIfEligibleMock.mockResolvedValue({
+      creditsGranted: 0,
+      granted: false,
+    });
   });
 
   it("returns seat summary counts", async () => {
@@ -78,6 +93,7 @@ describe("organizationSeatService", () => {
     assignSeatMock.mockResolvedValue({
       id: "member-1",
       seatAssignedAt: new Date("2026-05-01T00:00:00.000Z"),
+      userId: "user-2",
     });
 
     const { organizationSeatService } = await import(
@@ -97,6 +113,9 @@ describe("organizationSeatService", () => {
       3,
       expect.any(Object),
     );
+    expect(
+      grantUnusedSeatSubscriptionCreditsIfEligibleMock,
+    ).toHaveBeenCalledWith("org-1", "user-2", expect.any(Object));
   });
 
   it("rejects seat assignment for non-admin members", async () => {

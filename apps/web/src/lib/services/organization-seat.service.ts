@@ -12,6 +12,7 @@ import {
 import { APIError } from "better-auth/api";
 
 import prisma from "@/lib/db/prisma";
+import { grantUnusedSeatSubscriptionCreditsIfEligible } from "@/lib/services/organization-seat-credits.service";
 
 export interface OrganizationSeatSummary {
   assignedCount: number;
@@ -108,23 +109,31 @@ export const organizationSeatService = (() => {
         await getPurchasedSeatsForOrganization(organizationId);
 
       try {
-        const member = await memberRepository.assignSeat(
-          memberId,
-          organizationId,
-          purchasedSeats,
-          prisma,
-        );
+        return await prisma.$transaction(async (tx) => {
+          const member = await memberRepository.assignSeat(
+            memberId,
+            organizationId,
+            purchasedSeats,
+            tx,
+          );
 
-        if (!member.seatAssignedAt) {
-          throw new APIError("INTERNAL_SERVER_ERROR", {
-            message: "Failed to assign seat",
-          });
-        }
+          if (!member.seatAssignedAt) {
+            throw new APIError("INTERNAL_SERVER_ERROR", {
+              message: "Failed to assign seat",
+            });
+          }
 
-        return {
-          memberId: member.id,
-          seatAssignedAt: member.seatAssignedAt,
-        };
+          await grantUnusedSeatSubscriptionCreditsIfEligible(
+            organizationId,
+            member.userId,
+            tx,
+          );
+
+          return {
+            memberId: member.id,
+            seatAssignedAt: member.seatAssignedAt,
+          };
+        });
       } catch (error) {
         mapSeatRepositoryError(error);
       }
