@@ -22,7 +22,7 @@ const memberCountMock = vi.fn();
 const grantUnusedSeatSubscriptionCreditsIfEligibleMock = vi.fn();
 const grantFreeOrganizationMemberSubscriptionCreditsMock = vi.fn();
 const ensureLocalFreeSubscriptionPeriodMock = vi.fn();
-const resolveOrganizationFreeCreditAudienceMock = vi.fn();
+const fetchOrganizationMemberUserIdsMock = vi.fn();
 const transactionMock = vi.fn();
 
 vi.mock("@/lib/services/organization-seat-credits.service", () => ({
@@ -37,10 +37,10 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     ...actual,
     ensureLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
       ensureLocalFreeSubscriptionPeriodMock(...args),
+    fetchOrganizationMemberUserIds: (...args: unknown[]) =>
+      fetchOrganizationMemberUserIdsMock(...args),
     grantFreeOrganizationMemberSubscriptionCredits: (...args: unknown[]) =>
       grantFreeOrganizationMemberSubscriptionCreditsMock(...args),
-    resolveOrganizationFreeCreditAudience: (...args: unknown[]) =>
-      resolveOrganizationFreeCreditAudienceMock(...args),
   };
 });
 
@@ -85,10 +85,7 @@ describe("organizationSeatService", () => {
       subscriptionCreated: false,
       subscriptionId: "sub-local-free",
     });
-    resolveOrganizationFreeCreditAudienceMock.mockResolvedValue({
-      kind: "paid_org_unassigned_free",
-      memberUserIds: [],
-    });
+    fetchOrganizationMemberUserIdsMock.mockResolvedValue([]);
   });
 
   it("returns seat summary counts", async () => {
@@ -214,10 +211,7 @@ describe("organizationSeatService", () => {
       status: "active",
       stripeSubscriptionId: null,
     });
-    resolveOrganizationFreeCreditAudienceMock.mockResolvedValue({
-      kind: "local_free_org",
-      memberUserIds: ["user-1", "user-2"],
-    });
+    fetchOrganizationMemberUserIdsMock.mockResolvedValue(["user-1", "user-2"]);
 
     const { organizationSeatService } = await import(
       "../organization-seat.service"
@@ -257,10 +251,7 @@ describe("organizationSeatService", () => {
       seatAssignedAt: new Date("2026-05-01T00:00:00.000Z"),
       userId: "user-2",
     });
-    resolveOrganizationFreeCreditAudienceMock.mockResolvedValue({
-      kind: "local_free_org",
-      memberUserIds: ["user-1", "user-2"],
-    });
+    fetchOrganizationMemberUserIdsMock.mockResolvedValue(["user-1", "user-2"]);
 
     const { organizationSeatService } = await import(
       "../organization-seat.service"
@@ -293,10 +284,6 @@ describe("organizationSeatService", () => {
       id: "member-1",
       seatAssignedAt: new Date("2026-05-01T00:00:00.000Z"),
       userId: "user-2",
-    });
-    resolveOrganizationFreeCreditAudienceMock.mockResolvedValue({
-      kind: "paid_org_unassigned_free",
-      memberUserIds: ["user-3"],
     });
 
     const { organizationSeatService } = await import(

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it, vi } from "vitest";
 import { type Prisma as PrismaType } from "../generated/prisma/client.js";
 
-import { resolveOrganizationFreeCreditAudience } from "./organization-subscription-credit-audience.js";
 import {
   buildLocalFreeOrganizationMemberSubscriptionReferenceId,
   buildLocalFreeUserSubscriptionReferenceId,
@@ -10,44 +9,6 @@ import {
   FREE_SUBSCRIPTION_MONTHLY_CREDITS,
   grantFreeOrganizationMemberSubscriptionCredits,
 } from "./subscription.js";
-
-interface OrganizationMemberFixture {
-  seatAssignedAt: Date | null;
-  userId: string;
-}
-
-function createMemberClient(members: OrganizationMemberFixture[]) {
-  const findManyMembersMock = vi.fn().mockImplementation(
-    ({
-      where,
-    }: {
-      where: {
-        organizationId: string;
-        seatAssignedAt?: null;
-      };
-    }) => {
-      const filteredMembers =
-        where.seatAssignedAt === null
-          ? members.filter((member) => member.seatAssignedAt === null)
-          : members;
-
-      return Promise.resolve(
-        filteredMembers.map((member) => ({
-          userId: member.userId,
-        })),
-      );
-    },
-  );
-
-  return {
-    findManyMembersMock,
-    tx: {
-      member: {
-        findMany: findManyMembersMock,
-      },
-    } as unknown as PrismaType.TransactionClient,
-  };
-}
 
 function createLocalFreePeriodClient() {
   const findSubscriptionMock = vi.fn().mockResolvedValue(null);
@@ -109,40 +70,8 @@ function createPaidOrgFreeGrantClient(params?: {
   };
 }
 
-const ASSIGNED_AT = new Date("2026-04-01T00:00:00.000Z");
 const PERIOD_END = new Date("2026-05-01T00:00:00.000Z");
 const PERIOD_START = new Date("2026-04-01T00:00:00.000Z");
-
-const FREE_CREDIT_AUDIENCE_MATRIX = [
-  {
-    name: "org local free — all members regardless of seat assignment",
-    members: [
-      { seatAssignedAt: ASSIGNED_AT, userId: "assigned-1" },
-      { seatAssignedAt: null, userId: "unassigned-1" },
-    ],
-    stripeSubscriptionId: null,
-    expectedKind: "local_free_org" as const,
-    expectedUserIds: ["assigned-1", "unassigned-1"],
-  },
-  {
-    name: "org paid — free tier audience is unassigned members only",
-    members: [
-      { seatAssignedAt: ASSIGNED_AT, userId: "assigned-1" },
-      { seatAssignedAt: null, userId: "unassigned-1" },
-      { seatAssignedAt: null, userId: "unassigned-2" },
-    ],
-    stripeSubscriptionId: "sub_stripe_1",
-    expectedKind: "paid_org_unassigned_free" as const,
-    expectedUserIds: ["unassigned-1", "unassigned-2"],
-  },
-  {
-    name: "org paid — empty free audience when every member has a paid seat",
-    members: [{ seatAssignedAt: ASSIGNED_AT, userId: "assigned-1" }],
-    stripeSubscriptionId: "sub_stripe_1",
-    expectedKind: "paid_org_unassigned_free" as const,
-    expectedUserIds: [] as string[],
-  },
-] as const;
 
 const LOCAL_FREE_PERIOD_GRANT_MATRIX = [
   {
@@ -205,26 +134,6 @@ const PAID_ORG_FREE_TIER_GRANT_MATRIX = [
 ] as const;
 
 describe("organization subscription credit routing matrix", () => {
-  describe.each(FREE_CREDIT_AUDIENCE_MATRIX)("free credit audience — $name", ({
-    expectedKind,
-    expectedUserIds,
-    members,
-    stripeSubscriptionId,
-  }) => {
-    it("resolves the expected audience", async () => {
-      const { tx } = createMemberClient(members);
-
-      const audience = await resolveOrganizationFreeCreditAudience(
-        "org-1",
-        { stripeSubscriptionId },
-        tx,
-      );
-
-      assert.equal(audience.kind, expectedKind);
-      assert.deepEqual(audience.memberUserIds, expectedUserIds);
-    });
-  });
-
   describe.each(
     LOCAL_FREE_PERIOD_GRANT_MATRIX,
   )("local free period grants — $name", ({

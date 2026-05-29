@@ -4,10 +4,10 @@ import { MemberRole, type Prisma } from "@sokosumi/database";
 import {
   ensureLocalFreeSubscriptionPeriod,
   FREE_SUBSCRIPTION_PLAN,
+  fetchOrganizationMemberUserIds,
   getUnusedSeatCount,
   grantFreeOrganizationMemberSubscriptionCredits,
   isActiveSubscriptionStatus,
-  resolveOrganizationFreeCreditAudience,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import {
@@ -102,38 +102,34 @@ function mapSeatRepositoryError(error: unknown): never {
   throw error;
 }
 
-async function ensureLocalFreeOrganizationCreditsAfterSeatChange(
+async function syncLocalFreeOrganizationCreditsIfNeeded(
   organizationId: string,
+  subscription: {
+    createdAt: Date;
+    periodEnd: Date;
+    periodStart: Date;
+    seats: number | null;
+    status: string;
+    stripeSubscriptionId: string | null;
+  },
   tx: Prisma.TransactionClient,
 ): Promise<void> {
-  const subscription =
-    await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
-      organizationId,
-      tx,
-    );
-
   if (
-    !subscription?.periodStart ||
-    !subscription.periodEnd ||
+    subscription.stripeSubscriptionId ||
     !isActiveSubscriptionStatus(subscription.status)
   ) {
     return;
   }
 
-  const audience = await resolveOrganizationFreeCreditAudience(
+  const memberUserIds = await fetchOrganizationMemberUserIds(
     organizationId,
-    { stripeSubscriptionId: subscription.stripeSubscriptionId },
     tx,
   );
-
-  if (audience.kind !== "local_free_org") {
-    return;
-  }
 
   await ensureLocalFreeSubscriptionPeriod(
     {
       billingAnchorDate: subscription.createdAt,
-      memberUserIds: audience.memberUserIds,
+      memberUserIds,
       organizationId,
       periodEnd: subscription.periodEnd,
       periodStart: subscription.periodStart,
@@ -196,15 +192,25 @@ export const organizationSeatService = (() => {
             });
           }
 
+          const subscription =
+            await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+              organizationId,
+              tx,
+            );
+
           await grantUnusedSeatSubscriptionCreditsIfEligible(
             organizationId,
             member.userId,
             tx,
           );
-          await ensureLocalFreeOrganizationCreditsAfterSeatChange(
-            organizationId,
-            tx,
-          );
+
+          if (subscription?.periodStart && subscription.periodEnd) {
+            await syncLocalFreeOrganizationCreditsIfNeeded(
+              organizationId,
+              subscription,
+              tx,
+            );
+          }
 
           return {
             memberId: member.id,
@@ -251,12 +257,13 @@ export const organizationSeatService = (() => {
               },
               tx,
             );
+          } else if (subscription?.periodStart && subscription.periodEnd) {
+            await syncLocalFreeOrganizationCreditsIfNeeded(
+              organizationId,
+              subscription,
+              tx,
+            );
           }
-
-          await ensureLocalFreeOrganizationCreditsAfterSeatChange(
-            organizationId,
-            tx,
-          );
 
           return {
             memberId: member.id,
