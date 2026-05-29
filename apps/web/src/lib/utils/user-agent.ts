@@ -51,3 +51,12 @@ export function getOSFromUserAgent(): { os: OS; isMobile: boolean } {
     isMobile: false,
   };
 }
+
+export function isApplePlatform(): boolean {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  const { os } = getOSFromUserAgent();
+  return os === "MacOS" || os === "iOS";
+}
