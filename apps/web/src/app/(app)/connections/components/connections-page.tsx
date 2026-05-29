@@ -7,7 +7,7 @@ import { getSession } from "@/lib/auth/utils";
 import { ApiKeysSection } from "./api-keys";
 import { OAuthAuthorizedClients } from "./authorized-clients";
 import { ConnectionsTabs } from "./connections-tabs";
-import { McpPageContent } from "./mcp-page-content";
+import { McpActiveKeyView } from "./mcp-active-key-view";
 import { SocialAccounts } from "./social-accounts";
 
 export async function ConnectionsPage() {
@@ -38,11 +38,7 @@ export async function ConnectionsPage() {
             apiKeysContent={<ApiKeysSection />}
             mcpContent={
               <Suspense fallback={null}>
-                <McpPageContent
-                  activeOrganizationId={
-                    session.session.activeOrganizationId ?? null
-                  }
-                />
+                <McpActiveKeyView />
               </Suspense>
             }
           />
