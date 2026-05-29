@@ -2307,7 +2307,7 @@
     "Billing": {
       "balanceTitle": "Saldo",
       "balanceDescriptionPersonal": "Tus Credits actuales en la cuenta personal.",
-      "balanceDescriptionOrganization": "Current credits for {organization}. {purchased, plural, =1 {# purchased seat} other {# purchased seats}}, {assigned, plural, =1 {# assigned} other {# assigned}}, {unused, plural, =1 {# unused} other {# unused}}, {members, plural, =1 {# member} other {# members}}.",
+      "balanceDescriptionOrganization": "Credits actuales para {organization}. {purchased, plural, =1 {# Seat comprado} other {# Seats comprados}}, {assigned, plural, =1 {# asignado} other {# asignados}}, {unused, plural, =1 {# sin usar} other {# sin usar}}, {members, plural, =1 {# miembro} other {# miembros}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Sin Credits} =1 {# Credit} other {# Credits}}",
       "stripeCustomerIdLabel": "ID de cliente de Stripe",
       "tabs": {

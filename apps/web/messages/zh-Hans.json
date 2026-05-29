@@ -2369,7 +2369,7 @@
     "Billing": {
       "balanceTitle": "余额",
       "balanceDescriptionPersonal": "您个人账户的当前积分。",
-      "balanceDescriptionOrganization": "Current credits for {organization}. {purchased, plural, =1 {# purchased seat} other {# purchased seats}}, {assigned, plural, =1 {# assigned} other {# assigned}}, {unused, plural, =1 {# unused} other {# unused}}, {members, plural, =1 {# member} other {# members}}.",
+      "balanceDescriptionOrganization": "{organization} 的当前积分。{purchased, plural, =1 {已购买 Seat # 个} other {已购买 Seat # 个}}，{assigned, plural, =1 {已分配 # 个} other {已分配 # 个}}，{unused, plural, =1 {未使用 # 个} other {未使用 # 个}}，{members, plural, =1 {# 名成员} other {# 名成员}}。",
       "balanceCreditsLabel": "{credits, plural, =0 {无积分} =1 {# 积分} other {# 积分}}",
       "stripeCustomerIdLabel": "Stripe 客户 ID",
       "tabs": {

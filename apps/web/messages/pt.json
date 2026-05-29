@@ -175,40 +175,40 @@
     },
     "MembersTable": {
       "Header": {
-        "name": "Name",
-        "email": "Email",
-        "role": "Role",
-        "actions": "Actions",
+        "name": "Nome",
+        "email": "E-mail",
+        "role": "Função",
+        "actions": "Ações",
         "seat": "Seat"
       },
       "MemberActions": {
-        "remove": "Remove",
-        "changeToOwner": "Change to Owner",
-        "changeToAdmin": "Change to Admin",
-        "changeToMember": "Change to Member",
+        "remove": "Remover",
+        "changeToOwner": "Alterar para proprietário",
+        "changeToAdmin": "Alterar para admin",
+        "changeToMember": "Alterar para membro",
         "Modal": {
-          "changeRoleTitle": "Change Role",
-          "removeTitle": "Remove Member",
-          "changeToOwnerDescription": "Are you sure you want to change the role of {member} to Owner?",
-          "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
-          "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
-          "removeDescription": "Are you sure you want to remove {member} from the organization?",
-          "confirm": "Confirm",
-          "cancel": "Cancel",
+          "changeRoleTitle": "Alterar função",
+          "removeTitle": "Remover membro",
+          "changeToOwnerDescription": "Tem a certeza de que pretende alterar a função de {member} para Proprietário?",
+          "changeToAdminDescription": "Tem a certeza de que pretende alterar a função de {member} para Admin?",
+          "changeToMemberDescription": "Tem a certeza de que pretende alterar a função de {member} para Membro?",
+          "removeDescription": "Tem a certeza de que pretende remover {member} da organização?",
+          "confirm": "Confirmar",
+          "cancel": "Cancelar",
           "Success": {
-            "changeRole": "Role changed successfully",
-            "remove": "Member removed successfully",
+            "changeRole": "Função alterada com sucesso",
+            "remove": "Membro removido com sucesso",
             "assignSeat": "Seat atribuído com sucesso",
             "unassignSeat": "Seat removido com sucesso"
           },
           "Error": {
-            "changeRole": "Failed to change role",
-            "remove": "Failed to remove member",
+            "changeRole": "Falha ao alterar função",
+            "remove": "Falha ao remover membro",
             "assignSeat": "Falha ao atribuir Seat",
             "unassignSeat": "Falha ao remover Seat"
           },
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Iniciar sessão"
           },
           "unassignSeatTitle": "Remover Seat",
           "unassignSeatDescription": "Ao remover o Seat pago de {member}, deixa de receber créditos de subscrição e passa a receber créditos mensais gratuitos. Os créditos do período atual mantêm-se até expirarem."
@@ -217,21 +217,21 @@
         "unassignSeat": "Remover Seat"
       },
       "InvitationActions": {
-        "resend": "Resend Invitation",
-        "cancel": "Cancel Invitation",
+        "resend": "Reenviar convite",
+        "cancel": "Cancelar convite",
         "CancelModal": {
-          "title": "Cancel Invitation",
-          "description": "Are you sure you want to cancel the invitation of {email}?",
-          "confirm": "Confirm",
-          "cancel": "Cancel",
-          "success": "Invitation canceled successfully",
-          "error": "Failed to cancel invitation",
+          "title": "Cancelar convite",
+          "description": "Tem a certeza de que pretende cancelar o convite de {email}?",
+          "confirm": "Confirmar",
+          "cancel": "Cancelar",
+          "success": "Convite cancelado com sucesso",
+          "error": "Falha ao cancelar convite",
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Iniciar sessão"
           }
         },
-        "resendSuccess": "Invitation resent successfully",
-        "resendError": "Failed to resend invitation"
+        "resendSuccess": "Convite reenviado com sucesso",
+        "resendError": "Falha ao reenviar convite"
       },
       "Seat": {
         "assigned": "Pago",
@@ -2369,7 +2369,7 @@
     "Billing": {
       "balanceTitle": "Saldo",
       "balanceDescriptionPersonal": "Os seus créditos atuais na conta pessoal.",
-      "balanceDescriptionOrganization": "Current credits for {organization}. {purchased, plural, =1 {# purchased seat} other {# purchased seats}}, {assigned, plural, =1 {# assigned} other {# assigned}}, {unused, plural, =1 {# unused} other {# unused}}, {members, plural, =1 {# member} other {# members}}.",
+      "balanceDescriptionOrganization": "Créditos atuais para {organization}. {purchased, plural, =1 {# Seat comprado} other {# Seats comprados}}, {assigned, plural, =1 {# atribuído} other {# atribuídos}}, {unused, plural, =1 {# não utilizado} other {# não utilizados}}, {members, plural, =1 {# membro} other {# membros}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Sem créditos} =1 {# crédito} other {# créditos}}",
       "stripeCustomerIdLabel": "ID de cliente Stripe",
       "tabs": {

@@ -2369,7 +2369,7 @@
     "Billing": {
       "balanceTitle": "残高",
       "balanceDescriptionPersonal": "個人アカウントの現在のクレジットです。",
-      "balanceDescriptionOrganization": "Current credits for {organization}. {purchased, plural, =1 {# purchased seat} other {# purchased seats}}, {assigned, plural, =1 {# assigned} other {# assigned}}, {unused, plural, =1 {# unused} other {# unused}}, {members, plural, =1 {# member} other {# members}}.",
+      "balanceDescriptionOrganization": "{organization}の現在のクレジットです。{purchased, plural, =1 {購入済みSeat # 件} other {購入済みSeat # 件}}、{assigned, plural, =1 {割り当て済み # 件} other {割り当て済み # 件}}、{unused, plural, =1 {未使用 # 件} other {未使用 # 件}}、{members, plural, =1 {メンバー # 名} other {メンバー # 名}}。",
       "balanceCreditsLabel": "{credits, plural, =0 {クレジットなし} =1 {# クレジット} other {# クレジット}}",
       "stripeCustomerIdLabel": "Stripe 顧客 ID",
       "tabs": {

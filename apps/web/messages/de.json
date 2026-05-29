@@ -2307,7 +2307,7 @@
     "Billing": {
       "balanceTitle": "Guthaben",
       "balanceDescriptionPersonal": "Deine aktuellen Credits im persönlichen Account.",
-      "balanceDescriptionOrganization": "Current credits for {organization}. {purchased, plural, =1 {# purchased seat} other {# purchased seats}}, {assigned, plural, =1 {# assigned} other {# assigned}}, {unused, plural, =1 {# unused} other {# unused}}, {members, plural, =1 {# member} other {# members}}.",
+      "balanceDescriptionOrganization": "Aktuelle Credits für {organization}. {purchased, plural, =1 {# gekaufter Seat} other {# gekaufte Seats}}, {assigned, plural, =1 {# zugewiesen} other {# zugewiesen}}, {unused, plural, =1 {# ungenutzt} other {# ungenutzt}}, {members, plural, =1 {# Mitglied} other {# Mitglieder}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Keine Credits} =1 {# Credit} other {# Credits}}",
       "stripeCustomerIdLabel": "Stripe-Kunden-ID",
       "tabs": {
