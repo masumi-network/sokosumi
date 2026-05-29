@@ -143,6 +143,33 @@ describe("organizationSeatService", () => {
     ).toHaveBeenCalledWith("org-1", "user-2", expect.any(Object));
   });
 
+  it("reads purchased seats inside the transaction before assigning", async () => {
+    const callOrder: string[] = [];
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
+    getLatestActiveSubscriptionByReferenceIdMock.mockImplementation(
+      async () => {
+        callOrder.push("getSubscription");
+        return { seats: 3 };
+      },
+    );
+    assignSeatMock.mockImplementation(async () => {
+      callOrder.push("assignSeat");
+      return {
+        id: "member-1",
+        seatAssignedAt: new Date("2026-05-01T00:00:00.000Z"),
+        userId: "user-2",
+      };
+    });
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await organizationSeatService.assignSeat("user-1", "org-1", "member-1");
+
+    expect(callOrder).toEqual(["getSubscription", "assignSeat"]);
+  });
+
   it("rejects seat assignment for non-admin members", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
       role: "member",

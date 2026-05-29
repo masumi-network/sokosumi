@@ -69,18 +69,6 @@ async function ensureCanManageSeatAssignments(
   }
 }
 
-async function getPurchasedSeatsForOrganization(
-  organizationId: string,
-): Promise<number> {
-  const subscription =
-    await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
-      organizationId,
-      prisma,
-    );
-
-  return resolvePurchasedSeats(subscription?.seats);
-}
-
 function mapSeatRepositoryError(error: unknown): never {
   if (!(error instanceof Error)) {
     throw error;
@@ -174,11 +162,16 @@ export const organizationSeatService = (() => {
       memberId: string,
     ): Promise<{ memberId: string; seatAssignedAt: Date }> {
       await ensureCanManageSeatAssignments(userId, organizationId);
-      const purchasedSeats =
-        await getPurchasedSeatsForOrganization(organizationId);
 
       try {
         return await prisma.$transaction(async (tx) => {
+          const subscription =
+            await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+              organizationId,
+              tx,
+            );
+          const purchasedSeats = resolvePurchasedSeats(subscription?.seats);
+
           const member = await memberRepository.assignSeat(
             memberId,
             organizationId,
@@ -191,12 +184,6 @@ export const organizationSeatService = (() => {
               message: "Failed to assign seat",
             });
           }
-
-          const subscription =
-            await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
-              organizationId,
-              tx,
-            );
 
           await grantUnusedSeatSubscriptionCreditsIfEligible(
             organizationId,
