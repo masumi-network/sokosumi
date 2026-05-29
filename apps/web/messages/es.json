@@ -235,7 +235,6 @@
       "account": "Cuenta",
       "organizations": "Organizaciones",
       "mcp": "Model Context Protocol (MCP)",
-      "schedules": "Programaciones",
       "chat": "Chat",
       "tasks": "Tareas",
       "connections": "Conexiones",
@@ -1284,19 +1283,6 @@
         "authorize": "Autorizar"
       }
     },
-    "Schedules": {
-      "empty": {
-        "title": "Aún sin programaciones",
-        "description": "Contrata un Agent y configura su programación usando el programador de jobs."
-      },
-      "lastRun": "Última ejecución",
-      "nextRun": "Próxima ejecución",
-      "inputPreview": "Vista previa del Input",
-      "confirmDeleteTitle": "Eliminar programación",
-      "confirmDeleteDescription": "Esta acción no se puede deshacer. La programación se eliminará permanentemente.",
-      "pausedReason": "Motivo de pausa",
-      "loading": "Cargando programaciones..."
-    },
     "Tasks": {
       "Page": {
         "title": "Task Manager",
@@ -2262,7 +2248,6 @@
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
-          "scheduledAgents": "Programaciones",
           "projects": "Proyectos",
           "hermes": "Hermes"
         },
@@ -2993,62 +2978,6 @@
             "projectNone": "Sin proyecto",
             "projectSearchPlaceholder": "Buscar proyectos...",
             "projectEmptyResults": "No se encontraron proyectos."
-          },
-          "Scheduler": {
-            "title": "Programar job",
-            "description": "Elige cuándo quieres que se ejecute este job.",
-            "modeCards": {
-              "now": {
-                "title": "Ejecutar ahora",
-                "description": "Ejecutar el job inmediatamente."
-              },
-              "recurring": {
-                "title": "Programar",
-                "description": "Configurar una programación única o recurrente."
-              }
-            },
-            "option": {
-              "oneTime": "Una vez",
-              "daily": "Diariamente",
-              "dailyWithTime": "Diariamente ({time})",
-              "dailyEveryNWithTime": "Cada {n} días ({time})",
-              "weekly": "Semanalmente",
-              "weeklyWithWeekdayTime": "Semanalmente ({weekday}, {time})",
-              "weeklyListWithTime": "Semanalmente ({weekdays}, {time})",
-              "monthly": "Mensualmente",
-              "monthlyWithDayTime": "Mensualmente (día {day}, {time})",
-              "monthlyEveryNWithDayTime": "Cada {n} meses (día {day}, {time})",
-              "custom": "Personalizado"
-            },
-            "schedulesTitle": "Agents programados",
-            "pickDateTime": "Seleccionar fecha y hora",
-            "timeOfDay": "Hora del día",
-            "pickTime": "Seleccionar hora",
-            "repeatEvery": "Repetir cada",
-            "repeatOn": "Repetir el",
-            "ends": "Termina",
-            "never": "Nunca",
-            "on": "El",
-            "after": "Después de",
-            "occurrences": "Repeticiones",
-            "pickDate": "Seleccionar fecha",
-            "preview": "Vista previa",
-            "noPreview": "No hay ejecuciones programadas",
-            "unit": {
-              "day": "día",
-              "week": "semana",
-              "month": "mes"
-            },
-            "save": "Guardar",
-            "cancel": "Cancelar",
-            "errors": {
-              "required": "Este campo es obligatorio.",
-              "futureDateTime": "Selecciona un momento en el futuro.",
-              "invalidTime": "Introduce una hora válida (HH:MM).",
-              "positiveInteger": "Introduce un número entero positivo.",
-              "selectAtLeastOneWeekday": "Selecciona al menos un día de la semana.",
-              "endDateInPast": "La fecha de fin no puede ser en el pasado."
-            }
           }
         }
       },
@@ -3219,7 +3148,6 @@
         "clear": "Restablecer",
         "price": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}} por ejecución",
         "submit": "Contratar",
-        "schedule": "Programar",
         "back": "Atrás",
         "next": "Siguiente",
         "ctrl": "Ctrl",

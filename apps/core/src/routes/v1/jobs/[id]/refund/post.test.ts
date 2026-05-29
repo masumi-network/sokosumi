@@ -200,8 +200,6 @@ function createFullJobForSecondFetch() {
       nextAction: NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
     },
     purchaseId: "purchase_123",
-    jobScheduleId: null,
-    jobSchedule: null,
     events: [
       {
         id: "event_completed",

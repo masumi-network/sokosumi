@@ -235,7 +235,6 @@
       "account": "アカウント",
       "organizations": "組織",
       "mcp": "Model Context Protocol（MCP）",
-      "schedules": "スケジュール",
       "chat": "チャット",
       "tasks": "タスク",
       "connections": "接続",
@@ -1284,19 +1283,6 @@
         "networkErrorAfterRetry": "数回試しましたがサーバーに接続できませんでした。接続状況を確認して再試行してください。"
       }
     },
-    "Schedules": {
-      "empty": {
-        "title": "スケジュールはまだありません",
-        "description": "エージェントを雇い、「ジョブをスケジュール」でスケジュールを設定してください。"
-      },
-      "lastRun": "最終実行",
-      "nextRun": "次回実行",
-      "inputPreview": "入力プレビュー",
-      "confirmDeleteTitle": "スケジュールを削除",
-      "confirmDeleteDescription": "この操作は取り消せません。スケジュールは完全に削除されます。",
-      "pausedReason": "一時停止の理由",
-      "loading": "スケジュールを読み込んでいます..."
-    },
     "Tasks": {
       "Page": {
         "title": "タスク管理",
@@ -2263,7 +2249,6 @@
           "filesAndOutputs": "ファイルと出力",
           "taskManager": "タスク",
           "projects": "プロジェクト",
-          "scheduledAgents": "スケジュール",
           "hermes": "Hermes"
         },
         "ChatLists": {
@@ -3024,62 +3009,6 @@
             "projectNone": "プロジェクトなし",
             "projectSearchPlaceholder": "プロジェクトを検索...",
             "projectEmptyResults": "プロジェクトが見つかりません。"
-          },
-          "Scheduler": {
-            "title": "ジョブをスケジュール",
-            "description": "このジョブを実行する日時を選択してください。",
-            "modeCards": {
-              "now": {
-                "title": "今すぐ実行",
-                "description": "ジョブをすぐに実行します。"
-              },
-              "recurring": {
-                "title": "スケジュール",
-                "description": "1回または定期のスケジュールを設定します。"
-              }
-            },
-            "option": {
-              "oneTime": "1回",
-              "daily": "毎日",
-              "dailyWithTime": "毎日（{time}）",
-              "dailyEveryNWithTime": "{n}日ごと（{time}）",
-              "weekly": "毎週",
-              "weeklyWithWeekdayTime": "毎週（{weekday}、{time}）",
-              "weeklyListWithTime": "毎週（{weekdays}、{time}）",
-              "monthly": "毎月",
-              "monthlyWithDayTime": "毎月（{day}日、{time}）",
-              "monthlyEveryNWithDayTime": "{n}か月ごと（{day}日、{time}）",
-              "custom": "カスタム"
-            },
-            "schedulesTitle": "スケジュール済みエージェント",
-            "pickDateTime": "日時を選択",
-            "timeOfDay": "時間帯",
-            "pickTime": "時間を選択",
-            "repeatEvery": "繰り返し間隔",
-            "repeatOn": "繰り返し曜日",
-            "ends": "終了",
-            "never": "なし",
-            "on": "日付",
-            "after": "回数",
-            "occurrences": "回",
-            "pickDate": "日付を選択",
-            "preview": "プレビュー",
-            "noPreview": "次回の実行予定はありません",
-            "unit": {
-              "day": "日",
-              "week": "週",
-              "month": "月"
-            },
-            "save": "保存",
-            "cancel": "キャンセル",
-            "errors": {
-              "required": "この項目は必須です。",
-              "futureDateTime": "未来の日時を選択してください。",
-              "invalidTime": "有効な時刻（HH:MM）を入力してください。",
-              "positiveInteger": "正の整数を入力してください。",
-              "selectAtLeastOneWeekday": "少なくとも1つの曜日を選択してください。",
-              "endDateInPast": "終了日は過去に設定できません。"
-            }
           }
         }
       },
@@ -3219,7 +3148,6 @@
         "clear": "クリア",
         "price": "{price, plural, =0 {無料} =1 {1クレジット} other {# クレジット}} / 回",
         "submit": "依頼",
-        "schedule": "スケジュール",
         "back": "戻る",
         "next": "次へ",
         "ctrl": "Ctrl",

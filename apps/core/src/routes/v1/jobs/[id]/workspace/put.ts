@@ -69,7 +69,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
           select: {
             taskId: true,
-            jobScheduleId: true,
             workspace: {
               select: {
                 organizationId: true,
@@ -84,10 +83,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (currentJob.taskId !== null) {
           throw conflict("Task-attached jobs inherit their task workspace");
-        }
-
-        if (currentJob.jobScheduleId !== null) {
-          throw conflict("Scheduled jobs inherit their schedule workspace");
         }
 
         const workspaceChanged =

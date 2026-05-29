@@ -7,8 +7,6 @@ import {
 } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
 
-import { JobScheduleType } from "@/lib/types/job";
-
 export const startJobInputSchema = z.object({
   userId: z.string(),
   organizationId: z.string().nullish(),
@@ -16,7 +14,6 @@ export const startJobInputSchema = z.object({
   maxAcceptedCents: z.bigint(),
   inputSchema: inputSchemaResponseSchema,
   inputData: inputSchema,
-  jobScheduleId: z.string().nullish(),
   projectId: z.string().nullish(),
 });
 
@@ -148,28 +145,6 @@ export const provideJobInputResponseSchema = z.object({
 
 export type ProvideJobInputResponseSchemaType = z.infer<
   typeof provideJobInputResponseSchema
->;
-
-export const createJobScheduleInputSchema = z.object({
-  agentId: z.string(),
-  userId: z.string(),
-  organizationId: z.string().nullish(),
-  scheduleType: z.nativeEnum(JobScheduleType),
-  cron: z.string().nullish(),
-  oneTimeAtUtc: z.string().nullish(),
-  timezone: z.string(),
-  inputSchema: inputSchemaResponseSchema,
-  inputData: inputSchema,
-  maxAcceptedCents: z.bigint(),
-  endOnUtc: z.string().nullish(),
-  endAfterOccurrences: z.number().int().positive().nullish(),
-  isActive: z.boolean().default(true),
-  pauseReason: z.string().nullish(),
-  nextRunAt: z.string().nullish(),
-});
-
-export type CreateJobScheduleInputSchemaType = z.infer<
-  typeof createJobScheduleInputSchema
 >;
 
 export const provideJobInputSchema = z.object({

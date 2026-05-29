@@ -190,8 +190,6 @@ function createJob(
       nextAction: null,
     },
     purchaseId: "purchase_123",
-    jobScheduleId: null,
-    jobSchedule: null,
     events: [
       {
         id: "event_completed",

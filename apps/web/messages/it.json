@@ -235,7 +235,6 @@
       "account": "Account",
       "organizations": "Organizzazioni",
       "mcp": "Protocollo Model Context (MCP)",
-      "schedules": "Pianificazioni",
       "chat": "Chat",
       "tasks": "Attività",
       "connections": "Connessioni",
@@ -1284,19 +1283,6 @@
         "networkErrorAfterRetry": "Non siamo riusciti a raggiungere il server dopo alcuni tentativi. Controlla la connessione e riprova."
       }
     },
-    "Schedules": {
-      "empty": {
-        "title": "Ancora nessuna programmazione",
-        "description": "Assumi un agente e configura la sua programmazione usando la funzione di pianificazione dei job."
-      },
-      "lastRun": "Ultima esecuzione",
-      "nextRun": "Prossima esecuzione",
-      "inputPreview": "Anteprima input",
-      "confirmDeleteTitle": "Elimina programmazione",
-      "confirmDeleteDescription": "Questa operazione non può essere annullata. La programmazione verrà eliminata definitivamente.",
-      "pausedReason": "Motivo della pausa",
-      "loading": "Caricamento programmazioni..."
-    },
     "Tasks": {
       "Page": {
         "title": "Gestione task",
@@ -2263,7 +2249,6 @@
           "filesAndOutputs": "File e output",
           "taskManager": "Attività",
           "projects": "Progetti",
-          "scheduledAgents": "Pianificazioni",
           "hermes": "Hermes"
         },
         "ChatLists": {
@@ -3024,62 +3009,6 @@
             "projectNone": "Nessun progetto",
             "projectSearchPlaceholder": "Cerca progetti...",
             "projectEmptyResults": "Nessun progetto trovato."
-          },
-          "Scheduler": {
-            "title": "Programma job",
-            "description": "Scegli quando eseguire questo job.",
-            "modeCards": {
-              "now": {
-                "title": "Esegui ora",
-                "description": "Esegui il job immediatamente."
-              },
-              "recurring": {
-                "title": "Programma",
-                "description": "Pianifica una programmazione una tantum o ricorrente."
-              }
-            },
-            "option": {
-              "oneTime": "Una tantum",
-              "daily": "Giornaliero",
-              "dailyWithTime": "Giornaliero ({time})",
-              "dailyEveryNWithTime": "Ogni {n} giorni ({time})",
-              "weekly": "Settimanale",
-              "weeklyWithWeekdayTime": "Settimanale ({weekday}, {time})",
-              "weeklyListWithTime": "Settimanale ({weekdays}, {time})",
-              "monthly": "Mensile",
-              "monthlyWithDayTime": "Mensile (Giorno {day}, {time})",
-              "monthlyEveryNWithDayTime": "Ogni {n} mesi (Giorno {day}, {time})",
-              "custom": "Personalizzato"
-            },
-            "schedulesTitle": "Agenti programmati",
-            "pickDateTime": "Scegli data e ora",
-            "timeOfDay": "Ora del giorno",
-            "pickTime": "Scegli un’ora",
-            "repeatEvery": "Ripeti ogni",
-            "repeatOn": "Ripeti il",
-            "ends": "Termina",
-            "never": "Mai",
-            "on": "Il",
-            "after": "Dopo",
-            "occurrences": "occorrenze",
-            "pickDate": "Scegli una data",
-            "preview": "Anteprima",
-            "noPreview": "Nessuna esecuzione prevista",
-            "unit": {
-              "day": "giorno",
-              "week": "settimana",
-              "month": "mese"
-            },
-            "save": "Salva",
-            "cancel": "Annulla",
-            "errors": {
-              "required": "Questo campo è obbligatorio.",
-              "futureDateTime": "Seleziona una data e ora future.",
-              "invalidTime": "Inserisci un’ora valida (HH:MM).",
-              "positiveInteger": "Inserisci un numero intero positivo.",
-              "selectAtLeastOneWeekday": "Seleziona almeno un giorno della settimana.",
-              "endDateInPast": "La data di fine non può essere nel passato."
-            }
           }
         }
       },
@@ -3219,7 +3148,6 @@
         "clear": "Cancella",
         "price": "{price, plural, =0 {Gratis} =1 {1 credito} other {# crediti}} per esecuzione",
         "submit": "Assumi",
-        "schedule": "Programma",
         "back": "Indietro",
         "next": "Avanti",
         "ctrl": "Ctrl",

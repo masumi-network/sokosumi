@@ -47,7 +47,6 @@ export * from "./types/agentList.js";
 export * from "./types/agentRating.js";
 export * from "./types/invitation.js";
 export * from "./types/job.js";
-export * from "./types/job-schedule.js";
 export * from "./types/member.js";
 export * from "./types/organization.js";
 export * from "./types/public-share.js";
