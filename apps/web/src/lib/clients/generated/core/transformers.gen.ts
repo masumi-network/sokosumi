@@ -493,8 +493,13 @@ const projectSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectListItemSchemaResponseTransformer = (data: any) => {
+    data = projectSchemaResponseTransformer(data);
+    return data;
+};
+
 export const getProjectsResponseTransformer = async (data: any): Promise<GetProjectsResponse> => {
-    data.data = data.data.map((item: any) => projectSchemaResponseTransformer(item));
+    data.data = data.data.map((item: any) => projectListItemSchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

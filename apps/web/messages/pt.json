@@ -241,7 +241,8 @@
       "connections": "Connections",
       "feed": "My Feed",
       "hermes": "Hermes",
-      "new": "Novo"
+      "new": "Novo",
+      "projects": "Projetos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -319,6 +320,7 @@
           "propertiesTitle": "Propriedades",
           "status": "Estado",
           "task": "Tarefa",
+          "project": "Projeto",
           "coworker": "Colega de trabalho",
           "openTask": "Abrir tarefa",
           "created": "Criado",
@@ -1391,6 +1393,7 @@
         "scopeWorkspace": "Espaço de trabalho",
         "coworkerLabel": "Coworker",
         "statusLabel": "Estado",
+        "projectLabel": "Projeto",
         "statusOptions": {
           "DRAFT": "Rascunho",
           "READY": "Pronto",
@@ -1432,6 +1435,7 @@
         "status": "Estado",
         "owner": "Proprietário",
         "organization": "Organização",
+        "project": "Projeto",
         "personalWorkspace": "Pessoal",
         "coworker": "Colega de trabalho",
         "created": "Criado",
@@ -1572,6 +1576,10 @@
         "name": "Nome da tarefa",
         "namePlaceholder": "Introduza um título curto",
         "descriptionPlaceholder": "Introduza detalhes da tarefa...",
+        "projectLabel": "Projeto",
+        "projectNone": "Sem projeto",
+        "projectSearchPlaceholder": "Pesquisar projetos...",
+        "projectEmptyResults": "Nenhum projeto encontrado.",
         "coworker": "Colega de trabalho",
         "coworkerDescription": "Escolha um LLM de colega de trabalho que irá gerir esta tarefa por si",
         "status": "Estado",
@@ -1597,6 +1605,10 @@
         "name": "Nome da tarefa",
         "namePlaceholder": "Introduza um título curto",
         "descriptionPlaceholder": "Atualize os detalhes da tarefa...",
+        "projectLabel": "Projeto",
+        "projectNone": "Sem projeto",
+        "projectSearchPlaceholder": "Pesquisar projetos...",
+        "projectEmptyResults": "Nenhum projeto encontrado.",
         "coworker": "Colega de trabalho",
         "coworkerDescription": "Escolha um LLM de colega de trabalho que irá gerir esta tarefa por si",
         "status": "Estado",
@@ -1612,6 +1624,132 @@
         "save": "Guardar",
         "cancel": "Cancelar",
         "ctrl": "Ctrl"
+      }
+    },
+    "Projects": {
+      "title": "Projetos",
+      "empty": {
+        "title": "Ainda não há projetos",
+        "description": "Crie um projeto para agrupar tarefas e jobs relacionados.",
+        "action": "Novo projeto"
+      },
+      "list": {
+        "loadMore": "Carregar mais",
+        "loading": "A carregar projetos...",
+        "stats": {
+          "tasks": "Tarefas",
+          "jobs": "Jobs",
+          "total": "{count, plural, =0 {0 no total} =1 {1 no total} other {# no total}}",
+          "taskStatusAbbreviations": {
+            "DRAFT": "Rascunho",
+            "READY": "Pronta",
+            "INPUT_REQUIRED": "Entrada",
+            "AUTHENTICATION_REQUIRED": "Auth",
+            "OUT_OF_CREDITS": "Créditos",
+            "CREDITS_TOPPED_UP": "Recarregado",
+            "RUNNING": "Em curso",
+            "AWAITING_EXTERNAL": "À espera",
+            "COMPLETED": "Concluída",
+            "FAILED": "Falha",
+            "CANCEL_REQUESTED": "A cancelar",
+            "CANCELED": "Cancelada"
+          },
+          "jobStatusAbbreviations": {
+            "started": "Iniciado",
+            "completed": "Concluído",
+            "processing": "Em curso",
+            "input_required": "Entrada",
+            "result_pending": "Resultado",
+            "failed": "Falha",
+            "payment_pending": "Pagamento",
+            "payment_failed": "Pagamento falhou",
+            "refund_pending": "Reembolso",
+            "refund_resolved": "Reembolsado",
+            "dispute_pending": "Disputa",
+            "dispute_resolved": "Resolvida"
+          }
+        }
+      },
+      "NewProject": {
+        "title": "Novo projeto",
+        "details": "Detalhes",
+        "detailsDescription": "Dê um nome ao projeto e adicione um contexto opcional.",
+        "name": "Nome do projeto",
+        "namePlaceholder": "Introduza um título curto",
+        "description": "Descrição",
+        "descriptionPlaceholder": "Adicione contexto ao projeto...",
+        "createProject": "Criar projeto",
+        "cancel": "Cancelar"
+      },
+      "EditProject": {
+        "title": "Editar projeto",
+        "details": "Detalhes",
+        "detailsDescription": "Atualize os detalhes do projeto.",
+        "name": "Nome do projeto",
+        "namePlaceholder": "Introduza um título curto",
+        "description": "Descrição",
+        "descriptionPlaceholder": "Atualize o contexto do projeto...",
+        "save": "Guardar",
+        "cancel": "Cancelar"
+      },
+      "Detail": {
+        "back": "Voltar aos projetos",
+        "header": {
+          "updated": "Atualizado",
+          "created": "Criado"
+        },
+        "description": "Descrição",
+        "emptyDescription": "Ainda não há descrição.",
+        "jobs": {
+          "title": "Jobs",
+          "empty": "Ainda não há jobs associados a este projeto.",
+          "add": "Adicionar job",
+          "remove": "Remover job",
+          "pickerTitle": "Adicionar job",
+          "pickerDescription": "Escolha um job não atribuído para associar a este projeto.",
+          "pickerSearchPlaceholder": "Pesquisar jobs...",
+          "pickerEmpty": "Não foram encontrados jobs não atribuídos.",
+          "pickerLoading": "A carregar jobs...",
+          "pickerError": "Falha ao carregar jobs.",
+          "untitled": "Job sem título"
+        },
+        "tasks": {
+          "title": "Tarefas",
+          "empty": "Ainda não há tarefas associadas a este projeto.",
+          "add": "Adicionar tarefa",
+          "remove": "Remover tarefa",
+          "pickerTitle": "Adicionar tarefa",
+          "pickerDescription": "Escolha uma tarefa não atribuída para associar a este projeto.",
+          "pickerSearchPlaceholder": "Pesquisar tarefas...",
+          "pickerEmpty": "Não foram encontradas tarefas não atribuídas.",
+          "pickerLoading": "A carregar tarefas...",
+          "pickerError": "Falha ao carregar tarefas."
+        },
+        "actions": {
+          "moreActions": "Mais ações",
+          "viewDetails": "Ver detalhes",
+          "edit": "Editar",
+          "delete": "Eliminar",
+          "remove": "Remover",
+          "confirmRemoveJob": "Remover este job do projeto?",
+          "confirmRemoveTask": "Remover esta tarefa do projeto?"
+        },
+        "deleteDialog": {
+          "title": "Eliminar projeto",
+          "description": "Isto irá eliminar o projeto. As tarefas e jobs associados continuarão disponíveis fora do projeto.",
+          "confirm": "Eliminar",
+          "cancel": "Cancelar"
+        },
+        "errors": {
+          "create": "Falha ao criar projeto",
+          "update": "Falha ao atualizar projeto",
+          "delete": "Falha ao eliminar projeto",
+          "addJob": "Falha ao adicionar job",
+          "removeJob": "Falha ao remover job",
+          "addTask": "Falha ao adicionar tarefa",
+          "removeTask": "Falha ao remover tarefa",
+          "loadMore": "Falha ao carregar mais projetos"
+        }
       }
     },
     "Hermes": {
@@ -2157,6 +2295,7 @@
           "myFeed": "O meu feed",
           "filesAndOutputs": "Ficheiros e outputs",
           "taskManager": "Tarefas",
+          "projects": "Projetos",
           "scheduledAgents": "Agendamentos",
           "hermes": "Hermes"
         },
@@ -2913,7 +3052,11 @@
             "title": "Informação"
           },
           "Input": {
-            "title": "Input"
+            "title": "Input",
+            "projectLabel": "Projeto",
+            "projectNone": "Sem projeto",
+            "projectSearchPlaceholder": "Pesquisar projetos...",
+            "projectEmptyResults": "Nenhum projeto encontrado."
           },
           "Scheduler": {
             "title": "Agendar job",

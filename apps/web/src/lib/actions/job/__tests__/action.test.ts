@@ -183,6 +183,43 @@ describe("startJob", () => {
     });
   });
 
+  it("passes projectId to core when starting a job for a project", async () => {
+    createAgentJobMock.mockResolvedValue({
+      data: {
+        id: "job-project",
+      },
+    });
+
+    const { startJob } = await import("../action");
+    const result = await startJob({
+      input: {
+        agentId: "agent-1",
+        maxAcceptedCents: BigInt(10_000_000_000),
+        inputSchema: { input_data: [] },
+        inputData: { prompt: "hello" },
+        projectId: " project-1 ",
+      },
+      session: {
+        user: { id: "user-1", email: "ada@example.com" },
+        session: { activeOrganizationId: "org-1" },
+      } as never,
+    });
+
+    expect(createAgentJobMock).toHaveBeenCalledWith("agent-1", {
+      inputSchema: { input_data: [] },
+      inputData: { prompt: "hello" },
+      maxCredits: 1,
+      projectId: "project-1",
+      name: "Generated research title that is intentionally longer than the Core job name limit so it is trimmed safely before create",
+    });
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        jobId: "job-project",
+      },
+    });
+  });
+
   it("returns cost too high when maxAcceptedCents is zero but the agent has a positive credits price", async () => {
     getAgentByIdMock.mockResolvedValue({
       data: {

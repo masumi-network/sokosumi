@@ -41,6 +41,7 @@ const route = withGlobalHeaderParameters(
           agentId: "agent_123",
           userId: "user_123",
           organizationId: "organization_123",
+          projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
           taskId: "task_123",
           name: "Research Task",
           jobType: JobType.PAID,

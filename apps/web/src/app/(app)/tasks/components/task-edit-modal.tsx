@@ -4,6 +4,7 @@ import type { TaskStatus } from "@sokosumi/database";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import type { TaskFormLabels } from "./task-form";
@@ -17,9 +18,11 @@ interface TaskEditModalProps {
     name: string;
     description: string;
     coworkerId: string;
+    projectId?: string | null;
     status: TaskStatus;
   };
   coworkerOptions: CoworkerOption[];
+  projectOptions: ProjectFilterOption[];
   agentNameById: Map<string, string>;
   labels: TaskFormLabels;
 }
@@ -29,6 +32,7 @@ export function TaskEditModal({
   title,
   initialValues,
   coworkerOptions,
+  projectOptions,
   agentNameById,
   labels,
 }: TaskEditModalProps) {
@@ -57,6 +61,7 @@ export function TaskEditModal({
         showCancel={false}
         labels={labels}
         coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
         agentNameById={agentNameById}
         taskId={taskId}
         initialValues={initialValues}

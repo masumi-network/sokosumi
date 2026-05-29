@@ -17,7 +17,8 @@ import {
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { projectSchema } from "@/schemas/project.schema";
+import { projectListItemSchema } from "@/schemas/project.schema";
+import { createProjectListCountsInclude } from "@/types/project";
 
 const query = cursorPaginationQuerySchema;
 
@@ -32,7 +33,7 @@ const route = withGlobalHeaderParameters(
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(projectSchema),
+        z.array(projectListItemSchema),
         "Projects in the workspace",
       ),
       401: jsonErrorResponse("Unauthorized"),
@@ -51,10 +52,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const where = { workspaceId: workspaceContext.workspaceId };
     const takePlusOne = take + 1;
+    const projectListCountsInclude = createProjectListCountsInclude(
+      workspaceContext.workspaceId,
+    );
 
     const [projects, count] = await prisma.$transaction([
       prisma.project.findMany({
         where,
+        include: projectListCountsInclude,
         take: takePlusOne,
         skip,
         cursor: cursor ? { id: cursor } : undefined,
@@ -65,14 +70,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const hasMore = projects.length === takePlusOne;
     const pagedProjects = projects.slice(0, take);
+    const projectsWithCounts = pagedProjects.map(({ _count, ...project }) => ({
+      ...project,
+      taskCount: _count.tasks,
+      jobCount: _count.jobs,
+    }));
     const paginationMeta = createPaginationMeta(
-      pagedProjects,
+      projectsWithCounts,
       count,
       take,
       hasMore,
       cursor,
     );
 
-    return ok(c, z.array(projectSchema).parse(pagedProjects), paginationMeta);
+    return ok(
+      c,
+      z.array(projectListItemSchema).parse(projectsWithCounts),
+      paginationMeta,
+    );
   });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { AgentJobStatus } from "@sokosumi/database";
-import { Building2, CircleDashed, Sparkles } from "lucide-react";
+import { Building2, CircleDashed, FolderKanban, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 
@@ -10,6 +10,7 @@ import {
   getJobsListFiltersFromSearchParams,
   type JobsListFilters,
 } from "@/app/tasks/utils/jobs-filters";
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
@@ -18,6 +19,7 @@ import {
 interface JobsViewFiltersProps {
   activeOrganizationId: string | null;
   agentOptions: Array<{ id: string; name: string; image: string | null }>;
+  projectOptions: ProjectFilterOption[];
   filtersLabels: {
     title: string;
     searchPlaceholder: string;
@@ -26,6 +28,7 @@ interface JobsViewFiltersProps {
     scopeLabel: string;
     scopeOwned: string;
     scopeWorkspace: string;
+    projectLabel: string;
   };
   labels: {
     filterButton: string;
@@ -38,6 +41,7 @@ interface JobsViewFiltersProps {
 export function JobsViewFilters({
   activeOrganizationId,
   agentOptions,
+  projectOptions,
   filtersLabels,
   labels,
 }: JobsViewFiltersProps) {
@@ -51,8 +55,9 @@ export function JobsViewFilters({
         searchParams,
         activeOrganizationId,
         agentOptions,
+        projectOptions,
       ),
-    [activeOrganizationId, agentOptions, searchParams],
+    [activeOrganizationId, agentOptions, projectOptions, searchParams],
   );
 
   const handleFilterChange = useCallback(
@@ -66,6 +71,7 @@ export function JobsViewFilters({
         paramsForMerge,
         activeOrganizationId,
         agentOptions,
+        projectOptions,
       );
       const nextFilters: JobsListFilters = { ...current, ...patch };
       const nextSearchParams = buildJobsListFiltersSearchParams(
@@ -77,7 +83,14 @@ export function JobsViewFilters({
 
       router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     },
-    [activeOrganizationId, agentOptions, pathname, router, searchParams],
+    [
+      activeOrganizationId,
+      agentOptions,
+      pathname,
+      projectOptions,
+      router,
+      searchParams,
+    ],
   );
 
   const sections = useMemo<FilterDropdownMenuSection[]>(() => {
@@ -141,6 +154,23 @@ export function JobsViewFilters({
       })),
     });
 
+    nextSections.push({
+      id: "project",
+      label: filtersLabels.projectLabel,
+      icon: FolderKanban,
+      value: filters.projectId,
+      allLabel: filtersLabels.all,
+      onChange: (projectId) =>
+        handleFilterChange({
+          projectId,
+        }),
+      options: projectOptions.map((project) => ({
+        value: project.id,
+        label: project.name,
+        searchKeywords: [project.name],
+      })),
+    });
+
     return nextSections;
   }, [
     activeOrganizationId,
@@ -148,7 +178,9 @@ export function JobsViewFilters({
     filters.scope,
     filters.agentId,
     filters.jobStatus,
+    filters.projectId,
     filtersLabels.all,
+    filtersLabels.projectLabel,
     filtersLabels.scopeLabel,
     filtersLabels.scopeOwned,
     filtersLabels.scopeWorkspace,
@@ -156,6 +188,7 @@ export function JobsViewFilters({
     labels.agentLabel,
     labels.jobStatusLabel,
     labels.jobStatusOptions,
+    projectOptions,
   ]);
 
   return (

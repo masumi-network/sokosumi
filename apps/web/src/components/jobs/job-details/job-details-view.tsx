@@ -54,6 +54,7 @@ export interface JobDetailsViewProps {
   className?: string;
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel?: string;
+  projectName?: string | null;
   showAgentHeader?: boolean;
   /** Share route only: eyebrow, status badge, agent title, mobile top offset. */
   publicJobLayout?: boolean;
@@ -65,6 +66,7 @@ export default function JobDetailsView({
   className,
   organizations,
   personalWorkspaceLabel,
+  projectName,
   showAgentHeader = true,
   publicJobLayout = false,
 }: JobDetailsViewProps) {
@@ -134,7 +136,7 @@ export default function JobDetailsView({
               />
 
               <div className="md:hidden">
-                <JobMetaDetails job={job} />
+                <JobMetaDetails job={job} projectName={projectName} />
               </div>
 
               {initiatedEvent ? (
@@ -176,7 +178,7 @@ export default function JobDetailsView({
 
         <aside className="border-border hidden w-56 shrink-0 border-l md:block md:min-h-[calc(100svh-64px)]">
           <div className="sticky top-20 pt-1 pr-2 pl-6">
-            <JobMetaDetails job={job} />
+            <JobMetaDetails job={job} projectName={projectName} />
           </div>
         </aside>
       </div>

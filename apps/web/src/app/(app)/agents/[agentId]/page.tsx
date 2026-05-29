@@ -15,6 +15,7 @@ import {
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
+import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services";
 
 export default async function AgentDetailPage({
@@ -33,10 +34,11 @@ export default async function AgentDetailPage({
   const session = await getSession();
   const userId = session?.user.id ?? null;
 
-  const [reviewsResponse, favoriteAgents] = await Promise.all([
+  const [reviewsResponse, favoriteAgents, projectOptions] = await Promise.all([
     coreClient.getAgentReviews(agentId),
     // TODO(core-api): replace with a Core favorites API when available.
     agentService.getFavoriteAgents(),
+    session ? getProjectFilterOptions() : Promise.resolve(undefined),
   ]);
   const { ratingDistribution, ratingsWithComments } = mapCoreAgentReviews(
     reviewsResponse.data,
@@ -59,6 +61,7 @@ export default async function AgentDetailPage({
     <CreateJobModalContextProvider
       agentsWithPrice={[agentWithCreditsPrice]}
       averageExecutionDuration={averageExecutionDuration}
+      projectOptions={projectOptions}
     >
       <AgentMobileHeader agent={agentWithCreditsPrice} />
       <div className="min-h-full w-full">

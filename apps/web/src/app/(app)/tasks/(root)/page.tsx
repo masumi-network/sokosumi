@@ -11,12 +11,16 @@ import {
 import { parseJobsListFilters } from "@/app/tasks/utils/jobs-filters";
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
-import { parseTasksFilters } from "@/app/tasks/utils/tasks-filters";
+import {
+  type ProjectFilterOption,
+  parseTasksFilters,
+} from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/utils";
 import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { KANBAN_COLUMNS, type KanbanColumnId } from "@/lib/types/task";
@@ -32,6 +36,7 @@ interface TasksPageProps {
     scope?: string | string[];
     coworkerId?: string | string[];
     status?: string | string[];
+    projectId?: string | string[];
     agentId?: string | string[];
     jobStatus?: string | string[];
   }>;
@@ -41,6 +46,8 @@ export const metadata = {
   title: "Task Manager",
 };
 
+const PROJECT_FILTER_OPTIONS_LIMIT = 100;
+
 export default async function TasksPage({ searchParams }: TasksPageProps) {
   const {
     create,
@@ -48,6 +55,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     scope,
     coworkerId,
     status,
+    projectId,
     agentId,
     jobStatus,
   } = await searchParams;
@@ -61,12 +69,13 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [taskCoworkers, agents] = await Promise.all([
+  const [taskCoworkers, agents, projectsPage] = await Promise.all([
     coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
+    projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
   ]);
   const filters = parseTasksFilters(
-    { scope, coworkerId, status },
+    { scope, coworkerId, status, projectId },
     activeOrganizationId,
   );
   const agentNameById = buildAgentNameById(agents);
@@ -76,10 +85,30 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     image: getAgentResolvedIcon(agent),
   }));
   const jobsListFilters = parseJobsListFilters(
-    { scope, agentId, jobStatus },
+    { scope, agentId, jobStatus, projectId },
     activeOrganizationId,
     jobAgentOptions,
   );
+  let projectOptions: ProjectFilterOption[] = projectsPage.projects.map(
+    (project) => ({
+      id: project.id,
+      name: project.name,
+    }),
+  );
+  if (
+    filters.projectId &&
+    !projectOptions.some((project) => project.id === filters.projectId)
+  ) {
+    const selectedProject = await projectService.getProjectById(
+      filters.projectId,
+    );
+    if (selectedProject) {
+      projectOptions = [
+        { id: selectedProject.id, name: selectedProject.name },
+        ...projectOptions,
+      ];
+    }
+  }
   const coworkersById = new Map(
     taskCoworkers.map((coworker) => [coworker.id, coworker]),
   );
@@ -87,18 +116,32 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const validCoworkerIds = new Set(
     taskCoworkers.map((coworker) => coworker.id),
   );
+  const validProjectIds = new Set(projectOptions.map((project) => project.id));
   const activeFilters = {
     ...filters,
     coworkerId:
       filters.coworkerId && validCoworkerIds.has(filters.coworkerId)
         ? filters.coworkerId
         : null,
+    projectId:
+      filters.projectId && validProjectIds.has(filters.projectId)
+        ? filters.projectId
+        : null,
+  };
+  const activeJobsListFilters = {
+    ...jobsListFilters,
+    projectId:
+      jobsListFilters.projectId &&
+      validProjectIds.has(jobsListFilters.projectId)
+        ? jobsListFilters.projectId
+        : null,
   };
   const [jobsPage, columnPages] = await Promise.all([
     taskService.listJobs({
-      scope: jobsListFilters.scope,
-      agentId: jobsListFilters.agentId ?? undefined,
-      status: jobsListFilters.jobStatus ?? undefined,
+      scope: activeJobsListFilters.scope,
+      agentId: activeJobsListFilters.agentId ?? undefined,
+      projectId: activeJobsListFilters.projectId ?? undefined,
+      status: activeJobsListFilters.jobStatus ?? undefined,
       limit: 20,
     }),
     Promise.all(
@@ -110,6 +153,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
           scope: activeFilters.scope,
           coworkerId: activeFilters.coworkerId,
           status: activeFilters.status,
+          projectId: activeFilters.projectId,
           coworkersById,
           agentsById,
         });
@@ -145,6 +189,8 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     initialCreateTaskOpen && coworkerSlugParam
       ? findCoworkerIdBySlug(coworkerOptions, coworkerSlugParam)
       : null;
+  const initialProjectId =
+    activeFilters.projectId ?? activeJobsListFilters.projectId;
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
@@ -164,16 +210,17 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         columnNextCursorById={columnNextCursorById}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
         jobAgentOptions={jobAgentOptions}
         agentNameById={agentNameById}
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}
         initialFilters={activeFilters}
-        initialJobsListFilters={jobsListFilters}
+        initialJobsListFilters={activeJobsListFilters}
         defaultViewMode={defaultViewMode}
         initialCreateTaskOpen={initialCreateTaskOpen}
         initialCoworkerId={initialCoworkerId}
-        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}`}
+        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}-${initialProjectId ?? ""}`}
         labels={{
           tabs: {
             tasks: t("Tabs.tasks"),
@@ -189,6 +236,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
             scopeWorkspace: t("Filters.scopeWorkspace"),
             coworkerLabel: t("Filters.coworkerLabel"),
             statusLabel: t("Filters.statusLabel"),
+            projectLabel: t("Filters.projectLabel"),
             statusOptions: {
               [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
               [TaskStatus.READY]: t("Filters.statusOptions.READY"),

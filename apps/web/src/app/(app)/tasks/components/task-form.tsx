@@ -20,6 +20,7 @@ import {
   readCreateTaskModalLastCoworkerId,
   writeCreateTaskModalLastCoworkerId,
 } from "@/app/tasks/utils/create-task-modal-preferences";
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,7 @@ import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
 import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
+import { TaskProjectSelect } from "./task-project-select";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
@@ -53,6 +55,10 @@ export interface TaskFormLabels {
   name: string;
   namePlaceholder: string;
   descriptionPlaceholder: string;
+  projectLabel: string;
+  projectNone: string;
+  projectSearchPlaceholder: string;
+  projectEmptyResults: string;
   coworker: string;
   coworkerDescription: string;
   status: string;
@@ -78,6 +84,7 @@ interface TaskFormInitialValues {
   name?: string;
   description?: string;
   coworkerId?: string | null;
+  projectId?: string | null;
   status?: TaskStatus;
 }
 
@@ -88,12 +95,15 @@ interface TaskFormProps {
   agentNameById?: Map<string, string>;
   taskId?: string;
   initialValues?: TaskFormInitialValues;
+  projectOptions?: ProjectFilterOption[];
+  defaultProjectId?: string | null;
   variant?: "page" | "modal";
   onCancel?: () => void;
   onSuccess?: (taskId: string) => void;
   onCreateTask?: (input: {
     description: string;
     coworkerId: string | null;
+    projectId?: string | null;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
   }) => Promise<{ taskId: string }>;
   showCancel?: boolean;
@@ -107,6 +117,8 @@ export function TaskForm({
   agentNameById = EMPTY_AGENT_NAME_MAP,
   taskId,
   initialValues,
+  projectOptions,
+  defaultProjectId = null,
   variant = "page",
   onCancel,
   onSuccess,
@@ -116,10 +128,14 @@ export function TaskForm({
 }: TaskFormProps) {
   const router = useRouter();
   const isModal = variant === "modal";
+  const shouldShowProjectSelect = isModal && projectOptions !== undefined;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
   const [description, setDescription] = useState(
     initialValues?.description ?? "",
+  );
+  const [projectId, setProjectId] = useState<string | null>(
+    initialValues?.projectId ?? defaultProjectId ?? null,
   );
   const hasExplicitInitialCoworker =
     initialValues?.coworkerId != null && initialValues.coworkerId !== "";
@@ -226,6 +242,7 @@ export function TaskForm({
           const result = await createTaskHandler({
             description: trimmedDescription,
             coworkerId,
+            ...(shouldShowProjectSelect ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
           });
           if (onSuccess) {
@@ -246,6 +263,7 @@ export function TaskForm({
           name: trimmedName,
           description: trimmedDescription,
           coworkerId,
+          ...(shouldShowProjectSelect ? { projectId } : {}),
           currentStatus: originalStatus,
           desiredStatus,
         });
@@ -268,6 +286,8 @@ export function TaskForm({
       mode,
       name,
       coworkerId,
+      projectId,
+      shouldShowProjectSelect,
       originalStatus,
       router,
       status,
@@ -411,6 +431,21 @@ export function TaskForm({
                 placeholder={labels.namePlaceholder}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
+              />
+            </div>
+          ) : null}
+
+          {shouldShowProjectSelect ? (
+            <div className="space-y-2">
+              <Label>{labels.projectLabel}</Label>
+              <TaskProjectSelect
+                projectOptions={projectOptions ?? []}
+                value={projectId}
+                onChange={setProjectId}
+                projectLabel={labels.projectLabel}
+                noneLabel={labels.projectNone}
+                searchPlaceholder={labels.projectSearchPlaceholder}
+                emptyResults={labels.projectEmptyResults}
               />
             </div>
           ) : null}

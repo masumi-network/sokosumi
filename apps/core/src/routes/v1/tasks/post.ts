@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
@@ -19,6 +20,12 @@ export const createTaskRequestSchema = z
   .object({
     name: z.string().min(1).max(120).openapi({ example: "Review onboarding" }),
     description: z.string().nullish().openapi({ example: "Notes go here" }),
+    projectId: z
+      .string()
+      .uuid()
+      .nullable()
+      .optional()
+      .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
     coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
     status: z
       .enum([TaskStatus.DRAFT, TaskStatus.READY])
@@ -68,6 +75,7 @@ const route = withGlobalHeaderParameters(
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
     },
   }),
 );
@@ -88,11 +96,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         await requireTaskAssignableCoworker(body.coworkerId, tx);
       }
 
+      if (body.projectId !== null && body.projectId !== undefined) {
+        const project = await tx.project.findFirst({
+          where: {
+            id: body.projectId,
+            workspaceId: workspaceContext.workspaceId,
+          },
+          select: { id: true },
+        });
+
+        if (!project) {
+          throw notFound("Project not found");
+        }
+      }
+
       return tx.task.create({
         data: {
           userId: userContext.userId,
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
+          projectId: body.projectId ?? null,
           name: body.name,
           description: body.description ?? null,
           coworkerId: body.coworkerId ?? null,

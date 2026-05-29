@@ -31,6 +31,7 @@ export default async function JobDetailsPage({
     dehydratedState,
     job,
     personalWorkspaceLabel,
+    projectName,
     readOnly,
   } = jobDetails;
   const targetOrganizationId = job.workspace.organizationId ?? null;
@@ -56,6 +57,7 @@ export default async function JobDetailsPage({
         job={job}
         organizations={members}
         personalWorkspaceLabel={personalWorkspaceMoveLabel}
+        projectName={projectName}
         readOnly={readOnly}
       />
     </HydrationBoundary>

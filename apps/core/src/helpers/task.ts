@@ -247,6 +247,7 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     updatedAt: task.updatedAt,
     userId: task.userId,
     organizationId: task.organizationId,
+    projectId: task.projectId,
     user: taskUserSummary,
     organization: taskOrganizationSummary,
     coworkerId: task.coworkerId,

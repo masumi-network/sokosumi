@@ -29,6 +29,7 @@ import {
 } from "@/lib/schemas";
 import { callAgentHiredWebHook, jobService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
+import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -261,10 +262,12 @@ export const startJob = withSession<
     try {
       const userId = session.user.id;
       const organizationId = session.session.activeOrganizationId ?? null;
+      const projectId = normalizeOptionalProjectId(input.projectId);
       const inputDataForService: StartJobInputSchemaType = {
         ...input,
         userId,
         organizationId,
+        projectId,
       };
 
       // Set user context for Sentry
@@ -388,6 +391,9 @@ export const startJob = withSession<
         inputData: coreInputData,
         ...(parsed.maxAcceptedCents !== ZERO_ACCEPTED_CENTS
           ? { maxCredits }
+          : {}),
+        ...(typeof parsed.projectId !== "undefined"
+          ? { projectId: parsed.projectId }
           : {}),
         ...(generatedName ? { name: generatedName } : {}),
       });

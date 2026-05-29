@@ -79,6 +79,7 @@ async function createPaidJob(
     inputData: InputSchemaType;
     inputSchema: InputSchemaSchemaType;
     name: string | null;
+    projectId?: string | null;
     taskId?: string | null;
     jobScheduleId?: string | null;
   },
@@ -105,6 +106,9 @@ async function createPaidJob(
         organization: { connect: { id: input.organizationId } },
       }),
       workspace: { connect: { id: input.workspaceId } },
+      ...(input.projectId && {
+        project: { connect: { id: input.projectId } },
+      }),
       ...(input.taskId && {
         task: { connect: { id: input.taskId } },
       }),
@@ -171,6 +175,7 @@ async function createFreeJob(
     inputData: InputSchemaType;
     inputSchema: InputSchemaSchemaType;
     name: string | null;
+    projectId?: string | null;
     taskId?: string | null;
     jobScheduleId?: string | null;
   },
@@ -188,6 +193,9 @@ async function createFreeJob(
         organization: { connect: { id: input.organizationId } },
       }),
       workspace: { connect: { id: input.workspaceId } },
+      ...(input.projectId && {
+        project: { connect: { id: input.projectId } },
+      }),
       ...(input.taskId && {
         task: { connect: { id: input.taskId } },
       }),
@@ -231,6 +239,7 @@ interface CreateAgentJobInput {
     maxCredits?: number;
     maxAcceptedCents?: bigint;
     name?: string;
+    projectId?: string | null;
   };
   taskContext?: {
     taskId: string;
@@ -280,6 +289,20 @@ export async function createAgentJobForUser(
 
   const agent = { ...agentRecord, cost };
 
+  if (agentInput.projectId !== null && agentInput.projectId !== undefined) {
+    const project = await prisma.project.findFirst({
+      where: {
+        id: agentInput.projectId,
+        workspaceId: owner.workspaceId,
+      },
+      select: { id: true },
+    });
+
+    if (!project) {
+      throw notFound("Project not found");
+    }
+  }
+
   let jobName = agentInput.name?.trim() || null;
   const resolveJobName = async (): Promise<string | null> => {
     if (jobName) {
@@ -304,6 +327,7 @@ export async function createAgentJobForUser(
     workspaceId: owner.workspaceId,
     inputData: agentInput.inputData,
     inputSchema: agentInput.inputSchema,
+    projectId: agentInput.projectId,
     taskId: taskContext?.taskId,
     jobScheduleId: scheduleContext?.jobScheduleId,
   };

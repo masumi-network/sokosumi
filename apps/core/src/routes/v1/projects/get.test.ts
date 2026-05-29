@@ -6,6 +6,7 @@ import { LIMITS } from "@/config/constants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
+import { createProjectListCountsInclude } from "@/types/project";
 
 import mountListProjects from "./get.js";
 
@@ -81,6 +82,10 @@ describe("GET /projects", () => {
       description: "Notes",
       createdAt: new Date("2026-04-01T10:00:00.000Z"),
       updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+      _count: {
+        tasks: 2,
+        jobs: 1,
+      },
     };
     projectFindManyMock.mockResolvedValue([sample]);
     projectCountMock.mockResolvedValue(1);
@@ -90,7 +95,12 @@ describe("GET /projects", () => {
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      data: Array<{ id: string; name: string }>;
+      data: Array<{
+        id: string;
+        name: string;
+        taskCount: number;
+        jobCount: number;
+      }>;
       meta: {
         pagination: {
           total: number;
@@ -103,6 +113,8 @@ describe("GET /projects", () => {
     expect(body.data).toHaveLength(1);
     expect(body.data[0]?.id).toBe("11111111-1111-4111-8111-111111111111");
     expect(body.data[0]?.name).toBe("Research");
+    expect(body.data[0]?.taskCount).toBe(2);
+    expect(body.data[0]?.jobCount).toBe(1);
     expect(body.meta.pagination.total).toBe(1);
     expect(body.meta.pagination.limit).toBe(LIMITS.DEFAULT_PAGINATION_LIMIT);
     expect(body.meta.pagination.nextCursor).toBeNull();
@@ -110,6 +122,7 @@ describe("GET /projects", () => {
 
     expect(projectFindManyMock).toHaveBeenCalledWith({
       where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
+      include: createProjectListCountsInclude(WORKSPACE_CONTEXT.workspaceId),
       take: LIMITS.DEFAULT_PAGINATION_LIMIT + 1,
       skip: undefined,
       cursor: undefined,
@@ -130,6 +143,10 @@ describe("GET /projects", () => {
         description: null,
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+        _count: {
+          tasks: 0,
+          jobs: 0,
+        },
       }),
     );
     projectFindManyMock.mockResolvedValue(rows);
@@ -162,6 +179,7 @@ describe("GET /projects", () => {
     expect(res.status).toBe(200);
     expect(projectFindManyMock).toHaveBeenCalledWith({
       where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
+      include: createProjectListCountsInclude(WORKSPACE_CONTEXT.workspaceId),
       take: 11,
       skip: 1,
       cursor: { id: cursorId },

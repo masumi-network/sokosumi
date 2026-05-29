@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { Suspense } from "react";
 
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import {
   Dialog,
@@ -25,6 +26,7 @@ interface CreditsSuccessModalProps {
     agent: AgentWithCreditsPrice;
     averageExecutionDuration: number | null;
   } | null>;
+  projectOptionsPromise: Promise<ProjectFilterOption[]>;
 }
 
 export default function CreditsSuccessModal(props: CreditsSuccessModalProps) {
@@ -63,6 +65,7 @@ function CreditsSuccessModalInner(props: CreditsSuccessModalProps) {
 
 function SuccessCardContentInner({
   randomAgentPromise,
+  projectOptionsPromise,
 }: CreditsSuccessModalProps) {
   const t = useTranslations("App.Credits.Success");
 
@@ -71,7 +74,10 @@ function SuccessCardContentInner({
       <h1 className="text-foreground text-center text-lg font-light md:text-2xl">
         {t("getStarted")}
       </h1>
-      <RandomAgentCard randomAgentPromise={randomAgentPromise} />
+      <RandomAgentCard
+        randomAgentPromise={randomAgentPromise}
+        projectOptionsPromise={projectOptionsPromise}
+      />
     </SuccessCard>
   );
 }

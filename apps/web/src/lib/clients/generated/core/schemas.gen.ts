@@ -947,6 +947,13 @@ export const JobSummarySchema = {
         organization: {
             $ref: '#/components/schemas/OrganizationSummary'
         },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
@@ -3142,6 +3149,33 @@ export const UserSchema = {
     ]
 } as const;
 
+export const ProjectListItemSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Project'
+        },
+        {
+            type: 'object',
+            properties: {
+                taskCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    example: 2
+                },
+                jobCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    example: 1
+                }
+            },
+            required: [
+                'taskCount',
+                'jobCount'
+            ]
+        }
+    ]
+} as const;
+
 export const ProjectSchema = {
     type: 'object',
     properties: {
@@ -3460,6 +3494,14 @@ export const JobSchema = {
         },
         organization: {
             $ref: '#/components/schemas/OrganizationSummary'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
         taskId: {
             type: [
@@ -3839,6 +3881,7 @@ export const JobSchema = {
         'agentId',
         'userId',
         'user',
+        'projectId',
         'jobType',
         'status',
         'credits',
@@ -5020,6 +5063,14 @@ export const TaskListItemSchema = {
         organization: {
             $ref: '#/components/schemas/OrganizationSummary'
         },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
         coworkerId: {
             type: [
                 'string',
@@ -5089,6 +5140,7 @@ export const TaskListItemSchema = {
         'user',
         'organizationId',
         'organization',
+        'projectId',
         'coworkerId',
         'coworker',
         'name',
@@ -5167,6 +5219,14 @@ export const TaskSchema = {
         },
         organization: {
             $ref: '#/components/schemas/OrganizationSummary'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
         coworkerId: {
             type: [
@@ -5258,6 +5318,7 @@ export const TaskSchema = {
         'user',
         'organizationId',
         'organization',
+        'projectId',
         'coworkerId',
         'coworker',
         'name',

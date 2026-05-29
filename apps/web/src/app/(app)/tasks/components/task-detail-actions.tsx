@@ -214,6 +214,10 @@ export function TaskDetailActions({
     name: tNewTask("name"),
     namePlaceholder: tNewTask("namePlaceholder"),
     descriptionPlaceholder: tNewTask("descriptionPlaceholder"),
+    projectLabel: tNewTask("projectLabel"),
+    projectNone: tNewTask("projectNone"),
+    projectSearchPlaceholder: tNewTask("projectSearchPlaceholder"),
+    projectEmptyResults: tNewTask("projectEmptyResults"),
     coworker: tNewTask("coworker"),
     coworkerDescription: tNewTask("coworkerDescription"),
     status: tNewTask("status"),
@@ -809,7 +813,12 @@ export function TaskDetailActions({
             initialValues={
               defaultCoworkerId ? { coworkerId: defaultCoworkerId } : undefined
             }
-            onCreateTask={async ({ description, coworkerId, status }) => {
+            onCreateTask={async ({
+              description,
+              coworkerId,
+              projectId,
+              status,
+            }) => {
               const linkInput = getTaskLinkActionInput(
                 selectedCreateRelatedOption.relation,
               );
@@ -817,6 +826,7 @@ export function TaskDetailActions({
                 taskId,
                 description,
                 coworkerId,
+                projectId,
                 status,
                 ...linkInput,
               });
