@@ -116,7 +116,8 @@ function JobInputsGroupedFormStandard({
   const tDuration = useTranslations("Library.Duration.Short");
   const { os, isMobile } = useOSDetection();
 
-  const { open, loading, setLoading, handleClose } = useCreateJobModalContext();
+  const { open, loading, setLoading, handleClose, projectId } =
+    useCreateJobModalContext();
 
   const groupsKey = useMemo(() => groups.map((g) => g.id).join(","), [groups]);
   const [collectedGroupValues, setCollectedGroupValues] =
@@ -144,6 +145,7 @@ function JobInputsGroupedFormStandard({
     inputSchema,
     demoValues,
     scheduleSelection,
+    projectId,
     setLoading,
     onSuccess: handleClose,
   });

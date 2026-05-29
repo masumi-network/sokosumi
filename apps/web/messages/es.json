@@ -320,6 +320,7 @@
           "propertiesTitle": "Propiedades",
           "status": "Estado",
           "task": "Task",
+          "project": "Proyecto",
           "coworker": "Coworker",
           "openTask": "Abrir Task",
           "created": "Creado",
@@ -3012,7 +3013,11 @@
             "title": "Información"
           },
           "Input": {
-            "title": "Input"
+            "title": "Input",
+            "projectLabel": "Proyecto",
+            "projectNone": "Sin proyecto",
+            "projectSearchPlaceholder": "Buscar proyectos...",
+            "projectEmptyResults": "No se encontraron proyectos."
           },
           "Scheduler": {
             "title": "Programar job",

@@ -265,6 +265,7 @@ export type JobSummary = {
     user: UserSummary;
     organizationId?: string | null;
     organization?: OrganizationSummary;
+    projectId?: string | null;
     workspace: WorkspaceSummary;
     taskId?: string | null;
     name?: string | null;
@@ -1020,6 +1021,7 @@ export type Job = {
     user: UserSummary;
     organizationId?: string | null;
     organization?: OrganizationSummary;
+    projectId?: string | null;
     taskId?: string | null;
     name?: string | null;
     jobType: 'FREE' | 'PAID' | 'DEMO';

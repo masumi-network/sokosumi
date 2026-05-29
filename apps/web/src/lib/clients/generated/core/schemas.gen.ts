@@ -947,6 +947,13 @@ export const JobSummarySchema = {
         organization: {
             $ref: '#/components/schemas/OrganizationSummary'
         },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
@@ -3487,6 +3494,13 @@ export const JobSchema = {
         },
         organization: {
             $ref: '#/components/schemas/OrganizationSummary'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
         taskId: {
             type: [

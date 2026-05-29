@@ -96,7 +96,8 @@ function JobInputsFlatFormStandard({
   const tDuration = useTranslations("Library.Duration.Short");
   const { os, isMobile } = useOSDetection();
 
-  const { open, loading, setLoading, handleClose } = useCreateJobModalContext();
+  const { open, loading, setLoading, handleClose, projectId } =
+    useCreateJobModalContext();
 
   const {
     scheduleOpen,
@@ -113,6 +114,7 @@ function JobInputsFlatFormStandard({
     inputSchema,
     demoValues,
     scheduleSelection,
+    projectId,
     setLoading,
     onSuccess: handleClose,
   });

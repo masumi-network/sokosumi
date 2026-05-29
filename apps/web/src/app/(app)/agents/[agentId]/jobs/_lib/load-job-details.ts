@@ -6,6 +6,7 @@ import { cache } from "react";
 import { mapCoreJobToJobWithSokosumiStatus } from "@/lib/agents/core-dto-mappers";
 import { getSession } from "@/lib/auth/utils";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import { projectService } from "@/lib/services/project.service";
 import { getJobQueryKey, getQueryClient } from "@/queries";
 
 interface LoadJobDetailsParams {
@@ -18,6 +19,7 @@ interface LoadJobDetailsResult {
   dehydratedState: ReturnType<typeof dehydrate>;
   job: JobWithSokosumiStatus;
   personalWorkspaceLabel: string | null;
+  projectName: string | null;
   readOnly: boolean;
 }
 
@@ -50,6 +52,9 @@ export async function loadJobDetails({
 
   const queryClient = getQueryClient();
   queryClient.setQueryData(getJobQueryKey(jobId), job);
+  const project = job.projectId
+    ? await projectService.getProjectById(job.projectId)
+    : null;
 
   return {
     activeOrganizationId: session.session.activeOrganizationId ?? null,
@@ -57,6 +62,7 @@ export async function loadJobDetails({
     job,
     personalWorkspaceLabel:
       session.user.name?.trim() || session.user.email?.trim() || null,
+    projectName: project?.name ?? null,
     readOnly: job.userId !== session.user.id,
   };
 }

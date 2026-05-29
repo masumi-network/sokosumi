@@ -58,6 +58,9 @@ export const jobSummarySchema = z
       .nullish()
       .openapi({ example: "organization_123" }),
     organization: organizationSummarySchema.nullish(),
+    projectId: z.string().nullish().openapi({
+      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+    }),
     workspace: workspaceSummarySchema,
     taskId: z.string().nullish().openapi({ example: "task_123" }),
     name: z.string().nullish().openapi({ example: "My Job" }),
@@ -175,6 +178,9 @@ export const jobSchema = z
       .nullish()
       .openapi({ example: "organization_123" }),
     organization: organizationSummarySchema.nullish(),
+    projectId: z.string().nullish().openapi({
+      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+    }),
     taskId: z.string().nullish().openapi({ example: "task_123" }),
     name: z.string().nullish().openapi({ example: "Research Task" }),
     jobType: z.enum(JobType).openapi({ example: JobType.PAID }),
@@ -242,8 +248,7 @@ export const createJobRequestSchema = z.object({
   maxCredits: z.number().positive().optional().openapi({ example: 10 }),
   projectId: z
     .string()
-    .uuid()
-    .nullable()
+    .nullish()
     .optional()
     .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
   name: z.string().trim().min(1).max(JOB_NAME_MAX_LENGTH).optional().openapi({

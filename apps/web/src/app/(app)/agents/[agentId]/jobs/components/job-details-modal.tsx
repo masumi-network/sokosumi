@@ -30,6 +30,7 @@ interface JobDetailsModalProps {
   job: JobWithSokosumiStatus;
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel?: string;
+  projectName?: string | null;
   readOnly: boolean;
 }
 
@@ -38,6 +39,7 @@ export function JobDetailsModal({
   job,
   organizations,
   personalWorkspaceLabel,
+  projectName,
   readOnly,
 }: JobDetailsModalProps) {
   const t = useTranslations("App.Agents.Jobs.Modal");
@@ -138,6 +140,7 @@ export function JobDetailsModal({
               job={job}
               organizations={organizations}
               personalWorkspaceLabel={personalWorkspaceLabel}
+              projectName={projectName}
               readOnly={readOnly}
               showAgentHeader={false}
             />

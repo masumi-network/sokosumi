@@ -14,6 +14,7 @@ import {
 } from "@/lib/agents/core-dto-mappers";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/utils";
+import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services";
 
 import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
@@ -80,7 +81,7 @@ async function JobLayoutInner({
     coreAgent?.metrics.executions.averageTime ?? null;
   const disabled = !coreAgent;
 
-  const [agentJobs, favoriteAgents, canRate, existingRating] =
+  const [agentJobs, favoriteAgents, canRate, existingRating, projectOptions] =
     await Promise.all([
       getCachedMyJobs(agentId),
       // TODO(core-api): replace with a Core favorites API when available.
@@ -92,12 +93,14 @@ async function JobLayoutInner({
       coreAgent
         ? agentService.getUserRatingForAgent(userId, agentId)
         : Promise.resolve(null),
+      getProjectFilterOptions(),
     ]);
 
   return (
     <CreateJobModalContextProvider
       agentsWithPrice={[agentWithCreditsPrice]}
       averageExecutionDuration={averageExecutionDuration}
+      projectOptions={projectOptions}
     >
       <JobsHeaderProvider
         value={{

@@ -320,6 +320,7 @@
           "propertiesTitle": "Propriedades",
           "status": "Status",
           "task": "Tarefa",
+          "project": "Projeto",
           "coworker": "Coworker",
           "openTask": "Abrir tarefa",
           "created": "Criado",
@@ -3074,7 +3075,11 @@
             "title": "Informações"
           },
           "Input": {
-            "title": "Entrada"
+            "title": "Entrada",
+            "projectLabel": "Projeto",
+            "projectNone": "Sem projeto",
+            "projectSearchPlaceholder": "Pesquisar projetos...",
+            "projectEmptyResults": "Nenhum projeto encontrado."
           },
           "Scheduler": {
             "title": "Agendar job",

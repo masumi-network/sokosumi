@@ -16,9 +16,10 @@ import { buildJobTransactionUrl } from "@/lib/utils/url";
 
 export interface JobMetaDetailsProps {
   job: JobWithSokosumiStatus;
+  projectName?: string | null;
 }
 
-export function JobMetaDetails({ job }: JobMetaDetailsProps) {
+export function JobMetaDetails({ job, projectName }: JobMetaDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Meta");
   const formatter = useFormatter();
   const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
@@ -52,6 +53,17 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
               className="hover:text-foreground text-sm font-medium underline-offset-2 hover:underline"
             >
               {t("openTask")}
+            </Link>
+          </KeyValueRow>
+        ) : null}
+
+        {projectName ? (
+          <KeyValueRow label={t("project")}>
+            <Link
+              href={`/projects/${job.projectId}`}
+              className="hover:text-foreground text-sm font-medium underline-offset-2 hover:underline"
+            >
+              {projectName}
             </Link>
           </KeyValueRow>
         ) : null}

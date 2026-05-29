@@ -320,6 +320,7 @@
           "propertiesTitle": "Properties",
           "status": "Status",
           "task": "Task",
+          "project": "Project",
           "coworker": "Coworker",
           "openTask": "Open task",
           "created": "Created",
@@ -3074,7 +3075,11 @@
             "title": "Information"
           },
           "Input": {
-            "title": "Input"
+            "title": "Input",
+            "projectLabel": "Project",
+            "projectNone": "No project",
+            "projectSearchPlaceholder": "Search projects...",
+            "projectEmptyResults": "No projects found."
           },
           "Scheduler": {
             "title": "Schedule job",

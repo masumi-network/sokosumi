@@ -56,6 +56,7 @@ function createJobSummary(overrides: Partial<JobSummary>): JobSummary {
     },
     user: { id: "user-1", name: "Test User", image: null },
     organization: null,
+    projectId: null,
     ...overrides,
   };
 }

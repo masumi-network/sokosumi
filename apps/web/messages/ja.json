@@ -320,6 +320,7 @@
           "propertiesTitle": "プロパティ",
           "status": "ステータス",
           "task": "タスク",
+          "project": "プロジェクト",
           "coworker": "同僚",
           "openTask": "タスクを開く",
           "created": "作成日",
@@ -3074,7 +3075,11 @@
             "title": "情報"
           },
           "Input": {
-            "title": "入力"
+            "title": "入力",
+            "projectLabel": "プロジェクト",
+            "projectNone": "プロジェクトなし",
+            "projectSearchPlaceholder": "プロジェクトを検索...",
+            "projectEmptyResults": "プロジェクトが見つかりません。"
           },
           "Scheduler": {
             "title": "ジョブをスケジュール",

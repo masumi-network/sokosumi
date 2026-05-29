@@ -8,8 +8,10 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
+import { TaskProjectSelect } from "@/app/tasks/components/task-project-select";
 import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
+import { Label } from "@/components/ui/label";
 import {
   getAgentDescription,
   getAgentName,
@@ -108,10 +110,27 @@ function InputAccordionItem({
   isDemo: boolean;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
+  const { projectOptions, projectId, setProjectId } =
+    useCreateJobModalContext();
+  const shouldShowProjectSelect = projectOptions !== undefined;
 
   return (
     <AccordionItemWrapper value="input" title={t("title")} disabled={disabled}>
       <div className="flex flex-col gap-6">
+        {shouldShowProjectSelect ? (
+          <div className="space-y-2">
+            <Label>{t("projectLabel")}</Label>
+            <TaskProjectSelect
+              projectOptions={projectOptions}
+              value={projectId}
+              onChange={setProjectId}
+              projectLabel={t("projectLabel")}
+              noneLabel={t("projectNone")}
+              searchPlaceholder={t("projectSearchPlaceholder")}
+              emptyResults={t("projectEmptyResults")}
+            />
+          </div>
+        ) : null}
         <JobInputsForm
           agent={agent}
           averageExecutionDuration={averageExecutionDuration}

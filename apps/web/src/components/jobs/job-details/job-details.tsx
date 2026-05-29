@@ -17,6 +17,7 @@ export default function JobDetails({
   job: initialJob,
   organizations,
   personalWorkspaceLabel,
+  projectName,
   readOnly = false,
   className,
   showAgentHeader = true,
@@ -24,6 +25,7 @@ export default function JobDetails({
 }: JobDetailsViewProps & {
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel?: string;
+  projectName?: string | null;
 }) {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -49,6 +51,7 @@ export default function JobDetails({
       job={job}
       organizations={organizations}
       personalWorkspaceLabel={personalWorkspaceLabel}
+      projectName={projectName}
       readOnly={readOnly}
       className={className}
       showAgentHeader={showAgentHeader}

@@ -320,6 +320,7 @@
           "propertiesTitle": "Propriétés",
           "status": "Statut",
           "task": "Tâche",
+          "project": "Projet",
           "coworker": "Collègue",
           "openTask": "Tâche ouverte",
           "created": "Créé",
@@ -3074,7 +3075,11 @@
             "title": "Informations"
           },
           "Input": {
-            "title": "Saisie"
+            "title": "Saisie",
+            "projectLabel": "Projet",
+            "projectNone": "Aucun projet",
+            "projectSearchPlaceholder": "Rechercher des projets...",
+            "projectEmptyResults": "Aucun projet trouvé."
           },
           "Scheduler": {
             "title": "Planifier le job",

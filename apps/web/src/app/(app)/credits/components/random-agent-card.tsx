@@ -3,6 +3,7 @@
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { Suspense, use } from "react";
 
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { AgentCard, AgentCardSkeleton } from "@/components/agents";
 import {
   CreateJobModal,
@@ -15,6 +16,7 @@ interface RandomAgentCardProps {
     agent: AgentWithCreditsPrice;
     averageExecutionDuration: number | null;
   } | null>;
+  projectOptionsPromise: Promise<ProjectFilterOption[]>;
 }
 
 export default function RandomAgentCard(props: RandomAgentCardProps) {
@@ -34,20 +36,27 @@ function RandomAgentCardInner(props: RandomAgentCardProps) {
     return null;
   }
 
-  return <RandomAgentCardContent {...randomAgent} />;
+  const projectOptions = use(props.projectOptionsPromise);
+
+  return (
+    <RandomAgentCardContent {...randomAgent} projectOptions={projectOptions} />
+  );
 }
 
 function RandomAgentCardContent({
   agent,
   averageExecutionDuration,
+  projectOptions,
 }: {
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number | null;
+  projectOptions: ProjectFilterOption[];
 }) {
   return (
     <CreateJobModalContextProvider
       agentsWithPrice={[agent]}
       averageExecutionDuration={averageExecutionDuration}
+      projectOptions={projectOptions}
     >
       <AgentCard
         agent={agent}
