@@ -34,7 +34,6 @@ model User {
   agentLists       AgentList[]
   transactions     Transaction[]
   jobs             Job[]
-  jobSchedules     JobSchedule[]
 
   stripeCustomerId        String?
   preferredOrganizationId String?
@@ -198,7 +197,6 @@ model Organization {
   workspace      Workspace?
   jobs           Job[]
   tasks          Task[]
-  jobSchedules   JobSchedule[]
   transactions   Transaction[]
   coworkerUsages CoworkerUsage[]
 
@@ -223,10 +221,9 @@ model Workspace {
   organizationId String?       @unique
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  jobs         Job[]
-  jobSchedules JobSchedule[]
-  tasks        Task[]
-  projects     Project[]
+  jobs     Job[]
+  tasks    Task[]
+  projects Project[]
 
   @@map("workspace")
 }
@@ -497,7 +494,6 @@ model Agent {
   userAgentRating UserAgentRating[]
   agentLists      AgentList[]
   jobs            Job[]
-  jobSchedules    JobSchedule[]
 
   tags         Tag[]      @relation("AgentTag")
   overrideTags Tag[]      @relation("AgentTagOverride")
@@ -728,10 +724,6 @@ model Job {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
-  // Optional link to the schedule that initiated this job
-  jobScheduleId String?
-  jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
-
   // Optional link to the task this job belongs to
   taskId String?
   task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
@@ -741,7 +733,6 @@ model Job {
 
   @@index([userId])
   @@index([jobType])
-  @@index([jobScheduleId])
   @@index([taskId])
   @@index([workspaceId])
   @@index([projectId])
@@ -965,53 +956,6 @@ model PublicShare {
   allowSearchIndexing Boolean @default(true)
 
   @@map("jobShare")
-}
-
-model JobSchedule {
-  id        String   @id @default(uuid(7))
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Ownership
-  userId         String
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  workspaceId    String        @db.Uuid
-  workspace      Workspace     @relation(fields: [workspaceId], references: [id])
-  agentId        String
-  agent          Agent         @relation(fields: [agentId], references: [id])
-
-  // Execution configuration
-  scheduleType        ScheduleType
-  cron                String?
-  oneTimeAtUtc        DateTime?
-  timezone            String // IANA timezone identifier used for display and next run calculation
-  endOnUtc            DateTime?
-  endAfterOccurrences Int?
-
-  // Job payload snapshot
-  inputSchema      String
-  input            String
-  maxAcceptedCents BigInt
-
-  // State
-  isActive    Boolean   @default(true)
-  nextRunAt   DateTime?
-  pauseReason String?
-
-  // Back-relation to jobs initiated by this schedule
-  jobs Job[]
-
-  @@index([isActive, nextRunAt])
-  @@index([agentId])
-  @@index([workspaceId])
-  @@map("jobSchedule")
-}
-
-enum ScheduleType {
-  ONE_TIME
-  CRON
 }
 
 enum ShareAccessType {

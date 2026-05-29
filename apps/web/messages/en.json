@@ -248,7 +248,6 @@
       "account": "Account",
       "organizations": "Organizations",
       "mcp": "Model Context Protocol (MCP)",
-      "schedules": "Schedules",
       "chat": "Chat",
       "tasks": "Tasks",
       "connections": "Connections",
@@ -1297,19 +1296,6 @@
         "networkErrorAfterRetry": "We couldn't reach the server after a few attempts. Please check your connection and try again."
       }
     },
-    "Schedules": {
-      "empty": {
-        "title": "No schedules yet",
-        "description": "Hire an Agent and configure its schedule using the Schedule Job."
-      },
-      "lastRun": "Last Run",
-      "nextRun": "Next Run",
-      "inputPreview": "Input Preview",
-      "confirmDeleteTitle": "Delete Schedule",
-      "confirmDeleteDescription": "This cannot be undone. This will delete the schedule permanently.",
-      "pausedReason": "Paused Reason",
-      "loading": "Loading schedules..."
-    },
     "Tasks": {
       "Page": {
         "title": "Task Manager",
@@ -2276,7 +2262,6 @@
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
           "projects": "Projects",
-          "scheduledAgents": "Schedules",
           "hermes": "Hermes"
         },
         "ChatLists": {
@@ -3043,62 +3028,6 @@
             "projectNone": "No project",
             "projectSearchPlaceholder": "Search projects...",
             "projectEmptyResults": "No projects found."
-          },
-          "Scheduler": {
-            "title": "Schedule job",
-            "description": "Choose when to run this job.",
-            "modeCards": {
-              "now": {
-                "title": "Run now",
-                "description": "Execute the job immediately."
-              },
-              "recurring": {
-                "title": "Schedule",
-                "description": "Plan a one-time or recurring schedule."
-              }
-            },
-            "option": {
-              "oneTime": "One-time",
-              "daily": "Daily",
-              "dailyWithTime": "Daily ({time})",
-              "dailyEveryNWithTime": "Every {n} days ({time})",
-              "weekly": "Weekly",
-              "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
-              "weeklyListWithTime": "Weekly ({weekdays}, {time})",
-              "monthly": "Monthly",
-              "monthlyWithDayTime": "Monthly (Day {day}, {time})",
-              "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
-              "custom": "Custom"
-            },
-            "schedulesTitle": "Scheduled Agents",
-            "pickDateTime": "Pick date & time",
-            "timeOfDay": "Time of day",
-            "pickTime": "Pick a time",
-            "repeatEvery": "Repeat every",
-            "repeatOn": "Repeat on",
-            "ends": "Ends",
-            "never": "Never",
-            "on": "On",
-            "after": "After",
-            "occurrences": "occurrences",
-            "pickDate": "Pick a date",
-            "preview": "Preview",
-            "noPreview": "No upcoming runs",
-            "unit": {
-              "day": "day",
-              "week": "week",
-              "month": "month"
-            },
-            "save": "Save",
-            "cancel": "Cancel",
-            "errors": {
-              "required": "This field is required.",
-              "futureDateTime": "Select a future date and time.",
-              "invalidTime": "Enter a valid time (HH:MM).",
-              "positiveInteger": "Enter a positive integer.",
-              "selectAtLeastOneWeekday": "Select at least one weekday.",
-              "endDateInPast": "End date cannot be in the past."
-            }
           }
         }
       },
@@ -3238,7 +3167,6 @@
         "clear": "Clear",
         "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
         "submit": "Hire",
-        "schedule": "Schedule",
         "back": "Back",
         "next": "Next",
         "ctrl": "Ctrl",

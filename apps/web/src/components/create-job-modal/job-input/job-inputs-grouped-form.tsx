@@ -9,8 +9,6 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import {
   ArrowLeft,
   ArrowRight,
-  CalendarClock,
-  Clock,
   Command,
   CornerDownLeft,
   Loader2,
@@ -21,13 +19,11 @@ import { useCallback, useMemo, useState } from "react";
 
 import { GroupedInputTabs } from "@/components/common/grouped-input-tabs";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
-import { JobScheduleModal } from "@/components/create-job-modal/job-schedule-modal";
 import { Button } from "@/components/ui/button";
 import { useJobSubmission } from "@/hooks/use-job-submission";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { defaultValues, type JobInputsFormSchemaType } from "@/lib/job-input";
 import type { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
-import type { JobScheduleSelectionType } from "@/lib/types/job";
 import { cn, formatDuration } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
@@ -115,20 +111,8 @@ function JobInputsGroupedFormStandard({
   const tDuration = useTranslations("Library.Duration.Short");
   const { os, isMobile } = useOSDetection();
 
-  const {
-    open,
-    loading,
-    setLoading,
-    handleClose,
-    projectId,
-    scheduleOpen,
-    setScheduleOpen,
-    scheduleSelection,
-    setScheduleSelection,
-    timezoneOptions,
-    isScheduled,
-    nextRunLabel,
-  } = useCreateJobModalContext();
+  const { open, loading, setLoading, handleClose, projectId } =
+    useCreateJobModalContext();
 
   const groupsKey = useMemo(() => groups.map((g) => g.id).join(","), [groups]);
   const [collectedGroupValues, setCollectedGroupValues] =
@@ -145,7 +129,6 @@ function JobInputsGroupedFormStandard({
     agent,
     inputSchema,
     demoValues,
-    scheduleSelection,
     projectId,
     setLoading,
     onSuccess: handleClose,
@@ -229,12 +212,6 @@ function JobInputsGroupedFormStandard({
 
       return (
         <>
-          {isScheduled && nextRunLabel && isLast && (
-            <div className="text-muted-foreground inline-flex items-center gap-1 text-sm">
-              <Clock className="size-4" />
-              {nextRunLabel}
-            </div>
-          )}
           <div className="flex items-end justify-between gap-2">
             <div className="flex items-center gap-2">
               {!isFirst && (
@@ -277,7 +254,7 @@ function JobInputsGroupedFormStandard({
                         {(loading || isSubmitting) && (
                           <Loader2 className="size-4 animate-spin" />
                         )}
-                        {isScheduled ? t("schedule") : t("submit")}
+                        {t("submit")}
                       </div>
                       {!isDemo &&
                         averageExecutionDuration &&
@@ -290,13 +267,6 @@ function JobInputsGroupedFormStandard({
                           <CornerDownLeft />
                         </div>
                       )}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      onClick={() => setScheduleOpen(true)}
-                    >
-                      <CalendarClock />
                     </Button>
                   </>
                 ) : (
@@ -315,8 +285,6 @@ function JobInputsGroupedFormStandard({
       );
     },
     [
-      isScheduled,
-      nextRunLabel,
       goBack,
       t,
       isDemo,
@@ -328,7 +296,6 @@ function JobInputsGroupedFormStandard({
       isMobile,
       os,
       handleGroupClear,
-      setScheduleOpen,
     ],
   );
 
@@ -343,40 +310,27 @@ function JobInputsGroupedFormStandard({
   );
 
   return (
-    <>
-      <GroupedInputTabs
-        groups={groups}
-        activeGroupIndex={activeGroupIndex}
-        maxUnlockedGroupIndex={maxUnlockedGroupIndex}
-        onTabChange={handleTabChange}
-        className={cn("min-w-0", className)}
-        renderGroup={(group, index, isLast) => (
-          <JobInputsFormBuilder
-            key={group.id}
-            inputFields={group.input_data}
-            defaultValues={getGroupDefaultValues(index)}
-            onSubmit={isLast ? handleGroupSubmit : handleGroupNext}
-            renderFooter={(props) => renderGroupFooter(props, isLast, index)}
-            disabled={loading}
-            isActive={open && activeGroupIndex === index}
-            t={t}
-            inputsDisabled={isDemo}
-            preventEnterSubmit={isLast}
-          />
-        )}
-      />
-      <JobScheduleModal
-        open={scheduleOpen}
-        onOpenChange={setScheduleOpen}
-        selection={scheduleSelection}
-        timezoneOptions={timezoneOptions}
-        onSave={(sel: JobScheduleSelectionType) => {
-          setScheduleSelection(sel);
-          setScheduleOpen(false);
-        }}
-        onCancel={() => setScheduleOpen(false)}
-      />
-    </>
+    <GroupedInputTabs
+      groups={groups}
+      activeGroupIndex={activeGroupIndex}
+      maxUnlockedGroupIndex={maxUnlockedGroupIndex}
+      onTabChange={handleTabChange}
+      className={cn("min-w-0", className)}
+      renderGroup={(group, index, isLast) => (
+        <JobInputsFormBuilder
+          key={group.id}
+          inputFields={group.input_data}
+          defaultValues={getGroupDefaultValues(index)}
+          onSubmit={isLast ? handleGroupSubmit : handleGroupNext}
+          renderFooter={(props) => renderGroupFooter(props, isLast, index)}
+          disabled={loading}
+          isActive={open && activeGroupIndex === index}
+          t={t}
+          inputsDisabled={isDemo}
+          preventEnterSubmit={isLast}
+        />
+      )}
+    />
   );
 }
 

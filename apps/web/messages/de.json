@@ -248,7 +248,6 @@
       "account": "Konto",
       "organizations": "Organisationen",
       "mcp": "Model Context Protocol (MCP)",
-      "schedules": "Zeitpläne",
       "chat": "Chat",
       "tasks": "Aufgaben",
       "connections": "Verbindungen",
@@ -1297,19 +1296,6 @@
         "authorize": "Autorisieren"
       }
     },
-    "Schedules": {
-      "empty": {
-        "title": "Noch keine Zeitpläne",
-        "description": "Beauftrage einen Agent und konfiguriere dessen Zeitplan über den Job-Scheduler."
-      },
-      "lastRun": "Letzter Lauf",
-      "nextRun": "Nächster Lauf",
-      "inputPreview": "Input-Vorschau",
-      "confirmDeleteTitle": "Zeitplan löschen",
-      "confirmDeleteDescription": "Dies kann nicht rückgängig gemacht werden. Der Zeitplan wird dauerhaft gelöscht.",
-      "pausedReason": "Pausierungsgrund",
-      "loading": "Zeitpläne werden geladen..."
-    },
     "Tasks": {
       "Page": {
         "title": "Task Manager",
@@ -2276,7 +2262,6 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "projects": "Projekte",
-          "scheduledAgents": "Zeitpläne",
           "hermes": "Hermes"
         },
         "ChatLists": {
@@ -3012,62 +2997,6 @@
             "projectNone": "Kein Projekt",
             "projectSearchPlaceholder": "Projekte suchen...",
             "projectEmptyResults": "Keine Projekte gefunden."
-          },
-          "Scheduler": {
-            "title": "Job planen",
-            "description": "Wähle, wann dieser Job ausgeführt werden soll.",
-            "modeCards": {
-              "now": {
-                "title": "Jetzt ausführen",
-                "description": "Job sofort ausführen."
-              },
-              "recurring": {
-                "title": "Planen",
-                "description": "Einen einmaligen oder wiederkehrenden Zeitplan festlegen."
-              }
-            },
-            "option": {
-              "oneTime": "Einmalig",
-              "daily": "Täglich",
-              "dailyWithTime": "Täglich ({time})",
-              "dailyEveryNWithTime": "Alle {n} Tage ({time})",
-              "weekly": "Wöchentlich",
-              "weeklyWithWeekdayTime": "Wöchentlich ({weekday}, {time})",
-              "weeklyListWithTime": "Wöchentlich ({weekdays}, {time})",
-              "monthly": "Monatlich",
-              "monthlyWithDayTime": "Monatlich (Tag {day}, {time})",
-              "monthlyEveryNWithDayTime": "Alle {n} Monate (Tag {day}, {time})",
-              "custom": "Benutzerdefiniert"
-            },
-            "schedulesTitle": "Geplante Agents",
-            "pickDateTime": "Datum & Uhrzeit auswählen",
-            "timeOfDay": "Uhrzeit",
-            "pickTime": "Uhrzeit auswählen",
-            "repeatEvery": "Wiederholen alle",
-            "repeatOn": "Wiederholen am",
-            "ends": "Endet",
-            "never": "Nie",
-            "on": "Am",
-            "after": "Nach",
-            "occurrences": "Wiederholungen",
-            "pickDate": "Datum auswählen",
-            "preview": "Vorschau",
-            "noPreview": "Keine geplanten Ausführungen",
-            "unit": {
-              "day": "Tag",
-              "week": "Woche",
-              "month": "Monat"
-            },
-            "save": "Speichern",
-            "cancel": "Abbrechen",
-            "errors": {
-              "required": "Dieses Feld ist erforderlich.",
-              "futureDateTime": "Wähle einen zukünftigen Zeitpunkt aus.",
-              "invalidTime": "Gib eine gültige Uhrzeit ein (HH:MM).",
-              "positiveInteger": "Gib eine positive ganze Zahl ein.",
-              "selectAtLeastOneWeekday": "Wähle mindestens einen Wochentag aus.",
-              "endDateInPast": "Das Enddatum darf nicht in der Vergangenheit liegen."
-            }
           }
         }
       },
@@ -3238,7 +3167,6 @@
         "clear": "Zurücksetzen",
         "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}} pro Ausführung",
         "submit": "Beauftragen",
-        "schedule": "Planen",
         "back": "Zurück",
         "next": "Weiter",
         "ctrl": "Strg",

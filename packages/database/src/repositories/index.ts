@@ -37,7 +37,6 @@ export * from "./job.repository.js";
 export * from "./job-event.repository.js";
 export * from "./job-input.repository.js";
 export * from "./job-purchase.repository.js";
-export * from "./job-schedule.repository.js";
 export * from "./link.repository.js";
 export * from "./lock.repository.js";
 export * from "./member.repository.js";

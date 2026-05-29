@@ -37,10 +37,6 @@
     {
       "path": "/sync/jobs",
       "schedule": "* * * * *"
-    },
-    {
-      "path": "/sync/job-schedules",
-      "schedule": "* * * * *"
     }
   ]
 }

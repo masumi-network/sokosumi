@@ -56,7 +56,6 @@ interface CurrentJobRecord {
   userId: string;
   organizationId: string | null;
   taskId: string | null;
-  jobScheduleId: string | null;
   workspaceId: string;
   workspace: {
     organizationId: string | null;
@@ -79,7 +78,6 @@ function createCurrentJobRecord(
     userId: "user_123",
     organizationId: "org_billing",
     taskId: null,
-    jobScheduleId: null,
     workspaceId: "11111111-1111-7111-8111-111111111111",
     workspace: {
       organizationId: null,
@@ -251,28 +249,6 @@ describe("PUT /jobs/{id}/workspace", () => {
     jobFindFirstMock.mockResolvedValue(
       createCurrentJobRecord({
         taskId: "tsk_123",
-      }),
-    );
-
-    const app = createApp("org_current");
-    const response = await app.request("http://localhost/job_123/workspace", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        organizationId: "org_target",
-      }),
-    });
-
-    expect(response.status).toBe(409);
-    expect(jobUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("returns 409 for schedule-backed jobs", async () => {
-    jobFindFirstMock.mockResolvedValue(
-      createCurrentJobRecord({
-        jobScheduleId: "js_123",
       }),
     );
 

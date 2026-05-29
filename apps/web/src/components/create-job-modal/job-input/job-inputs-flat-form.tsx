@@ -6,25 +6,17 @@ import type {
   InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { convertCentsToCredits } from "@sokosumi/utils";
-import {
-  CalendarClock,
-  Clock,
-  Command,
-  CornerDownLeft,
-  Loader2,
-} from "lucide-react";
+import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useMemo } from "react";
 
 import { useCreateJobModalContext } from "@/components/create-job-modal";
-import { JobScheduleModal } from "@/components/create-job-modal/job-schedule-modal";
 import { Button } from "@/components/ui/button";
 import { useJobSubmission } from "@/hooks/use-job-submission";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { defaultValues, type JobInputsFormSchemaType } from "@/lib/job-input";
 import type { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
-import type { JobScheduleSelectionType } from "@/lib/types/job";
 import { cn, formatDuration } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
@@ -95,26 +87,13 @@ function JobInputsFlatFormStandard({
   const tDuration = useTranslations("Library.Duration.Short");
   const { os, isMobile } = useOSDetection();
 
-  const {
-    open,
-    loading,
-    setLoading,
-    handleClose,
-    projectId,
-    scheduleOpen,
-    setScheduleOpen,
-    scheduleSelection,
-    setScheduleSelection,
-    timezoneOptions,
-    isScheduled,
-    nextRunLabel,
-  } = useCreateJobModalContext();
+  const { open, loading, setLoading, handleClose, projectId } =
+    useCreateJobModalContext();
 
   const { handleSubmit } = useJobSubmission({
     agent,
     inputSchema,
     demoValues,
-    scheduleSelection,
     projectId,
     setLoading,
     onSuccess: handleClose,
@@ -136,12 +115,6 @@ function JobInputsFlatFormStandard({
 
       return (
         <>
-          {isScheduled && nextRunLabel && (
-            <div className="text-muted-foreground inline-flex items-center gap-1 text-sm">
-              <Clock className="size-4" />
-              {nextRunLabel}
-            </div>
-          )}
           <div className="flex items-end justify-between gap-2">
             <Button
               type="reset"
@@ -172,7 +145,7 @@ function JobInputsFlatFormStandard({
                     {(loading || isSubmitting) && (
                       <Loader2 className="size-4 animate-spin" />
                     )}
-                    {isScheduled ? t("schedule") : t("submit")}
+                    {t("submit")}
                   </div>
                   {!isDemo &&
                     averageExecutionDuration &&
@@ -186,13 +159,6 @@ function JobInputsFlatFormStandard({
                     </div>
                   )}
                 </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => setScheduleOpen(true)}
-                >
-                  <CalendarClock />
-                </Button>
               </div>
             </div>
           </div>
@@ -200,8 +166,6 @@ function JobInputsFlatFormStandard({
       );
     },
     [
-      isScheduled,
-      nextRunLabel,
       t,
       isDemo,
       legal,
@@ -211,7 +175,6 @@ function JobInputsFlatFormStandard({
       formattedDuration,
       isMobile,
       os,
-      setScheduleOpen,
     ],
   );
 
@@ -221,31 +184,18 @@ function JobInputsFlatFormStandard({
   );
 
   return (
-    <>
-      <JobInputsFormBuilder
-        inputFields={flatInputs}
-        defaultValues={flatDefaultValues}
-        onSubmit={handleFlatSubmit}
-        renderFooter={renderFlatFooter}
-        className={cn("min-w-0", className)}
-        disabled={loading}
-        isActive={open}
-        t={t}
-        inputsDisabled={isDemo}
-        preventEnterSubmit
-      />
-      <JobScheduleModal
-        open={scheduleOpen}
-        onOpenChange={setScheduleOpen}
-        selection={scheduleSelection}
-        timezoneOptions={timezoneOptions}
-        onSave={(sel: JobScheduleSelectionType) => {
-          setScheduleSelection(sel);
-          setScheduleOpen(false);
-        }}
-        onCancel={() => setScheduleOpen(false)}
-      />
-    </>
+    <JobInputsFormBuilder
+      inputFields={flatInputs}
+      defaultValues={flatDefaultValues}
+      onSubmit={handleFlatSubmit}
+      renderFooter={renderFlatFooter}
+      className={cn("min-w-0", className)}
+      disabled={loading}
+      isActive={open}
+      t={t}
+      inputsDisabled={isDemo}
+      preventEnterSubmit
+    />
   );
 }
 

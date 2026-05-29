@@ -148,49 +148,6 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     );
   });
 
-  it("connects scheduled jobs to jobScheduleId via scheduleContext", async () => {
-    const expectedInputSchema = JSON.stringify({
-      input_data: [
-        {
-          id: "prompt",
-          type: "string",
-          name: "prompt",
-        },
-      ],
-    });
-
-    await createAgentJobForUser(
-      createInput({
-        scheduleContext: {
-          jobScheduleId: "schedule_1",
-        },
-      }),
-    );
-
-    expect(txJobCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          jobSchedule: {
-            connect: {
-              id: "schedule_1",
-            },
-          },
-          workspace: {
-            connect: {
-              id: "11111111-1111-7111-8111-111111111111",
-            },
-          },
-          events: {
-            create: expect.objectContaining({
-              inputSchema: expectedInputSchema,
-            }),
-          },
-        }),
-        include: jobSummaryInclude,
-      }),
-    );
-  });
-
   it("connects jobs to a project when projectId belongs to the workspace", async () => {
     await createAgentJobForUser(
       createInput({
