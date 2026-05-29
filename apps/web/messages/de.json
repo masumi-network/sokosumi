@@ -232,10 +232,6 @@
         },
         "resendSuccess": "Einladung erfolgreich erneut gesendet",
         "resendError": "Einladung konnte nicht erneut gesendet werden"
-      },
-      "Seat": {
-        "assigned": "Bezahlt",
-        "unassigned": "Kostenlos"
       }
     },
     "Breadcrumb": {

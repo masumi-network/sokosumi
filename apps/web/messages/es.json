@@ -232,10 +232,6 @@
         },
         "resendSuccess": "Invitación reenviada correctamente",
         "resendError": "No se pudo reenviar la invitación"
-      },
-      "Seat": {
-        "assigned": "De pago",
-        "unassigned": "Gratis"
       }
     },
     "Breadcrumb": {

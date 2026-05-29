@@ -183,6 +183,7 @@ describe("BillingPage", () => {
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 1,
       memberCount: 1,
+      paidPlan: null,
       purchasedSeats: 1,
       unusedSeats: 0,
     });
@@ -338,6 +339,7 @@ describe("BillingPage", () => {
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 2,
       memberCount: 2,
+      paidPlan: null,
       purchasedSeats: 5,
       unusedSeats: 3,
     });

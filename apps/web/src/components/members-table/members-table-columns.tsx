@@ -7,8 +7,11 @@ import type { useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 
+import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import MemberActionsDropdown from "./member-actions-dropdown";
+import { MemberSubscriptionCell } from "./member-subscription-cell";
 import type { MemberRowData } from "./types";
 
 const columnHelper = createColumnHelper<MemberRowData>();
@@ -17,6 +20,7 @@ export function getMembersTableColumns(
   t: ReturnType<typeof useTranslations>,
   me: Member,
   showSeatManagement: boolean,
+  paidPlan: SubscriptionPlanName | null,
 ) {
   return {
     nameColumn: columnHelper.accessor("name", {
@@ -56,7 +60,7 @@ export function getMembersTableColumns(
       enableHiding: false,
     }) as ColumnDef<MemberRowData>,
 
-    seatColumn: columnHelper.display({
+    subscriptionColumn: columnHelper.display({
       id: "seat",
       minSize: 120,
       header: () => <div>{t("Header.seat")}</div>,
@@ -66,19 +70,11 @@ export function getMembersTableColumns(
           return null;
         }
 
-        const hasSeat = member.seatAssignedAt !== null;
         return (
-          <div className="p-2">
-            <span
-              className={
-                hasSeat
-                  ? "bg-primary/10 text-primary inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
-                  : "bg-muted text-muted-foreground inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
-              }
-            >
-              {hasSeat ? t("Seat.assigned") : t("Seat.unassigned")}
-            </span>
-          </div>
+          <MemberSubscriptionCell
+            hasPaidSeat={member.seatAssignedAt !== null}
+            paidPlan={paidPlan}
+          />
         );
       },
     }) as ColumnDef<MemberRowData>,

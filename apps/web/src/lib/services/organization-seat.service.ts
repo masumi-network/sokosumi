@@ -14,14 +14,35 @@ import {
 } from "@sokosumi/database/repositories";
 import { APIError } from "better-auth/api";
 
+import { parsePlanName } from "@/components/billing/subscription-plan-utils";
 import prisma from "@/lib/db/prisma";
 import { grantUnusedSeatSubscriptionCreditsIfEligible } from "@/lib/services/organization-seat-credits.service";
+import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
 export interface OrganizationSeatSummary {
   assignedCount: number;
   memberCount: number;
+  paidPlan: SubscriptionPlanName | null;
   purchasedSeats: number;
   unusedSeats: number;
+}
+
+function resolveOrganizationPaidPlan(
+  subscription: {
+    plan: string;
+    status: string;
+  } | null,
+): SubscriptionPlanName | null {
+  if (!subscription || !isActiveSubscriptionStatus(subscription.status)) {
+    return null;
+  }
+
+  const parsedPlan = parsePlanName(subscription.plan);
+  if (!parsedPlan || parsedPlan === "free") {
+    return null;
+  }
+
+  return parsedPlan;
 }
 
 function isOwnerOrAdmin(role: string): boolean {
@@ -84,19 +105,24 @@ export const organizationSeatService = (() => {
     async getSeatSummary(
       organizationId: string,
     ): Promise<OrganizationSeatSummary> {
-      const [assignedCount, memberCount, purchasedSeats] = await Promise.all([
+      const [assignedCount, memberCount, subscription] = await Promise.all([
         memberRepository.getAssignedMemberCount(organizationId, prisma),
         prisma.member.count({
           where: {
             organizationId,
           },
         }),
-        getPurchasedSeatsForOrganization(organizationId),
+        subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+          organizationId,
+          prisma,
+        ),
       ]);
+      const purchasedSeats = resolvePurchasedSeats(subscription?.seats);
 
       return {
         assignedCount,
         memberCount,
+        paidPlan: resolveOrganizationPaidPlan(subscription),
         purchasedSeats,
         unusedSeats: getUnusedSeatCount(purchasedSeats, assignedCount),
       };

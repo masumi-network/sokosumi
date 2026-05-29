@@ -232,10 +232,6 @@
         },
         "resendSuccess": "招待を再送信しました",
         "resendError": "招待の再送信に失敗しました"
-      },
-      "Seat": {
-        "assigned": "有料",
-        "unassigned": "無料"
       }
     },
     "Breadcrumb": {

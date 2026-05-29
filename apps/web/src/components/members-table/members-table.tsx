@@ -10,12 +10,13 @@ import {
 import { useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/data-table";
+import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import { cn } from "@/lib/utils";
-
 import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
 import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
+
 import { getMembersTableColumns } from "./members-table-columns";
 import { SeatManagementContextProvider } from "./seat-management-context";
 import type { MemberRowData } from "./types";
@@ -24,6 +25,7 @@ interface MembersTableProps {
   me: Member;
   members: MemberWithUser[];
   pendingInvitations: Invitation[];
+  paidPlan?: SubscriptionPlanName | null;
   showSeatManagement?: boolean;
   unusedSeats?: number;
 }
@@ -32,6 +34,7 @@ export default function MembersTable({
   me,
   members,
   pendingInvitations,
+  paidPlan = null,
   showSeatManagement = false,
   unusedSeats = 0,
 }: MembersTableProps) {
@@ -45,7 +48,7 @@ export default function MembersTable({
       <MemberActionsModalContextProvider>
         <InvitationActionsModalContextProvider>
           <DataTable
-            columns={getColumns(t, me, showSeatManagement)}
+            columns={getColumns(t, me, showSeatManagement, paidPlan)}
             data={combineMembersAndPendingInvitations(
               members,
               pendingInvitations,
@@ -71,14 +74,20 @@ function getColumns(
   t: ReturnType<typeof useTranslations>,
   me: Member,
   showSeatManagement: boolean,
+  paidPlan: SubscriptionPlanName | null,
 ) {
-  const { nameColumn, emailColumn, roleColumn, seatColumn, actionColumn } =
-    getMembersTableColumns(t, me, showSeatManagement);
+  const {
+    nameColumn,
+    emailColumn,
+    roleColumn,
+    subscriptionColumn,
+    actionColumn,
+  } = getMembersTableColumns(t, me, showSeatManagement, paidPlan);
   const isOwnerOrAdmin =
     me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
 
   return [nameColumn, emailColumn, roleColumn]
-    .concat(showSeatManagement ? [seatColumn] : [])
+    .concat(showSeatManagement ? [subscriptionColumn] : [])
     .concat(isOwnerOrAdmin ? [actionColumn] : []);
 }
 

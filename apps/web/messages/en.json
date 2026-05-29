@@ -181,10 +181,6 @@
         "seat": "Seat",
         "actions": "Actions"
       },
-      "Seat": {
-        "assigned": "Paid",
-        "unassigned": "Free"
-      },
       "MemberActions": {
         "assignSeat": "Assign seat",
         "remove": "Remove",

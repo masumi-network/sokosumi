@@ -232,10 +232,6 @@
         },
         "resendSuccess": "邀请重新发送成功",
         "resendError": "重新发送邀请失败"
-      },
-      "Seat": {
-        "assigned": "付费",
-        "unassigned": "免费"
       }
     },
     "Breadcrumb": {

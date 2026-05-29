@@ -103,6 +103,7 @@ describe("OnboardingDialogLoader", () => {
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 2,
       memberCount: 3,
+      paidPlan: null,
       purchasedSeats: 3,
       unusedSeats: 1,
     });

@@ -232,10 +232,6 @@
         },
         "resendSuccess": "Convite reenviado com sucesso",
         "resendError": "Falha ao reenviar convite"
-      },
-      "Seat": {
-        "assigned": "Pago",
-        "unassigned": "Grátis"
       }
     },
     "Breadcrumb": {

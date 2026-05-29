@@ -232,10 +232,6 @@
         },
         "resendSuccess": "Invitation renvoyée avec succès",
         "resendError": "Échec du renvoi de l’invitation"
-      },
-      "Seat": {
-        "assigned": "Payant",
-        "unassigned": "Gratuit"
       }
     },
     "Breadcrumb": {

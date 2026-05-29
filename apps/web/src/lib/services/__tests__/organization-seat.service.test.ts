@@ -92,6 +92,7 @@ describe("organizationSeatService", () => {
     ).resolves.toEqual({
       assignedCount: 2,
       memberCount: 5,
+      paidPlan: null,
       purchasedSeats: 4,
       unusedSeats: 2,
     });
