@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -14,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 
 export default function NewChatTaskActions() {
@@ -22,14 +23,8 @@ export default function NewChatTaskActions() {
   const router = useRouter();
   const isChatActive = pathname === "/chat" || pathname.startsWith("/chat/");
   const sidebarNewLabel = tChat("sidebarNew");
-  const shortcutLabel = useMemo(() => {
-    if (typeof navigator === "undefined") return "Ctrl+K";
-    const navUaPlatform = (
-      navigator as unknown as { userAgentData?: { platform?: string } }
-    ).userAgentData?.platform;
-    const platform = navUaPlatform ?? navigator.platform ?? "";
-    return /Mac|iPhone|iPad|iPod/i.test(platform) ? "⌘K" : "Ctrl+K";
-  }, []);
+  const isApplePlatform = useIsApplePlatform();
+  const shortcutLabel = isApplePlatform ? "⌘K" : "Ctrl+K";
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

@@ -2,7 +2,7 @@
 
 import { Download } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
 
@@ -40,19 +41,8 @@ export default function DownloadButton({
 }: DownloadButtonProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Output");
 
-  const isMac = useMemo(() => {
-    if (typeof navigator === "undefined") return false;
-    const navUaPlatform = (
-      navigator as unknown as { userAgentData?: { platform?: string } }
-    ).userAgentData?.platform;
-    const platform = navUaPlatform ?? navigator.platform ?? "";
-    return /Mac|iPhone|iPad|iPod/i.test(platform);
-  }, []);
-
-  const shortcutLabel = useMemo(
-    () => (isMac ? "⇧⌘E" : "Shift+Ctrl+E"),
-    [isMac],
-  );
+  const isApplePlatform = useIsApplePlatform();
+  const shortcutLabel = isApplePlatform ? "⇧⌘E" : "Shift+Ctrl+E";
 
   async function markdownToHtml(markdownContent: string) {
     const [{ marked }] = await Promise.all([
@@ -189,7 +179,7 @@ export default function DownloadButton({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isHostKey = isMac ? e.metaKey : e.ctrlKey;
+      const isHostKey = isApplePlatform ? e.metaKey : e.ctrlKey;
       if (isHostKey && e.shiftKey && e.key.toLowerCase() === "e") {
         e.preventDefault();
         handleDownloadMarkdown();
@@ -197,7 +187,7 @@ export default function DownloadButton({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isMac, handleDownloadMarkdown]);
+  }, [isApplePlatform, handleDownloadMarkdown]);
 
   return (
     <DropdownMenu>
