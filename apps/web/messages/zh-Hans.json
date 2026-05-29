@@ -239,7 +239,6 @@
       "chat": "聊天",
       "tasks": "任务",
       "connections": "连接",
-      "feed": "我的动态",
       "hermes": "Hermes",
       "new": "新建",
       "projects": "项目"
@@ -1298,37 +1297,6 @@
       "pausedReason": "暂停原因",
       "loading": "正在加载计划..."
     },
-    "Feed": {
-      "title": "我的动态",
-      "aiInsights": "AI 洞察",
-      "summaryDescription": "这里会显示你最近完成的任务和作业。",
-      "description": "统一查看你最近完成的工作。",
-      "earlier": "更早",
-      "recentActivity": "近期活动",
-      "summary": "这里会显示你最近完成的任务和作业。",
-      "resultsTitle": "结果",
-      "emptyState": "暂无已完成的结果。",
-      "backToFeed": "返回动态",
-      "unknownAgent": "智能体",
-      "unknownCoworker": "协作伙伴",
-      "openOriginal": "查看详情",
-      "missingResult": "该动态结果已不可用。",
-      "fallbackPreview": "没有更多可用详情。",
-      "sourcesFiles": "文件",
-      "sourcesLinks": "链接",
-      "untitledJob": "未命名作业",
-      "untitledTask": "未命名任务",
-      "search": "搜索任务或作业",
-      "clearSearch": "清除搜索",
-      "loadMore": "加载更多",
-      "loadingMore": "加载中...",
-      "generating": "思考中...",
-      "generationError": "当前无法生成洞察。",
-      "type": {
-        "job": "作业",
-        "task": "任务"
-      }
-    },
     "Tasks": {
       "Page": {
         "title": "任务管理",
@@ -2292,7 +2260,6 @@
         "MenuItems": {
           "chat": "聊天",
           "exploreAgents": "智能体",
-          "myFeed": "我的动态",
           "filesAndOutputs": "文件与输出",
           "taskManager": "任务",
           "projects": "项目",

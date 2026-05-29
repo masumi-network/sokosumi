@@ -239,7 +239,6 @@
       "chat": "Chat",
       "tasks": "Tasks",
       "connections": "Connections",
-      "feed": "My Feed",
       "hermes": "Hermes",
       "new": "New",
       "projects": "Projects"
@@ -1298,37 +1297,6 @@
       "pausedReason": "Paused Reason",
       "loading": "Loading schedules..."
     },
-    "Feed": {
-      "title": "My Feed",
-      "aiInsights": "AI Insights",
-      "summaryDescription": "Your latest completed tasks and jobs are shown here.",
-      "description": "A unified view of your latest completed work.",
-      "earlier": "Earlier",
-      "recentActivity": "Recent activity",
-      "summary": "Your latest completed tasks and jobs are shown here.",
-      "resultsTitle": "Results",
-      "emptyState": "No completed results yet.",
-      "backToFeed": "Back to feed",
-      "unknownAgent": "Agent",
-      "unknownCoworker": "Coworker",
-      "openOriginal": "View detail",
-      "missingResult": "This feed result is no longer available.",
-      "fallbackPreview": "No additional details available.",
-      "sourcesFiles": "Files",
-      "sourcesLinks": "Links",
-      "untitledJob": "Untitled job",
-      "untitledTask": "Untitled task",
-      "search": "Search tasks or jobs",
-      "clearSearch": "Clear search",
-      "loadMore": "Load more",
-      "loadingMore": "Loading...",
-      "generating": "Thinking...",
-      "generationError": "Unable to generate insights right now.",
-      "type": {
-        "job": "Job",
-        "task": "Task"
-      }
-    },
     "Tasks": {
       "Page": {
         "title": "Task Manager",
@@ -2292,7 +2260,6 @@
         "MenuItems": {
           "chat": "Chat",
           "exploreAgents": "Agents",
-          "myFeed": "My Feed",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
           "projects": "Projects",

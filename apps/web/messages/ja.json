@@ -239,7 +239,6 @@
       "chat": "チャット",
       "tasks": "タスク",
       "connections": "接続",
-      "feed": "マイフィード",
       "hermes": "Hermes",
       "new": "新規",
       "projects": "プロジェクト"
@@ -1298,37 +1297,6 @@
       "pausedReason": "一時停止の理由",
       "loading": "スケジュールを読み込んでいます..."
     },
-    "Feed": {
-      "title": "マイフィード",
-      "aiInsights": "AIインサイト",
-      "summaryDescription": "最近完了したタスクとジョブがここに表示されます。",
-      "description": "最近完了した作業をまとめて表示します。",
-      "earlier": "以前",
-      "recentActivity": "最近のアクティビティ",
-      "summary": "最近完了したタスクとジョブがここに表示されます。",
-      "resultsTitle": "結果",
-      "emptyState": "完了した結果はまだありません。",
-      "backToFeed": "フィードに戻る",
-      "unknownAgent": "不明なエージェント",
-      "unknownCoworker": "不明な同僚",
-      "openOriginal": "詳細を見る",
-      "missingResult": "このフィード結果は利用できなくなりました。",
-      "fallbackPreview": "追加の詳細はありません。",
-      "sourcesFiles": "ファイル",
-      "sourcesLinks": "リンク",
-      "untitledJob": "無題のジョブ",
-      "untitledTask": "無題のタスク",
-      "search": "タスクまたはジョブを検索",
-      "clearSearch": "検索をクリア",
-      "loadMore": "さらに読み込む",
-      "loadingMore": "読み込み中...",
-      "generating": "考え中...",
-      "generationError": "現在インサイトを生成できません。",
-      "type": {
-        "job": "ジョブ",
-        "task": "タスク"
-      }
-    },
     "Tasks": {
       "Page": {
         "title": "タスク管理",
@@ -2292,7 +2260,6 @@
         "MenuItems": {
           "chat": "チャット",
           "exploreAgents": "エージェント",
-          "myFeed": "マイフィード",
           "filesAndOutputs": "ファイルと出力",
           "taskManager": "タスク",
           "projects": "プロジェクト",
