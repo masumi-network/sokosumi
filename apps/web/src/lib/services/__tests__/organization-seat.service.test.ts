@@ -21,6 +21,8 @@ const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const memberCountMock = vi.fn();
 const grantUnusedSeatSubscriptionCreditsIfEligibleMock = vi.fn();
 const grantFreeOrganizationMemberSubscriptionCreditsMock = vi.fn();
+const ensureLocalFreeSubscriptionPeriodMock = vi.fn();
+const resolveOrganizationFreeCreditAudienceMock = vi.fn();
 const transactionMock = vi.fn();
 
 vi.mock("@/lib/services/organization-seat-credits.service", () => ({
@@ -33,8 +35,12 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     await importOriginal<typeof import("@sokosumi/database/helpers")>();
   return {
     ...actual,
+    ensureLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
+      ensureLocalFreeSubscriptionPeriodMock(...args),
     grantFreeOrganizationMemberSubscriptionCredits: (...args: unknown[]) =>
       grantFreeOrganizationMemberSubscriptionCreditsMock(...args),
+    resolveOrganizationFreeCreditAudience: (...args: unknown[]) =>
+      resolveOrganizationFreeCreditAudienceMock(...args),
   };
 });
 
@@ -74,6 +80,15 @@ describe("organizationSeatService", () => {
       granted: false,
     });
     grantFreeOrganizationMemberSubscriptionCreditsMock.mockResolvedValue(1);
+    ensureLocalFreeSubscriptionPeriodMock.mockResolvedValue({
+      grantsCreated: 0,
+      subscriptionCreated: false,
+      subscriptionId: "sub-local-free",
+    });
+    resolveOrganizationFreeCreditAudienceMock.mockResolvedValue({
+      kind: "paid_org_unassigned_free",
+      memberUserIds: [],
+    });
   });
 
   it("returns seat summary counts", async () => {
@@ -181,6 +196,7 @@ describe("organizationSeatService", () => {
       },
       expect.any(Object),
     );
+    expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 
   it("does not grant free monthly credits when unassigning in a free organization", async () => {
@@ -190,10 +206,17 @@ describe("organizationSeatService", () => {
       userId: "user-2",
     });
     getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
       periodEnd: new Date("2026-06-01T00:00:00.000Z"),
+      periodStart: new Date("2026-05-01T00:00:00.000Z"),
       plan: "free",
+      seats: 2,
       status: "active",
       stripeSubscriptionId: null,
+    });
+    resolveOrganizationFreeCreditAudienceMock.mockResolvedValue({
+      kind: "local_free_org",
+      memberUserIds: ["user-1", "user-2"],
     });
 
     const { organizationSeatService } = await import(
@@ -205,5 +228,83 @@ describe("organizationSeatService", () => {
     expect(
       grantFreeOrganizationMemberSubscriptionCreditsMock,
     ).not.toHaveBeenCalled();
+    expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      {
+        billingAnchorDate: new Date("2026-01-01T00:00:00.000Z"),
+        memberUserIds: ["user-1", "user-2"],
+        organizationId: "org-1",
+        periodEnd: new Date("2026-06-01T00:00:00.000Z"),
+        periodStart: new Date("2026-05-01T00:00:00.000Z"),
+        purchasedSeats: 2,
+        referenceId: "org-1",
+      },
+      expect.any(Object),
+    );
+  });
+
+  it("syncs local-free credits for all members when assigning in a free organization", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      periodEnd: new Date("2026-06-01T00:00:00.000Z"),
+      periodStart: new Date("2026-05-01T00:00:00.000Z"),
+      seats: 3,
+      status: "active",
+      stripeSubscriptionId: null,
+    });
+    assignSeatMock.mockResolvedValue({
+      id: "member-1",
+      seatAssignedAt: new Date("2026-05-01T00:00:00.000Z"),
+      userId: "user-2",
+    });
+    resolveOrganizationFreeCreditAudienceMock.mockResolvedValue({
+      kind: "local_free_org",
+      memberUserIds: ["user-1", "user-2"],
+    });
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await organizationSeatService.assignSeat("user-1", "org-1", "member-1");
+
+    expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      {
+        billingAnchorDate: new Date("2026-01-01T00:00:00.000Z"),
+        memberUserIds: ["user-1", "user-2"],
+        organizationId: "org-1",
+        periodEnd: new Date("2026-06-01T00:00:00.000Z"),
+        periodStart: new Date("2026-05-01T00:00:00.000Z"),
+        purchasedSeats: 3,
+        referenceId: "org-1",
+      },
+      expect.any(Object),
+    );
+  });
+
+  it("does not sync local-free credits when assigning in a paid organization", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      seats: 3,
+      status: "active",
+      stripeSubscriptionId: "sub_123",
+    });
+    assignSeatMock.mockResolvedValue({
+      id: "member-1",
+      seatAssignedAt: new Date("2026-05-01T00:00:00.000Z"),
+      userId: "user-2",
+    });
+    resolveOrganizationFreeCreditAudienceMock.mockResolvedValue({
+      kind: "paid_org_unassigned_free",
+      memberUserIds: ["user-3"],
+    });
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await organizationSeatService.assignSeat("user-1", "org-1", "member-1");
+
+    expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 });

@@ -1,11 +1,13 @@
 import "server-only";
 
-import { MemberRole } from "@sokosumi/database";
+import { MemberRole, type Prisma } from "@sokosumi/database";
 import {
+  ensureLocalFreeSubscriptionPeriod,
   FREE_SUBSCRIPTION_PLAN,
   getUnusedSeatCount,
   grantFreeOrganizationMemberSubscriptionCredits,
   isActiveSubscriptionStatus,
+  resolveOrganizationFreeCreditAudience,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import {
@@ -100,6 +102,48 @@ function mapSeatRepositoryError(error: unknown): never {
   throw error;
 }
 
+async function ensureLocalFreeOrganizationCreditsAfterSeatChange(
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const subscription =
+    await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+      organizationId,
+      tx,
+    );
+
+  if (
+    !subscription?.periodStart ||
+    !subscription.periodEnd ||
+    !isActiveSubscriptionStatus(subscription.status)
+  ) {
+    return;
+  }
+
+  const audience = await resolveOrganizationFreeCreditAudience(
+    organizationId,
+    { stripeSubscriptionId: subscription.stripeSubscriptionId },
+    tx,
+  );
+
+  if (audience.kind !== "local_free_org") {
+    return;
+  }
+
+  await ensureLocalFreeSubscriptionPeriod(
+    {
+      billingAnchorDate: subscription.createdAt,
+      memberUserIds: audience.memberUserIds,
+      organizationId,
+      periodEnd: subscription.periodEnd,
+      periodStart: subscription.periodStart,
+      purchasedSeats: resolvePurchasedSeats(subscription.seats),
+      referenceId: organizationId,
+    },
+    tx,
+  );
+}
+
 export const organizationSeatService = (() => {
   return {
     async getSeatSummary(
@@ -157,6 +201,10 @@ export const organizationSeatService = (() => {
             member.userId,
             tx,
           );
+          await ensureLocalFreeOrganizationCreditsAfterSeatChange(
+            organizationId,
+            tx,
+          );
 
           return {
             memberId: member.id,
@@ -204,6 +252,11 @@ export const organizationSeatService = (() => {
               tx,
             );
           }
+
+          await ensureLocalFreeOrganizationCreditsAfterSeatChange(
+            organizationId,
+            tx,
+          );
 
           return {
             memberId: member.id,

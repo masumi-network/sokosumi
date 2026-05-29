@@ -12,6 +12,7 @@ import {
   getSortedUniqueUserIds,
   resolvePurchasedSeats,
 } from "./organization-seats.js";
+import { fetchOrganizationMemberUserIds } from "./organization-subscription-credit-audience.js";
 
 export const ACTIVE_SUBSCRIPTION_STATUSES = [
   "active",
@@ -407,20 +408,15 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
   });
 
   if (organization) {
-    const unassignedMemberUserIds = await tx.member.findMany({
-      where: {
-        organizationId: organization.id,
-        seatAssignedAt: null,
-      },
-      select: {
-        userId: true,
-      },
-    });
+    const memberUserIds = await fetchOrganizationMemberUserIds(
+      organization.id,
+      tx,
+    );
 
     await ensureLocalFreeSubscriptionPeriod(
       {
         billingAnchorDate: subscription.createdAt,
-        memberUserIds: unassignedMemberUserIds.map((member) => member.userId),
+        memberUserIds,
         organizationId: organization.id,
         periodEnd,
         periodStart,
@@ -598,16 +594,10 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
     );
   }
 
-  const members = await tx.member.findMany({
-    where: {
-      organizationId: params.organizationId,
-      seatAssignedAt: null,
-    },
-    select: {
-      userId: true,
-    },
-  });
-  const memberUserIds = members.map((member) => member.userId);
+  const memberUserIds = await fetchOrganizationMemberUserIds(
+    params.organizationId,
+    tx,
+  );
 
   return await ensureLocalFreeSubscriptionPeriod(
     {

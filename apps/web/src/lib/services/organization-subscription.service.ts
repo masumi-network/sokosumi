@@ -198,6 +198,71 @@ function ensureSubscriptionPeriodDate(
   });
 }
 
+async function syncPaidOrganizationUnassignedFreeCredits(
+  organizationId: string,
+  activeSubscription: ActiveOrganizationSubscription,
+): Promise<number> {
+  const purchasedSeats = resolvePurchasedSeats(activeSubscription.seats);
+  const periodEnd = activeSubscription.periodEnd;
+
+  if (!periodEnd || periodEnd <= new Date()) {
+    return purchasedSeats;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const unassignedMemberUserIds =
+      await memberRepository.getUnassignedMemberUserIds(organizationId, tx);
+
+    await grantFreeOrganizationMemberSubscriptionCredits(
+      {
+        memberUserIds: unassignedMemberUserIds,
+        organizationId,
+        periodEnd,
+      },
+      tx,
+    );
+  });
+
+  return purchasedSeats;
+}
+
+async function syncLocalFreeOrganizationPeriodCredits(
+  organizationId: string,
+  activeSubscription: ActiveOrganizationSubscription,
+): Promise<number> {
+  const periodStart = ensureSubscriptionPeriodDate(
+    activeSubscription.periodStart,
+    "period start",
+  );
+  const periodEnd = ensureSubscriptionPeriodDate(
+    activeSubscription.periodEnd,
+    "period end",
+  );
+  const purchasedSeats = resolvePurchasedSeats(activeSubscription.seats);
+
+  return await prisma.$transaction(async (tx) => {
+    const memberUserIds = await memberRepository.getOrganizationMemberUserIds(
+      organizationId,
+      tx,
+    );
+
+    await ensureLocalFreeSubscriptionPeriod(
+      {
+        billingAnchorDate: activeSubscription.createdAt,
+        memberUserIds,
+        organizationId,
+        periodEnd,
+        periodStart,
+        purchasedSeats,
+        referenceId: organizationId,
+      },
+      tx,
+    );
+
+    return purchasedSeats;
+  });
+}
+
 async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
   organizationId: string,
   activeSubscription?: ActiveOrganizationSubscription | null,
@@ -211,59 +276,16 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
   }
 
   if (currentActiveSubscription.stripeSubscriptionId) {
-    const purchasedSeats = resolvePurchasedSeats(
-      currentActiveSubscription.seats,
+    return syncPaidOrganizationUnassignedFreeCredits(
+      organizationId,
+      currentActiveSubscription,
     );
-    const periodEnd = currentActiveSubscription.periodEnd;
-
-    if (periodEnd && periodEnd > new Date()) {
-      await prisma.$transaction(async (tx) => {
-        const unassignedMemberUserIds =
-          await memberRepository.getUnassignedMemberUserIds(organizationId, tx);
-
-        await grantFreeOrganizationMemberSubscriptionCredits(
-          {
-            memberUserIds: unassignedMemberUserIds,
-            organizationId,
-            periodEnd,
-          },
-          tx,
-        );
-      });
-    }
-
-    return purchasedSeats;
   }
 
-  const periodStart = ensureSubscriptionPeriodDate(
-    currentActiveSubscription.periodStart,
-    "period start",
+  return syncLocalFreeOrganizationPeriodCredits(
+    organizationId,
+    currentActiveSubscription,
   );
-  const periodEnd = ensureSubscriptionPeriodDate(
-    currentActiveSubscription.periodEnd,
-    "period end",
-  );
-  const purchasedSeats = resolvePurchasedSeats(currentActiveSubscription.seats);
-
-  return await prisma.$transaction(async (tx) => {
-    const unassignedMemberUserIds =
-      await memberRepository.getUnassignedMemberUserIds(organizationId, tx);
-
-    await ensureLocalFreeSubscriptionPeriod(
-      {
-        billingAnchorDate: currentActiveSubscription.createdAt,
-        memberUserIds: unassignedMemberUserIds,
-        organizationId,
-        periodEnd,
-        periodStart,
-        purchasedSeats,
-        referenceId: organizationId,
-      },
-      tx,
-    );
-
-    return purchasedSeats;
-  });
 }
 
 export const organizationSubscriptionService = (() => {

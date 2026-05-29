@@ -3,6 +3,7 @@ import {
   ensureAssignedSeatsWithinCapacity,
   getSortedUniqueUserIds,
 } from "../helpers/organization-seats.js";
+import { fetchOrganizationMemberUserIds } from "../helpers/organization-subscription-credit-audience.js";
 import {
   type MemberWithOrganization,
   type MemberWithUser,
@@ -225,6 +226,13 @@ export const memberRepository = (() => {
     return getSortedUniqueUserIds(members.map((member) => member.userId));
   }
 
+  async function getOrganizationMemberUserIds(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<string[]> {
+    return fetchOrganizationMemberUserIds(organizationId, tx);
+  }
+
   async function getUnassignedMemberUserIds(
     organizationId: string,
     tx: Prisma.TransactionClient,
@@ -321,6 +329,7 @@ export const memberRepository = (() => {
     createMember,
     getAssignedMemberCount,
     getAssignedMemberUserIds,
+    getOrganizationMemberUserIds,
     getUnassignedMemberUserIds,
     getMemberByIdAndOrganizationId,
     getMembersWithOrganizationByUserId,

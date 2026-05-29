@@ -13,6 +13,7 @@ vi.mock("better-auth/api", () => ({
 
 const getMemberByUserIdAndOrganizationIdMock = vi.fn();
 const getAssignedMemberCountMock = vi.fn();
+const getOrganizationMemberUserIdsMock = vi.fn();
 const getUnassignedMemberUserIdsMock = vi.fn();
 const ensureLocalFreeSubscriptionPeriodMock = vi.fn();
 const grantFreeOrganizationMemberSubscriptionCreditsMock = vi.fn();
@@ -26,6 +27,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getAssignedMemberCount: (...args: unknown[]) =>
       getAssignedMemberCountMock(...args),
+    getOrganizationMemberUserIds: (...args: unknown[]) =>
+      getOrganizationMemberUserIdsMock(...args),
     getUnassignedMemberUserIds: (...args: unknown[]) =>
       getUnassignedMemberUserIdsMock(...args),
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
@@ -416,7 +419,7 @@ describe("organizationSubscriptionService", () => {
       });
     });
 
-    it("syncs local free credits for unassigned organization members only", async () => {
+    it("syncs local free credits for all organization members", async () => {
       const periodStart = new Date("2026-04-08T00:00:00.000Z");
       const periodEnd = new Date("2026-05-08T00:00:00.000Z");
       getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
@@ -428,7 +431,7 @@ describe("organizationSubscriptionService", () => {
         periodStart,
         stripeSubscriptionId: null,
       });
-      getUnassignedMemberUserIdsMock.mockResolvedValue(["user-2"]);
+      getOrganizationMemberUserIdsMock.mockResolvedValue(["user-1", "user-2"]);
       ensureLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
 
       const { organizationSubscriptionService } = await import(
@@ -441,17 +444,18 @@ describe("organizationSubscriptionService", () => {
         ),
       ).resolves.toBeUndefined();
 
-      expect(getUnassignedMemberUserIdsMock).toHaveBeenCalledWith(
+      expect(getOrganizationMemberUserIdsMock).toHaveBeenCalledWith(
         "org-1",
         expect.objectContaining({
           __tx: true,
         }),
       );
+      expect(getUnassignedMemberUserIdsMock).not.toHaveBeenCalled();
       expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
       expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
         {
           billingAnchorDate: periodStart,
-          memberUserIds: ["user-2"],
+          memberUserIds: ["user-1", "user-2"],
           organizationId: "org-1",
           periodEnd,
           periodStart,

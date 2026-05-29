@@ -443,6 +443,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       members: [
         { role: "MEMBER", userId: "member-1" },
         { role: "OWNER", userId: "owner-1" },
+        { role: "MEMBER", userId: "assigned-1" },
       ],
     });
 
@@ -457,7 +458,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     );
 
     assert.deepEqual(result, {
-      grantsCreated: 2,
+      grantsCreated: 3,
       subscriptionCreated: true,
       subscriptionId: "subscription-local-free",
     });
@@ -468,8 +469,8 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       },
       where: {
         organizationId: "org-1",
-        seatAssignedAt: null,
       },
+      orderBy: [{ userId: "asc" }],
     });
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
     const createdOrganizationSubscription =
@@ -487,7 +488,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       stripeCustomerId: "cus_org_1",
       stripeSubscriptionId: null,
     });
-    assert.equal(createTransactionMock.mock.calls.length, 2);
+    assert.equal(createTransactionMock.mock.calls.length, 3);
   });
 
   it("creates the initial organization free subscription period with no members", async () => {
@@ -676,6 +677,50 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
         status: "canceled",
       },
     });
+    vi.useRealTimers();
+  });
+
+  it("creates the next organization local free period for all members", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-09T00:00:00.000Z"));
+    const {
+      createSubscriptionMock,
+      createTransactionMock,
+      findManyMembersMock,
+      tx,
+      updateSubscriptionMock,
+    } = createTransitionClient({
+      members: [{ userId: "assigned-1" }, { userId: "unassigned-1" }],
+      organization: { id: "org-1" },
+      user: null,
+    });
+
+    await transitionToNextLocalFreeSubscriptionPeriod(
+      {
+        setCanceledAt: true,
+        subscription: {
+          canceledAt: null,
+          createdAt: new Date("2026-01-30T10:00:00.000Z"),
+          endedAt: null,
+          id: "subscription-source",
+          periodEnd: new Date("2026-02-28T10:00:00.000Z"),
+          referenceId: "org-1",
+          seats: 3,
+          stripeCustomerId: "cus_org_1",
+          stripeSubscriptionId: null,
+        },
+      },
+      tx,
+    );
+
+    assert.deepEqual(findManyMembersMock.mock.calls[0]?.[0], {
+      orderBy: [{ userId: "asc" }],
+      select: { userId: true },
+      where: { organizationId: "org-1" },
+    });
+    assert.equal(createSubscriptionMock.mock.calls.length, 1);
+    assert.equal(createTransactionMock.mock.calls.length, 2);
+    assert.equal(updateSubscriptionMock.mock.calls.length, 1);
     vi.useRealTimers();
   });
 
