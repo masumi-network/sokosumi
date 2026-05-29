@@ -88,11 +88,37 @@ describe("organizationSeatService", () => {
     fetchOrganizationMemberUserIdsMock.mockResolvedValue([]);
   });
 
-  it("returns seat summary counts", async () => {
+  it("returns zero purchased seats for free organizations", async () => {
     getAssignedMemberCountMock.mockResolvedValue(2);
     memberCountMock.mockResolvedValue(5);
     getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      plan: "free",
+      seats: null,
+      status: "active",
+    });
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.getSeatSummary("org-1"),
+    ).resolves.toEqual({
+      assignedCount: 0,
+      memberCount: 5,
+      paidPlan: null,
+      purchasedSeats: 0,
+      unusedSeats: 0,
+    });
+  });
+
+  it("returns paid seat counts for active paid subscriptions", async () => {
+    getAssignedMemberCountMock.mockResolvedValue(2);
+    memberCountMock.mockResolvedValue(5);
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      plan: "starter",
       seats: 4,
+      status: "active",
     });
 
     const { organizationSeatService } = await import(
@@ -104,7 +130,7 @@ describe("organizationSeatService", () => {
     ).resolves.toEqual({
       assignedCount: 2,
       memberCount: 5,
-      paidPlan: null,
+      paidPlan: "starter",
       purchasedSeats: 4,
       unusedSeats: 2,
     });

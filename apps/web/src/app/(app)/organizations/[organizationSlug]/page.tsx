@@ -117,7 +117,7 @@ export default async function OrganizationPage({
             me={member}
             members={members}
             pendingInvitations={pendingInvitations}
-            showSeatManagement={isOwnerOrAdmin}
+            showSeatManagement={isOwnerOrAdmin && seatSummary?.paidPlan != null}
             unusedSeats={seatSummary?.unusedSeats ?? 0}
           />
         </div>

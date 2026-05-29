@@ -145,14 +145,19 @@ export const organizationSeatService = (() => {
           prisma,
         ),
       ]);
-      const purchasedSeats = resolvePurchasedSeats(subscription?.seats);
+      const paidPlan = resolveOrganizationPaidPlan(subscription);
+      const purchasedSeats = paidPlan
+        ? resolvePurchasedSeats(subscription?.seats)
+        : 0;
 
       return {
-        assignedCount,
+        assignedCount: paidPlan ? assignedCount : 0,
         memberCount,
-        paidPlan: resolveOrganizationPaidPlan(subscription),
+        paidPlan,
         purchasedSeats,
-        unusedSeats: getUnusedSeatCount(purchasedSeats, assignedCount),
+        unusedSeats: paidPlan
+          ? getUnusedSeatCount(purchasedSeats, assignedCount)
+          : 0,
       };
     },
 
