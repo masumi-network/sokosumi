@@ -2,8 +2,9 @@
 
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect, useMemo } from "react";
 
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -18,18 +19,67 @@ import { cn } from "@/lib/utils";
 export default function NewChatTaskActions() {
   const tChat = useTranslations("App.Chat.Chat");
   const pathname = usePathname();
+  const router = useRouter();
   const isChatActive = pathname === "/chat" || pathname.startsWith("/chat/");
+  const sidebarNewLabel = tChat("sidebarNew");
+  const shortcutLabel = useMemo(() => {
+    if (typeof navigator === "undefined") return "Ctrl+K";
+    const navUaPlatform = (
+      navigator as unknown as { userAgentData?: { platform?: string } }
+    ).userAgentData?.platform;
+    const platform = navUaPlatform ?? navigator.platform ?? "";
+    return /Mac|iPhone|iPad|iPod/i.test(platform) ? "⌘K" : "Ctrl+K";
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key.toLowerCase() !== "k" ||
+        !(event.metaKey || event.ctrlKey)
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
+          return;
+        }
+      }
+
+      event.preventDefault();
+      router.push("/chat");
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [router]);
 
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent>
         <SidebarMenu className="gap-0 pt-2">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isChatActive}>
+            <SidebarMenuButton
+              asChild
+              isActive={isChatActive}
+              tooltip={{
+                children: (
+                  <span className="flex items-center gap-2">
+                    <span>{sidebarNewLabel}</span>
+                    <span className="text-muted-foreground text-xs tracking-widest">
+                      {shortcutLabel}
+                    </span>
+                  </span>
+                ),
+              }}
+            >
               <SheetClose asChild>
                 <Link
                   href="/chat"
                   aria-current={isChatActive ? "page" : undefined}
+                  aria-keyshortcuts="Meta+K Control+K"
                   className={cn(
                     "flex min-h-auto w-full items-center gap-2 px-3",
                     isChatActive
@@ -38,7 +88,16 @@ export default function NewChatTaskActions() {
                   )}
                 >
                   <Plus className="size-4" aria-hidden />
-                  <span className="flex-1 truncate">{tChat("sidebarNew")}</span>
+                  <span className="flex-1 truncate">{sidebarNewLabel}</span>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline",
+                      isChatActive && "text-primary-foreground/80",
+                    )}
+                  >
+                    {shortcutLabel}
+                  </span>
                 </Link>
               </SheetClose>
             </SidebarMenuButton>
