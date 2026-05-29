@@ -9,6 +9,8 @@ import type {
   CreateConversationMessageRequest,
   DeleteHermesMeInstanceIntegrationsByProviderData,
   DeleteJobsByIdShareError,
+  DeleteProjectsByIdJobsByJobIdData,
+  DeleteProjectsByIdTasksByTaskIdData,
   DeleteTasksByIdShareError,
   GetAgentsByIdJobsData,
   GetAgentsByIdReviewsData,
@@ -17,6 +19,8 @@ import type {
   GetCoworkersData,
   GetHermesMeMessagesData,
   GetJobsData,
+  GetProjectsData,
+  GetProjectsStatsData,
   GetShareByTokenError,
   GetTasksData,
   HermesApproveConfirmationRequest,
@@ -29,8 +33,12 @@ import type {
   MarkHermesInboxSeenRequest,
   PaginationMetadata,
   PatchJobsByIdData,
+  PatchProjectsByIdData,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
+  PostProjectsByIdJobsData,
+  PostProjectsByIdTasksData,
+  PostProjectsData,
   PostTasksByIdLinksData,
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
@@ -41,6 +49,9 @@ import {
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
+  deleteProjectsById as coreDeleteProjectsById,
+  deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
+  deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
@@ -62,6 +73,9 @@ import {
   getHermesMeUnreadCount as coreGetHermesMeUnreadCount,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getProjects as coreGetProjects,
+  getProjectsById as coreGetProjectsById,
+  getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
@@ -74,6 +88,7 @@ import {
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
+  patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postConversations as corePostConversations,
@@ -87,6 +102,9 @@ import {
   postHermesMeInstanceOnboard as corePostHermesMeInstanceOnboard,
   postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdRefund as corePostJobsByIdRefund,
+  postProjects as corePostProjects,
+  postProjectsByIdJobs as corePostProjectsByIdJobs,
+  postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
@@ -435,6 +453,145 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getProjects(query?: GetProjectsData["query"]) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetProjects({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch projects",
+    );
+  }
+
+  async function getProjectsStats(query?: GetProjectsStatsData["query"]) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsStats({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch project stats",
+    );
+  }
+
+  async function postProjects(body: NonNullable<PostProjectsData["body"]>) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostProjects({
+          client,
+          body,
+        }),
+      "Failed to create project",
+    );
+  }
+
+  async function getProjectsById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch project",
+    );
+  }
+
+  async function patchProjectsById(
+    id: string,
+    body: NonNullable<PatchProjectsByIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchProjectsById({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to update project",
+    );
+  }
+
+  async function deleteProjectsById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsById({
+          client,
+          path: { id },
+        }),
+      "Failed to delete project",
+    );
+  }
+
+  async function postProjectsByIdJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdJobsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to add job to project",
+    );
+  }
+
+  async function deleteProjectsByIdJobsByJobId(
+    path: DeleteProjectsByIdJobsByJobIdData["path"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdJobsByJobId({
+          client,
+          path,
+        }),
+      "Failed to remove job from project",
+    );
+  }
+
+  async function postProjectsByIdTasks(
+    id: string,
+    body: NonNullable<PostProjectsByIdTasksData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdTasks({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to add task to project",
+    );
+  }
+
+  async function deleteProjectsByIdTasksByTaskId(
+    path: DeleteProjectsByIdTasksByTaskIdData["path"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdTasksByTaskId({
+          client,
+          path,
+        }),
+      "Failed to remove task from project",
+    );
+  }
+
   async function patchJob(
     id: string,
     body: NonNullable<PatchJobsByIdData["body"]>,
@@ -577,6 +734,7 @@ export function createCoreClient(getClient: GetClient) {
   async function createTask(body: {
     name: string;
     description?: string | null;
+    projectId?: string | null;
     coworkerId?: string | null;
     status?: "DRAFT" | "READY";
   }) {
@@ -629,6 +787,7 @@ export function createCoreClient(getClient: GetClient) {
     body: {
       name?: string;
       description?: string | null;
+      projectId?: string | null;
       coworkerId?: string | null;
     },
   ) {
@@ -1202,6 +1361,9 @@ export function createCoreClient(getClient: GetClient) {
     createTaskLink,
     createTaskEvent,
     deleteJobShare,
+    deleteProjectsById,
+    deleteProjectsByIdJobsByJobId,
+    deleteProjectsByIdTasksByTaskId,
     deleteTaskShare,
     deleteTaskLink,
     deleteTask,
@@ -1233,12 +1395,19 @@ export function createCoreClient(getClient: GetClient) {
     getMyCredits,
     getMyOrganizations,
     getPendingNotices,
+    getProjects,
+    getProjectsById,
+    getProjectsStats,
     getSharedResourceByToken,
     destroyHermesInstance,
     markHermesInboxSeen,
     moveJobToWorkspace,
     moveTaskToWorkspace,
     patchJob,
+    patchProjectsById,
+    postProjects,
+    postProjectsByIdJobs,
+    postProjectsByIdTasks,
     provisionHermesInstance,
     requestJobRefund,
     setHermesSecret,

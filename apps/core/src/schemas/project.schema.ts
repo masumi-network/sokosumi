@@ -19,6 +19,13 @@ export const projectSchema = z
   })
   .openapi("Project");
 
+export const projectListItemSchema = projectSchema
+  .extend({
+    taskCount: z.number().int().nonnegative().openapi({ example: 2 }),
+    jobCount: z.number().int().nonnegative().openapi({ example: 1 }),
+  })
+  .openapi("ProjectListItem");
+
 export const createProjectRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(200).openapi({ example: "Q1 research" }),

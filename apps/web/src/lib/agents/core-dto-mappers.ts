@@ -479,6 +479,7 @@ export function mapCoreJobSummaryToJobWithSokosumiStatus(
     agentId: job.agentId,
     userId: job.userId,
     organizationId: job.organizationId ?? null,
+    projectId: job.projectId ?? null,
     taskId: job.taskId ?? null,
     name: job.name ?? null,
     jobType: job.jobType,

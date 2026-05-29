@@ -302,6 +302,7 @@ describe("core dto mappers", () => {
         name: "Acme",
         slug: "acme",
       },
+      projectId: null,
       workspace: {
         id: "workspace-1",
         organizationId: "org-1",
@@ -356,6 +357,7 @@ describe("core dto mappers", () => {
         name: "Acme",
         slug: "acme",
       },
+      projectId: null,
       workspace: {
         id: "workspace-1",
         organizationId: "org-1",
@@ -416,6 +418,7 @@ describe("core dto mappers", () => {
       },
       organizationId: null,
       organization: null,
+      projectId: null,
       taskId: null,
       name: "Weekly summary",
       jobType: "PAID",
@@ -544,6 +547,7 @@ describe("core dto mappers", () => {
       },
       organizationId: null,
       organization: null,
+      projectId: null,
       taskId: null,
       name: "Paid shared",
       jobType: "PAID" as const,

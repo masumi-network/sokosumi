@@ -37,6 +37,7 @@ export interface UseJobSubmissionOptions {
   inputSchema: InputSchemaSchemaType;
   demoValues: AgentDemoValues | null;
   scheduleSelection: JobScheduleSelectionType | null;
+  projectId?: string | null;
   setLoading: (loading: boolean) => void;
   onSuccess: () => void;
 }
@@ -50,6 +51,7 @@ export function useJobSubmission({
   inputSchema,
   demoValues,
   scheduleSelection,
+  projectId,
   setLoading,
   onSuccess,
 }: UseJobSubmissionOptions): UseJobSubmissionReturn {
@@ -86,6 +88,7 @@ export function useJobSubmission({
               agentId: agentId,
               inputSchema,
               inputData: prepareInputValues(demoValues.input),
+              ...(typeof projectId !== "undefined" ? { projectId } : {}),
             },
             jobStatusResponse: demoValues.output,
           });
@@ -117,6 +120,7 @@ export function useJobSubmission({
               maxAcceptedCents: creditsPrice.cents,
               inputSchema,
               inputData: transformedInputData,
+              ...(typeof projectId !== "undefined" ? { projectId } : {}),
             },
           });
         }
@@ -173,6 +177,7 @@ export function useJobSubmission({
       setLoading,
       demoValues,
       scheduleSelection,
+      projectId,
       agent,
       agentId,
       creditsPrice.cents,

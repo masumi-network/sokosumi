@@ -96,6 +96,7 @@ function createTask() {
     userId: "user_123",
     user: { id: "user_123", name: "Task Owner", image: null },
     organizationId: "org_123",
+    projectId: null,
     organization: {
       id: "org_123",
       name: "Workspace Org",

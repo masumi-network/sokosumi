@@ -1,6 +1,12 @@
 "use client";
 
-import { CalendarClock, Feather, ListTodo, Rss, Sparkles } from "lucide-react";
+import {
+  CalendarClock,
+  Feather,
+  FolderKanban,
+  ListTodo,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -97,10 +103,10 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
       Icon: ListTodo,
     },
     {
-      key: "my-feed",
-      href: "/feed",
-      label: t("myFeed"),
-      Icon: Rss,
+      key: "projects",
+      href: "/projects",
+      label: t("projects"),
+      Icon: FolderKanban,
     },
     {
       key: "explore-agents",
@@ -169,7 +175,7 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
                         {showUnread ? (
                           <span
                             aria-label={`${unreadDisplay} unread`}
-                            className="bg-primary text-primary-foreground inline-flex min-w-[1.125rem] shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
+                            className="bg-primary text-primary-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
                           >
                             {unreadDisplay}
                           </span>

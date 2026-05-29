@@ -99,6 +99,7 @@ function createTask(
     userId,
     user: { id: userId, name: "Task Owner", image: null },
     organizationId: "org_123",
+    projectId: null,
     organization: {
       id: "org_123",
       name: "Acme Labs",

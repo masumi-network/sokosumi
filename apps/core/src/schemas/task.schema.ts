@@ -63,6 +63,9 @@ const taskBaseSchema = z.object({
   user: userSummarySchema,
   organizationId: z.string().nullable().openapi({ example: "org_123" }),
   organization: organizationSummarySchema.nullable(),
+  projectId: z.string().uuid().nullable().openapi({
+    example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+  }),
   coworkerId: z.string().nullable().openapi({ example: "cow_123" }),
   coworker: coworkerSummarySchema.nullable(),
   name: z.string().openapi({ example: "Review onboarding" }),

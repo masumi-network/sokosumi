@@ -107,6 +107,7 @@ describe("DELETE /tasks/{id}", () => {
       updatedAt: "2026-03-25T10:00:00.000Z",
       userId: "user_123",
       organizationId: null,
+      projectId: null,
       status: TaskStatus.READY,
       coworkerId: null,
       name: "Archived task",

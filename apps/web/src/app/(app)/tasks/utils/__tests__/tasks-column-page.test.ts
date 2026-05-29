@@ -7,6 +7,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { getTasksColumnPage } from "../tasks-column-page";
 
 const listTasksMock = vi.fn();
+const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
@@ -66,6 +67,7 @@ describe("getTasksColumnPage", () => {
       scope: "workspace",
       coworkerId: "coworker-1",
       status: null,
+      projectId: PROJECT_ID,
       coworkersById: new Map(),
       agentsById: new Map(),
     });
@@ -77,6 +79,7 @@ describe("getTasksColumnPage", () => {
       status: [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELED],
       scope: "workspace",
       coworkerId: "coworker-1",
+      projectId: PROJECT_ID,
       cursor: null,
       limit: 2,
     });
@@ -101,6 +104,7 @@ describe("getTasksColumnPage", () => {
       scope: "owned",
       coworkerId: null,
       status: null,
+      projectId: null,
       coworkersById: new Map(),
       agentsById: new Map(),
     });
@@ -111,6 +115,7 @@ describe("getTasksColumnPage", () => {
       status: [TaskStatus.DRAFT],
       scope: "owned",
       coworkerId: undefined,
+      projectId: undefined,
       cursor: "cursor-1",
       limit: 1,
     });
@@ -135,6 +140,7 @@ describe("getTasksColumnPage", () => {
       scope: "owned",
       coworkerId: null,
       status: null,
+      projectId: null,
       coworkersById: new Map(),
       agentsById: new Map(),
     });
@@ -150,6 +156,7 @@ describe("getTasksColumnPage", () => {
       scope: "workspace",
       coworkerId: null,
       status: TaskStatus.COMPLETED,
+      projectId: null,
       coworkersById: new Map(),
       agentsById: new Map(),
     });

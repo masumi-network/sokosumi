@@ -12,14 +12,21 @@ import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobSection from "./create-job-section";
 
 export default function CreateJobModal() {
-  const { open, setOpen, loading, agentWithPrice, averageExecutionDuration } =
-    useCreateJobModalContext();
+  const {
+    open,
+    loading,
+    agentWithPrice,
+    averageExecutionDuration,
+    handleClose,
+  } = useCreateJobModalContext();
 
   const handleOnOpenChange = (open: boolean) => {
     if (loading) {
       return;
     }
-    setOpen(open);
+    if (!open) {
+      handleClose();
+    }
   };
 
   return (

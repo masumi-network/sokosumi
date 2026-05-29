@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createContext, useCallback, useContext, useState } from "react";
 
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
@@ -15,6 +16,7 @@ import { TaskFormModal } from "./task-form-modal";
 interface CreateTaskModalContextType {
   open: boolean;
   coworkerOverrideId: string | null;
+  projectOverrideId: string | null;
   formInstanceKey: number;
   handleOpen: () => void;
   handleClose: () => void;
@@ -23,6 +25,7 @@ interface CreateTaskModalContextType {
 const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
   open: false,
   coworkerOverrideId: null,
+  projectOverrideId: null,
   formInstanceKey: 0,
   handleOpen: () => {},
   handleClose: () => {},
@@ -36,12 +39,14 @@ interface CreateTaskModalProviderProps {
   children: React.ReactNode;
   initialOpen?: boolean;
   initialCoworkerId?: string | null;
+  initialProjectId?: string | null;
 }
 
 export function CreateTaskModalProvider({
   children,
   initialOpen = false,
   initialCoworkerId = null,
+  initialProjectId = null,
 }: CreateTaskModalProviderProps) {
   const [open, setOpen] = useState(initialOpen);
   const [coworkerOverrideId, setCoworkerOverrideId] = useState<string | null>(
@@ -50,13 +55,20 @@ export function CreateTaskModalProvider({
         ? initialCoworkerId
         : null,
   );
+  const [projectOverrideId, setProjectOverrideId] = useState<string | null>(
+    () =>
+      initialOpen && initialProjectId != null && initialProjectId !== ""
+        ? initialProjectId
+        : null,
+  );
   const [formInstanceKey, setFormInstanceKey] = useState(0);
 
   const handleOpen = useCallback(() => {
     setCoworkerOverrideId(null);
+    setProjectOverrideId(initialProjectId || null);
     setFormInstanceKey((key) => key + 1);
     setOpen(true);
-  }, []);
+  }, [initialProjectId]);
 
   const handleClose = useCallback(() => {
     setOpen(false);
@@ -67,6 +79,7 @@ export function CreateTaskModalProvider({
       value={{
         open,
         coworkerOverrideId,
+        projectOverrideId,
         formInstanceKey,
         handleOpen,
         handleClose,
@@ -81,19 +94,29 @@ export function CreateTaskModalProvider({
 
 interface CreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
+  projectOptions: ProjectFilterOption[];
+  defaultProjectId?: string | null;
   agentNameById: Map<string, string>;
 }
 
 export function CreateTaskModal({
   coworkerOptions,
+  projectOptions,
+  defaultProjectId = null,
   agentNameById,
 }: CreateTaskModalProps) {
-  const { open, handleClose, coworkerOverrideId, formInstanceKey } =
-    useCreateTaskModal();
+  const {
+    open,
+    handleClose,
+    coworkerOverrideId,
+    projectOverrideId,
+    formInstanceKey,
+  } = useCreateTaskModal();
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("App.Tasks.NewTask");
   const [isDismissDisabled, setIsDismissDisabled] = useState(false);
+  const selectedProjectId = projectOverrideId ?? defaultProjectId ?? null;
 
   const stripCreateTaskSearchParams = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -134,6 +157,10 @@ export function CreateTaskModal({
           name: t("name"),
           namePlaceholder: t("namePlaceholder"),
           descriptionPlaceholder: t("descriptionPlaceholder"),
+          projectLabel: t("projectLabel"),
+          projectNone: t("projectNone"),
+          projectSearchPlaceholder: t("projectSearchPlaceholder"),
+          projectEmptyResults: t("projectEmptyResults"),
           coworker: t("coworker"),
           coworkerDescription: t("coworkerDescription"),
           status: t("status"),
@@ -159,10 +186,12 @@ export function CreateTaskModal({
           ctrl: t("ctrl"),
         }}
         coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
         agentNameById={agentNameById}
-        initialValues={
-          coworkerOverrideId ? { coworkerId: coworkerOverrideId } : undefined
-        }
+        initialValues={{
+          ...(coworkerOverrideId ? { coworkerId: coworkerOverrideId } : {}),
+          projectId: selectedProjectId,
+        }}
         onCancel={handleDismiss}
         onSubmittingChange={setIsDismissDisabled}
         onSuccess={(taskId) => {

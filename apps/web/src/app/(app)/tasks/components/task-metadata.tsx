@@ -1,4 +1,5 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import Link from "next/link";
 import { useFormatter } from "next-intl";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
@@ -13,6 +14,7 @@ interface TaskMetadataLabels {
   owner: string;
   organization: string;
   personalWorkspace: string;
+  project: string;
   coworker: string;
   created: string;
   updated: string;
@@ -29,10 +31,11 @@ interface TaskMetadataTask {
 
 interface TaskMetadataProps {
   task: TaskMetadataTask;
+  project: { id: string; name: string } | null;
   labels: TaskMetadataLabels;
 }
 
-export function TaskMetadata({ task, labels }: TaskMetadataProps) {
+export function TaskMetadata({ task, project, labels }: TaskMetadataProps) {
   const ownerImage = task.user.image
     ? resolveIpfsOrHttpUrl(task.user.image)
     : null;
@@ -71,6 +74,22 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
           <span className="text-right text-sm font-medium">
             {task.organization?.name ?? labels.personalWorkspace}
           </span>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground text-sm">
+            {labels.project}
+          </span>
+          {project ? (
+            <Link
+              href={`/projects/${project.id}`}
+              className="hover:text-primary truncate text-right text-sm font-medium transition-colors"
+            >
+              {project.name}
+            </Link>
+          ) : (
+            <span className="text-right text-sm font-medium">—</span>
+          )}
         </div>
 
         <div className="flex items-center justify-between">

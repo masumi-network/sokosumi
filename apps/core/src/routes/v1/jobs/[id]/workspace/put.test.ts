@@ -97,6 +97,7 @@ function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
     agentId: "agent_123",
     userId: "user_123",
     organizationId: "org_billing",
+    projectId: null,
     taskId: null,
     name: "Current job",
     jobType: "PAID",

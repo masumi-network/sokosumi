@@ -252,9 +252,9 @@
       "chat": "Chat",
       "tasks": "Tâches",
       "connections": "Connexions",
-      "feed": "Mon fil",
       "hermes": "Hermes",
-      "new": "Nouveau"
+      "new": "Nouveau",
+      "projects": "Projets"
     },
     "Jobs": {
       "StatusBadge": {
@@ -332,6 +332,7 @@
           "propertiesTitle": "Propriétés",
           "status": "Statut",
           "task": "Tâche",
+          "project": "Projet",
           "coworker": "Collègue",
           "openTask": "Tâche ouverte",
           "created": "Créé",
@@ -1309,37 +1310,6 @@
       "pausedReason": "Raison de la pause",
       "loading": "Chargement des planifications..."
     },
-    "Feed": {
-      "title": "Mon fil",
-      "aiInsights": "Insights IA",
-      "summaryDescription": "Vos tâches et jobs terminés récemment sont affichés ici.",
-      "description": "Une vue unifiée de votre travail récent terminé.",
-      "earlier": "Plus tôt",
-      "recentActivity": "Activité récente",
-      "summary": "Vos tâches et jobs terminés récemment sont affichés ici.",
-      "resultsTitle": "Résultats",
-      "emptyState": "Aucun résultat terminé pour le moment.",
-      "backToFeed": "Retour au fil",
-      "unknownAgent": "Agent",
-      "unknownCoworker": "Collègue",
-      "openOriginal": "Voir le détail",
-      "missingResult": "Ce résultat du fil n’est plus disponible.",
-      "fallbackPreview": "Aucun détail supplémentaire disponible.",
-      "sourcesFiles": "Fichiers",
-      "sourcesLinks": "Liens",
-      "untitledJob": "Job sans titre",
-      "untitledTask": "Tâche sans titre",
-      "search": "Rechercher des tâches ou des jobs",
-      "clearSearch": "Effacer la recherche",
-      "loadMore": "Charger plus",
-      "loadingMore": "Chargement...",
-      "generating": "Réflexion...",
-      "generationError": "Impossible de générer des insights pour le moment.",
-      "type": {
-        "job": "Job",
-        "task": "Tâche"
-      }
-    },
     "Tasks": {
       "Page": {
         "title": "Gestion de tâches",
@@ -1404,6 +1374,7 @@
         "scopeWorkspace": "Espace de travail",
         "coworkerLabel": "Coworker",
         "statusLabel": "Statut",
+        "projectLabel": "Projet",
         "statusOptions": {
           "DRAFT": "Brouillon",
           "READY": "Prêt",
@@ -1445,6 +1416,7 @@
         "status": "Statut",
         "owner": "Propriétaire",
         "organization": "Organisation",
+        "project": "Projet",
         "personalWorkspace": "Personnel",
         "coworker": "Collègue",
         "created": "Créé",
@@ -1585,6 +1557,10 @@
         "name": "Nom de la tâche",
         "namePlaceholder": "Saisissez un titre court",
         "descriptionPlaceholder": "Saisissez les détails de la tâche...",
+        "projectLabel": "Projet",
+        "projectNone": "Aucun projet",
+        "projectSearchPlaceholder": "Rechercher des projets...",
+        "projectEmptyResults": "Aucun projet trouvé.",
         "coworker": "Collègue",
         "coworkerDescription": "Choisissez un LLM de collègue qui gérera cette tâche pour vous",
         "status": "Statut",
@@ -1610,6 +1586,10 @@
         "name": "Nom de la tâche",
         "namePlaceholder": "Saisissez un titre court",
         "descriptionPlaceholder": "Mettez à jour les détails de la tâche...",
+        "projectLabel": "Projet",
+        "projectNone": "Aucun projet",
+        "projectSearchPlaceholder": "Rechercher des projets...",
+        "projectEmptyResults": "Aucun projet trouvé.",
         "coworker": "Collègue",
         "coworkerDescription": "Choisissez un LLM de collègue qui gérera cette tâche pour vous",
         "status": "Statut",
@@ -1625,6 +1605,132 @@
         "save": "Enregistrer",
         "cancel": "Annuler",
         "ctrl": "Ctrl"
+      }
+    },
+    "Projects": {
+      "title": "Projets",
+      "empty": {
+        "title": "Aucun projet pour le moment",
+        "description": "Créez un projet pour regrouper les tâches et jobs associés.",
+        "action": "Nouveau projet"
+      },
+      "list": {
+        "loadMore": "Charger plus",
+        "loading": "Chargement des projets...",
+        "stats": {
+          "tasks": "Tâches",
+          "jobs": "Jobs",
+          "total": "{count, plural, =0 {0 au total} =1 {1 au total} other {# au total}}",
+          "taskStatusAbbreviations": {
+            "DRAFT": "Brouillon",
+            "READY": "Prêt",
+            "INPUT_REQUIRED": "Entrée",
+            "AUTHENTICATION_REQUIRED": "Auth",
+            "OUT_OF_CREDITS": "Crédits",
+            "CREDITS_TOPPED_UP": "Rechargé",
+            "RUNNING": "En cours",
+            "AWAITING_EXTERNAL": "En attente",
+            "COMPLETED": "Terminé",
+            "FAILED": "Échec",
+            "CANCEL_REQUESTED": "Annulation",
+            "CANCELED": "Annulé"
+          },
+          "jobStatusAbbreviations": {
+            "started": "Démarré",
+            "completed": "Terminé",
+            "processing": "En cours",
+            "input_required": "Entrée",
+            "result_pending": "Résultat",
+            "failed": "Échec",
+            "payment_pending": "Paiement",
+            "payment_failed": "Paiement échoué",
+            "refund_pending": "Remboursement",
+            "refund_resolved": "Remboursé",
+            "dispute_pending": "Litige",
+            "dispute_resolved": "Résolu"
+          }
+        }
+      },
+      "NewProject": {
+        "title": "Nouveau projet",
+        "details": "Détails",
+        "detailsDescription": "Nommez le projet et ajoutez un contexte facultatif.",
+        "name": "Nom du projet",
+        "namePlaceholder": "Saisissez un titre court",
+        "description": "Description",
+        "descriptionPlaceholder": "Ajoutez le contexte du projet...",
+        "createProject": "Créer le projet",
+        "cancel": "Annuler"
+      },
+      "EditProject": {
+        "title": "Modifier le projet",
+        "details": "Détails",
+        "detailsDescription": "Mettez à jour les détails du projet.",
+        "name": "Nom du projet",
+        "namePlaceholder": "Saisissez un titre court",
+        "description": "Description",
+        "descriptionPlaceholder": "Mettez à jour le contexte du projet...",
+        "save": "Enregistrer",
+        "cancel": "Annuler"
+      },
+      "Detail": {
+        "back": "Retour aux projets",
+        "header": {
+          "updated": "Mis à jour",
+          "created": "Créé"
+        },
+        "description": "Description",
+        "emptyDescription": "Aucune description pour le moment.",
+        "jobs": {
+          "title": "Jobs",
+          "empty": "Aucun job lié à ce projet pour le moment.",
+          "add": "Ajouter un job",
+          "remove": "Retirer le job",
+          "pickerTitle": "Ajouter un job",
+          "pickerDescription": "Choisissez un job non assigné à lier à ce projet.",
+          "pickerSearchPlaceholder": "Rechercher des jobs...",
+          "pickerEmpty": "Aucun job non assigné trouvé.",
+          "pickerLoading": "Chargement des jobs...",
+          "pickerError": "Impossible de charger les jobs.",
+          "untitled": "Job sans titre"
+        },
+        "tasks": {
+          "title": "Tâches",
+          "empty": "Aucune tâche liée à ce projet pour le moment.",
+          "add": "Ajouter une tâche",
+          "remove": "Retirer la tâche",
+          "pickerTitle": "Ajouter une tâche",
+          "pickerDescription": "Choisissez une tâche non assignée à lier à ce projet.",
+          "pickerSearchPlaceholder": "Rechercher des tâches...",
+          "pickerEmpty": "Aucune tâche non assignée trouvée.",
+          "pickerLoading": "Chargement des tâches...",
+          "pickerError": "Impossible de charger les tâches."
+        },
+        "actions": {
+          "moreActions": "Plus d'actions",
+          "viewDetails": "Voir les détails",
+          "edit": "Modifier",
+          "delete": "Supprimer",
+          "remove": "Retirer",
+          "confirmRemoveJob": "Retirer ce job du projet ?",
+          "confirmRemoveTask": "Retirer cette tâche du projet ?"
+        },
+        "deleteDialog": {
+          "title": "Supprimer le projet",
+          "description": "Cela supprimera le projet. Les tâches et jobs liés resteront disponibles en dehors du projet.",
+          "confirm": "Supprimer",
+          "cancel": "Annuler"
+        },
+        "errors": {
+          "create": "Impossible de créer le projet",
+          "update": "Impossible de mettre à jour le projet",
+          "delete": "Impossible de supprimer le projet",
+          "addJob": "Impossible d'ajouter le job",
+          "removeJob": "Impossible de retirer le job",
+          "addTask": "Impossible d'ajouter la tâche",
+          "removeTask": "Impossible de retirer la tâche",
+          "loadMore": "Impossible de charger plus de projets"
+        }
       }
     },
     "Hermes": {
@@ -2167,9 +2273,9 @@
         "MenuItems": {
           "chat": "Chat",
           "exploreAgents": "Agents",
-          "myFeed": "Mon fil",
           "filesAndOutputs": "Fichiers et livrables",
           "taskManager": "Tâches",
+          "projects": "Projets",
           "scheduledAgents": "Plannings",
           "hermes": "Hermes"
         },
@@ -2932,7 +3038,11 @@
             "title": "Informations"
           },
           "Input": {
-            "title": "Saisie"
+            "title": "Saisie",
+            "projectLabel": "Projet",
+            "projectNone": "Aucun projet",
+            "projectSearchPlaceholder": "Rechercher des projets...",
+            "projectEmptyResults": "Aucun projet trouvé."
           },
           "Scheduler": {
             "title": "Planifier le job",

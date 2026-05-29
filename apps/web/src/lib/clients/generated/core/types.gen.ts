@@ -265,6 +265,7 @@ export type JobSummary = {
     user: UserSummary;
     organizationId?: string | null;
     organization?: OrganizationSummary;
+    projectId?: string | null;
     workspace: WorkspaceSummary;
     taskId?: string | null;
     name?: string | null;
@@ -947,6 +948,11 @@ export type User = {
     role: string;
 };
 
+export type ProjectListItem = Project & {
+    taskCount: number;
+    jobCount: number;
+};
+
 export type Project = {
     id: string;
     workspaceId: string;
@@ -1015,6 +1021,7 @@ export type Job = {
     user: UserSummary;
     organizationId?: string | null;
     organization?: OrganizationSummary;
+    projectId: string | null;
     taskId?: string | null;
     name?: string | null;
     jobType: 'FREE' | 'PAID' | 'DEMO';
@@ -1320,6 +1327,7 @@ export type TaskListItem = {
     user: UserSummary;
     organizationId: string | null;
     organization: OrganizationSummary;
+    projectId: string | null;
     coworkerId: string | null;
     coworker: CoworkerSummary;
     name: string;
@@ -1346,6 +1354,7 @@ export type Task = {
     user: UserSummary;
     organizationId: string | null;
     organization: OrganizationSummary;
+    projectId: string | null;
     coworkerId: string | null;
     coworker: CoworkerSummary;
     name: string;
@@ -3723,6 +3732,7 @@ export type PostAgentsByIdJobsData = {
             [key: string]: string | number | boolean | Array<string> | Array<number>;
         };
         maxCredits?: number;
+        projectId?: string | null;
         /**
          * If not provided, an AI-generated name will be created based on the agent details and input data.
          */
@@ -8595,7 +8605,7 @@ export type GetProjectsResponses = {
      * Projects in the workspace
      */
     200: {
-        data: Array<Project>;
+        data: Array<ProjectListItem>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11750,6 +11760,7 @@ export type PostTasksData = {
     body?: {
         name: string;
         description?: string | null;
+        projectId?: string | null;
         coworkerId?: string | null;
         status?: 'DRAFT' | 'READY';
         /**
@@ -11807,6 +11818,19 @@ export type PostTasksErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         meta: {
@@ -12289,6 +12313,7 @@ export type PatchTasksByIdData = {
     body?: {
         name?: string;
         description?: string | null;
+        projectId?: string | null;
         coworkerId?: string | null;
     };
     path: {
@@ -12342,6 +12367,19 @@ export type PatchTasksByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         meta: {
@@ -13798,6 +13836,7 @@ export type PostTasksByIdJobsData = {
             [key: string]: string | number | boolean | Array<string> | Array<number>;
         };
         maxCredits?: number;
+        projectId?: string | null;
         /**
          * If not provided, an AI-generated name will be created based on the agent details and input data.
          */

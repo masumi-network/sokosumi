@@ -5,7 +5,7 @@ import {
   requireTaskAssignableCoworker,
   requireTaskOwnership,
 } from "@/helpers/access-control";
-import { forbidden } from "@/helpers/error";
+import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
@@ -30,16 +30,24 @@ export const patchTaskRequestSchema = z
     description: z.string().nullish().openapi({
       example: "Updated description",
     }),
+    projectId: z
+      .string()
+      .uuid()
+      .nullable()
+      .optional()
+      .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
     coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
   })
   .refine(
     (data) =>
       data.name !== undefined ||
       data.description !== undefined ||
+      data.projectId !== undefined ||
       data.coworkerId !== undefined,
     {
-      message: "At least one of name, description or coworkerId is required",
-      path: ["name", "description", "coworkerId"],
+      message:
+        "At least one of name, description, projectId or coworkerId is required",
+      path: ["name", "description", "projectId", "coworkerId"],
     },
   );
 
@@ -64,6 +72,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -72,7 +81,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = requireUserContext(authContext);
     const { id } = c.req.valid("param");
-    const { name, description, coworkerId } = c.req.valid("json");
+    const { name, description, projectId, coworkerId } = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
       const task = await requireTaskOwnership(userContext, id, tx);
@@ -96,6 +105,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         await requireTaskAssignableCoworker(coworkerId, tx);
       }
 
+      const projectIdWasProvided = projectId !== undefined;
+      if (projectIdWasProvided && projectId !== null) {
+        const project = await tx.project.findFirst({
+          where: {
+            id: projectId,
+            workspaceId: task.workspaceId,
+          },
+          select: { id: true },
+        });
+
+        if (!project) {
+          throw notFound("Project not found");
+        }
+      }
+
       return tx.task.update({
         where: {
           id,
@@ -105,6 +129,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           name,
           description,
+          projectId,
           coworkerId,
         },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),

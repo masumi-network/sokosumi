@@ -124,6 +124,10 @@ const baseLabels = {
   name: "Task name",
   namePlaceholder: "Name",
   descriptionPlaceholder: "Description",
+  projectLabel: "Project",
+  projectNone: "No project",
+  projectSearchPlaceholder: "Search projects...",
+  projectEmptyResults: "No projects found.",
   coworker: "Coworker",
   coworkerDescription: "Pick a coworker",
   status: "Status",
@@ -155,6 +159,17 @@ const coworkerOptions = [
     slug: "elena",
     name: "Elena",
     image: "",
+  },
+];
+
+const projectOptions = [
+  {
+    id: "project-1",
+    name: "Alpha Project",
+  },
+  {
+    id: "project-2",
+    name: "Beta Project",
   },
 ];
 
@@ -304,6 +319,125 @@ describe("TaskForm", () => {
     const sokoButton = screen.getByRole("button", { name: /Soko/i });
     expect(elenaButton).toHaveAttribute("aria-pressed", "true");
     expect(sokoButton).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("selects initialValues.projectId when project options are provided", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ projectId: "project-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(
+      "Beta Project",
+    );
+  });
+
+  it("passes projectId when creating a task from the project picker", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ projectId: "project-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+      }),
+    );
+  });
+
+  it("passes projectId when updating a task from the project picker", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue({ taskId: "task-1" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          coworkerId: "coworker-1",
+          projectId: "project-2",
+          status: TaskStatus.DRAFT,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task-1",
+        projectId: "project-2",
+      }),
+    );
+  });
+
+  it("passes null when clearing the selected project", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue({ taskId: "task-1" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          coworkerId: "coworker-1",
+          projectId: "project-2",
+          status: TaskStatus.DRAFT,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Project" }));
+    await user.click(screen.getByText("No project"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task-1",
+        projectId: null,
+      }),
+    );
   });
 
   it("applies stored create-modal coworker from localStorage after mount", () => {
