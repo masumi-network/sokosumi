@@ -2,16 +2,14 @@
 
 import type { Member } from "@sokosumi/database";
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
-import type { useTranslations } from "next-intl";
-
+import { useTranslations } from "next-intl";
+import { getPlanTranslationKey } from "@/components/billing/subscription-plan-utils";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
-
 import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import MemberActionsDropdown from "./member-actions-dropdown";
-import { MemberSubscriptionCell } from "./member-subscription-cell";
 import type { MemberRowData } from "./types";
 
 const columnHelper = createColumnHelper<MemberRowData>();
@@ -60,23 +58,13 @@ export function getMembersTableColumns(
       enableHiding: false,
     }) as ColumnDef<MemberRowData>,
 
-    subscriptionColumn: columnHelper.display({
+    seatColumn: columnHelper.display({
       id: "seat",
       minSize: 120,
       header: () => <div>{t("Header.seat")}</div>,
-      cell: ({ row }) => {
-        const { member } = row.original;
-        if (!member) {
-          return null;
-        }
-
-        return (
-          <MemberSubscriptionCell
-            hasPaidSeat={member.seatAssignedAt !== null}
-            paidPlan={paidPlan}
-          />
-        );
-      },
+      cell: ({ row }) => (
+        <SeatPlanCell member={row.original.member} paidPlan={paidPlan} />
+      ),
     }) as ColumnDef<MemberRowData>,
 
     actionColumn: columnHelper.display({
@@ -97,4 +85,36 @@ export function getMembersTableColumns(
       },
     }) as ColumnDef<MemberRowData>,
   };
+}
+
+function SeatPlanCell({
+  member,
+  paidPlan,
+}: {
+  member: MemberRowData["member"];
+  paidPlan: SubscriptionPlanName | null;
+}) {
+  const tPlans = useTranslations("App.Subscriptions");
+
+  if (!member) {
+    return null;
+  }
+
+  const isPaidSeat = member.seatAssignedAt !== null && paidPlan !== null;
+  const plan: SubscriptionPlanName = isPaidSeat ? paidPlan : "free";
+  const label = tPlans(`Plans.${getPlanTranslationKey(plan)}.name`);
+
+  return (
+    <div className="p-2">
+      <span
+        className={
+          isPaidSeat
+            ? "bg-primary/10 text-primary inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
+            : "bg-muted text-muted-foreground inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
+        }
+      >
+        {label}
+      </span>
+    </div>
+  );
 }

@@ -189,9 +189,6 @@ export const organizationSeatService = (() => {
               tx,
             );
 
-          // Paid (Stripe-backed) organization: the member loses paid seat
-          // credits going forward and joins the free monthly tier for the
-          // current period.
           if (
             subscription?.stripeSubscriptionId &&
             subscription.periodEnd &&

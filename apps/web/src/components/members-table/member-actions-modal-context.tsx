@@ -11,14 +11,10 @@ import type {
   BetterAuthClientError,
   BetterAuthClientResult,
 } from "@/lib/actions";
-import {
-  assignOrganizationSeat,
-  unassignOrganizationSeat,
-} from "@/lib/actions/organization/seat-action";
+import { unassignOrganizationSeat } from "@/lib/actions/organization/seat-action";
 import { authClient } from "@/lib/auth/auth.client";
 
 export enum MemberAction {
-  ASSIGN_SEAT = "ASSIGN_SEAT",
   CHANGE_TO_OWNER = "CHANGE_TO_OWNER",
   CHANGE_TO_ADMIN = "CHANGE_TO_ADMIN",
   CHANGE_TO_MEMBER = "CHANGE_TO_MEMBER",
@@ -44,23 +40,6 @@ export function MemberActionsModalContextProvider({
     action: MemberAction,
   ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {
-      case MemberAction.ASSIGN_SEAT: {
-        const result = await assignOrganizationSeat({
-          memberId: member.id,
-          organizationId: member.organizationId,
-        });
-        if (!result.ok) {
-          return {
-            data: null,
-            error: {
-              message: result.error.message ?? t("Error.assignSeat"),
-              status: 400,
-              statusText: "Bad Request",
-            },
-          };
-        }
-        return { data: result.data, error: null };
-      }
       case MemberAction.UNASSIGN_SEAT: {
         const result = await unassignOrganizationSeat({
           memberId: member.id,
@@ -110,10 +89,6 @@ export function MemberActionsModalContextProvider({
       toast.success(t("Success.remove"));
       return;
     }
-    if (action === MemberAction.ASSIGN_SEAT) {
-      toast.success(t("Success.assignSeat"));
-      return;
-    }
     if (action === MemberAction.UNASSIGN_SEAT) {
       toast.success(t("Success.unassignSeat"));
       return;
@@ -128,11 +103,9 @@ export function MemberActionsModalContextProvider({
       error.message ??
       (action === MemberAction.REMOVE
         ? t("Error.remove")
-        : action === MemberAction.ASSIGN_SEAT
-          ? t("Error.assignSeat")
-          : action === MemberAction.UNASSIGN_SEAT
-            ? t("Error.unassignSeat")
-            : t("Error.changeRole"));
+        : action === MemberAction.UNASSIGN_SEAT
+          ? t("Error.unassignSeat")
+          : t("Error.changeRole"));
     if (error.status === 401) {
       toast.error(errorMessage, {
         action: {

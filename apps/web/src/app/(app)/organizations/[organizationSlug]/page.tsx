@@ -102,10 +102,7 @@ export default async function OrganizationPage({
         <OrganizationInformation organization={organization} member={member} />
         <OrganizationInvoiceEmail organization={organization} member={member} />
         {isOwnerOrAdmin && seatSummary ? (
-          <OrganizationSeatSummaryCard
-            organizationId={organization.id}
-            seatSummary={seatSummary}
-          />
+          <OrganizationSeatSummaryCard seatSummary={seatSummary} />
         ) : null}
         <div className="space-y-4">
           {isOwnerOrAdmin ? (

@@ -11,12 +11,10 @@ import {
 import type { OrganizationSeatSummary } from "@/lib/services/organization-seat.service";
 
 interface OrganizationSeatSummaryCardProps {
-  organizationId: string;
   seatSummary: OrganizationSeatSummary;
 }
 
 export async function OrganizationSeatSummaryCard({
-  organizationId: _organizationId,
   seatSummary,
 }: OrganizationSeatSummaryCardProps) {
   const t = await getTranslations("App.Organizations.OrganizationDetail.Seats");

@@ -27,6 +27,15 @@ import {
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
+function isPrismaRecordNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2025"
+  );
+}
+
 export interface GrantUnusedSeatSubscriptionCreditsResult {
   creditsGranted: number;
   granted: boolean;
@@ -66,8 +75,12 @@ async function markOutOfCreditsTasksAsToppedUp(params: {
           },
         },
       });
-    } catch {
-      // Ignore concurrent task updates, same as invoice webhook handling.
+    } catch (error) {
+      if (isPrismaRecordNotFoundError(error)) {
+        continue;
+      }
+
+      throw error;
     }
   }
 }

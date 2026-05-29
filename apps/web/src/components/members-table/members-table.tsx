@@ -76,18 +76,13 @@ function getColumns(
   showSeatManagement: boolean,
   paidPlan: SubscriptionPlanName | null,
 ) {
-  const {
-    nameColumn,
-    emailColumn,
-    roleColumn,
-    subscriptionColumn,
-    actionColumn,
-  } = getMembersTableColumns(t, me, showSeatManagement, paidPlan);
+  const { nameColumn, emailColumn, roleColumn, seatColumn, actionColumn } =
+    getMembersTableColumns(t, me, showSeatManagement, paidPlan);
   const isOwnerOrAdmin =
     me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
 
   return [nameColumn, emailColumn, roleColumn]
-    .concat(showSeatManagement ? [subscriptionColumn] : [])
+    .concat(showSeatManagement ? [seatColumn] : [])
     .concat(isOwnerOrAdmin ? [actionColumn] : []);
 }
 
