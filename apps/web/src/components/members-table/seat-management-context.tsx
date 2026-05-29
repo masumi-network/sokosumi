@@ -23,6 +23,32 @@ const SeatManagementContext = createContext<SeatManagementContextValue>({
   notifySeatUnassigned: () => {},
 });
 
+interface SeatOptimisticState {
+  pendingAssignCount: number;
+  pendingUnassignCount: number;
+  optimisticallyAssignedMemberIds: Set<string>;
+  optimisticallyUnassignedMemberIds: Set<string>;
+}
+
+function createInitialOptimisticState(): SeatOptimisticState {
+  return {
+    pendingAssignCount: 0,
+    pendingUnassignCount: 0,
+    optimisticallyAssignedMemberIds: new Set(),
+    optimisticallyUnassignedMemberIds: new Set(),
+  };
+}
+
+function computeUnusedSeats(
+  serverUnusedSeats: number,
+  state: SeatOptimisticState,
+): number {
+  return Math.max(
+    0,
+    serverUnusedSeats - state.pendingAssignCount + state.pendingUnassignCount,
+  );
+}
+
 export function SeatManagementContextProvider({
   children,
   showSeatManagement,
@@ -32,69 +58,81 @@ export function SeatManagementContextProvider({
   showSeatManagement: boolean;
   unusedSeats: number;
 }) {
-  const [pendingAssignCount, setPendingAssignCount] = useState(0);
-  const [pendingUnassignCount, setPendingUnassignCount] = useState(0);
-  const [optimisticallyAssignedMemberIds, setOptimisticallyAssignedMemberIds] =
-    useState<Set<string>>(() => new Set());
-  const [
-    optimisticallyUnassignedMemberIds,
-    setOptimisticallyUnassignedMemberIds,
-  ] = useState<Set<string>>(() => new Set());
+  const [optimisticState, setOptimisticState] = useState<SeatOptimisticState>(
+    createInitialOptimisticState,
+  );
   const [syncedServerUnusedSeats, setSyncedServerUnusedSeats] =
     useState(serverUnusedSeats);
 
   if (serverUnusedSeats !== syncedServerUnusedSeats) {
     setSyncedServerUnusedSeats(serverUnusedSeats);
-    setPendingAssignCount(0);
-    setPendingUnassignCount(0);
-    setOptimisticallyAssignedMemberIds(new Set());
-    setOptimisticallyUnassignedMemberIds(new Set());
+    setOptimisticState(createInitialOptimisticState());
   }
 
-  const unusedSeats = Math.max(
-    0,
-    serverUnusedSeats - pendingAssignCount + pendingUnassignCount,
-  );
+  const unusedSeats = computeUnusedSeats(serverUnusedSeats, optimisticState);
 
   function isMemberSeatAssigned(
     memberId: string,
     hasSeatFromServer: boolean,
   ): boolean {
-    if (optimisticallyAssignedMemberIds.has(memberId)) {
+    if (optimisticState.optimisticallyAssignedMemberIds.has(memberId)) {
       return true;
     }
-    if (optimisticallyUnassignedMemberIds.has(memberId)) {
+    if (optimisticState.optimisticallyUnassignedMemberIds.has(memberId)) {
       return false;
     }
     return hasSeatFromServer;
   }
 
   function tryBeginSeatAssign(memberId: string): boolean {
-    if (unusedSeats <= 0 || optimisticallyAssignedMemberIds.has(memberId)) {
-      return false;
-    }
+    let accepted = false;
 
-    setPendingAssignCount((count) => count + 1);
-    setOptimisticallyAssignedMemberIds((ids) => new Set(ids).add(memberId));
-    return true;
+    setOptimisticState((prev) => {
+      const availableUnused = computeUnusedSeats(serverUnusedSeats, prev);
+      if (
+        availableUnused <= 0 ||
+        prev.optimisticallyAssignedMemberIds.has(memberId)
+      ) {
+        return prev;
+      }
+
+      accepted = true;
+      return {
+        ...prev,
+        pendingAssignCount: prev.pendingAssignCount + 1,
+        optimisticallyAssignedMemberIds: new Set(
+          prev.optimisticallyAssignedMemberIds,
+        ).add(memberId),
+      };
+    });
+
+    return accepted;
   }
 
   function cancelSeatAssign(memberId: string): void {
-    setPendingAssignCount((count) => Math.max(0, count - 1));
-    setOptimisticallyAssignedMemberIds((ids) => {
-      if (!ids.has(memberId)) {
-        return ids;
+    setOptimisticState((prev) => {
+      if (!prev.optimisticallyAssignedMemberIds.has(memberId)) {
+        return prev;
       }
 
-      const next = new Set(ids);
-      next.delete(memberId);
-      return next;
+      const nextAssigned = new Set(prev.optimisticallyAssignedMemberIds);
+      nextAssigned.delete(memberId);
+      return {
+        ...prev,
+        pendingAssignCount: Math.max(0, prev.pendingAssignCount - 1),
+        optimisticallyAssignedMemberIds: nextAssigned,
+      };
     });
   }
 
   function notifySeatUnassigned(memberId: string): void {
-    setPendingUnassignCount((count) => count + 1);
-    setOptimisticallyUnassignedMemberIds((ids) => new Set(ids).add(memberId));
+    setOptimisticState((prev) => ({
+      ...prev,
+      pendingUnassignCount: prev.pendingUnassignCount + 1,
+      optimisticallyUnassignedMemberIds: new Set(
+        prev.optimisticallyUnassignedMemberIds,
+      ).add(memberId),
+    }));
   }
 
   return (
