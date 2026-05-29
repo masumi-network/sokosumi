@@ -23,7 +23,6 @@ import { GroupedInputTabs } from "@/components/common/grouped-input-tabs";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { JobScheduleModal } from "@/components/create-job-modal/job-schedule-modal";
 import { Button } from "@/components/ui/button";
-import { useJobSchedule } from "@/hooks/use-job-schedule";
 import { useJobSubmission } from "@/hooks/use-job-submission";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { defaultValues, type JobInputsFormSchemaType } from "@/lib/job-input";
@@ -116,8 +115,20 @@ function JobInputsGroupedFormStandard({
   const tDuration = useTranslations("Library.Duration.Short");
   const { os, isMobile } = useOSDetection();
 
-  const { open, loading, setLoading, handleClose, projectId } =
-    useCreateJobModalContext();
+  const {
+    open,
+    loading,
+    setLoading,
+    handleClose,
+    projectId,
+    scheduleOpen,
+    setScheduleOpen,
+    scheduleSelection,
+    setScheduleSelection,
+    timezoneOptions,
+    isScheduled,
+    nextRunLabel,
+  } = useCreateJobModalContext();
 
   const groupsKey = useMemo(() => groups.map((g) => g.id).join(","), [groups]);
   const [collectedGroupValues, setCollectedGroupValues] =
@@ -129,16 +140,6 @@ function JobInputsGroupedFormStandard({
     setCollectedGroupValues({});
     reset();
   }
-
-  const {
-    scheduleOpen,
-    setScheduleOpen,
-    scheduleSelection,
-    setScheduleSelection,
-    timezoneOptions,
-    isScheduled,
-    nextRunLabel,
-  } = useJobSchedule();
 
   const { handleSubmit } = useJobSubmission({
     agent,

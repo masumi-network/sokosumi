@@ -20,7 +20,6 @@ import { useCallback, useMemo } from "react";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { JobScheduleModal } from "@/components/create-job-modal/job-schedule-modal";
 import { Button } from "@/components/ui/button";
-import { useJobSchedule } from "@/hooks/use-job-schedule";
 import { useJobSubmission } from "@/hooks/use-job-submission";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { defaultValues, type JobInputsFormSchemaType } from "@/lib/job-input";
@@ -96,10 +95,12 @@ function JobInputsFlatFormStandard({
   const tDuration = useTranslations("Library.Duration.Short");
   const { os, isMobile } = useOSDetection();
 
-  const { open, loading, setLoading, handleClose, projectId } =
-    useCreateJobModalContext();
-
   const {
+    open,
+    loading,
+    setLoading,
+    handleClose,
+    projectId,
     scheduleOpen,
     setScheduleOpen,
     scheduleSelection,
@@ -107,7 +108,7 @@ function JobInputsFlatFormStandard({
     timezoneOptions,
     isScheduled,
     nextRunLabel,
-  } = useJobSchedule();
+  } = useCreateJobModalContext();
 
   const { handleSubmit } = useJobSubmission({
     agent,
