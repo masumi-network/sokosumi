@@ -20,12 +20,23 @@ const unassignSeatMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const memberCountMock = vi.fn();
 const grantUnusedSeatSubscriptionCreditsIfEligibleMock = vi.fn();
+const grantFreeOrganizationMemberSubscriptionCreditsMock = vi.fn();
 const transactionMock = vi.fn();
 
 vi.mock("@/lib/services/organization-seat-credits.service", () => ({
   grantUnusedSeatSubscriptionCreditsIfEligible: (...args: unknown[]) =>
     grantUnusedSeatSubscriptionCreditsIfEligibleMock(...args),
 }));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    grantFreeOrganizationMemberSubscriptionCredits: (...args: unknown[]) =>
+      grantFreeOrganizationMemberSubscriptionCreditsMock(...args),
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
@@ -62,6 +73,7 @@ describe("organizationSeatService", () => {
       creditsGranted: 0,
       granted: false,
     });
+    grantFreeOrganizationMemberSubscriptionCreditsMock.mockResolvedValue(1);
   });
 
   it("returns seat summary counts", async () => {
@@ -132,5 +144,65 @@ describe("organizationSeatService", () => {
     ).rejects.toThrow(
       "Only organization owners and admins can manage seat assignments",
     );
+  });
+
+  it("grants free monthly credits when unassigning in a paid organization", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
+    unassignSeatMock.mockResolvedValue({
+      id: "member-1",
+      userId: "user-2",
+    });
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      periodEnd: new Date("2026-06-01T00:00:00.000Z"),
+      plan: "starter",
+      status: "active",
+      stripeSubscriptionId: "sub_123",
+    });
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    const result = await organizationSeatService.unassignSeat(
+      "user-1",
+      "org-1",
+      "member-1",
+    );
+
+    expect(result.memberId).toBe("member-1");
+    expect(
+      grantFreeOrganizationMemberSubscriptionCreditsMock,
+    ).toHaveBeenCalledWith(
+      {
+        memberUserIds: ["user-2"],
+        organizationId: "org-1",
+        periodEnd: new Date("2026-06-01T00:00:00.000Z"),
+      },
+      expect.any(Object),
+    );
+  });
+
+  it("does not grant free monthly credits when unassigning in a free organization", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "admin" });
+    unassignSeatMock.mockResolvedValue({
+      id: "member-1",
+      userId: "user-2",
+    });
+    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      periodEnd: new Date("2026-06-01T00:00:00.000Z"),
+      plan: "free",
+      status: "active",
+      stripeSubscriptionId: null,
+    });
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await organizationSeatService.unassignSeat("user-1", "org-1", "member-1");
+
+    expect(
+      grantFreeOrganizationMemberSubscriptionCreditsMock,
+    ).not.toHaveBeenCalled();
   });
 });

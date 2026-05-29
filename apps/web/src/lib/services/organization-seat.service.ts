@@ -2,7 +2,10 @@ import "server-only";
 
 import { MemberRole } from "@sokosumi/database";
 import {
+  FREE_SUBSCRIPTION_PLAN,
   getUnusedSeatCount,
+  grantFreeOrganizationMemberSubscriptionCredits,
+  isActiveSubscriptionStatus,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import {
@@ -147,15 +150,42 @@ export const organizationSeatService = (() => {
       await ensureCanManageSeatAssignments(userId, organizationId);
 
       try {
-        const member = await memberRepository.unassignSeat(
-          memberId,
-          organizationId,
-          prisma,
-        );
+        return await prisma.$transaction(async (tx) => {
+          const member = await memberRepository.unassignSeat(
+            memberId,
+            organizationId,
+            tx,
+          );
 
-        return {
-          memberId: member.id,
-        };
+          const subscription =
+            await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+              organizationId,
+              tx,
+            );
+
+          // Paid (Stripe-backed) organization: the member loses paid seat
+          // credits going forward and joins the free monthly tier for the
+          // current period.
+          if (
+            subscription?.stripeSubscriptionId &&
+            subscription.periodEnd &&
+            subscription.plan !== FREE_SUBSCRIPTION_PLAN &&
+            isActiveSubscriptionStatus(subscription.status)
+          ) {
+            await grantFreeOrganizationMemberSubscriptionCredits(
+              {
+                memberUserIds: [member.userId],
+                organizationId,
+                periodEnd: subscription.periodEnd,
+              },
+              tx,
+            );
+          }
+
+          return {
+            memberId: member.id,
+          };
+        });
       } catch (error) {
         mapSeatRepositoryError(error);
       }

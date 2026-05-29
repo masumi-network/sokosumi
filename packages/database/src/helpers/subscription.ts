@@ -5,6 +5,7 @@ import {
 } from "../generated/prisma/client.js";
 import {
   buildOrganizationMemberSubscriptionReferenceId,
+  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
 import {
@@ -22,6 +23,23 @@ export const ACTIVE_SUBSCRIPTION_STATUSES = [
 export const FREE_SUBSCRIPTION_MONTHLY_CREDITS = 250;
 export const FREE_SUBSCRIPTION_PLAN = "free";
 export const MONTHLY_BILLING_INTERVAL = "month";
+
+/**
+ * Reference suffix segment that marks a member subscription-period credit
+ * bucket as a free-tier grant (as opposed to a paid seat or invoice grant).
+ *
+ * Free-tier buckets share the `member:{userId}:` prefix with paid grants so
+ * they are read as the member's subscription credits, but seat-accounting
+ * helpers must exclude them so they do not consume paid seat capacity.
+ */
+export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT = "local-free:";
+
+/**
+ * Substring used to detect free-tier member subscription-period buckets in
+ * `referenceId` filters. Full reference ids look like
+ * `member:{userId}:local-free:{organizationId}:{periodEnd}`.
+ */
+export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS = ":local-free:";
 
 interface LocalFreeSubscriptionGrant {
   credits: number;
@@ -173,8 +191,107 @@ export function buildLocalFreeOrganizationMemberSubscriptionReferenceId(
 ): string {
   return buildOrganizationMemberSubscriptionReferenceId(
     userId,
-    `local-free:${organizationId}:${periodEnd.toISOString()}`,
+    `${LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT}${organizationId}:${periodEnd.toISOString()}`,
   );
+}
+
+export interface GrantFreeOrganizationMemberSubscriptionCreditsParams {
+  memberUserIds: string[];
+  now?: Date;
+  organizationId: string;
+  periodEnd: Date;
+}
+
+/**
+ * Grants free monthly subscription credits to organization members for the
+ * current subscription period without creating a separate local-free
+ * `Subscription` row. This lets unassigned members of a paid (Stripe-backed)
+ * organization receive the free tier alongside assigned members' paid credits.
+ *
+ * Grants are idempotent per period: a member that already holds a free-tier
+ * bucket that has not expired yet is skipped. This mirrors the drift-tolerant
+ * matching used for paid seat grants, so invoice-driven and event-driven grants
+ * for the same period do not double up.
+ */
+export async function grantFreeOrganizationMemberSubscriptionCredits(
+  params: GrantFreeOrganizationMemberSubscriptionCreditsParams,
+  tx: Prisma.TransactionClient,
+): Promise<number> {
+  const now = params.now ?? new Date();
+  if (params.periodEnd <= now) {
+    return 0;
+  }
+
+  const userIds = getSortedUniqueUserIds(params.memberUserIds);
+  if (userIds.length === 0) {
+    return 0;
+  }
+
+  const amount = convertCreditsToCents(FREE_SUBSCRIPTION_MONTHLY_CREDITS);
+  let grantsCreated = 0;
+
+  for (const userId of userIds) {
+    const existingForPeriod = await tx.creditBucket.findFirst({
+      where: {
+        organizationId: params.organizationId,
+        userId,
+        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+        referenceId: {
+          startsWith:
+            getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
+              userId,
+            ),
+          contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,
+        },
+        expiresAt: {
+          gt: now,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingForPeriod) {
+      continue;
+    }
+
+    const referenceId = buildLocalFreeOrganizationMemberSubscriptionReferenceId(
+      userId,
+      params.organizationId,
+      params.periodEnd,
+    );
+
+    await tx.transaction.create({
+      data: {
+        amount,
+        organization: {
+          connect: {
+            id: params.organizationId,
+          },
+        },
+        sourceCreditBucket: {
+          create: {
+            amount,
+            expiresAt: params.periodEnd,
+            organizationId: params.organizationId,
+            referenceId,
+            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+            userId,
+          },
+        },
+        user: {
+          connect: {
+            id: userId,
+          },
+        },
+      },
+    });
+
+    grantsCreated += 1;
+  }
+
+  return grantsCreated;
 }
 
 function getOrganizationMemberUserIds(

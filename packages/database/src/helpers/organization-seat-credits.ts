@@ -7,6 +7,7 @@ import {
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
 } from "./credit.js";
 import { resolvePurchasedSeats } from "./organization-seats.js";
+import { LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS } from "./subscription.js";
 
 export function buildOrganizationSeatAssignmentSubscriptionReferenceId(
   userId: string,
@@ -45,6 +46,13 @@ export async function countOrganizationSubscriptionPeriodSeatGrants(
       referenceId: {
         startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
       },
+      // Free-tier grants share the member prefix but must not count as used
+      // paid seats.
+      NOT: {
+        referenceId: {
+          contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,
+        },
+      },
     },
   });
 }
@@ -65,6 +73,13 @@ export async function hasOrganizationMemberSubscriptionPeriodGrant(
       referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
       referenceId: {
         startsWith: `${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}${userId}:`,
+      },
+      // A held free-tier grant must not block a paid seat grant when the member
+      // is later assigned a seat.
+      NOT: {
+        referenceId: {
+          contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,
+        },
       },
     },
     select: {

@@ -81,6 +81,7 @@ function createMember(overrides: Partial<Member>): Member {
     organizationId: "org_1",
     role: MemberRole.OWNER,
     createdAt: new Date("2026-04-15T10:00:00.000Z"),
+    seatAssignedAt: null,
     ...overrides,
   };
 }

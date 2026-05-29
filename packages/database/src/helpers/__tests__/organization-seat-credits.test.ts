@@ -58,6 +58,11 @@ describe("organization-seat-credits helpers", () => {
         referenceId: {
           startsWith: "member:",
         },
+        NOT: {
+          referenceId: {
+            contains: ":local-free:",
+          },
+        },
       },
     });
   });
@@ -85,9 +90,50 @@ describe("organization-seat-credits helpers", () => {
         referenceId: {
           startsWith: "member:user-1:",
         },
+        NOT: {
+          referenceId: {
+            contains: ":local-free:",
+          },
+        },
       },
       select: {
         id: true,
+      },
+    });
+  });
+
+  it("excludes local-free buckets when counting paid seat grants", async () => {
+    const countMock = vi.fn().mockResolvedValue(2);
+    const now = new Date("2026-05-15T00:00:00.000Z");
+
+    await countOrganizationSubscriptionPeriodSeatGrants("org-1", now, {
+      creditBucket: {
+        count: countMock,
+      },
+    } as never);
+
+    expect(countMock.mock.calls[0]?.[0].where.NOT).toEqual({
+      referenceId: {
+        contains: ":local-free:",
+      },
+    });
+  });
+
+  it("does not let a held free-tier grant block a paid seat grant", async () => {
+    const findFirstMock = vi.fn().mockResolvedValue(null);
+    const now = new Date("2026-05-15T00:00:00.000Z");
+
+    await expect(
+      hasOrganizationMemberSubscriptionPeriodGrant("org-1", "user-1", now, {
+        creditBucket: {
+          findFirst: findFirstMock,
+        },
+      } as never),
+    ).resolves.toBe(false);
+
+    expect(findFirstMock.mock.calls[0]?.[0].where.NOT).toEqual({
+      referenceId: {
+        contains: ":local-free:",
       },
     });
   });

@@ -1,4 +1,5 @@
 import {
+  buildLocalFreeOrganizationMemberSubscriptionReferenceId,
   buildOrganizationInvoiceCreditReferenceId,
   buildOrganizationMemberSubscriptionReferenceId,
   buildUserInvoiceCreditReferenceId,
@@ -13,10 +14,12 @@ const getUserByStripeCustomerIdMock = vi.fn();
 const getOrganizationByStripeCustomerIdMock = vi.fn();
 const getMembersByOrganizationIdMock = vi.fn();
 const getAssignedMemberUserIdsMock = vi.fn();
+const getUnassignedMemberUserIdsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const invalidateSubscriptionCatalogCacheMock = vi.fn();
 const resolveEnterpriseProductMock = vi.fn();
 const findExistingBucketMock = vi.fn();
+const findExistingLocalFreeBucketMock = vi.fn();
 const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
 const createTransactionMock = vi.fn();
 const findOutOfCreditsTasksMock = vi.fn();
@@ -34,6 +37,8 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
     creditBucket: {
       findUnique: (...args: unknown[]) => findExistingBucketMock(...args),
+      findFirst: (...args: unknown[]) =>
+        findExistingLocalFreeBucketMock(...args),
     },
     transaction: {
       create: (...args: unknown[]) => createTransactionMock(...args),
@@ -74,6 +79,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getAssignedMemberUserIds: (...args: unknown[]) =>
       getAssignedMemberUserIdsMock(...args),
+    getUnassignedMemberUserIds: (...args: unknown[]) =>
+      getUnassignedMemberUserIdsMock(...args),
     getMembersByOrganizationId: (...args: unknown[]) =>
       getMembersByOrganizationIdMock(...args),
   },
@@ -191,14 +198,22 @@ function mockOrganizationInvoiceContext(
   members: OrganizationMemberFixture[],
   organizationId = "org-1",
   assignedMemberUserIds?: string[],
+  unassignedMemberUserIds?: string[],
 ): void {
   getUserByStripeCustomerIdMock.mockResolvedValue(null);
   getOrganizationByStripeCustomerIdMock.mockResolvedValue({
     id: organizationId,
   });
   getMembersByOrganizationIdMock.mockResolvedValue(members);
-  getAssignedMemberUserIdsMock.mockResolvedValue(
-    assignedMemberUserIds ?? members.map((member) => member.userId).toSorted(),
+  const assigned =
+    assignedMemberUserIds ?? members.map((member) => member.userId).toSorted();
+  getAssignedMemberUserIdsMock.mockResolvedValue(assigned);
+  getUnassignedMemberUserIdsMock.mockResolvedValue(
+    unassignedMemberUserIds ??
+      members
+        .map((member) => member.userId)
+        .filter((memberUserId) => !assigned.includes(memberUserId))
+        .toSorted(),
   );
 }
 
@@ -283,7 +298,9 @@ describe("handleInvoicePaidEvent", () => {
     getMembersByOrganizationIdMock.mockResolvedValue([
       { role: "owner", userId: "user-1" },
     ]);
+    getUnassignedMemberUserIdsMock.mockResolvedValue([]);
     findExistingBucketMock.mockResolvedValue(null);
+    findExistingLocalFreeBucketMock.mockResolvedValue(null);
     findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue(
       null,
     );
@@ -655,6 +672,193 @@ describe("handleInvoicePaidEvent", () => {
     } finally {
       consoleLogSpy.mockRestore();
     }
+  });
+
+  it("grants only free monthly credits to unassigned members when no seats are assigned", async () => {
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    mockOrganizationInvoiceContext(
+      [
+        { role: "member", userId: "member-1" },
+        { role: "owner", userId: "owner-2" },
+      ],
+      "org-1",
+      [],
+    );
+    mockSubscriptionCatalog();
+    vi.setSystemTime(new Date(1_733_011_200 * 1000));
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    try {
+      await handleInvoicePaidEvent(
+        createInvoice({
+          billingReason: "subscription_cycle",
+          id: "in_org_no_assigned_seats",
+          lines: [{ productId: "prod_starter", quantity: 5 }],
+        }) as never,
+      );
+
+      // Paid subscription credits are skipped (no assigned seats)...
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Skipping subscription credits for invoice in_org_no_assigned_seats",
+        ),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("organization org-1 has no assigned seats"),
+      );
+
+      // ...but both unassigned members receive the free monthly tier.
+      expect(createTransactionMock).toHaveBeenCalledTimes(2);
+
+      const periodEnd = new Date(1_735_689_600 * 1000);
+      const callsByReference = getTransactionCallsByReferenceId();
+      for (const memberUserId of ["member-1", "owner-2"]) {
+        const referenceId =
+          buildLocalFreeOrganizationMemberSubscriptionReferenceId(
+            memberUserId,
+            "org-1",
+            periodEnd,
+          );
+        const call = callsByReference.get(referenceId);
+        expect(call?.data.amount).toBe(BigInt("2500000000000"));
+        expect(call?.data.sourceCreditBucket.create.referenceType).toBe(
+          "STRIPE_SUBSCRIPTION_PERIOD",
+        );
+        expect(call?.data.sourceCreditBucket.create.expiresAt).toEqual(
+          periodEnd,
+        );
+      }
+    } finally {
+      consoleLogSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("grants only free monthly credits to unassigned members on subscription_update when no seats are assigned", async () => {
+    mockOrganizationInvoiceContext(
+      [
+        { role: "member", userId: "member-1" },
+        { role: "owner", userId: "owner-2" },
+      ],
+      "org-1",
+      [],
+    );
+    mockSubscriptionCatalog();
+    vi.setSystemTime(new Date(1_733_011_200 * 1000));
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 1250,
+        billingReason: "subscription_update",
+        created: 1_735_689_600,
+        id: "in_org_update_no_assigned",
+        lines: [
+          {
+            amount: 1250,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+          },
+        ],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+
+    const periodEnd = new Date(1_736_294_400 * 1000);
+    const callsByReference = getTransactionCallsByReferenceId();
+    for (const memberUserId of ["member-1", "owner-2"]) {
+      const referenceId =
+        buildLocalFreeOrganizationMemberSubscriptionReferenceId(
+          memberUserId,
+          "org-1",
+          periodEnd,
+        );
+      const call = callsByReference.get(referenceId);
+      expect(call?.data.amount).toBe(BigInt("2500000000000"));
+      expect(call?.data.sourceCreditBucket.create.expiresAt).toEqual(periodEnd);
+    }
+
+    vi.useRealTimers();
+  });
+
+  it("grants paid credits to assigned members and free credits to unassigned members", async () => {
+    mockOrganizationInvoiceContext(
+      [
+        { role: "owner", userId: "assigned-1" },
+        { role: "member", userId: "unassigned-2" },
+      ],
+      "org-1",
+      ["assigned-1"],
+    );
+    mockSubscriptionCatalog();
+    vi.setSystemTime(new Date(1_733_011_200 * 1000));
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_org_mixed_seats",
+        lines: [{ productId: "prod_starter", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+
+    const periodEnd = new Date(1_735_689_600 * 1000);
+    const callsByReference = getTransactionCallsByReferenceId();
+
+    const paidReferenceId = buildOrganizationMemberSubscriptionReferenceId(
+      "assigned-1",
+      "in_org_mixed_seats:subscription",
+    );
+    const freeReferenceId =
+      buildLocalFreeOrganizationMemberSubscriptionReferenceId(
+        "unassigned-2",
+        "org-1",
+        periodEnd,
+      );
+
+    expect(callsByReference.get(paidReferenceId)?.data.amount).toBe(
+      BigInt("17500000000000"),
+    );
+    expect(callsByReference.get(freeReferenceId)?.data.amount).toBe(
+      BigInt("2500000000000"),
+    );
+
+    vi.useRealTimers();
+  });
+
+  it("skips free monthly credits for unassigned members that already hold a current free grant", async () => {
+    mockOrganizationInvoiceContext(
+      [{ role: "member", userId: "member-1" }],
+      "org-1",
+      [],
+    );
+    mockSubscriptionCatalog();
+    vi.setSystemTime(new Date(1_733_011_200 * 1000));
+    findExistingLocalFreeBucketMock.mockResolvedValue({
+      id: "existing-local-free-bucket",
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_org_free_idempotent",
+        lines: [{ productId: "prod_starter", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 
   it("grants positive prorated credits for paid subscription_update invoices", async () => {

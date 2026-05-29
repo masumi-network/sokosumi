@@ -51,13 +51,15 @@ export function MemberActionsModalContextProvider({
         });
         if (!result.ok) {
           return {
+            data: null,
             error: {
               message: result.error.message ?? t("Error.assignSeat"),
               status: 400,
+              statusText: "Bad Request",
             },
           };
         }
-        return { data: result.data };
+        return { data: result.data, error: null };
       }
       case MemberAction.UNASSIGN_SEAT: {
         const result = await unassignOrganizationSeat({
@@ -66,13 +68,15 @@ export function MemberActionsModalContextProvider({
         });
         if (!result.ok) {
           return {
+            data: null,
             error: {
               message: result.error.message ?? t("Error.unassignSeat"),
               status: 400,
+              statusText: "Bad Request",
             },
           };
         }
-        return { data: result.data };
+        return { data: result.data, error: null };
       }
       case MemberAction.CHANGE_TO_OWNER:
         return await authClient.organization.updateMemberRole({

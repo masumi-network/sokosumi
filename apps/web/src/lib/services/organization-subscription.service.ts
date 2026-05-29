@@ -4,6 +4,7 @@ import { MemberRole } from "@sokosumi/database";
 import {
   ensureLocalFreeSubscriptionPeriod,
   ensurePurchasedSeatsSufficient,
+  grantFreeOrganizationMemberSubscriptionCredits,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import {
@@ -205,11 +206,36 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
     activeSubscription ??
     (await getLatestActiveOrganizationSubscription(organizationId));
 
-  if (
-    !currentActiveSubscription ||
-    currentActiveSubscription.stripeSubscriptionId
-  ) {
-    return resolvePurchasedSeats(currentActiveSubscription?.seats);
+  if (!currentActiveSubscription) {
+    return resolvePurchasedSeats(undefined);
+  }
+
+  if (currentActiveSubscription.stripeSubscriptionId) {
+    const purchasedSeats = resolvePurchasedSeats(
+      currentActiveSubscription.seats,
+    );
+    const periodEnd = currentActiveSubscription.periodEnd;
+
+    // Paid (Stripe-backed) organization: unassigned members receive the free
+    // monthly tier for the current period without a separate local-free
+    // subscription row.
+    if (periodEnd && periodEnd > new Date()) {
+      await prisma.$transaction(async (tx) => {
+        const unassignedMemberUserIds =
+          await memberRepository.getUnassignedMemberUserIds(organizationId, tx);
+
+        await grantFreeOrganizationMemberSubscriptionCredits(
+          {
+            memberUserIds: unassignedMemberUserIds,
+            organizationId,
+            periodEnd,
+          },
+          tx,
+        );
+      });
+    }
+
+    return purchasedSeats;
   }
 
   const periodStart = ensureSubscriptionPeriodDate(

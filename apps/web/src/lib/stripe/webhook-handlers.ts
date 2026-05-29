@@ -15,6 +15,7 @@ import {
   escapeStringForLike,
   FREE_SUBSCRIPTION_PLAN,
   getCreditExpiryDate,
+  grantFreeOrganizationMemberSubscriptionCredits,
   isActiveSubscriptionStatus,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
   transitionToNextLocalFreeSubscriptionPeriod,
@@ -305,6 +306,16 @@ async function calculateSubscriptionCreditTotals(params: {
     };
   }
 
+  if (params.organizationId !== null && params.maxSeatGrantQuantity === 0) {
+    console.log(
+      `Skipping subscription credits for invoice ${params.invoiceId}: organization ${params.organizationId} has no assigned seats`,
+    );
+    return {
+      maxSubscriptionPeriodEndUnix,
+      paidOrCycleSubscriptionCredits,
+    };
+  }
+
   const subscriptionCatalog =
     params.subscriptionCatalog ??
     (await getSubscriptionCatalog(stripeInstance));
@@ -472,6 +483,26 @@ function splitCreditsByMember(params: {
     .filter((allocation) => allocation.credits > 0);
 }
 
+/**
+ * Resolves the latest subscription-period end (unix seconds) across all
+ * subscription lines, independent of seat capping. Used to expire free-tier
+ * grants for unassigned members at the same time as the paid period.
+ */
+function resolveSubscriptionLinesPeriodEndUnix(
+  subscriptionLines: SubscriptionLine[],
+): number | null {
+  let maxPeriodEndUnix: number | null = null;
+
+  for (const { lineItem } of subscriptionLines) {
+    const periodEnd = lineItem.period?.end;
+    if (typeof periodEnd === "number" && periodEnd > 0) {
+      maxPeriodEndUnix = Math.max(periodEnd, maxPeriodEndUnix ?? 0);
+    }
+  }
+
+  return maxPeriodEndUnix;
+}
+
 function buildInvoiceCreditGrants(
   params: BuildInvoiceCreditGrantsParams,
 ): InvoiceCreditGrant[] {
@@ -520,6 +551,13 @@ function buildInvoiceCreditGrants(
   }
 
   if (params.skipOrganizationSubscriptionSplit) {
+    return creditGrants;
+  }
+
+  if (params.organizationMemberUserIds.length === 0) {
+    console.log(
+      `Skipping organization subscription credit split for invoice ${params.invoiceId}: organization ${params.organizationId} has no assigned seats`,
+    );
     return creditGrants;
   }
 
@@ -575,6 +613,7 @@ export async function handleInvoicePaidEvent(
   let userId: string;
   let organizationId: string | null = null;
   let organizationMemberUserIds: string[] = [];
+  let organizationUnassignedMemberUserIds: string[] = [];
 
   // First, try to find a user with this stripeCustomerId
   const user = await userRepository.getUserByStripeCustomerId(
@@ -597,17 +636,21 @@ export async function handleInvoicePaidEvent(
       // This is an organization purchase
       organizationId = organization.id;
 
-      // Get organization members to find the owner to attribute the transaction
-      const members = await memberRepository.getMembersByOrganizationId(
-        organizationId,
-        prisma,
-      );
-      organizationMemberUserIds =
-        await memberRepository.getAssignedMemberUserIds(organizationId, prisma);
+      const [members, assignedMemberUserIds, unassignedMemberUserIds] =
+        await Promise.all([
+          memberRepository.getMembersByOrganizationId(organizationId, prisma),
+          memberRepository.getAssignedMemberUserIds(organizationId, prisma),
+          memberRepository.getUnassignedMemberUserIds(organizationId, prisma),
+        ]);
+
       if (members.length === 0) {
         console.log(`No members found for organization ${organizationId}`);
         return;
       }
+
+      organizationMemberUserIds = assignedMemberUserIds;
+      organizationUnassignedMemberUserIds = unassignedMemberUserIds;
+
       const ownerMember = members.find((m) => m.role === MemberRole.OWNER);
 
       if (!ownerMember) {
@@ -799,7 +842,15 @@ export async function handleInvoicePaidEvent(
     userId,
   });
 
-  if (creditGrants.length === 0) {
+  const freeTierPeriodEndUnix =
+    resolveSubscriptionLinesPeriodEndUnix(subscriptionLines);
+  const shouldGrantUnassignedFreeCredits =
+    organizationId !== null &&
+    subscriptionLines.length > 0 &&
+    freeTierPeriodEndUnix !== null &&
+    organizationUnassignedMemberUserIds.length > 0;
+
+  if (creditGrants.length === 0 && !shouldGrantUnassignedFreeCredits) {
     console.log(
       `Invoice ${invoiceId} has no grantable credits (billing reason: ${invoice.billing_reason})`,
     );
@@ -853,6 +904,29 @@ export async function handleInvoicePaidEvent(
       console.log(
         `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId} member ${grant.userId}` : `user ${grant.userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
       );
+    }
+
+    if (
+      shouldGrantUnassignedFreeCredits &&
+      organizationId &&
+      freeTierPeriodEndUnix !== null
+    ) {
+      const freeGrantsCreated =
+        await grantFreeOrganizationMemberSubscriptionCredits(
+          {
+            memberUserIds: organizationUnassignedMemberUserIds,
+            organizationId,
+            periodEnd: new Date(freeTierPeriodEndUnix * 1000),
+          },
+          tx,
+        );
+
+      if (freeGrantsCreated > 0) {
+        creditsGranted = true;
+        console.log(
+          `✅ Processed invoice ${invoiceId}: Granted free monthly credits to ${freeGrantsCreated} unassigned member(s) of organization ${organizationId}`,
+        );
+      }
     }
 
     if (creditsGranted) {

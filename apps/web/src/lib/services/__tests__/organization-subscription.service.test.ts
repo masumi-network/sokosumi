@@ -15,6 +15,7 @@ const getMemberByUserIdAndOrganizationIdMock = vi.fn();
 const getAssignedMemberCountMock = vi.fn();
 const getUnassignedMemberUserIdsMock = vi.fn();
 const ensureLocalFreeSubscriptionPeriodMock = vi.fn();
+const grantFreeOrganizationMemberSubscriptionCreditsMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const prismaTransactionMock = vi.fn();
 const updateSubscriptionRecordMock = vi.fn();
@@ -39,6 +40,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
 vi.mock("@sokosumi/database/helpers", () => ({
   ensureLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
     ensureLocalFreeSubscriptionPeriodMock(...args),
+  grantFreeOrganizationMemberSubscriptionCredits: (...args: unknown[]) =>
+    grantFreeOrganizationMemberSubscriptionCreditsMock(...args),
   ensurePurchasedSeatsSufficient: (purchased: number, assigned: number) => {
     if (purchased < assigned) {
       throw new Error(
@@ -454,6 +457,43 @@ describe("organizationSubscriptionService", () => {
           periodStart,
           purchasedSeats: 5,
           referenceId: "org-1",
+        },
+        expect.objectContaining({
+          __tx: true,
+        }),
+      );
+    });
+
+    it("grants free monthly credits to unassigned members in a paid organization without a local-free subscription row", async () => {
+      const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+        id: "sub-row-1",
+        plan: "starter",
+        seats: 5,
+        periodEnd,
+        stripeSubscriptionId: "sub_stripe_1",
+      });
+      getUnassignedMemberUserIdsMock.mockResolvedValue(["user-2", "user-3"]);
+      grantFreeOrganizationMemberSubscriptionCreditsMock.mockResolvedValue(2);
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await expect(
+        organizationSubscriptionService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
+          "org-1",
+        ),
+      ).resolves.toBeUndefined();
+
+      expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
+      expect(
+        grantFreeOrganizationMemberSubscriptionCreditsMock,
+      ).toHaveBeenCalledWith(
+        {
+          memberUserIds: ["user-2", "user-3"],
+          organizationId: "org-1",
+          periodEnd,
         },
         expect.objectContaining({
           __tx: true,

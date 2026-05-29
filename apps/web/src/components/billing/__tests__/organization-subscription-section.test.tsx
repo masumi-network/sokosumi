@@ -135,6 +135,7 @@ describe("OrganizationSubscriptionSection", () => {
   it("shows the scheduled cancellation date on the current paid plan", () => {
     render(
       <OrganizationSubscriptionSection
+        assignedSeatCount={2}
         cancelAtPeriodEnd
         currentPlan="starter"
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
