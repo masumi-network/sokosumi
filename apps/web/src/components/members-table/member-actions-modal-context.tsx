@@ -14,6 +14,8 @@ import type {
 import { unassignOrganizationSeat } from "@/lib/actions/organization/seat-action";
 import { authClient } from "@/lib/auth/auth.client";
 
+import { useSeatManagementContext } from "./seat-management-context";
+
 export enum MemberAction {
   CHANGE_TO_OWNER = "CHANGE_TO_OWNER",
   CHANGE_TO_ADMIN = "CHANGE_TO_ADMIN",
@@ -34,6 +36,7 @@ export function MemberActionsModalContextProvider({
 }) {
   const t = useTranslations("Components.MembersTable.MemberActions.Modal");
   const router = useRouter();
+  const { notifySeatUnassigned } = useSeatManagementContext();
 
   async function onAction(
     member: MemberWithUser,
@@ -55,6 +58,7 @@ export function MemberActionsModalContextProvider({
             },
           };
         }
+        notifySeatUnassigned(member.id);
         return { data: result.data, error: null };
       }
       case MemberAction.CHANGE_TO_OWNER:

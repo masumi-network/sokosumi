@@ -7,6 +7,7 @@ import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import MemberActionsDropdown from "./member-actions-dropdown";
+import { useSeatManagementContext } from "./seat-management-context";
 import type { MemberRowData } from "./types";
 
 const columnHelper = createColumnHelper<MemberRowData>();
@@ -82,12 +83,16 @@ export function getMembersTableColumns(
 
 function SeatStatusCell({ member }: { member: MemberRowData["member"] }) {
   const t = useTranslations("Components.MembersTable.Seat");
+  const { isMemberSeatAssigned } = useSeatManagementContext();
 
   if (!member) {
     return null;
   }
 
-  const isAssigned = member.seatAssignedAt !== null;
+  const isAssigned = isMemberSeatAssigned(
+    member.id,
+    member.seatAssignedAt !== null,
+  );
   const label = isAssigned ? t("assigned") : t("unassigned");
 
   return (

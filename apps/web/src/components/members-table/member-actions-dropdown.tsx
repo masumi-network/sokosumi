@@ -38,7 +38,13 @@ export default function MemberActionsDropdown({
   const t = useTranslations("Components.MembersTable.MemberActions");
   const router = useRouter();
   const { openActionModal } = useMemberActionsModalContext();
-  const { showSeatManagement, unusedSeats } = useSeatManagementContext();
+  const {
+    showSeatManagement,
+    unusedSeats,
+    isMemberSeatAssigned,
+    tryBeginSeatAssign,
+    cancelSeatAssign,
+  } = useSeatManagementContext();
 
   const handleChangeToOwner = () => {
     openActionModal(member, MemberAction.CHANGE_TO_OWNER);
@@ -57,12 +63,17 @@ export default function MemberActionsDropdown({
   };
 
   const handleAssignSeat = async () => {
+    if (!tryBeginSeatAssign(member.id)) {
+      return;
+    }
+
     try {
       const result = await assignOrganizationSeat({
         memberId: member.id,
         organizationId: member.organizationId,
       });
       if (!result.ok) {
+        cancelSeatAssign(member.id);
         toast.error(result.error.message ?? t("Modal.Error.assignSeat"));
         return;
       }
@@ -70,6 +81,7 @@ export default function MemberActionsDropdown({
       toast.success(t("Modal.Success.assignSeat"));
       router.refresh();
     } catch (error) {
+      cancelSeatAssign(member.id);
       console.error("Failed to assign seat", error);
       toast.error(t("Modal.Error.assignSeat"));
     }
@@ -87,7 +99,10 @@ export default function MemberActionsDropdown({
     canChangeToAdmin,
     canChangeToMember,
   } = useMemo(() => {
-    const hasSeat = member.seatAssignedAt !== null;
+    const hasSeat = isMemberSeatAssigned(
+      member.id,
+      member.seatAssignedAt !== null,
+    );
 
     return {
       canAssignSeat:
@@ -102,7 +117,7 @@ export default function MemberActionsDropdown({
       canChangeToAdmin: checkCanChangeToAdmin(me, member),
       canChangeToMember: checkCanChangeToMember(me, member),
     };
-  }, [me, member, showSeatManagement, unusedSeats]);
+  }, [isMemberSeatAssigned, me, member, showSeatManagement, unusedSeats]);
 
   const hasAnyAction =
     canAssignSeat ||
