@@ -239,7 +239,6 @@
       "chat": "Chat",
       "tasks": "Tareas",
       "connections": "Conexiones",
-      "feed": "My Feed",
       "hermes": "Hermes",
       "new": "Nuevo",
       "projects": "Proyectos"
@@ -2264,7 +2263,6 @@
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
           "scheduledAgents": "Programaciones",
-          "myFeed": "Mi feed",
           "projects": "Proyectos",
           "hermes": "Hermes"
         },
@@ -3057,37 +3055,6 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI Coworker",
         "defaultDescription": "Un AI Coworker listo para ayudarte."
-      }
-    },
-    "Feed": {
-      "title": "Mi feed",
-      "aiInsights": "Insights de IA",
-      "summaryDescription": "Aquí se muestran tus tareas y jobs completados más recientes.",
-      "description": "Una vista unificada de tu trabajo completado más reciente.",
-      "earlier": "Anterior",
-      "recentActivity": "Actividad reciente",
-      "summary": "Aquí se muestran tus tareas y jobs completados más recientes.",
-      "resultsTitle": "Resultados",
-      "emptyState": "Aún no hay resultados completados.",
-      "backToFeed": "Volver al feed",
-      "unknownAgent": "Agent",
-      "unknownCoworker": "Coworker",
-      "openOriginal": "Ver detalle",
-      "missingResult": "Este resultado del feed ya no está disponible.",
-      "fallbackPreview": "No hay detalles adicionales disponibles.",
-      "sourcesFiles": "Archivos",
-      "sourcesLinks": "Links",
-      "untitledJob": "Job sin título",
-      "untitledTask": "Tarea sin título",
-      "search": "Buscar tareas o jobs",
-      "clearSearch": "Limpiar búsqueda",
-      "loadMore": "Cargar más",
-      "loadingMore": "Cargando...",
-      "generating": "Pensando...",
-      "generationError": "No se pueden generar insights en este momento.",
-      "type": {
-        "job": "Job",
-        "task": "Task"
       }
     },
     "EmailVerificationNotice": {

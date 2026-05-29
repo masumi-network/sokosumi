@@ -239,7 +239,6 @@
       "chat": "Chat",
       "tasks": "Attività",
       "connections": "Connessioni",
-      "feed": "Il mio feed",
       "hermes": "Hermes",
       "new": "Nuovo",
       "projects": "Progetti"
@@ -1298,37 +1297,6 @@
       "pausedReason": "Motivo della pausa",
       "loading": "Caricamento programmazioni..."
     },
-    "Feed": {
-      "title": "Il mio feed",
-      "aiInsights": "Insight IA",
-      "summaryDescription": "Qui trovi i tuoi task e job completati più recenti.",
-      "description": "Una vista unificata del tuo lavoro completato più recente.",
-      "earlier": "In precedenza",
-      "recentActivity": "Attività recente",
-      "summary": "Qui trovi i tuoi task e job completati più recenti.",
-      "resultsTitle": "Risultati",
-      "emptyState": "Nessun risultato completato.",
-      "backToFeed": "Torna al feed",
-      "unknownAgent": "Agente",
-      "unknownCoworker": "Coworker sconosciuto",
-      "openOriginal": "Vedi dettaglio",
-      "missingResult": "Questo risultato del feed non è più disponibile.",
-      "fallbackPreview": "Nessun dettaglio aggiuntivo disponibile.",
-      "sourcesFiles": "File",
-      "sourcesLinks": "Link",
-      "untitledJob": "Job senza titolo",
-      "untitledTask": "Task senza titolo",
-      "search": "Cerca task o job",
-      "clearSearch": "Cancella ricerca",
-      "loadMore": "Carica di più",
-      "loadingMore": "Caricamento...",
-      "generating": "Sto pensando...",
-      "generationError": "Impossibile generare insight al momento.",
-      "type": {
-        "job": "Job",
-        "task": "Task"
-      }
-    },
     "Tasks": {
       "Page": {
         "title": "Gestione task",
@@ -2292,7 +2260,6 @@
         "MenuItems": {
           "chat": "Chat",
           "exploreAgents": "Agenti",
-          "myFeed": "Il mio feed",
           "filesAndOutputs": "File e output",
           "taskManager": "Attività",
           "projects": "Progetti",

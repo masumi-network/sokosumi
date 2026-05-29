@@ -239,7 +239,6 @@
       "chat": "Chat",
       "tasks": "Tarefas",
       "connections": "Conexões",
-      "feed": "Meu feed",
       "hermes": "Hermes",
       "new": "Novo",
       "projects": "Projetos"
@@ -1298,37 +1297,6 @@
       "pausedReason": "Motivo da pausa",
       "loading": "Carregando agendamentos..."
     },
-    "Feed": {
-      "title": "Meu feed",
-      "aiInsights": "Insights de IA",
-      "summaryDescription": "Aqui aparecem seus tasks e jobs concluídos mais recentes.",
-      "description": "Uma visão unificada do seu trabalho concluído mais recente.",
-      "earlier": "Anterior",
-      "recentActivity": "Atividade recente",
-      "summary": "Aqui aparecem seus tasks e jobs concluídos mais recentes.",
-      "resultsTitle": "Resultados",
-      "emptyState": "Ainda não há resultados concluídos.",
-      "backToFeed": "Voltar ao feed",
-      "unknownAgent": "Agente",
-      "unknownCoworker": "Coworker",
-      "openOriginal": "Ver detalhes",
-      "missingResult": "Este resultado do feed não está mais disponível.",
-      "fallbackPreview": "Não há detalhes adicionais disponíveis.",
-      "sourcesFiles": "Arquivos",
-      "sourcesLinks": "Links",
-      "untitledJob": "Job sem título",
-      "untitledTask": "Tarefa sem título",
-      "search": "Pesquisar tarefas ou jobs",
-      "clearSearch": "Limpar pesquisa",
-      "loadMore": "Carregar mais",
-      "loadingMore": "Carregando...",
-      "generating": "Pensando...",
-      "generationError": "Não foi possível gerar insights agora.",
-      "type": {
-        "job": "Job",
-        "task": "Tarefa"
-      }
-    },
     "Tasks": {
       "Page": {
         "title": "Gerenciador de tarefas",
@@ -2292,7 +2260,6 @@
         "MenuItems": {
           "chat": "Chat",
           "exploreAgents": "Agentes",
-          "myFeed": "Meu feed",
           "filesAndOutputs": "Arquivos e saídas",
           "taskManager": "Tarefas",
           "projects": "Projetos",

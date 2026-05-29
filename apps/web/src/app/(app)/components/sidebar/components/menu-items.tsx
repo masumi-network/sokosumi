@@ -5,7 +5,6 @@ import {
   Feather,
   FolderKanban,
   ListTodo,
-  Rss,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
@@ -108,12 +107,6 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
       href: "/projects",
       label: t("projects"),
       Icon: FolderKanban,
-    },
-    {
-      key: "my-feed",
-      href: "/feed",
-      label: t("myFeed"),
-      Icon: Rss,
     },
     {
       key: "explore-agents",
