@@ -128,4 +128,39 @@ describe("POST /agents/{id}/jobs", () => {
       }),
     );
   });
+
+  it("passes projectId through for standalone job creation", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/agent_123/jobs", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        inputSchema: {
+          input_data: [
+            {
+              id: "prompt",
+              type: "string",
+              name: "Prompt",
+            },
+          ],
+        },
+        inputData: {
+          prompt: "hello",
+        },
+        projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createAgentJobForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentInput: expect.objectContaining({
+          projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+        }),
+      }),
+    );
+  });
 });

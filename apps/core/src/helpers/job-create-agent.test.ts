@@ -11,6 +11,7 @@ const {
   createAgentClientMock,
   getAgentCostMock,
   getCreditCostsOrThrowMock,
+  projectFindFirstMock,
   prismaTransactionMock,
   txJobCreateMock,
 } = vi.hoisted(() => ({
@@ -18,6 +19,7 @@ const {
   createAgentClientMock: vi.fn(),
   getAgentCostMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
+  projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   txJobCreateMock: vi.fn(),
 }));
@@ -48,6 +50,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     agent: {
       findFirst: agentFindFirstMock,
+    },
+    project: {
+      findFirst: projectFindFirstMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -115,6 +120,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     getCreditCostsOrThrowMock.mockResolvedValue([{ unit: "lovelace" }]);
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
     agentFindFirstMock.mockResolvedValue(createAgentRecord());
+    projectFindFirstMock.mockResolvedValue({ id: "project_1" });
     createAgentClientMock.mockReturnValue({
       startFreeAgentJob: vi.fn().mockResolvedValue(ok({ id: "agent_job_1" })),
     });
@@ -183,5 +189,62 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         include: jobSummaryInclude,
       }),
     );
+  });
+
+  it("connects jobs to a project when projectId belongs to the workspace", async () => {
+    await createAgentJobForUser(
+      createInput({
+        agentInput: {
+          ...createInput().agentInput,
+          projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+        },
+      }),
+    );
+
+    expect(projectFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+      select: { id: true },
+    });
+    expect(txJobCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          project: {
+            connect: {
+              id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+            },
+          },
+        }),
+        include: jobSummaryInclude,
+      }),
+    );
+  });
+
+  it("throws not found when projectId does not belong to the workspace", async () => {
+    projectFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      createAgentJobForUser(
+        createInput({
+          agentInput: {
+            ...createInput().agentInput,
+            projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+          },
+        }),
+      ),
+    ).rejects.toThrow("Project not found");
+
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createAgentClientMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves project unset when projectId is omitted", async () => {
+    await createAgentJobForUser(createInput());
+
+    const createCall = txJobCreateMock.mock.calls[0]?.[0];
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
+    expect(createCall.data).not.toHaveProperty("project");
   });
 });

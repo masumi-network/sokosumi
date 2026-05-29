@@ -240,6 +240,12 @@ export const createJobRequestSchema = z.object({
     ]),
   ),
   maxCredits: z.number().positive().optional().openapi({ example: 10 }),
+  projectId: z
+    .string()
+    .uuid()
+    .nullable()
+    .optional()
+    .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
   name: z.string().trim().min(1).max(JOB_NAME_MAX_LENGTH).optional().openapi({
     example: "My Job",
     description:
