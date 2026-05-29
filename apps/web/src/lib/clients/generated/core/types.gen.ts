@@ -3730,6 +3730,7 @@ export type PostAgentsByIdJobsData = {
             [key: string]: string | number | boolean | Array<string> | Array<number>;
         };
         maxCredits?: number;
+        projectId?: string | null;
         /**
          * If not provided, an AI-generated name will be created based on the agent details and input data.
          */
@@ -13833,6 +13834,7 @@ export type PostTasksByIdJobsData = {
             [key: string]: string | number | boolean | Array<string> | Array<number>;
         };
         maxCredits?: number;
+        projectId?: string | null;
         /**
          * If not provided, an AI-generated name will be created based on the agent details and input data.
          */

@@ -11,6 +11,7 @@ import type {
 } from "@/lib/clients/generated/core/types.gen";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { taskService } from "@/lib/services/task.service";
+import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import { clampTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
@@ -92,17 +93,6 @@ function normalizeLinkNote(note?: string | null): string | null | undefined {
 
   const trimmedNote = note?.trim();
   return trimmedNote ? trimmedNote : null;
-}
-
-function normalizeOptionalProjectId(
-  projectId?: string | null,
-): string | null | undefined {
-  if (typeof projectId === "undefined") {
-    return undefined;
-  }
-
-  const trimmedProjectId = projectId?.trim();
-  return trimmedProjectId ? trimmedProjectId : null;
 }
 
 function taskLinkTypeAndDirectionToRelation(
