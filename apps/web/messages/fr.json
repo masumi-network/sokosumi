@@ -235,7 +235,6 @@
       "account": "Compte",
       "organizations": "Organisations",
       "mcp": "Protocole de contexte de modèle (MCP)",
-      "schedules": "Plannings",
       "chat": "Chat",
       "tasks": "Tâches",
       "connections": "Connexions",
@@ -1284,19 +1283,6 @@
         "networkErrorAfterRetry": "Impossible de joindre le serveur après plusieurs tentatives. Veuillez vérifier votre connexion et réessayer."
       }
     },
-    "Schedules": {
-      "empty": {
-        "title": "Aucune planification pour le moment",
-        "description": "Engagez un agent et configurez sa planification via « Planifier le job »."
-      },
-      "lastRun": "Dernière exécution",
-      "nextRun": "Prochaine exécution",
-      "inputPreview": "Aperçu de la saisie",
-      "confirmDeleteTitle": "Supprimer la planification",
-      "confirmDeleteDescription": "Cette action est irréversible. Elle supprimera définitivement la planification.",
-      "pausedReason": "Raison de la pause",
-      "loading": "Chargement des planifications..."
-    },
     "Tasks": {
       "Page": {
         "title": "Gestion de tâches",
@@ -2263,7 +2249,6 @@
           "filesAndOutputs": "Fichiers et livrables",
           "taskManager": "Tâches",
           "projects": "Projets",
-          "scheduledAgents": "Plannings",
           "hermes": "Hermes"
         },
         "ChatLists": {
@@ -3024,62 +3009,6 @@
             "projectNone": "Aucun projet",
             "projectSearchPlaceholder": "Rechercher des projets...",
             "projectEmptyResults": "Aucun projet trouvé."
-          },
-          "Scheduler": {
-            "title": "Planifier le job",
-            "description": "Choisissez quand exécuter ce job.",
-            "modeCards": {
-              "now": {
-                "title": "Exécuter maintenant",
-                "description": "Exécuter le job immédiatement."
-              },
-              "recurring": {
-                "title": "Planifier",
-                "description": "Planifiez une exécution unique ou récurrente."
-              }
-            },
-            "option": {
-              "oneTime": "Ponctuel",
-              "daily": "Quotidien",
-              "dailyWithTime": "Quotidien ({time})",
-              "dailyEveryNWithTime": "Tous les {n} jours ({time})",
-              "weekly": "Hebdomadaire",
-              "weeklyWithWeekdayTime": "Hebdomadaire ({weekday}, {time})",
-              "weeklyListWithTime": "Hebdomadaire ({weekdays}, {time})",
-              "monthly": "Mensuel",
-              "monthlyWithDayTime": "Mensuel (Jour {day}, {time})",
-              "monthlyEveryNWithDayTime": "Tous les {n} mois (Jour {day}, {time})",
-              "custom": "Personnalisé"
-            },
-            "schedulesTitle": "Agents planifiés",
-            "pickDateTime": "Choisir la date et l’heure",
-            "timeOfDay": "Heure",
-            "pickTime": "Choisir une heure",
-            "repeatEvery": "Répéter tous les",
-            "repeatOn": "Répéter le",
-            "ends": "Se termine",
-            "never": "Jamais",
-            "on": "Le",
-            "after": "Après",
-            "occurrences": "occurrences",
-            "pickDate": "Choisir une date",
-            "preview": "Aperçu",
-            "noPreview": "Aucune exécution à venir",
-            "unit": {
-              "day": "jour",
-              "week": "semaine",
-              "month": "mois"
-            },
-            "save": "Enregistrer",
-            "cancel": "Annuler",
-            "errors": {
-              "required": "Ce champ est requis.",
-              "futureDateTime": "Sélectionnez une date et une heure futures.",
-              "invalidTime": "Saisissez une heure valide (HH:MM).",
-              "positiveInteger": "Saisissez un entier positif.",
-              "selectAtLeastOneWeekday": "Sélectionnez au moins un jour de la semaine.",
-              "endDateInPast": "La date de fin ne peut pas être dans le passé."
-            }
           }
         }
       },
@@ -3219,7 +3148,6 @@
         "clear": "Effacer",
         "price": "{price, plural, =0 {Gratuit} =1 {1 crédit} other {# crédits}} par exécution",
         "submit": "Engager",
-        "schedule": "Planifier",
         "back": "Retour",
         "next": "Suivant",
         "ctrl": "Ctrl",

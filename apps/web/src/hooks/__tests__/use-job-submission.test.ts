@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const startDemoJobMock = vi.fn();
 const startJobMock = vi.fn();
-const createScheduleMock = vi.fn();
 const uploadInputDataFilesMock = vi.fn();
 const toastErrorMock = vi.fn();
 const pushMock = vi.fn();
@@ -54,10 +53,6 @@ vi.mock("@/lib/actions", () => ({
   startJob: (...args: unknown[]) => startJobMock(...args),
 }));
 
-vi.mock("@/lib/actions/job-schedule", () => ({
-  createSchedule: (...args: unknown[]) => createScheduleMock(...args),
-}));
-
 vi.mock("@/lib/utils/user-file-upload.client", () => ({
   getUserFileUploadErrorMessage: (error: unknown, fallback: string) =>
     error instanceof TypeError
@@ -70,7 +65,6 @@ vi.mock("@/lib/utils/user-file-upload.client", () => ({
 }));
 
 import { useJobSubmission } from "@/hooks/use-job-submission";
-import { JobScheduleType } from "@/lib/types/job";
 
 describe("useJobSubmission", () => {
   beforeEach(() => {
@@ -85,13 +79,6 @@ describe("useJobSubmission", () => {
       ok: true,
       data: {
         jobId: "job_123",
-      },
-    });
-    createScheduleMock.mockResolvedValue({
-      ok: true,
-      data: {
-        jobId: "job_456",
-        scheduleId: "schedule_1",
       },
     });
     uploadInputDataFilesMock.mockImplementation(async (inputData) => {
@@ -114,10 +101,6 @@ describe("useJobSubmission", () => {
         } as never,
         inputSchema: [] as never,
         demoValues: null,
-        scheduleSelection: {
-          mode: JobScheduleType.NOW,
-          timezone: "Europe/Dublin",
-        },
         setLoading: setLoadingMock,
         onSuccess: onSuccessMock,
       }),
@@ -153,54 +136,6 @@ describe("useJobSubmission", () => {
     expect(pushMock).toHaveBeenCalledWith("/agents/agent_1/jobs/job_123");
   });
 
-  it("uploads file inputs before creating a schedule", async () => {
-    const { result } = renderHook(() =>
-      useJobSubmission({
-        agent: {
-          id: "agent_1",
-          creditsPrice: { cents: 500 },
-        } as never,
-        inputSchema: [] as never,
-        demoValues: null,
-        scheduleSelection: {
-          mode: JobScheduleType.ONE_TIME,
-          timezone: "Europe/Dublin",
-          oneTimeLocalIso: "2026-04-02T10:00:00",
-        },
-        setLoading: setLoadingMock,
-        onSuccess: onSuccessMock,
-      }),
-    );
-
-    await act(async () => {
-      await result.current.handleSubmit({
-        attachment: new File(["hello"], "report.pdf", {
-          type: "application/pdf",
-        }),
-      });
-    });
-
-    expect(createScheduleMock).toHaveBeenCalledWith({
-      input: {
-        agentId: "agent_1",
-        inputSchema: [],
-        inputData: {
-          attachment: "https://blob.example/users/user_123/report.pdf",
-        },
-        maxAcceptedCents: 500,
-      },
-      scheduleSelection: {
-        mode: JobScheduleType.ONE_TIME,
-        timezone: "Europe/Dublin",
-        oneTimeLocalIso: "2026-04-02T10:00:00",
-      },
-    });
-    expect(uploadInputDataFilesMock.mock.invocationCallOrder[0]).toBeLessThan(
-      createScheduleMock.mock.invocationCallOrder[0],
-    );
-    expect(pushMock).toHaveBeenCalledWith("/schedules");
-  });
-
   it("shows the generic error when the action throws after upload succeeds", async () => {
     startJobMock.mockRejectedValue(new TypeError("Failed to fetch"));
 
@@ -212,10 +147,6 @@ describe("useJobSubmission", () => {
         } as never,
         inputSchema: [] as never,
         demoValues: null,
-        scheduleSelection: {
-          mode: JobScheduleType.NOW,
-          timezone: "Europe/Dublin",
-        },
         setLoading: setLoadingMock,
         onSuccess: onSuccessMock,
       }),

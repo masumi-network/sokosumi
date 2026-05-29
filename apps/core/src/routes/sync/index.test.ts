@@ -8,7 +8,6 @@ const {
   releaseLockMock,
   syncAgentSummariesMock,
   syncJobsMock,
-  syncJobSchedulesMock,
   syncRegistryAgentsMock,
   syncSourceImportMock,
   syncStripeCustomersMock,
@@ -19,7 +18,6 @@ const {
   releaseLockMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncJobsMock: vi.fn(),
-  syncJobSchedulesMock: vi.fn(),
   syncRegistryAgentsMock: vi.fn(),
   syncSourceImportMock: vi.fn(),
   syncStripeCustomersMock: vi.fn(),
@@ -64,12 +62,6 @@ vi.mock("@/services/free-subscription-sync.service", () => ({
 vi.mock("@/services/hermes-inbox-sync.service", () => ({
   hermesInboxSyncService: {
     pollInboxes: syncHermesInboxMock,
-  },
-}));
-
-vi.mock("@/services/job-schedule-sync.service", () => ({
-  jobScheduleSyncService: {
-    executeDueSchedules: syncJobSchedulesMock,
   },
 }));
 
@@ -133,13 +125,6 @@ describe("sync routes", () => {
       unfinishedFound: 0,
       durationMs: 0,
     });
-    syncJobSchedulesMock.mockResolvedValue({
-      dueFound: 0,
-      processed: 0,
-      paused: 0,
-      skippedLocked: 0,
-      durationMs: 0,
-    });
     syncSourceImportMock.mockResolvedValue(3);
     syncFreeSubscriptionRenewalMock.mockResolvedValue(undefined);
     syncHermesInboxMock.mockResolvedValue({
@@ -196,30 +181,6 @@ describe("sync routes", () => {
     expect(syncRegistryAgentsMock).not.toHaveBeenCalled();
   });
 
-  it("returns 401 for missing cron auth on job schedules sync", async () => {
-    const app = await createApp();
-
-    const response = await app.request("http://localhost/sync/job-schedules");
-
-    expect(response.status).toBe(401);
-    expect(acquireLockMock).not.toHaveBeenCalled();
-    expect(syncJobSchedulesMock).not.toHaveBeenCalled();
-  });
-
-  it("returns 401 for invalid cron auth on job schedules sync", async () => {
-    const app = await createApp();
-
-    const response = await app.request("http://localhost/sync/job-schedules", {
-      headers: {
-        Authorization: "Bearer invalid",
-      },
-    });
-
-    expect(response.status).toBe(401);
-    expect(acquireLockMock).not.toHaveBeenCalled();
-    expect(syncJobSchedulesMock).not.toHaveBeenCalled();
-  });
-
   it("returns 401 for missing cron auth on jobs sync", async () => {
     const app = await createApp();
 
@@ -271,20 +232,6 @@ describe("sync routes", () => {
     expect(response.status).toBe(401);
     expect(acquireLockMock).not.toHaveBeenCalled();
     expect(syncHermesInboxMock).not.toHaveBeenCalled();
-  });
-
-  it("returns 409 when job schedules sync lock is already held", async () => {
-    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
-    const app = await createApp();
-
-    const response = await app.request("http://localhost/sync/job-schedules", {
-      headers: {
-        Authorization: "Bearer test-cron-secret",
-      },
-    });
-
-    expect(response.status).toBe(409);
-    expect(syncJobSchedulesMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when jobs sync lock is already held", async () => {
@@ -449,29 +396,6 @@ describe("sync routes", () => {
     await flushMicrotasks();
     expect(syncJobsMock).toHaveBeenCalledTimes(1);
     expect(syncJobsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        abortSignal: expect.any(Object),
-        deadlineMs: expect.any(Number),
-        shouldContinue: expect.any(Function),
-      }),
-    );
-  });
-
-  it("returns 200 and starts job schedules sync exactly once in background", async () => {
-    const app = await createApp();
-
-    const response = await app.request("http://localhost/sync/job-schedules", {
-      headers: {
-        Authorization: "Bearer test-cron-secret",
-      },
-    });
-
-    expect(response.status).toBe(200);
-    expect(acquireLockMock).toHaveBeenCalledWith("job-schedules-sync");
-
-    await flushMicrotasks();
-    expect(syncJobSchedulesMock).toHaveBeenCalledTimes(1);
-    expect(syncJobSchedulesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         abortSignal: expect.any(Object),
         deadlineMs: expect.any(Number),

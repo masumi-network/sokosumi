@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  CalendarClock,
-  Feather,
-  FolderKanban,
-  ListTodo,
-  Sparkles,
-} from "lucide-react";
+import { Feather, FolderKanban, ListTodo, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -113,12 +107,6 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
       href: "/agents",
       label: t("exploreAgents"),
       Icon: Sparkles,
-    },
-    {
-      key: "scheduled-agents",
-      href: "/schedules",
-      label: t("scheduledAgents"),
-      Icon: CalendarClock,
     },
     ...(hermesMenuEnabled
       ? ([

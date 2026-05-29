@@ -110,14 +110,13 @@ function InputAccordionItem({
   isDemo: boolean;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
-  const { projectOptions, projectId, setProjectId, isScheduled } =
+  const { projectOptions, projectId, setProjectId } =
     useCreateJobModalContext();
-  const shouldShowProjectSelect = projectOptions !== undefined && !isScheduled;
 
   return (
     <AccordionItemWrapper value="input" title={t("title")} disabled={disabled}>
       <div className="flex flex-col gap-6">
-        {shouldShowProjectSelect ? (
+        {projectOptions !== undefined ? (
           <div className="space-y-2">
             <Label>{t("projectLabel")}</Label>
             <TaskProjectSelect

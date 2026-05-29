@@ -39,7 +39,6 @@ interface CreateJobBase {
   input: string;
   inputHash: string | null;
   name: string | null;
-  jobScheduleId?: string | null | undefined;
 }
 
 interface CreatePaidJobData extends CreateJobBase {
@@ -300,9 +299,6 @@ export const jobRepository = {
       },
 
       name: data.name,
-      ...(data.jobScheduleId && {
-        jobSchedule: { connect: { id: data.jobScheduleId } },
-      }),
     };
 
     switch (data.jobType) {

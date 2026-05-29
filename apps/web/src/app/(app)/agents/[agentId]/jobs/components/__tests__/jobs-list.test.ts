@@ -37,8 +37,6 @@ function createJob(
     taskId: null,
     task: null,
     purchase: null,
-    jobScheduleId: null,
-    jobSchedule: null,
     events: [],
     credits: 0,
     cents: BigInt(0),

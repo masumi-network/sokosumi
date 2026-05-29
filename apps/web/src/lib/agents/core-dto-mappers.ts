@@ -364,7 +364,6 @@ export function mapCoreAgentToAgentWithCreditsPrice(
     userAgentRating: [],
     agentLists: [],
     jobs: [],
-    jobSchedules: [],
     tags: mapCoreAgentTags(agent),
     overrideTags: [],
     categories: agent.categories.map((category) =>
@@ -443,7 +442,6 @@ export function createUnavailableAgentWithCreditsPrice(
     userAgentRating: [],
     agentLists: [],
     jobs: [],
-    jobSchedules: [],
     tags: [],
     overrideTags: [],
     categories: [],
@@ -508,8 +506,6 @@ export function mapCoreJobSummaryToJobWithSokosumiStatus(
     task: null,
     purchase: null,
     transaction: null,
-    jobScheduleId: null,
-    jobSchedule: null,
     events: [],
     cents: convertCreditsToCents(job.credits),
     jobStatusSettled: isJobSettled({

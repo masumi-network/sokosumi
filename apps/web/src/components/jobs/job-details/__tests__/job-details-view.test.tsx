@@ -146,8 +146,6 @@ function createJob(
     task: null,
     purchase: null,
     transaction: null,
-    jobScheduleId: null,
-    jobSchedule: null,
     events: [],
     jobStatusSettled: false,
     user: {

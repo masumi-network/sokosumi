@@ -15,7 +15,6 @@ import {
   startDemoJob,
   startJob,
 } from "@/lib/actions";
-import { createSchedule } from "@/lib/actions/job-schedule";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
 import {
@@ -23,10 +22,6 @@ import {
   prepareInputValues,
 } from "@/lib/job-input";
 import type { AgentDemoValues } from "@/lib/types/agent";
-import {
-  type JobScheduleSelectionType,
-  JobScheduleType,
-} from "@/lib/types/job";
 import {
   getUserFileUploadErrorMessage,
   uploadInputDataFiles,
@@ -36,7 +31,6 @@ export interface UseJobSubmissionOptions {
   agent: AgentWithCreditsPrice;
   inputSchema: InputSchemaSchemaType;
   demoValues: AgentDemoValues | null;
-  scheduleSelection: JobScheduleSelectionType | null;
   projectId?: string | null;
   setLoading: (loading: boolean) => void;
   onSuccess: () => void;
@@ -50,7 +44,6 @@ export function useJobSubmission({
   agent,
   inputSchema,
   demoValues,
-  scheduleSelection,
   projectId,
   setLoading,
   onSuccess,
@@ -65,7 +58,7 @@ export function useJobSubmission({
 
       try {
         let result:
-          | { ok: true; data: { jobId: string; scheduleId?: string } }
+          | { ok: true; data: { jobId: string } }
           | { ok: false; error: { code: string } };
         const uploadFiles = async (
           inputData: ReturnType<typeof prepareInputValues>,
@@ -91,23 +84,6 @@ export function useJobSubmission({
               ...(typeof projectId !== "undefined" ? { projectId } : {}),
             },
             jobStatusResponse: demoValues.output,
-          });
-        } else if (
-          scheduleSelection &&
-          scheduleSelection.mode !== JobScheduleType.NOW
-        ) {
-          const transformedInputData = prepareInputValues(allValues);
-          const didUploadFiles = await uploadFiles(transformedInputData);
-          if (!didUploadFiles) return;
-
-          result = await createSchedule({
-            input: {
-              agentId: agentId,
-              inputSchema,
-              inputData: transformedInputData,
-              maxAcceptedCents: creditsPrice.cents,
-            },
-            scheduleSelection: scheduleSelection,
           });
         } else {
           const transformedInputData = prepareInputValues(allValues);
@@ -137,11 +113,7 @@ export function useJobSubmission({
             jobId: result.data.jobId,
           });
           onSuccess();
-          if (result.data?.scheduleId) {
-            router.push(`/schedules`);
-          } else {
-            router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
-          }
+          router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
         } else {
           switch (result.error.code) {
             case CommonErrorCode.UNAUTHENTICATED:
@@ -176,7 +148,6 @@ export function useJobSubmission({
     [
       setLoading,
       demoValues,
-      scheduleSelection,
       projectId,
       agent,
       agentId,

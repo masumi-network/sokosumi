@@ -10,14 +10,6 @@ import {
 } from "react";
 
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import {
-  type UseJobScheduleReturn,
-  useJobSchedule,
-} from "@/hooks/use-job-schedule";
-import {
-  type JobScheduleSelectionType,
-  JobScheduleType,
-} from "@/lib/types/job";
 
 interface CreateJobModalContextType {
   // modal open
@@ -51,15 +43,6 @@ interface CreateJobModalContextType {
   projectOptions?: ProjectFilterOption[] | undefined;
   projectId: string | null;
   setProjectId: (projectId: string | null) => void;
-  // job schedule
-  scheduleOpen: boolean;
-  setScheduleOpen: (open: boolean) => void;
-  scheduleSelection: JobScheduleSelectionType | null;
-  setScheduleSelection: (selection: JobScheduleSelectionType | null) => void;
-  timezoneOptions: string[];
-  isScheduled: boolean;
-  nextRunAt: Date | null;
-  nextRunLabel: string | null;
 }
 
 const initialState: CreateJobModalContextType = {
@@ -82,14 +65,6 @@ const initialState: CreateJobModalContextType = {
   projectOptions: undefined,
   projectId: null,
   setProjectId: () => {},
-  scheduleOpen: false,
-  setScheduleOpen: () => {},
-  scheduleSelection: null,
-  setScheduleSelection: () => {},
-  timezoneOptions: [],
-  isScheduled: false,
-  nextRunAt: null,
-  nextRunLabel: null,
 };
 
 export const CreateJobModalContext =
@@ -116,36 +91,10 @@ export function CreateJobModalContextProvider({
   const [projectId, setProjectIdState] = useState<string | null>(
     defaultProjectId ?? null,
   );
-  const {
-    scheduleOpen,
-    setScheduleOpen,
-    scheduleSelection,
-    setScheduleSelection: setScheduleSelectionInternal,
-    timezoneOptions,
-    isScheduled,
-    nextRunAt,
-    nextRunLabel,
-  }: UseJobScheduleReturn = useJobSchedule();
 
   const setProjectId = useCallback((nextProjectId: string | null) => {
     setProjectIdState(nextProjectId);
   }, []);
-
-  const setScheduleSelection = useCallback(
-    (selection: JobScheduleSelectionType | null) => {
-      setScheduleSelectionInternal(selection);
-
-      if (selection && selection.mode !== JobScheduleType.NOW) {
-        setProjectIdState(null);
-        return;
-      }
-
-      if (selection?.mode === JobScheduleType.NOW) {
-        setProjectIdState(defaultProjectId ?? null);
-      }
-    },
-    [defaultProjectId, setScheduleSelectionInternal],
-  );
 
   const agentWithPrice = useMemo(() => {
     if (!agentId) {
@@ -175,7 +124,6 @@ export function CreateJobModalContextProvider({
     setAgentId(agentId);
     setIsDemo(isDemo ?? false);
     setProjectIdState(projectOverrideId ?? defaultProjectId ?? null);
-    setScheduleSelectionInternal(null);
   };
 
   const handleClose = () => {
@@ -183,7 +131,6 @@ export function CreateJobModalContextProvider({
     setAgentId(undefined);
     setIsDemo(false);
     setProjectIdState(defaultProjectId ?? null);
-    setScheduleSelectionInternal(null);
   };
 
   const value: CreateJobModalContextType = {
@@ -207,14 +154,6 @@ export function CreateJobModalContextProvider({
     projectOptions,
     projectId,
     setProjectId,
-    scheduleOpen,
-    setScheduleOpen,
-    scheduleSelection,
-    setScheduleSelection,
-    timezoneOptions,
-    isScheduled,
-    nextRunAt,
-    nextRunLabel,
   };
 
   return (
