@@ -2,20 +2,10 @@
 
 import { useSyncExternalStore } from "react";
 
-function getIsApplePlatform(): boolean {
-  if (typeof navigator === "undefined") {
-    return false;
-  }
-
-  const navUaPlatform = (
-    navigator as unknown as { userAgentData?: { platform?: string } }
-  ).userAgentData?.platform;
-  const platform = navUaPlatform ?? navigator.platform ?? "";
-  return /Mac|iPhone|iPad|iPod/i.test(platform);
-}
+import { isApplePlatform } from "@/lib/utils/user-agent";
 
 const subscribe = () => () => {};
 
 export default function useIsApplePlatform() {
-  return useSyncExternalStore(subscribe, getIsApplePlatform, () => false);
+  return useSyncExternalStore(subscribe, isApplePlatform, () => false);
 }
