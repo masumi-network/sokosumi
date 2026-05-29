@@ -345,6 +345,35 @@ describe("organizationSubscriptionService", () => {
       });
     });
 
+    it("throws when decreasing local free seats below assigned count", async () => {
+      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+        role: "owner",
+      });
+      getAssignedMemberCountMock.mockResolvedValue(4);
+      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+        id: "sub-row-1",
+        plan: "free",
+        seats: 6,
+        stripeSubscriptionId: null,
+      });
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await expect(
+        organizationSubscriptionService.updateOrganizationSeatsImmediately(
+          "user-1",
+          "org-1",
+          3,
+        ),
+      ).rejects.toThrow(
+        "Purchased seats (3) must be at least 4 to cover all assigned members",
+      );
+
+      expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
+    });
+
     it("updates purchased seats for local free subscriptions without syncing member count", async () => {
       getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
         role: "admin",

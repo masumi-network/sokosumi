@@ -251,19 +251,17 @@ export const organizationSubscriptionService = (() => {
       seats: number,
     ): Promise<{ seats: number }> {
       await ensureCanManageOrganizationSubscription(userId, organizationId);
-      ensureValidPurchasedSeatCount(seats);
       const activeSubscription = await ensureActiveOrganizationSubscription(
         organizationId,
         "An active organization subscription is required before updating seats.",
       );
+      const assignedCount = await getAssignedMemberCount(organizationId);
+      ensureValidPurchasedSeatCount(seats, assignedCount);
 
       if (!activeSubscription.stripeSubscriptionId) {
         await syncOrganizationSeatCount(activeSubscription, seats);
         return { seats };
       }
-
-      const assignedCount = await getAssignedMemberCount(organizationId);
-      ensureValidPurchasedSeatCount(seats, assignedCount);
 
       const currentSeats = resolvePurchasedSeats(activeSubscription.seats);
       if (currentSeats === seats) {
