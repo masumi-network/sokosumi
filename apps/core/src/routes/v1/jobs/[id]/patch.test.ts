@@ -119,6 +119,7 @@ function createSerializedJob(overrides: Record<string, unknown> = {}) {
     agentId: "agent_123",
     userId: "user_123",
     organizationId: "org_123",
+    projectId: null,
     taskId: null,
     name: "Renamed job",
     jobType: JobType.PAID,
