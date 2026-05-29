@@ -198,23 +198,23 @@
           "Success": {
             "changeRole": "役割を変更しました",
             "remove": "メンバーを削除しました",
-            "assignSeat": "seatを割り当てました",
-            "unassignSeat": "seatを削除しました"
+            "assignSeat": "Seatを割り当てました",
+            "unassignSeat": "Seatを削除しました"
           },
           "Error": {
             "changeRole": "役割の変更に失敗しました",
             "remove": "メンバーの削除に失敗しました",
-            "assignSeat": "seatの割り当てに失敗しました",
-            "unassignSeat": "seatの削除に失敗しました"
+            "assignSeat": "Seatの割り当てに失敗しました",
+            "unassignSeat": "Seatの削除に失敗しました"
           },
           "Errors": {
             "unauthorizedAction": "ログイン"
           },
-          "unassignSeatTitle": "seatを削除",
-          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire."
+          "unassignSeatTitle": "Seatを削除",
+          "unassignSeatDescription": "{member}の有料Seatを削除すると、今後のサブスクリプションクレジットは付与されず、無料の月次クレジットが付与されます。現在の期間のクレジットは失効まで残ります。"
         },
-        "assignSeat": "seatを割り当て",
-        "unassignSeat": "seatを削除"
+        "assignSeat": "Seatを割り当て",
+        "unassignSeat": "Seatを削除"
       },
       "InvitationActions": {
         "resend": "招待を再送信",
@@ -234,8 +234,8 @@
         "resendError": "招待の再送信に失敗しました"
       },
       "Seat": {
-        "assigned": "Paid",
-        "unassigned": "Free"
+        "assigned": "有料",
+        "unassigned": "無料"
       }
     },
     "Breadcrumb": {
@@ -2384,7 +2384,7 @@
       "enterprisePlanDescription": "あなたの組織は、Stripe経由で請求されるEnterpriseサブスクリプションを利用しています。",
       "enterpriseSeatsLabel": "Seats",
       "enterpriseMembersLabel": "アクティブメンバー",
-      "enterpriseContactSupport": "プランやseats数を変更するにはサポートにお問い合わせください。",
+      "enterpriseContactSupport": "プランやSeats数を変更するにはサポートにお問い合わせください。",
       "orgAccessRestrictedTitle": "請求へのアクセスが制限されています",
       "orgAccessRestrictedDescription": "この組織の請求情報を閲覧できるのは、組織のオーナーと管理者のみです。",
       "orgAccessRestrictedHint": "個人コンテキストに切り替えるか、アクセスが必要な場合は組織のオーナー／管理者にお問い合わせください。",
@@ -2399,9 +2399,9 @@
         "message": "請求情報の読み込み中に問題が発生しました。しばらくしてから再度お試しください。",
         "retryButton": "再試行"
       },
-      "purchasedSeatsLabel": "購入済みseats",
+      "purchasedSeatsLabel": "購入済みSeats",
       "assignedSeatsLabel": "割り当て済み",
-      "unusedSeatsLabel": "未使用seats"
+      "unusedSeatsLabel": "未使用Seats"
     },
     "Credits": {
       "billingPortalCta": "購入を管理",
@@ -2849,11 +2849,11 @@
         },
         "Subscription": {
           "currentPlanLabel": "現在のプラン",
-          "currentSeatsLabel": "現在のseats",
+          "currentSeatsLabel": "現在のSeats",
           "membersLabel": "アクティブなメンバー",
-          "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "使用中のPaid seatsをカバーする最小値は{minimum}です。組織には{members, plural, =1 {# 名のメンバー} other {# 名のメンバー}}がいます。Paid seatのないメンバーは無料の月次クレジットを受け取ります。",
-          "includedCreditsPerSeat": "{credits, plural, =0 {seatあたりクレジットなし} =1 {seatあたり# クレジット} other {seatあたり# クレジット}}",
+          "seatsInputLabel": "購入済みSeats",
+          "seatsInputHint": "使用中の有料Seatsをカバーする最小値は{minimum}です。組織には{members, plural, =1 {# 名のメンバー} other {# 名のメンバー}}がいます。有料Seatのないメンバーは無料の月次クレジットを受け取ります。",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Seatあたりクレジットなし} =1 {Seatあたり# クレジット} other {Seatあたり# クレジット}}",
           "noActivePlan": "有効なプランがありません",
           "seatsUpdatedSuccess": "Seatsを更新しました。",
           "updating": "リダイレクトしています...",
@@ -2864,13 +2864,13 @@
             "unauthenticated": "続行するにはログインしてください",
             "unauthenticatedAction": "ログイン",
             "unauthorized": "サブスクリプションを管理できるのは、組織のオーナーと管理者のみです",
-            "badInput": "有効なプランとseat数を指定してください",
+            "badInput": "有効なプランとSeatの値を指定してください",
             "general": "組織のサブスクリプション管理に失敗しました"
           }
         },
         "Seats": {
-          "title": "seatsの概要",
-          "description": "購入したseatsはPaidプランの容量です。Paid seatを持つメンバーはサブスクリプションクレジットを受け取ります。Paid seatを持たないメンバーは組織の無料月次クレジットを受け取ります。",
+          "title": "Seatsの概要",
+          "description": "購入したSeatsは有料プランの容量です。有料Seatを持つメンバーはサブスクリプションクレジットを受け取ります。有料Seatを持たないメンバーは無料の月次クレジットを受け取ります。",
           "purchased": "購入済み",
           "assigned": "割り当て済み",
           "unused": "未使用",

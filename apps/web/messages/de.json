@@ -211,7 +211,7 @@
             "unauthorizedAction": "Anmelden"
           },
           "unassignSeatTitle": "Seat entfernen",
-          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire."
+          "unassignSeatDescription": "Wenn du {member} den bezahlten Seat entziehst, erhält die Person künftig keine Subscription-Credits mehr und stattdessen kostenlose monatliche Credits. Bereits gutgeschriebene Credits aus dem laufenden Zeitraum bleiben bis zum Ablauf bestehen."
         },
         "assignSeat": "Seat zuweisen",
         "unassignSeat": "Seat entfernen"

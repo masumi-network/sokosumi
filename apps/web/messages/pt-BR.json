@@ -204,17 +204,17 @@
           "Error": {
             "changeRole": "Falha ao alterar função",
             "remove": "Falha ao remover membro",
-            "assignSeat": "Falha ao atribuir seat",
-            "unassignSeat": "Falha ao remover seat"
+            "assignSeat": "Falha ao atribuir Seat",
+            "unassignSeat": "Falha ao remover Seat"
           },
           "Errors": {
             "unauthorizedAction": "Entrar"
           },
-          "unassignSeatTitle": "Remover seat",
-          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire."
+          "unassignSeatTitle": "Remover Seat",
+          "unassignSeatDescription": "Ao remover o Seat pago de {member}, a pessoa deixa de receber créditos de assinatura e passa a receber créditos mensais gratuitos. Os créditos do período atual permanecem até expirarem."
         },
-        "assignSeat": "Atribuir seat",
-        "unassignSeat": "Remover seat"
+        "assignSeat": "Atribuir Seat",
+        "unassignSeat": "Remover Seat"
       },
       "InvitationActions": {
         "resend": "Reenviar convite",
@@ -234,8 +234,8 @@
         "resendError": "Falha ao reenviar convite"
       },
       "Seat": {
-        "assigned": "Paid",
-        "unassigned": "Free"
+        "assigned": "Pago",
+        "unassigned": "Grátis"
       }
     },
     "Breadcrumb": {
@@ -2384,7 +2384,7 @@
       "enterprisePlanDescription": "Sua organização está em uma assinatura Enterprise faturada pelo Stripe.",
       "enterpriseSeatsLabel": "Seats",
       "enterpriseMembersLabel": "Membros ativos",
-      "enterpriseContactSupport": "Fale com o suporte para alterar seu plano ou seats.",
+      "enterpriseContactSupport": "Fale com o suporte para alterar seu plano ou Seats.",
       "orgAccessRestrictedTitle": "Acesso à cobrança restrito",
       "orgAccessRestrictedDescription": "Apenas proprietários e admins da organização podem ver os detalhes de cobrança desta organização.",
       "orgAccessRestrictedHint": "Mude para o contexto pessoal ou fale com um proprietário/admin da organização se precisar de acesso.",
@@ -2851,26 +2851,26 @@
           "currentPlanLabel": "Plano atual",
           "currentSeatsLabel": "Seats atuais",
           "membersLabel": "Membros ativos",
-          "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "O mínimo é {minimum} para cobrir os Paid seats em uso. A organização tem {members, plural, =1 {# membro} other {# membros}}. Os membros sem Paid seat recebem créditos mensais gratuitos.",
-          "includedCreditsPerSeat": "{credits, plural, =0 {Sem créditos por seat} =1 {# crédito por seat} other {# créditos por seat}}",
+          "seatsInputLabel": "Seats comprados",
+          "seatsInputHint": "O mínimo é {minimum} para cobrir os Seats pagos em uso. A organização tem {members, plural, =1 {# membro} other {# membros}}. Os membros sem Seat pago recebem créditos mensais gratuitos.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Sem créditos por Seat} =1 {# crédito por Seat} other {# créditos por Seat}}",
           "noActivePlan": "Nenhum plano ativo",
           "seatsUpdatedSuccess": "Seats atualizados com sucesso.",
           "updating": "Redirecionando...",
           "currentPlanCta": "Plano atual",
-          "updateSeatsCta": "Atualizar seats",
+          "updateSeatsCta": "Atualizar Seats",
           "choosePlanCta": "Escolher plano",
           "Errors": {
             "unauthenticated": "Faça login para continuar",
             "unauthenticatedAction": "Entrar",
             "unauthorized": "Apenas proprietários e admins da organização podem gerenciar assinaturas",
-            "badInput": "Informe valores válidos de plano e seats",
+            "badInput": "Informe valores válidos de plano e Seats",
             "general": "Falha ao gerenciar a assinatura da organização"
           }
         },
         "Seats": {
-          "title": "Visão geral de seats",
-          "description": "Os seats comprados são a capacidade do plano pago. Os membros com um Paid seat recebem créditos de assinatura. Os membros sem Paid seat recebem os créditos mensais gratuitos da organização.",
+          "title": "Visão geral de Seats",
+          "description": "Os Seats comprados são a capacidade do seu plano pago. Os membros com um Seat pago recebem créditos de assinatura. Os membros sem Seat pago recebem créditos mensais gratuitos.",
           "purchased": "Comprados",
           "assigned": "Atribuídos",
           "unused": "Não utilizados",

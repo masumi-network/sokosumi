@@ -204,17 +204,17 @@
           "Error": {
             "changeRole": "Échec de la modification du rôle",
             "remove": "Échec du retrait du membre",
-            "assignSeat": "Impossible d'attribuer le seat",
-            "unassignSeat": "Impossible de retirer le seat"
+            "assignSeat": "Impossible d'attribuer le Seat",
+            "unassignSeat": "Impossible de retirer le Seat"
           },
           "Errors": {
             "unauthorizedAction": "Se connecter"
           },
-          "unassignSeatTitle": "Retirer le seat",
-          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire."
+          "unassignSeatTitle": "Retirer le Seat",
+          "unassignSeatDescription": "Retirer le Seat payant de {member} arrête les futurs crédits d'abonnement. La personne recevra à la place des crédits mensuels gratuits. Les crédits de la période en cours restent jusqu'à expiration."
         },
-        "assignSeat": "Attribuer un seat",
-        "unassignSeat": "Retirer le seat"
+        "assignSeat": "Attribuer un Seat",
+        "unassignSeat": "Retirer le Seat"
       },
       "InvitationActions": {
         "resend": "Renvoyer l’invitation",
@@ -234,8 +234,8 @@
         "resendError": "Échec du renvoi de l’invitation"
       },
       "Seat": {
-        "assigned": "Paid",
-        "unassigned": "Free"
+        "assigned": "Payant",
+        "unassigned": "Gratuit"
       }
     },
     "Breadcrumb": {
@@ -2384,7 +2384,7 @@
       "enterprisePlanDescription": "Votre organisation dispose d’un abonnement Enterprise facturé via Stripe.",
       "enterpriseSeatsLabel": "Seats",
       "enterpriseMembersLabel": "Membres actifs",
-      "enterpriseContactSupport": "Contactez le support pour modifier votre forfait ou vos seats.",
+      "enterpriseContactSupport": "Contactez le support pour modifier votre forfait ou vos Seats.",
       "orgAccessRestrictedTitle": "Accès à la facturation restreint",
       "orgAccessRestrictedDescription": "Seuls les propriétaires et administrateurs de l’organisation peuvent consulter les informations de facturation de cette organisation.",
       "orgAccessRestrictedHint": "Basculez vers un contexte personnel ou contactez un propriétaire/administrateur de l’organisation si vous avez besoin d’un accès.",
@@ -2851,26 +2851,26 @@
           "currentPlanLabel": "Forfait actuel",
           "currentSeatsLabel": "Seats actuels",
           "membersLabel": "Membres actifs",
-          "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "Le minimum est {minimum} pour couvrir les Paid seats utilisés. L'organisation compte {members, plural, =1 {# membre} other {# membres}}. Les membres sans Paid seat reçoivent des crédits mensuels gratuits.",
-          "includedCreditsPerSeat": "{credits, plural, =0 {Aucun crédit par seat} =1 {# crédit par seat} other {# crédits par seat}}",
+          "seatsInputLabel": "Seats achetés",
+          "seatsInputHint": "Le minimum est {minimum} pour couvrir les Seats payants utilisés. L'organisation compte {members, plural, =1 {# membre} other {# membres}}. Les membres sans Seat payant reçoivent des crédits mensuels gratuits.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Aucun crédit par Seat} =1 {# crédit par Seat} other {# crédits par Seat}}",
           "noActivePlan": "Aucun forfait actif",
           "seatsUpdatedSuccess": "Seats mis à jour avec succès.",
           "updating": "Redirection...",
           "currentPlanCta": "Forfait actuel",
-          "updateSeatsCta": "Mettre à jour les seats",
+          "updateSeatsCta": "Mettre à jour les Seats",
           "choosePlanCta": "Choisir un forfait",
           "Errors": {
             "unauthenticated": "Veuillez vous connecter pour continuer",
             "unauthenticatedAction": "Se connecter",
             "unauthorized": "Seuls les propriétaires et administrateurs de l’organisation peuvent gérer les abonnements",
-            "badInput": "Veuillez fournir des valeurs de forfait et de seats valides",
+            "badInput": "Veuillez fournir des valeurs de forfait et de Seats valides",
             "general": "Échec de la gestion de l’abonnement de l’organisation"
           }
         },
         "Seats": {
-          "title": "Aperçu des seats",
-          "description": "Les seats achetés représentent la capacité du forfait payant. Les membres avec un Paid seat reçoivent des crédits d'abonnement. Les membres sans Paid seat reçoivent les crédits mensuels gratuits de l'organisation.",
+          "title": "Aperçu des Seats",
+          "description": "Les Seats achetés représentent la capacité de votre forfait payant. Les membres avec un Seat payant reçoivent des crédits d'abonnement. Les membres sans Seat payant reçoivent des crédits mensuels gratuits.",
           "purchased": "Achetés",
           "assigned": "Attribués",
           "unused": "Inutilisés",

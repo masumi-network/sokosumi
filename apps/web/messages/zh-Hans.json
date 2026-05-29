@@ -204,17 +204,17 @@
           "Error": {
             "changeRole": "更改角色失败",
             "remove": "移除成员失败",
-            "assignSeat": "分配 seat 失败",
-            "unassignSeat": "移除 seat 失败"
+            "assignSeat": "分配 Seat 失败",
+            "unassignSeat": "移除 Seat 失败"
           },
           "Errors": {
             "unauthorizedAction": "登录"
           },
-          "unassignSeatTitle": "移除 seat",
-          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire."
+          "unassignSeatTitle": "移除 Seat",
+          "unassignSeatDescription": "移除 {member} 的付费 Seat 后，将不再获得订阅积分，改为获得免费月度积分。当前周期的积分会保留至到期。"
         },
-        "assignSeat": "分配 seat",
-        "unassignSeat": "移除 seat"
+        "assignSeat": "分配 Seat",
+        "unassignSeat": "移除 Seat"
       },
       "InvitationActions": {
         "resend": "重新发送邀请",
@@ -234,8 +234,8 @@
         "resendError": "重新发送邀请失败"
       },
       "Seat": {
-        "assigned": "Paid",
-        "unassigned": "Free"
+        "assigned": "付费",
+        "unassigned": "免费"
       }
     },
     "Breadcrumb": {
@@ -2384,7 +2384,7 @@
       "enterprisePlanDescription": "您的组织正在使用通过 Stripe 开票的 Enterprise 订阅。",
       "enterpriseSeatsLabel": "Seats",
       "enterpriseMembersLabel": "活跃成员",
-      "enterpriseContactSupport": "请联系支持团队更改您的方案或 seats。",
+      "enterpriseContactSupport": "请联系支持团队更改您的方案或 Seats。",
       "orgAccessRestrictedTitle": "计费访问受限",
       "orgAccessRestrictedDescription": "只有组织所有者和管理员可以查看该组织的计费详情。",
       "orgAccessRestrictedHint": "如需访问，请切换到个人上下文，或联系组织所有者/管理员。",
@@ -2399,9 +2399,9 @@
         "message": "加载计费详情时遇到问题。请稍后重试。",
         "retryButton": "重试"
       },
-      "purchasedSeatsLabel": "已购买 seats",
+      "purchasedSeatsLabel": "已购买 Seats",
       "assignedSeatsLabel": "已分配",
-      "unusedSeatsLabel": "未使用 seats"
+      "unusedSeatsLabel": "未使用 Seats"
     },
     "Credits": {
       "billingPortalCta": "管理购买记录",
@@ -2849,28 +2849,28 @@
         },
         "Subscription": {
           "currentPlanLabel": "当前套餐",
-          "currentSeatsLabel": "当前 seats",
+          "currentSeatsLabel": "当前 Seats",
           "membersLabel": "活跃成员",
-          "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "最低为 {minimum}，以覆盖正在使用的 Paid seats。组织共有 {members, plural, =1 {# 名成员} other {# 名成员}}。没有 Paid seat 的成员会获得免费月度积分。",
-          "includedCreditsPerSeat": "{credits, plural, =0 {每个 seat 无积分} =1 {每个 seat # 积分} other {每个 seat # 积分}}",
+          "seatsInputLabel": "已购买 Seats",
+          "seatsInputHint": "最低为 {minimum}，以覆盖正在使用的付费 Seats。组织共有 {members, plural, =1 {# 名成员} other {# 名成员}}。没有付费 Seat 的成员会获得免费月度积分。",
+          "includedCreditsPerSeat": "{credits, plural, =0 {每个 Seat 无积分} =1 {每个 Seat # 积分} other {每个 Seat # 积分}}",
           "noActivePlan": "无有效套餐",
           "seatsUpdatedSuccess": "Seats 更新成功。",
           "updating": "正在跳转...",
           "currentPlanCta": "当前套餐",
-          "updateSeatsCta": "更新 seats",
+          "updateSeatsCta": "更新 Seats",
           "choosePlanCta": "选择套餐",
           "Errors": {
             "unauthenticated": "请登录以继续",
             "unauthenticatedAction": "登录",
             "unauthorized": "只有组织所有者和管理员可以管理订阅",
-            "badInput": "请提供有效的套餐和 seat 值",
+            "badInput": "请提供有效的套餐和 Seat 值",
             "general": "管理组织订阅失败"
           }
         },
         "Seats": {
           "title": "Seats 概览",
-          "description": "已购买的 seats 是付费计划的容量。拥有 Paid seat 的成员会获得订阅积分。没有 Paid seat 的成员会获得组织的免费月度积分。",
+          "description": "已购买的 Seats 是付费计划的容量。拥有付费 Seat 的成员会获得订阅积分。没有付费 Seat 的成员会获得免费月度积分。",
           "purchased": "已购买",
           "assigned": "已分配",
           "unused": "未使用",
