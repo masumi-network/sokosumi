@@ -178,7 +178,8 @@
         "name": "名前",
         "email": "メール",
         "role": "役割",
-        "actions": "操作"
+        "actions": "操作",
+        "seat": "Seat"
       },
       "MemberActions": {
         "remove": "削除",
@@ -196,16 +197,24 @@
           "cancel": "キャンセル",
           "Success": {
             "changeRole": "役割を変更しました",
-            "remove": "メンバーを削除しました"
+            "remove": "メンバーを削除しました",
+            "assignSeat": "Seat assigned successfully",
+            "unassignSeat": "Seat unassigned successfully"
           },
           "Error": {
             "changeRole": "役割の変更に失敗しました",
-            "remove": "メンバーの削除に失敗しました"
+            "remove": "メンバーの削除に失敗しました",
+            "assignSeat": "Failed to assign seat",
+            "unassignSeat": "Failed to unassign seat"
           },
           "Errors": {
             "unauthorizedAction": "ログイン"
-          }
-        }
+          },
+          "unassignSeatTitle": "Unassign seat",
+          "unassignSeatDescription": "Unassigning {member} removes paid seat access for future subscription periods. Current-period credits remain until they expire."
+        },
+        "assignSeat": "Assign seat",
+        "unassignSeat": "Unassign seat"
       },
       "InvitationActions": {
         "resend": "招待を再送信",
@@ -223,6 +232,10 @@
         },
         "resendSuccess": "招待を再送信しました",
         "resendError": "招待の再送信に失敗しました"
+      },
+      "Seat": {
+        "assigned": "Assigned",
+        "unassigned": "Unassigned"
       }
     },
     "Breadcrumb": {
@@ -2356,7 +2369,7 @@
     "Billing": {
       "balanceTitle": "残高",
       "balanceDescriptionPersonal": "個人アカウントの現在のクレジットです。",
-      "balanceDescriptionOrganization": "{organization} の現在のクレジットです。{members, plural, =1 {# メンバー} other {# メンバー}}、{seats, plural, =1 {# シート} other {# シート}}。",
+      "balanceDescriptionOrganization": "Current credits for {organization}. {purchased, plural, =1 {# purchased seat} other {# purchased seats}}, {assigned, plural, =1 {# assigned} other {# assigned}}, {unused, plural, =1 {# unused} other {# unused}}, {members, plural, =1 {# member} other {# members}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {クレジットなし} =1 {# クレジット} other {# クレジット}}",
       "stripeCustomerIdLabel": "Stripe 顧客 ID",
       "tabs": {
@@ -2385,7 +2398,10 @@
         "title": "問題が発生しました",
         "message": "請求情報の読み込み中に問題が発生しました。しばらくしてから再度お試しください。",
         "retryButton": "再試行"
-      }
+      },
+      "purchasedSeatsLabel": "Purchased seats",
+      "assignedSeatsLabel": "Assigned seats",
+      "unusedSeatsLabel": "Unused seats"
     },
     "Credits": {
       "billingPortalCta": "購入を管理",
@@ -2835,8 +2851,8 @@
           "currentPlanLabel": "現在のプラン",
           "currentSeatsLabel": "現在のシート数",
           "membersLabel": "アクティブなメンバー",
-          "seatsInputLabel": "組織のシート数",
-          "seatsInputHint": "アクティブなメンバー全員をカバーするため、最小シート数は{minimum}です。",
+          "seatsInputLabel": "Purchased seats",
+          "seatsInputHint": "Minimum is {minimum} to cover assigned seats. Organization has {members, plural, =1 {# member} other {# members}}.",
           "includedCreditsPerSeat": "{credits, plural, =0 {シートあたりクレジットなし} =1 {シートあたり# クレジット} other {シートあたり# クレジット}}",
           "noActivePlan": "有効なプランがありません",
           "seatsUpdatedSuccess": "シート数を更新しました。",
@@ -2851,6 +2867,14 @@
             "badInput": "有効なプランとシート数を指定してください",
             "general": "組織のサブスクリプション管理に失敗しました"
           }
+        },
+        "Seats": {
+          "title": "Seat assignment",
+          "description": "Purchased seats are capacity. Assign seats to members who should receive subscription credits.",
+          "purchased": "Purchased",
+          "assigned": "Assigned",
+          "unused": "Unused",
+          "manageBilling": "Manage billing"
         }
       }
     },

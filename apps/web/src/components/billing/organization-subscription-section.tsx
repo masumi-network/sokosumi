@@ -29,6 +29,7 @@ import {
 } from "./subscription-plan-utils";
 
 interface OrganizationSubscriptionSectionProps {
+  assignedSeatCount: number;
   cancelAtPeriodEnd: boolean;
   currentPlan: SubscriptionPlanName | null;
   currentPeriodEnd: Date | string | null;
@@ -40,6 +41,7 @@ interface OrganizationSubscriptionSectionProps {
 }
 
 export function OrganizationSubscriptionSection({
+  assignedSeatCount,
   cancelAtPeriodEnd,
   currentPlan,
   currentPeriodEnd,
@@ -61,19 +63,21 @@ export function OrganizationSubscriptionSection({
   );
 
   const minimumSeats = useMemo(
-    () => resolveMinimumOrganizationSeats(memberCount),
-    [memberCount],
+    () => resolveMinimumOrganizationSeats(assignedSeatCount),
+    [assignedSeatCount],
   );
   const [targetSeats, setTargetSeats] = useState(
-    resolveTargetOrganizationSeats(currentSeats, memberCount),
+    resolveTargetOrganizationSeats(currentSeats, assignedSeatCount),
   );
   const [pendingPlan, setPendingPlan] = useState<SubscriptionPlanName | null>(
     null,
   );
 
   useEffect(() => {
-    setTargetSeats(resolveTargetOrganizationSeats(currentSeats, memberCount));
-  }, [currentSeats, memberCount]);
+    setTargetSeats(
+      resolveTargetOrganizationSeats(currentSeats, assignedSeatCount),
+    );
+  }, [assignedSeatCount, currentSeats]);
 
   const cancellationDate = useMemo(() => {
     if (!cancelAtPeriodEnd || !currentPeriodEnd) {
@@ -240,6 +244,7 @@ export function OrganizationSubscriptionSection({
       <Card>
         <CardContent className="space-y-6">
           <OrganizationSeatSettingsFields
+            assignedSeatCount={assignedSeatCount}
             inputId="organization-seats"
             memberCount={memberCount}
             onTargetSeatsChange={setTargetSeats}

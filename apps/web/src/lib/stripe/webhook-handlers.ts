@@ -452,12 +452,6 @@ async function finalizeAppliedSubscriptionCredits(params: {
   };
 }
 
-function getSortedUniqueMemberUserIds(
-  members: Array<{ userId: string }>,
-): string[] {
-  return Array.from(new Set(members.map((member) => member.userId))).sort();
-}
-
 function splitCreditsByMember(params: {
   memberUserIds: string[];
   totalCredits: number;
@@ -608,8 +602,9 @@ export async function handleInvoicePaidEvent(
         organizationId,
         prisma,
       );
-      organizationMemberUserIds = getSortedUniqueMemberUserIds(members);
-      if (organizationMemberUserIds.length === 0) {
+      organizationMemberUserIds =
+        await memberRepository.getAssignedMemberUserIds(organizationId, prisma);
+      if (members.length === 0) {
         console.log(`No members found for organization ${organizationId}`);
         return;
       }
@@ -1057,6 +1052,7 @@ export async function handleSubscriptionDeletedEvent(
           id: localSubscription.id,
           periodEnd: localSubscription.periodEnd,
           referenceId: localSubscription.referenceId,
+          seats: localSubscription.seats,
           stripeCustomerId: localSubscription.stripeCustomerId,
           stripeSubscriptionId: localSubscription.stripeSubscriptionId,
         },

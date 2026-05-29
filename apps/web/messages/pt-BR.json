@@ -178,7 +178,8 @@
         "name": "Nome",
         "email": "E-mail",
         "role": "Função",
-        "actions": "Ações"
+        "actions": "Ações",
+        "seat": "Seat"
       },
       "MemberActions": {
         "remove": "Remover",
@@ -196,16 +197,24 @@
           "cancel": "Cancelar",
           "Success": {
             "changeRole": "Função alterada com sucesso",
-            "remove": "Membro removido com sucesso"
+            "remove": "Membro removido com sucesso",
+            "assignSeat": "Seat assigned successfully",
+            "unassignSeat": "Seat unassigned successfully"
           },
           "Error": {
             "changeRole": "Falha ao alterar função",
-            "remove": "Falha ao remover membro"
+            "remove": "Falha ao remover membro",
+            "assignSeat": "Failed to assign seat",
+            "unassignSeat": "Failed to unassign seat"
           },
           "Errors": {
             "unauthorizedAction": "Entrar"
-          }
-        }
+          },
+          "unassignSeatTitle": "Unassign seat",
+          "unassignSeatDescription": "Unassigning {member} removes paid seat access for future subscription periods. Current-period credits remain until they expire."
+        },
+        "assignSeat": "Assign seat",
+        "unassignSeat": "Unassign seat"
       },
       "InvitationActions": {
         "resend": "Reenviar convite",
@@ -223,6 +232,10 @@
         },
         "resendSuccess": "Convite reenviado com sucesso",
         "resendError": "Falha ao reenviar convite"
+      },
+      "Seat": {
+        "assigned": "Assigned",
+        "unassigned": "Unassigned"
       }
     },
     "Breadcrumb": {
@@ -2356,7 +2369,7 @@
     "Billing": {
       "balanceTitle": "Saldo",
       "balanceDescriptionPersonal": "Seus créditos atuais na conta pessoal.",
-      "balanceDescriptionOrganization": "Créditos atuais para {organization}. {members, plural, =1 {# membro} other {# membros}}, {seats, plural, =1 {# assento} other {# assentos}}.",
+      "balanceDescriptionOrganization": "Current credits for {organization}. {purchased, plural, =1 {# purchased seat} other {# purchased seats}}, {assigned, plural, =1 {# assigned} other {# assigned}}, {unused, plural, =1 {# unused} other {# unused}}, {members, plural, =1 {# member} other {# members}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Sem créditos} =1 {# crédito} other {# créditos}}",
       "stripeCustomerIdLabel": "ID do cliente Stripe",
       "tabs": {
@@ -2385,7 +2398,10 @@
         "title": "Algo deu errado",
         "message": "Tivemos um problema ao carregar os detalhes de cobrança. Tente novamente mais tarde.",
         "retryButton": "Tentar novamente"
-      }
+      },
+      "purchasedSeatsLabel": "Purchased seats",
+      "assignedSeatsLabel": "Assigned seats",
+      "unusedSeatsLabel": "Unused seats"
     },
     "Credits": {
       "billingPortalCta": "Gerenciar compras",
@@ -2835,8 +2851,8 @@
           "currentPlanLabel": "Plano atual",
           "currentSeatsLabel": "Assentos atuais",
           "membersLabel": "Membros ativos",
-          "seatsInputLabel": "Assentos da organização",
-          "seatsInputHint": "O mínimo de assentos é {minimum} para cobrir todos os membros ativos.",
+          "seatsInputLabel": "Purchased seats",
+          "seatsInputHint": "Minimum is {minimum} to cover assigned seats. Organization has {members, plural, =1 {# member} other {# members}}.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Sem créditos por assento} =1 {# crédito por assento} other {# créditos por assento}}",
           "noActivePlan": "Nenhum plano ativo",
           "seatsUpdatedSuccess": "Assentos atualizados com sucesso.",
@@ -2851,6 +2867,14 @@
             "badInput": "Informe valores válidos de plano e assentos",
             "general": "Falha ao gerenciar a assinatura da organização"
           }
+        },
+        "Seats": {
+          "title": "Seat assignment",
+          "description": "Purchased seats are capacity. Assign seats to members who should receive subscription credits.",
+          "purchased": "Purchased",
+          "assigned": "Assigned",
+          "unused": "Unused",
+          "manageBilling": "Manage billing"
         }
       }
     },

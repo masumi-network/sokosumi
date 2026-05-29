@@ -168,7 +168,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                     />
                   ) : null}
                   <div
-                    className="flex h-full flex-1 flex-col overflow-visible"
+                    className="flex min-h-full flex-1 flex-col overflow-visible"
                     data-app-main-inner
                   >
                     {children}

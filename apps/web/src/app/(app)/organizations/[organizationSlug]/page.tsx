@@ -7,11 +7,16 @@ import { getTranslations } from "next-intl/server";
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import prisma from "@/lib/db/prisma";
-import { organizationService, userService } from "@/lib/services";
+import {
+  organizationSeatService,
+  organizationService,
+  userService,
+} from "@/lib/services";
 
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
 import OrganizationInvoiceEmail from "./components/organization-invoice-email";
+import { OrganizationSeatSummaryCard } from "./components/organization-seat-summary";
 
 interface OrganizationPageProps {
   params: Promise<{ organizationSlug: string }>;
@@ -83,6 +88,9 @@ export default async function OrganizationPage({
   const members = await organizationService.getOrganizationMembersWithUser(
     organization.id,
   );
+  const seatSummary = isOwnerOrAdmin
+    ? await organizationSeatService.getSeatSummary(organization.id)
+    : null;
 
   return (
     <div className="min-h-full w-full">
@@ -93,22 +101,30 @@ export default async function OrganizationPage({
         </div>
         <OrganizationInformation organization={organization} member={member} />
         <OrganizationInvoiceEmail organization={organization} member={member} />
-        {isOwnerOrAdmin ? (
-          <div className="flex items-center justify-between">
-            <div />
-            <div className="flex items-center gap-1.5">
+        {isOwnerOrAdmin && seatSummary ? (
+          <OrganizationSeatSummaryCard
+            organizationId={organization.id}
+            seatSummary={seatSummary}
+          />
+        ) : null}
+        <div className="space-y-4">
+          {isOwnerOrAdmin ? (
+            <div className="flex items-center justify-end gap-1.5">
               <OrganizationInviteButton
                 organizationId={organization.id}
                 className="h-7 px-2.5 text-xs"
               />
             </div>
-          </div>
-        ) : null}
-        <MembersTable
-          me={member}
-          members={members}
-          pendingInvitations={pendingInvitations}
-        />
+          ) : null}
+          <MembersTable
+            me={member}
+            members={members}
+            pendingInvitations={pendingInvitations}
+            showSeatManagement={isOwnerOrAdmin}
+            unusedSeats={seatSummary?.unusedSeats ?? 0}
+          />
+        </div>
+        <div aria-hidden className="h-12 shrink-0" />
       </div>
     </div>
   );

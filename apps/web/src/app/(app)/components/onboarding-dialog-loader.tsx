@@ -13,7 +13,7 @@ import {
 import { getEnvSecrets } from "@/config/env.secrets";
 import { auth } from "@/lib/auth/auth";
 import prisma from "@/lib/db/prisma";
-import { userService } from "@/lib/services";
+import { organizationSeatService, userService } from "@/lib/services";
 import {
   getSubscriptionCatalog,
   type SubscriptionPlanName,
@@ -98,17 +98,27 @@ export async function OnboardingDialogLoader({
         prisma,
       )
     : Promise.resolve(null);
+  const organizationSeatSummaryPromise = activeOrganization
+    ? organizationSeatService.getSeatSummary(activeOrganization.id)
+    : Promise.resolve(null);
 
-  const [organizationMember, latestOrganizationSubscription] =
-    await Promise.all([
-      organizationMemberPromise,
-      latestOrganizationSubscriptionPromise,
-    ]);
+  const [
+    organizationMember,
+    latestOrganizationSubscription,
+    organizationSeatSummary,
+  ] = await Promise.all([
+    organizationMemberPromise,
+    latestOrganizationSubscriptionPromise,
+    organizationSeatSummaryPromise,
+  ]);
 
   const canManageOrganizationSubscription =
     organizationMember?.role === MemberRole.OWNER ||
     organizationMember?.role === MemberRole.ADMIN;
-  const organizationMemberCount = activeOrganization?._count.members ?? 0;
+  const organizationMemberCount =
+    organizationSeatSummary?.memberCount ??
+    activeOrganization?._count.members ??
+    0;
   const organizationCurrentPlan = parsePlanName(
     latestOrganizationSubscription?.plan,
   );
@@ -169,10 +179,8 @@ export async function OnboardingDialogLoader({
   const organizationSubscription =
     activeOrganization && subscriptionCheckoutMode === "organization"
       ? {
-          currentSeats: Math.max(
-            latestOrganizationSubscription?.seats ?? 1,
-            organizationMemberCount,
-          ),
+          assignedSeatCount: organizationSeatSummary?.assignedCount ?? 0,
+          currentSeats: organizationSeatSummary?.purchasedSeats ?? 1,
           memberCount: organizationMemberCount,
           organizationId: activeOrganization.id,
         }

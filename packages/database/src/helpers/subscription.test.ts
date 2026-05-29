@@ -248,14 +248,59 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
       createSubscriptionMock.mock.calls[0]?.[0].data.createdAt?.toISOString(),
       "2026-04-01T00:00:00.000Z",
     );
-    assert.equal(createSubscriptionMock.mock.calls[0]?.[0].data.seats, 2);
+    assert.equal(createSubscriptionMock.mock.calls[0]?.[0].data.seats, 1);
     assert.equal(createTransactionMock.mock.calls.length, 2);
   });
 
-  it("throws when an organization period is created without members", async () => {
+  it("allows organization periods with no assigned members", async () => {
+    const { createSubscriptionMock, createTransactionMock, tx } =
+      createTransactionClient();
+
+    const result = await ensureLocalFreeSubscriptionPeriod(
+      {
+        billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
+        memberUserIds: [],
+        organizationId: "org-1",
+        periodEnd: new Date("2026-05-01T00:00:00.000Z"),
+        periodStart: new Date("2026-04-01T00:00:00.000Z"),
+        purchasedSeats: 3,
+        referenceId: "org-1",
+      },
+      tx,
+    );
+
+    assert.deepEqual(result, {
+      grantsCreated: 0,
+      subscriptionCreated: true,
+      subscriptionId: "subscription-local-free",
+    });
+    assert.equal(createSubscriptionMock.mock.calls[0]?.[0].data.seats, 3);
+    assert.equal(createTransactionMock.mock.calls.length, 0);
+  });
+
+  it("uses purchasedSeats instead of assigned member count for organization rows", async () => {
+    const { createSubscriptionMock, tx } = createTransactionClient();
+
+    await ensureLocalFreeSubscriptionPeriod(
+      {
+        billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
+        memberUserIds: ["owner-1"],
+        organizationId: "org-1",
+        periodEnd: new Date("2026-05-01T00:00:00.000Z"),
+        periodStart: new Date("2026-04-01T00:00:00.000Z"),
+        purchasedSeats: 5,
+        referenceId: "org-1",
+      },
+      tx,
+    );
+
+    assert.equal(createSubscriptionMock.mock.calls[0]?.[0].data.seats, 5);
+  });
+
+  it("does not throw when an organization period is created without assigned members", async () => {
     const { tx } = createTransactionClient();
 
-    await assert.rejects(
+    await assert.doesNotReject(
       ensureLocalFreeSubscriptionPeriod(
         {
           billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
@@ -267,7 +312,6 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
         },
         tx,
       ),
-      /Cannot create local free subscription period for organization org-1: no members found/,
     );
   });
 
@@ -388,8 +432,14 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     });
     assert.equal(findManyMembersMock.mock.calls.length, 1);
     assert.deepEqual(findManyMembersMock.mock.calls[0]?.[0], {
+      select: {
+        userId: true,
+      },
       where: {
         organizationId: "org-1",
+        seatAssignedAt: {
+          not: null,
+        },
       },
     });
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
@@ -403,7 +453,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       periodStart: new Date("2026-04-01T10:00:00.000Z"),
       plan: "free",
       referenceId: "org-1",
-      seats: 2,
+      seats: 1,
       status: "active",
       stripeCustomerId: "cus_org_1",
       stripeSubscriptionId: null,
@@ -411,23 +461,34 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     assert.equal(createTransactionMock.mock.calls.length, 2);
   });
 
-  it("throws when the initial organization period has no members", async () => {
-    const { tx } = createTransactionClient({
+  it("creates the initial organization free subscription period with no assigned members", async () => {
+    const {
+      createSubscriptionMock,
+      createTransactionMock,
+      findManyMembersMock,
+      tx,
+    } = createTransactionClient({
       members: [],
     });
 
-    await assert.rejects(
-      ensureInitialLocalFreeSubscriptionPeriod(
-        {
-          createdAt: new Date("2026-04-01T10:00:00.000Z"),
-          kind: "organization",
-          organizationId: "org-1",
-          stripeCustomerId: "cus_org_1",
-        },
-        tx,
-      ),
-      /Cannot create local free subscription period for organization org-1: no members found/,
+    const result = await ensureInitialLocalFreeSubscriptionPeriod(
+      {
+        createdAt: new Date("2026-04-01T10:00:00.000Z"),
+        kind: "organization",
+        organizationId: "org-1",
+        stripeCustomerId: "cus_org_1",
+      },
+      tx,
     );
+
+    assert.deepEqual(result, {
+      grantsCreated: 0,
+      subscriptionCreated: true,
+      subscriptionId: "subscription-local-free",
+    });
+    assert.equal(findManyMembersMock.mock.calls.length, 1);
+    assert.equal(createSubscriptionMock.mock.calls.length, 1);
+    assert.equal(createTransactionMock.mock.calls.length, 0);
   });
 });
 
@@ -455,6 +516,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
           id: "subscription-source",
           periodEnd: new Date("2026-02-28T10:00:00.000Z"),
           referenceId: "user-1",
+          seats: null,
           stripeCustomerId: "cus_1",
           stripeSubscriptionId: "sub_stripe_source",
         },
@@ -498,6 +560,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
           id: "subscription-stale",
           periodEnd: new Date("2026-03-01T00:00:00.000Z"),
           referenceId: "missing-user",
+          seats: null,
           stripeCustomerId: null,
           stripeSubscriptionId: null,
         },
@@ -537,6 +600,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
           id: "subscription-missing-period-end",
           periodEnd: null,
           referenceId: "user-1",
+          seats: null,
           stripeCustomerId: "cus_1",
           stripeSubscriptionId: null,
         },

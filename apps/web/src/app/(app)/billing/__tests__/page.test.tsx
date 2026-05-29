@@ -12,6 +12,7 @@ const getBalanceMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const getUserByIdMock = vi.fn();
+const getSeatSummaryMock = vi.fn();
 const zeroMarginTopUpEnabledMock = vi.fn();
 const balanceBillingPortalLinkMock = vi.fn();
 const creditsSectionMock = vi.fn();
@@ -57,6 +58,9 @@ vi.mock("@/lib/flags/zero-margin-top-up", () => ({
 }));
 
 vi.mock("@/lib/services", () => ({
+  organizationSeatService: {
+    getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
+  },
   userService: {
     getActiveOrganization: (...args: unknown[]) =>
       getActiveOrganizationMock(...args),
@@ -175,6 +179,12 @@ describe("BillingPage", () => {
     getUserByIdMock.mockResolvedValue({
       id: "user-1",
       stripeCustomerId: "cus_user_1",
+    });
+    getSeatSummaryMock.mockResolvedValue({
+      assignedCount: 1,
+      memberCount: 1,
+      purchasedSeats: 1,
+      unusedSeats: 0,
     });
   });
 
@@ -325,6 +335,12 @@ describe("BillingPage", () => {
       plan: "free",
       seats: 5,
     });
+    getSeatSummaryMock.mockResolvedValue({
+      assignedCount: 2,
+      memberCount: 2,
+      purchasedSeats: 5,
+      unusedSeats: 3,
+    });
 
     const { default: BillingPage } = await import("../page");
 
@@ -338,6 +354,7 @@ describe("BillingPage", () => {
 
     expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        assignedSeatCount: 2,
         cancelAtPeriodEnd: false,
         currentPlan: "free",
         currentPeriodEnd: "2026-03-01T00:00:00.000Z",

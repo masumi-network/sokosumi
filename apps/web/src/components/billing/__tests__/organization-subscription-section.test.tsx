@@ -104,6 +104,7 @@ describe("OrganizationSubscriptionSection", () => {
   it("renders a cancel action for the current paid plan and no action for free", () => {
     render(
       <OrganizationSubscriptionSection
+        assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
@@ -157,6 +158,7 @@ describe("OrganizationSubscriptionSection", () => {
   it("keeps seat updates as the primary action when seat count changes", () => {
     render(
       <OrganizationSubscriptionSection
+        assignedSeatCount={3}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
@@ -179,6 +181,7 @@ describe("OrganizationSubscriptionSection", () => {
   it("uses the upgrade action for non-current paid plans", async () => {
     render(
       <OrganizationSubscriptionSection
+        assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
@@ -220,6 +223,7 @@ describe("OrganizationSubscriptionSection", () => {
 
     render(
       <OrganizationSubscriptionSection
+        assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}

@@ -7,26 +7,36 @@ import {
 } from "@/components/ui/card";
 
 interface OrganizationEnterprisePlanCardProps {
+  assignedSeatCount: number;
   contactSupportText: string;
   description: string;
   memberCount: number;
   membersLabel: string;
-  seats: number;
-  seatsLabel: string;
+  purchasedSeats: number;
+  purchasedSeatsLabel: string;
+  assignedSeatsLabel: string;
+  unusedSeats: number;
+  unusedSeatsLabel: string;
   title: string;
 }
 
 export function OrganizationEnterprisePlanCard({
+  assignedSeatCount,
   contactSupportText,
   description,
   memberCount,
   membersLabel,
-  seats,
-  seatsLabel,
+  purchasedSeats,
+  purchasedSeatsLabel,
+  assignedSeatsLabel,
+  unusedSeats,
+  unusedSeatsLabel,
   title,
 }: OrganizationEnterprisePlanCardProps) {
   const summaryItems = [
-    { label: seatsLabel, value: seats },
+    { label: purchasedSeatsLabel, value: purchasedSeats },
+    { label: assignedSeatsLabel, value: assignedSeatCount },
+    { label: unusedSeatsLabel, value: unusedSeats },
     { label: membersLabel, value: memberCount },
   ];
 

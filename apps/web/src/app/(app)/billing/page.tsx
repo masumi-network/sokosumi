@@ -25,7 +25,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
-import { userService } from "@/lib/services";
+import { organizationSeatService, userService } from "@/lib/services";
 import { ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY } from "@/lib/stripe/credit-topup-pricing";
 import {
   getSubscriptionCatalog,
@@ -141,10 +141,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       activeOrganization.id,
       prisma,
     );
-    const currentSeats = Math.max(
-      latestSubscription?.seats ?? 1,
-      activeOrganization._count.members,
+    const seatSummary = await organizationSeatService.getSeatSummary(
+      activeOrganization.id,
     );
+    const currentSeats = seatSummary.purchasedSeats;
     const credits = convertCentsToCredits(balanceInCents);
     const displayCredits = formatCreditsForDisplay(credits);
 
@@ -165,9 +165,12 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           <BalanceSection
             title={t("balanceTitle")}
             description={t("balanceDescriptionOrganization", {
-              members: activeOrganization._count.members,
+              assigned: seatSummary.assignedCount,
+              members: seatSummary.memberCount,
               organization: activeOrganization.name,
+              purchased: seatSummary.purchasedSeats,
               seats: currentSeats,
+              unused: seatSummary.unusedSeats,
             })}
             creditsLabel={t("balanceCreditsLabel", {
               credits: displayCredits,
@@ -203,25 +206,30 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             subscriptionContent={
               currentPlan === "enterprise" ? (
                 <OrganizationEnterprisePlanCard
+                  assignedSeatCount={seatSummary.assignedCount}
+                  assignedSeatsLabel={t("assignedSeatsLabel")}
                   contactSupportText={t("enterpriseContactSupport")}
                   description={t("enterprisePlanDescription")}
-                  memberCount={activeOrganization._count.members}
+                  memberCount={seatSummary.memberCount}
                   membersLabel={t("enterpriseMembersLabel")}
-                  seats={currentSeats}
-                  seatsLabel={t("enterpriseSeatsLabel")}
+                  purchasedSeats={seatSummary.purchasedSeats}
+                  purchasedSeatsLabel={t("purchasedSeatsLabel")}
                   title={t("enterprisePlanTitle", {
                     planName: tSubscriptions("Plans.enterprise.name"),
                   })}
+                  unusedSeats={seatSummary.unusedSeats}
+                  unusedSeatsLabel={t("unusedSeatsLabel")}
                 />
               ) : (
                 <OrganizationSubscriptionSection
+                  assignedSeatCount={seatSummary.assignedCount}
                   cancelAtPeriodEnd={
                     latestSubscription?.cancelAtPeriodEnd ?? false
                   }
                   currentPlan={currentPlan}
                   currentPeriodEnd={latestSubscription?.periodEnd ?? null}
                   currentSeats={currentSeats}
-                  memberCount={activeOrganization._count.members}
+                  memberCount={seatSummary.memberCount}
                   organizationId={activeOrganization.id}
                   plans={orgPlans}
                   returnPath="/billing?tab=subscription"

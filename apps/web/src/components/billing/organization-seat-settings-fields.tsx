@@ -5,24 +5,31 @@ import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 
 interface OrganizationSeatSettingsFieldsProps {
+  assignedSeatCount: number;
   inputId: string;
   memberCount: number;
   targetSeats: number;
   onTargetSeatsChange: (value: number) => void;
 }
 
-export function resolveMinimumOrganizationSeats(memberCount: number): number {
-  return Math.max(memberCount, 1);
+export function resolveMinimumOrganizationSeats(
+  assignedSeatCount: number,
+): number {
+  return Math.max(assignedSeatCount, 1);
 }
 
 export function resolveTargetOrganizationSeats(
   currentSeats: number,
-  memberCount: number,
+  assignedSeatCount: number,
 ): number {
-  return Math.max(currentSeats, resolveMinimumOrganizationSeats(memberCount));
+  return Math.max(
+    currentSeats,
+    resolveMinimumOrganizationSeats(assignedSeatCount),
+  );
 }
 
 export function OrganizationSeatSettingsFields({
+  assignedSeatCount,
   inputId,
   memberCount,
   targetSeats,
@@ -31,8 +38,11 @@ export function OrganizationSeatSettingsFields({
   const t = useTranslations(
     "App.Organizations.OrganizationDetail.Subscription",
   );
-  const minimumSeats = resolveMinimumOrganizationSeats(memberCount);
-  const hintText = t("seatsInputHint", { minimum: minimumSeats });
+  const minimumSeats = resolveMinimumOrganizationSeats(assignedSeatCount);
+  const hintText = t("seatsInputHint", {
+    members: memberCount,
+    minimum: minimumSeats,
+  });
 
   return (
     <div className="space-y-2 md:grid md:grid-cols-[minmax(0,1fr)_240px] md:items-start md:gap-6 md:space-y-0">

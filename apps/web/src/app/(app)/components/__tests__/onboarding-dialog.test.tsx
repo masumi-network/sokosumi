@@ -136,6 +136,7 @@ describe("OnboardingDialog organization subscription", () => {
     render(
       <OnboardingDialog
         organizationSubscription={{
+          assignedSeatCount: 3,
           currentSeats: 5,
           memberCount: 3,
           organizationId: "org-1",
@@ -147,7 +148,9 @@ describe("OnboardingDialog organization subscription", () => {
     );
 
     expect(screen.getByLabelText("seatsInputLabel")).toHaveValue(5);
-    expect(screen.getAllByText('seatsInputHint:{"minimum":3}')).toHaveLength(2);
+    expect(
+      screen.getAllByText('seatsInputHint:{"members":3,"minimum":3}'),
+    ).toHaveLength(2);
     expect(screen.getByTestId("plan-grid")).toBeInTheDocument();
   });
 
@@ -155,6 +158,7 @@ describe("OnboardingDialog organization subscription", () => {
     render(
       <OnboardingDialog
         organizationSubscription={{
+          assignedSeatCount: 3,
           currentSeats: 5,
           memberCount: 3,
           organizationId: "org-1",
@@ -182,10 +186,11 @@ describe("OnboardingDialog organization subscription", () => {
     });
   });
 
-  it("blocks seat counts below the minimum member count", async () => {
+  it("blocks seat counts below the minimum assigned seat count", async () => {
     render(
       <OnboardingDialog
         organizationSubscription={{
+          assignedSeatCount: 4,
           currentSeats: 4,
           memberCount: 4,
           organizationId: "org-1",

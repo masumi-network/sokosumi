@@ -17,53 +17,69 @@ import { InvitationActionsModalContextProvider } from "./invitation-actions-moda
 import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
 import { getMembersTableColumns } from "./members-table-columns";
+import { SeatManagementContextProvider } from "./seat-management-context";
 import type { MemberRowData } from "./types";
 
 interface MembersTableProps {
   me: Member;
   members: MemberWithUser[];
   pendingInvitations: Invitation[];
+  showSeatManagement?: boolean;
+  unusedSeats?: number;
 }
 
 export default function MembersTable({
   me,
   members,
   pendingInvitations,
+  showSeatManagement = false,
+  unusedSeats = 0,
 }: MembersTableProps) {
   const t = useTranslations("Components.MembersTable");
 
   return (
-    <MemberActionsModalContextProvider>
-      <InvitationActionsModalContextProvider>
-        <DataTable
-          columns={getColumns(t, me)}
-          data={combineMembersAndPendingInvitations(
-            members,
-            pendingInvitations,
-          )}
-          rowClassName={() => "text-foreground active:bg-muted hover:bg-muted"}
-          containerClassName={cn("w-full rounded-xl bg-muted/50 p-2")}
-          showPagination={members.length > 10}
-          showRowsPerPage={false}
-          enableRowSelection={false}
-          initialPageSize={10}
-        />
-        <MemberActionsModal />
-        <InvitationActionsModal />
-      </InvitationActionsModalContextProvider>
-    </MemberActionsModalContextProvider>
+    <SeatManagementContextProvider
+      showSeatManagement={showSeatManagement}
+      unusedSeats={unusedSeats}
+    >
+      <MemberActionsModalContextProvider>
+        <InvitationActionsModalContextProvider>
+          <DataTable
+            columns={getColumns(t, me, showSeatManagement)}
+            data={combineMembersAndPendingInvitations(
+              members,
+              pendingInvitations,
+            )}
+            rowClassName={() =>
+              "text-foreground active:bg-muted hover:bg-muted"
+            }
+            containerClassName={cn("w-full rounded-xl bg-muted/50 p-2")}
+            showPagination={members.length > 10}
+            showRowsPerPage={false}
+            enableRowSelection={false}
+            initialPageSize={10}
+          />
+          <MemberActionsModal />
+          <InvitationActionsModal />
+        </InvitationActionsModalContextProvider>
+      </MemberActionsModalContextProvider>
+    </SeatManagementContextProvider>
   );
 }
 
-function getColumns(t: ReturnType<typeof useTranslations>, me: Member) {
-  const { nameColumn, emailColumn, roleColumn, actionColumn } =
-    getMembersTableColumns(t, me);
+function getColumns(
+  t: ReturnType<typeof useTranslations>,
+  me: Member,
+  showSeatManagement: boolean,
+) {
+  const { nameColumn, emailColumn, roleColumn, seatColumn, actionColumn } =
+    getMembersTableColumns(t, me, showSeatManagement);
   const isOwnerOrAdmin =
     me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
 
-  return [nameColumn, emailColumn, roleColumn].concat(
-    isOwnerOrAdmin ? [actionColumn] : [],
-  );
+  return [nameColumn, emailColumn, roleColumn]
+    .concat(showSeatManagement ? [seatColumn] : [])
+    .concat(isOwnerOrAdmin ? [actionColumn] : []);
 }
 
 function combineMembersAndPendingInvitations(

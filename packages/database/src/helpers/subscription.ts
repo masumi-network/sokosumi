@@ -7,6 +7,10 @@ import {
   buildOrganizationMemberSubscriptionReferenceId,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
+import {
+  getSortedUniqueUserIds,
+  resolvePurchasedSeats,
+} from "./organization-seats.js";
 
 export const ACTIVE_SUBSCRIPTION_STATUSES = [
   "active",
@@ -43,6 +47,7 @@ export interface EnsureLocalFreeOrganizationSubscriptionPeriodParams
   extends EnsureLocalFreeSubscriptionPeriodBaseParams {
   memberUserIds: string[];
   organizationId: string;
+  purchasedSeats?: number;
 }
 
 export type EnsureLocalFreeSubscriptionPeriodParams =
@@ -64,6 +69,7 @@ export interface TransitionToNextLocalFreeSubscriptionParams {
     id: string;
     periodEnd: Date | null;
     referenceId: string;
+    seats: number | null;
     stripeCustomerId: string | null;
     stripeSubscriptionId: string | null;
   };
@@ -147,12 +153,6 @@ export function isActiveSubscriptionStatus(status: string): boolean {
   );
 }
 
-export function getSortedUniqueUserIds(userIds: string[]): string[] {
-  return Array.from(
-    new Set(userIds.filter((userId) => userId.trim().length > 0)),
-  ).sort();
-}
-
 function isOrganizationSubscriptionPeriodParams(
   params: EnsureLocalFreeSubscriptionPeriodParams,
 ): params is EnsureLocalFreeOrganizationSubscriptionPeriodParams {
@@ -180,15 +180,7 @@ export function buildLocalFreeOrganizationMemberSubscriptionReferenceId(
 function getOrganizationMemberUserIds(
   params: EnsureLocalFreeOrganizationSubscriptionPeriodParams,
 ): string[] {
-  const memberUserIds = getSortedUniqueUserIds(params.memberUserIds);
-
-  if (memberUserIds.length === 0) {
-    throw new Error(
-      `Cannot create local free subscription period for organization ${params.organizationId}: no members found`,
-    );
-  }
-
-  return memberUserIds;
+  return getSortedUniqueUserIds(params.memberUserIds);
 }
 
 function normalizeLocalFreeSubscriptionPeriod(
@@ -228,7 +220,7 @@ function normalizeLocalFreeSubscriptionPeriod(
       userId,
     })),
     organizationId: params.organizationId,
-    seats: memberUserIds.length,
+    seats: resolvePurchasedSeats(params.purchasedSeats),
   };
 }
 
@@ -298,28 +290,26 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
   });
 
   if (organization) {
-    const members = await tx.member.findMany({
+    const assignedMemberUserIds = await tx.member.findMany({
       where: {
         organizationId: organization.id,
+        seatAssignedAt: {
+          not: null,
+        },
       },
       select: {
         userId: true,
       },
     });
 
-    if (members.length === 0) {
-      throw new Error(
-        `Cannot transition subscription ${subscription.id}: organization ${organization.id} has no members`,
-      );
-    }
-
     await ensureLocalFreeSubscriptionPeriod(
       {
         billingAnchorDate: subscription.createdAt,
-        memberUserIds: members.map((member) => member.userId),
+        memberUserIds: assignedMemberUserIds.map((member) => member.userId),
         organizationId: organization.id,
         periodEnd,
         periodStart,
+        purchasedSeats: subscription.seats ?? undefined,
         referenceId: organization.id,
         stripeCustomerId: subscription.stripeCustomerId,
       },
@@ -496,6 +486,12 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
   const members = await tx.member.findMany({
     where: {
       organizationId: params.organizationId,
+      seatAssignedAt: {
+        not: null,
+      },
+    },
+    select: {
+      userId: true,
     },
   });
   const memberUserIds = members.map((member) => member.userId);
@@ -507,6 +503,7 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
       organizationId: params.organizationId,
       periodEnd,
       periodStart,
+      purchasedSeats: 1,
       referenceId: params.organizationId,
       stripeCustomerId: params.stripeCustomerId,
     },

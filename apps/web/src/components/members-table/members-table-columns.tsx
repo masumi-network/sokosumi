@@ -16,6 +16,7 @@ const columnHelper = createColumnHelper<MemberRowData>();
 export function getMembersTableColumns(
   t: ReturnType<typeof useTranslations>,
   me: Member,
+  showSeatManagement: boolean,
 ) {
   return {
     nameColumn: columnHelper.accessor("name", {
@@ -53,6 +54,33 @@ export function getMembersTableColumns(
       ),
       enableSorting: true,
       enableHiding: false,
+    }) as ColumnDef<MemberRowData>,
+
+    seatColumn: columnHelper.display({
+      id: "seat",
+      minSize: 120,
+      header: () => <div>{t("Header.seat")}</div>,
+      cell: ({ row }) => {
+        const { member } = row.original;
+        if (!member) {
+          return null;
+        }
+
+        const hasSeat = member.seatAssignedAt !== null;
+        return (
+          <div className="p-2">
+            <span
+              className={
+                hasSeat
+                  ? "bg-primary/10 text-primary inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
+                  : "bg-muted text-muted-foreground inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
+              }
+            >
+              {hasSeat ? t("Seat.assigned") : t("Seat.unassigned")}
+            </span>
+          </div>
+        );
+      },
     }) as ColumnDef<MemberRowData>,
 
     actionColumn: columnHelper.display({

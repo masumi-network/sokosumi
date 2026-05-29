@@ -4,9 +4,10 @@ import {
   type MemberWithUser,
 } from "@sokosumi/database";
 import { Ellipsis } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
-
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,12 +15,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { assignOrganizationSeat } from "@/lib/actions/organization/seat-action";
 import { cn } from "@/lib/utils";
 
 import {
   MemberAction,
   useMemberActionsModalContext,
 } from "./member-actions-modal-context";
+import { useSeatManagementContext } from "./seat-management-context";
 
 interface MemberActionsDropdownProps {
   me: Member;
@@ -33,8 +36,9 @@ export default function MemberActionsDropdown({
   className,
 }: MemberActionsDropdownProps) {
   const t = useTranslations("Components.MembersTable.MemberActions");
-
+  const router = useRouter();
   const { openActionModal } = useMemberActionsModalContext();
+  const { showSeatManagement, unusedSeats } = useSeatManagementContext();
 
   const handleChangeToOwner = () => {
     openActionModal(member, MemberAction.CHANGE_TO_OWNER);
@@ -52,28 +56,75 @@ export default function MemberActionsDropdown({
     openActionModal(member, MemberAction.REMOVE);
   };
 
+  const handleAssignSeat = async () => {
+    const result = await assignOrganizationSeat({
+      memberId: member.id,
+      organizationId: member.organizationId,
+    });
+    if (!result.ok) {
+      toast.error(result.error.message ?? t("Modal.Error.assignSeat"));
+      return;
+    }
+
+    toast.success(t("Modal.Success.assignSeat"));
+    router.refresh();
+  };
+
+  const handleUnassignSeat = () => {
+    openActionModal(member, MemberAction.UNASSIGN_SEAT);
+  };
+
   const {
+    canAssignSeat,
+    canUnassignSeat,
     hasPermission,
     canChangeToOwner,
     canChangeToAdmin,
     canChangeToMember,
   } = useMemo(() => {
+    const hasSeat = member.seatAssignedAt !== null;
+
     return {
+      canAssignSeat:
+        showSeatManagement &&
+        !hasSeat &&
+        unusedSeats > 0 &&
+        checkPermission(me, member),
+      canUnassignSeat:
+        showSeatManagement && hasSeat && checkPermission(me, member),
       hasPermission: checkPermission(me, member),
       canChangeToOwner: checkCanChangeToOwner(me, member),
       canChangeToAdmin: checkCanChangeToAdmin(me, member),
       canChangeToMember: checkCanChangeToMember(me, member),
     };
-  }, [me, member]);
+  }, [me, member, showSeatManagement, unusedSeats]);
+
+  const hasAnyAction =
+    canAssignSeat ||
+    canUnassignSeat ||
+    canChangeToOwner ||
+    canChangeToAdmin ||
+    canChangeToMember ||
+    hasPermission;
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild disabled={!hasPermission}>
+      <DropdownMenuTrigger asChild disabled={!hasAnyAction}>
         <Button variant="outline" size="icon" className={cn("p-2!", className)}>
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
+        {canAssignSeat ? (
+          <DropdownMenuItem onClick={handleAssignSeat}>
+            {t("assignSeat")}
+          </DropdownMenuItem>
+        ) : null}
+        {canUnassignSeat ? (
+          <DropdownMenuItem onClick={handleUnassignSeat}>
+            {t("unassignSeat")}
+          </DropdownMenuItem>
+        ) : null}
         {canChangeToOwner && (
           <DropdownMenuItem onClick={handleChangeToOwner}>
             {t("changeToOwner")}

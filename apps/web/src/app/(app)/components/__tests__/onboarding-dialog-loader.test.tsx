@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMyMemberInOrganizationMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
+const getSeatSummaryMock = vi.fn();
 const listActiveSubscriptionsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const onboardingDialogMock = vi.fn();
@@ -41,6 +42,9 @@ vi.mock("@/lib/auth/auth", () => ({
 }));
 
 vi.mock("@/lib/services", () => ({
+  organizationSeatService: {
+    getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
+  },
   userService: {
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
@@ -96,6 +100,12 @@ describe("OnboardingDialogLoader", () => {
         plan: "pro",
       },
     ]);
+    getSeatSummaryMock.mockResolvedValue({
+      assignedCount: 2,
+      memberCount: 3,
+      purchasedSeats: 3,
+      unusedSeats: 1,
+    });
   });
 
   afterEach(() => {

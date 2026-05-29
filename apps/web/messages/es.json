@@ -178,7 +178,8 @@
         "name": "Nombre",
         "email": "Email",
         "role": "Rol",
-        "actions": "Acciones"
+        "actions": "Acciones",
+        "seat": "Seat"
       },
       "MemberActions": {
         "remove": "Eliminar",
@@ -196,16 +197,24 @@
           "cancel": "Cancelar",
           "Success": {
             "changeRole": "Rol cambiado correctamente",
-            "remove": "Miembro eliminado correctamente"
+            "remove": "Miembro eliminado correctamente",
+            "assignSeat": "Seat assigned successfully",
+            "unassignSeat": "Seat unassigned successfully"
           },
           "Error": {
             "changeRole": "No se pudo cambiar el rol",
-            "remove": "No se pudo eliminar al miembro"
+            "remove": "No se pudo eliminar al miembro",
+            "assignSeat": "Failed to assign seat",
+            "unassignSeat": "Failed to unassign seat"
           },
           "Errors": {
             "unauthorizedAction": "Iniciar sesión"
-          }
-        }
+          },
+          "unassignSeatTitle": "Unassign seat",
+          "unassignSeatDescription": "Unassigning {member} removes paid seat access for future subscription periods. Current-period credits remain until they expire."
+        },
+        "assignSeat": "Assign seat",
+        "unassignSeat": "Unassign seat"
       },
       "InvitationActions": {
         "resend": "Reenviar invitación",
@@ -223,6 +232,10 @@
         },
         "resendSuccess": "Invitación reenviada correctamente",
         "resendError": "No se pudo reenviar la invitación"
+      },
+      "Seat": {
+        "assigned": "Assigned",
+        "unassigned": "Unassigned"
       }
     },
     "Breadcrumb": {
@@ -2294,7 +2307,7 @@
     "Billing": {
       "balanceTitle": "Saldo",
       "balanceDescriptionPersonal": "Tus Credits actuales en la cuenta personal.",
-      "balanceDescriptionOrganization": "Credits actuales para {organization}. {members, plural, =1 {# miembro} other {# miembros}}, {seats, plural, =1 {# Seat} other {# Seats}}.",
+      "balanceDescriptionOrganization": "Current credits for {organization}. {purchased, plural, =1 {# purchased seat} other {# purchased seats}}, {assigned, plural, =1 {# assigned} other {# assigned}}, {unused, plural, =1 {# unused} other {# unused}}, {members, plural, =1 {# member} other {# members}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Sin Credits} =1 {# Credit} other {# Credits}}",
       "stripeCustomerIdLabel": "ID de cliente de Stripe",
       "tabs": {
@@ -2323,7 +2336,10 @@
         "title": "Algo salió mal",
         "message": "Hubo un problema al cargar los detalles de Billing. Por favor, inténtalo más tarde.",
         "retryButton": "Intentar de nuevo"
-      }
+      },
+      "purchasedSeatsLabel": "Purchased seats",
+      "assignedSeatsLabel": "Assigned seats",
+      "unusedSeatsLabel": "Unused seats"
     },
     "Credits": {
       "billingPortalCta": "Gestionar compras",
@@ -2773,8 +2789,8 @@
           "currentPlanLabel": "Plan actual",
           "currentSeatsLabel": "Seats actuales",
           "membersLabel": "Miembros activos",
-          "seatsInputLabel": "Seats de la organización",
-          "seatsInputHint": "El número mínimo de Seats es {minimum} para cubrir a todos los miembros activos.",
+          "seatsInputLabel": "Purchased seats",
+          "seatsInputHint": "Minimum is {minimum} to cover assigned seats. Organization has {members, plural, =1 {# member} other {# members}}.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Sin Credits por Seat} =1 {# Credit por Seat} other {# Credits por Seat}}",
           "noActivePlan": "Sin plan activo",
           "seatsUpdatedSuccess": "Seats actualizados correctamente.",
@@ -2789,6 +2805,14 @@
             "badInput": "Por favor, proporciona valores válidos de plan y Seats",
             "general": "No se pudo gestionar la suscripción de la organización"
           }
+        },
+        "Seats": {
+          "title": "Seat assignment",
+          "description": "Purchased seats are capacity. Assign seats to members who should receive subscription credits.",
+          "purchased": "Purchased",
+          "assigned": "Assigned",
+          "unused": "Unused",
+          "manageBilling": "Manage billing"
         }
       }
     },

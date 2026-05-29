@@ -12,6 +12,7 @@ vi.mock("server-only", () => ({}));
 const getUserByStripeCustomerIdMock = vi.fn();
 const getOrganizationByStripeCustomerIdMock = vi.fn();
 const getMembersByOrganizationIdMock = vi.fn();
+const getAssignedMemberUserIdsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const invalidateSubscriptionCatalogCacheMock = vi.fn();
 const resolveEnterpriseProductMock = vi.fn();
@@ -71,6 +72,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
+    getAssignedMemberUserIds: (...args: unknown[]) =>
+      getAssignedMemberUserIdsMock(...args),
     getMembersByOrganizationId: (...args: unknown[]) =>
       getMembersByOrganizationIdMock(...args),
   },
@@ -187,12 +190,16 @@ function mockSubscriptionCatalog(): void {
 function mockOrganizationInvoiceContext(
   members: OrganizationMemberFixture[],
   organizationId = "org-1",
+  assignedMemberUserIds?: string[],
 ): void {
   getUserByStripeCustomerIdMock.mockResolvedValue(null);
   getOrganizationByStripeCustomerIdMock.mockResolvedValue({
     id: organizationId,
   });
   getMembersByOrganizationIdMock.mockResolvedValue(members);
+  getAssignedMemberUserIdsMock.mockResolvedValue(
+    assignedMemberUserIds ?? members.map((member) => member.userId).toSorted(),
+  );
 }
 
 function getTransactionCallsByReferenceId(): Map<
@@ -600,13 +607,17 @@ describe("handleInvoicePaidEvent", () => {
     expect(ownerCall?.data.amount).toBe(BigInt("1750000000000"));
   });
 
-  it("logs seat-credit cap when billed organization seats exceed active members", async () => {
+  it("logs seat-credit cap when billed organization seats exceed assigned members", async () => {
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    mockOrganizationInvoiceContext([
-      { role: "member", userId: "member-1" },
-      { role: "owner", userId: "owner-2" },
-    ]);
+    mockOrganizationInvoiceContext(
+      [
+        { role: "member", userId: "member-1" },
+        { role: "owner", userId: "owner-2" },
+      ],
+      "org-1",
+      ["member-1"],
+    );
     mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
@@ -633,13 +644,13 @@ describe("handleInvoicePaidEvent", () => {
         expect.stringContaining("billedSeats=5"),
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("activeMembers=2"),
+        expect.stringContaining("activeMembers=1"),
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("grantedSeats=2"),
+        expect.stringContaining("grantedSeats=1"),
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("droppedSeats=3"),
+        expect.stringContaining("droppedSeats=4"),
       );
     } finally {
       consoleLogSpy.mockRestore();

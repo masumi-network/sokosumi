@@ -11,13 +11,19 @@ import type {
   BetterAuthClientError,
   BetterAuthClientResult,
 } from "@/lib/actions";
+import {
+  assignOrganizationSeat,
+  unassignOrganizationSeat,
+} from "@/lib/actions/organization/seat-action";
 import { authClient } from "@/lib/auth/auth.client";
 
 export enum MemberAction {
+  ASSIGN_SEAT = "ASSIGN_SEAT",
   CHANGE_TO_OWNER = "CHANGE_TO_OWNER",
   CHANGE_TO_ADMIN = "CHANGE_TO_ADMIN",
   CHANGE_TO_MEMBER = "CHANGE_TO_MEMBER",
   REMOVE = "REMOVE",
+  UNASSIGN_SEAT = "UNASSIGN_SEAT",
 }
 
 const {
@@ -38,6 +44,36 @@ export function MemberActionsModalContextProvider({
     action: MemberAction,
   ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {
+      case MemberAction.ASSIGN_SEAT: {
+        const result = await assignOrganizationSeat({
+          memberId: member.id,
+          organizationId: member.organizationId,
+        });
+        if (!result.ok) {
+          return {
+            error: {
+              message: result.error.message ?? t("Error.assignSeat"),
+              status: 400,
+            },
+          };
+        }
+        return { data: result.data };
+      }
+      case MemberAction.UNASSIGN_SEAT: {
+        const result = await unassignOrganizationSeat({
+          memberId: member.id,
+          organizationId: member.organizationId,
+        });
+        if (!result.ok) {
+          return {
+            error: {
+              message: result.error.message ?? t("Error.unassignSeat"),
+              status: 400,
+            },
+          };
+        }
+        return { data: result.data };
+      }
       case MemberAction.CHANGE_TO_OWNER:
         return await authClient.organization.updateMemberRole({
           organizationId: member.organizationId,
@@ -66,11 +102,19 @@ export function MemberActionsModalContextProvider({
 
   async function onSuccess(action: MemberAction) {
     router.refresh();
-    toast.success(
-      action === MemberAction.REMOVE
-        ? t("Success.remove")
-        : t("Success.changeRole"),
-    );
+    if (action === MemberAction.REMOVE) {
+      toast.success(t("Success.remove"));
+      return;
+    }
+    if (action === MemberAction.ASSIGN_SEAT) {
+      toast.success(t("Success.assignSeat"));
+      return;
+    }
+    if (action === MemberAction.UNASSIGN_SEAT) {
+      toast.success(t("Success.unassignSeat"));
+      return;
+    }
+    toast.success(t("Success.changeRole"));
   }
 
   function onError(action: MemberAction, error: BetterAuthClientError) {
@@ -80,7 +124,11 @@ export function MemberActionsModalContextProvider({
       error.message ??
       (action === MemberAction.REMOVE
         ? t("Error.remove")
-        : t("Error.changeRole"));
+        : action === MemberAction.ASSIGN_SEAT
+          ? t("Error.assignSeat")
+          : action === MemberAction.UNASSIGN_SEAT
+            ? t("Error.unassignSeat")
+            : t("Error.changeRole"));
     if (error.status === 401) {
       toast.error(errorMessage, {
         action: {
