@@ -198,23 +198,23 @@
           "Success": {
             "changeRole": "Rol cambiado correctamente",
             "remove": "Miembro eliminado correctamente",
-            "assignSeat": "Seat assigned successfully",
-            "unassignSeat": "Seat unassigned successfully"
+            "assignSeat": "Seat asignado correctamente",
+            "unassignSeat": "Seat eliminado correctamente"
           },
           "Error": {
             "changeRole": "No se pudo cambiar el rol",
             "remove": "No se pudo eliminar al miembro",
-            "assignSeat": "Failed to assign seat",
-            "unassignSeat": "Failed to unassign seat"
+            "assignSeat": "No se pudo asignar el seat",
+            "unassignSeat": "No se pudo quitar el seat"
           },
           "Errors": {
             "unauthorizedAction": "Iniciar sesión"
           },
-          "unassignSeatTitle": "Unassign seat",
-          "unassignSeatDescription": "Unassigning {member} removes paid seat access for future subscription periods. Current-period credits remain until they expire."
+          "unassignSeatTitle": "Quitar seat",
+          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire."
         },
-        "assignSeat": "Assign seat",
-        "unassignSeat": "Unassign seat"
+        "assignSeat": "Asignar seat",
+        "unassignSeat": "Quitar seat"
       },
       "InvitationActions": {
         "resend": "Reenviar invitación",
@@ -234,8 +234,8 @@
         "resendError": "No se pudo reenviar la invitación"
       },
       "Seat": {
-        "assigned": "Assigned",
-        "unassigned": "Unassigned"
+        "assigned": "Paid",
+        "unassigned": "Free"
       }
     },
     "Breadcrumb": {
@@ -2320,9 +2320,9 @@
       "openingBillingPortal": "Abriendo...",
       "enterprisePlanTitle": "Plan {planName}",
       "enterprisePlanDescription": "Tu organización tiene una suscripción Enterprise facturada a través de Stripe.",
-      "enterpriseSeatsLabel": "Plazas",
+      "enterpriseSeatsLabel": "Seats",
       "enterpriseMembersLabel": "Miembros activos",
-      "enterpriseContactSupport": "Contacta con soporte para cambiar tu plan o tus plazas.",
+      "enterpriseContactSupport": "Contacta con soporte para cambiar tu plan o tus seats.",
       "orgAccessRestrictedTitle": "Acceso a Billing restringido",
       "orgAccessRestrictedDescription": "Solo los propietarios y admins de la organización pueden ver los detalles de Billing.",
       "orgAccessRestrictedHint": "Cambia a tu cuenta personal o contacta a un admin de la organización si necesitas acceso.",
@@ -2337,9 +2337,9 @@
         "message": "Hubo un problema al cargar los detalles de Billing. Por favor, inténtalo más tarde.",
         "retryButton": "Intentar de nuevo"
       },
-      "purchasedSeatsLabel": "Purchased seats",
-      "assignedSeatsLabel": "Assigned seats",
-      "unusedSeatsLabel": "Unused seats"
+      "purchasedSeatsLabel": "Seats comprados",
+      "assignedSeatsLabel": "Asignados",
+      "unusedSeatsLabel": "Seats sin usar"
     },
     "Credits": {
       "billingPortalCta": "Gestionar compras",
@@ -2790,29 +2790,29 @@
           "currentSeatsLabel": "Seats actuales",
           "membersLabel": "Miembros activos",
           "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "Minimum is {minimum} to cover assigned seats. Organization has {members, plural, =1 {# member} other {# members}}.",
-          "includedCreditsPerSeat": "{credits, plural, =0 {Sin Credits por Seat} =1 {# Credit por Seat} other {# Credits por Seat}}",
+          "seatsInputHint": "El mínimo es {minimum} para cubrir los Paid seats en uso. La organización tiene {members, plural, =1 {# miembro} other {# miembros}}. Los miembros sin Paid seat reciben créditos mensuales gratuitos.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Sin créditos por seat} =1 {# crédito por seat} other {# créditos por seat}}",
           "noActivePlan": "Sin plan activo",
           "seatsUpdatedSuccess": "Seats actualizados correctamente.",
           "updating": "Redirigiendo...",
           "currentPlanCta": "Plan actual",
-          "updateSeatsCta": "Actualizar Seats",
+          "updateSeatsCta": "Actualizar seats",
           "choosePlanCta": "Elegir plan",
           "Errors": {
             "unauthenticated": "Por favor, inicia sesión para continuar",
             "unauthenticatedAction": "Iniciar sesión",
             "unauthorized": "Solo los propietarios y admins pueden gestionar las suscripciones",
-            "badInput": "Por favor, proporciona valores válidos de plan y Seats",
+            "badInput": "Proporciona valores válidos de plan y seats",
             "general": "No se pudo gestionar la suscripción de la organización"
           }
         },
         "Seats": {
-          "title": "Seat assignment",
-          "description": "Purchased seats are capacity. Assign seats to members who should receive subscription credits.",
-          "purchased": "Purchased",
-          "assigned": "Assigned",
-          "unused": "Unused",
-          "manageBilling": "Manage billing"
+          "title": "Resumen de seats",
+          "description": "Los seats comprados son la capacidad del plan de pago. Los miembros con un Paid seat reciben créditos de suscripción. Los miembros sin Paid seat reciben los créditos mensuales gratuitos de la organización.",
+          "purchased": "Comprados",
+          "assigned": "Asignados",
+          "unused": "Sin usar",
+          "manageBilling": "Gestionar facturación"
         }
       }
     },

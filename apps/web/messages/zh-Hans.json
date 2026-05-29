@@ -198,23 +198,23 @@
           "Success": {
             "changeRole": "角色更改成功",
             "remove": "成员移除成功",
-            "assignSeat": "Seat assigned successfully",
-            "unassignSeat": "Seat unassigned successfully"
+            "assignSeat": "Seat 分配成功",
+            "unassignSeat": "Seat 移除成功"
           },
           "Error": {
             "changeRole": "更改角色失败",
             "remove": "移除成员失败",
-            "assignSeat": "Failed to assign seat",
-            "unassignSeat": "Failed to unassign seat"
+            "assignSeat": "分配 seat 失败",
+            "unassignSeat": "移除 seat 失败"
           },
           "Errors": {
             "unauthorizedAction": "登录"
           },
-          "unassignSeatTitle": "Unassign seat",
-          "unassignSeatDescription": "Unassigning {member} removes paid seat access for future subscription periods. Current-period credits remain until they expire."
+          "unassignSeatTitle": "移除 seat",
+          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire."
         },
-        "assignSeat": "Assign seat",
-        "unassignSeat": "Unassign seat"
+        "assignSeat": "分配 seat",
+        "unassignSeat": "移除 seat"
       },
       "InvitationActions": {
         "resend": "重新发送邀请",
@@ -234,8 +234,8 @@
         "resendError": "重新发送邀请失败"
       },
       "Seat": {
-        "assigned": "Assigned",
-        "unassigned": "Unassigned"
+        "assigned": "Paid",
+        "unassigned": "Free"
       }
     },
     "Breadcrumb": {
@@ -2382,9 +2382,9 @@
       "openingBillingPortal": "正在打开...",
       "enterprisePlanTitle": "{planName} 方案",
       "enterprisePlanDescription": "您的组织正在使用通过 Stripe 开票的 Enterprise 订阅。",
-      "enterpriseSeatsLabel": "席位",
+      "enterpriseSeatsLabel": "Seats",
       "enterpriseMembersLabel": "活跃成员",
-      "enterpriseContactSupport": "请联系支持团队更改您的方案或席位。",
+      "enterpriseContactSupport": "请联系支持团队更改您的方案或 seats。",
       "orgAccessRestrictedTitle": "计费访问受限",
       "orgAccessRestrictedDescription": "只有组织所有者和管理员可以查看该组织的计费详情。",
       "orgAccessRestrictedHint": "如需访问，请切换到个人上下文，或联系组织所有者/管理员。",
@@ -2399,9 +2399,9 @@
         "message": "加载计费详情时遇到问题。请稍后重试。",
         "retryButton": "重试"
       },
-      "purchasedSeatsLabel": "Purchased seats",
-      "assignedSeatsLabel": "Assigned seats",
-      "unusedSeatsLabel": "Unused seats"
+      "purchasedSeatsLabel": "已购买 seats",
+      "assignedSeatsLabel": "已分配",
+      "unusedSeatsLabel": "未使用 seats"
     },
     "Credits": {
       "billingPortalCta": "管理购买记录",
@@ -2849,32 +2849,32 @@
         },
         "Subscription": {
           "currentPlanLabel": "当前套餐",
-          "currentSeatsLabel": "当前席位",
+          "currentSeatsLabel": "当前 seats",
           "membersLabel": "活跃成员",
           "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "Minimum is {minimum} to cover assigned seats. Organization has {members, plural, =1 {# member} other {# members}}.",
-          "includedCreditsPerSeat": "{credits, plural, =0 {每席位无积分} =1 {每席位 # 积分} other {每席位 # 积分}}",
+          "seatsInputHint": "最低为 {minimum}，以覆盖正在使用的 Paid seats。组织共有 {members, plural, =1 {# 名成员} other {# 名成员}}。没有 Paid seat 的成员会获得免费月度积分。",
+          "includedCreditsPerSeat": "{credits, plural, =0 {每个 seat 无积分} =1 {每个 seat # 积分} other {每个 seat # 积分}}",
           "noActivePlan": "无有效套餐",
-          "seatsUpdatedSuccess": "席位更新成功。",
+          "seatsUpdatedSuccess": "Seats 更新成功。",
           "updating": "正在跳转...",
           "currentPlanCta": "当前套餐",
-          "updateSeatsCta": "更新席位",
+          "updateSeatsCta": "更新 seats",
           "choosePlanCta": "选择套餐",
           "Errors": {
             "unauthenticated": "请登录以继续",
             "unauthenticatedAction": "登录",
             "unauthorized": "只有组织所有者和管理员可以管理订阅",
-            "badInput": "请提供有效的套餐和席位数",
+            "badInput": "请提供有效的套餐和 seat 值",
             "general": "管理组织订阅失败"
           }
         },
         "Seats": {
-          "title": "Seat assignment",
-          "description": "Purchased seats are capacity. Assign seats to members who should receive subscription credits.",
-          "purchased": "Purchased",
-          "assigned": "Assigned",
-          "unused": "Unused",
-          "manageBilling": "Manage billing"
+          "title": "Seats 概览",
+          "description": "已购买的 seats 是付费计划的容量。拥有 Paid seat 的成员会获得订阅积分。没有 Paid seat 的成员会获得组织的免费月度积分。",
+          "purchased": "已购买",
+          "assigned": "已分配",
+          "unused": "未使用",
+          "manageBilling": "管理账单"
         }
       }
     },

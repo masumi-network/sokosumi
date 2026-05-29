@@ -252,7 +252,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
     assert.equal(createTransactionMock.mock.calls.length, 2);
   });
 
-  it("allows organization periods with no assigned members", async () => {
+  it("allows organization periods with no unassigned members", async () => {
     const { createSubscriptionMock, createTransactionMock, tx } =
       createTransactionClient();
 
@@ -297,7 +297,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
     assert.equal(createSubscriptionMock.mock.calls[0]?.[0].data.seats, 5);
   });
 
-  it("does not throw when an organization period is created without assigned members", async () => {
+  it("does not throw when an organization period has no unassigned members", async () => {
     const { tx } = createTransactionClient();
 
     await assert.doesNotReject(
@@ -437,9 +437,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       },
       where: {
         organizationId: "org-1",
-        seatAssignedAt: {
-          not: null,
-        },
+        seatAssignedAt: null,
       },
     });
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
@@ -461,7 +459,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     assert.equal(createTransactionMock.mock.calls.length, 2);
   });
 
-  it("creates the initial organization free subscription period with no assigned members", async () => {
+  it("creates the initial organization free subscription period with no members", async () => {
     const {
       createSubscriptionMock,
       createTransactionMock,

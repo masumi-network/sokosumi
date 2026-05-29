@@ -13,7 +13,7 @@ vi.mock("better-auth/api", () => ({
 
 const getMemberByUserIdAndOrganizationIdMock = vi.fn();
 const getAssignedMemberCountMock = vi.fn();
-const getAssignedMemberUserIdsMock = vi.fn();
+const getUnassignedMemberUserIdsMock = vi.fn();
 const ensureLocalFreeSubscriptionPeriodMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const prismaTransactionMock = vi.fn();
@@ -25,8 +25,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getAssignedMemberCount: (...args: unknown[]) =>
       getAssignedMemberCountMock(...args),
-    getAssignedMemberUserIds: (...args: unknown[]) =>
-      getAssignedMemberUserIdsMock(...args),
+    getUnassignedMemberUserIds: (...args: unknown[]) =>
+      getUnassignedMemberUserIdsMock(...args),
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberByUserIdAndOrganizationIdMock(...args),
   },
@@ -384,7 +384,7 @@ describe("organizationSubscriptionService", () => {
       });
     });
 
-    it("syncs local free credits for assigned members only", async () => {
+    it("syncs local free credits for unassigned organization members only", async () => {
       const periodStart = new Date("2026-04-08T00:00:00.000Z");
       const periodEnd = new Date("2026-05-08T00:00:00.000Z");
       getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
@@ -396,7 +396,7 @@ describe("organizationSubscriptionService", () => {
         periodStart,
         stripeSubscriptionId: null,
       });
-      getAssignedMemberUserIdsMock.mockResolvedValue(["user-1"]);
+      getUnassignedMemberUserIdsMock.mockResolvedValue(["user-2"]);
       ensureLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
 
       const { organizationSubscriptionService } = await import(
@@ -409,7 +409,7 @@ describe("organizationSubscriptionService", () => {
         ),
       ).resolves.toBeUndefined();
 
-      expect(getAssignedMemberUserIdsMock).toHaveBeenCalledWith(
+      expect(getUnassignedMemberUserIdsMock).toHaveBeenCalledWith(
         "org-1",
         expect.objectContaining({
           __tx: true,
@@ -419,7 +419,7 @@ describe("organizationSubscriptionService", () => {
       expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
         {
           billingAnchorDate: periodStart,
-          memberUserIds: ["user-1"],
+          memberUserIds: ["user-2"],
           organizationId: "org-1",
           periodEnd,
           periodStart,

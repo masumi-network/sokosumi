@@ -290,12 +290,10 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
   });
 
   if (organization) {
-    const assignedMemberUserIds = await tx.member.findMany({
+    const unassignedMemberUserIds = await tx.member.findMany({
       where: {
         organizationId: organization.id,
-        seatAssignedAt: {
-          not: null,
-        },
+        seatAssignedAt: null,
       },
       select: {
         userId: true,
@@ -305,7 +303,7 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
     await ensureLocalFreeSubscriptionPeriod(
       {
         billingAnchorDate: subscription.createdAt,
-        memberUserIds: assignedMemberUserIds.map((member) => member.userId),
+        memberUserIds: unassignedMemberUserIds.map((member) => member.userId),
         organizationId: organization.id,
         periodEnd,
         periodStart,
@@ -486,9 +484,7 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
   const members = await tx.member.findMany({
     where: {
       organizationId: params.organizationId,
-      seatAssignedAt: {
-        not: null,
-      },
+      seatAssignedAt: null,
     },
     select: {
       userId: true,

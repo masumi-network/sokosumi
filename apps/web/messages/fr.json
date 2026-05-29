@@ -198,23 +198,23 @@
           "Success": {
             "changeRole": "Rôle modifié avec succès",
             "remove": "Membre retiré avec succès",
-            "assignSeat": "Seat assigned successfully",
-            "unassignSeat": "Seat unassigned successfully"
+            "assignSeat": "Seat attribué avec succès",
+            "unassignSeat": "Seat retiré avec succès"
           },
           "Error": {
             "changeRole": "Échec de la modification du rôle",
             "remove": "Échec du retrait du membre",
-            "assignSeat": "Failed to assign seat",
-            "unassignSeat": "Failed to unassign seat"
+            "assignSeat": "Impossible d'attribuer le seat",
+            "unassignSeat": "Impossible de retirer le seat"
           },
           "Errors": {
             "unauthorizedAction": "Se connecter"
           },
-          "unassignSeatTitle": "Unassign seat",
-          "unassignSeatDescription": "Unassigning {member} removes paid seat access for future subscription periods. Current-period credits remain until they expire."
+          "unassignSeatTitle": "Retirer le seat",
+          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire."
         },
-        "assignSeat": "Assign seat",
-        "unassignSeat": "Unassign seat"
+        "assignSeat": "Attribuer un seat",
+        "unassignSeat": "Retirer le seat"
       },
       "InvitationActions": {
         "resend": "Renvoyer l’invitation",
@@ -234,8 +234,8 @@
         "resendError": "Échec du renvoi de l’invitation"
       },
       "Seat": {
-        "assigned": "Assigned",
-        "unassigned": "Unassigned"
+        "assigned": "Paid",
+        "unassigned": "Free"
       }
     },
     "Breadcrumb": {
@@ -2382,9 +2382,9 @@
       "openingBillingPortal": "Ouverture...",
       "enterprisePlanTitle": "Plan {planName}",
       "enterprisePlanDescription": "Votre organisation dispose d’un abonnement Enterprise facturé via Stripe.",
-      "enterpriseSeatsLabel": "Sièges",
+      "enterpriseSeatsLabel": "Seats",
       "enterpriseMembersLabel": "Membres actifs",
-      "enterpriseContactSupport": "Contactez le support pour modifier votre forfait ou vos sièges.",
+      "enterpriseContactSupport": "Contactez le support pour modifier votre forfait ou vos seats.",
       "orgAccessRestrictedTitle": "Accès à la facturation restreint",
       "orgAccessRestrictedDescription": "Seuls les propriétaires et administrateurs de l’organisation peuvent consulter les informations de facturation de cette organisation.",
       "orgAccessRestrictedHint": "Basculez vers un contexte personnel ou contactez un propriétaire/administrateur de l’organisation si vous avez besoin d’un accès.",
@@ -2399,9 +2399,9 @@
         "message": "Nous avons rencontré un problème lors du chargement des informations de facturation. Veuillez réessayer plus tard.",
         "retryButton": "Réessayer"
       },
-      "purchasedSeatsLabel": "Purchased seats",
-      "assignedSeatsLabel": "Assigned seats",
-      "unusedSeatsLabel": "Unused seats"
+      "purchasedSeatsLabel": "Seats achetés",
+      "assignedSeatsLabel": "Attribués",
+      "unusedSeatsLabel": "Seats inutilisés"
     },
     "Credits": {
       "billingPortalCta": "Gérer les achats",
@@ -2849,32 +2849,32 @@
         },
         "Subscription": {
           "currentPlanLabel": "Forfait actuel",
-          "currentSeatsLabel": "Sièges actuels",
+          "currentSeatsLabel": "Seats actuels",
           "membersLabel": "Membres actifs",
           "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "Minimum is {minimum} to cover assigned seats. Organization has {members, plural, =1 {# member} other {# members}}.",
-          "includedCreditsPerSeat": "{credits, plural, =0 {Aucun crédit par siège} =1 {# crédit par siège} other {# crédits par siège}}",
+          "seatsInputHint": "Le minimum est {minimum} pour couvrir les Paid seats utilisés. L'organisation compte {members, plural, =1 {# membre} other {# membres}}. Les membres sans Paid seat reçoivent des crédits mensuels gratuits.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Aucun crédit par seat} =1 {# crédit par seat} other {# crédits par seat}}",
           "noActivePlan": "Aucun forfait actif",
-          "seatsUpdatedSuccess": "Sièges mis à jour avec succès.",
+          "seatsUpdatedSuccess": "Seats mis à jour avec succès.",
           "updating": "Redirection...",
           "currentPlanCta": "Forfait actuel",
-          "updateSeatsCta": "Mettre à jour les sièges",
+          "updateSeatsCta": "Mettre à jour les seats",
           "choosePlanCta": "Choisir un forfait",
           "Errors": {
             "unauthenticated": "Veuillez vous connecter pour continuer",
             "unauthenticatedAction": "Se connecter",
             "unauthorized": "Seuls les propriétaires et administrateurs de l’organisation peuvent gérer les abonnements",
-            "badInput": "Veuillez fournir des valeurs de forfait et de sièges valides",
+            "badInput": "Veuillez fournir des valeurs de forfait et de seats valides",
             "general": "Échec de la gestion de l’abonnement de l’organisation"
           }
         },
         "Seats": {
-          "title": "Seat assignment",
-          "description": "Purchased seats are capacity. Assign seats to members who should receive subscription credits.",
-          "purchased": "Purchased",
-          "assigned": "Assigned",
-          "unused": "Unused",
-          "manageBilling": "Manage billing"
+          "title": "Aperçu des seats",
+          "description": "Les seats achetés représentent la capacité du forfait payant. Les membres avec un Paid seat reçoivent des crédits d'abonnement. Les membres sans Paid seat reçoivent les crédits mensuels gratuits de l'organisation.",
+          "purchased": "Achetés",
+          "assigned": "Attribués",
+          "unused": "Inutilisés",
+          "manageBilling": "Gérer la facturation"
         }
       }
     },

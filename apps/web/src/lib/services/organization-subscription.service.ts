@@ -223,13 +223,13 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
   const purchasedSeats = resolvePurchasedSeats(currentActiveSubscription.seats);
 
   return await prisma.$transaction(async (tx) => {
-    const assignedMemberUserIds =
-      await memberRepository.getAssignedMemberUserIds(organizationId, tx);
+    const unassignedMemberUserIds =
+      await memberRepository.getUnassignedMemberUserIds(organizationId, tx);
 
     await ensureLocalFreeSubscriptionPeriod(
       {
         billingAnchorDate: currentActiveSubscription.createdAt,
-        memberUserIds: assignedMemberUserIds,
+        memberUserIds: unassignedMemberUserIds,
         organizationId,
         periodEnd,
         periodStart,

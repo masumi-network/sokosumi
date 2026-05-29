@@ -225,6 +225,24 @@ export const memberRepository = (() => {
     return getSortedUniqueUserIds(members.map((member) => member.userId));
   }
 
+  async function getUnassignedMemberUserIds(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<string[]> {
+    const members = await tx.member.findMany({
+      where: {
+        organizationId,
+        seatAssignedAt: null,
+      },
+      select: {
+        userId: true,
+      },
+      orderBy: [{ userId: "asc" }],
+    });
+
+    return getSortedUniqueUserIds(members.map((member) => member.userId));
+  }
+
   async function getMemberByIdAndOrganizationId(
     memberId: string,
     organizationId: string,
@@ -303,6 +321,7 @@ export const memberRepository = (() => {
     createMember,
     getAssignedMemberCount,
     getAssignedMemberUserIds,
+    getUnassignedMemberUserIds,
     getMemberByIdAndOrganizationId,
     getMembersWithOrganizationByUserId,
     getMembersOrganizationIdsByUserId,

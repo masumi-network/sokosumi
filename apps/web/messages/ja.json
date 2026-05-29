@@ -198,23 +198,23 @@
           "Success": {
             "changeRole": "役割を変更しました",
             "remove": "メンバーを削除しました",
-            "assignSeat": "Seat assigned successfully",
-            "unassignSeat": "Seat unassigned successfully"
+            "assignSeat": "seatを割り当てました",
+            "unassignSeat": "seatを削除しました"
           },
           "Error": {
             "changeRole": "役割の変更に失敗しました",
             "remove": "メンバーの削除に失敗しました",
-            "assignSeat": "Failed to assign seat",
-            "unassignSeat": "Failed to unassign seat"
+            "assignSeat": "seatの割り当てに失敗しました",
+            "unassignSeat": "seatの削除に失敗しました"
           },
           "Errors": {
             "unauthorizedAction": "ログイン"
           },
-          "unassignSeatTitle": "Unassign seat",
-          "unassignSeatDescription": "Unassigning {member} removes paid seat access for future subscription periods. Current-period credits remain until they expire."
+          "unassignSeatTitle": "seatを削除",
+          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire."
         },
-        "assignSeat": "Assign seat",
-        "unassignSeat": "Unassign seat"
+        "assignSeat": "seatを割り当て",
+        "unassignSeat": "seatを削除"
       },
       "InvitationActions": {
         "resend": "招待を再送信",
@@ -234,8 +234,8 @@
         "resendError": "招待の再送信に失敗しました"
       },
       "Seat": {
-        "assigned": "Assigned",
-        "unassigned": "Unassigned"
+        "assigned": "Paid",
+        "unassigned": "Free"
       }
     },
     "Breadcrumb": {
@@ -2382,9 +2382,9 @@
       "openingBillingPortal": "開いています...",
       "enterprisePlanTitle": "{planName}プラン",
       "enterprisePlanDescription": "あなたの組織は、Stripe経由で請求されるEnterpriseサブスクリプションを利用しています。",
-      "enterpriseSeatsLabel": "シート",
+      "enterpriseSeatsLabel": "Seats",
       "enterpriseMembersLabel": "アクティブメンバー",
-      "enterpriseContactSupport": "プランやシート数を変更するにはサポートにお問い合わせください。",
+      "enterpriseContactSupport": "プランやseats数を変更するにはサポートにお問い合わせください。",
       "orgAccessRestrictedTitle": "請求へのアクセスが制限されています",
       "orgAccessRestrictedDescription": "この組織の請求情報を閲覧できるのは、組織のオーナーと管理者のみです。",
       "orgAccessRestrictedHint": "個人コンテキストに切り替えるか、アクセスが必要な場合は組織のオーナー／管理者にお問い合わせください。",
@@ -2399,9 +2399,9 @@
         "message": "請求情報の読み込み中に問題が発生しました。しばらくしてから再度お試しください。",
         "retryButton": "再試行"
       },
-      "purchasedSeatsLabel": "Purchased seats",
-      "assignedSeatsLabel": "Assigned seats",
-      "unusedSeatsLabel": "Unused seats"
+      "purchasedSeatsLabel": "購入済みseats",
+      "assignedSeatsLabel": "割り当て済み",
+      "unusedSeatsLabel": "未使用seats"
     },
     "Credits": {
       "billingPortalCta": "購入を管理",
@@ -2849,32 +2849,32 @@
         },
         "Subscription": {
           "currentPlanLabel": "現在のプラン",
-          "currentSeatsLabel": "現在のシート数",
+          "currentSeatsLabel": "現在のseats",
           "membersLabel": "アクティブなメンバー",
           "seatsInputLabel": "Purchased seats",
-          "seatsInputHint": "Minimum is {minimum} to cover assigned seats. Organization has {members, plural, =1 {# member} other {# members}}.",
-          "includedCreditsPerSeat": "{credits, plural, =0 {シートあたりクレジットなし} =1 {シートあたり# クレジット} other {シートあたり# クレジット}}",
+          "seatsInputHint": "使用中のPaid seatsをカバーする最小値は{minimum}です。組織には{members, plural, =1 {# 名のメンバー} other {# 名のメンバー}}がいます。Paid seatのないメンバーは無料の月次クレジットを受け取ります。",
+          "includedCreditsPerSeat": "{credits, plural, =0 {seatあたりクレジットなし} =1 {seatあたり# クレジット} other {seatあたり# クレジット}}",
           "noActivePlan": "有効なプランがありません",
-          "seatsUpdatedSuccess": "シート数を更新しました。",
+          "seatsUpdatedSuccess": "Seatsを更新しました。",
           "updating": "リダイレクトしています...",
           "currentPlanCta": "現在のプラン",
-          "updateSeatsCta": "シート数を更新",
+          "updateSeatsCta": "Seatsを更新",
           "choosePlanCta": "プランを選択",
           "Errors": {
             "unauthenticated": "続行するにはログインしてください",
             "unauthenticatedAction": "ログイン",
             "unauthorized": "サブスクリプションを管理できるのは、組織のオーナーと管理者のみです",
-            "badInput": "有効なプランとシート数を指定してください",
+            "badInput": "有効なプランとseat数を指定してください",
             "general": "組織のサブスクリプション管理に失敗しました"
           }
         },
         "Seats": {
-          "title": "Seat assignment",
-          "description": "Purchased seats are capacity. Assign seats to members who should receive subscription credits.",
-          "purchased": "Purchased",
-          "assigned": "Assigned",
-          "unused": "Unused",
-          "manageBilling": "Manage billing"
+          "title": "seatsの概要",
+          "description": "購入したseatsはPaidプランの容量です。Paid seatを持つメンバーはサブスクリプションクレジットを受け取ります。Paid seatを持たないメンバーは組織の無料月次クレジットを受け取ります。",
+          "purchased": "購入済み",
+          "assigned": "割り当て済み",
+          "unused": "未使用",
+          "manageBilling": "請求を管理"
         }
       }
     },
