@@ -57,17 +57,22 @@ export default function MemberActionsDropdown({
   };
 
   const handleAssignSeat = async () => {
-    const result = await assignOrganizationSeat({
-      memberId: member.id,
-      organizationId: member.organizationId,
-    });
-    if (!result.ok) {
-      toast.error(result.error.message ?? t("Modal.Error.assignSeat"));
-      return;
-    }
+    try {
+      const result = await assignOrganizationSeat({
+        memberId: member.id,
+        organizationId: member.organizationId,
+      });
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("Modal.Error.assignSeat"));
+        return;
+      }
 
-    toast.success(t("Modal.Success.assignSeat"));
-    router.refresh();
+      toast.success(t("Modal.Success.assignSeat"));
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to assign seat", error);
+      toast.error(t("Modal.Error.assignSeat"));
+    }
   };
 
   const handleUnassignSeat = () => {
