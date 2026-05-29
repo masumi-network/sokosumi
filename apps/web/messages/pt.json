@@ -2288,6 +2288,8 @@
       "openingBillingPortal": "A abrir...",
       "billingPortalCta": "Abrir portal de faturação",
       "freePrice": "Gratuito",
+      "customPrice": "Personalizado",
+      "contactUsCta": "Contacte-nos",
       "Plans": {
         "free": {
           "name": "Gratuito",
@@ -2336,6 +2338,18 @@
               "item1": "Grande quantidade de créditos para agentes",
               "item2": "Modelos personalizados para ficheiros de output",
               "item3": "Acesso antecipado a novos agentes e funcionalidades"
+            }
+          }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Plano personalizado para organizações com Seats, créditos e suporte à medida.",
+          "features": {
+            "title": "O Enterprise inclui:",
+            "items": {
+              "item1": "Plano à medida da sua organização",
+              "item2": "Atribuição personalizada de Seats e créditos",
+              "item3": "Alterações de plano geridas pelo suporte"
             }
           }
         }

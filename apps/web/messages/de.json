@@ -2226,6 +2226,8 @@
       "openingBillingPortal": "Wird geöffnet...",
       "billingPortalCta": "Billing-Portal öffnen",
       "freePrice": "Kostenlos",
+      "customPrice": "Individuell",
+      "contactUsCta": "Kontakt aufnehmen",
       "Plans": {
         "free": {
           "name": "Free",
@@ -2274,6 +2276,18 @@
               "item1": "Großzügiges Credit-Kontingent für Agents",
               "item2": "Individuelle Vorlagen für Office-Dokumente",
               "item3": "Früher Zugang zu neuen Agents & Features"
+            }
+          }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Individueller Plan für Organisationen mit abgestimmten Seats, Credits und Support.",
+          "features": {
+            "title": "Enterprise enthält:",
+            "items": {
+              "item1": "Individueller Plan für deine Organisation",
+              "item2": "Individuelle Seat- und Credit-Zuteilung",
+              "item3": "Durch den Support verwaltete Planänderungen"
             }
           }
         }

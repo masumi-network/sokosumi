@@ -2226,6 +2226,8 @@
       "openingBillingPortal": "Abriendo...",
       "billingPortalCta": "Abrir portal de Billing",
       "freePrice": "Gratis",
+      "customPrice": "Personalizado",
+      "contactUsCta": "Contáctanos",
       "Plans": {
         "free": {
           "name": "Gratis",
@@ -2274,6 +2276,18 @@
               "item1": "Gran cuota de Credits para Agents",
               "item2": "Plantillas personalizadas para documentos de Office",
               "item3": "Acceso anticipado a nuevos Agents y funciones"
+            }
+          }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Plan personalizado para organizaciones con Seats, créditos y soporte a medida.",
+          "features": {
+            "title": "Enterprise incluye:",
+            "items": {
+              "item1": "Plan a medida para tu organización",
+              "item2": "Asignación personalizada de Seats y créditos",
+              "item3": "Cambios de plan gestionados por soporte"
             }
           }
         }

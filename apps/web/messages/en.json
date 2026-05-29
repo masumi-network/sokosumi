@@ -2288,6 +2288,8 @@
       "openingBillingPortal": "Opening...",
       "billingPortalCta": "Open billing portal",
       "freePrice": "Free",
+      "customPrice": "Custom",
+      "contactUsCta": "Contact us",
       "Plans": {
         "free": {
           "name": "Free",
@@ -2336,6 +2338,18 @@
               "item1": "Massive Amount of Credits for Agents",
               "item2": "Custom Templates for Output Files",
               "item3": "Early Access to new Agents & Features"
+            }
+          }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Custom plan for organizations with tailored seats, credits, and support.",
+          "features": {
+            "title": "Enterprise includes:",
+            "items": {
+              "item1": "Tailored plan for your organization",
+              "item2": "Custom seat and credit allocation",
+              "item3": "Support-managed plan changes"
             }
           }
         }

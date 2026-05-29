@@ -2288,6 +2288,8 @@
       "openingBillingPortal": "正在打开...",
       "billingPortalCta": "打开计费门户",
       "freePrice": "免费",
+      "customPrice": "自定义",
+      "contactUsCta": "联系我们",
       "Plans": {
         "free": {
           "name": "免费",
@@ -2336,6 +2338,18 @@
               "item1": "为智能体提供大量积分",
               "item2": "输出文件的自定义模板",
               "item3": "抢先体验新智能体与功能"
+            }
+          }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "为组织提供席位、额度和支持定制的方案。",
+          "features": {
+            "title": "Enterprise 包含：",
+            "items": {
+              "item1": "为您的组织定制的方案",
+              "item2": "自定义席位和额度分配",
+              "item3": "由支持团队管理方案变更"
             }
           }
         }

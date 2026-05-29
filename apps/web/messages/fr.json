@@ -2288,6 +2288,8 @@
       "openingBillingPortal": "Ouverture...",
       "billingPortalCta": "Ouvrir le portail de facturation",
       "freePrice": "Gratuit",
+      "customPrice": "Personnalisé",
+      "contactUsCta": "Nous contacter",
       "Plans": {
         "free": {
           "name": "Gratuit",
@@ -2336,6 +2338,18 @@
               "item1": "Grand volume de crédits pour les agents",
               "item2": "Modèles personnalisés pour les fichiers de sortie",
               "item3": "Accès anticipé aux nouveaux agents et fonctionnalités"
+            }
+          }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Forfait personnalisé pour les organisations avec Seats, crédits et support adaptés.",
+          "features": {
+            "title": "Enterprise inclut :",
+            "items": {
+              "item1": "Forfait adapté à votre organisation",
+              "item2": "Attribution personnalisée de Seats et de crédits",
+              "item3": "Changements de forfait gérés par le support"
             }
           }
         }

@@ -20,6 +20,7 @@ import {
   resolveMinimumOrganizationSeats,
   resolveTargetOrganizationSeats,
 } from "./organization-seat-settings-fields";
+import { SubscriptionEnterprisePlanCard } from "./subscription-enterprise-plan-card";
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
 import {
@@ -262,6 +263,7 @@ export function OrganizationSubscriptionSection({
               />
             );
           })}
+          <SubscriptionEnterprisePlanCard />
         </div>
 
         {freePlan ? (

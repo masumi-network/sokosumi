@@ -2288,6 +2288,8 @@
       "openingBillingPortal": "開いています...",
       "billingPortalCta": "請求ポータルを開く",
       "freePrice": "無料",
+      "customPrice": "カスタム",
+      "contactUsCta": "お問い合わせ",
       "Plans": {
         "free": {
           "name": "無料",
@@ -2336,6 +2338,18 @@
               "item1": "エージェント向けの大量クレジット",
               "item2": "出力ファイル用のカスタムテンプレート",
               "item3": "新しいエージェント／機能への先行アクセス"
+            }
+          }
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "シート数、クレジット、サポートを組織に合わせて調整できるカスタムプランです。",
+          "features": {
+            "title": "Enterpriseに含まれるもの:",
+            "items": {
+              "item1": "組織に合わせたプラン",
+              "item2": "カスタムのシート数とクレジット割り当て",
+              "item3": "サポートが管理するプラン変更"
             }
           }
         }
