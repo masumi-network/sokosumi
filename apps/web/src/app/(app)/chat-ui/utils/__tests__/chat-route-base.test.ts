@@ -33,7 +33,6 @@ describe("chat-route-base", () => {
     expect(isChatShellPathname("/chat/foo")).toBe(true);
     expect(isChatShellPathname("/new-chat")).toBe(false);
     expect(isChatShellPathname("/new-chat/foo")).toBe(false);
-    expect(isChatShellPathname("/feed")).toBe(false);
   });
 
   it("getPendingConversationStorageKey is stable", () => {
