@@ -5,8 +5,6 @@ import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
-
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import MemberActionsDropdown from "./member-actions-dropdown";
 import type { MemberRowData } from "./types";
@@ -17,7 +15,6 @@ export function getMembersTableColumns(
   t: ReturnType<typeof useTranslations>,
   me: Member,
   showSeatManagement: boolean,
-  paidPlan: SubscriptionPlanName | null,
 ) {
   return {
     nameColumn: columnHelper.accessor("name", {
@@ -61,9 +58,7 @@ export function getMembersTableColumns(
       id: "seat",
       minSize: 120,
       header: () => <div>{t("Header.seat")}</div>,
-      cell: ({ row }) => (
-        <SeatStatusCell member={row.original.member} paidPlan={paidPlan} />
-      ),
+      cell: ({ row }) => <SeatStatusCell member={row.original.member} />,
     }) as ColumnDef<MemberRowData>,
 
     actionColumn: columnHelper.display({
@@ -86,20 +81,14 @@ export function getMembersTableColumns(
   };
 }
 
-function SeatStatusCell({
-  member,
-  paidPlan,
-}: {
-  member: MemberRowData["member"];
-  paidPlan: SubscriptionPlanName | null;
-}) {
+function SeatStatusCell({ member }: { member: MemberRowData["member"] }) {
   const t = useTranslations("Components.MembersTable.Seat");
 
   if (!member) {
     return null;
   }
 
-  const isAssigned = member.seatAssignedAt !== null && paidPlan !== null;
+  const isAssigned = member.seatAssignedAt !== null;
   const label = isAssigned ? t("assigned") : t("unassigned");
 
   return (

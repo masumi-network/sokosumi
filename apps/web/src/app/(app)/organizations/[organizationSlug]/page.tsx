@@ -117,7 +117,6 @@ export default async function OrganizationPage({
             me={member}
             members={members}
             pendingInvitations={pendingInvitations}
-            paidPlan={seatSummary?.paidPlan ?? null}
             showSeatManagement={isOwnerOrAdmin}
             unusedSeats={seatSummary?.unusedSeats ?? 0}
           />
