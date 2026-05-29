@@ -165,7 +165,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               members: seatSummary.memberCount,
               organization: activeOrganization.name,
               purchased: seatSummary.purchasedSeats,
-              seats: currentSeats,
               unused: seatSummary.unusedSeats,
             })}
             creditsLabel={t("balanceCreditsLabel", {
