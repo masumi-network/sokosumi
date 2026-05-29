@@ -6,10 +6,18 @@ import type Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
-export type SubscriptionPlanName = "free" | "pro" | "standard" | "starter";
+export type SubscriptionPlanName =
+  | "enterprise"
+  | "free"
+  | "pro"
+  | "standard"
+  | "starter";
 
-/** Paid catalog plans (excludes `free`). Used for Stripe checkout upgrade flows. */
-export type PaidSubscriptionPlanName = Exclude<SubscriptionPlanName, "free">;
+/** Self-serve paid plans in Stripe checkout upgrade flows (excludes support-managed enterprise). */
+export type PaidSubscriptionPlanName = Exclude<
+  SubscriptionPlanName,
+  "enterprise" | "free"
+>;
 
 export interface SubscriptionCatalogPlan {
   credits: number;

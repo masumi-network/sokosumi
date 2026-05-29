@@ -263,7 +263,14 @@ export function OrganizationSubscriptionSection({
               />
             );
           })}
-          <SubscriptionEnterprisePlanCard />
+          <SubscriptionEnterprisePlanCard
+            actionLabel={
+              currentPlan === "enterprise" && cancelAtPeriodEnd
+                ? cancellationLabel
+                : undefined
+            }
+            isCurrent={currentPlan === "enterprise"}
+          />
         </div>
 
         {freePlan ? (

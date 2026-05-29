@@ -54,8 +54,8 @@ vi.mock("../subscription-free-plan-row", () => ({
 }));
 
 vi.mock("../subscription-enterprise-plan-card", () => ({
-  SubscriptionEnterprisePlanCard: () => {
-    subscriptionEnterprisePlanCardMock();
+  SubscriptionEnterprisePlanCard: (props: unknown) => {
+    subscriptionEnterprisePlanCardMock(props);
     return <div data-testid="subscription-enterprise-plan-card" />;
   },
 }));
@@ -99,6 +99,33 @@ describe("OrganizationSubscriptionSection", () => {
       data: { mode: "redirect", url: "https://checkout.stripe.com/test" },
       ok: true,
     });
+  });
+
+  it("marks the enterprise card as current for enterprise subscriptions", () => {
+    render(
+      <OrganizationSubscriptionSection
+        assignedSeatCount={2}
+        cancelAtPeriodEnd={false}
+        currentPlan="enterprise"
+        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        currentSeats={5}
+        memberCount={3}
+        organizationId="org-enterprise"
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+      />,
+    );
+
+    expect(subscriptionEnterprisePlanCardMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isCurrent: true,
+      }),
+    );
+    expect(subscriptionFreePlanRowMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan: expect.objectContaining({ isCurrent: false, name: "free" }),
+      }),
+    );
   });
 
   it("renders a cancel action for the current paid plan and no action for free", () => {

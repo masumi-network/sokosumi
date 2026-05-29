@@ -55,6 +55,8 @@ export function getPlanTranslationKey(plan: SubscriptionPlanName): string {
       return "starter";
     case "standard":
       return "standard";
+    case "enterprise":
+      return "enterprise";
     case "pro":
       return "pro";
     default: {
@@ -83,6 +85,7 @@ export function parsePlanName(
     case "free":
     case "starter":
     case "standard":
+    case "enterprise":
     case "pro":
       return value.toLowerCase() as SubscriptionPlanName;
     default:
