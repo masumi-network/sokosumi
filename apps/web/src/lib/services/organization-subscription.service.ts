@@ -216,9 +216,6 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
     );
     const periodEnd = currentActiveSubscription.periodEnd;
 
-    // Paid (Stripe-backed) organization: unassigned members receive the free
-    // monthly tier for the current period without a separate local-free
-    // subscription row.
     if (periodEnd && periodEnd > new Date()) {
       await prisma.$transaction(async (tx) => {
         const unassignedMemberUserIds =

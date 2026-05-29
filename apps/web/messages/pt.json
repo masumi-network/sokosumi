@@ -2284,8 +2284,6 @@
       "openingBillingPortal": "A abrir...",
       "billingPortalCta": "Abrir portal de faturação",
       "freePrice": "Gratuito",
-      "customPrice": "Personalizado",
-      "contactUsCta": "Contacte-nos",
       "Plans": {
         "free": {
           "name": "Gratuito",
@@ -2336,18 +2334,6 @@
               "item3": "Acesso antecipado a novos agentes e funcionalidades"
             }
           }
-        },
-        "enterprise": {
-          "name": "Enterprise",
-          "description": "Plano personalizado para organizações com lugares, créditos e suporte à medida.",
-          "features": {
-            "title": "O Enterprise inclui:",
-            "items": {
-              "item1": "Plano à medida da sua organização",
-              "item2": "Atribuição personalizada de lugares e créditos",
-              "item3": "Alterações de plano geridas pelo suporte"
-            }
-          }
         }
       },
       "Errors": {
@@ -2376,11 +2362,6 @@
       "billingPortalDescription": "Transfira as suas faturas, altere as suas moradas de faturação e gira outras informações de faturação.",
       "manageYourBilling": "Gerir faturação",
       "openingBillingPortal": "A abrir...",
-      "enterprisePlanTitle": "Plano {planName}",
-      "enterprisePlanDescription": "A sua organização tem uma subscrição Enterprise faturada através da Stripe.",
-      "enterpriseSeatsLabel": "Seats",
-      "enterpriseMembersLabel": "Membros ativos",
-      "enterpriseContactSupport": "Contacte o suporte para alterar o seu plano ou Seats.",
       "orgAccessRestrictedTitle": "Acesso à faturação restrito",
       "orgAccessRestrictedDescription": "Apenas os proprietários e administradores da organização podem ver os detalhes de faturação desta organização.",
       "orgAccessRestrictedHint": "Mude para um contexto pessoal ou contacte um proprietário/administrador da organização se precisar de acesso.",

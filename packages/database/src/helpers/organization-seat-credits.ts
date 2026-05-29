@@ -20,17 +20,6 @@ export function buildOrganizationSeatAssignmentSubscriptionReferenceId(
   );
 }
 
-/**
- * Counts organization members that already hold a paid subscription-period
- * credit bucket that has not expired yet (i.e. belongs to the current period).
- *
- * Matching by "not yet expired" rather than an exact `expiresAt === periodEnd`
- * avoids coupling to the exact timestamp the Stripe integration stored on the
- * local subscription: invoice-granted buckets and the local
- * `Subscription.periodEnd` come from different writers and may drift by edge
- * cases (proration, event ordering). Previous-period buckets expire at the
- * prior period end (<= now) and are therefore excluded.
- */
 export async function countOrganizationSubscriptionPeriodSeatGrants(
   organizationId: string,
   now: Date,
@@ -46,8 +35,6 @@ export async function countOrganizationSubscriptionPeriodSeatGrants(
       referenceId: {
         startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
       },
-      // Free-tier grants share the member prefix but must not count as used
-      // paid seats.
       NOT: {
         referenceId: {
           contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,
@@ -74,8 +61,6 @@ export async function hasOrganizationMemberSubscriptionPeriodGrant(
       referenceId: {
         startsWith: `${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}${userId}:`,
       },
-      // A held free-tier grant must not block a paid seat grant when the member
-      // is later assigned a seat.
       NOT: {
         referenceId: {
           contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,

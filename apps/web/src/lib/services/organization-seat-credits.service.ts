@@ -20,10 +20,7 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import {
-  getSubscriptionCatalog,
-  resolveEnterpriseProduct,
-} from "@/lib/stripe/subscription-catalog";
+import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
@@ -85,45 +82,17 @@ async function markOutOfCreditsTasksAsToppedUp(params: {
   }
 }
 
-async function resolveCreditsPerSeatForSubscription(subscription: {
-  plan: string;
-  stripeSubscriptionId: string;
-}): Promise<number | null> {
-  if (subscription.plan === FREE_SUBSCRIPTION_PLAN) {
+async function resolveCreditsPerSeatForSubscription(
+  plan: string,
+): Promise<number | null> {
+  if (plan === FREE_SUBSCRIPTION_PLAN) {
     return null;
   }
 
   const catalog = await getSubscriptionCatalog(stripeInstance);
 
-  if (subscription.plan === "enterprise") {
-    const stripeSubscription = await stripeInstance.subscriptions.retrieve(
-      subscription.stripeSubscriptionId,
-      {
-        expand: ["items.data.price.product"],
-      },
-    );
-    const firstItem = stripeSubscription.items.data[0];
-    const product = firstItem?.price?.product;
-    const productId =
-      typeof product === "string" ? product : (product?.id ?? null);
-
-    if (!productId) {
-      return null;
-    }
-
-    const enterprisePlan = await resolveEnterpriseProduct(
-      stripeInstance,
-      productId,
-    );
-    return enterprisePlan?.credits ?? null;
-  }
-
-  if (
-    subscription.plan === "starter" ||
-    subscription.plan === "standard" ||
-    subscription.plan === "pro"
-  ) {
-    return catalog[subscription.plan].credits;
+  if (plan === "starter" || plan === "standard" || plan === "pro") {
+    return catalog[plan].credits;
   }
 
   return null;
@@ -166,10 +135,7 @@ export async function grantUnusedSeatSubscriptionCreditsIfEligible(
         now,
         tx,
       ),
-      resolveCreditsPerSeatForSubscription({
-        plan: subscription.plan,
-        stripeSubscriptionId: subscription.stripeSubscriptionId,
-      }),
+      resolveCreditsPerSeatForSubscription(subscription.plan),
     ]);
 
   if (memberAlreadyHasGrant || creditsPerSeat === null || creditsPerSeat <= 0) {

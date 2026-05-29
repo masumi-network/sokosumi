@@ -7,7 +7,6 @@ const countOrganizationSubscriptionPeriodSeatGrantsMock = vi.fn();
 const hasOrganizationMemberSubscriptionPeriodGrantMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
-const resolveEnterpriseProductMock = vi.fn();
 const subscriptionsRetrieveMock = vi.fn();
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -39,8 +38,6 @@ vi.mock("@/config/env.secrets", () => ({
 vi.mock("@/lib/stripe/subscription-catalog", () => ({
   getSubscriptionCatalog: (...args: unknown[]) =>
     getSubscriptionCatalogMock(...args),
-  resolveEnterpriseProduct: (...args: unknown[]) =>
-    resolveEnterpriseProductMock(...args),
 }));
 
 vi.mock("stripe", () => ({

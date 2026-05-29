@@ -13,7 +13,6 @@ import { BalanceSection } from "@/components/billing/balance-section";
 import { BillingTabs } from "@/components/billing/billing-tabs";
 import CouponSection from "@/components/billing/coupon-section";
 import CreditsSection from "@/components/billing/credits-section";
-import { OrganizationEnterprisePlanCard } from "@/components/billing/organization-enterprise-plan-card";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import {
@@ -68,10 +67,7 @@ function parseBillingTab(tab: string | undefined): BillingTab {
 }
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
-  const [t, tSubscriptions] = await Promise.all([
-    getTranslations("App.Billing"),
-    getTranslations("App.Subscriptions"),
-  ]);
+  const t = await getTranslations("App.Billing");
   const [query, session, activeOrganization, isZeroMarginTopUpEnabled] =
     await Promise.all([
       searchParams,
@@ -178,8 +174,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             stripeCustomerId={activeOrganization.stripeCustomerId}
             stripeCustomerLabel={t("stripeCustomerIdLabel")}
             billingPortal={
-              activeOrganization.stripeCustomerId &&
-              currentPlan !== "enterprise" ? (
+              activeOrganization.stripeCustomerId ? (
                 <BalanceBillingPortalLink
                   baseReturnPath="/billing"
                   description={t("billingPortalDescription")}
@@ -204,37 +199,19 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             }}
             showCreditsTab
             subscriptionContent={
-              currentPlan === "enterprise" ? (
-                <OrganizationEnterprisePlanCard
-                  assignedSeatCount={seatSummary.assignedCount}
-                  assignedSeatsLabel={t("assignedSeatsLabel")}
-                  contactSupportText={t("enterpriseContactSupport")}
-                  description={t("enterprisePlanDescription")}
-                  memberCount={seatSummary.memberCount}
-                  membersLabel={t("enterpriseMembersLabel")}
-                  purchasedSeats={seatSummary.purchasedSeats}
-                  purchasedSeatsLabel={t("purchasedSeatsLabel")}
-                  title={t("enterprisePlanTitle", {
-                    planName: tSubscriptions("Plans.enterprise.name"),
-                  })}
-                  unusedSeats={seatSummary.unusedSeats}
-                  unusedSeatsLabel={t("unusedSeatsLabel")}
-                />
-              ) : (
-                <OrganizationSubscriptionSection
-                  assignedSeatCount={seatSummary.assignedCount}
-                  cancelAtPeriodEnd={
-                    latestSubscription?.cancelAtPeriodEnd ?? false
-                  }
-                  currentPlan={currentPlan}
-                  currentPeriodEnd={latestSubscription?.periodEnd ?? null}
-                  currentSeats={currentSeats}
-                  memberCount={seatSummary.memberCount}
-                  organizationId={activeOrganization.id}
-                  plans={orgPlans}
-                  returnPath="/billing?tab=subscription"
-                />
-              )
+              <OrganizationSubscriptionSection
+                assignedSeatCount={seatSummary.assignedCount}
+                cancelAtPeriodEnd={
+                  latestSubscription?.cancelAtPeriodEnd ?? false
+                }
+                currentPlan={currentPlan}
+                currentPeriodEnd={latestSubscription?.periodEnd ?? null}
+                currentSeats={currentSeats}
+                memberCount={seatSummary.memberCount}
+                organizationId={activeOrganization.id}
+                plans={orgPlans}
+                returnPath="/billing?tab=subscription"
+              />
             }
             creditsContent={
               <CreditsSection
@@ -308,7 +285,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           stripeCustomerId={user?.stripeCustomerId ?? null}
           stripeCustomerLabel={t("stripeCustomerIdLabel")}
           billingPortal={
-            user?.stripeCustomerId && currentPlan !== "enterprise" ? (
+            user?.stripeCustomerId ? (
               <BalanceBillingPortalLink
                 baseReturnPath="/billing"
                 description={t("billingPortalDescription")}

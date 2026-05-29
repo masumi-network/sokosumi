@@ -84,10 +84,6 @@ export function PersonalSubscriptionSection({
   }, [cancellationDate, t]);
 
   async function handlePlanAction(plan: PaidSubscriptionPlanName) {
-    if (plan === "enterprise") {
-      return;
-    }
-
     setPendingPlan(plan);
     try {
       const result = await upgradePersonalSubscription({

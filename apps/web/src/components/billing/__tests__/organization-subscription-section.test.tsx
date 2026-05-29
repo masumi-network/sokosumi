@@ -7,7 +7,6 @@ const pushMock = vi.fn();
 const updateOrganizationSubscriptionSeatsMock = vi.fn();
 const upgradeOrganizationSubscriptionMock = vi.fn();
 const subscriptionPlanCardMock = vi.fn();
-const subscriptionEnterprisePlanCardMock = vi.fn();
 const subscriptionFreePlanRowMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -50,13 +49,6 @@ vi.mock("../subscription-free-plan-row", () => ({
   SubscriptionFreePlanRow: (props: unknown) => {
     subscriptionFreePlanRowMock(props);
     return <div data-testid="subscription-free-plan-row" />;
-  },
-}));
-
-vi.mock("../subscription-enterprise-plan-card", () => ({
-  SubscriptionEnterprisePlanCard: () => {
-    subscriptionEnterprisePlanCardMock();
-    return <div data-testid="subscription-enterprise-plan-card" />;
   },
 }));
 
@@ -129,7 +121,6 @@ describe("OrganizationSubscriptionSection", () => {
         plan: expect.objectContaining({ name: "free" }),
       }),
     );
-    expect(subscriptionEnterprisePlanCardMock).toHaveBeenCalledTimes(1);
   });
 
   it("shows the scheduled cancellation date on the current paid plan", () => {

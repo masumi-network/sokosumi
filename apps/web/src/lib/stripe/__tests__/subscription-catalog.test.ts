@@ -17,11 +17,10 @@ const ENV = {
 };
 
 interface MockProductParams {
-  active?: boolean;
   credits?: number;
   interval?: "day" | "month" | "week" | "year";
   intervalCount?: number;
-  planName: "enterprise" | "pro" | "standard" | "starter";
+  planName: "pro" | "standard" | "starter";
   priceId: string;
   productId: string;
   unitAmount: number;
@@ -29,7 +28,7 @@ interface MockProductParams {
 
 function createMockProduct(params: MockProductParams): unknown {
   return {
-    active: params.active ?? true,
+    active: true,
     default_price: {
       id: params.priceId,
       recurring: {
@@ -77,18 +76,11 @@ function createBaseProducts() {
   };
 }
 
-function createMockStripe(params?: {
-  listProducts?: unknown[];
-  products?: Record<string, unknown>;
-}) {
+function createMockStripe(params?: { products?: Record<string, unknown> }) {
   const products = {
     ...createBaseProducts(),
     ...(params?.products ?? {}),
   };
-  const listMock = vi.fn(async () => ({
-    data: params?.listProducts ?? [],
-    has_more: false,
-  }));
   const retrieveMock = vi.fn(async (productId: string) => {
     const product = products[productId];
     if (!product) {
@@ -99,11 +91,9 @@ function createMockStripe(params?: {
   });
 
   return {
-    listMock,
     retrieveMock,
     stripe: {
       products: {
-        list: listMock,
         retrieve: retrieveMock,
       },
     },
@@ -118,7 +108,7 @@ describe("subscription-catalog", () => {
   });
 
   it("builds catalog from paid product metadata and a synthetic local free tier", async () => {
-    const { listMock, retrieveMock, stripe } = createMockStripe();
+    const { retrieveMock, stripe } = createMockStripe();
 
     const { getBetterAuthSubscriptionPlans, getSubscriptionCatalog } =
       await import("../subscription-catalog");
@@ -130,8 +120,6 @@ describe("subscription-catalog", () => {
     expect(catalog.starter.credits).toBe(1750);
     expect(catalog.standard.monthlyAmount).toBe(7500);
     expect(catalog.pro.priceId).toBe("price_pro");
-    expect(catalog.enterpriseProducts).toEqual([]);
-    expect(listMock).toHaveBeenCalledWith({ active: true, limit: 100 });
     expect(retrieveMock).toHaveBeenCalledTimes(3);
 
     const plans = await getBetterAuthSubscriptionPlans(stripe as never);
@@ -150,87 +138,6 @@ describe("subscription-catalog", () => {
         limits: { credits: 14000 },
         name: "pro",
         priceId: "price_pro",
-      },
-    ]);
-  });
-
-  it("discovers enterprise products by metadata and exposes one Better Auth plan per product", async () => {
-    const enterpriseProducts = {
-      prod_enterprise_a: createMockProduct({
-        planName: "enterprise",
-        priceId: "price_enterprise_a",
-        productId: "prod_enterprise_a",
-        credits: 50000,
-        unitAmount: 120000,
-      }),
-      prod_enterprise_b: createMockProduct({
-        planName: "enterprise",
-        priceId: "price_enterprise_b",
-        productId: "prod_enterprise_b",
-        credits: 75000,
-        unitAmount: 180000,
-      }),
-    };
-    const { retrieveMock, stripe } = createMockStripe({
-      listProducts: [
-        { id: "prod_enterprise_a", metadata: { slug: " enterprise " } },
-        { id: "prod_ignored", metadata: { slug: "starter" } },
-        { id: "prod_enterprise_b", metadata: { slug: "ENTERPRISE" } },
-      ],
-      products: enterpriseProducts,
-    });
-
-    const { getBetterAuthSubscriptionPlans, getSubscriptionCatalog } =
-      await import("../subscription-catalog");
-
-    const catalog = await getSubscriptionCatalog(stripe as never);
-    expect(catalog.enterpriseProducts).toEqual([
-      expect.objectContaining({
-        credits: 50000,
-        monthlyAmount: 120000,
-        priceId: "price_enterprise_a",
-        productId: "prod_enterprise_a",
-      }),
-      expect.objectContaining({
-        credits: 75000,
-        monthlyAmount: 180000,
-        priceId: "price_enterprise_b",
-        productId: "prod_enterprise_b",
-      }),
-    ]);
-    expect(retrieveMock).toHaveBeenCalledWith("prod_enterprise_a", {
-      expand: ["default_price"],
-    });
-    expect(retrieveMock).toHaveBeenCalledWith("prod_enterprise_b", {
-      expand: ["default_price"],
-    });
-
-    const plans = await getBetterAuthSubscriptionPlans(stripe as never);
-    expect(plans).toEqual([
-      {
-        limits: { credits: 1750 },
-        name: "starter",
-        priceId: "price_starter",
-      },
-      {
-        limits: { credits: 5250 },
-        name: "standard",
-        priceId: "price_standard",
-      },
-      {
-        limits: { credits: 14000 },
-        name: "pro",
-        priceId: "price_pro",
-      },
-      {
-        limits: { credits: 50000 },
-        name: "enterprise",
-        priceId: "price_enterprise_a",
-      },
-      {
-        limits: { credits: 75000 },
-        name: "enterprise",
-        priceId: "price_enterprise_b",
       },
     ]);
   });
@@ -254,142 +161,19 @@ describe("subscription-catalog", () => {
     );
   });
 
-  it("throws when discovered enterprise metadata is invalid", async () => {
-    const { stripe } = createMockStripe({
-      listProducts: [
-        {
-          id: "prod_enterprise",
-          metadata: { slug: "enterprise" },
-        },
-      ],
-      products: {
-        prod_enterprise: createMockProduct({
-          planName: "enterprise",
-          priceId: "price_enterprise",
-          productId: "prod_enterprise",
-          unitAmount: 120000,
-        }),
-      },
-    });
-
-    const { getSubscriptionCatalog } = await import("../subscription-catalog");
-
-    await expect(getSubscriptionCatalog(stripe as never)).rejects.toThrow(
-      "Missing credits metadata for enterprise plan",
-    );
-  });
-
   it("invalidates the cached catalog on demand", async () => {
-    const { listMock, stripe } = createMockStripe();
+    const { retrieveMock, stripe } = createMockStripe();
 
     const { getSubscriptionCatalog, invalidateSubscriptionCatalogCache } =
       await import("../subscription-catalog");
 
     await getSubscriptionCatalog(stripe as never);
     await getSubscriptionCatalog(stripe as never);
-    expect(listMock).toHaveBeenCalledTimes(1);
+    expect(retrieveMock).toHaveBeenCalledTimes(3);
 
     invalidateSubscriptionCatalogCache();
 
     await getSubscriptionCatalog(stripe as never);
-    expect(listMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("resolves archived enterprise products for webhook credit grants", async () => {
-    const { stripe } = createMockStripe({
-      products: {
-        prod_archived_enterprise: createMockProduct({
-          active: false,
-          planName: "enterprise",
-          priceId: "price_archived_enterprise",
-          productId: "prod_archived_enterprise",
-          credits: 40000,
-          unitAmount: 100000,
-        }),
-      },
-    });
-
-    const { resolveEnterpriseProduct } = await import(
-      "../subscription-catalog"
-    );
-
-    await expect(
-      resolveEnterpriseProduct(stripe as never, "prod_archived_enterprise"),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        credits: 40000,
-        monthlyAmount: 100000,
-        productId: "prod_archived_enterprise",
-      }),
-    );
-  });
-
-  it("resolves a valid enterprise product and returns null for invalid products", async () => {
-    const { stripe } = createMockStripe({
-      products: {
-        prod_enterprise: createMockProduct({
-          planName: "enterprise",
-          priceId: "price_enterprise",
-          productId: "prod_enterprise",
-          credits: 50000,
-          unitAmount: 120000,
-        }),
-        prod_invalid_enterprise: createMockProduct({
-          planName: "enterprise",
-          priceId: "price_invalid_enterprise",
-          productId: "prod_invalid_enterprise",
-          unitAmount: 120000,
-        }),
-        prod_standard_named: createMockProduct({
-          planName: "standard",
-          priceId: "price_standard_named",
-          productId: "prod_standard_named",
-          credits: 5250,
-          unitAmount: 7500,
-        }),
-      },
-    });
-
-    const { resolveEnterpriseProduct } = await import(
-      "../subscription-catalog"
-    );
-
-    await expect(
-      resolveEnterpriseProduct(stripe as never, "prod_enterprise"),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        credits: 50000,
-        monthlyAmount: 120000,
-        productId: "prod_enterprise",
-      }),
-    );
-    await expect(
-      resolveEnterpriseProduct(stripe as never, "prod_invalid_enterprise"),
-    ).resolves.toBeNull();
-    await expect(
-      resolveEnterpriseProduct(stripe as never, "prod_standard_named"),
-    ).resolves.toBeNull();
-  });
-
-  it("returns null when Stripe product retrieve fails", async () => {
-    const retrieveMock = vi.fn(async () => {
-      throw new Error("No such product: prod_deleted");
-    });
-    const stripe = {
-      products: {
-        retrieve: retrieveMock,
-      },
-    };
-
-    const { resolveEnterpriseProduct } = await import(
-      "../subscription-catalog"
-    );
-
-    await expect(
-      resolveEnterpriseProduct(stripe as never, "prod_deleted"),
-    ).resolves.toBeNull();
-    expect(retrieveMock).toHaveBeenCalledWith("prod_deleted", {
-      expand: ["default_price"],
-    });
+    expect(retrieveMock).toHaveBeenCalledTimes(6);
   });
 });

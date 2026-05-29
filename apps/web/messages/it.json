@@ -2284,8 +2284,6 @@
       "openingBillingPortal": "Apertura in corso...",
       "billingPortalCta": "Apri il portale di fatturazione",
       "freePrice": "Gratis",
-      "customPrice": "Personalizzato",
-      "contactUsCta": "Contattaci",
       "Plans": {
         "free": {
           "name": "Gratuito",
@@ -2336,18 +2334,6 @@
               "item3": "Accesso anticipato a nuovi agenti e funzionalità"
             }
           }
-        },
-        "enterprise": {
-          "name": "Enterprise",
-          "description": "Piano personalizzato per organizzazioni con postazioni, crediti e supporto su misura.",
-          "features": {
-            "title": "Enterprise include:",
-            "items": {
-              "item1": "Piano su misura per la tua organizzazione",
-              "item2": "Assegnazione personalizzata di postazioni e crediti",
-              "item3": "Modifiche al piano gestite dal supporto"
-            }
-          }
         }
       },
       "Errors": {
@@ -2376,11 +2362,6 @@
       "billingPortalDescription": "Scarica le fatture, modifica gli indirizzi di fatturazione e gestisci altre informazioni di fatturazione.",
       "manageYourBilling": "Gestisci la fatturazione",
       "openingBillingPortal": "Apertura in corso...",
-      "enterprisePlanTitle": "Piano {planName}",
-      "enterprisePlanDescription": "La tua organizzazione ha un abbonamento Enterprise fatturato tramite Stripe.",
-      "enterpriseSeatsLabel": "Seats",
-      "enterpriseMembersLabel": "Membri attivi",
-      "enterpriseContactSupport": "Contatta il supporto per modificare il piano o i Seats.",
       "orgAccessRestrictedTitle": "Accesso alla fatturazione limitato",
       "orgAccessRestrictedDescription": "Solo i proprietari e gli amministratori dell’organizzazione possono visualizzare i dettagli di fatturazione per questa organizzazione.",
       "orgAccessRestrictedHint": "Passa al contesto personale o contatta un proprietario/amministratore dell’organizzazione se ti serve l’accesso.",

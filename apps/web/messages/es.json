@@ -2222,8 +2222,6 @@
       "openingBillingPortal": "Abriendo...",
       "billingPortalCta": "Abrir portal de Billing",
       "freePrice": "Gratis",
-      "customPrice": "Personalizado",
-      "contactUsCta": "Contáctanos",
       "Plans": {
         "free": {
           "name": "Gratis",
@@ -2274,18 +2272,6 @@
               "item3": "Acceso anticipado a nuevos Agents y funciones"
             }
           }
-        },
-        "enterprise": {
-          "name": "Enterprise",
-          "description": "Plan personalizado para organizaciones con plazas, créditos y soporte a medida.",
-          "features": {
-            "title": "Enterprise incluye:",
-            "items": {
-              "item1": "Plan a medida para tu organización",
-              "item2": "Asignación personalizada de plazas y créditos",
-              "item3": "Cambios de plan gestionados por soporte"
-            }
-          }
         }
       },
       "Errors": {
@@ -2314,11 +2300,6 @@
       "billingPortalDescription": "Descarga tus facturas, cambia tus direcciones de facturación y gestiona otra información de facturación.",
       "manageYourBilling": "Gestionar facturación",
       "openingBillingPortal": "Abriendo...",
-      "enterprisePlanTitle": "Plan {planName}",
-      "enterprisePlanDescription": "Tu organización tiene una suscripción Enterprise facturada a través de Stripe.",
-      "enterpriseSeatsLabel": "Seats",
-      "enterpriseMembersLabel": "Miembros activos",
-      "enterpriseContactSupport": "Contacta con soporte para cambiar tu plan o tus Seats.",
       "orgAccessRestrictedTitle": "Acceso a Billing restringido",
       "orgAccessRestrictedDescription": "Solo los propietarios y admins de la organización pueden ver los detalles de Billing.",
       "orgAccessRestrictedHint": "Cambia a tu cuenta personal o contacta a un admin de la organización si necesitas acceso.",

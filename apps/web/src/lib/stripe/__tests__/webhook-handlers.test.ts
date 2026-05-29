@@ -16,8 +16,6 @@ const getMembersByOrganizationIdMock = vi.fn();
 const getAssignedMemberUserIdsMock = vi.fn();
 const getUnassignedMemberUserIdsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
-const invalidateSubscriptionCatalogCacheMock = vi.fn();
-const resolveEnterpriseProductMock = vi.fn();
 const findExistingBucketMock = vi.fn();
 const findExistingLocalFreeBucketMock = vi.fn();
 const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
@@ -129,10 +127,6 @@ vi.mock("@/lib/services", () => ({
 vi.mock("@/lib/stripe/subscription-catalog", () => ({
   getSubscriptionCatalog: (...args: unknown[]) =>
     getSubscriptionCatalogMock(...args),
-  invalidateSubscriptionCatalogCache: (...args: unknown[]) =>
-    invalidateSubscriptionCatalogCacheMock(...args),
-  resolveEnterpriseProduct: (...args: unknown[]) =>
-    resolveEnterpriseProductMock(...args),
 }));
 
 const DEFAULT_PERIOD_END_UNIX = 1_735_689_600;
@@ -140,13 +134,6 @@ const DEFAULT_INVOICE_CREATED_UNIX = 1_735_689_600;
 const DEFAULT_PERIOD_DURATION_SECONDS = 2_592_000;
 const SUBSCRIPTION_CATALOG = {
   free: { credits: 250, monthlyAmount: 0, productId: "local-free" },
-  enterpriseProducts: [
-    {
-      credits: 50000,
-      monthlyAmount: 120000,
-      productId: "prod_enterprise",
-    },
-  ],
   pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
   standard: {
     credits: 5250,
@@ -312,7 +299,6 @@ describe("handleInvoicePaidEvent", () => {
     );
     getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue(null);
     subscriptionUpdateManyMock.mockResolvedValue({ count: 0 });
-    resolveEnterpriseProductMock.mockResolvedValue(null);
   });
 
   it("does not grant subscription credits for unpaid subscription_update invoices", async () => {
@@ -1116,94 +1102,8 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
-  it("grants Enterprise subscription credits for yearly organization invoices", async () => {
+  it("skips unknown subscription products and grants credits for known lines", async () => {
     mockSubscriptionCatalog();
-    mockOrganizationInvoiceContext(
-      [
-        { role: "owner", userId: "owner-1" },
-        { role: "member", userId: "member-1" },
-      ],
-      "org-enterprise",
-    );
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    await handleInvoicePaidEvent(
-      createInvoice({
-        billingReason: "subscription_cycle",
-        id: "in_enterprise_cycle",
-        lines: [{ productId: "prod_enterprise", quantity: 2 }],
-      }) as never,
-    );
-
-    expect(getSubscriptionCatalogMock).toHaveBeenCalledTimes(1);
-    expect(transactionMock).toHaveBeenCalledTimes(1);
-    expect(createTransactionMock).toHaveBeenCalledTimes(2);
-
-    const amounts = createTransactionMock.mock.calls.map((call) => {
-      const createCall = call[0] as {
-        data: { sourceCreditBucket: { create: { amount: bigint } } };
-      };
-      return createCall.data.sourceCreditBucket.create.amount;
-    });
-    expect(amounts).toEqual([
-      BigInt("500000000000000"),
-      BigInt("500000000000000"),
-    ]);
-    expect(resolveEnterpriseProductMock).not.toHaveBeenCalled();
-    expect(invalidateSubscriptionCatalogCacheMock).not.toHaveBeenCalled();
-  });
-
-  it("resolves uncached Enterprise products from Stripe and uses an overlay for credits", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      ...SUBSCRIPTION_CATALOG,
-      enterpriseProducts: [],
-    });
-    resolveEnterpriseProductMock.mockResolvedValue({
-      credits: 60000,
-      monthlyAmount: 150000,
-      productId: "prod_custom_enterprise",
-    });
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    await handleInvoicePaidEvent(
-      createInvoice({
-        billingReason: "subscription_cycle",
-        id: "in_custom_enterprise_cycle",
-        lines: [{ productId: "prod_custom_enterprise", quantity: 2 }],
-      }) as never,
-    );
-
-    expect(resolveEnterpriseProductMock).toHaveBeenCalledWith(
-      expect.anything(),
-      "prod_custom_enterprise",
-    );
-    expect(invalidateSubscriptionCatalogCacheMock).toHaveBeenCalledTimes(1);
-    expect(getSubscriptionCatalogMock).toHaveBeenCalledTimes(2);
-    expect(createTransactionMock).toHaveBeenCalledTimes(1);
-
-    const createCall = createTransactionMock.mock.calls[0][0] as {
-      data: {
-        sourceCreditBucket: {
-          create: {
-            amount: bigint;
-          };
-        };
-      };
-    };
-    expect(createCall.data.sourceCreditBucket.create.amount).toBe(
-      BigInt("1200000000000000"),
-    );
-  });
-
-  it("skips unknown products when enterprise resolve returns null", async () => {
-    mockSubscriptionCatalog();
-    getSubscriptionCatalogMock.mockResolvedValue({
-      ...SUBSCRIPTION_CATALOG,
-      enterpriseProducts: [],
-    });
-    resolveEnterpriseProductMock.mockResolvedValue(null);
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -1218,10 +1118,6 @@ describe("handleInvoicePaidEvent", () => {
       }) as never,
     );
 
-    expect(resolveEnterpriseProductMock).toHaveBeenCalledWith(
-      expect.anything(),
-      "prod_unknown",
-    );
     expect(createTransactionMock).toHaveBeenCalledTimes(1);
 
     const createCall = createTransactionMock.mock.calls[0][0] as {

@@ -6,12 +6,14 @@ import {
 } from "@/components/billing/subscription-plan-utils";
 
 describe("subscription-plan-utils", () => {
-  it("parses Enterprise plan names", () => {
-    expect(parsePlanName("enterprise")).toBe("enterprise");
-    expect(parsePlanName("Enterprise")).toBe("enterprise");
+  it("parses self-serve plan names", () => {
+    expect(parsePlanName("starter")).toBe("starter");
+    expect(parsePlanName("Pro")).toBe("pro");
+    expect(parsePlanName("enterprise")).toBeNull();
   });
 
-  it("returns the Enterprise translation key", () => {
-    expect(getPlanTranslationKey("enterprise")).toBe("enterprise");
+  it("returns translation keys for self-serve plans", () => {
+    expect(getPlanTranslationKey("starter")).toBe("starter");
+    expect(getPlanTranslationKey("pro")).toBe("pro");
   });
 });
