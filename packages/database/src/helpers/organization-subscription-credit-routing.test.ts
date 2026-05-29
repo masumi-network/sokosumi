@@ -5,10 +5,26 @@ import { type Prisma as PrismaType } from "../generated/prisma/client.js";
 import {
   buildLocalFreeOrganizationMemberSubscriptionReferenceId,
   buildLocalFreeUserSubscriptionReferenceId,
+  type EnsureLocalFreeSubscriptionPeriodParams,
   ensureLocalFreeSubscriptionPeriod,
   FREE_SUBSCRIPTION_MONTHLY_CREDITS,
   grantFreeOrganizationMemberSubscriptionCredits,
 } from "./subscription.js";
+
+interface LocalFreePeriodGrantMatrixCase {
+  expectedGrantCount: number;
+  expectedGrantUserIds: string[];
+  expectedReferenceIds: string[];
+  name: string;
+  params: EnsureLocalFreeSubscriptionPeriodParams;
+}
+
+interface PaidOrgFreeTierGrantMatrixCase {
+  expectedGrantCount: number;
+  expectedGrantUserIds: string[];
+  memberUserIds: string[];
+  name: string;
+}
 
 function createLocalFreePeriodClient() {
   const findSubscriptionMock = vi.fn().mockResolvedValue(null);
@@ -73,7 +89,7 @@ function createPaidOrgFreeGrantClient(params?: {
 const PERIOD_END = new Date("2026-05-01T00:00:00.000Z");
 const PERIOD_START = new Date("2026-04-01T00:00:00.000Z");
 
-const LOCAL_FREE_PERIOD_GRANT_MATRIX = [
+const LOCAL_FREE_PERIOD_GRANT_MATRIX: LocalFreePeriodGrantMatrixCase[] = [
   {
     name: "personal local free — single user grant",
     params: {
@@ -116,9 +132,9 @@ const LOCAL_FREE_PERIOD_GRANT_MATRIX = [
       ),
     ],
   },
-] as const;
+];
 
-const PAID_ORG_FREE_TIER_GRANT_MATRIX = [
+const PAID_ORG_FREE_TIER_GRANT_MATRIX: PaidOrgFreeTierGrantMatrixCase[] = [
   {
     name: "org paid — free tier grants only the supplied unassigned member ids",
     memberUserIds: ["unassigned-1"],
@@ -129,19 +145,20 @@ const PAID_ORG_FREE_TIER_GRANT_MATRIX = [
     name: "org paid — assigned member ids are not included in free-tier grant batch",
     memberUserIds: [],
     expectedGrantCount: 0,
-    expectedGrantUserIds: [] as string[],
+    expectedGrantUserIds: [],
   },
-] as const;
+];
 
 describe("organization subscription credit routing matrix", () => {
   describe.each(
     LOCAL_FREE_PERIOD_GRANT_MATRIX,
-  )("local free period grants — $name", ({
-    expectedGrantCount,
-    expectedGrantUserIds,
-    expectedReferenceIds,
-    params,
-  }) => {
+  )("local free period grants — $name", (testCase: LocalFreePeriodGrantMatrixCase) => {
+    const {
+      expectedGrantCount,
+      expectedGrantUserIds,
+      expectedReferenceIds,
+      params,
+    } = testCase;
     it("creates the expected number of 250-credit buckets", async () => {
       const { createTransactionMock, tx } = createLocalFreePeriodClient();
 
@@ -193,11 +210,9 @@ describe("organization subscription credit routing matrix", () => {
 
   describe.each(
     PAID_ORG_FREE_TIER_GRANT_MATRIX,
-  )("paid org free-tier helper — $name", ({
-    expectedGrantCount,
-    expectedGrantUserIds,
-    memberUserIds,
-  }) => {
+  )("paid org free-tier helper — $name", (testCase: PaidOrgFreeTierGrantMatrixCase) => {
+    const { expectedGrantCount, expectedGrantUserIds, memberUserIds } =
+      testCase;
     it("grants only to the supplied member user ids", async () => {
       const { createTransactionMock, tx } = createPaidOrgFreeGrantClient();
 

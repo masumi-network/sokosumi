@@ -207,7 +207,14 @@ export const organizationSeatService = (() => {
           if (subscription?.periodStart && subscription.periodEnd) {
             await syncLocalFreeOrganizationCreditsIfNeeded(
               organizationId,
-              subscription,
+              {
+                createdAt: subscription.createdAt,
+                periodEnd: subscription.periodEnd,
+                periodStart: subscription.periodStart,
+                seats: subscription.seats,
+                status: subscription.status,
+                stripeSubscriptionId: subscription.stripeSubscriptionId,
+              },
               tx,
             );
           }
@@ -260,7 +267,14 @@ export const organizationSeatService = (() => {
           } else if (subscription?.periodStart && subscription.periodEnd) {
             await syncLocalFreeOrganizationCreditsIfNeeded(
               organizationId,
-              subscription,
+              {
+                createdAt: subscription.createdAt,
+                periodEnd: subscription.periodEnd,
+                periodStart: subscription.periodStart,
+                seats: subscription.seats,
+                status: subscription.status,
+                stripeSubscriptionId: subscription.stripeSubscriptionId,
+              },
               tx,
             );
           }
