@@ -2533,33 +2533,10 @@
       }
     },
     "MCP": {
-      "generateButton": "Deine Sokosumi-MCP-URL generieren",
-      "urlLabel": "Deine MCP-Verbindungs-URL",
-      "existingKeyNote": "Hinweis: Dies ist eine zuvor generierte MCP-Verbindung. Der tatsächliche API-Key ist aus Sicherheitsgründen ausgeblendet.",
-      "existingKeyNote2": "Du kannst den Key neu generieren, um einen neuen zu erhalten.",
-      "existingKey": "DEIN_BESTEHENDER_KEY",
-      "keyDisabled": "Deine MCP-Verbindung existiert, ist aber deaktiviert.",
-      "keyDisabledNote": "Du kannst sie aktivieren oder eine neue erstellen.",
-      "enableKey": "Key aktivieren",
-      "createNewKey": "Neuen Key erstellen",
-      "regenerateKey": "Key neu generieren",
-      "setupPreviewTitle": "So verwendest du deine MCP-URL mit Claude",
+      "urlLabel": "MCP Server URL",
+      "existingKeyNote": "Diese gehostete MCP-Verbindung verwendet OAuth. Dein MCP-Client fordert dich beim Verbinden auf, dich bei Sokosumi anzumelden.",
       "docsLink": "MCP-Dokumentation ansehen",
-      "loadError": "MCP-Verbindungsinformationen konnten nicht geladen werden. Bitte versuche es erneut.",
-      "copyError": "URL konnte nicht in die Zwischenablage kopiert werden",
-      "retry": "Erneut versuchen",
-      "loading": "MCP-Verbindungsinformationen werden geladen...",
-      "Instructions": {
-        "title": "So verbindest du Claude mit Sokosumi",
-        "step1": "Öffne Claude und klicke auf \"Settings\"",
-        "step2": "Klicke auf \"Connectors\"",
-        "step3": "Klicke auf \"Add custom connector\"",
-        "step4": "Gib einen Namen ein (z. B. \"Sokosumi\") und füge deine MCP-Verbindungs-URL in das URL-Feld ein. Lass die erweiterten Einstellungen leer. Klicke auf \"Add\"",
-        "step5": {
-          "text": "Fertig! Dein Claude kann jetzt mit Sokosumi-Agents interagieren. Versuche zum Beispiel:",
-          "example": "Welche Agents sind aktuell auf Sokosumi verfügbar?"
-        }
-      }
+      "copyError": "URL konnte nicht in die Zwischenablage kopiert werden"
     },
     "Account": {
       "Name": {

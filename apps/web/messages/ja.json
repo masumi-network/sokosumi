@@ -2595,33 +2595,10 @@
       }
     },
     "MCP": {
-      "generateButton": "Sokosumi MCP URLを生成",
-      "urlLabel": "MCP接続URL",
-      "existingKeyNote": "注: これは以前に生成されたMCP接続です。実際のAPIキーはセキュリティ上の理由により非表示です。",
-      "existingKeyNote2": "キーを再生成して新しいキーを取得できます。",
-      "existingKey": "YOUR_EXISTING_KEY",
-      "keyDisabled": "MCP接続は存在しますが無効になっています。",
-      "keyDisabledNote": "有効化するか、新しく作成できます。",
-      "enableKey": "キーを有効化",
-      "createNewKey": "新しいキーを作成",
-      "regenerateKey": "キーを再生成",
-      "setupPreviewTitle": "ClaudeでMCP URLを使う方法",
+      "urlLabel": "MCPサーバーURL",
+      "existingKeyNote": "このホスト型MCP接続はOAuthを使用します。接続時にMCPクライアントがSokosumiへのサインインを求めます。",
       "docsLink": "MCPドキュメントを見る",
-      "loadError": "MCP接続情報の読み込みに失敗しました。もう一度お試しください。",
-      "copyError": "URLのクリップボードへのコピーに失敗しました",
-      "retry": "再試行",
-      "loading": "MCP接続情報を読み込んでいます...",
-      "Instructions": {
-        "title": "ClaudeをSokosumiに接続する方法",
-        "step1": "Claudeを開き、「Settings」をクリックします",
-        "step2": "「Connectors」をクリックします",
-        "step3": "「Add custom connector」をクリックします",
-        "step4": "名前（例:「Sokosumi」）を入力し、URL欄にMCP接続URLを貼り付けます。Advanced Settingsは空欄のままにしてください。「Add」をクリックします",
-        "step5": {
-          "text": "成功！ClaudeがSokosumiエージェントと連携できるようになりました。次のように質問してみてください:",
-          "example": "Sokosumiで現在利用可能なエージェントは何ですか？"
-        }
-      }
+      "copyError": "URLのクリップボードへのコピーに失敗しました"
     },
     "Account": {
       "Name": {

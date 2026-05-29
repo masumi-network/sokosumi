@@ -2595,33 +2595,10 @@
       }
     },
     "MCP": {
-      "generateButton": "Gerar o seu URL MCP do Sokosumi",
-      "urlLabel": "O seu URL de ligação MCP",
-      "existingKeyNote": "Nota: Esta é uma ligação MCP gerada anteriormente. A chave de API real está oculta por razões de segurança.",
-      "existingKeyNote2": "Pode regenerar a chave para obter uma nova.",
-      "existingKey": "YOUR_EXISTING_KEY",
-      "keyDisabled": "A sua ligação MCP existe, mas está desativada.",
-      "keyDisabledNote": "Pode ativá-la ou criar uma nova.",
-      "enableKey": "Ativar chave",
-      "createNewKey": "Criar nova chave",
-      "regenerateKey": "Regenerar chave",
-      "setupPreviewTitle": "Como usar o seu URL MCP com o Claude",
+      "urlLabel": "URL do servidor MCP",
+      "existingKeyNote": "Esta ligação MCP alojada usa OAuth. O seu cliente MCP irá pedir-lhe para iniciar sessão no Sokosumi ao ligar.",
       "docsLink": "Ver documentação MCP",
-      "loadError": "Falha ao carregar informações da ligação MCP. Tente novamente.",
-      "copyError": "Falha ao copiar o URL para a área de transferência",
-      "retry": "Tentar novamente",
-      "loading": "A carregar informações da ligação MCP...",
-      "Instructions": {
-        "title": "Como ligar o Claude ao Sokosumi",
-        "step1": "Abra o Claude e clique em \"Settings\"",
-        "step2": "Clique em \"Connectors\"",
-        "step3": "Clique em \"Add custom connector\"",
-        "step4": "Introduza um nome (ex.: \"Sokosumi\") e cole o seu URL de ligação MCP no campo URL. Deixe as Advanced Settings em branco. Clique em \"Add\"",
-        "step5": {
-          "text": "Sucesso! O seu Claude pode agora interagir com agentes Sokosumi. Experimente perguntar:",
-          "example": "Que agentes estão atualmente disponíveis no Sokosumi?"
-        }
-      }
+      "copyError": "Falha ao copiar o URL para a área de transferência"
     },
     "Account": {
       "Name": {

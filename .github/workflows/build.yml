@@ -9,31 +9,30 @@ on:
 
 env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
-  BETTER_AUTH_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  POSTMARK_SERVER_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  POSTMARK_FROM_EMAIL: ${{ vars.PUBLIC_DEFAULT_EMAIL }}
+  BETTER_AUTH_SECRET: "ci-build-better-auth-secret"
+  POSTMARK_SERVER_ID: "ci-postmark-server-id"
+  POSTMARK_FROM_EMAIL: "ci@sokosumi.com"
   NEXT_PUBLIC_NETWORK: "Preprod"
-  SOKOSUMI_API_URL: ${{ vars.PUBLIC_DEFAULT_URL }}
-  PAYMENT_API_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  REGISTRY_API_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  STRIPE_PUBLISHABLE_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  STRIPE_SECRET_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  STRIPE_WEBHOOK_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  STRIPE_WELCOME_COUPON: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  STRIPE_CREDIT_PRODUCT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  STRIPE_ONBOARD_PERSONAL_COUPON: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  STRIPE_ONBOARD_ORGANIZATION_COUPON: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  ABLY_SUBSCRIBE_ONLY_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  ABLY_PUBLISH_ONLY_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+  SOKOSUMI_API_URL: "https://api.sokosumi.com"
+  PAYMENT_API_KEY: "ci-payment-api-key"
+  REGISTRY_API_KEY: "ci-registry-api-key"
+  STRIPE_PUBLISHABLE_KEY: "pk_test_ci_build_placeholder"
+  STRIPE_SECRET_KEY: "sk_test_ci_build_placeholder"
+  STRIPE_WEBHOOK_SECRET: "whsec_ci_build_placeholder"
+  STRIPE_WELCOME_COUPON: "ci-stripe-welcome-coupon"
+  STRIPE_CREDIT_PRODUCT_ID: "ci-stripe-credit-product-id"
+  STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-starter-subscription-product-id"
+  STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-standard-subscription-product-id"
+  STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-pro-subscription-product-id"
+  STRIPE_ONBOARD_PERSONAL_COUPON: "ci-stripe-onboard-personal-coupon"
+  STRIPE_ONBOARD_ORGANIZATION_COUPON: "ci-stripe-onboard-organization-coupon"
+  ABLY_SUBSCRIBE_ONLY_KEY: "ci-ably-subscribe-only-key"
+  ABLY_PUBLISH_ONLY_KEY: "ci-ably-publish-only-key"
   ANTHROPIC_API_KEY: "sk-ant-api03-01JN000000000000000000000"
-  GOOGLE_CLIENT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  GOOGLE_CLIENT_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  MICROSOFT_CLIENT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  MICROSOFT_CLIENT_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  USER_CENTRICS_DATA_SETTINGS_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+  GOOGLE_CLIENT_ID: "ci-google-client-id"
+  GOOGLE_CLIENT_SECRET: "ci-google-client-secret"
+  MICROSOFT_CLIENT_ID: "ci-microsoft-client-id"
+  MICROSOFT_CLIENT_SECRET: "ci-microsoft-client-secret"
   AFTER_AGENT_HIRED_WEB_HOOK: https://after-agent-hired-web-hook.com
   MARKETING_OPT_IN_WEB_HOOK: https://marketing-opt-in-web-hook.com
 

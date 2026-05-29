@@ -2595,33 +2595,10 @@
       }
     },
     "MCP": {
-      "generateButton": "Générer votre URL MCP Sokosumi",
-      "urlLabel": "Votre URL de connexion MCP",
-      "existingKeyNote": "Note : il s’agit d’une connexion MCP générée précédemment. La clé API réelle est masquée pour des raisons de sécurité.",
-      "existingKeyNote2": "Vous pouvez régénérer la clé pour en obtenir une nouvelle.",
-      "existingKey": "YOUR_EXISTING_KEY",
-      "keyDisabled": "Votre connexion MCP existe mais est désactivée.",
-      "keyDisabledNote": "Vous pouvez l’activer ou en créer une nouvelle.",
-      "enableKey": "Activer la clé",
-      "createNewKey": "Créer une nouvelle clé",
-      "regenerateKey": "Régénérer la clé",
-      "setupPreviewTitle": "Comment utiliser votre URL MCP avec Claude",
+      "urlLabel": "URL du serveur MCP",
+      "existingKeyNote": "Cette connexion MCP hébergée utilise OAuth. Votre client MCP vous demandera de vous connecter à Sokosumi lors de la connexion.",
       "docsLink": "Voir la documentation MCP",
-      "loadError": "Impossible de charger les informations de connexion MCP. Veuillez réessayer.",
-      "copyError": "Échec de la copie de l’URL dans le presse-papiers",
-      "retry": "Réessayer",
-      "loading": "Chargement des informations de connexion MCP...",
-      "Instructions": {
-        "title": "Comment connecter Claude à Sokosumi",
-        "step1": "Ouvrez Claude puis cliquez sur \"Settings\"",
-        "step2": "Cliquez sur \"Connectors\"",
-        "step3": "Cliquez sur \"Add custom connector\"",
-        "step4": "Saisissez un nom (par ex. \"Sokosumi\") et collez votre URL de connexion MCP dans le champ URL. Laissez les paramètres avancés vides. Cliquez sur \"Add\"",
-        "step5": {
-          "text": "C’est bon ! Votre Claude peut maintenant interagir avec les agents Sokosumi. Essayez de demander :",
-          "example": "Quels agents sont actuellement disponibles sur Sokosumi ?"
-        }
-      }
+      "copyError": "Échec de la copie de l’URL dans le presse-papiers"
     },
     "Account": {
       "Name": {
