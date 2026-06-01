@@ -70,6 +70,8 @@ describe("auth client", () => {
       NEXT_PUBLIC_NETWORK: "Preprod",
       NEXT_PUBLIC_VERCEL_ENV: undefined,
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: undefined,
+      NEXT_PUBLIC_BETTER_AUTH_SENTINEL_IDENTIFY_URL:
+        "https://kv.better-auth.com/projects/example-project-id",
     });
   });
 
@@ -106,11 +108,21 @@ describe("auth client", () => {
     });
   });
 
+  it("configures sentinelClient with the project identify url", async () => {
+    await import("../auth.client");
+
+    expect(sentinelClientMock).toHaveBeenCalledWith({
+      identifyUrl: "https://kv.better-auth.com/projects/example-project-id",
+    });
+  });
+
   it("uses the preview branch prefix when the public Vercel env is preview", async () => {
     getEnvPublicConfigMock.mockReturnValue({
       NEXT_PUBLIC_NETWORK: "Mainnet",
       NEXT_PUBLIC_VERCEL_ENV: "preview",
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "feature/123",
+      NEXT_PUBLIC_BETTER_AUTH_SENTINEL_IDENTIFY_URL:
+        "https://kv.better-auth.com/projects/example-project-id",
     });
 
     await import("../auth.client");

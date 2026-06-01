@@ -3,14 +3,20 @@
 import { MemberRole, type MemberWithOrganization } from "@sokosumi/database";
 import {
   BookOpen,
+  Bot,
   Building2,
   Cable,
   ChevronDown,
   CircleHelp,
+  Landmark,
   LifeBuoy,
+  ListChecks,
   LogOut,
   ReceiptText,
+  Scale,
+  ScrollText,
   Settings as SettingsIcon,
+  Shield,
   User as UserIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -203,7 +209,6 @@ export default function UserAvatarClient({
                 <BookOpen className="text-muted-foreground size-4" />
                 {t("documentation")}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer"
                 onClick={() => {
@@ -214,10 +219,26 @@ export default function UserAvatarClient({
                 <CircleHelp className="text-muted-foreground size-4" />
                 {t("support")}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-muted-foreground text-xs">
-                {t("legal")}
-              </DropdownMenuLabel>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="flex cursor-pointer items-center gap-2">
+              <Scale className="text-muted-foreground size-4" />
+              {t("legal")}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  closeMenu();
+                  handleOpenExternalLink(
+                    "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/legal-ai-coworkers.html",
+                  );
+                }}
+              >
+                <Bot className="text-muted-foreground size-4" />
+                {t("serviceplanAiCoworker")}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer"
                 onClick={() => {
@@ -227,6 +248,7 @@ export default function UserAvatarClient({
                   );
                 }}
               >
+                <ScrollText className="text-muted-foreground size-4" />
                 {t("termsOfService")}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -238,6 +260,7 @@ export default function UserAvatarClient({
                   );
                 }}
               >
+                <Shield className="text-muted-foreground size-4" />
                 {t("privacyPolicy")}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -247,6 +270,7 @@ export default function UserAvatarClient({
                   handleOpenExternalLink("https://www.sokosumi.com/imprint");
                 }}
               >
+                <Landmark className="text-muted-foreground size-4" />
                 {t("imprint")}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -258,6 +282,7 @@ export default function UserAvatarClient({
                   );
                 }}
               >
+                <ListChecks className="text-muted-foreground size-4" />
                 {t("acceptableUse")}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
