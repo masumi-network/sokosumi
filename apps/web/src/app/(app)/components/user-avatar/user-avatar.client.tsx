@@ -3,6 +3,7 @@
 import { MemberRole, type MemberWithOrganization } from "@sokosumi/database";
 import {
   BookOpen,
+  Bot,
   Building2,
   Cable,
   ChevronDown,
@@ -203,7 +204,18 @@ export default function UserAvatarClient({
                 <BookOpen className="text-muted-foreground size-4" />
                 {t("documentation")}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  closeMenu();
+                  handleOpenExternalLink(
+                    "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/legal-ai-coworkers.html",
+                  );
+                }}
+              >
+                <Bot className="text-muted-foreground size-4" />
+                {t("serviceplanAiCoworker")}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer"
                 onClick={() => {
