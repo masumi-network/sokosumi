@@ -213,18 +213,6 @@ export default function UserAvatarClient({
                 className="cursor-pointer"
                 onClick={() => {
                   closeMenu();
-                  handleOpenExternalLink(
-                    "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/legal-ai-coworkers.html",
-                  );
-                }}
-              >
-                <Bot className="text-muted-foreground size-4" />
-                {t("serviceplanAiCoworker")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  closeMenu();
                   handleOpenExternalLink("mailto:info@sokosumi.com");
                 }}
               >
@@ -239,6 +227,18 @@ export default function UserAvatarClient({
               {t("legal")}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  closeMenu();
+                  handleOpenExternalLink(
+                    "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/legal-ai-coworkers.html",
+                  );
+                }}
+              >
+                <Bot className="text-muted-foreground size-4" />
+                {t("serviceplanAiCoworker")}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer"
                 onClick={() => {

@@ -80,7 +80,7 @@ function getWorkspaceKey(workspace: WorkspaceItem): string {
 
 interface HelpLinkItem {
   url: string;
-  translationKey: "documentation" | "serviceplanAiCoworker" | "support";
+  translationKey: "documentation" | "support";
   icon?: ComponentType<{ "aria-hidden"?: boolean; className?: string }>;
 }
 
@@ -90,7 +90,8 @@ interface LegalLinkItem {
     | "termsOfService"
     | "privacyPolicy"
     | "imprint"
-    | "acceptableUse";
+    | "acceptableUse"
+    | "serviceplanAiCoworker";
   icon?: ComponentType<{ "aria-hidden"?: boolean; className?: string }>;
 }
 
@@ -101,11 +102,6 @@ const HELP_LINKS: HelpLinkItem[] = [
     icon: BookOpen,
   },
   {
-    url: "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/legal-ai-coworkers.html",
-    translationKey: "serviceplanAiCoworker",
-    icon: Bot,
-  },
-  {
     url: "mailto:info@sokosumi.com",
     translationKey: "support",
     icon: CircleHelp,
@@ -113,6 +109,11 @@ const HELP_LINKS: HelpLinkItem[] = [
 ];
 
 const LEGAL_LINKS: LegalLinkItem[] = [
+  {
+    url: "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/legal-ai-coworkers.html",
+    translationKey: "serviceplanAiCoworker",
+    icon: Bot,
+  },
   {
     url: "https://www.sokosumi.com/terms-of-service",
     translationKey: "termsOfService",
