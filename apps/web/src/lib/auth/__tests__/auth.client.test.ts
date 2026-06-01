@@ -71,7 +71,7 @@ describe("auth client", () => {
       NEXT_PUBLIC_VERCEL_ENV: undefined,
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: undefined,
       NEXT_PUBLIC_BETTER_AUTH_SENTINEL_IDENTIFY_URL:
-        "https://kv.better-auth.com/projects/cxQKnhdfEtjquuAjSN6GcqNv9YoOPS5L",
+        "https://kv.better-auth.com/projects/example-project-id",
     });
   });
 
@@ -112,8 +112,7 @@ describe("auth client", () => {
     await import("../auth.client");
 
     expect(sentinelClientMock).toHaveBeenCalledWith({
-      identifyUrl:
-        "https://kv.better-auth.com/projects/cxQKnhdfEtjquuAjSN6GcqNv9YoOPS5L",
+      identifyUrl: "https://kv.better-auth.com/projects/example-project-id",
     });
   });
 
@@ -123,7 +122,7 @@ describe("auth client", () => {
       NEXT_PUBLIC_VERCEL_ENV: "preview",
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "feature/123",
       NEXT_PUBLIC_BETTER_AUTH_SENTINEL_IDENTIFY_URL:
-        "https://kv.better-auth.com/projects/cxQKnhdfEtjquuAjSN6GcqNv9YoOPS5L",
+        "https://kv.better-auth.com/projects/example-project-id",
     });
 
     await import("../auth.client");
