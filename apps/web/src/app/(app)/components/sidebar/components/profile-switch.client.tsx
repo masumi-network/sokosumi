@@ -11,11 +11,16 @@ import {
   Check,
   ChevronDown,
   CircleHelp,
+  Landmark,
   LifeBuoy,
+  ListChecks,
   LogOut,
   PanelLeft,
   Plus,
   ReceiptText,
+  Scale,
+  ScrollText,
+  Shield,
   User as UserIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -75,10 +80,13 @@ function getWorkspaceKey(workspace: WorkspaceItem): string {
 
 interface HelpLinkItem {
   url: string;
+  translationKey: "documentation" | "serviceplanAiCoworker" | "support";
+  icon?: ComponentType<{ "aria-hidden"?: boolean; className?: string }>;
+}
+
+interface LegalLinkItem {
+  url: string;
   translationKey:
-    | "documentation"
-    | "serviceplanAiCoworker"
-    | "support"
     | "termsOfService"
     | "privacyPolicy"
     | "imprint"
@@ -104,35 +112,37 @@ const HELP_LINKS: HelpLinkItem[] = [
   },
 ];
 
-const LEGAL_LINKS: HelpLinkItem[] = [
+const LEGAL_LINKS: LegalLinkItem[] = [
   {
     url: "https://www.sokosumi.com/terms-of-service",
     translationKey: "termsOfService",
+    icon: ScrollText,
   },
   {
     url: "https://www.sokosumi.com/privacy-policy",
     translationKey: "privacyPolicy",
+    icon: Shield,
   },
   {
     url: "https://www.sokosumi.com/imprint",
     translationKey: "imprint",
+    icon: Landmark,
   },
   {
     url: "https://www.sokosumi.com/acceptable-use",
     translationKey: "acceptableUse",
+    icon: ListChecks,
   },
 ];
 
-function HelpAndLegalLinks({
+function HelpLinks({
   handleOpenExternalLink,
   itemClassName,
-  labelClassName,
   tUserAvatar,
 }: {
   handleOpenExternalLink: (url: string) => void;
   itemClassName: string;
-  labelClassName: string;
-  tUserAvatar: (key: HelpLinkItem["translationKey"] | "legal") => string;
+  tUserAvatar: (key: HelpLinkItem["translationKey"]) => string;
 }) {
   return (
     <>
@@ -151,19 +161,36 @@ function HelpAndLegalLinks({
           </DropdownMenuItem>
         );
       })}
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel className={labelClassName}>
-        {tUserAvatar("legal")}
-      </DropdownMenuLabel>
-      {LEGAL_LINKS.map((item) => (
-        <DropdownMenuItem
-          key={item.translationKey}
-          className={itemClassName}
-          onClick={() => handleOpenExternalLink(item.url)}
-        >
-          <span>{tUserAvatar(item.translationKey)}</span>
-        </DropdownMenuItem>
-      ))}
+    </>
+  );
+}
+
+function LegalLinks({
+  handleOpenExternalLink,
+  itemClassName,
+  tUserAvatar,
+}: {
+  handleOpenExternalLink: (url: string) => void;
+  itemClassName: string;
+  tUserAvatar: (key: LegalLinkItem["translationKey"]) => string;
+}) {
+  return (
+    <>
+      {LEGAL_LINKS.map((item) => {
+        const Icon = item.icon;
+        return (
+          <DropdownMenuItem
+            key={item.translationKey}
+            className={itemClassName}
+            onClick={() => handleOpenExternalLink(item.url)}
+          >
+            {Icon ? (
+              <Icon className="text-muted-foreground size-4" aria-hidden />
+            ) : null}
+            <span>{tUserAvatar(item.translationKey)}</span>
+          </DropdownMenuItem>
+        );
+      })}
     </>
   );
 }
@@ -239,6 +266,7 @@ export default function ProfileSwitchClient({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isWorkspaceSectionOpen, setIsWorkspaceSectionOpen] = useState(false);
   const [isHelpSectionOpen, setIsHelpSectionOpen] = useState(false);
+  const [isLegalSectionOpen, setIsLegalSectionOpen] = useState(false);
   const { isMobile, state, toggleSidebar } = useSidebar();
   const isCollapsedDesktop = !isMobile && state === "collapsed";
   const canOpenMenu = isMobile || state !== "collapsed";
@@ -252,6 +280,7 @@ export default function ProfileSwitchClient({
     if (!open) {
       setIsWorkspaceSectionOpen(false);
       setIsHelpSectionOpen(false);
+      setIsLegalSectionOpen(false);
     }
   };
 
@@ -262,6 +291,7 @@ export default function ProfileSwitchClient({
         setIsDropdownOpen(false);
         setIsWorkspaceSectionOpen(false);
         setIsHelpSectionOpen(false);
+        setIsLegalSectionOpen(false);
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -304,6 +334,7 @@ export default function ProfileSwitchClient({
     setIsDropdownOpen(false);
     setIsWorkspaceSectionOpen(false);
     setIsHelpSectionOpen(false);
+    setIsLegalSectionOpen(false);
   };
 
   const handleWorkspaceSelect = (workspaceId: string | null) => {
@@ -555,29 +586,65 @@ export default function ProfileSwitchClient({
                         />
                       </DropdownMenuItem>
                       {isHelpSectionOpen ? (
-                        <HelpAndLegalLinks
+                        <HelpLinks
                           handleOpenExternalLink={handleOpenExternalLink}
                           itemClassName="cursor-pointer pl-8"
-                          labelClassName="text-muted-foreground pl-8 text-xs"
+                          tUserAvatar={tUserAvatar}
+                        />
+                      ) : null}
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          setIsLegalSectionOpen((previous) => !previous);
+                        }}
+                      >
+                        <Scale className="text-muted-foreground size-4" />
+                        <span>{tUserAvatar("legal")}</span>
+                        <ChevronDown
+                          className={cn(
+                            "text-muted-foreground ml-auto size-4 transition-transform",
+                            isLegalSectionOpen ? "rotate-180" : "",
+                          )}
+                        />
+                      </DropdownMenuItem>
+                      {isLegalSectionOpen ? (
+                        <LegalLinks
+                          handleOpenExternalLink={handleOpenExternalLink}
+                          itemClassName="cursor-pointer pl-8"
                           tUserAvatar={tUserAvatar}
                         />
                       ) : null}
                     </>
                   ) : (
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger className="gap-2">
-                        <LifeBuoy className="text-muted-foreground size-4" />
-                        <span>{tUserAvatar("help")}</span>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-64">
-                        <HelpAndLegalLinks
-                          handleOpenExternalLink={handleOpenExternalLink}
-                          itemClassName="cursor-pointer"
-                          labelClassName="text-muted-foreground text-xs"
-                          tUserAvatar={tUserAvatar}
-                        />
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
+                    <>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="gap-2">
+                          <LifeBuoy className="text-muted-foreground size-4" />
+                          <span>{tUserAvatar("help")}</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-64">
+                          <HelpLinks
+                            handleOpenExternalLink={handleOpenExternalLink}
+                            itemClassName="cursor-pointer"
+                            tUserAvatar={tUserAvatar}
+                          />
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="gap-2">
+                          <Scale className="text-muted-foreground size-4" />
+                          <span>{tUserAvatar("legal")}</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-64">
+                          <LegalLinks
+                            handleOpenExternalLink={handleOpenExternalLink}
+                            itemClassName="cursor-pointer"
+                            tUserAvatar={tUserAvatar}
+                          />
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    </>
                   )}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
