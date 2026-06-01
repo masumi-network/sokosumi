@@ -18,6 +18,10 @@ import { getEnvPublicConfig } from "@/config/env.public";
 
 import type { auth } from "./auth";
 
+function getSentinelIdentifyUrl(): string | undefined {
+  return getEnvPublicConfig().NEXT_PUBLIC_BETTER_AUTH_SENTINEL_IDENTIFY_URL;
+}
+
 function getLastUsedLoginMethodCookieName(): string {
   const env = getEnvPublicConfig();
 
@@ -49,7 +53,9 @@ export const authClient = createAuthClient({
       subscription: true,
     }),
     dashClient(),
-    sentinelClient(),
+    sentinelClient({
+      identifyUrl: getSentinelIdentifyUrl(),
+    }),
   ],
 });
 
