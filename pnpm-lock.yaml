@@ -118,7 +118,7 @@ importers:
         specifier: 4.0.7
         version: 4.0.7
       resumable-stream:
-        specifier: ^2.2.12
+        specifier: 2.2.12
         version: 2.2.12
       slugify:
         specifier: 1.6.9

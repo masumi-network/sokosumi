@@ -161,6 +161,10 @@ const config = {
 
 ## Environment & Tooling
 
+### Dependencies
+
+- **Pin exact versions** for all external npm packages in workspace `package.json` files (no `^`, `~`, `>=`, or `*` ranges). Use `workspace:*` only for monorepo-internal packages. See [Pinned dependencies](.cursor/rules/pinned-dependencies.mdc).
+
 ### Prerequisites
 
 - Node.js 24.x
@@ -260,6 +264,7 @@ docs(readme): update setup instructions
 ## Additional Rules
 
 - [Linting](.cursor/rules/lint.mdc)
+- [Pinned dependencies](.cursor/rules/pinned-dependencies.mdc) – exact versions in `package.json`, no semver ranges on registry packages
 - [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)
 - [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code
 

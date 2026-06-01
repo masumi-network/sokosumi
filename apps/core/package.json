@@ -63,7 +63,7 @@
     "neverthrow": "8.2.0",
     "p-limit": "7.3.0",
     "postmark": "4.0.7",
-    "resumable-stream": "^2.2.12",
+    "resumable-stream": "2.2.12",
     "slugify": "1.6.9",
     "stripe": "22.2.0",
     "uuid": "14.0.0"
