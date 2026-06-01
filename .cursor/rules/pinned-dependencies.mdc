@@ -1,0 +1,40 @@
+---
+description: "Pin exact dependency versions in package.json (no semver ranges)"
+alwaysApply: true
+---
+
+## Pinned dependency versions
+
+All **external** npm dependencies in workspace `package.json` files must use **exact, pinned versions**. The lockfile alone is not enough—the specifier in `package.json` must match what we intend to install.
+
+### Required format
+
+- **Do**: `"react": "19.2.6"`, `"better-auth": "1.6.13"`, `"ioredis": "5.11.0"`
+- **Do not**: `"^1.6.13"`, `"~4.4.0"`, `">=5.0.0"`, `"*"`, or any other semver range on registry packages
+
+### Exceptions
+
+- **Workspace packages**: `"@sokosumi/database": "workspace:*"` (and other `workspace:*` links) are allowed for monorepo-internal dependencies.
+- **`packageManager`** in the root `package.json` (e.g. `pnpm@11.5.0`) follows pnpm’s required format.
+
+### When adding or updating dependencies
+
+1. Set the **exact** version in every affected `package.json` (`apps/*`, `packages/*`, root if applicable).
+2. Run `pnpm install` at the repo root so `pnpm-lock.yaml` stays in sync.
+3. If you find a range while touching a file (e.g. `"^2.2.12"`), pin it to the version resolved in the lockfile (or the target version for a deliberate bump).
+
+### Why
+
+- Reproducible installs across machines and CI
+- Dependency PRs show the intended version in the diff, not only in the lockfile
+- Avoids surprise minor/patch upgrades on the next `pnpm install`
+
+### Verification
+
+After dependency changes:
+
+```bash
+pnpm install
+```
+
+Search for accidental ranges: `rg '"\^|"~|"\*|">=' --glob package.json`

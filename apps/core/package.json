@@ -31,11 +31,11 @@
     "write-openapi-snapshot-for-web": "tsx scripts/write-openapi-for-web.mts"
   },
   "dependencies": {
-    "@better-auth/api-key": "1.6.11",
-    "@better-auth/i18n": "1.6.11",
-    "@better-auth/oauth-provider": "1.6.11",
-    "@better-auth/prisma-adapter": "1.6.11",
-    "@better-auth/utils": "0.4.0",
+    "@better-auth/api-key": "1.6.13",
+    "@better-auth/i18n": "1.6.13",
+    "@better-auth/oauth-provider": "1.6.13",
+    "@better-auth/prisma-adapter": "1.6.13",
+    "@better-auth/utils": "0.4.1",
     "@hono/node-server": "2.0.4",
     "@hono/zod-openapi": "1.4.0",
     "@openrouter/ai-sdk-provider": "2.9.0",
@@ -55,15 +55,15 @@
     "@vercel/related-projects": "1.1.0",
     "ably": "2.21.0",
     "ai": "6.0.193",
-    "better-auth": "1.6.11",
+    "better-auth": "1.6.13",
     "cron-parser": "5.5.0",
     "dotenv": "17.4.2",
     "hono": "4.12.23",
-    "ioredis": "^5.10.1",
+    "ioredis": "5.11.0",
     "neverthrow": "8.2.0",
     "p-limit": "7.3.0",
     "postmark": "4.0.7",
-    "resumable-stream": "^2.2.12",
+    "resumable-stream": "2.2.12",
     "slugify": "1.6.9",
     "stripe": "22.2.0",
     "uuid": "14.0.0"
@@ -71,7 +71,7 @@
   "devDependencies": {
     "@types/node": "24.12.4",
     "tsup": "8.5.1",
-    "tsx": "4.22.3",
+    "tsx": "4.22.4",
     "typescript": "6.0.3",
     "vitest": "4.1.7"
   }
