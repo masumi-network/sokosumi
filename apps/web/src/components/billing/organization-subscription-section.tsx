@@ -29,6 +29,7 @@ import {
 } from "./subscription-plan-utils";
 
 interface OrganizationSubscriptionSectionProps {
+  assignedSeatCount: number;
   cancelAtPeriodEnd: boolean;
   currentPlan: SubscriptionPlanName | null;
   currentPeriodEnd: Date | string | null;
@@ -40,6 +41,7 @@ interface OrganizationSubscriptionSectionProps {
 }
 
 export function OrganizationSubscriptionSection({
+  assignedSeatCount,
   cancelAtPeriodEnd,
   currentPlan,
   currentPeriodEnd,
@@ -61,19 +63,21 @@ export function OrganizationSubscriptionSection({
   );
 
   const minimumSeats = useMemo(
-    () => resolveMinimumOrganizationSeats(memberCount),
-    [memberCount],
+    () => resolveMinimumOrganizationSeats(assignedSeatCount),
+    [assignedSeatCount],
   );
   const [targetSeats, setTargetSeats] = useState(
-    resolveTargetOrganizationSeats(currentSeats, memberCount),
+    resolveTargetOrganizationSeats(currentSeats, assignedSeatCount),
   );
   const [pendingPlan, setPendingPlan] = useState<SubscriptionPlanName | null>(
     null,
   );
 
   useEffect(() => {
-    setTargetSeats(resolveTargetOrganizationSeats(currentSeats, memberCount));
-  }, [currentSeats, memberCount]);
+    setTargetSeats(
+      resolveTargetOrganizationSeats(currentSeats, assignedSeatCount),
+    );
+  }, [assignedSeatCount, currentSeats]);
 
   const cancellationDate = useMemo(() => {
     if (!cancelAtPeriodEnd || !currentPeriodEnd) {
@@ -143,10 +147,6 @@ export function OrganizationSubscriptionSection({
 
   const handleUpgradePlan = useCallback(
     async (planName: PaidSubscriptionPlanName) => {
-      if (planName === "enterprise") {
-        return;
-      }
-
       if (!Number.isInteger(targetSeats) || targetSeats < minimumSeats) {
         toast.error(t("Errors.badInput"));
         return;
@@ -240,6 +240,7 @@ export function OrganizationSubscriptionSection({
       <Card>
         <CardContent className="space-y-6">
           <OrganizationSeatSettingsFields
+            assignedSeatCount={assignedSeatCount}
             inputId="organization-seats"
             memberCount={memberCount}
             onTargetSeatsChange={setTargetSeats}
@@ -262,7 +263,14 @@ export function OrganizationSubscriptionSection({
               />
             );
           })}
-          <SubscriptionEnterprisePlanCard />
+          <SubscriptionEnterprisePlanCard
+            actionLabel={
+              currentPlan === "enterprise" && cancelAtPeriodEnd
+                ? cancellationLabel
+                : undefined
+            }
+            isCurrent={currentPlan === "enterprise"}
+          />
         </div>
 
         {freePlan ? (

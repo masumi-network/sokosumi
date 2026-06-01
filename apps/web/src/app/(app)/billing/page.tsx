@@ -13,7 +13,6 @@ import { BalanceSection } from "@/components/billing/balance-section";
 import { BillingTabs } from "@/components/billing/billing-tabs";
 import CouponSection from "@/components/billing/coupon-section";
 import CreditsSection from "@/components/billing/credits-section";
-import { OrganizationEnterprisePlanCard } from "@/components/billing/organization-enterprise-plan-card";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import {
@@ -25,7 +24,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
-import { userService } from "@/lib/services";
+import { organizationSeatService, userService } from "@/lib/services";
 import { ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY } from "@/lib/stripe/credit-topup-pricing";
 import {
   getSubscriptionCatalog,
@@ -68,10 +67,7 @@ function parseBillingTab(tab: string | undefined): BillingTab {
 }
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
-  const [t, tSubscriptions] = await Promise.all([
-    getTranslations("App.Billing"),
-    getTranslations("App.Subscriptions"),
-  ]);
+  const t = await getTranslations("App.Billing");
   const [query, session, activeOrganization, isZeroMarginTopUpEnabled] =
     await Promise.all([
       searchParams,
@@ -141,10 +137,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       activeOrganization.id,
       prisma,
     );
-    const currentSeats = Math.max(
-      latestSubscription?.seats ?? 1,
-      activeOrganization._count.members,
+    const seatSummary = await organizationSeatService.getSeatSummary(
+      activeOrganization.id,
     );
+    const currentSeats = seatSummary.purchasedSeats;
     const credits = convertCentsToCredits(balanceInCents);
     const displayCredits = formatCreditsForDisplay(credits);
 
@@ -165,9 +161,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           <BalanceSection
             title={t("balanceTitle")}
             description={t("balanceDescriptionOrganization", {
-              members: activeOrganization._count.members,
+              assigned: seatSummary.assignedCount,
+              members: seatSummary.memberCount,
               organization: activeOrganization.name,
-              seats: currentSeats,
+              purchased: seatSummary.purchasedSeats,
+              unused: seatSummary.unusedSeats,
             })}
             creditsLabel={t("balanceCreditsLabel", {
               credits: displayCredits,
@@ -175,8 +173,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             stripeCustomerId={activeOrganization.stripeCustomerId}
             stripeCustomerLabel={t("stripeCustomerIdLabel")}
             billingPortal={
-              activeOrganization.stripeCustomerId &&
-              currentPlan !== "enterprise" ? (
+              activeOrganization.stripeCustomerId ? (
                 <BalanceBillingPortalLink
                   baseReturnPath="/billing"
                   description={t("billingPortalDescription")}
@@ -201,32 +198,19 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             }}
             showCreditsTab
             subscriptionContent={
-              currentPlan === "enterprise" ? (
-                <OrganizationEnterprisePlanCard
-                  contactSupportText={t("enterpriseContactSupport")}
-                  description={t("enterprisePlanDescription")}
-                  memberCount={activeOrganization._count.members}
-                  membersLabel={t("enterpriseMembersLabel")}
-                  seats={currentSeats}
-                  seatsLabel={t("enterpriseSeatsLabel")}
-                  title={t("enterprisePlanTitle", {
-                    planName: tSubscriptions("Plans.enterprise.name"),
-                  })}
-                />
-              ) : (
-                <OrganizationSubscriptionSection
-                  cancelAtPeriodEnd={
-                    latestSubscription?.cancelAtPeriodEnd ?? false
-                  }
-                  currentPlan={currentPlan}
-                  currentPeriodEnd={latestSubscription?.periodEnd ?? null}
-                  currentSeats={currentSeats}
-                  memberCount={activeOrganization._count.members}
-                  organizationId={activeOrganization.id}
-                  plans={orgPlans}
-                  returnPath="/billing?tab=subscription"
-                />
-              )
+              <OrganizationSubscriptionSection
+                assignedSeatCount={seatSummary.assignedCount}
+                cancelAtPeriodEnd={
+                  latestSubscription?.cancelAtPeriodEnd ?? false
+                }
+                currentPlan={currentPlan}
+                currentPeriodEnd={latestSubscription?.periodEnd ?? null}
+                currentSeats={currentSeats}
+                memberCount={seatSummary.memberCount}
+                organizationId={activeOrganization.id}
+                plans={orgPlans}
+                returnPath="/billing?tab=subscription"
+              />
             }
             creditsContent={
               <CreditsSection
@@ -300,7 +284,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           stripeCustomerId={user?.stripeCustomerId ?? null}
           stripeCustomerLabel={t("stripeCustomerIdLabel")}
           billingPortal={
-            user?.stripeCustomerId && currentPlan !== "enterprise" ? (
+            user?.stripeCustomerId ? (
               <BalanceBillingPortalLink
                 baseReturnPath="/billing"
                 description={t("billingPortalDescription")}

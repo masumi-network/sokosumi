@@ -12,6 +12,7 @@ const getBalanceMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const getUserByIdMock = vi.fn();
+const getSeatSummaryMock = vi.fn();
 const zeroMarginTopUpEnabledMock = vi.fn();
 const balanceBillingPortalLinkMock = vi.fn();
 const creditsSectionMock = vi.fn();
@@ -57,6 +58,9 @@ vi.mock("@/lib/flags/zero-margin-top-up", () => ({
 }));
 
 vi.mock("@/lib/services", () => ({
+  organizationSeatService: {
+    getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
+  },
   userService: {
     getActiveOrganization: (...args: unknown[]) =>
       getActiveOrganizationMock(...args),
@@ -147,7 +151,6 @@ vi.mock("@/components/billing/personal-subscription-section", () => ({
 
 function createSubscriptionCatalog() {
   return {
-    enterpriseProducts: [],
     free: { credits: 250, currency: "EUR", monthlyAmount: 0 },
     pro: { credits: 14_000, currency: "EUR", monthlyAmount: 20_000 },
     standard: { credits: 5_250, currency: "EUR", monthlyAmount: 7_500 },
@@ -175,6 +178,13 @@ describe("BillingPage", () => {
     getUserByIdMock.mockResolvedValue({
       id: "user-1",
       stripeCustomerId: "cus_user_1",
+    });
+    getSeatSummaryMock.mockResolvedValue({
+      assignedCount: 1,
+      memberCount: 1,
+      paidPlan: null,
+      purchasedSeats: 1,
+      unusedSeats: 0,
     });
   });
 
@@ -325,6 +335,13 @@ describe("BillingPage", () => {
       plan: "free",
       seats: 5,
     });
+    getSeatSummaryMock.mockResolvedValue({
+      assignedCount: 2,
+      memberCount: 2,
+      paidPlan: null,
+      purchasedSeats: 5,
+      unusedSeats: 3,
+    });
 
     const { default: BillingPage } = await import("../page");
 
@@ -338,6 +355,7 @@ describe("BillingPage", () => {
 
     expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        assignedSeatCount: 2,
         cancelAtPeriodEnd: false,
         currentPlan: "free",
         currentPeriodEnd: "2026-03-01T00:00:00.000Z",
@@ -349,7 +367,7 @@ describe("BillingPage", () => {
     expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
   });
 
-  it("hides the billing portal for organization enterprise plans even with a Stripe customer", async () => {
+  it("shows the billing portal for organization plans with a Stripe customer", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       _count: { members: 2 },
       id: "org-1",
@@ -362,7 +380,7 @@ describe("BillingPage", () => {
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       periodEnd: "2026-03-01T00:00:00.000Z",
-      plan: "enterprise",
+      plan: "pro",
       seats: 10,
     });
 
@@ -376,7 +394,7 @@ describe("BillingPage", () => {
       }),
     );
 
-    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
-    expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
+    expect(balanceBillingPortalLinkMock).toHaveBeenCalled();
+    expect(view.getByTestId("balance-billing-portal-link")).toBeTruthy();
   });
 });

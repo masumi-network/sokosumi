@@ -15,6 +15,7 @@ import {
   escapeStringForLike,
   FREE_SUBSCRIPTION_PLAN,
   getCreditExpiryDate,
+  grantFreeOrganizationMemberSubscriptionCredits,
   isActiveSubscriptionStatus,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
   transitionToNextLocalFreeSubscriptionPeriod,
@@ -35,12 +36,7 @@ import Stripe from "stripe";
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
 import { stripeService } from "@/lib/services";
-import {
-  getSubscriptionCatalog,
-  invalidateSubscriptionCatalogCache,
-  resolveEnterpriseProduct,
-  type SubscriptionCatalogPlan,
-} from "@/lib/stripe/subscription-catalog";
+import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS = new Set([
@@ -70,11 +66,6 @@ interface SubscriptionCreditTotals {
   maxSubscriptionPeriodEndUnix: number | null;
   paidOrCycleSubscriptionCredits: number;
 }
-
-type EnterpriseOverlayPlan = Pick<
-  SubscriptionCatalogPlan,
-  "credits" | "monthlyAmount"
->;
 
 interface AppliedSubscriptionCredits {
   subscriptionCredits: number;
@@ -291,7 +282,6 @@ async function calculateSubscriptionCreditTotals(params: {
   maxSeatGrantQuantity: number | null;
   organizationId: string | null;
   resolveDefaultQuantity: () => Promise<number>;
-  enterpriseOverlay?: Map<string, EnterpriseOverlayPlan>;
   subscriptionCatalog?: Awaited<ReturnType<typeof getSubscriptionCatalog>>;
   subscriptionLines: SubscriptionLine[];
 }): Promise<SubscriptionCreditTotals> {
@@ -299,6 +289,16 @@ async function calculateSubscriptionCreditTotals(params: {
   let maxSubscriptionPeriodEndUnix: number | null = null;
 
   if (params.subscriptionLines.length === 0) {
+    return {
+      maxSubscriptionPeriodEndUnix,
+      paidOrCycleSubscriptionCredits,
+    };
+  }
+
+  if (params.organizationId !== null && params.maxSeatGrantQuantity === 0) {
+    console.log(
+      `Skipping subscription credits for invoice ${params.invoiceId}: organization ${params.organizationId} has no assigned seats`,
+    );
     return {
       maxSubscriptionPeriodEndUnix,
       paidOrCycleSubscriptionCredits,
@@ -313,7 +313,6 @@ async function calculateSubscriptionCreditTotals(params: {
     subscriptionCatalog.starter,
     subscriptionCatalog.standard,
     subscriptionCatalog.pro,
-    ...subscriptionCatalog.enterpriseProducts,
   ];
   const catalogByProductId = new Map(
     catalogPlans.map((plan) => [
@@ -324,9 +323,6 @@ async function calculateSubscriptionCreditTotals(params: {
       },
     ]),
   );
-  for (const [productId, plan] of params.enterpriseOverlay ?? []) {
-    catalogByProductId.set(productId, plan);
-  }
 
   function logSeatCreditCapApplied(data: {
     activeMembers: number;
@@ -452,12 +448,6 @@ async function finalizeAppliedSubscriptionCredits(params: {
   };
 }
 
-function getSortedUniqueMemberUserIds(
-  members: Array<{ userId: string }>,
-): string[] {
-  return Array.from(new Set(members.map((member) => member.userId))).sort();
-}
-
 function splitCreditsByMember(params: {
   memberUserIds: string[];
   totalCredits: number;
@@ -476,6 +466,21 @@ function splitCreditsByMember(params: {
       credits: baseCredits + (index < remainder ? 1 : 0),
     }))
     .filter((allocation) => allocation.credits > 0);
+}
+
+function resolveSubscriptionLinesPeriodEndUnix(
+  subscriptionLines: SubscriptionLine[],
+): number | null {
+  let maxPeriodEndUnix: number | null = null;
+
+  for (const { lineItem } of subscriptionLines) {
+    const periodEnd = lineItem.period?.end;
+    if (typeof periodEnd === "number" && periodEnd > 0) {
+      maxPeriodEndUnix = Math.max(periodEnd, maxPeriodEndUnix ?? 0);
+    }
+  }
+
+  return maxPeriodEndUnix;
 }
 
 function buildInvoiceCreditGrants(
@@ -526,6 +531,10 @@ function buildInvoiceCreditGrants(
   }
 
   if (params.skipOrganizationSubscriptionSplit) {
+    return creditGrants;
+  }
+
+  if (params.organizationMemberUserIds.length === 0) {
     return creditGrants;
   }
 
@@ -581,6 +590,7 @@ export async function handleInvoicePaidEvent(
   let userId: string;
   let organizationId: string | null = null;
   let organizationMemberUserIds: string[] = [];
+  let organizationUnassignedMemberUserIds: string[] = [];
 
   // First, try to find a user with this stripeCustomerId
   const user = await userRepository.getUserByStripeCustomerId(
@@ -603,16 +613,21 @@ export async function handleInvoicePaidEvent(
       // This is an organization purchase
       organizationId = organization.id;
 
-      // Get organization members to find the owner to attribute the transaction
-      const members = await memberRepository.getMembersByOrganizationId(
-        organizationId,
-        prisma,
-      );
-      organizationMemberUserIds = getSortedUniqueMemberUserIds(members);
-      if (organizationMemberUserIds.length === 0) {
+      const [members, assignedMemberUserIds, unassignedMemberUserIds] =
+        await Promise.all([
+          memberRepository.getMembersByOrganizationId(organizationId, prisma),
+          memberRepository.getAssignedMemberUserIds(organizationId, prisma),
+          memberRepository.getUnassignedMemberUserIds(organizationId, prisma),
+        ]);
+
+      if (members.length === 0) {
         console.log(`No members found for organization ${organizationId}`);
         return;
       }
+
+      organizationMemberUserIds = assignedMemberUserIds;
+      organizationUnassignedMemberUserIds = unassignedMemberUserIds;
+
       const ownerMember = members.find((m) => m.role === MemberRole.OWNER);
 
       if (!ownerMember) {
@@ -657,27 +672,6 @@ export async function handleInvoicePaidEvent(
   let oneTimeTopUpCredits = topUpCreditsFromMetadata ?? 0;
   const oneTimeTopUpGrantPolicy = resolveTopUpGrantPolicy(invoice);
   const subscriptionLines: SubscriptionLine[] = [];
-  const enterpriseOverlay = new Map<string, EnterpriseOverlayPlan>();
-  let subscriptionCatalogForEnterprise: Awaited<
-    ReturnType<typeof getSubscriptionCatalog>
-  > | null = null;
-
-  async function getCachedEnterprisePlan(
-    productId: string,
-  ): Promise<EnterpriseOverlayPlan | null> {
-    subscriptionCatalogForEnterprise ??=
-      await getSubscriptionCatalog(stripeInstance);
-    const plan = subscriptionCatalogForEnterprise.enterpriseProducts.find(
-      (enterpriseProduct) => enterpriseProduct.productId === productId,
-    );
-
-    if (!plan) return null;
-
-    return {
-      credits: plan.credits,
-      monthlyAmount: plan.monthlyAmount,
-    };
-  }
 
   for (const lineItem of lineItems) {
     if (lineItem.pricing && typeof lineItem.pricing === "object") {
@@ -706,33 +700,7 @@ export async function handleInvoicePaidEvent(
 
       if (subscriptionProductIds.has(productId)) {
         subscriptionLines.push({ lineItem, productId });
-        continue;
       }
-
-      const overlayPlan =
-        enterpriseOverlay.get(productId) ??
-        (await getCachedEnterprisePlan(productId));
-      if (overlayPlan) {
-        enterpriseOverlay.set(productId, overlayPlan);
-        subscriptionLines.push({ lineItem, productId });
-        continue;
-      }
-
-      const resolvedEnterprisePlan = await resolveEnterpriseProduct(
-        stripeInstance,
-        productId,
-      );
-      if (!resolvedEnterprisePlan) {
-        continue;
-      }
-
-      enterpriseOverlay.set(productId, {
-        credits: resolvedEnterprisePlan.credits,
-        monthlyAmount: resolvedEnterprisePlan.monthlyAmount,
-      });
-      subscriptionLines.push({ lineItem, productId });
-      invalidateSubscriptionCatalogCache();
-      subscriptionCatalogForEnterprise = null;
     }
   }
 
@@ -755,8 +723,6 @@ export async function handleInvoicePaidEvent(
       : null,
     organizationId,
     resolveDefaultQuantity: creditScope.resolveDefaultQuantity,
-    enterpriseOverlay,
-    subscriptionCatalog: subscriptionCatalogForEnterprise ?? undefined,
     subscriptionLines,
   });
   const { subscriptionCredits, subscriptionCreditsExpiry } =
@@ -804,7 +770,15 @@ export async function handleInvoicePaidEvent(
     userId,
   });
 
-  if (creditGrants.length === 0) {
+  const freeTierPeriodEndUnix =
+    resolveSubscriptionLinesPeriodEndUnix(subscriptionLines);
+  const shouldGrantUnassignedFreeCredits =
+    organizationId !== null &&
+    subscriptionLines.length > 0 &&
+    freeTierPeriodEndUnix !== null &&
+    organizationUnassignedMemberUserIds.length > 0;
+
+  if (creditGrants.length === 0 && !shouldGrantUnassignedFreeCredits) {
     console.log(
       `Invoice ${invoiceId} has no grantable credits (billing reason: ${invoice.billing_reason})`,
     );
@@ -858,6 +832,29 @@ export async function handleInvoicePaidEvent(
       console.log(
         `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId} member ${grant.userId}` : `user ${grant.userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
       );
+    }
+
+    if (
+      shouldGrantUnassignedFreeCredits &&
+      organizationId &&
+      freeTierPeriodEndUnix !== null
+    ) {
+      const freeGrantsCreated =
+        await grantFreeOrganizationMemberSubscriptionCredits(
+          {
+            memberUserIds: organizationUnassignedMemberUserIds,
+            organizationId,
+            periodEnd: new Date(freeTierPeriodEndUnix * 1000),
+          },
+          tx,
+        );
+
+      if (freeGrantsCreated > 0) {
+        creditsGranted = true;
+        console.log(
+          `✅ Processed invoice ${invoiceId}: Granted free monthly credits to ${freeGrantsCreated} unassigned member(s) of organization ${organizationId}`,
+        );
+      }
     }
 
     if (creditsGranted) {
@@ -1057,6 +1054,7 @@ export async function handleSubscriptionDeletedEvent(
           id: localSubscription.id,
           periodEnd: localSubscription.periodEnd,
           referenceId: localSubscription.referenceId,
+          seats: localSubscription.seats,
           stripeCustomerId: localSubscription.stripeCustomerId,
           stripeSubscriptionId: localSubscription.stripeSubscriptionId,
         },

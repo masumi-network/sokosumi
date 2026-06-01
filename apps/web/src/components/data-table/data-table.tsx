@@ -18,9 +18,7 @@ import {
 import { useTranslations } from "next-intl";
 import * as React from "react";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -30,6 +28,15 @@ import {
 import { cn } from "@/lib/utils";
 
 import DataTablePagination from "./data-table-pagination";
+
+function getMinTableWidth<TData>(
+  table: ReturnType<typeof useReactTable<TData>>,
+) {
+  return table.getVisibleLeafColumns().reduce((total, column) => {
+    const minSize = column.columnDef.minSize ?? 0;
+    return total + Math.max(column.getSize(), minSize);
+  }, 0);
+}
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -110,6 +117,7 @@ export default function DataTable<TData, TValue>({
   });
 
   const rowModel = table.getRowModel();
+  const minTableWidth = getMinTableWidth(table);
 
   const visibleLeafColumnsCount = table.getVisibleLeafColumns().length;
 
@@ -150,6 +158,7 @@ export default function DataTable<TData, TValue>({
               className="p-2"
               style={{
                 width: cell.column.getSize(),
+                minWidth: cell.column.columnDef.minSize,
               }}
             >
               {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -161,61 +170,56 @@ export default function DataTable<TData, TValue>({
   });
 
   const tableElements = (
-    <div
-      className={cn(
-        "flex flex-col space-y-4 overflow-hidden",
-        containerClassName,
-      )}
-    >
-      <div
-        className={cn("flex flex-1 flex-col overflow-hidden", tableClassName)}
-      >
-        <ScrollArea className="h-full">
-          <Table>
-            <TableHeader
-              className={cn("sticky top-0 z-10", tableHeaderClassName)}
-            >
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      colSpan={header.colSpan}
-                      className="p-2"
-                      style={{
-                        width: header.getSize(),
-                      }}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody
-              className={cn(tableBodyClassName)}
-              key={`table-body-${rowModel.rows?.length ?? 0}`}
-            >
-              {rowModel.rows?.length ? (
-                renderedRows
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 p-2 text-center"
+    <div className={cn("flex min-w-0 flex-col space-y-4", containerClassName)}>
+      <div className={cn("min-w-0 overflow-x-auto", tableClassName)}>
+        <table
+          className="w-full caption-bottom text-sm"
+          style={{ minWidth: minTableWidth }}
+        >
+          <TableHeader
+            className={cn("sticky top-0 z-10", tableHeaderClassName)}
+          >
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    colSpan={header.colSpan}
+                    className="p-2"
+                    style={{
+                      width: header.getSize(),
+                      minWidth: header.column.columnDef.minSize,
+                    }}
                   >
-                    {t("noResults")}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </ScrollArea>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody
+            className={cn(tableBodyClassName)}
+            key={`table-body-${rowModel.rows?.length ?? 0}`}
+          >
+            {rowModel.rows?.length ? (
+              renderedRows
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 p-2 text-center"
+                >
+                  {t("noResults")}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </table>
       </div>
       {showPagination && (
         <DataTablePagination

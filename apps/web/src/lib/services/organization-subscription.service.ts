@@ -1,7 +1,12 @@
 import "server-only";
 
 import { MemberRole } from "@sokosumi/database";
-import { ensureLocalFreeSubscriptionPeriod } from "@sokosumi/database/helpers";
+import {
+  ensureLocalFreeSubscriptionPeriod,
+  ensurePurchasedSeatsSufficient,
+  grantFreeOrganizationMemberSubscriptionCredits,
+  resolvePurchasedSeats,
+} from "@sokosumi/database/helpers";
 import {
   memberRepository,
   subscriptionRepository,
@@ -50,20 +55,8 @@ async function getLatestActiveOrganizationSubscription(
   };
 }
 
-async function getCurrentMemberCount(organizationId: string): Promise<number> {
-  return await prisma.member.count({
-    where: {
-      organizationId,
-    },
-  });
-}
-
-async function getRequiredSeatsForNextMember(
-  organizationId: string,
-): Promise<number> {
-  const currentMembersCount = await getCurrentMemberCount(organizationId);
-
-  return currentMembersCount + 1;
+async function getAssignedMemberCount(organizationId: string): Promise<number> {
+  return await memberRepository.getAssignedMemberCount(organizationId, prisma);
 }
 
 async function increaseSubscriptionSeats(
@@ -99,20 +92,27 @@ async function increaseSubscriptionSeats(
   );
 }
 
-function resolveCurrentSeats(seats: number | null | undefined): number {
-  return seats && seats > 0 ? seats : 1;
-}
-
-function ensureValidSeatCount(seats: number, memberCount?: number): void {
+function ensureValidPurchasedSeatCount(
+  seats: number,
+  assignedCount?: number,
+): void {
   if (!Number.isInteger(seats) || seats < 1) {
     throw new APIError("BAD_REQUEST", {
       message: "Please provide valid plan and seat values",
     });
   }
-  if (memberCount !== undefined && seats < memberCount) {
-    throw new APIError("BAD_REQUEST", {
-      message: `Seats must be at least ${memberCount} to accommodate all current members`,
-    });
+
+  if (assignedCount !== undefined) {
+    try {
+      ensurePurchasedSeatsSufficient(seats, assignedCount);
+    } catch (error) {
+      throw new APIError("BAD_REQUEST", {
+        message:
+          error instanceof Error
+            ? error.message
+            : `Seats must be at least ${assignedCount} to cover all assigned members`,
+      });
+    }
   }
 }
 
@@ -198,6 +198,71 @@ function ensureSubscriptionPeriodDate(
   });
 }
 
+async function syncPaidOrganizationUnassignedFreeCredits(
+  organizationId: string,
+  activeSubscription: ActiveOrganizationSubscription,
+): Promise<number> {
+  const purchasedSeats = resolvePurchasedSeats(activeSubscription.seats);
+  const periodEnd = activeSubscription.periodEnd;
+
+  if (!periodEnd || periodEnd <= new Date()) {
+    return purchasedSeats;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const unassignedMemberUserIds =
+      await memberRepository.getUnassignedMemberUserIds(organizationId, tx);
+
+    await grantFreeOrganizationMemberSubscriptionCredits(
+      {
+        memberUserIds: unassignedMemberUserIds,
+        organizationId,
+        periodEnd,
+      },
+      tx,
+    );
+  });
+
+  return purchasedSeats;
+}
+
+async function syncLocalFreeOrganizationPeriodCredits(
+  organizationId: string,
+  activeSubscription: ActiveOrganizationSubscription,
+): Promise<number> {
+  const periodStart = ensureSubscriptionPeriodDate(
+    activeSubscription.periodStart,
+    "period start",
+  );
+  const periodEnd = ensureSubscriptionPeriodDate(
+    activeSubscription.periodEnd,
+    "period end",
+  );
+  const purchasedSeats = resolvePurchasedSeats(activeSubscription.seats);
+
+  return await prisma.$transaction(async (tx) => {
+    const memberUserIds = await memberRepository.getOrganizationMemberUserIds(
+      organizationId,
+      tx,
+    );
+
+    await ensureLocalFreeSubscriptionPeriod(
+      {
+        billingAnchorDate: activeSubscription.createdAt,
+        memberUserIds,
+        organizationId,
+        periodEnd,
+        periodStart,
+        purchasedSeats,
+        referenceId: organizationId,
+      },
+      tx,
+    );
+
+    return purchasedSeats;
+  });
+}
+
 async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
   organizationId: string,
   activeSubscription?: ActiveOrganizationSubscription | null,
@@ -206,51 +271,21 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
     activeSubscription ??
     (await getLatestActiveOrganizationSubscription(organizationId));
 
-  if (
-    !currentActiveSubscription ||
-    currentActiveSubscription.stripeSubscriptionId
-  ) {
-    return resolveCurrentSeats(currentActiveSubscription?.seats);
+  if (!currentActiveSubscription) {
+    return resolvePurchasedSeats(undefined);
   }
 
-  const periodStart = ensureSubscriptionPeriodDate(
-    currentActiveSubscription.periodStart,
-    "period start",
-  );
-  const periodEnd = ensureSubscriptionPeriodDate(
-    currentActiveSubscription.periodEnd,
-    "period end",
-  );
-
-  return await prisma.$transaction(async (tx) => {
-    const members = await memberRepository.getMembersByOrganizationId(
+  if (currentActiveSubscription.stripeSubscriptionId) {
+    return syncPaidOrganizationUnassignedFreeCredits(
       organizationId,
-      tx,
+      currentActiveSubscription,
     );
-    const memberUserIds = members.map((member) => member.userId);
-    const seats = memberUserIds.length;
+  }
 
-    await tx.subscription.update({
-      where: { id: currentActiveSubscription.id },
-      data: {
-        seats,
-      },
-    });
-
-    await ensureLocalFreeSubscriptionPeriod(
-      {
-        billingAnchorDate: currentActiveSubscription.createdAt,
-        memberUserIds,
-        organizationId,
-        periodEnd,
-        periodStart,
-        referenceId: organizationId,
-      },
-      tx,
-    );
-
-    return seats;
-  });
+  return syncLocalFreeOrganizationPeriodCredits(
+    organizationId,
+    currentActiveSubscription,
+  );
 }
 
 export const organizationSubscriptionService = (() => {
@@ -261,26 +296,19 @@ export const organizationSubscriptionService = (() => {
       seats: number,
     ): Promise<{ seats: number }> {
       await ensureCanManageOrganizationSubscription(userId, organizationId);
-      ensureValidSeatCount(seats);
       const activeSubscription = await ensureActiveOrganizationSubscription(
         organizationId,
         "An active organization subscription is required before updating seats.",
       );
+      const assignedCount = await getAssignedMemberCount(organizationId);
+      ensureValidPurchasedSeatCount(seats, assignedCount);
 
       if (!activeSubscription.stripeSubscriptionId) {
-        const synchronizedSeats =
-          await syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
-            organizationId,
-            activeSubscription,
-          );
-
-        return { seats: synchronizedSeats };
+        await syncOrganizationSeatCount(activeSubscription, seats);
+        return { seats };
       }
 
-      const memberCount = await getCurrentMemberCount(organizationId);
-      ensureValidSeatCount(seats, memberCount);
-
-      const currentSeats = resolveCurrentSeats(activeSubscription.seats);
+      const currentSeats = resolvePurchasedSeats(activeSubscription.seats);
       if (currentSeats === seats) {
         return { seats: currentSeats };
       }
@@ -295,23 +323,10 @@ export const organizationSubscriptionService = (() => {
     },
 
     async ensureCanAcceptInvitation(organizationId: string): Promise<void> {
-      const activeSubscription = await ensureActiveOrganizationSubscription(
+      await ensureActiveOrganizationSubscription(
         organizationId,
         "An active organization subscription is required before adding members.",
       );
-
-      if (!activeSubscription.stripeSubscriptionId) {
-        return;
-      }
-
-      const requiredSeats = await getRequiredSeatsForNextMember(organizationId);
-
-      const currentSeats = resolveCurrentSeats(activeSubscription.seats);
-      if (currentSeats >= requiredSeats) {
-        return;
-      }
-
-      await syncOrganizationSeatCount(activeSubscription, requiredSeats);
     },
 
     async syncLocalFreeSeatsAndCreditsForCurrentMembers(

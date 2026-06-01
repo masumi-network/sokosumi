@@ -36,6 +36,9 @@ export default function MemberActionsModal() {
     if (selectedAction === MemberAction.REMOVE) {
       return t("removeTitle");
     }
+    if (selectedAction === MemberAction.UNASSIGN_SEAT) {
+      return t("unassignSeatTitle");
+    }
     if (selectedAction === MemberAction.CHANGE_TO_OWNER) {
       return t("changeRoleTitle");
     }
@@ -53,6 +56,9 @@ export default function MemberActionsModal() {
     const { name } = selectedItem.user;
     if (selectedAction === MemberAction.REMOVE) {
       return t("removeDescription", { member: name });
+    }
+    if (selectedAction === MemberAction.UNASSIGN_SEAT) {
+      return t("unassignSeatDescription", { member: name });
     }
     if (selectedAction === MemberAction.CHANGE_TO_OWNER) {
       return t("changeToOwnerDescription", { member: name });

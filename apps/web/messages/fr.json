@@ -179,7 +179,12 @@
         "name": "Nom",
         "email": "E-mail",
         "role": "Rôle",
-        "actions": "Actions"
+        "actions": "Actions",
+        "seat": "Seat"
+      },
+      "Seat": {
+        "assigned": "Attribué",
+        "unassigned": "Non attribué"
       },
       "MemberActions": {
         "remove": "Retirer",
@@ -197,16 +202,24 @@
           "cancel": "Annuler",
           "Success": {
             "changeRole": "Rôle modifié avec succès",
-            "remove": "Membre retiré avec succès"
+            "remove": "Membre retiré avec succès",
+            "assignSeat": "Seat attribué avec succès",
+            "unassignSeat": "Seat retiré avec succès"
           },
           "Error": {
             "changeRole": "Échec de la modification du rôle",
-            "remove": "Échec du retrait du membre"
+            "remove": "Échec du retrait du membre",
+            "assignSeat": "Impossible d'attribuer le Seat",
+            "unassignSeat": "Impossible de retirer le Seat"
           },
           "Errors": {
             "unauthorizedAction": "Se connecter"
-          }
-        }
+          },
+          "unassignSeatTitle": "Retirer le Seat",
+          "unassignSeatDescription": "Retirer le Seat payant de {member} arrête les futurs crédits d'abonnement. La personne recevra à la place des crédits mensuels gratuits. Les crédits de la période en cours restent jusqu'à expiration."
+        },
+        "assignSeat": "Attribuer un Seat",
+        "unassignSeat": "Retirer le Seat"
       },
       "InvitationActions": {
         "resend": "Renvoyer l’invitation",
@@ -2422,12 +2435,12 @@
         },
         "enterprise": {
           "name": "Enterprise",
-          "description": "Forfait personnalisé pour les organisations avec sièges, crédits et support adaptés.",
+          "description": "Forfait personnalisé pour les organisations avec Seats, crédits et support adaptés.",
           "features": {
             "title": "Enterprise inclut :",
             "items": {
               "item1": "Forfait adapté à votre organisation",
-              "item2": "Attribution personnalisée de sièges et de crédits",
+              "item2": "Attribution personnalisée de Seats et de crédits",
               "item3": "Changements de forfait gérés par le support"
             }
           }
@@ -2448,7 +2461,7 @@
     "Billing": {
       "balanceTitle": "Solde",
       "balanceDescriptionPersonal": "Vos crédits actuels sur votre compte personnel.",
-      "balanceDescriptionOrganization": "Crédits actuels pour {organization}. {members, plural, =1 {# membre} other {# membres}}, {seats, plural, =1 {# siège} other {# sièges}}.",
+      "balanceDescriptionOrganization": "Crédits actuels pour {organization}. {purchased, plural, =1 {# Seat acheté} other {# Seats achetés}}, {assigned, plural, =1 {# attribué} other {# attribués}}, {unused, plural, =1 {# inutilisé} other {# inutilisés}}, {members, plural, =1 {# membre} other {# membres}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Aucun crédit} =1 {# crédit} other {# crédits}}",
       "stripeCustomerIdLabel": "ID client Stripe",
       "tabs": {
@@ -2459,11 +2472,6 @@
       "billingPortalDescription": "Téléchargez vos factures, modifiez vos adresses de facturation et gérez d’autres informations de facturation.",
       "manageYourBilling": "Gérer votre facturation",
       "openingBillingPortal": "Ouverture...",
-      "enterprisePlanTitle": "Plan {planName}",
-      "enterprisePlanDescription": "Votre organisation dispose d’un abonnement Enterprise facturé via Stripe.",
-      "enterpriseSeatsLabel": "Sièges",
-      "enterpriseMembersLabel": "Membres actifs",
-      "enterpriseContactSupport": "Contactez le support pour modifier votre forfait ou vos sièges.",
       "orgAccessRestrictedTitle": "Accès à la facturation restreint",
       "orgAccessRestrictedDescription": "Seuls les propriétaires et administrateurs de l’organisation peuvent consulter les informations de facturation de cette organisation.",
       "orgAccessRestrictedHint": "Basculez vers un contexte personnel ou contactez un propriétaire/administrateur de l’organisation si vous avez besoin d’un accès.",
@@ -2477,7 +2485,10 @@
         "title": "Une erreur est survenue",
         "message": "Nous avons rencontré un problème lors du chargement des informations de facturation. Veuillez réessayer plus tard.",
         "retryButton": "Réessayer"
-      }
+      },
+      "purchasedSeatsLabel": "Seats achetés",
+      "assignedSeatsLabel": "Attribués",
+      "unusedSeatsLabel": "Seats inutilisés"
     },
     "Credits": {
       "billingPortalCta": "Gérer les achats",
@@ -2925,24 +2936,32 @@
         },
         "Subscription": {
           "currentPlanLabel": "Forfait actuel",
-          "currentSeatsLabel": "Sièges actuels",
+          "currentSeatsLabel": "Seats actuels",
           "membersLabel": "Membres actifs",
-          "seatsInputLabel": "Sièges de l’organisation",
-          "seatsInputHint": "Le minimum de sièges est {minimum} pour couvrir tous les membres actifs.",
-          "includedCreditsPerSeat": "{credits, plural, =0 {Aucun crédit par siège} =1 {# crédit par siège} other {# crédits par siège}}",
+          "seatsInputLabel": "Seats achetés",
+          "seatsInputHint": "Le minimum est {minimum} pour couvrir les Seats payants utilisés. L'organisation compte {members, plural, =1 {# membre} other {# membres}}. Les membres sans Seat payant reçoivent des crédits mensuels gratuits.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Aucun crédit par Seat} =1 {# crédit par Seat} other {# crédits par Seat}}",
           "noActivePlan": "Aucun forfait actif",
-          "seatsUpdatedSuccess": "Sièges mis à jour avec succès.",
+          "seatsUpdatedSuccess": "Seats mis à jour avec succès.",
           "updating": "Redirection...",
           "currentPlanCta": "Forfait actuel",
-          "updateSeatsCta": "Mettre à jour les sièges",
+          "updateSeatsCta": "Mettre à jour les Seats",
           "choosePlanCta": "Choisir un forfait",
           "Errors": {
             "unauthenticated": "Veuillez vous connecter pour continuer",
             "unauthenticatedAction": "Se connecter",
             "unauthorized": "Seuls les propriétaires et administrateurs de l’organisation peuvent gérer les abonnements",
-            "badInput": "Veuillez fournir des valeurs de forfait et de sièges valides",
+            "badInput": "Veuillez fournir des valeurs de forfait et de Seats valides",
             "general": "Échec de la gestion de l’abonnement de l’organisation"
           }
+        },
+        "Seats": {
+          "title": "Aperçu des Seats",
+          "description": "Les Seats achetés représentent la capacité de votre forfait payant. Les membres avec un Seat payant reçoivent des crédits d'abonnement. Les membres sans Seat payant reçoivent des crédits mensuels gratuits.",
+          "purchased": "Achetés",
+          "assigned": "Attribués",
+          "unused": "Inutilisés",
+          "manageBilling": "Gérer la facturation"
         }
       }
     },

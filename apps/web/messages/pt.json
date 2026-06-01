@@ -176,54 +176,67 @@
     },
     "MembersTable": {
       "Header": {
-        "name": "Name",
-        "email": "Email",
-        "role": "Role",
-        "actions": "Actions"
+        "name": "Nome",
+        "email": "E-mail",
+        "role": "Função",
+        "actions": "Ações",
+        "seat": "Seat"
+      },
+      "Seat": {
+        "assigned": "Atribuído",
+        "unassigned": "Não atribuído"
       },
       "MemberActions": {
-        "remove": "Remove",
-        "changeToOwner": "Change to Owner",
-        "changeToAdmin": "Change to Admin",
-        "changeToMember": "Change to Member",
+        "remove": "Remover",
+        "changeToOwner": "Alterar para proprietário",
+        "changeToAdmin": "Alterar para admin",
+        "changeToMember": "Alterar para membro",
         "Modal": {
-          "changeRoleTitle": "Change Role",
-          "removeTitle": "Remove Member",
-          "changeToOwnerDescription": "Are you sure you want to change the role of {member} to Owner?",
-          "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
-          "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
-          "removeDescription": "Are you sure you want to remove {member} from the organization?",
-          "confirm": "Confirm",
-          "cancel": "Cancel",
+          "changeRoleTitle": "Alterar função",
+          "removeTitle": "Remover membro",
+          "changeToOwnerDescription": "Tem a certeza de que pretende alterar a função de {member} para Proprietário?",
+          "changeToAdminDescription": "Tem a certeza de que pretende alterar a função de {member} para Admin?",
+          "changeToMemberDescription": "Tem a certeza de que pretende alterar a função de {member} para Membro?",
+          "removeDescription": "Tem a certeza de que pretende remover {member} da organização?",
+          "confirm": "Confirmar",
+          "cancel": "Cancelar",
           "Success": {
-            "changeRole": "Role changed successfully",
-            "remove": "Member removed successfully"
+            "changeRole": "Função alterada com sucesso",
+            "remove": "Membro removido com sucesso",
+            "assignSeat": "Seat atribuído com sucesso",
+            "unassignSeat": "Seat removido com sucesso"
           },
           "Error": {
-            "changeRole": "Failed to change role",
-            "remove": "Failed to remove member"
+            "changeRole": "Falha ao alterar função",
+            "remove": "Falha ao remover membro",
+            "assignSeat": "Falha ao atribuir Seat",
+            "unassignSeat": "Falha ao remover Seat"
           },
           "Errors": {
-            "unauthorizedAction": "Login"
-          }
-        }
+            "unauthorizedAction": "Iniciar sessão"
+          },
+          "unassignSeatTitle": "Remover Seat",
+          "unassignSeatDescription": "Ao remover o Seat pago de {member}, deixa de receber créditos de subscrição e passa a receber créditos mensais gratuitos. Os créditos do período atual mantêm-se até expirarem."
+        },
+        "assignSeat": "Atribuir Seat",
+        "unassignSeat": "Remover Seat"
       },
       "InvitationActions": {
-        "resend": "Resend Invitation",
-        "cancel": "Cancel Invitation",
+        "resend": "Reenviar convite",
+        "cancel": "Cancelar convite",
         "CancelModal": {
-          "title": "Cancel Invitation",
-          "description": "Are you sure you want to cancel the invitation of {email}?",
-          "confirm": "Confirm",
-          "cancel": "Cancel",
-          "success": "Invitation canceled successfully",
-          "error": "Failed to cancel invitation",
+          "title": "Cancelar convite",
+          "description": "Tem a certeza de que pretende cancelar o convite de {email}?",
+          "confirm": "Confirmar",
+          "cancel": "Cancelar",
+          "success": "Convite cancelado com sucesso",
+          "error": "Falha ao cancelar convite",
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Iniciar sessão"
           }
         },
-        "resendSuccess": "Invitation resent successfully",
-        "resendError": "Failed to resend invitation"
+        "resendSuccess": "Convite reenviado com sucesso",
+        "resendError": "Falha ao reenviar convite"
       }
     },
     "Breadcrumb": {
@@ -2422,12 +2435,12 @@
         },
         "enterprise": {
           "name": "Enterprise",
-          "description": "Plano personalizado para organizações com lugares, créditos e suporte à medida.",
+          "description": "Plano personalizado para organizações com Seats, créditos e suporte à medida.",
           "features": {
             "title": "O Enterprise inclui:",
             "items": {
               "item1": "Plano à medida da sua organização",
-              "item2": "Atribuição personalizada de lugares e créditos",
+              "item2": "Atribuição personalizada de Seats e créditos",
               "item3": "Alterações de plano geridas pelo suporte"
             }
           }
@@ -2448,7 +2461,7 @@
     "Billing": {
       "balanceTitle": "Saldo",
       "balanceDescriptionPersonal": "Os seus créditos atuais na conta pessoal.",
-      "balanceDescriptionOrganization": "Créditos atuais para {organization}. {members, plural, =1 {# membro} other {# membros}}, {seats, plural, =1 {# lugar} other {# lugares}}.",
+      "balanceDescriptionOrganization": "Créditos atuais para {organization}. {purchased, plural, =1 {# Seat comprado} other {# Seats comprados}}, {assigned, plural, =1 {# atribuído} other {# atribuídos}}, {unused, plural, =1 {# não utilizado} other {# não utilizados}}, {members, plural, =1 {# membro} other {# membros}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Sem créditos} =1 {# crédito} other {# créditos}}",
       "stripeCustomerIdLabel": "ID de cliente Stripe",
       "tabs": {
@@ -2459,11 +2472,6 @@
       "billingPortalDescription": "Transfira as suas faturas, altere as suas moradas de faturação e gira outras informações de faturação.",
       "manageYourBilling": "Gerir faturação",
       "openingBillingPortal": "A abrir...",
-      "enterprisePlanTitle": "Plano {planName}",
-      "enterprisePlanDescription": "A sua organização tem uma subscrição Enterprise faturada através da Stripe.",
-      "enterpriseSeatsLabel": "Lugares",
-      "enterpriseMembersLabel": "Membros ativos",
-      "enterpriseContactSupport": "Contacte o suporte para alterar o seu plano ou os seus lugares.",
       "orgAccessRestrictedTitle": "Acesso à faturação restrito",
       "orgAccessRestrictedDescription": "Apenas os proprietários e administradores da organização podem ver os detalhes de faturação desta organização.",
       "orgAccessRestrictedHint": "Mude para um contexto pessoal ou contacte um proprietário/administrador da organização se precisar de acesso.",
@@ -2477,7 +2485,10 @@
         "title": "Algo correu mal",
         "message": "Encontrámos um problema ao carregar os detalhes de faturação. Tente novamente mais tarde.",
         "retryButton": "Tentar novamente"
-      }
+      },
+      "purchasedSeatsLabel": "Seats comprados",
+      "assignedSeatsLabel": "Atribuídos",
+      "unusedSeatsLabel": "Seats não utilizados"
     },
     "Credits": {
       "billingPortalCta": "Gerir compras",
@@ -2925,24 +2936,32 @@
         },
         "Subscription": {
           "currentPlanLabel": "Plano atual",
-          "currentSeatsLabel": "Lugares atuais",
+          "currentSeatsLabel": "Seats atuais",
           "membersLabel": "Membros ativos",
-          "seatsInputLabel": "Lugares da organização",
-          "seatsInputHint": "O mínimo de lugares é {minimum} para cobrir todos os membros ativos.",
-          "includedCreditsPerSeat": "{credits, plural, =0 {Sem créditos por lugar} =1 {# crédito por lugar} other {# créditos por lugar}}",
+          "seatsInputLabel": "Seats comprados",
+          "seatsInputHint": "O mínimo é {minimum} para cobrir os Seats pagos em uso. A organização tem {members, plural, =1 {# membro} other {# membros}}. Os membros sem Seat pago recebem créditos mensais gratuitos.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Sem créditos por Seat} =1 {# crédito por Seat} other {# créditos por Seat}}",
           "noActivePlan": "Sem plano ativo",
-          "seatsUpdatedSuccess": "Lugares atualizados com sucesso.",
+          "seatsUpdatedSuccess": "Seats atualizados com sucesso.",
           "updating": "A redirecionar...",
           "currentPlanCta": "Plano atual",
-          "updateSeatsCta": "Atualizar lugares",
+          "updateSeatsCta": "Atualizar Seats",
           "choosePlanCta": "Escolher plano",
           "Errors": {
             "unauthenticated": "Inicie sessão para continuar",
             "unauthenticatedAction": "Iniciar sessão",
             "unauthorized": "Apenas os proprietários e administradores da organização podem gerir subscrições",
-            "badInput": "Forneça valores válidos de plano e lugares",
+            "badInput": "Indique valores válidos de plano e Seats",
             "general": "Falha ao gerir a subscrição da organização"
           }
+        },
+        "Seats": {
+          "title": "Visão geral de Seats",
+          "description": "Os Seats comprados são a capacidade do teu plano pago. Os membros com um Seat pago recebem créditos de subscrição. Os membros sem Seat pago recebem créditos mensais gratuitos.",
+          "purchased": "Comprados",
+          "assigned": "Atribuídos",
+          "unused": "Não utilizados",
+          "manageBilling": "Gerir faturação"
         }
       }
     },

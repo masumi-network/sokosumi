@@ -1,5 +1,10 @@
 import type { Member, Prisma } from "../generated/prisma/client.js";
 import {
+  ensureAssignedSeatsWithinCapacity,
+  getSortedUniqueUserIds,
+} from "../helpers/organization-seats.js";
+import { fetchOrganizationMemberUserIds } from "../helpers/organization-subscription-credit-audience.js";
+import {
   type MemberWithOrganization,
   type MemberWithUser,
   memberOrderBy,
@@ -187,13 +192,152 @@ export const memberRepository = (() => {
     return counts;
   }
 
+  async function getAssignedMemberCount(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<number> {
+    return await tx.member.count({
+      where: {
+        organizationId,
+        seatAssignedAt: {
+          not: null,
+        },
+      },
+    });
+  }
+
+  async function getAssignedMemberUserIds(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<string[]> {
+    const members = await tx.member.findMany({
+      where: {
+        organizationId,
+        seatAssignedAt: {
+          not: null,
+        },
+      },
+      select: {
+        userId: true,
+      },
+      orderBy: [{ userId: "asc" }],
+    });
+
+    return getSortedUniqueUserIds(members.map((member) => member.userId));
+  }
+
+  async function getOrganizationMemberUserIds(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<string[]> {
+    return fetchOrganizationMemberUserIds(organizationId, tx);
+  }
+
+  async function getUnassignedMemberUserIds(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<string[]> {
+    const members = await tx.member.findMany({
+      where: {
+        organizationId,
+        seatAssignedAt: null,
+      },
+      select: {
+        userId: true,
+      },
+      orderBy: [{ userId: "asc" }],
+    });
+
+    return getSortedUniqueUserIds(members.map((member) => member.userId));
+  }
+
+  async function getMemberByIdAndOrganizationId(
+    memberId: string,
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<Member | null> {
+    return await tx.member.findFirst({
+      where: {
+        id: memberId,
+        organizationId,
+      },
+    });
+  }
+
+  async function assignSeat(
+    memberId: string,
+    organizationId: string,
+    purchasedSeats: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<Member> {
+    const member = await getMemberByIdAndOrganizationId(
+      memberId,
+      organizationId,
+      tx,
+    );
+    if (!member) {
+      throw new Error("Member not found");
+    }
+
+    if (member.seatAssignedAt) {
+      return member;
+    }
+
+    const assignedCount = await getAssignedMemberCount(organizationId, tx);
+    ensureAssignedSeatsWithinCapacity(assignedCount + 1, purchasedSeats);
+
+    return await tx.member.update({
+      where: {
+        id: memberId,
+      },
+      data: {
+        seatAssignedAt: new Date(),
+      },
+    });
+  }
+
+  async function unassignSeat(
+    memberId: string,
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<Member> {
+    const member = await getMemberByIdAndOrganizationId(
+      memberId,
+      organizationId,
+      tx,
+    );
+    if (!member) {
+      throw new Error("Member not found");
+    }
+
+    if (!member.seatAssignedAt) {
+      return member;
+    }
+
+    return await tx.member.update({
+      where: {
+        id: memberId,
+      },
+      data: {
+        seatAssignedAt: null,
+      },
+    });
+  }
+
   return {
+    assignSeat,
     createMember,
+    getAssignedMemberCount,
+    getAssignedMemberUserIds,
+    getOrganizationMemberUserIds,
+    getUnassignedMemberUserIds,
+    getMemberByIdAndOrganizationId,
     getMembersWithOrganizationByUserId,
     getMembersOrganizationIdsByUserId,
     getMemberByUserIdAndOrganizationId,
     getMembersWithUser,
     getMembersByOrganizationId,
     getPerRoleCountByOrganizationId,
+    unassignSeat,
   };
 })();

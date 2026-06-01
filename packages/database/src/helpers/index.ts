@@ -33,4 +33,7 @@
 export * from "./credit.js";
 export * from "./job.js";
 export * from "./job-sync.js";
+export * from "./organization-seat-credits.js";
+export * from "./organization-seats.js";
+export * from "./organization-subscription-credit-audience.js";
 export * from "./subscription.js";

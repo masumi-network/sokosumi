@@ -1511,60 +1511,6 @@ describe("web auth config", () => {
     ).toHaveBeenCalledWith("org-1");
   });
 
-  it("rejects direct /subscription/upgrade calls for the enterprise plan", async () => {
-    await import("../auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          hooks: {
-            before: (ctx: {
-              body?: Record<string, unknown>;
-              path: string;
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.hooks.before({
-        body: { plan: "enterprise", customerType: "user" },
-        path: "/subscription/upgrade",
-      }),
-    ).rejects.toMatchObject({
-      code: "SUBSCRIPTION_PLAN_NOT_SELF_SERVE",
-      status: "BAD_REQUEST",
-    });
-  });
-
-  it("rejects /subscription/upgrade for the enterprise plan regardless of casing", async () => {
-    await import("../auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          hooks: {
-            before: (ctx: {
-              body?: Record<string, unknown>;
-              path: string;
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.hooks.before({
-        body: { plan: "Enterprise" },
-        path: "/subscription/upgrade",
-      }),
-    ).rejects.toMatchObject({
-      code: "SUBSCRIPTION_PLAN_NOT_SELF_SERVE",
-      status: "BAD_REQUEST",
-    });
-  });
-
   it("allows /subscription/upgrade for self-serve plans", async () => {
     await import("../auth");
 

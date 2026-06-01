@@ -66,7 +66,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
             onFilteredChange={(list) => setFilteredJobs(list)}
           />
           <DataTable
-            tableClassName="[&>div>div>div]:flex! [&>div>div>div]:md:table!"
+            tableClassName="[&>table]:flex! [&>table]:md:table!"
             columns={getColumns(userId, t, dateFormatter, queryParam)}
             onRowClick={(row) => getOnRowClick(row)}
             data={filteredJobs}

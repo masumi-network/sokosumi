@@ -28,6 +28,7 @@ interface LocalFreeSubscriptionRecord {
   id: string;
   periodEnd: Date | null;
   referenceId: string;
+  seats: number | null;
   stripeCustomerId: string | null;
   stripeSubscriptionId: null;
 }
@@ -201,6 +202,7 @@ async function renewLocalFreeSubscriptions(
         id: true,
         periodEnd: true,
         referenceId: true,
+        seats: true,
         stripeCustomerId: true,
         stripeSubscriptionId: true,
       },

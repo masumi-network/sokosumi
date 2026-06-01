@@ -179,7 +179,12 @@
         "name": "名称",
         "email": "邮箱",
         "role": "角色",
-        "actions": "操作"
+        "actions": "操作",
+        "seat": "Seat"
+      },
+      "Seat": {
+        "assigned": "已分配",
+        "unassigned": "未分配"
       },
       "MemberActions": {
         "remove": "移除",
@@ -197,16 +202,24 @@
           "cancel": "取消",
           "Success": {
             "changeRole": "角色更改成功",
-            "remove": "成员移除成功"
+            "remove": "成员移除成功",
+            "assignSeat": "Seat 分配成功",
+            "unassignSeat": "Seat 移除成功"
           },
           "Error": {
             "changeRole": "更改角色失败",
-            "remove": "移除成员失败"
+            "remove": "移除成员失败",
+            "assignSeat": "分配 Seat 失败",
+            "unassignSeat": "移除 Seat 失败"
           },
           "Errors": {
             "unauthorizedAction": "登录"
-          }
-        }
+          },
+          "unassignSeatTitle": "移除 Seat",
+          "unassignSeatDescription": "移除 {member} 的付费 Seat 后，将不再获得订阅积分，改为获得免费月度积分。当前周期的积分会保留至到期。"
+        },
+        "assignSeat": "分配 Seat",
+        "unassignSeat": "移除 Seat"
       },
       "InvitationActions": {
         "resend": "重新发送邀请",
@@ -2448,7 +2461,7 @@
     "Billing": {
       "balanceTitle": "余额",
       "balanceDescriptionPersonal": "您个人账户的当前积分。",
-      "balanceDescriptionOrganization": "{organization} 的当前积分。{members, plural, =1 {# 名成员} other {# 名成员}}, {seats, plural, =1 {# 个席位} other {# 个席位}}。",
+      "balanceDescriptionOrganization": "{organization} 的当前积分。{purchased, plural, =1 {已购买 Seat # 个} other {已购买 Seat # 个}}，{assigned, plural, =1 {已分配 # 个} other {已分配 # 个}}，{unused, plural, =1 {未使用 # 个} other {未使用 # 个}}，{members, plural, =1 {# 名成员} other {# 名成员}}。",
       "balanceCreditsLabel": "{credits, plural, =0 {无积分} =1 {# 积分} other {# 积分}}",
       "stripeCustomerIdLabel": "Stripe 客户 ID",
       "tabs": {
@@ -2459,11 +2472,6 @@
       "billingPortalDescription": "下载您的发票，更改账单地址并管理其他账单信息。",
       "manageYourBilling": "管理账单",
       "openingBillingPortal": "正在打开...",
-      "enterprisePlanTitle": "{planName} 方案",
-      "enterprisePlanDescription": "您的组织正在使用通过 Stripe 开票的 Enterprise 订阅。",
-      "enterpriseSeatsLabel": "席位",
-      "enterpriseMembersLabel": "活跃成员",
-      "enterpriseContactSupport": "请联系支持团队更改您的方案或席位。",
       "orgAccessRestrictedTitle": "计费访问受限",
       "orgAccessRestrictedDescription": "只有组织所有者和管理员可以查看该组织的计费详情。",
       "orgAccessRestrictedHint": "如需访问，请切换到个人上下文，或联系组织所有者/管理员。",
@@ -2477,7 +2485,10 @@
         "title": "出现问题",
         "message": "加载计费详情时遇到问题。请稍后重试。",
         "retryButton": "重试"
-      }
+      },
+      "purchasedSeatsLabel": "已购买 Seats",
+      "assignedSeatsLabel": "已分配",
+      "unusedSeatsLabel": "未使用 Seats"
     },
     "Credits": {
       "billingPortalCta": "管理购买记录",
@@ -2925,24 +2936,32 @@
         },
         "Subscription": {
           "currentPlanLabel": "当前套餐",
-          "currentSeatsLabel": "当前席位",
+          "currentSeatsLabel": "当前 Seats",
           "membersLabel": "活跃成员",
-          "seatsInputLabel": "组织席位",
-          "seatsInputHint": "最少席位数为 {minimum}，以覆盖所有活跃成员。",
-          "includedCreditsPerSeat": "{credits, plural, =0 {每席位无积分} =1 {每席位 # 积分} other {每席位 # 积分}}",
+          "seatsInputLabel": "已购买 Seats",
+          "seatsInputHint": "最低为 {minimum}，以覆盖正在使用的付费 Seats。组织共有 {members, plural, =1 {# 名成员} other {# 名成员}}。没有付费 Seat 的成员会获得免费月度积分。",
+          "includedCreditsPerSeat": "{credits, plural, =0 {每个 Seat 无积分} =1 {每个 Seat # 积分} other {每个 Seat # 积分}}",
           "noActivePlan": "无有效套餐",
-          "seatsUpdatedSuccess": "席位更新成功。",
+          "seatsUpdatedSuccess": "Seats 更新成功。",
           "updating": "正在跳转...",
           "currentPlanCta": "当前套餐",
-          "updateSeatsCta": "更新席位",
+          "updateSeatsCta": "更新 Seats",
           "choosePlanCta": "选择套餐",
           "Errors": {
             "unauthenticated": "请登录以继续",
             "unauthenticatedAction": "登录",
             "unauthorized": "只有组织所有者和管理员可以管理订阅",
-            "badInput": "请提供有效的套餐和席位数",
+            "badInput": "请提供有效的套餐和 Seat 值",
             "general": "管理组织订阅失败"
           }
+        },
+        "Seats": {
+          "title": "Seats 概览",
+          "description": "已购买的 Seats 是付费计划的容量。拥有付费 Seat 的成员会获得订阅积分。没有付费 Seat 的成员会获得免费月度积分。",
+          "purchased": "已购买",
+          "assigned": "已分配",
+          "unused": "未使用",
+          "manageBilling": "管理账单"
         }
       }
     },

@@ -179,7 +179,12 @@
         "name": "Nome",
         "email": "E-mail",
         "role": "Função",
-        "actions": "Ações"
+        "actions": "Ações",
+        "seat": "Seat"
+      },
+      "Seat": {
+        "assigned": "Atribuído",
+        "unassigned": "Não atribuído"
       },
       "MemberActions": {
         "remove": "Remover",
@@ -197,16 +202,24 @@
           "cancel": "Cancelar",
           "Success": {
             "changeRole": "Função alterada com sucesso",
-            "remove": "Membro removido com sucesso"
+            "remove": "Membro removido com sucesso",
+            "assignSeat": "Seat atribuído com sucesso",
+            "unassignSeat": "Seat removido com sucesso"
           },
           "Error": {
             "changeRole": "Falha ao alterar função",
-            "remove": "Falha ao remover membro"
+            "remove": "Falha ao remover membro",
+            "assignSeat": "Falha ao atribuir Seat",
+            "unassignSeat": "Falha ao remover Seat"
           },
           "Errors": {
             "unauthorizedAction": "Entrar"
-          }
-        }
+          },
+          "unassignSeatTitle": "Remover Seat",
+          "unassignSeatDescription": "Ao remover o Seat pago de {member}, a pessoa deixa de receber créditos de assinatura e passa a receber créditos mensais gratuitos. Os créditos do período atual permanecem até expirarem."
+        },
+        "assignSeat": "Atribuir Seat",
+        "unassignSeat": "Remover Seat"
       },
       "InvitationActions": {
         "resend": "Reenviar convite",
@@ -2448,7 +2461,7 @@
     "Billing": {
       "balanceTitle": "Saldo",
       "balanceDescriptionPersonal": "Seus créditos atuais na conta pessoal.",
-      "balanceDescriptionOrganization": "Créditos atuais para {organization}. {members, plural, =1 {# membro} other {# membros}}, {seats, plural, =1 {# assento} other {# assentos}}.",
+      "balanceDescriptionOrganization": "Créditos atuais para {organization}. {purchased, plural, =1 {# Seat comprado} other {# Seats comprados}}, {assigned, plural, =1 {# atribuído} other {# atribuídos}}, {unused, plural, =1 {# não utilizado} other {# não utilizados}}, {members, plural, =1 {# membro} other {# membros}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {Sem créditos} =1 {# crédito} other {# créditos}}",
       "stripeCustomerIdLabel": "ID do cliente Stripe",
       "tabs": {
@@ -2459,11 +2472,6 @@
       "billingPortalDescription": "Baixe suas faturas, altere seus endereços de cobrança e gerencie outras informações de cobrança.",
       "manageYourBilling": "Gerenciar cobrança",
       "openingBillingPortal": "Abrindo...",
-      "enterprisePlanTitle": "Plano {planName}",
-      "enterprisePlanDescription": "Sua organização está em uma assinatura Enterprise faturada pelo Stripe.",
-      "enterpriseSeatsLabel": "Assentos",
-      "enterpriseMembersLabel": "Membros ativos",
-      "enterpriseContactSupport": "Fale com o suporte para alterar seu plano ou assentos.",
       "orgAccessRestrictedTitle": "Acesso à cobrança restrito",
       "orgAccessRestrictedDescription": "Apenas proprietários e admins da organização podem ver os detalhes de cobrança desta organização.",
       "orgAccessRestrictedHint": "Mude para o contexto pessoal ou fale com um proprietário/admin da organização se precisar de acesso.",
@@ -2477,7 +2485,10 @@
         "title": "Algo deu errado",
         "message": "Tivemos um problema ao carregar os detalhes de cobrança. Tente novamente mais tarde.",
         "retryButton": "Tentar novamente"
-      }
+      },
+      "purchasedSeatsLabel": "Seats comprados",
+      "assignedSeatsLabel": "Atribuídos",
+      "unusedSeatsLabel": "Seats não utilizados"
     },
     "Credits": {
       "billingPortalCta": "Gerenciar compras",
@@ -2925,24 +2936,32 @@
         },
         "Subscription": {
           "currentPlanLabel": "Plano atual",
-          "currentSeatsLabel": "Assentos atuais",
+          "currentSeatsLabel": "Seats atuais",
           "membersLabel": "Membros ativos",
-          "seatsInputLabel": "Assentos da organização",
-          "seatsInputHint": "O mínimo de assentos é {minimum} para cobrir todos os membros ativos.",
-          "includedCreditsPerSeat": "{credits, plural, =0 {Sem créditos por assento} =1 {# crédito por assento} other {# créditos por assento}}",
+          "seatsInputLabel": "Seats comprados",
+          "seatsInputHint": "O mínimo é {minimum} para cobrir os Seats pagos em uso. A organização tem {members, plural, =1 {# membro} other {# membros}}. Os membros sem Seat pago recebem créditos mensais gratuitos.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Sem créditos por Seat} =1 {# crédito por Seat} other {# créditos por Seat}}",
           "noActivePlan": "Nenhum plano ativo",
-          "seatsUpdatedSuccess": "Assentos atualizados com sucesso.",
+          "seatsUpdatedSuccess": "Seats atualizados com sucesso.",
           "updating": "Redirecionando...",
           "currentPlanCta": "Plano atual",
-          "updateSeatsCta": "Atualizar assentos",
+          "updateSeatsCta": "Atualizar Seats",
           "choosePlanCta": "Escolher plano",
           "Errors": {
             "unauthenticated": "Faça login para continuar",
             "unauthenticatedAction": "Entrar",
             "unauthorized": "Apenas proprietários e admins da organização podem gerenciar assinaturas",
-            "badInput": "Informe valores válidos de plano e assentos",
+            "badInput": "Informe valores válidos de plano e Seats",
             "general": "Falha ao gerenciar a assinatura da organização"
           }
+        },
+        "Seats": {
+          "title": "Visão geral de Seats",
+          "description": "Os Seats comprados são a capacidade do seu plano pago. Os membros com um Seat pago recebem créditos de assinatura. Os membros sem Seat pago recebem créditos mensais gratuitos.",
+          "purchased": "Comprados",
+          "assigned": "Atribuídos",
+          "unused": "Não utilizados",
+          "manageBilling": "Gerenciar cobrança"
         }
       }
     },

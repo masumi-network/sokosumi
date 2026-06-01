@@ -69,7 +69,7 @@ describe("subscription actions", () => {
 
     const result = await upgradePersonalSubscription({
       session,
-      plan: "enterprise" as never,
+      plan: "invalid-plan" as never,
     });
 
     expect(result).toEqual({

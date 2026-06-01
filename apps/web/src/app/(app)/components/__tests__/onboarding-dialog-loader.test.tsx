@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMyMemberInOrganizationMock = vi.fn();
 const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
+const getSeatSummaryMock = vi.fn();
 const listActiveSubscriptionsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const onboardingDialogMock = vi.fn();
@@ -41,6 +42,9 @@ vi.mock("@/lib/auth/auth", () => ({
 }));
 
 vi.mock("@/lib/services", () => ({
+  organizationSeatService: {
+    getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
+  },
   userService: {
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
@@ -74,7 +78,6 @@ vi.mock("../onboarding-subscription-return-handler", () => ({
 
 function createSubscriptionCatalog() {
   return {
-    enterpriseProducts: [],
     free: { credits: 250, currency: "eur", monthlyAmount: 0 },
     pro: { credits: 14_000, currency: "eur", monthlyAmount: 20_000 },
     standard: { credits: 5_250, currency: "eur", monthlyAmount: 7_500 },
@@ -96,6 +99,13 @@ describe("OnboardingDialogLoader", () => {
         plan: "pro",
       },
     ]);
+    getSeatSummaryMock.mockResolvedValue({
+      assignedCount: 2,
+      memberCount: 3,
+      paidPlan: null,
+      purchasedSeats: 3,
+      unusedSeats: 1,
+    });
   });
 
   afterEach(() => {

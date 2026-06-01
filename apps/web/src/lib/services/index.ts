@@ -2,6 +2,7 @@ export * from "./agent.service";
 export * from "./gtm.service";
 export * from "./job.service";
 export * from "./organization.service";
+export * from "./organization-seat.service";
 export * from "./organization-subscription.service";
 export * from "./preferred-organization.service";
 export * from "./project.service";

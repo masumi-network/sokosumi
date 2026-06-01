@@ -365,6 +365,7 @@ function StepNavigation({
 interface OnboardingDialogProps {
   loginId?: null | string;
   organizationSubscription?: {
+    assignedSeatCount: number;
     currentSeats: number;
     memberCount: number;
     organizationId: string;
@@ -410,7 +411,7 @@ export function OnboardingDialog({
     organizationSubscription
       ? resolveTargetOrganizationSeats(
           organizationSubscription.currentSeats,
-          organizationSubscription.memberCount,
+          organizationSubscription.assignedSeatCount,
         )
       : 1,
   );
@@ -546,7 +547,9 @@ export function OnboardingDialog({
   const handleStartSubscription = async () => {
     const organizationId = organizationSubscription?.organizationId;
     const minimumSeats = organizationSubscription
-      ? resolveMinimumOrganizationSeats(organizationSubscription.memberCount)
+      ? resolveMinimumOrganizationSeats(
+          organizationSubscription.assignedSeatCount,
+        )
       : 1;
 
     if (
@@ -554,11 +557,6 @@ export function OnboardingDialog({
       (!Number.isInteger(targetSeats) || targetSeats < minimumSeats)
     ) {
       toast.error(tOrganizationSubscriptions("Errors.badInput"));
-      return;
-    }
-
-    if (selectedPlan === "enterprise") {
-      toast.error(tSubscriptions("Errors.badInput"));
       return;
     }
 
@@ -771,6 +769,9 @@ export function OnboardingDialog({
                   {organizationSubscription ? (
                     <div className="rounded-xl border p-4 md:p-6">
                       <OrganizationSeatSettingsFields
+                        assignedSeatCount={
+                          organizationSubscription.assignedSeatCount
+                        }
                         inputId="onboarding-organization-seats"
                         memberCount={organizationSubscription.memberCount}
                         onTargetSeatsChange={setTargetSeats}

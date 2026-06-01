@@ -179,29 +179,42 @@
         "name": "Name",
         "email": "Email",
         "role": "Role",
+        "seat": "Seat",
         "actions": "Actions"
       },
+      "Seat": {
+        "assigned": "Assigned",
+        "unassigned": "Unassigned"
+      },
       "MemberActions": {
+        "assignSeat": "Assign seat",
         "remove": "Remove",
+        "unassignSeat": "Remove seat",
         "changeToOwner": "Change to Owner",
         "changeToAdmin": "Change to Admin",
         "changeToMember": "Change to Member",
         "Modal": {
           "changeRoleTitle": "Change Role",
           "removeTitle": "Remove Member",
+          "unassignSeatTitle": "Remove seat",
           "changeToOwnerDescription": "Are you sure you want to change the role of {member} to Owner?",
           "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
           "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
           "removeDescription": "Are you sure you want to remove {member} from the organization?",
+          "unassignSeatDescription": "Removing {member} from the paid plan stops future paid subscription credits. They will receive the organization free monthly credits instead. Current-period paid credits remain until they expire.",
           "confirm": "Confirm",
           "cancel": "Cancel",
           "Success": {
+            "assignSeat": "Seat assigned successfully",
             "changeRole": "Role changed successfully",
-            "remove": "Member removed successfully"
+            "remove": "Member removed successfully",
+            "unassignSeat": "Seat removed successfully"
           },
           "Error": {
+            "assignSeat": "Failed to assign seat",
             "changeRole": "Failed to change role",
-            "remove": "Failed to remove member"
+            "remove": "Failed to remove member",
+            "unassignSeat": "Failed to remove seat"
           },
           "Errors": {
             "unauthorizedAction": "Login"
@@ -2448,7 +2461,7 @@
     "Billing": {
       "balanceTitle": "Balance",
       "balanceDescriptionPersonal": "Your current credits in personal account.",
-      "balanceDescriptionOrganization": "Current credits for {organization}. {members, plural, =1 {# member} other {# members}}, {seats, plural, =1 {# seat} other {# seats}}.",
+      "balanceDescriptionOrganization": "Current credits for {organization}. {purchased, plural, =1 {# purchased seat} other {# purchased seats}}, {assigned, plural, =1 {# assigned} other {# assigned}}, {unused, plural, =1 {# unused} other {# unused}}, {members, plural, =1 {# member} other {# members}}.",
       "balanceCreditsLabel": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
       "stripeCustomerIdLabel": "Stripe customer ID",
       "tabs": {
@@ -2459,11 +2472,9 @@
       "billingPortalDescription": "Download your invoices, change your billing addresses and manage other billing information.",
       "manageYourBilling": "Manage your billing",
       "openingBillingPortal": "Opening...",
-      "enterprisePlanTitle": "{planName} plan",
-      "enterprisePlanDescription": "Your organization is on an Enterprise subscription invoiced through Stripe.",
-      "enterpriseSeatsLabel": "Seats",
-      "enterpriseMembersLabel": "Active members",
-      "enterpriseContactSupport": "Contact support to change your plan or seats.",
+      "purchasedSeatsLabel": "Purchased seats",
+      "assignedSeatsLabel": "Assigned",
+      "unusedSeatsLabel": "Unused seats",
       "orgAccessRestrictedTitle": "Billing access restricted",
       "orgAccessRestrictedDescription": "Only organization owners and admins can view billing details for this organization.",
       "orgAccessRestrictedHint": "Switch to a personal context or contact an organization owner/admin if you need access.",
@@ -2927,8 +2938,8 @@
           "currentPlanLabel": "Current plan",
           "currentSeatsLabel": "Current seats",
           "membersLabel": "Active members",
-          "seatsInputLabel": "Organization seats",
-          "seatsInputHint": "Minimum seats is {minimum} to cover all active members.",
+          "seatsInputLabel": "Purchased seats",
+          "seatsInputHint": "Minimum is {minimum} to cover paid seats in use. Organization has {members, plural, =1 {# member} other {# members}}. Members without a paid seat receive free monthly credits.",
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
           "seatsUpdatedSuccess": "Seats updated successfully.",
@@ -2943,6 +2954,14 @@
             "badInput": "Please provide valid plan and seat values",
             "general": "Failed to manage organization subscription"
           }
+        },
+        "Seats": {
+          "title": "Seats overview",
+          "description": "Purchased seats are your paid plan capacity. Members with a paid seat receive subscription credits. Members without a paid seat receive free monthly credits.",
+          "purchased": "Purchased",
+          "assigned": "Assigned",
+          "unused": "Unused",
+          "manageBilling": "Manage billing"
         }
       }
     },
