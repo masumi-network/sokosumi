@@ -8,11 +8,15 @@ import {
   Cable,
   ChevronDown,
   CircleHelp,
+  Landmark,
   LifeBuoy,
+  ListChecks,
   LogOut,
   ReceiptText,
   Scale,
+  ScrollText,
   Settings as SettingsIcon,
+  Shield,
   User as UserIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -244,6 +248,7 @@ export default function UserAvatarClient({
                   );
                 }}
               >
+                <ScrollText className="text-muted-foreground size-4" />
                 {t("termsOfService")}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -255,6 +260,7 @@ export default function UserAvatarClient({
                   );
                 }}
               >
+                <Shield className="text-muted-foreground size-4" />
                 {t("privacyPolicy")}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -264,6 +270,7 @@ export default function UserAvatarClient({
                   handleOpenExternalLink("https://www.sokosumi.com/imprint");
                 }}
               >
+                <Landmark className="text-muted-foreground size-4" />
                 {t("imprint")}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -275,6 +282,7 @@ export default function UserAvatarClient({
                   );
                 }}
               >
+                <ListChecks className="text-muted-foreground size-4" />
                 {t("acceptableUse")}
               </DropdownMenuItem>
             </DropdownMenuSubContent>

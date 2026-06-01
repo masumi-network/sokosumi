@@ -11,12 +11,16 @@ import {
   Check,
   ChevronDown,
   CircleHelp,
+  Landmark,
   LifeBuoy,
+  ListChecks,
   LogOut,
   PanelLeft,
   Plus,
   ReceiptText,
   Scale,
+  ScrollText,
+  Shield,
   User as UserIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -87,6 +91,7 @@ interface LegalLinkItem {
     | "privacyPolicy"
     | "imprint"
     | "acceptableUse";
+  icon?: ComponentType<{ "aria-hidden"?: boolean; className?: string }>;
 }
 
 const HELP_LINKS: HelpLinkItem[] = [
@@ -111,18 +116,22 @@ const LEGAL_LINKS: LegalLinkItem[] = [
   {
     url: "https://www.sokosumi.com/terms-of-service",
     translationKey: "termsOfService",
+    icon: ScrollText,
   },
   {
     url: "https://www.sokosumi.com/privacy-policy",
     translationKey: "privacyPolicy",
+    icon: Shield,
   },
   {
     url: "https://www.sokosumi.com/imprint",
     translationKey: "imprint",
+    icon: Landmark,
   },
   {
     url: "https://www.sokosumi.com/acceptable-use",
     translationKey: "acceptableUse",
+    icon: ListChecks,
   },
 ];
 
@@ -167,15 +176,21 @@ function LegalLinks({
 }) {
   return (
     <>
-      {LEGAL_LINKS.map((item) => (
-        <DropdownMenuItem
-          key={item.translationKey}
-          className={itemClassName}
-          onClick={() => handleOpenExternalLink(item.url)}
-        >
-          <span>{tUserAvatar(item.translationKey)}</span>
-        </DropdownMenuItem>
-      ))}
+      {LEGAL_LINKS.map((item) => {
+        const Icon = item.icon;
+        return (
+          <DropdownMenuItem
+            key={item.translationKey}
+            className={itemClassName}
+            onClick={() => handleOpenExternalLink(item.url)}
+          >
+            {Icon ? (
+              <Icon className="text-muted-foreground size-4" aria-hidden />
+            ) : null}
+            <span>{tUserAvatar(item.translationKey)}</span>
+          </DropdownMenuItem>
+        );
+      })}
     </>
   );
 }
