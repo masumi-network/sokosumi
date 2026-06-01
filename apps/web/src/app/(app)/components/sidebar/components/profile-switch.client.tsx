@@ -5,6 +5,7 @@ import gravatarUrl from "gravatar-url";
 import {
   ArrowLeftRight,
   BookOpen,
+  Bot,
   Building2,
   Cable,
   Check,
@@ -76,6 +77,7 @@ interface HelpLinkItem {
   url: string;
   translationKey:
     | "documentation"
+    | "serviceplanAiCoworker"
     | "support"
     | "termsOfService"
     | "privacyPolicy"
@@ -89,6 +91,11 @@ const HELP_LINKS: HelpLinkItem[] = [
     url: "https://docs.sokosumi.com/documentation",
     translationKey: "documentation",
     icon: BookOpen,
+  },
+  {
+    url: "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/legal-ai-coworkers.html",
+    translationKey: "serviceplanAiCoworker",
+    icon: Bot,
   },
   {
     url: "mailto:info@sokosumi.com",
