@@ -214,54 +214,49 @@ export default function UserAvatarClient({
                 <CircleHelp className="text-muted-foreground size-4" />
                 {t("support")}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-muted-foreground text-xs">
-                {t("legal")}
-              </DropdownMenuLabel>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  closeMenu();
-                  handleOpenExternalLink(
-                    "https://www.sokosumi.com/terms-of-service",
-                  );
-                }}
-              >
-                {t("termsOfService")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  closeMenu();
-                  handleOpenExternalLink(
-                    "https://www.sokosumi.com/privacy-policy",
-                  );
-                }}
-              >
-                {t("privacyPolicy")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  closeMenu();
-                  handleOpenExternalLink("https://www.sokosumi.com/imprint");
-                }}
-              >
-                {t("imprint")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  closeMenu();
-                  handleOpenExternalLink(
-                    "https://www.sokosumi.com/acceptable-use",
-                  );
-                }}
-              >
-                {t("acceptableUse")}
-              </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          <DropdownMenuLabel className="text-muted-foreground text-xs">
+            {t("legal")}
+          </DropdownMenuLabel>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => {
+              closeMenu();
+              handleOpenExternalLink(
+                "https://www.sokosumi.com/terms-of-service",
+              );
+            }}
+          >
+            {t("termsOfService")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => {
+              closeMenu();
+              handleOpenExternalLink("https://www.sokosumi.com/privacy-policy");
+            }}
+          >
+            {t("privacyPolicy")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => {
+              closeMenu();
+              handleOpenExternalLink("https://www.sokosumi.com/imprint");
+            }}
+          >
+            {t("imprint")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => {
+              closeMenu();
+              handleOpenExternalLink("https://www.sokosumi.com/acceptable-use");
+            }}
+          >
+            {t("acceptableUse")}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2"

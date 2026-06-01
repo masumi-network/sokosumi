@@ -116,16 +116,14 @@ const LEGAL_LINKS: HelpLinkItem[] = [
   },
 ];
 
-function HelpAndLegalLinks({
+function HelpLinks({
   handleOpenExternalLink,
   itemClassName,
-  labelClassName,
   tUserAvatar,
 }: {
   handleOpenExternalLink: (url: string) => void;
   itemClassName: string;
-  labelClassName: string;
-  tUserAvatar: (key: HelpLinkItem["translationKey"] | "legal") => string;
+  tUserAvatar: (key: HelpLinkItem["translationKey"]) => string;
 }) {
   return (
     <>
@@ -144,7 +142,23 @@ function HelpAndLegalLinks({
           </DropdownMenuItem>
         );
       })}
-      <DropdownMenuSeparator />
+    </>
+  );
+}
+
+function LegalLinks({
+  handleOpenExternalLink,
+  itemClassName,
+  labelClassName,
+  tUserAvatar,
+}: {
+  handleOpenExternalLink: (url: string) => void;
+  itemClassName: string;
+  labelClassName: string;
+  tUserAvatar: (key: HelpLinkItem["translationKey"] | "legal") => string;
+}) {
+  return (
+    <>
       <DropdownMenuLabel className={labelClassName}>
         {tUserAvatar("legal")}
       </DropdownMenuLabel>
@@ -548,29 +562,41 @@ export default function ProfileSwitchClient({
                         />
                       </DropdownMenuItem>
                       {isHelpSectionOpen ? (
-                        <HelpAndLegalLinks
+                        <HelpLinks
                           handleOpenExternalLink={handleOpenExternalLink}
                           itemClassName="cursor-pointer pl-8"
-                          labelClassName="text-muted-foreground pl-8 text-xs"
                           tUserAvatar={tUserAvatar}
                         />
                       ) : null}
+                      <LegalLinks
+                        handleOpenExternalLink={handleOpenExternalLink}
+                        itemClassName="cursor-pointer"
+                        labelClassName="text-muted-foreground text-xs"
+                        tUserAvatar={tUserAvatar}
+                      />
                     </>
                   ) : (
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger className="gap-2">
-                        <LifeBuoy className="text-muted-foreground size-4" />
-                        <span>{tUserAvatar("help")}</span>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-64">
-                        <HelpAndLegalLinks
-                          handleOpenExternalLink={handleOpenExternalLink}
-                          itemClassName="cursor-pointer"
-                          labelClassName="text-muted-foreground text-xs"
-                          tUserAvatar={tUserAvatar}
-                        />
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
+                    <>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="gap-2">
+                          <LifeBuoy className="text-muted-foreground size-4" />
+                          <span>{tUserAvatar("help")}</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-64">
+                          <HelpLinks
+                            handleOpenExternalLink={handleOpenExternalLink}
+                            itemClassName="cursor-pointer"
+                            tUserAvatar={tUserAvatar}
+                          />
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                      <LegalLinks
+                        handleOpenExternalLink={handleOpenExternalLink}
+                        itemClassName="cursor-pointer"
+                        labelClassName="text-muted-foreground text-xs"
+                        tUserAvatar={tUserAvatar}
+                      />
+                    </>
                   )}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
