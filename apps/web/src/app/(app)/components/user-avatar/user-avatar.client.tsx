@@ -11,6 +11,7 @@ import {
   LifeBuoy,
   LogOut,
   ReceiptText,
+  Scale,
   Settings as SettingsIcon,
   User as UserIcon,
 } from "lucide-react";
@@ -228,47 +229,56 @@ export default function UserAvatarClient({
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          <DropdownMenuLabel className="text-muted-foreground text-xs">
-            {t("legal")}
-          </DropdownMenuLabel>
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => {
-              closeMenu();
-              handleOpenExternalLink(
-                "https://www.sokosumi.com/terms-of-service",
-              );
-            }}
-          >
-            {t("termsOfService")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => {
-              closeMenu();
-              handleOpenExternalLink("https://www.sokosumi.com/privacy-policy");
-            }}
-          >
-            {t("privacyPolicy")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => {
-              closeMenu();
-              handleOpenExternalLink("https://www.sokosumi.com/imprint");
-            }}
-          >
-            {t("imprint")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => {
-              closeMenu();
-              handleOpenExternalLink("https://www.sokosumi.com/acceptable-use");
-            }}
-          >
-            {t("acceptableUse")}
-          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="flex cursor-pointer items-center gap-2">
+              <Scale className="text-muted-foreground size-4" />
+              {t("legal")}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  closeMenu();
+                  handleOpenExternalLink(
+                    "https://www.sokosumi.com/terms-of-service",
+                  );
+                }}
+              >
+                {t("termsOfService")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  closeMenu();
+                  handleOpenExternalLink(
+                    "https://www.sokosumi.com/privacy-policy",
+                  );
+                }}
+              >
+                {t("privacyPolicy")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  closeMenu();
+                  handleOpenExternalLink("https://www.sokosumi.com/imprint");
+                }}
+              >
+                {t("imprint")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  closeMenu();
+                  handleOpenExternalLink(
+                    "https://www.sokosumi.com/acceptable-use",
+                  );
+                }}
+              >
+                {t("acceptableUse")}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2"

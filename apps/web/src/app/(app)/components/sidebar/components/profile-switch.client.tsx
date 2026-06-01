@@ -16,6 +16,7 @@ import {
   PanelLeft,
   Plus,
   ReceiptText,
+  Scale,
   User as UserIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -75,15 +76,17 @@ function getWorkspaceKey(workspace: WorkspaceItem): string {
 
 interface HelpLinkItem {
   url: string;
+  translationKey: "documentation" | "serviceplanAiCoworker" | "support";
+  icon?: ComponentType<{ "aria-hidden"?: boolean; className?: string }>;
+}
+
+interface LegalLinkItem {
+  url: string;
   translationKey:
-    | "documentation"
-    | "serviceplanAiCoworker"
-    | "support"
     | "termsOfService"
     | "privacyPolicy"
     | "imprint"
     | "acceptableUse";
-  icon?: ComponentType<{ "aria-hidden"?: boolean; className?: string }>;
 }
 
 const HELP_LINKS: HelpLinkItem[] = [
@@ -104,7 +107,7 @@ const HELP_LINKS: HelpLinkItem[] = [
   },
 ];
 
-const LEGAL_LINKS: HelpLinkItem[] = [
+const LEGAL_LINKS: LegalLinkItem[] = [
   {
     url: "https://www.sokosumi.com/terms-of-service",
     translationKey: "termsOfService",
@@ -156,19 +159,14 @@ function HelpLinks({
 function LegalLinks({
   handleOpenExternalLink,
   itemClassName,
-  labelClassName,
   tUserAvatar,
 }: {
   handleOpenExternalLink: (url: string) => void;
   itemClassName: string;
-  labelClassName: string;
-  tUserAvatar: (key: HelpLinkItem["translationKey"] | "legal") => string;
+  tUserAvatar: (key: LegalLinkItem["translationKey"]) => string;
 }) {
   return (
     <>
-      <DropdownMenuLabel className={labelClassName}>
-        {tUserAvatar("legal")}
-      </DropdownMenuLabel>
       {LEGAL_LINKS.map((item) => (
         <DropdownMenuItem
           key={item.translationKey}
@@ -253,6 +251,7 @@ export default function ProfileSwitchClient({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isWorkspaceSectionOpen, setIsWorkspaceSectionOpen] = useState(false);
   const [isHelpSectionOpen, setIsHelpSectionOpen] = useState(false);
+  const [isLegalSectionOpen, setIsLegalSectionOpen] = useState(false);
   const { isMobile, state, toggleSidebar } = useSidebar();
   const isCollapsedDesktop = !isMobile && state === "collapsed";
   const canOpenMenu = isMobile || state !== "collapsed";
@@ -266,6 +265,7 @@ export default function ProfileSwitchClient({
     if (!open) {
       setIsWorkspaceSectionOpen(false);
       setIsHelpSectionOpen(false);
+      setIsLegalSectionOpen(false);
     }
   };
 
@@ -276,6 +276,7 @@ export default function ProfileSwitchClient({
         setIsDropdownOpen(false);
         setIsWorkspaceSectionOpen(false);
         setIsHelpSectionOpen(false);
+        setIsLegalSectionOpen(false);
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -318,6 +319,7 @@ export default function ProfileSwitchClient({
     setIsDropdownOpen(false);
     setIsWorkspaceSectionOpen(false);
     setIsHelpSectionOpen(false);
+    setIsLegalSectionOpen(false);
   };
 
   const handleWorkspaceSelect = (workspaceId: string | null) => {
@@ -575,12 +577,29 @@ export default function ProfileSwitchClient({
                           tUserAvatar={tUserAvatar}
                         />
                       ) : null}
-                      <LegalLinks
-                        handleOpenExternalLink={handleOpenExternalLink}
-                        itemClassName="cursor-pointer"
-                        labelClassName="text-muted-foreground text-xs"
-                        tUserAvatar={tUserAvatar}
-                      />
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          setIsLegalSectionOpen((previous) => !previous);
+                        }}
+                      >
+                        <Scale className="text-muted-foreground size-4" />
+                        <span>{tUserAvatar("legal")}</span>
+                        <ChevronDown
+                          className={cn(
+                            "text-muted-foreground ml-auto size-4 transition-transform",
+                            isLegalSectionOpen ? "rotate-180" : "",
+                          )}
+                        />
+                      </DropdownMenuItem>
+                      {isLegalSectionOpen ? (
+                        <LegalLinks
+                          handleOpenExternalLink={handleOpenExternalLink}
+                          itemClassName="cursor-pointer pl-8"
+                          tUserAvatar={tUserAvatar}
+                        />
+                      ) : null}
                     </>
                   ) : (
                     <>
@@ -597,12 +616,19 @@ export default function ProfileSwitchClient({
                           />
                         </DropdownMenuSubContent>
                       </DropdownMenuSub>
-                      <LegalLinks
-                        handleOpenExternalLink={handleOpenExternalLink}
-                        itemClassName="cursor-pointer"
-                        labelClassName="text-muted-foreground text-xs"
-                        tUserAvatar={tUserAvatar}
-                      />
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="gap-2">
+                          <Scale className="text-muted-foreground size-4" />
+                          <span>{tUserAvatar("legal")}</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-64">
+                          <LegalLinks
+                            handleOpenExternalLink={handleOpenExternalLink}
+                            itemClassName="cursor-pointer"
+                            tUserAvatar={tUserAvatar}
+                          />
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
                     </>
                   )}
                 </DropdownMenuGroup>
