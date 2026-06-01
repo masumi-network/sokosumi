@@ -1,6 +1,6 @@
 # Sokosumi Agent Guidelines
 
-> **Purpose**: This document provides comprehensive guidelines for AI agents working on the Sokosumi monorepo. For app-specific details, see [`apps/web/AGENTS.md`](./apps/web/AGENTS.md), [`apps/core/AGENTS.md`](./apps/core/AGENTS.md), [`packages/database/AGENTS.md`](./packages/database/AGENTS.md), and [`packages/masumi/AGENTS.md`](./packages/masumi/AGENTS.md).
+> **Purpose**: This document provides comprehensive guidelines for AI agents working on the **Sokosumi monorepo** (apps, shared packages, tooling). It is not app-specific. For scoped guidance, see [`apps/web/AGENTS.md`](./apps/web/AGENTS.md), [`apps/core/AGENTS.md`](./apps/core/AGENTS.md), [`packages/database/AGENTS.md`](./packages/database/AGENTS.md), [`packages/masumi/AGENTS.md`](./packages/masumi/AGENTS.md), and [`packages/email/AGENTS.md`](./packages/email/AGENTS.md).
 
 ## Tech Stack & Architecture
 
@@ -46,8 +46,11 @@ sokosumi/
 │   │   ├── src/hash/          # Hash utilities for job verification
 │   │   ├── src/schemas/       # Agent protocol Zod schemas
 │   │   └── src/types/         # Agent types
-│   └── utils/                # Shared utilities (@sokosumi/utils)
-│       └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
+│   ├── utils/                 # Shared utilities (@sokosumi/utils)
+│   │   └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
+│   ├── email/                 # Shared email renderers and locales (@sokosumi/email)
+│   ├── chat/                  # Chat types and shared chat utilities (@sokosumi/chat)
+│   └── ai-provider/           # Sokosumi AI SDK provider (@sokosumi/ai-provider)
 ├── docs/                      # Documentation (future)
 └── biome.jsonc                # Root Biome configuration
 ```
