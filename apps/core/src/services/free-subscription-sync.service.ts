@@ -86,89 +86,6 @@ function getNextLocalFreeSubscriptionPeriod(
   };
 }
 
-async function filterSubscriptionsMissingNextLocalSuccessor(
-  subscriptions: LocalFreeSubscriptionRecord[],
-): Promise<LocalFreeSubscriptionRecord[]> {
-  const successorPeriods = new Map<string, LocalFreeSubscriptionPeriodRecord>();
-
-  for (const subscription of subscriptions) {
-    const nextPeriod = getNextLocalFreeSubscriptionPeriod(subscription);
-
-    if (!nextPeriod) {
-      continue;
-    }
-
-    successorPeriods.set(
-      buildLocalFreeSubscriptionPeriodKey(nextPeriod),
-      nextPeriod,
-    );
-  }
-
-  if (successorPeriods.size === 0) {
-    return subscriptions.filter((subscription) => subscription.periodEnd);
-  }
-
-  const existingLocalSuccessors = await prisma.subscription.findMany({
-    where: {
-      OR: Array.from(successorPeriods.values()).map((successorPeriod) => ({
-        periodEnd: successorPeriod.periodEnd,
-        periodStart: successorPeriod.periodStart,
-        plan: FREE_SUBSCRIPTION_PLAN,
-        referenceId: successorPeriod.referenceId,
-        stripeSubscriptionId: null,
-      })),
-    },
-    select: {
-      periodEnd: true,
-      periodStart: true,
-      referenceId: true,
-    },
-  });
-
-  const existingSuccessorKeys = new Set(
-    existingLocalSuccessors.flatMap((successor) => {
-      if (!successor.periodStart || !successor.periodEnd) {
-        return [];
-      }
-
-      return [
-        buildLocalFreeSubscriptionPeriodKey({
-          periodEnd: successor.periodEnd,
-          periodStart: successor.periodStart,
-          referenceId: successor.referenceId,
-        }),
-      ];
-    }),
-  );
-
-  return subscriptions.filter((subscription) => {
-    const nextPeriod = getNextLocalFreeSubscriptionPeriod(subscription);
-
-    if (!nextPeriod) {
-      return false;
-    }
-
-    return !existingSuccessorKeys.has(
-      buildLocalFreeSubscriptionPeriodKey(nextPeriod),
-    );
-  });
-}
-
-function subscriptionHasNextLocalSuccessor(
-  subscription: LocalFreeSubscriptionRecord,
-  existingSuccessorKeys: Set<string>,
-): boolean {
-  const nextPeriod = getNextLocalFreeSubscriptionPeriod(subscription);
-
-  if (!nextPeriod) {
-    return false;
-  }
-
-  return existingSuccessorKeys.has(
-    buildLocalFreeSubscriptionPeriodKey(nextPeriod),
-  );
-}
-
 async function loadExistingSuccessorKeys(
   subscriptions: LocalFreeSubscriptionRecord[],
 ): Promise<Set<string>> {
@@ -223,6 +140,37 @@ async function loadExistingSuccessorKeys(
       ];
     }),
   );
+}
+
+function subscriptionHasNextLocalSuccessor(
+  subscription: LocalFreeSubscriptionRecord,
+  existingSuccessorKeys: Set<string>,
+): boolean {
+  const nextPeriod = getNextLocalFreeSubscriptionPeriod(subscription);
+
+  if (!nextPeriod) {
+    return false;
+  }
+
+  return existingSuccessorKeys.has(
+    buildLocalFreeSubscriptionPeriodKey(nextPeriod),
+  );
+}
+
+async function filterSubscriptionsMissingNextLocalSuccessor(
+  subscriptions: LocalFreeSubscriptionRecord[],
+): Promise<LocalFreeSubscriptionRecord[]> {
+  const existingSuccessorKeys = await loadExistingSuccessorKeys(subscriptions);
+
+  return subscriptions.filter((subscription) => {
+    if (
+      subscriptionHasNextLocalSuccessor(subscription, existingSuccessorKeys)
+    ) {
+      return false;
+    }
+
+    return getNextLocalFreeSubscriptionPeriod(subscription) !== null;
+  });
 }
 
 const localFreeSubscriptionSelect = {
