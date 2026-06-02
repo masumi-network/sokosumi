@@ -364,10 +364,12 @@ describe("freeSubscriptionSyncService", () => {
       "./free-subscription-sync.service"
     );
 
-    await freeSubscriptionSyncService.renewLocalFreeSubscriptions(
-      createSyncExecutionOptions(),
-    );
+    const result =
+      await freeSubscriptionSyncService.renewLocalFreeSubscriptions(
+        createSyncExecutionOptions(),
+      );
 
+    expect(result.renewed).toBe(0);
     expect(closeOverdueLocalFreeSubscriptionMock).toHaveBeenCalledTimes(1);
     expect(
       transitionToNextLocalFreeSubscriptionPeriodMock,

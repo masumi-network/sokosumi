@@ -343,14 +343,14 @@ async function closeOverdueLocalFreeSubscriptions(
 
       attemptedSubscriptionIds.add(subscription.id);
 
+      const hasExistingSuccessor = subscriptionHasNextLocalSuccessor(
+        subscription,
+        existingSuccessorKeys,
+      );
+
       try {
         await prisma.$transaction(async (tx) => {
-          if (
-            subscriptionHasNextLocalSuccessor(
-              subscription,
-              existingSuccessorKeys,
-            )
-          ) {
+          if (hasExistingSuccessor) {
             await closeOverdueLocalFreeSubscription(
               {
                 setCanceledAt: false,
@@ -368,7 +368,10 @@ async function closeOverdueLocalFreeSubscriptions(
             );
           }
         });
-        renewed += 1;
+
+        if (!hasExistingSuccessor) {
+          renewed += 1;
+        }
       } catch (error) {
         renewalErrors += 1;
         console.error(
