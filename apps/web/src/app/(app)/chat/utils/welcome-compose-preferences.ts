@@ -167,5 +167,9 @@ export function resolveHydratedWelcomeSelection(
     };
   }
 
-  return { composeKind, coworker: null, model: null };
+  return {
+    composeKind: "chat",
+    coworker: firstCoworkerWithCapability(coworkers, "chat"),
+    model: null,
+  };
 }
