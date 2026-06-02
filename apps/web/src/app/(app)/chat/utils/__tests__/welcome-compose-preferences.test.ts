@@ -252,4 +252,66 @@ describe("resolveHydratedWelcomeSelection", () => {
     expect(r.composeKind).toBe("task");
     expect(r.coworker).toBeNull();
   });
+
+  it("for chat compose, picks a chat-capable fallback when stored coworker cannot chat", () => {
+    const stored = {
+      v: 1 as const,
+      composeKind: "chat" as const,
+      modelId: null,
+      coworkerSlugOrId: "tasky",
+    };
+    const r = resolveHydratedWelcomeSelection(coworkers, stored, {
+      urlCoworkerSlug: false,
+    });
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.capabilities?.includes("chat")).toBe(true);
+    expect(r.coworker?.slug).toBe("alex");
+  });
+
+  it("for chat compose with null coworkerSlugOrId, picks first chat-capable coworker", () => {
+    const stored = {
+      v: 1 as const,
+      composeKind: "chat" as const,
+      modelId: null,
+      coworkerSlugOrId: null,
+    };
+    const r = resolveHydratedWelcomeSelection(coworkers, stored, {
+      urlCoworkerSlug: false,
+    });
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.capabilities?.includes("chat")).toBe(true);
+    expect(r.coworker?.slug).toBe("alex");
+  });
+
+  it("for chat compose when stored coworker id/slug is unknown, picks first chat-capable coworker", () => {
+    const stored = {
+      v: 1 as const,
+      composeKind: "chat" as const,
+      modelId: null,
+      coworkerSlugOrId: "missing-coworker",
+    };
+    const r = resolveHydratedWelcomeSelection(coworkers, stored, {
+      urlCoworkerSlug: false,
+    });
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.capabilities?.includes("chat")).toBe(true);
+    expect(r.coworker?.slug).toBe("alex");
+  });
+
+  it("for chat compose with no chat-capable coworkers, returns null coworker", () => {
+    const taskOnly = [
+      baseCoworker({ id: "c", slug: "tasky", capabilities: ["tasks"] }),
+    ];
+    const stored = {
+      v: 1 as const,
+      composeKind: "chat" as const,
+      modelId: null,
+      coworkerSlugOrId: null,
+    };
+    const r = resolveHydratedWelcomeSelection(taskOnly, stored, {
+      urlCoworkerSlug: false,
+    });
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker).toBeNull();
+  });
 });

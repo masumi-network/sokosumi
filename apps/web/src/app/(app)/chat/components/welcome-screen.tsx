@@ -3,8 +3,12 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { useTranslations } from "next-intl";
-import type { Dispatch, SetStateAction } from "react";
-import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import { type Dispatch, type SetStateAction, useMemo } from "react";
+import {
+  filterCoworkersForComposeKind,
+  findDefaultCoworker,
+  getCoworkerImageUrl,
+} from "@/app/chat/utils/coworker-utils";
 import type {
   ChatComposeKind,
   ChatComposeMessage,
@@ -41,7 +45,7 @@ interface WelcomeScreenProps {
   coworkers?: Coworker[];
   coworkersLoading?: boolean;
   initialCoworker?: Coworker;
-  onCoworkerChange?: (coworker: Coworker) => void;
+  onCoworkerChange?: (coworker: Coworker | null) => void;
   selectedModel?: { id: string; name: string } | null;
   onSelectModel?: (model: { id: string; name: string } | null) => void;
 }
@@ -94,7 +98,12 @@ export default function WelcomeScreen({
   }
 
   const isTaskWelcomeHeader = welcomeComposeKind === "task";
-  const visualCoworker = initialCoworker ?? coworkers?.[0];
+  const composeKindCoworkers = useMemo(
+    () => filterCoworkersForComposeKind(coworkers ?? [], welcomeComposeKind),
+    [coworkers, welcomeComposeKind],
+  );
+  const visualCoworker =
+    initialCoworker ?? findDefaultCoworker(composeKindCoworkers) ?? undefined;
   const visualCoworkerName = visualCoworker?.name ?? "";
   const visualCoworkerAvatarUrl = visualCoworker
     ? (getCoworkerImageUrl(
