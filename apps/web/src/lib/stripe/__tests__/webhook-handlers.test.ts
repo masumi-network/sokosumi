@@ -26,7 +26,7 @@ const claimWelcomeCouponMock = vi.fn();
 const ensureInitialLocalFreeSubscriptionPeriodMock = vi.fn();
 const transitionToNextLocalFreeSubscriptionPeriodMock = vi.fn();
 const getSubscriptionByStripeSubscriptionIdMock = vi.fn();
-const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
+const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const subscriptionUpdateManyMock = vi.fn();
 const prismaOrganizationUpdateMock = vi.fn();
 const prismaUserUpdateMock = vi.fn();
@@ -89,8 +89,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
     updateOrganizationInvoiceEmail: vi.fn(),
   },
   subscriptionRepository: {
-    getLatestActiveSubscriptionByReferenceId: (...args: unknown[]) =>
-      getLatestActiveSubscriptionByReferenceIdMock(...args),
+    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      resolveActiveSubscriptionByReferenceIdMock(...args),
     getSubscriptionByStripeSubscriptionId: (...args: unknown[]) =>
       getSubscriptionByStripeSubscriptionIdMock(...args),
   },
@@ -1646,7 +1646,7 @@ describe("handleSubscriptionDeletedEvent", () => {
     transitionToNextLocalFreeSubscriptionPeriodMock.mockResolvedValue(
       undefined,
     );
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
     getSubscriptionByStripeSubscriptionIdMock.mockResolvedValue({
       canceledAt: new Date("2026-04-09T07:39:30.188Z"),
       createdAt: new Date("2026-03-09T07:39:30.188Z"),
@@ -1673,7 +1673,7 @@ describe("handleSubscriptionDeletedEvent", () => {
       "sub_123",
       expect.anything(),
     );
-    expect(getLatestActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
+    expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
       "user-1",
       expect.anything(),
     );
@@ -1739,7 +1739,7 @@ describe("handleSubscriptionDeletedEvent", () => {
   });
 
   it("skips the free fallback when another paid subscription is still active", async () => {
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       id: "sub_active_paid_2",
       plan: "pro",
     });

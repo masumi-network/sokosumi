@@ -1031,7 +1031,7 @@ export async function handleSubscriptionDeletedEvent(
 
   await prisma.$transaction(async (tx) => {
     const latestActiveSubscription =
-      await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
         localSubscription.referenceId,
         tx,
       );

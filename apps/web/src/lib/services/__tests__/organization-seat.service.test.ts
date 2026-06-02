@@ -17,7 +17,7 @@ const getMemberByUserIdAndOrganizationIdMock = vi.fn();
 const getAssignedMemberCountMock = vi.fn();
 const assignSeatMock = vi.fn();
 const unassignSeatMock = vi.fn();
-const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
+const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const memberCountMock = vi.fn();
 const grantUnusedSeatSubscriptionCreditsIfEligibleMock = vi.fn();
 const grantFreeOrganizationMemberSubscriptionCreditsMock = vi.fn();
@@ -54,8 +54,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
     unassignSeat: (...args: unknown[]) => unassignSeatMock(...args),
   },
   subscriptionRepository: {
-    getLatestActiveSubscriptionByReferenceId: (...args: unknown[]) =>
-      getLatestActiveSubscriptionByReferenceIdMock(...args),
+    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      resolveActiveSubscriptionByReferenceIdMock(...args),
   },
 }));
 
@@ -91,7 +91,7 @@ describe("organizationSeatService", () => {
   it("returns zero purchased seats for free organizations", async () => {
     getAssignedMemberCountMock.mockResolvedValue(2);
     memberCountMock.mockResolvedValue(5);
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       plan: "free",
       seats: null,
       status: "active",
@@ -115,7 +115,7 @@ describe("organizationSeatService", () => {
   it("returns paid seat counts for active paid subscriptions", async () => {
     getAssignedMemberCountMock.mockResolvedValue(2);
     memberCountMock.mockResolvedValue(5);
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       plan: "starter",
       seats: 4,
       status: "active",
@@ -138,7 +138,7 @@ describe("organizationSeatService", () => {
 
   it("assigns a seat when caller is owner and capacity remains", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       seats: 3,
     });
     assignSeatMock.mockResolvedValue({
@@ -172,12 +172,10 @@ describe("organizationSeatService", () => {
   it("reads purchased seats inside the transaction before assigning", async () => {
     const callOrder: string[] = [];
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
-    getLatestActiveSubscriptionByReferenceIdMock.mockImplementation(
-      async () => {
-        callOrder.push("getSubscription");
-        return { seats: 3 };
-      },
-    );
+    resolveActiveSubscriptionByReferenceIdMock.mockImplementation(async () => {
+      callOrder.push("getSubscription");
+      return { seats: 3 };
+    });
     assignSeatMock.mockImplementation(async () => {
       callOrder.push("assignSeat");
       return {
@@ -218,7 +216,7 @@ describe("organizationSeatService", () => {
       id: "member-1",
       userId: "user-2",
     });
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       periodEnd: new Date("2026-06-01T00:00:00.000Z"),
       plan: "starter",
       status: "active",
@@ -255,7 +253,7 @@ describe("organizationSeatService", () => {
       id: "member-1",
       userId: "user-2",
     });
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       periodEnd: new Date("2026-06-01T00:00:00.000Z"),
       periodStart: new Date("2026-05-01T00:00:00.000Z"),
@@ -291,7 +289,7 @@ describe("organizationSeatService", () => {
 
   it("syncs local-free credits for all members when assigning in a free organization", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       periodEnd: new Date("2026-06-01T00:00:00.000Z"),
       periodStart: new Date("2026-05-01T00:00:00.000Z"),
@@ -328,7 +326,7 @@ describe("organizationSeatService", () => {
 
   it("does not sync local-free credits when assigning in a paid organization", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       seats: 3,
       status: "active",
       stripeSubscriptionId: "sub_123",

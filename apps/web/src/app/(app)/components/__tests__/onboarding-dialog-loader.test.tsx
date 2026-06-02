@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMyMemberInOrganizationMock = vi.fn();
-const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
+const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const getSeatSummaryMock = vi.fn();
 const listActiveSubscriptionsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
@@ -58,8 +58,8 @@ vi.mock("@/lib/stripe/subscription-catalog", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   subscriptionRepository: {
-    getLatestActiveSubscriptionByReferenceId: (...args: unknown[]) =>
-      getLatestActiveSubscriptionByReferenceIdMock(...args),
+    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      resolveActiveSubscriptionByReferenceIdMock(...args),
   },
 }));
 
@@ -89,7 +89,7 @@ describe("OnboardingDialogLoader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSubscriptionCatalogMock.mockResolvedValue(createSubscriptionCatalog());
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       plan: "starter",
       seats: 3,
     });
@@ -178,7 +178,7 @@ describe("OnboardingDialogLoader", () => {
     expect(onboardingDialogMock).not.toHaveBeenCalled();
     expect(getMyMemberInOrganizationMock).toHaveBeenCalledOnce();
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
-    expect(getLatestActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
     expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
   });
 
@@ -211,7 +211,7 @@ describe("OnboardingDialogLoader", () => {
     expect(queryByTestId("onboarding-dialog")).toBeNull();
     expect(onboardingDialogMock).not.toHaveBeenCalled();
     expect(getMyMemberInOrganizationMock).toHaveBeenCalledOnce();
-    expect(getLatestActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
     expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "Failed to load subscription catalog for onboarding",

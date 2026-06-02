@@ -13,11 +13,11 @@ import {
 const getCreditsMock = vi.fn();
 
 const {
-  getLatestActiveSubscriptionByReferenceIdMock,
+  resolveActiveSubscriptionByReferenceIdMock,
   getLatestSubscriptionByReferenceIdMock,
   listAvailableBucketsWithBalancesMock,
 } = vi.hoisted(() => ({
-  getLatestActiveSubscriptionByReferenceIdMock: vi.fn(),
+  resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   getLatestSubscriptionByReferenceIdMock: vi.fn(),
   listAvailableBucketsWithBalancesMock: vi.fn(),
 }));
@@ -28,8 +28,8 @@ vi.mock("@/helpers/user", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   subscriptionRepository: {
-    getLatestActiveSubscriptionByReferenceId: (...args: unknown[]) =>
-      getLatestActiveSubscriptionByReferenceIdMock(...args),
+    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      resolveActiveSubscriptionByReferenceIdMock(...args),
     getLatestSubscriptionByReferenceId: (...args: unknown[]) =>
       getLatestSubscriptionByReferenceIdMock(...args),
   },
@@ -283,7 +283,7 @@ describe("getCurrentSubscriptionCredits", () => {
       remaining: 7,
     });
 
-    const bucketWhere = {
+    const bucketScope = {
       referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
       userId: "user_1",
       organizationId: null,
@@ -294,6 +294,12 @@ describe("getCurrentSubscriptionCredits", () => {
       createdAt: {
         lt: now,
       },
+    };
+    const bucketWhere = {
+      AND: [
+        { OR: [{ activatesAt: null }, { activatesAt: { lte: now } }] },
+        bucketScope,
+      ],
     };
 
     expect(aggregateBuckets).toHaveBeenCalledWith({
@@ -342,7 +348,7 @@ describe("getCurrentSubscriptionCredits", () => {
       remaining: 9,
     });
 
-    const bucketWhere = {
+    const bucketScope = {
       referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
       organizationId: "org_1",
       userId: "user_1",
@@ -359,6 +365,12 @@ describe("getCurrentSubscriptionCredits", () => {
       createdAt: {
         lt: now,
       },
+    };
+    const bucketWhere = {
+      AND: [
+        { OR: [{ activatesAt: null }, { activatesAt: { lte: now } }] },
+        bucketScope,
+      ],
     };
 
     expect(aggregateBuckets).toHaveBeenCalledWith({
@@ -448,18 +460,23 @@ describe("getCurrentSubscriptionCredits", () => {
       _sum: {
         amount: true,
       },
-      where: expect.objectContaining({
-        createdAt: {
-          lt: now,
-        },
-      }),
+      where: {
+        AND: [
+          { OR: [{ activatesAt: null }, { activatesAt: { lte: now } }] },
+          expect.objectContaining({
+            createdAt: {
+              lt: now,
+            },
+          }),
+        ],
+      },
     });
   });
 });
 
 describe("buildCreditsPayload", () => {
   beforeEach(() => {
-    getLatestActiveSubscriptionByReferenceIdMock.mockReset();
+    resolveActiveSubscriptionByReferenceIdMock.mockReset();
     getLatestSubscriptionByReferenceIdMock.mockReset();
     listAvailableBucketsWithBalancesMock.mockReset();
     listAvailableBucketsWithBalancesMock.mockResolvedValue([]);
@@ -477,7 +494,7 @@ describe("buildCreditsPayload", () => {
         periodEnd,
         periodStart,
       });
-      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue(
+      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(
         activeSubscription,
       );
 
@@ -553,7 +570,7 @@ describe("buildCreditsPayload", () => {
         tx,
       );
 
-      expect(getLatestActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
+      expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
         "user_1",
         tx,
       );
@@ -573,7 +590,7 @@ describe("buildCreditsPayload", () => {
       getCreditsMock.mockResolvedValue(25);
       const periodStart = new Date("2025-01-01T00:00:00.000Z");
       const periodEnd = new Date("2025-02-01T00:00:00.000Z");
-      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
       getLatestSubscriptionByReferenceIdMock.mockResolvedValue(
         createSubscriptionRecord({
           periodEnd,
@@ -654,7 +671,7 @@ describe("buildCreditsPayload", () => {
         tx,
       );
 
-      expect(getLatestActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
+      expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
         "user_1",
         tx,
       );
@@ -675,7 +692,7 @@ describe("buildCreditsPayload", () => {
       vi.setSystemTime(new Date("2025-01-15T12:00:00.000Z"));
 
       getCreditsMock.mockResolvedValue(10);
-      getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
       getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
 
       const expiresAt = new Date("2026-03-01T00:00:00.000Z");

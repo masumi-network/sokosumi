@@ -9,7 +9,7 @@ const getSessionMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const getBalanceMock = vi.fn();
-const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
+const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const getUserByIdMock = vi.fn();
 const getSeatSummaryMock = vi.fn();
@@ -83,8 +83,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
     getBalance: (...args: unknown[]) => getBalanceMock(...args),
   },
   subscriptionRepository: {
-    getLatestActiveSubscriptionByReferenceId: (...args: unknown[]) =>
-      getLatestActiveSubscriptionByReferenceIdMock(...args),
+    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      resolveActiveSubscriptionByReferenceIdMock(...args),
   },
   userRepository: {
     getUserById: (...args: unknown[]) => getUserByIdMock(...args),
@@ -169,7 +169,7 @@ describe("BillingPage", () => {
       },
     });
     getBalanceMock.mockResolvedValue(BigInt(0));
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       periodEnd: "2026-03-01T00:00:00.000Z",
       plan: "pro",
       seats: 2,
@@ -191,7 +191,7 @@ describe("BillingPage", () => {
   it("passes the zero-margin override to personal billing credits when the flag is enabled", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     zeroMarginTopUpEnabledMock.mockResolvedValue(true);
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       periodEnd: "2026-03-01T00:00:00.000Z",
       plan: "free",
       seats: 1,
@@ -227,7 +227,7 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(true);
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       periodEnd: "2026-03-01T00:00:00.000Z",
       plan: "free",
       seats: 2,
@@ -281,7 +281,7 @@ describe("BillingPage", () => {
   it("shows the personal credits tab even on the free plan", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       periodEnd: "2026-03-01T00:00:00.000Z",
       plan: "free",
       seats: 1,
@@ -330,7 +330,7 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       periodEnd: "2026-03-01T00:00:00.000Z",
       plan: "free",
       seats: 5,
@@ -378,7 +378,7 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       periodEnd: "2026-03-01T00:00:00.000Z",
       plan: "pro",
       seats: 10,

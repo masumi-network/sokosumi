@@ -1,6 +1,9 @@
 import {
   ACTIVE_SUBSCRIPTION_STATUSES,
+  closeOverdueLocalFreeSubscription,
+  ensureNextLocalFreeSubscriptionPeriod,
   FREE_SUBSCRIPTION_PLAN,
+  FREE_SUBSCRIPTION_PRECREATE_LOOKAHEAD_MS,
   getNextMonthlyPeriodEnd,
   transitionToNextLocalFreeSubscriptionPeriod,
 } from "@sokosumi/database/helpers";
@@ -16,6 +19,7 @@ interface SyncExecutionOptions {
 }
 
 export interface FreeSubscriptionRenewalSyncResult {
+  preCreated: number;
   renewalErrors: number;
   renewed: number;
   stoppedEarly: boolean;
@@ -150,24 +154,185 @@ async function filterSubscriptionsMissingNextLocalSuccessor(
   });
 }
 
-async function renewLocalFreeSubscriptionPeriod(
+function subscriptionHasNextLocalSuccessor(
   subscription: LocalFreeSubscriptionRecord,
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await transitionToNextLocalFreeSubscriptionPeriod(
-      {
-        setCanceledAt: false,
-        subscription,
-      },
-      tx,
-    );
-  });
+  existingSuccessorKeys: Set<string>,
+): boolean {
+  const nextPeriod = getNextLocalFreeSubscriptionPeriod(subscription);
+
+  if (!nextPeriod) {
+    return false;
+  }
+
+  return existingSuccessorKeys.has(
+    buildLocalFreeSubscriptionPeriodKey(nextPeriod),
+  );
 }
 
-async function renewLocalFreeSubscriptions(
+async function loadExistingSuccessorKeys(
+  subscriptions: LocalFreeSubscriptionRecord[],
+): Promise<Set<string>> {
+  const successorPeriods = new Map<string, LocalFreeSubscriptionPeriodRecord>();
+
+  for (const subscription of subscriptions) {
+    const nextPeriod = getNextLocalFreeSubscriptionPeriod(subscription);
+
+    if (!nextPeriod) {
+      continue;
+    }
+
+    successorPeriods.set(
+      buildLocalFreeSubscriptionPeriodKey(nextPeriod),
+      nextPeriod,
+    );
+  }
+
+  if (successorPeriods.size === 0) {
+    return new Set();
+  }
+
+  const existingLocalSuccessors = await prisma.subscription.findMany({
+    where: {
+      OR: Array.from(successorPeriods.values()).map((successorPeriod) => ({
+        periodEnd: successorPeriod.periodEnd,
+        periodStart: successorPeriod.periodStart,
+        plan: FREE_SUBSCRIPTION_PLAN,
+        referenceId: successorPeriod.referenceId,
+        stripeSubscriptionId: null,
+      })),
+    },
+    select: {
+      periodEnd: true,
+      periodStart: true,
+      referenceId: true,
+    },
+  });
+
+  return new Set(
+    existingLocalSuccessors.flatMap((successor) => {
+      if (!successor.periodStart || !successor.periodEnd) {
+        return [];
+      }
+
+      return [
+        buildLocalFreeSubscriptionPeriodKey({
+          periodEnd: successor.periodEnd,
+          periodStart: successor.periodStart,
+          referenceId: successor.referenceId,
+        }),
+      ];
+    }),
+  );
+}
+
+const localFreeSubscriptionSelect = {
+  canceledAt: true,
+  createdAt: true,
+  endedAt: true,
+  id: true,
+  periodEnd: true,
+  referenceId: true,
+  seats: true,
+  stripeCustomerId: true,
+  stripeSubscriptionId: true,
+} as const;
+
+async function preCreateUpcomingLocalFreeSubscriptions(
   options: SyncExecutionOptions,
-): Promise<FreeSubscriptionRenewalSyncResult> {
-  const attemptedSubscriptionIds = new Set<string>();
+  attemptedSubscriptionIds: Set<string>,
+): Promise<{ preCreated: number; stoppedEarly: boolean }> {
+  let preCreated = 0;
+  let stoppedEarly = false;
+  const now = new Date();
+  const lookaheadEnd = new Date(
+    now.getTime() + FREE_SUBSCRIPTION_PRECREATE_LOOKAHEAD_MS,
+  );
+
+  while (true) {
+    if (
+      shouldStopSync(
+        options,
+        "Stopping before querying more local free subscriptions for pre-create",
+      )
+    ) {
+      stoppedEarly = true;
+      return { preCreated, stoppedEarly };
+    }
+
+    const upcomingLocalFreeSubscriptions = (await prisma.subscription.findMany({
+      where: {
+        plan: FREE_SUBSCRIPTION_PLAN,
+        periodEnd: {
+          gt: now,
+          lte: lookaheadEnd,
+        },
+        status: {
+          in: [...ACTIVE_SUBSCRIPTION_STATUSES],
+        },
+        stripeSubscriptionId: null,
+      },
+      orderBy: [{ periodEnd: "asc" }, { updatedAt: "asc" }],
+      select: localFreeSubscriptionSelect,
+    })) as LocalFreeSubscriptionRecord[];
+
+    const subscriptionsNeedingPreCreate =
+      await filterSubscriptionsMissingNextLocalSuccessor(
+        upcomingLocalFreeSubscriptions.filter(
+          (subscription) => !attemptedSubscriptionIds.has(subscription.id),
+        ),
+      );
+
+    if (subscriptionsNeedingPreCreate.length === 0) {
+      return { preCreated, stoppedEarly };
+    }
+
+    for (const subscription of subscriptionsNeedingPreCreate) {
+      if (
+        shouldStopSync(
+          options,
+          "Stopping before pre-creating more local free subscriptions",
+        )
+      ) {
+        stoppedEarly = true;
+        return { preCreated, stoppedEarly };
+      }
+
+      attemptedSubscriptionIds.add(subscription.id);
+
+      const nextPeriod = getNextLocalFreeSubscriptionPeriod(subscription);
+      if (!nextPeriod) {
+        continue;
+      }
+
+      try {
+        await prisma.$transaction(async (tx) => {
+          await ensureNextLocalFreeSubscriptionPeriod(
+            {
+              activatesAt: nextPeriod.periodStart,
+              subscription,
+            },
+            tx,
+          );
+        });
+        preCreated += 1;
+      } catch (error) {
+        console.error(
+          `${LOG_PREFIX} Failed to pre-create local free subscription ${subscription.id}:`,
+          error,
+        );
+      }
+    }
+  }
+}
+
+async function closeOverdueLocalFreeSubscriptions(
+  options: SyncExecutionOptions,
+  attemptedSubscriptionIds: Set<string>,
+): Promise<{
+  renewalErrors: number;
+  renewed: number;
+  stoppedEarly: boolean;
+}> {
   let renewalErrors = 0;
   let renewed = 0;
   let stoppedEarly = false;
@@ -195,31 +360,21 @@ async function renewLocalFreeSubscriptions(
         stripeSubscriptionId: null,
       },
       orderBy: [{ periodEnd: "asc" }, { updatedAt: "asc" }],
-      select: {
-        canceledAt: true,
-        createdAt: true,
-        endedAt: true,
-        id: true,
-        periodEnd: true,
-        referenceId: true,
-        seats: true,
-        stripeCustomerId: true,
-        stripeSubscriptionId: true,
-      },
+      select: localFreeSubscriptionSelect,
     })) as LocalFreeSubscriptionRecord[];
 
-    const subscriptionsNeedingRenewal =
-      await filterSubscriptionsMissingNextLocalSuccessor(
-        dueLocalFreeSubscriptions.filter(
-          (subscription) => !attemptedSubscriptionIds.has(subscription.id),
-        ),
-      );
+    const pendingOverdue = dueLocalFreeSubscriptions.filter(
+      (subscription) => !attemptedSubscriptionIds.has(subscription.id),
+    );
 
-    if (subscriptionsNeedingRenewal.length === 0) {
+    if (pendingOverdue.length === 0) {
       return { renewalErrors, renewed, stoppedEarly };
     }
 
-    for (const subscription of subscriptionsNeedingRenewal) {
+    const existingSuccessorKeys =
+      await loadExistingSuccessorKeys(pendingOverdue);
+
+    for (const subscription of pendingOverdue) {
       if (
         shouldStopSync(
           options,
@@ -233,7 +388,30 @@ async function renewLocalFreeSubscriptions(
       attemptedSubscriptionIds.add(subscription.id);
 
       try {
-        await renewLocalFreeSubscriptionPeriod(subscription);
+        await prisma.$transaction(async (tx) => {
+          if (
+            subscriptionHasNextLocalSuccessor(
+              subscription,
+              existingSuccessorKeys,
+            )
+          ) {
+            await closeOverdueLocalFreeSubscription(
+              {
+                setCanceledAt: false,
+                subscription,
+              },
+              tx,
+            );
+          } else {
+            await transitionToNextLocalFreeSubscriptionPeriod(
+              {
+                setCanceledAt: false,
+                subscription,
+              },
+              tx,
+            );
+          }
+        });
         renewed += 1;
       } catch (error) {
         renewalErrors += 1;
@@ -244,6 +422,38 @@ async function renewLocalFreeSubscriptions(
       }
     }
   }
+}
+
+async function renewLocalFreeSubscriptions(
+  options: SyncExecutionOptions,
+): Promise<FreeSubscriptionRenewalSyncResult> {
+  const attemptedSubscriptionIds = new Set<string>();
+
+  const preCreateResult = await preCreateUpcomingLocalFreeSubscriptions(
+    options,
+    attemptedSubscriptionIds,
+  );
+
+  if (preCreateResult.stoppedEarly) {
+    return {
+      preCreated: preCreateResult.preCreated,
+      renewalErrors: 0,
+      renewed: 0,
+      stoppedEarly: true,
+    };
+  }
+
+  const overdueResult = await closeOverdueLocalFreeSubscriptions(
+    options,
+    attemptedSubscriptionIds,
+  );
+
+  return {
+    preCreated: preCreateResult.preCreated,
+    renewalErrors: overdueResult.renewalErrors,
+    renewed: overdueResult.renewed,
+    stoppedEarly: overdueResult.stoppedEarly,
+  };
 }
 
 export const freeSubscriptionSyncService = {

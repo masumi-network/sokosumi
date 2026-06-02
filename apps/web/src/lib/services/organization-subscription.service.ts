@@ -32,11 +32,11 @@ function isOwnerOrAdmin(role: string): boolean {
   return role === MemberRole.OWNER || role === MemberRole.ADMIN;
 }
 
-async function getLatestActiveOrganizationSubscription(
+async function resolveActiveOrganizationSubscription(
   organizationId: string,
 ): Promise<ActiveOrganizationSubscription | null> {
   const subscription =
-    await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
       organizationId,
       prisma,
     );
@@ -137,7 +137,7 @@ async function ensureActiveOrganizationSubscription(
   missingSubscriptionMessage: string,
 ): Promise<ActiveOrganizationSubscription> {
   const activeSubscription =
-    await getLatestActiveOrganizationSubscription(organizationId);
+    await resolveActiveOrganizationSubscription(organizationId);
   if (!activeSubscription) {
     throw new APIError("BAD_REQUEST", {
       message: missingSubscriptionMessage,
@@ -269,7 +269,7 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
 ): Promise<number> {
   const currentActiveSubscription =
     activeSubscription ??
-    (await getLatestActiveOrganizationSubscription(organizationId));
+    (await resolveActiveOrganizationSubscription(organizationId));
 
   if (!currentActiveSubscription) {
     return resolvePurchasedSeats(undefined);

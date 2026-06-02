@@ -140,7 +140,7 @@ export const organizationSeatService = (() => {
             organizationId,
           },
         }),
-        subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+        subscriptionRepository.resolveActiveSubscriptionByReferenceId(
           organizationId,
           prisma,
         ),
@@ -171,7 +171,7 @@ export const organizationSeatService = (() => {
       try {
         return await prisma.$transaction(async (tx) => {
           const subscription =
-            await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+            await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
               organizationId,
               tx,
             );
@@ -237,7 +237,7 @@ export const organizationSeatService = (() => {
           );
 
           const subscription =
-            await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+            await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
               organizationId,
               tx,
             );

@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  closeOverdueLocalFreeSubscriptionMock,
+  ensureNextLocalFreeSubscriptionPeriodMock,
   subscriptionFindManyMock,
   transitionToNextLocalFreeSubscriptionPeriodMock,
 } = vi.hoisted(() => ({
+  closeOverdueLocalFreeSubscriptionMock: vi.fn(),
+  ensureNextLocalFreeSubscriptionPeriodMock: vi.fn(),
   subscriptionFindManyMock: vi.fn(),
   transitionToNextLocalFreeSubscriptionPeriodMock: vi.fn(),
 }));
@@ -11,6 +15,7 @@ const {
 vi.mock("@sokosumi/database/helpers", () => ({
   ACTIVE_SUBSCRIPTION_STATUSES: ["active", "trialing", "past_due", "unpaid"],
   FREE_SUBSCRIPTION_PLAN: "free",
+  FREE_SUBSCRIPTION_PRECREATE_LOOKAHEAD_MS: 15 * 60 * 1000,
   getNextMonthlyPeriodEnd: (periodStart: Date, anchorDate: Date) => {
     const targetMonthIndex = periodStart.getUTCMonth() + 1;
     const targetYear =
@@ -32,6 +37,10 @@ vi.mock("@sokosumi/database/helpers", () => ({
       ),
     );
   },
+  ensureNextLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
+    ensureNextLocalFreeSubscriptionPeriodMock(...args),
+  closeOverdueLocalFreeSubscription: (...args: unknown[]) =>
+    closeOverdueLocalFreeSubscriptionMock(...args),
   transitionToNextLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
     transitionToNextLocalFreeSubscriptionPeriodMock(...args),
 }));
@@ -56,11 +65,23 @@ function createSyncExecutionOptions() {
   };
 }
 
+function isPreCreateQuery(where: {
+  periodEnd?: { gt?: Date; lte?: Date };
+}): boolean {
+  return Boolean(where.periodEnd?.gt && where.periodEnd?.lte);
+}
+
+function isOverdueQuery(where: { periodEnd?: { lte?: Date } }): boolean {
+  return Boolean(where.periodEnd?.lte && !where.periodEnd?.gt);
+}
+
 describe("freeSubscriptionSyncService", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-15T00:00:00.000Z"));
     vi.resetAllMocks();
+    ensureNextLocalFreeSubscriptionPeriodMock.mockResolvedValue(true);
+    closeOverdueLocalFreeSubscriptionMock.mockResolvedValue(undefined);
     transitionToNextLocalFreeSubscriptionPeriodMock.mockResolvedValue(
       undefined,
     );
@@ -70,25 +91,88 @@ describe("freeSubscriptionSyncService", () => {
     vi.useRealTimers();
   });
 
-  it("renews due local free subscriptions exactly once per overdue period", async () => {
+  it("pre-creates upcoming local free subscriptions within the lookahead window", async () => {
     subscriptionFindManyMock.mockImplementation(
-      ({ where }: { where: { OR?: unknown[] } }) => {
+      ({ where }: { where: { OR?: unknown[]; periodEnd?: unknown } }) => {
         if (where.OR) {
           return Promise.resolve([]);
         }
 
-        return Promise.resolve([
-          {
-            canceledAt: null,
-            createdAt: new Date("2026-03-15T00:00:00.000Z"),
-            endedAt: null,
-            id: "sub-local-1",
-            periodEnd: new Date("2026-04-15T00:00:00.000Z"),
-            referenceId: "org-1",
-            stripeCustomerId: "cus_1",
-            stripeSubscriptionId: null,
-          },
-        ]);
+        if (isPreCreateQuery(where)) {
+          return Promise.resolve([
+            {
+              canceledAt: null,
+              createdAt: new Date("2026-03-15T00:00:00.000Z"),
+              endedAt: null,
+              id: "sub-upcoming",
+              periodEnd: new Date("2026-04-15T00:10:00.000Z"),
+              referenceId: "user-1",
+              seats: null,
+              stripeCustomerId: "cus_1",
+              stripeSubscriptionId: null,
+            },
+          ]);
+        }
+
+        if (isOverdueQuery(where)) {
+          return Promise.resolve([]);
+        }
+
+        return Promise.resolve([]);
+      },
+    );
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    const result =
+      await freeSubscriptionSyncService.renewLocalFreeSubscriptions(
+        createSyncExecutionOptions(),
+      );
+
+    expect(result.preCreated).toBe(1);
+    expect(result.renewed).toBe(0);
+    expect(ensureNextLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+      {
+        activatesAt: new Date("2026-04-15T00:10:00.000Z"),
+        subscription: expect.objectContaining({ id: "sub-upcoming" }),
+      },
+      expect.anything(),
+    );
+    expect(
+      transitionToNextLocalFreeSubscriptionPeriodMock,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("renews due local free subscriptions exactly once per overdue period", async () => {
+    subscriptionFindManyMock.mockImplementation(
+      ({ where }: { where: { OR?: unknown[]; periodEnd?: unknown } }) => {
+        if (where.OR) {
+          return Promise.resolve([]);
+        }
+
+        if (isPreCreateQuery(where)) {
+          return Promise.resolve([]);
+        }
+
+        if (isOverdueQuery(where)) {
+          return Promise.resolve([
+            {
+              canceledAt: null,
+              createdAt: new Date("2026-03-15T00:00:00.000Z"),
+              endedAt: null,
+              id: "sub-local-1",
+              periodEnd: new Date("2026-04-15T00:00:00.000Z"),
+              referenceId: "org-1",
+              seats: null,
+              stripeCustomerId: "cus_1",
+              stripeSubscriptionId: null,
+            },
+          ]);
+        }
+
+        return Promise.resolve([]);
       },
     );
 
@@ -108,24 +192,22 @@ describe("freeSubscriptionSyncService", () => {
     ).toHaveBeenCalledWith(
       {
         setCanceledAt: false,
-        subscription: {
-          canceledAt: null,
-          createdAt: new Date("2026-03-15T00:00:00.000Z"),
-          endedAt: null,
+        subscription: expect.objectContaining({
           id: "sub-local-1",
-          periodEnd: new Date("2026-04-15T00:00:00.000Z"),
           referenceId: "org-1",
-          stripeCustomerId: "cus_1",
-          stripeSubscriptionId: null,
-        },
+        }),
       },
       expect.anything(),
     );
   });
 
-  it("skips renewal when the next local free successor already exists", async () => {
+  it("closes overdue subscription when the next local free successor already exists", async () => {
     subscriptionFindManyMock.mockImplementation(
-      ({ where }: { where: { OR?: Array<{ referenceId: string }> } }) => {
+      ({
+        where,
+      }: {
+        where: { OR?: Array<{ referenceId: string }>; periodEnd?: unknown };
+      }) => {
         if (where.OR) {
           return Promise.resolve([
             {
@@ -136,18 +218,27 @@ describe("freeSubscriptionSyncService", () => {
           ]);
         }
 
-        return Promise.resolve([
-          {
-            canceledAt: null,
-            createdAt: new Date("2026-03-15T00:00:00.000Z"),
-            endedAt: null,
-            id: "sub-local-1",
-            periodEnd: new Date("2026-04-15T00:00:00.000Z"),
-            referenceId: "user-1",
-            stripeCustomerId: "cus_1",
-            stripeSubscriptionId: null,
-          },
-        ]);
+        if (isPreCreateQuery(where)) {
+          return Promise.resolve([]);
+        }
+
+        if (isOverdueQuery(where)) {
+          return Promise.resolve([
+            {
+              canceledAt: null,
+              createdAt: new Date("2026-03-15T00:00:00.000Z"),
+              endedAt: null,
+              id: "sub-local-1",
+              periodEnd: new Date("2026-04-15T00:00:00.000Z"),
+              referenceId: "user-1",
+              seats: null,
+              stripeCustomerId: "cus_1",
+              stripeSubscriptionId: null,
+            },
+          ]);
+        }
+
+        return Promise.resolve([]);
       },
     );
 
@@ -159,6 +250,7 @@ describe("freeSubscriptionSyncService", () => {
       createSyncExecutionOptions(),
     );
 
+    expect(closeOverdueLocalFreeSubscriptionMock).toHaveBeenCalledTimes(1);
     expect(
       transitionToNextLocalFreeSubscriptionPeriodMock,
     ).not.toHaveBeenCalled();
@@ -166,33 +258,41 @@ describe("freeSubscriptionSyncService", () => {
 
   it("catches up multiple overdue local free subscriptions in one run", async () => {
     subscriptionFindManyMock.mockImplementation(
-      ({ where }: { where: { OR?: unknown[] } }) => {
+      ({ where }: { where: { OR?: unknown[]; periodEnd?: unknown } }) => {
         if (where.OR) {
           return Promise.resolve([]);
         }
 
-        return Promise.resolve([
-          {
-            canceledAt: null,
-            createdAt: new Date("2026-01-31T10:00:00.000Z"),
-            endedAt: null,
-            id: "sub-local-1",
-            periodEnd: new Date("2026-02-28T10:00:00.000Z"),
-            referenceId: "user-1",
-            stripeCustomerId: "cus_1",
-            stripeSubscriptionId: null,
-          },
-          {
-            canceledAt: null,
-            createdAt: new Date("2026-02-28T10:00:00.000Z"),
-            endedAt: null,
-            id: "sub-local-2",
-            periodEnd: new Date("2026-03-31T10:00:00.000Z"),
-            referenceId: "user-2",
-            stripeCustomerId: "cus_2",
-            stripeSubscriptionId: null,
-          },
-        ]);
+        if (isPreCreateQuery(where)) {
+          return Promise.resolve([]);
+        }
+
+        if (isOverdueQuery(where)) {
+          return Promise.resolve([
+            {
+              canceledAt: null,
+              createdAt: new Date("2026-01-31T10:00:00.000Z"),
+              endedAt: null,
+              id: "sub-local-1",
+              periodEnd: new Date("2026-02-28T10:00:00.000Z"),
+              referenceId: "user-1",
+              stripeCustomerId: "cus_1",
+              stripeSubscriptionId: null,
+            },
+            {
+              canceledAt: null,
+              createdAt: new Date("2026-02-28T10:00:00.000Z"),
+              endedAt: null,
+              id: "sub-local-2",
+              periodEnd: new Date("2026-03-31T10:00:00.000Z"),
+              referenceId: "user-2",
+              stripeCustomerId: "cus_2",
+              stripeSubscriptionId: null,
+            },
+          ]);
+        }
+
+        return Promise.resolve([]);
       },
     );
 
