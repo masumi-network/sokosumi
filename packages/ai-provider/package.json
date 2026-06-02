@@ -42,6 +42,6 @@
     "@ai-sdk/provider-utils": "4.0.27",
     "@types/node": "24.12.4",
     "typescript": "6.0.3",
-    "vitest": "4.1.7"
+    "vitest": "4.1.8"
   }
 }

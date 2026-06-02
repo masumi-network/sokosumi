@@ -39,8 +39,8 @@
     "@hono/node-server": "2.0.4",
     "@hono/zod-openapi": "1.4.0",
     "@openrouter/ai-sdk-provider": "2.9.0",
-    "@scalar/hono-api-reference": "0.10.19",
-    "@scalar/openapi-to-markdown": "0.5.20",
+    "@scalar/hono-api-reference": "0.10.20",
+    "@scalar/openapi-to-markdown": "0.5.21",
     "@sentry/node": "10.55.0",
     "@sentry/profiling-node": "10.55.0",
     "@sokosumi/ai-provider": "workspace:*",
@@ -54,7 +54,7 @@
     "@vercel/functions": "3.6.1",
     "@vercel/related-projects": "1.1.0",
     "ably": "2.21.0",
-    "ai": "6.0.193",
+    "ai": "6.0.194",
     "better-auth": "1.6.13",
     "cron-parser": "5.5.0",
     "dotenv": "17.4.2",
@@ -73,6 +73,6 @@
     "tsup": "8.5.1",
     "tsx": "4.22.4",
     "typescript": "6.0.3",
-    "vitest": "4.1.7"
+    "vitest": "4.1.8"
   }
 }
