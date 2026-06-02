@@ -29,6 +29,29 @@ jobs:
       - name: Run Biome checks
         run: pnpm check
 
+  typecheck:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run TypeScript typecheck
+        run: pnpm typecheck
+
   biome-annotations:
     name: Biome PR annotations
     runs-on: ubuntu-latest
