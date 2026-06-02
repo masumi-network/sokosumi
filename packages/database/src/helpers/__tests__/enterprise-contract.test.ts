@@ -66,6 +66,14 @@ describe("validateEnterprisePeriodCount", () => {
 
   it("rejects zero or negative period counts", () => {
     assert.throws(() => validateEnterprisePeriodCount(0), /at least 1 period/);
+    assert.throws(() => validateEnterprisePeriodCount(-1), /at least 1 period/);
+  });
+
+  it("rejects non-integer period counts", () => {
+    assert.throws(
+      () => validateEnterprisePeriodCount(1.5),
+      /at least 1 period/,
+    );
   });
 });
 
@@ -78,10 +86,47 @@ describe("deriveEnterpriseContractEndDate", () => {
       "2026-07-15T09:59:59.999Z",
     );
   });
+
+  it("throws when periodCount is below the minimum", () => {
+    assert.throws(
+      () =>
+        deriveEnterpriseContractEndDate(
+          new Date("2026-04-15T10:00:00.000Z"),
+          0,
+        ),
+      /at least 1 period/,
+    );
+  });
+
+  it("matches the last period end from buildEnterpriseContractPeriodSchedule", () => {
+    const cases = [
+      { periodCount: 1, startDate: new Date("2026-06-15T10:00:00.000Z") },
+      { periodCount: 2, startDate: new Date("2026-01-31T09:00:00.000Z") },
+      { periodCount: 3, startDate: new Date("2026-04-15T10:00:00.000Z") },
+      { periodCount: 12, startDate: new Date("2026-01-31T00:00:00.000Z") },
+    ];
+
+    for (const { periodCount, startDate } of cases) {
+      const periods = buildEnterpriseContractPeriodSchedule({
+        centsPerMonth: CENTS_PER_MONTH,
+        periodCount,
+        purchasedSeats: 1,
+        startDate,
+      });
+      const derived = deriveEnterpriseContractEndDate(startDate, periodCount);
+      const lastPeriod = periods.at(-1);
+
+      assert.equal(
+        derived.toISOString(),
+        lastPeriod?.periodEnd.toISOString(),
+        `periodCount ${periodCount} starting ${startDate.toISOString()}`,
+      );
+    }
+  });
 });
 
 describe("buildEnterpriseContractPeriodSchedule", () => {
-  it("builds one calendar month per period from each period start", () => {
+  it("builds one rolling month per period from each period start", () => {
     const periods = buildEnterpriseContractPeriodSchedule({
       centsPerMonth: CENTS_PER_MONTH,
       periodCount: 3,
@@ -266,6 +311,20 @@ describe("isEnterpriseContractActive", () => {
     );
   });
 
+  it("is true at the exact contract end (inclusive boundary)", () => {
+    const contractEnd = deriveEnterpriseContractEndDate(startDate, periodCount);
+
+    assert.equal(
+      isEnterpriseContractActive({
+        now: contractEnd,
+        periodCount,
+        startDate,
+        status: EnterpriseContractStatus.active,
+      }),
+      true,
+    );
+  });
+
   it("is false after the last period ends", () => {
     const contractEnd = deriveEnterpriseContractEndDate(startDate, periodCount);
 
@@ -281,14 +340,23 @@ describe("isEnterpriseContractActive", () => {
   });
 
   it("is false for non-active statuses", () => {
-    assert.equal(
-      isEnterpriseContractActive({
-        now: new Date("2026-06-01T00:00:00.000Z"),
-        periodCount,
-        startDate,
-        status: EnterpriseContractStatus.draft,
-      }),
-      false,
-    );
+    const now = new Date("2026-06-01T00:00:00.000Z");
+
+    for (const status of [
+      EnterpriseContractStatus.canceled,
+      EnterpriseContractStatus.completed,
+      EnterpriseContractStatus.draft,
+    ]) {
+      assert.equal(
+        isEnterpriseContractActive({
+          now,
+          periodCount,
+          startDate,
+          status,
+        }),
+        false,
+        status,
+      );
+    }
   });
 });
