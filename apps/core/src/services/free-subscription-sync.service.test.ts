@@ -71,8 +71,15 @@ function isPreCreateQuery(where: {
   return Boolean(where.periodEnd?.gt && where.periodEnd?.lte);
 }
 
-function isOverdueQuery(where: { periodEnd?: { lte?: Date } }): boolean {
+function isOverdueQuery(where: {
+  periodEnd?: { gt?: Date; lte?: Date };
+}): boolean {
   return Boolean(where.periodEnd?.lte && !where.periodEnd?.gt);
+}
+
+interface SubscriptionRenewalFindManyWhere {
+  OR?: Array<{ referenceId: string }> | unknown[];
+  periodEnd?: { gt?: Date; lte?: Date };
 }
 
 describe("freeSubscriptionSyncService", () => {
@@ -93,7 +100,7 @@ describe("freeSubscriptionSyncService", () => {
 
   it("pre-creates upcoming local free subscriptions within the lookahead window", async () => {
     subscriptionFindManyMock.mockImplementation(
-      ({ where }: { where: { OR?: unknown[]; periodEnd?: unknown } }) => {
+      ({ where }: { where: SubscriptionRenewalFindManyWhere }) => {
         if (where.OR) {
           return Promise.resolve([]);
         }
@@ -147,7 +154,7 @@ describe("freeSubscriptionSyncService", () => {
 
   it("renews due local free subscriptions exactly once per overdue period", async () => {
     subscriptionFindManyMock.mockImplementation(
-      ({ where }: { where: { OR?: unknown[]; periodEnd?: unknown } }) => {
+      ({ where }: { where: SubscriptionRenewalFindManyWhere }) => {
         if (where.OR) {
           return Promise.resolve([]);
         }
@@ -203,11 +210,7 @@ describe("freeSubscriptionSyncService", () => {
 
   it("closes overdue subscription when the next local free successor already exists", async () => {
     subscriptionFindManyMock.mockImplementation(
-      ({
-        where,
-      }: {
-        where: { OR?: Array<{ referenceId: string }>; periodEnd?: unknown };
-      }) => {
+      ({ where }: { where: SubscriptionRenewalFindManyWhere }) => {
         if (where.OR) {
           return Promise.resolve([
             {
@@ -258,7 +261,7 @@ describe("freeSubscriptionSyncService", () => {
 
   it("catches up multiple overdue local free subscriptions in one run", async () => {
     subscriptionFindManyMock.mockImplementation(
-      ({ where }: { where: { OR?: unknown[]; periodEnd?: unknown } }) => {
+      ({ where }: { where: SubscriptionRenewalFindManyWhere }) => {
         if (where.OR) {
           return Promise.resolve([]);
         }

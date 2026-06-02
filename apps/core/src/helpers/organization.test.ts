@@ -32,6 +32,7 @@ function createMember(overrides: Record<string, unknown> = {}) {
     id: "member_1",
     role: MemberRole.MEMBER,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
+    seatAssignedAt: null,
     userId: "user_123",
     organizationId: "org_123",
     ...overrides,
