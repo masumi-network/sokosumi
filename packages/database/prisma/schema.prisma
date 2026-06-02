@@ -205,6 +205,8 @@ model Organization {
   // Credit Buckets
   creditBuckets CreditBucket[]
 
+  enterpriseContracts EnterpriseContract[]
+
   @@unique([slug])
   @@unique([stripeCustomerId])
   @@map("organization")
@@ -654,6 +656,8 @@ enum CreditBucketReferenceType {
   STRIPE_FREE
   STRIPE_SUBSCRIPTION_PERIOD
   REFUND
+  ENTERPRISE_PERIOD
+  ENTERPRISE_TOP_UP
 }
 
 model CreditConsumption {
@@ -1407,4 +1411,79 @@ model HermesPendingConnection {
 
   @@index([expiresAt])
   @@map("hermesPendingConnection")
+}
+
+enum EnterpriseContractStatus {
+  draft
+  active
+  completed
+  canceled
+}
+
+enum EnterpriseContractPeriodStatus {
+  scheduled
+  active
+  expired
+  skipped
+  void
+}
+
+model EnterpriseContract {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  status EnterpriseContractStatus @default(draft)
+
+  /// Earliest date the contract may begin. Defaults to activatedAt on activation when unset.
+  startDate DateTime?
+
+  /// Number of full rolling monthly grant periods (commercial term length).
+  periodCount Int
+
+  activatedAt DateTime?
+  canceledAt  DateTime?
+
+  seats Int
+
+  /// Monthly grant size in cents (API boundary uses credits).
+  centsPerMonth BigInt
+
+  /// Optional lump-sum org grant on activation, in cents.
+  oneTimeCents     BigInt?
+  oneTimeExpiresAt DateTime?
+
+  paymentReference  String?
+  notes             String?
+  externalReference String?
+
+  periods EnterpriseContractPeriod[]
+
+  @@index([organizationId, status])
+  @@unique([organizationId], map: "enterprise_contract_one_active_per_org", where: { status: "active" })
+  @@map("enterprise_contract")
+}
+
+model EnterpriseContractPeriod {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contractId String             @db.Uuid
+  contract   EnterpriseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  centsToGrant   BigInt
+  purchasedSeats Int
+
+  status EnterpriseContractPeriodStatus @default(scheduled)
+
+  @@index([contractId, periodStart])
+  @@index([status, periodStart])
+  @@map("enterprise_contract_period")
 }
