@@ -312,10 +312,6 @@ export default function ChatInterface({
   ]);
 
   const { coworkers } = useCoworkersContext();
-  const chatCapableCoworkers = useMemo(
-    () => filterCoworkersForComposeKind(coworkers, "chat"),
-    [coworkers],
-  );
 
   const welcomeCoworkerSlug = searchParams?.get("coworker") ?? null;
   const initialWelcomeCoworker = useMemo(() => {
@@ -1794,7 +1790,7 @@ export default function ChatInterface({
         open={showSelectCoworkerModal}
         onOpenChange={setShowSelectCoworkerModal}
         onSelect={handleCoworkerSelected}
-        coworkers={chatCapableCoworkers}
+        coworkers={coworkers}
       />
     </div>
   );
