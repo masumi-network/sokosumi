@@ -26,6 +26,34 @@ export function filterCoworkersForComposeKind(
   );
 }
 
+export const DEFAULT_COWORKER_SLUG = "elena";
+
+export function findCoworkerBySlugOrId(
+  coworkers: Coworker[],
+  slugOrId: string,
+): Coworker | null {
+  const normalized = slugOrId.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  return (
+    coworkers.find((coworker) => coworker.slug?.toLowerCase() === normalized) ??
+    coworkers.find((coworker) => coworker.id.toLowerCase() === normalized) ??
+    null
+  );
+}
+
+export function findDefaultCoworker(
+  coworkers: Coworker[],
+  preferredSlug: string = DEFAULT_COWORKER_SLUG,
+): Coworker | null {
+  const preferred = findCoworkerBySlugOrId(coworkers, preferredSlug);
+  if (preferred) {
+    return preferred;
+  }
+  return coworkers[0] ?? null;
+}
+
 const DEFAULT_COWORKER_AVATARS: Record<string, string> = {
   alex: "/images/coworkers/alex.webp",
   elena: "/images/coworkers/elena.webp",

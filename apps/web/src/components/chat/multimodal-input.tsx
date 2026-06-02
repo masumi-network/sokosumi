@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import {
   filterCoworkersForComposeKind,
+  findDefaultCoworker,
   getCoworkerImageUrl,
 } from "@/app/chat/utils/coworker-utils";
 import type {
@@ -115,28 +116,15 @@ interface MultimodalInputProps {
   coworker?: Coworker;
   coworkers?: Coworker[];
   coworkersLoading?: boolean;
-  onCoworkerChange?: (coworker: Coworker) => void;
+  onCoworkerChange?: (coworker: Coworker | null) => void;
   enterSubmitsOnMobile?: boolean;
   blurOnSendOnMobile?: boolean;
   persistentImageGeneration?: boolean;
 }
 
-const DEFAULT_COWORKER_SLUG = "elena";
 const TASK_MARKDOWN_EDITOR_ID = "chat-task-markdown-editor";
 
 type ChatFilePart = Extract<UIMessage["parts"][number], { type: "file" }>;
-
-function findDefaultCoworker(list: Coworker[] | undefined) {
-  return (
-    list?.find(
-      (coworker) =>
-        coworker.slug?.toLowerCase() === DEFAULT_COWORKER_SLUG ||
-        coworker.id?.toLowerCase() === DEFAULT_COWORKER_SLUG,
-    ) ??
-    list?.[0] ??
-    null
-  );
-}
 
 function matchesCoworker(a: Coworker | null, b: Coworker | null): boolean {
   if (!a || !b) {
@@ -215,8 +203,13 @@ function PureMultimodalInput({
       const initialComposeKind: ChatComposeKind = chatId
         ? "chat"
         : (controlledComposeKind ?? "task");
-      return findDefaultCoworker(
-        filterCoworkersForComposeKind(propCoworkers ?? [], initialComposeKind),
+      return (
+        findDefaultCoworker(
+          filterCoworkersForComposeKind(
+            propCoworkers ?? [],
+            initialComposeKind,
+          ),
+        ) ?? null
       );
     },
   );
@@ -225,22 +218,37 @@ function PureMultimodalInput({
     name: string;
   } | null>(propSelectedModel ?? null);
 
-  // Sync selected agent from props when switching conversations (model vs coworker).
+  // Sync from props when the conversation or parent-driven agent changes.
+  // Compose-kind toggles are handled in handleComposeKindChange — do not reset here.
   useEffect(() => {
-    if (propCoworker) {
-      setPreferredCoworker(propCoworker);
-      return;
-    }
     if (propSelectedModel) {
       setPreferredCoworker(null);
+      return;
+    }
+    if (propCoworker) {
+      const filteredCoworkers = filterCoworkersForComposeKind(
+        [propCoworker],
+        composeKind,
+      );
+      if (filteredCoworkers.length > 0) {
+        setPreferredCoworker(filteredCoworkers[0] ?? null);
+      } else {
+        setPreferredCoworker(null);
+      }
+    }
+  }, [composeKind, propCoworker, propSelectedModel]);
+
+  // Seed default coworker when the coworkers list loads (uncontrolled selection only).
+  useEffect(() => {
+    if (propCoworker || propSelectedModel) {
       return;
     }
     setPreferredCoworker(
       findDefaultCoworker(
         filterCoworkersForComposeKind(propCoworkers ?? [], composeKind),
-      ),
+      ) ?? null,
     );
-  }, [composeKind, propCoworker, propSelectedModel, propCoworkers]);
+  }, [propCoworkers]);
 
   useEffect(() => {
     setSelectedModel(propSelectedModel ?? null);
@@ -517,7 +525,9 @@ function PureMultimodalInput({
     canSubmitContent &&
     status === "ready" &&
     !submitBlocked &&
-    (composeKind === "chat" || selectedCoworker != null) &&
+    (composeKind === "chat"
+      ? selectedCoworker != null || selectedModel != null
+      : selectedCoworker != null) &&
     !isUploadingAttachments;
   const placeholder = t(
     composeKind === "task"
@@ -663,9 +673,7 @@ function PureMultimodalInput({
         if (!hasCurrentTaskCoworker) {
           const defaultTaskCoworker = findDefaultCoworker(taskCoworkers);
           setPreferredCoworker(defaultTaskCoworker);
-          if (defaultTaskCoworker) {
-            onCoworkerChange?.(defaultTaskCoworker);
-          }
+          onCoworkerChange?.(defaultTaskCoworker);
         }
         return;
       }
@@ -677,9 +685,7 @@ function PureMultimodalInput({
       if (!hasCurrentChatCoworker) {
         const defaultChatCoworker = findDefaultCoworker(chatCoworkers);
         setPreferredCoworker(defaultChatCoworker);
-        if (defaultChatCoworker) {
-          onCoworkerChange?.(defaultChatCoworker);
-        }
+        onCoworkerChange?.(defaultChatCoworker);
       }
     },
     [

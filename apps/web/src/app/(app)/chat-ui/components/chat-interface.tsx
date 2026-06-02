@@ -29,7 +29,12 @@ import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { useCoworkerPostRefreshAssistantPoll } from "@/app/chat/hooks/use-coworker-post-refresh-assistant-poll";
-import { coworkerHasCapability } from "@/app/chat/utils/coworker-utils";
+import {
+  coworkerHasCapability,
+  filterCoworkersForComposeKind,
+  findCoworkerBySlugOrId,
+  findDefaultCoworker,
+} from "@/app/chat/utils/coworker-utils";
 import type {
   Chat,
   ChatComposeKind,
@@ -307,25 +312,18 @@ export default function ChatInterface({
   ]);
 
   const { coworkers } = useCoworkersContext();
+  const chatCapableCoworkers = useMemo(
+    () => filterCoworkersForComposeKind(coworkers, "chat"),
+    [coworkers],
+  );
 
   const welcomeCoworkerSlug = searchParams?.get("coworker") ?? null;
-  const defaultWelcomeSlug = "elena";
   const initialWelcomeCoworker = useMemo(() => {
     if (welcomeCoworkerSlug) {
-      const slug = welcomeCoworkerSlug.toLowerCase();
-      return (
-        coworkers.find((c) => c.slug?.toLowerCase() === slug) ??
-        coworkers.find((c) => c.id.toLowerCase() === slug)
-      );
+      return findCoworkerBySlugOrId(coworkers, welcomeCoworkerSlug);
     }
-    return (
-      coworkers.find(
-        (c) =>
-          c.slug?.toLowerCase() === defaultWelcomeSlug ||
-          c.id?.toLowerCase() === defaultWelcomeSlug,
-      ) ??
-      coworkers[0] ??
-      null
+    return findDefaultCoworker(
+      filterCoworkersForComposeKind(coworkers, "task"),
     );
   }, [coworkers, welcomeCoworkerSlug]);
 
@@ -335,15 +333,29 @@ export default function ChatInterface({
     id: string;
     name: string;
   } | null>(null);
-  const effectiveWelcomeCoworker =
-    welcomeSelectedModel != null
-      ? null
-      : welcomeCoworkerSlug != null
-        ? initialWelcomeCoworker
-        : (welcomeSelectedCoworker ?? initialWelcomeCoworker);
-
   const [welcomeComposeKind, setWelcomeComposeKind] =
     useState<ChatComposeKind>("task");
+  const effectiveWelcomeCoworker = useMemo(() => {
+    if (welcomeSelectedModel != null) {
+      return null;
+    }
+    const candidate =
+      welcomeCoworkerSlug != null
+        ? initialWelcomeCoworker
+        : (welcomeSelectedCoworker ?? initialWelcomeCoworker);
+    if (!candidate) {
+      return null;
+    }
+    const capability = welcomeComposeKind === "task" ? "tasks" : "chat";
+    return coworkerHasCapability(candidate, capability) ? candidate : null;
+  }, [
+    initialWelcomeCoworker,
+    welcomeComposeKind,
+    welcomeCoworkerSlug,
+    welcomeSelectedCoworker,
+    welcomeSelectedModel,
+  ]);
+
   const [isWelcomeTaskSubmitting, setIsWelcomeTaskSubmitting] = useState(false);
   const welcomeTaskCreationInFlightRef = useRef(false);
 
@@ -387,7 +399,7 @@ export default function ChatInterface({
   );
 
   const handleWelcomeCoworkerChange = useCallback(
-    (coworker: Coworker) => {
+    (coworker: Coworker | null) => {
       setWelcomeSelectedCoworker(coworker);
       setWelcomeSelectedModel(null);
       welcomeSelectedCoworkerRef.current = coworker;
@@ -1497,7 +1509,17 @@ export default function ChatInterface({
           }
         } else {
           const selectedCoworker =
-            coworker ?? effectiveWelcomeCoworker ?? coworkers[0] ?? null;
+            (coworker && coworkerHasCapability(coworker, "chat")
+              ? coworker
+              : null) ??
+            (effectiveWelcomeCoworker &&
+            coworkerHasCapability(effectiveWelcomeCoworker, "chat")
+              ? effectiveWelcomeCoworker
+              : null) ??
+            coworkers.find((candidate) =>
+              coworkerHasCapability(candidate, "chat"),
+            ) ??
+            null;
           if (!selectedCoworker) {
             toast.error(t("noCoworkersAvailable"));
             setIsWelcomeTransitioning(false);
@@ -1772,7 +1794,7 @@ export default function ChatInterface({
         open={showSelectCoworkerModal}
         onOpenChange={setShowSelectCoworkerModal}
         onSelect={handleCoworkerSelected}
-        coworkers={coworkers}
+        coworkers={chatCapableCoworkers}
       />
     </div>
   );

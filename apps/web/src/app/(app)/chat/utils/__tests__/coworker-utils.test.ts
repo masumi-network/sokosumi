@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   coworkerHasCapability,
   filterCoworkersForComposeKind,
+  findCoworkerBySlugOrId,
+  findDefaultCoworker,
   mapDbCoworkerToChatCoworker,
 } from "../coworker-utils";
 import type { Coworker } from "../types";
@@ -47,6 +49,39 @@ describe("mapDbCoworkerToChatCoworker", () => {
       useCase: "",
       metadata: null,
     });
+  });
+});
+
+describe("findCoworkerBySlugOrId", () => {
+  const coworkers = [
+    baseCoworker({ id: "id-1", slug: "elena", name: "Elena" }),
+    baseCoworker({ id: "tasky", slug: "tasky", name: "Tasky" }),
+  ];
+
+  it("matches slug case-insensitively", () => {
+    expect(findCoworkerBySlugOrId(coworkers, "ELENA")).toEqual(coworkers[0]);
+  });
+
+  it("falls back to id when slug does not match", () => {
+    expect(findCoworkerBySlugOrId(coworkers, "tasky")).toEqual(coworkers[1]);
+  });
+});
+
+describe("findDefaultCoworker", () => {
+  it("prefers elena when present in the list", () => {
+    const coworkers = [
+      baseCoworker({ id: "1", slug: "tasky", name: "Tasky" }),
+      baseCoworker({ id: "2", slug: "elena", name: "Elena" }),
+    ];
+    expect(findDefaultCoworker(coworkers)).toEqual(coworkers[1]);
+  });
+
+  it("falls back to first list entry when elena is absent", () => {
+    const coworkers = [
+      baseCoworker({ id: "1", slug: "tasky", name: "Tasky" }),
+      baseCoworker({ id: "2", slug: "alex", name: "Alex" }),
+    ];
+    expect(findDefaultCoworker(coworkers)).toEqual(coworkers[0]);
   });
 });
 
