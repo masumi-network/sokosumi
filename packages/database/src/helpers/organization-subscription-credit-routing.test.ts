@@ -57,27 +57,36 @@ function createLocalFreePeriodClient() {
 }
 
 function createPaidOrgFreeGrantClient(params?: {
-  existingFreeBucketUserIds?: string[];
+  existingFreeBucketReferenceIds?: string[];
 }) {
-  const findFirstBucketMock = vi
-    .fn()
-    .mockImplementation(({ where }: { where: { userId: string } }) =>
-      Promise.resolve(
-        params?.existingFreeBucketUserIds?.includes(where.userId)
+  const findUniqueBucketMock = vi.fn().mockImplementation(
+    ({
+      where,
+    }: {
+      where: {
+        referenceId_referenceType: {
+          referenceId: string;
+        };
+      };
+    }) => {
+      const referenceId = where.referenceId_referenceType.referenceId;
+      return Promise.resolve(
+        params?.existingFreeBucketReferenceIds?.includes(referenceId)
           ? { id: "existing-free-bucket" }
           : null,
-      ),
-    );
+      );
+    },
+  );
   const createTransactionMock = vi.fn().mockResolvedValue({
     id: "tx_free",
   });
 
   return {
     createTransactionMock,
-    findFirstBucketMock,
+    findUniqueBucketMock,
     tx: {
       creditBucket: {
-        findFirst: findFirstBucketMock,
+        findUnique: findUniqueBucketMock,
       },
       transaction: {
         create: createTransactionMock,

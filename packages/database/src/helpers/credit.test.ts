@@ -5,9 +5,33 @@ import { describe, it } from "vitest";
 import {
   buildOrganizationInvoiceCreditReferenceId,
   buildUserInvoiceCreditReferenceId,
+  creditBucketActivatesAtOrBefore,
+  creditBucketActivatesAtOrBeforeSql,
   getCreditExpiryDate,
   splitAmountEvenlyWithRemainderRotation,
 } from "./credit.js";
+
+describe("creditBucketActivatesAtOrBefore", () => {
+  it("returns Prisma filter for immediate or started buckets", () => {
+    const now = new Date("2026-04-10T12:00:00.000Z");
+
+    assert.deepEqual(creditBucketActivatesAtOrBefore(now), {
+      OR: [{ activatesAt: null }, { activatesAt: { lte: now } }],
+    });
+  });
+});
+
+describe("creditBucketActivatesAtOrBeforeSql", () => {
+  it("returns SQL fragment matching spendable activation predicate", () => {
+    const now = new Date("2026-04-10T12:00:00.000Z");
+    const fragment = creditBucketActivatesAtOrBeforeSql(now);
+    const sqlText = JSON.stringify(fragment);
+
+    assert.ok(sqlText.includes("activatesAt"));
+    assert.ok(sqlText.includes("IS NULL"));
+    assert.ok(sqlText.includes(now.toISOString()));
+  });
+});
 
 describe("splitAmountEvenlyWithRemainderRotation", () => {
   it("returns empty allocations for non-positive amounts or empty members", () => {

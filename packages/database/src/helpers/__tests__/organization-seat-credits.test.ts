@@ -50,19 +50,26 @@ describe("organization-seat-credits helpers", () => {
 
     expect(countMock).toHaveBeenCalledWith({
       where: {
-        organizationId: "org-1",
-        expiresAt: {
-          gt: now,
-        },
-        referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-        referenceId: {
-          startsWith: "member:",
-        },
-        NOT: {
-          referenceId: {
-            contains: ":local-free:",
+        AND: [
+          {
+            OR: [{ activatesAt: null }, { activatesAt: { lte: now } }],
           },
-        },
+          {
+            organizationId: "org-1",
+            expiresAt: {
+              gt: now,
+            },
+            referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+            referenceId: {
+              startsWith: "member:",
+            },
+            NOT: {
+              referenceId: {
+                contains: ":local-free:",
+              },
+            },
+          },
+        ],
       },
     });
   });
@@ -81,20 +88,27 @@ describe("organization-seat-credits helpers", () => {
 
     expect(findFirstMock).toHaveBeenCalledWith({
       where: {
-        organizationId: "org-1",
-        expiresAt: {
-          gt: now,
-        },
-        userId: "user-1",
-        referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-        referenceId: {
-          startsWith: "member:user-1:",
-        },
-        NOT: {
-          referenceId: {
-            contains: ":local-free:",
+        AND: [
+          {
+            OR: [{ activatesAt: null }, { activatesAt: { lte: now } }],
           },
-        },
+          {
+            organizationId: "org-1",
+            expiresAt: {
+              gt: now,
+            },
+            userId: "user-1",
+            referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+            referenceId: {
+              startsWith: "member:user-1:",
+            },
+            NOT: {
+              referenceId: {
+                contains: ":local-free:",
+              },
+            },
+          },
+        ],
       },
       select: {
         id: true,
@@ -112,7 +126,10 @@ describe("organization-seat-credits helpers", () => {
       },
     } as never);
 
-    expect(countMock.mock.calls[0]?.[0].where.NOT).toEqual({
+    const scopeWhere = countMock.mock.calls[0]?.[0].where.AND[1] as {
+      NOT: { referenceId: { contains: string } };
+    };
+    expect(scopeWhere.NOT).toEqual({
       referenceId: {
         contains: ":local-free:",
       },
@@ -131,7 +148,10 @@ describe("organization-seat-credits helpers", () => {
       } as never),
     ).resolves.toBe(false);
 
-    expect(findFirstMock.mock.calls[0]?.[0].where.NOT).toEqual({
+    const scopeWhere = findFirstMock.mock.calls[0]?.[0].where.AND[1] as {
+      NOT: { referenceId: { contains: string } };
+    };
+    expect(scopeWhere.NOT).toEqual({
       referenceId: {
         contains: ":local-free:",
       },
