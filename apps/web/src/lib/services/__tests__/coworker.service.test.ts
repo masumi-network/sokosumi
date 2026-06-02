@@ -53,6 +53,34 @@ describe("coworker.service", () => {
     expect(result).toEqual([]);
   });
 
+  it("excludes UI-restricted coworkers", async () => {
+    coreClientMock.getCoworkers.mockResolvedValue({
+      data: [
+        {
+          id: "cow-1",
+          slug: "hannah",
+          name: "Hannah",
+        },
+        {
+          id: "cow-2",
+          slug: "Hermes",
+          name: "Hermes",
+        },
+      ],
+    });
+
+    const { coworkerService } = await import("../coworker.service");
+    const result = await coworkerService.listCoworkers();
+
+    expect(result).toEqual([
+      {
+        id: "cow-1",
+        slug: "hannah",
+        name: "Hannah",
+      },
+    ]);
+  });
+
   it("forwards the capability filter when provided", async () => {
     coreClientMock.getCoworkers.mockResolvedValue({
       data: [],
