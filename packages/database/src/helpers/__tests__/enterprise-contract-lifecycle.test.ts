@@ -82,7 +82,14 @@ function createDraftContract(overrides?: {
     organizationId: ORG_ID,
     paymentReference: null,
     periodCount: overrides?.periodCount ?? 3,
-    periods: [],
+    periods: [] as Array<{
+      centsToGrant: bigint;
+      id: string;
+      periodEnd: Date;
+      periodStart: Date;
+      purchasedSeats: number;
+      status: EnterpriseContractPeriodStatus;
+    }>,
     seats: 10,
     startDate: overrides?.startDate ?? null,
     status: overrides?.status ?? EnterpriseContractStatus.draft,

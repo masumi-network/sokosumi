@@ -35,6 +35,7 @@ export * from "./enterprise-contract.js";
 export * from "./enterprise-contract-exclusivity.js";
 export * from "./enterprise-contract-grants.js";
 export * from "./enterprise-contract-lifecycle.js";
+export * from "./enterprise-contract-scheduler.js";
 export * from "./job.js";
 export * from "./job-sync.js";
 export * from "./organization-seat-credits.js";

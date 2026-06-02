@@ -10,7 +10,7 @@ todos:
     status: completed
   - id: phase-3-cron
     content: "Phase 3: Daily scheduler service, sync route, vercel.json cron entry"
-    status: pending
+    status: completed
   - id: phase-4-admin-api
     content: "Phase 4: Core admin CRUD/activate/cancel/preview routes + OpenAPI tests"
     status: pending
@@ -29,7 +29,11 @@ isProject: false
 
 - **Linear:** [SOK-535](https://linear.app/masumi/issue/SOK-535/enterprise-contracts-sokosumi-managed-entitlements) — contract-driven org entitlements, out-of-band payment, shared monthly credit pool, plan exclusivity.
 - **Blocker cleared:** [SOK-536](https://linear.app/masumi/issue/SOK-536) (purchased vs assigned seats) is **Done** — reuse `Member.seatAssignedAt`, `[member.repository.ts](packages/database/src/repositories/member.repository.ts)`, and `[organization-seats.ts](packages/database/src/helpers/organization-seats.ts)`.
-- **Current state:** Phase 1 complete on feature branch — schema + `[enterprise-contract.ts](packages/database/src/helpers/enterprise-contract.ts)` schedule helpers + 19 unit tests. No lifecycle/API/cron yet. Existing primitives to reuse:
+- **Current state:** Phases **1–3 complete** on feature branch `sok-535-enterprise-contracts-sokosumi-managed-entitlements`:
+  - **Phase 1:** schema + [`enterprise-contract.ts`](packages/database/src/helpers/enterprise-contract.ts) schedule helpers
+  - **Phase 2:** [`enterprise-contract-lifecycle.ts`](packages/database/src/helpers/enterprise-contract-lifecycle.ts), grants, exclusivity guards
+  - **Phase 3:** [`enterprise-contract-scheduler.ts`](packages/database/src/helpers/enterprise-contract-scheduler.ts) + [`enterprise-contract-sync.service.ts`](apps/core/src/services/enterprise-contract-sync.service.ts) + `GET /sync/enterprise-contracts-renewal` (daily cron)
+  - **Next:** Phase 4 admin API (Core). Existing primitives to reuse:
   - `CreditBucket.activatesAt` + `[creditBucketActivatesAtOrBefore()](packages/database/src/helpers/credit.ts)` (spec’s `activeFrom` maps to this field — **do not add a duplicate column**)
   - Per-period pre-create pattern in `[subscription.ts](packages/database/src/helpers/subscription.ts)` and `[free-subscription-sync.service.ts](apps/core/src/services/free-subscription-sync.service.ts)`
   - Admin auth via `[requireAdminAuthContext()](apps/core/src/middleware/auth.ts)` (same as credit-costs routes)
@@ -121,7 +125,7 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
 
 ---
 
-## Phase 2 — Lifecycle: activate, cancel, and credit grants
+## Phase 2 — Lifecycle: activate, cancel, and credit grants ✅
 
 **Goal:** Callable domain routines that materialize periods and buckets; safe to unit/integration test in isolation.
 
@@ -163,46 +167,50 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
 
 | Status | Meaning |
 |--------|---------|
-| `scheduled` | Future period; bucket not yet created (or pre-created by cron) |
-| `active` | Current period; org pool bucket exists |
-| `expired` | Period ended normally |
+| `scheduled` | Future period; bucket not yet created |
+| `active` | Period has a bucket row; includes **current** period and **pre-created** future periods (may overlap — spendability is bucket `activatesAt` / `expiresAt`, not status alone) |
+| `expired` | Period ended normally (or late catch-up audit grant after `periodEnd`) |
 | `void` | Invalidated by cancel — never grants |
 
 **Tests:** Transaction-level tests with Prisma test doubles (mirror `[subscription.test.ts](packages/database/src/helpers/subscription.test.ts)` patterns): activation idempotency, top-up grant idempotency, cancel voids future buckets, activation guard lists blockers, `startDate` persisted on activate when null.
 
-**Deliverable:** Package-level lifecycle fully tested; still no HTTP surface.
+**Deliverable:** Package-level lifecycle fully tested; still no HTTP surface. **Delivered** in [`enterprise-contract-lifecycle.test.ts`](packages/database/src/helpers/__tests__/enterprise-contract-lifecycle.test.ts).
 
 **Suggested PR title:** `feat(database): enterprise contract activate and cancel lifecycle`
 
 ---
 
-## Phase 3 — Daily scheduler cron
+## Phase 3 — Daily scheduler cron ✅
 
 **Goal:** Automated period bucket pre-creation, catch-up, and period close-out.
 
-**New code:**
+**Delivered:**
 
-- `runEnterpriseContractSchedulerPass()` in `enterprise-contract-lifecycle.ts` (or dedicated `enterprise-contract-scheduler.ts`):
-  - Complete contracts when all periods are expired and `now` is past the last period’s `periodEnd` (or use `deriveEnterpriseContractEndDate`)
-  - Flip `active` → `expired` when bucket `expiresAt <= now`
-  - Pre-create: `scheduled` periods with `periodStart ∈ [now, now + 24h]` on `active` contracts
-  - Catch-up: `scheduled` + `periodStart <= now` + no bucket → create with `activatesAt = now`
+- `runEnterpriseContractSchedulerPass()` and helpers in [`enterprise-contract-scheduler.ts`](packages/database/src/helpers/enterprise-contract-scheduler.ts) (keeps lifecycle focused):
+  1. **Expire** `active` periods whose `ENTERPRISE_PERIOD` bucket `expiresAt <= now` → `expired`
+  2. **Catch-up** `scheduled` periods with `periodStart <= now` and no bucket → grant with `activatesAt = now` (or `periodStart` when `now > periodEnd`, so `activatesAt <= expiresAt`); flip → `active`, or → `expired` when `now > periodEnd` (audit grant only)
+  3. **Pre-create** `scheduled` periods with `now < periodStart <= now + 24h` and no bucket → grant with `activatesAt = periodStart`, flip → `active`
+  4. **Complete** contracts past commercial term (`completeEnterpriseContractsAfterLastPeriod`) — **last**, so catch-up still runs on the final pass while the contract is `active`
+- `ENTERPRISE_CONTRACT_PRECREATE_LOOKAHEAD_MS` (24h) in [`enterprise-contract.ts`](packages/database/src/helpers/enterprise-contract.ts)
 
 **`activatesAt` requirement (cancel correctness):** Phase 2 cancel voids future **`active`** periods using **bucket `activatesAt > now`** (see Phase 2 cancellation behavior). `CreditBucket.activatesAt` is nullable globally (`null` = immediately active), so **Phase 3 must never create enterprise buckets with a null `activatesAt`**. All scheduler and grant paths must set it explicitly:
 
 | Path | `activatesAt` |
 |------|----------------|
 | Pre-create (period not yet started) | `periodStart` |
-| Catch-up (missed period) | `now` |
+| Catch-up (missed period, still in window) | `now` |
+| Catch-up (missed period, after `periodEnd`) | `periodStart` (audit grant; bucket already expired); period → `expired` |
 | Phase 2 activation (already implemented) | `startDate` |
 
-Flip period → `active` only **after** the bucket row exists with non-null `activatesAt`. Do not add a `periodStart` fallback in cancel for MVP — enforce the invariant at creation instead.
+After the bucket row exists with non-null `activatesAt`, flip period status: **in-window catch-up** and **pre-create** → `active`; **late catch-up** (`now > periodEnd`) → `expired` (audit grant only). Do not add a `periodStart` fallback in cancel for MVP — enforce the invariant at creation instead.
 
-- `[apps/core/src/services/enterprise-contract-sync.service.ts](apps/core/src/services/enterprise-contract-sync.service.ts)` — thin wrapper (mirror free-subscription sync)
+**Transaction scope (MVP):** The sync service runs the **entire pass in one** `prisma.$transaction`. One org failure (e.g. no members for grant) rolls back all orgs in that run. Acceptable for low volume; see **Deferred** for per-org isolation follow-up.
+
+- [`apps/core/src/services/enterprise-contract-sync.service.ts`](apps/core/src/services/enterprise-contract-sync.service.ts) — thin wrapper (mirror free-subscription sync)
 - Route: `GET /sync/enterprise-contracts-renewal` mounted in `[routes/sync/index.ts](apps/core/src/routes/sync/index.ts)`
 - Cron entry in `[apps/core/vercel.json](apps/core/vercel.json)`: `"schedule": "0 0 * * *"`
 
-**Tests:** Scheduler pass scenarios (pre-create window, catch-up idempotency, expired transition, completed contract). Catch-up uses `activatesAt = now` (not `periodStart`) when period was missed. Assert every created `ENTERPRISE_PERIOD` / `ENTERPRISE_TOP_UP` bucket has non-null `activatesAt` with the expected value for pre-create vs catch-up.
+**Tests:** 12 scheduler tests — pass order, pre-create window, catch-up (in-window + late), expire transition, catch-up-before-complete, contract completion. Assert non-null `activatesAt` on every created `ENTERPRISE_PERIOD` bucket.
 
 **Note:** No audit/event writes on scheduler pass — only period status + bucket create/expire.
 
@@ -244,6 +252,14 @@ Flip period → `active` only **after** the bucket row exists with non-null `act
 
 **Product decision (document in PR):** **multiple `draft` contracts per org are allowed** for MVP (iterate on terms before activate). Only one `active` per org (DB partial unique). Revisit one-draft-per-org later if admin UX needs it.
 
+**Implementation notes (do not reimplement domain logic in routes):**
+
+- **Activate:** call `activateEnterpriseContract(contractId, { paymentReference, activatedAt }, tx)` inside `prisma.$transaction`. Map `EnterpriseContractActivationError` → `409 conflict` with blocker list from `findPaidSubscriptionsBlockingEnterpriseActivation`. Use server `activatedAt = new Date()` unless preview/simulation passes explicit timestamp.
+- **Cancel:** call `cancelEnterpriseContract(contractId, tx, now)` inside transaction.
+- **Preview:** call `previewEnterpriseContractPeriods()` only — no DB writes.
+- **Create / patch draft:** direct Prisma on `EnterpriseContract`; validate with Zod + `validateMinEnterpriseCreditsPerMonth` / `validateEnterprisePeriodCount` before persist.
+- **Do not** reimplement period schedule materialization or bucket grants in Core — that stays in `@sokosumi/database/helpers`.
+
 **Supporting files:**
 
 - `[apps/core/src/schemas/enterprise-contract.schema.ts](apps/core/src/schemas/enterprise-contract.schema.ts)` — Zod + OpenAPI; **request/response fields in credits** (`creditsPerMonth`, `oneTimeCredits`, period preview `creditsToGrant`); map to/from DB **`centsPerMonth`**, **`oneTimeCents`**, **`centsToGrant`** at route boundary
@@ -282,6 +298,7 @@ Update `[credit-bucket.repository.ts](packages/database/src/repositories/credit-
 
 - Include `ENTERPRISE_PERIOD` / `ENTERPRISE_TOP_UP` org-level buckets for **assigned** members only
 - Exclude enterprise pool buckets for unassigned members and for orgs without active contract
+- **Spendability:** filter with [`creditBucketActivatesAtOrBefore(now)`](packages/database/src/helpers/credit.ts) and `expiresAt > now` — **not** period status alone (multiple `active` periods can exist when period N+1 is pre-created)
 
 Update `[apps/core/src/helpers/subscription.ts](apps/core/src/helpers/subscription.ts)` credit breakdown to surface enterprise pool balance separately from per-member subscription credits.
 
@@ -332,7 +349,7 @@ When enterprise active, `memberRepository.assignSeat(..., purchasedSeats)` recei
 - **Audit trail:** No `EnterpriseContractEvent` table in MVP — rely on contract/period status and timestamps; add event log in a follow-up if ops need it.
 - **Bucket reference types:** `ENTERPRISE_PERIOD` (monthly pool), `ENTERPRISE_TOP_UP` (optional lump-sum on activation).
 - **Errors:** Use Core error helpers (`conflict`, `unprocessableEntity`, etc.) — never raw `c.json`.
-- **Transactions:** All activation/cancel/scheduler work inside `prisma.$transaction`.
+- **Transactions:** Activation and cancel run inside `prisma.$transaction`. Scheduler MVP runs the **full pass** in one transaction (see Phase 3); optional follow-up: per-org transactions in the sync service.
 - **Branch:** Linear suggests `sok-535-enterprise-contracts-sokosumi-managed-entitlements`; one phase ≈ one PR off `main`.
 - **Verification per phase:** `pnpm --filter @sokosumi/database test`, `pnpm core:test`, `pnpm web:test` (as applicable), `pnpm check`.
 
@@ -340,6 +357,7 @@ When enterprise active, `memberRepository.assignSeat(..., purchasedSeats)` recei
 
 | Item | Recommendation |
 |------|----------------|
+| Per-org scheduler transactions | Phase 3 review: isolate cron failures per org (one `$transaction` per contract/org) before high enterprise volume |
 | `EnterpriseContractEvent` audit log | Follow-up if ops need history beyond status + timestamps |
 | `createdByUserId` | Not in MVP; admin auth is session/API-key only |
 | `skipped` period status | Omitted from initial migration; `void` covers cancel |
@@ -356,7 +374,7 @@ When enterprise active, `memberRepository.assignSeat(..., purchasedSeats)` recei
 | Phase | Merge when                            | Safe to activate real contracts?   |
 | ----- | ------------------------------------- | ---------------------------------- |
 | 1–2   | Schema + lifecycle tests green        | No (no API/cron)                   |
-| 3     | Cron tested locally                   | No (no enforcement)                |
+| 3 ✅   | Delivered — cron + scheduler tests    | No (no enforcement)                |
 | 4     | Admin API tested via OpenAPI/CLI      | **No** (entitlements not enforced) |
 | 5     | Exclusivity + consumption tests green | **Yes**                            |
 | 6     | UI verified on billing page           | Yes (full MVP)                     |

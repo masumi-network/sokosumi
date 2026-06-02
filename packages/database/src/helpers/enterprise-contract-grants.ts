@@ -234,7 +234,11 @@ export async function resolveOrganizationGrantTransactionUserId(
 export async function findEnterprisePeriodCreditBucket(
   periodId: string,
   tx: Prisma.TransactionClient,
-): Promise<{ activatesAt: Date | null; id: string } | null> {
+): Promise<{
+  activatesAt: Date | null;
+  expiresAt: Date | null;
+  id: string;
+} | null> {
   return await tx.creditBucket.findUnique({
     where: {
       referenceId_referenceType: {
@@ -244,6 +248,7 @@ export async function findEnterprisePeriodCreditBucket(
     },
     select: {
       activatesAt: true,
+      expiresAt: true,
       id: true,
     },
   });

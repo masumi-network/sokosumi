@@ -9,6 +9,9 @@ export const MIN_ENTERPRISE_CREDITS_PER_MONTH = 60_000;
 /** Minimum number of monthly grant periods on a contract. */
 export const MIN_ENTERPRISE_PERIOD_COUNT = 1;
 
+/** Pre-create enterprise period buckets this far before `periodStart`. */
+export const ENTERPRISE_CONTRACT_PRECREATE_LOOKAHEAD_MS = 24 * 60 * 60 * 1000;
+
 export interface EnterpriseContractPeriodDraft {
   centsToGrant: bigint;
   periodEnd: Date;
