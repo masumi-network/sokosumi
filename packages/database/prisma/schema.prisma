@@ -1424,7 +1424,6 @@ enum EnterpriseContractPeriodStatus {
   scheduled
   active
   expired
-  skipped
   void
 }
 

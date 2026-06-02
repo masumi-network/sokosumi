@@ -7,7 +7,7 @@ todos:
     status: completed
   - id: phase-2-lifecycle
     content: "Phase 2: activate/cancel/grants/exclusivity guard helpers + integration tests"
-    status: pending
+    status: completed
   - id: phase-3-cron
     content: "Phase 3: Daily scheduler service, sync route, vercel.json cron entry"
     status: pending
@@ -140,7 +140,7 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
 - **`startDate` normalization on activate:** persist `startDate = startDate ?? activatedAt` before materializing periods or grants. All consumable checks use this resolved value — never pass nullable `contract.startDate` into `isEnterpriseContractActive()`.
 - **Reuse `buildEnterpriseContractPeriodSchedule()`** for materialization; do not reimplement period boundaries.
 - **Period idempotency:** delete draft preview rows on activate, then insert schedule once; grants via stable `referenceId` + bucket unique constraint. Optional hard guard: `@@unique([contractId, periodStart])` on `EnterpriseContractPeriod` (code-first is enough for MVP).
-- **`skipped` period status:** enum exists but is unused — **remove in Phase 2** unless a concrete manual-skip use case appears; `void` covers cancel.
+- **Period status:** `scheduled`, `active`, `expired`, `void` only — `skipped` was never added to the enum.
 - **No event/audit writes** — activation/cancel update contract + period status only.
 
 **Activation behavior (spec-critical):**
@@ -157,7 +157,7 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
 
 - `expiresAt = now` on current + top-up buckets (reuse existing expiry path)
 - Void (`status = void`) all **`scheduled`** periods
-- Void future **`active`** periods whose bucket `activatesAt > now`
+- Void future **`active`** periods whose bucket `activatesAt > now` (Phase 3 must always set non-null `activatesAt` on enterprise buckets — see Phase 3 **`activatesAt` requirement**)
 
 **Period status reference:**
 
@@ -167,7 +167,6 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
 | `active` | Current period; org pool bucket exists |
 | `expired` | Period ended normally |
 | `void` | Invalidated by cancel — never grants |
-| `skipped` | **Remove unless needed** — was reserved, never wired |
 
 **Tests:** Transaction-level tests with Prisma test doubles (mirror `[subscription.test.ts](packages/database/src/helpers/subscription.test.ts)` patterns): activation idempotency, top-up grant idempotency, cancel voids future buckets, activation guard lists blockers, `startDate` persisted on activate when null.
 
@@ -188,11 +187,22 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
   - Flip `active` → `expired` when bucket `expiresAt <= now`
   - Pre-create: `scheduled` periods with `periodStart ∈ [now, now + 24h]` on `active` contracts
   - Catch-up: `scheduled` + `periodStart <= now` + no bucket → create with `activatesAt = now`
+
+**`activatesAt` requirement (cancel correctness):** Phase 2 cancel voids future **`active`** periods using **bucket `activatesAt > now`** (see Phase 2 cancellation behavior). `CreditBucket.activatesAt` is nullable globally (`null` = immediately active), so **Phase 3 must never create enterprise buckets with a null `activatesAt`**. All scheduler and grant paths must set it explicitly:
+
+| Path | `activatesAt` |
+|------|----------------|
+| Pre-create (period not yet started) | `periodStart` |
+| Catch-up (missed period) | `now` |
+| Phase 2 activation (already implemented) | `startDate` |
+
+Flip period → `active` only **after** the bucket row exists with non-null `activatesAt`. Do not add a `periodStart` fallback in cancel for MVP — enforce the invariant at creation instead.
+
 - `[apps/core/src/services/enterprise-contract-sync.service.ts](apps/core/src/services/enterprise-contract-sync.service.ts)` — thin wrapper (mirror free-subscription sync)
 - Route: `GET /sync/enterprise-contracts-renewal` mounted in `[routes/sync/index.ts](apps/core/src/routes/sync/index.ts)`
 - Cron entry in `[apps/core/vercel.json](apps/core/vercel.json)`: `"schedule": "0 0 * * *"`
 
-**Tests:** Scheduler pass scenarios (pre-create window, catch-up idempotency, expired transition, completed contract). Catch-up uses `activatesAt = now` (not `periodStart`) when period was missed.
+**Tests:** Scheduler pass scenarios (pre-create window, catch-up idempotency, expired transition, completed contract). Catch-up uses `activatesAt = now` (not `periodStart`) when period was missed. Assert every created `ENTERPRISE_PERIOD` / `ENTERPRISE_TOP_UP` bucket has non-null `activatesAt` with the expected value for pre-create vs catch-up.
 
 **Note:** No audit/event writes on scheduler pass — only period status + bucket create/expire.
 
@@ -332,7 +342,7 @@ When enterprise active, `memberRepository.assignSeat(..., purchasedSeats)` recei
 |------|----------------|
 | `EnterpriseContractEvent` audit log | Follow-up if ops need history beyond status + timestamps |
 | `createdByUserId` | Not in MVP; admin auth is session/API-key only |
-| `skipped` period status | Remove in Phase 2 unless manual skip is specified |
+| `skipped` period status | Omitted from initial migration; `void` covers cancel |
 | `@@unique([contractId, periodStart])` | Optional DB guard; code idempotency sufficient for MVP |
 | DB check constraints (`seats > 0`, etc.) | API validation in Phase 4 |
 | One draft per org | Allow multiple drafts for MVP |

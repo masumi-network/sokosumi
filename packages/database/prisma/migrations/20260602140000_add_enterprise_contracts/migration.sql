@@ -6,7 +6,7 @@ ALTER TYPE "CreditBucketReferenceType" ADD VALUE 'ENTERPRISE_TOP_UP';
 CREATE TYPE "EnterpriseContractStatus" AS ENUM ('draft', 'active', 'completed', 'canceled');
 
 -- CreateEnum
-CREATE TYPE "EnterpriseContractPeriodStatus" AS ENUM ('scheduled', 'active', 'expired', 'skipped', 'void');
+CREATE TYPE "EnterpriseContractPeriodStatus" AS ENUM ('scheduled', 'active', 'expired', 'void');
 
 -- CreateTable
 CREATE TABLE "enterprise_contract" (
