@@ -4,6 +4,8 @@ import {
   Prisma,
 } from "../generated/prisma/client.js";
 import {
+  creditBucketActivatesAtOrBefore,
+  creditBucketActivatesAtOrBeforeSql,
   escapeStringForLike,
   getOrganizationMemberSubscriptionReferencePrefix,
   getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
@@ -50,6 +52,7 @@ export const creditBucketRepository = {
       where: {
         AND: [
           scopeWhere,
+          creditBucketActivatesAtOrBefore(now),
           { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
         ],
       },
@@ -87,6 +90,7 @@ export const creditBucketRepository = {
         LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
         WHERE ${where}
           AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+          AND ${creditBucketActivatesAtOrBeforeSql(now)}
         GROUP BY cb.id, cb.amount
       )
       SELECT COALESCE(SUM(available), 0)::bigint AS balance
@@ -130,6 +134,7 @@ export const creditBucketRepository = {
         LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
         WHERE ${where}
           AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+          AND ${creditBucketActivatesAtOrBeforeSql(now)}
           AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
         GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
         HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
@@ -224,6 +229,7 @@ async function getFifoBucketsToCoverSpend(
       LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
       WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+        AND ${creditBucketActivatesAtOrBeforeSql(now)}
       GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
       HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
     ),

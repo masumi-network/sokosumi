@@ -1,4 +1,25 @@
+import { Prisma } from "../generated/prisma/client.js";
+
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Prisma filter: bucket is spendable at `now` (null activatesAt = immediate).
+ */
+export function creditBucketActivatesAtOrBefore(
+  now: Date,
+): Prisma.CreditBucketWhereInput {
+  return {
+    OR: [{ activatesAt: null }, { activatesAt: { lte: now } }],
+  };
+}
+
+/**
+ * Raw SQL fragment for spendable buckets at `now`.
+ */
+export function creditBucketActivatesAtOrBeforeSql(now: Date): Prisma.Sql {
+  return Prisma.sql`(cb."activatesAt" IS NULL OR cb."activatesAt" <= ${now})`;
+}
+
 export const ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX = "member:";
 export const USER_CREDIT_REFERENCE_PREFIX = "user:";
 export const ORGANIZATION_CREDIT_REFERENCE_PREFIX = "org:";

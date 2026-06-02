@@ -5,7 +5,6 @@ import {
 } from "../generated/prisma/client.js";
 import {
   buildOrganizationMemberSubscriptionReferenceId,
-  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
 import {
@@ -24,6 +23,9 @@ export const ACTIVE_SUBSCRIPTION_STATUSES = [
 export const FREE_SUBSCRIPTION_MONTHLY_CREDITS = 250;
 export const FREE_SUBSCRIPTION_PLAN = "free";
 export const MONTHLY_BILLING_INTERVAL = "month";
+
+/** Pre-create next local-free period this far before current periodEnd (5m cron × 3+ ticks). */
+export const FREE_SUBSCRIPTION_PRECREATE_LOOKAHEAD_MS = 15 * 60 * 1000;
 
 /**
  * Reference suffix segment that marks a member subscription-period credit
@@ -49,6 +51,7 @@ interface LocalFreeSubscriptionGrant {
 }
 
 interface EnsureLocalFreeSubscriptionPeriodBaseParams {
+  activatesAt?: Date | null;
   billingAnchorDate: Date;
   periodEnd: Date;
   periodStart: Date;
@@ -232,20 +235,19 @@ export async function grantFreeOrganizationMemberSubscriptionCredits(
   let grantsCreated = 0;
 
   for (const userId of userIds) {
-    const existingForPeriod = await tx.creditBucket.findFirst({
+    const referenceId = buildLocalFreeOrganizationMemberSubscriptionReferenceId(
+      userId,
+      params.organizationId,
+      params.periodEnd,
+    );
+
+    // Idempotency: any bucket for this period (including future `activatesAt` from
+    // pre-create). Spendability is enforced separately via creditBucketActivatesAtOrBefore.
+    const existingForPeriod = await tx.creditBucket.findUnique({
       where: {
-        organizationId: params.organizationId,
-        userId,
-        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-        referenceId: {
-          startsWith:
-            getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
-              userId,
-            ),
-          contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,
-        },
-        expiresAt: {
-          gt: now,
+        referenceId_referenceType: {
+          referenceId,
+          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
         },
       },
       select: {
@@ -256,12 +258,6 @@ export async function grantFreeOrganizationMemberSubscriptionCredits(
     if (existingForPeriod) {
       continue;
     }
-
-    const referenceId = buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-      userId,
-      params.organizationId,
-      params.periodEnd,
-    );
 
     await tx.transaction.create({
       data: {
@@ -375,29 +371,28 @@ async function closeOutSourceSubscription(params: {
   });
 }
 
-export async function transitionToNextLocalFreeSubscriptionPeriod(
-  params: TransitionToNextLocalFreeSubscriptionParams,
+export interface EnsureNextLocalFreeSubscriptionPeriodParams {
+  activatesAt?: Date | null;
+  subscription: TransitionToNextLocalFreeSubscriptionParams["subscription"];
+}
+
+export async function ensureNextLocalFreeSubscriptionPeriod(
+  params: EnsureNextLocalFreeSubscriptionPeriodParams,
   tx: Prisma.TransactionClient,
-): Promise<void> {
+): Promise<boolean> {
   const { subscription } = params;
-  const settledAt = new Date();
 
   if (!subscription.periodEnd) {
-    await closeOutSourceSubscription({
-      endedAtFallback: settledAt,
-      id: subscription.id,
-      setCanceledAt: params.setCanceledAt,
-      settledAt,
-      subscription,
-      tx,
-    });
-    return;
+    return false;
   }
 
   const { periodEnd, periodStart } = buildNextLocalFreePeriod({
     createdAt: subscription.createdAt,
     periodEnd: subscription.periodEnd,
   });
+  const activatesAt =
+    params.activatesAt === undefined ? periodStart : params.activatesAt;
+
   const organization = await tx.organization.findUnique({
     where: {
       id: subscription.referenceId,
@@ -415,6 +410,7 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
 
     await ensureLocalFreeSubscriptionPeriod(
       {
+        activatesAt,
         billingAnchorDate: subscription.createdAt,
         memberUserIds,
         organizationId: organization.id,
@@ -426,50 +422,94 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
       },
       tx,
     );
-  } else {
-    const user = await tx.user.findUnique({
-      where: {
-        id: subscription.referenceId,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!user) {
-      await closeOutSourceSubscription({
-        endedAtFallback: periodStart,
-        id: subscription.id,
-        setCanceledAt: true,
-        settledAt,
-        subscription,
-        tx,
-      });
-      return;
-    }
-
-    await ensureLocalFreeSubscriptionPeriod(
-      {
-        billingAnchorDate: subscription.createdAt,
-        organizationId: null,
-        periodEnd,
-        periodStart,
-        referenceId: user.id,
-        stripeCustomerId: subscription.stripeCustomerId,
-        userId: user.id,
-      },
-      tx,
-    );
+    return true;
   }
 
+  const user = await tx.user.findUnique({
+    where: {
+      id: subscription.referenceId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!user) {
+    return false;
+  }
+
+  await ensureLocalFreeSubscriptionPeriod(
+    {
+      activatesAt,
+      billingAnchorDate: subscription.createdAt,
+      organizationId: null,
+      periodEnd,
+      periodStart,
+      referenceId: user.id,
+      stripeCustomerId: subscription.stripeCustomerId,
+      userId: user.id,
+    },
+    tx,
+  );
+  return true;
+}
+
+export async function closeOverdueLocalFreeSubscription(
+  params: TransitionToNextLocalFreeSubscriptionParams,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const { subscription } = params;
+  const settledAt = new Date();
+  const endedAtFallback = subscription.periodEnd ?? settledAt;
+
   await closeOutSourceSubscription({
-    endedAtFallback: periodStart,
+    endedAtFallback,
     id: subscription.id,
     setCanceledAt: params.setCanceledAt,
     settledAt,
     subscription,
     tx,
   });
+}
+
+export async function transitionToNextLocalFreeSubscriptionPeriod(
+  params: TransitionToNextLocalFreeSubscriptionParams,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const { subscription } = params;
+  const settledAt = new Date();
+
+  if (!subscription.periodEnd) {
+    await closeOverdueLocalFreeSubscription(params, tx);
+    return;
+  }
+
+  const { periodStart } = buildNextLocalFreePeriod({
+    createdAt: subscription.createdAt,
+    periodEnd: subscription.periodEnd,
+  });
+
+  const ensured = await ensureNextLocalFreeSubscriptionPeriod(
+    {
+      activatesAt: periodStart <= settledAt ? null : periodStart,
+      subscription,
+    },
+    tx,
+  );
+
+  if (!ensured) {
+    await closeOutSourceSubscription({
+      endedAtFallback: periodStart,
+      id: subscription.id,
+      setCanceledAt: true,
+      settledAt,
+      subscription,
+      tx,
+    });
+    return;
+  }
+
+  await closeOverdueLocalFreeSubscription(params, tx);
 }
 
 export async function ensureLocalFreeSubscriptionPeriod(
@@ -546,6 +586,7 @@ export async function ensureLocalFreeSubscriptionPeriod(
           : {}),
         sourceCreditBucket: {
           create: {
+            activatesAt: params.activatesAt ?? null,
             amount,
             expiresAt: params.periodEnd,
             organizationId,

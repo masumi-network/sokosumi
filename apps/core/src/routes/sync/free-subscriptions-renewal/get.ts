@@ -26,6 +26,7 @@ export default function mount(app: Hono) {
 
         console.info("[sync/free-subscriptions-renewal] Completed sync", {
           durationMs: Date.now() - startedAt,
+          preCreated: result.preCreated,
           renewalErrors: result.renewalErrors,
           renewed: result.renewed,
           stoppedEarly: result.stoppedEarly,

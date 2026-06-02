@@ -33,9 +33,9 @@ describe("unassignedWorkspaceJobsQuery", () => {
 
   it("differs from omitting projectId, which lists all workspace jobs", () => {
     const unassignedQuery = unassignedWorkspaceJobsQuery();
-    const allJobsQuery = {
+    const allJobsQuery: NonNullable<GetJobsData["query"]> = {
       scope: "workspace",
-    } satisfies NonNullable<GetJobsData["query"]>;
+    };
 
     expect(unassignedQuery.projectId).toBe("null");
     expect(allJobsQuery.projectId).toBeUndefined();
@@ -59,9 +59,9 @@ describe("unassignedWorkspaceTasksQuery", () => {
 
   it("differs from omitting projectId, which lists all workspace tasks", () => {
     const unassignedQuery = unassignedWorkspaceTasksQuery();
-    const allTasksQuery = {
+    const allTasksQuery: NonNullable<GetTasksData["query"]> = {
       scope: "workspace",
-    } satisfies NonNullable<GetTasksData["query"]>;
+    };
 
     expect(unassignedQuery.projectId).toBe("null");
     expect(allTasksQuery.projectId).toBeUndefined();

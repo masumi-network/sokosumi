@@ -21,6 +21,7 @@ function buildTask(
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     userId: "user-1",
     organizationId: null,
+    projectId: null,
     user: { id: "user-1", name: "Test User", image: null },
     organization: null,
     coworkerId: null,

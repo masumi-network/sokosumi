@@ -184,6 +184,8 @@ describe("creditBucketRepository.getBalance (organization)", () => {
     assert.ok(
       values.includes(CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD),
     );
+    const sqlText = JSON.stringify(queryArgs);
+    assert.ok(sqlText.includes("activatesAt"));
   });
 
   it("escapes LIKE wildcards in organization member reference scope", async () => {
@@ -301,6 +303,8 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
         },
       },
     ]);
+    const activationWhere = andClause[1] as { OR?: unknown[] };
+    assert.ok(Array.isArray(activationWhere.OR));
   });
 
   it("uses escaped prefix for startsWith when userId contains LIKE wildcards", async () => {

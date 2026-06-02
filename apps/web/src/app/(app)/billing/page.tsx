@@ -116,7 +116,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     }
 
     const latestSubscription =
-      await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
         activeOrganization.id,
         prisma,
       );
@@ -241,7 +241,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     user,
   ] = await Promise.all([
     creditBucketRepository.getBalance(userId, null, prisma),
-    subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+    subscriptionRepository.resolveActiveSubscriptionByReferenceId(
       userId,
       prisma,
     ),

@@ -1,5 +1,8 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
-import { getOrganizationMemberSubscriptionReferencePrefixForStartsWith } from "@sokosumi/database/helpers";
+import {
+  creditBucketActivatesAtOrBefore,
+  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
+} from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   subscriptionRepository,
@@ -88,7 +91,7 @@ export async function getCurrentSubscriptionCredits(params: {
     return null;
   }
 
-  const currentPeriodBucketWhere = params.organizationId
+  const currentPeriodBucketScope = params.organizationId
     ? {
         referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
         organizationId: params.organizationId,
@@ -119,6 +122,10 @@ export async function getCurrentSubscriptionCredits(params: {
           lt: now,
         },
       };
+
+  const currentPeriodBucketWhere = {
+    AND: [creditBucketActivatesAtOrBefore(now), currentPeriodBucketScope],
+  };
 
   const totalAggregateResult = await params.tx.creditBucket.aggregate({
     _sum: {
@@ -228,7 +235,7 @@ export async function buildCreditsPayload(params: {
     params.tx,
   );
   const latestSubscription =
-    (await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+    (await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
       params.referenceId,
       params.tx,
     )) ??

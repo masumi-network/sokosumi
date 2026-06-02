@@ -93,7 +93,7 @@ export async function OnboardingDialogLoader({
         ? userService.getMyMemberInOrganization(activeOrganization.id)
         : Promise.resolve(null);
   const latestOrganizationSubscriptionPromise = activeOrganization
-    ? subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+    ? subscriptionRepository.resolveActiveSubscriptionByReferenceId(
         activeOrganization.id,
         prisma,
       )

@@ -104,7 +104,7 @@ export async function grantUnusedSeatSubscriptionCreditsIfEligible(
   tx: Prisma.TransactionClient,
 ): Promise<GrantUnusedSeatSubscriptionCreditsResult> {
   const subscription =
-    await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
       organizationId,
       tx,
     );

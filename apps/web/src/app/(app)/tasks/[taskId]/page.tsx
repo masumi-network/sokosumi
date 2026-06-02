@@ -425,7 +425,7 @@ async function getCurrentPlan(
   }
 
   const latestSubscription =
-    await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
+    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
       organizationId ?? session.user.id,
       prisma,
     );

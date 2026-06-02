@@ -621,8 +621,9 @@ model CreditBucket {
   updatedAt DateTime @updatedAt
 
   // Amount of credits in this bucket (in cents, always positive)
-  amount    BigInt
-  expiresAt DateTime? // (null = non-expiring)
+  amount      BigInt
+  expiresAt   DateTime? // (null = non-expiring)
+  activatesAt DateTime? // (null = active immediately)
 
   referenceId   String?
   referenceType CreditBucketReferenceType?
@@ -644,6 +645,7 @@ model CreditBucket {
   @@unique([referenceId, referenceType])
   @@index([userId, organizationId, expiresAt])
   @@index([expiresAt])
+  @@index([activatesAt])
   @@map("credit_bucket")
 }
 

@@ -4,6 +4,7 @@ import {
 } from "../generated/prisma/client.js";
 import {
   buildOrganizationMemberSubscriptionReferenceId,
+  creditBucketActivatesAtOrBefore,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
 } from "./credit.js";
 import { resolvePurchasedSeats } from "./organization-seats.js";
@@ -27,19 +28,24 @@ export async function countOrganizationSubscriptionPeriodSeatGrants(
 ): Promise<number> {
   return await tx.creditBucket.count({
     where: {
-      organizationId,
-      expiresAt: {
-        gt: now,
-      },
-      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      referenceId: {
-        startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-      },
-      NOT: {
-        referenceId: {
-          contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,
+      AND: [
+        creditBucketActivatesAtOrBefore(now),
+        {
+          organizationId,
+          expiresAt: {
+            gt: now,
+          },
+          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+          referenceId: {
+            startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+          },
+          NOT: {
+            referenceId: {
+              contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,
+            },
+          },
         },
-      },
+      ],
     },
   });
 }
@@ -52,20 +58,25 @@ export async function hasOrganizationMemberSubscriptionPeriodGrant(
 ): Promise<boolean> {
   const existingBucket = await tx.creditBucket.findFirst({
     where: {
-      organizationId,
-      expiresAt: {
-        gt: now,
-      },
-      userId,
-      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      referenceId: {
-        startsWith: `${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}${userId}:`,
-      },
-      NOT: {
-        referenceId: {
-          contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,
+      AND: [
+        creditBucketActivatesAtOrBefore(now),
+        {
+          organizationId,
+          expiresAt: {
+            gt: now,
+          },
+          userId,
+          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+          referenceId: {
+            startsWith: `${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}${userId}:`,
+          },
+          NOT: {
+            referenceId: {
+              contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,
+            },
+          },
         },
-      },
+      ],
     },
     select: {
       id: true,

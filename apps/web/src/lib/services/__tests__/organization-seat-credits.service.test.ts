@@ -5,7 +5,7 @@ vi.mock("server-only", () => ({}));
 
 const countOrganizationSubscriptionPeriodSeatGrantsMock = vi.fn();
 const hasOrganizationMemberSubscriptionPeriodGrantMock = vi.fn();
-const getLatestActiveSubscriptionByReferenceIdMock = vi.fn();
+const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const subscriptionsRetrieveMock = vi.fn();
 
@@ -24,8 +24,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
 vi.mock("@sokosumi/database/repositories", () => ({
   subscriptionRepository: {
-    getLatestActiveSubscriptionByReferenceId: (...args: unknown[]) =>
-      getLatestActiveSubscriptionByReferenceIdMock(...args),
+    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      resolveActiveSubscriptionByReferenceIdMock(...args),
   },
 }));
 
@@ -70,7 +70,7 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     getSubscriptionCatalogMock.mockResolvedValue({
       starter: { credits: 100 },
     });
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       plan: "starter",
       periodEnd,
       seats: 5,
@@ -156,7 +156,7 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
   });
 
   it("skips grant for local free subscriptions", async () => {
-    getLatestActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       plan: "free",
       periodEnd,
       seats: 5,
