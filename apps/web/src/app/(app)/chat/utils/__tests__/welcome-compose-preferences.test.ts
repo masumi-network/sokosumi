@@ -252,4 +252,19 @@ describe("resolveHydratedWelcomeSelection", () => {
     expect(r.composeKind).toBe("task");
     expect(r.coworker).toBeNull();
   });
+
+  it("for chat compose, picks a chat-capable fallback when stored coworker cannot chat", () => {
+    const stored = {
+      v: 1 as const,
+      composeKind: "chat" as const,
+      modelId: null,
+      coworkerSlugOrId: "tasky",
+    };
+    const r = resolveHydratedWelcomeSelection(coworkers, stored, {
+      urlCoworkerSlug: false,
+    });
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.capabilities?.includes("chat")).toBe(true);
+    expect(r.coworker?.slug).toBe("alex");
+  });
 });

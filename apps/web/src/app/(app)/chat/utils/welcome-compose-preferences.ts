@@ -1,5 +1,9 @@
 import { CHAT_MODELS } from "@sokosumi/chat";
 
+import {
+  type CoworkerCapability,
+  coworkerHasCapability,
+} from "./coworker-utils";
 import type { ChatComposeKind, Coworker } from "./types";
 
 export const WELCOME_COMPOSE_PREFERENCES_STORAGE_KEY =
@@ -16,10 +20,11 @@ function isChatComposeKind(v: unknown): v is ChatComposeKind {
   return v === "chat" || v === "task";
 }
 
-function firstCoworkerWithTasksCapability(
+function firstCoworkerWithCapability(
   coworkers: Coworker[],
+  capability: CoworkerCapability,
 ): Coworker | null {
-  return coworkers.find((x) => x.capabilities?.includes("tasks")) ?? null;
+  return coworkers.find((x) => coworkerHasCapability(x, capability)) ?? null;
 }
 
 export function readWelcomeComposePreferences(): WelcomeComposeStoredV1 | null {
@@ -99,7 +104,7 @@ export function resolveHydratedWelcomeSelection(
       composeKind: defaultCompose,
       coworker:
         defaultCompose === "task"
-          ? firstCoworkerWithTasksCapability(coworkers)
+          ? firstCoworkerWithCapability(coworkers, "tasks")
           : null,
       model: null,
     };
@@ -134,23 +139,30 @@ export function resolveHydratedWelcomeSelection(
     );
     if (c) {
       if (composeKind === "task") {
-        if (c.capabilities?.includes("tasks")) {
+        if (coworkerHasCapability(c, "tasks")) {
           return { composeKind: "task", coworker: c, model: null };
         }
         return {
           composeKind: "task",
-          coworker: firstCoworkerWithTasksCapability(coworkers),
+          coworker: firstCoworkerWithCapability(coworkers, "tasks"),
           model: null,
         };
       }
-      return { composeKind: "chat", coworker: c, model: null };
+      if (coworkerHasCapability(c, "chat")) {
+        return { composeKind: "chat", coworker: c, model: null };
+      }
+      return {
+        composeKind: "chat",
+        coworker: firstCoworkerWithCapability(coworkers, "chat"),
+        model: null,
+      };
     }
   }
 
   if (composeKind === "task") {
     return {
       composeKind: "task",
-      coworker: firstCoworkerWithTasksCapability(coworkers),
+      coworker: firstCoworkerWithCapability(coworkers, "tasks"),
       model: null,
     };
   }

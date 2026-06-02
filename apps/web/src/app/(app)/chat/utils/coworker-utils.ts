@@ -3,10 +3,28 @@
  */
 
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-
-import type { Coworker } from "@/app/chat/utils/types";
-/** DB coworker shape as returned by GET /api/coworkers (and Core GET /v1/coworkers) */
+import type { ChatComposeKind, Coworker } from "@/app/chat/utils/types";
 import type { Coworker as CoreCoworker } from "@/lib/clients/generated/core";
+
+export type CoworkerCapability = "chat" | "tasks";
+
+export function coworkerHasCapability(
+  coworker: Coworker,
+  capability: CoworkerCapability,
+): boolean {
+  return coworker.capabilities?.includes(capability) ?? false;
+}
+
+export function filterCoworkersForComposeKind(
+  coworkers: Coworker[],
+  composeKind: ChatComposeKind,
+): Coworker[] {
+  const capability: CoworkerCapability =
+    composeKind === "task" ? "tasks" : "chat";
+  return coworkers.filter((coworker) =>
+    coworkerHasCapability(coworker, capability),
+  );
+}
 
 const DEFAULT_COWORKER_AVATARS: Record<string, string> = {
   alex: "/images/coworkers/alex.webp",

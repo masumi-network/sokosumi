@@ -20,7 +20,10 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import {
+  filterCoworkersForComposeKind,
+  getCoworkerImageUrl,
+} from "@/app/chat/utils/coworker-utils";
 import type {
   ChatComposeKind,
   ChatComposeMessage,
@@ -201,9 +204,21 @@ function PureMultimodalInput({
   const [chatFileParts, setChatFileParts] = useState<ChatFilePart[]>([]);
   const [imageGenerationEnabled, setImageGenerationEnabled] = useState(false);
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
-  const initialDefault = findDefaultCoworker(propCoworkers);
   const [preferredCoworker, setPreferredCoworker] = useState<Coworker | null>(
-    propCoworker ?? (propSelectedModel ? null : initialDefault),
+    () => {
+      if (propCoworker) {
+        return propCoworker;
+      }
+      if (propSelectedModel) {
+        return null;
+      }
+      const initialComposeKind: ChatComposeKind = chatId
+        ? "chat"
+        : (controlledComposeKind ?? "task");
+      return findDefaultCoworker(
+        filterCoworkersForComposeKind(propCoworkers ?? [], initialComposeKind),
+      );
+    },
   );
   const [selectedModel, setSelectedModel] = useState<{
     id: string;
@@ -212,11 +227,20 @@ function PureMultimodalInput({
 
   // Sync selected agent from props when switching conversations (model vs coworker).
   useEffect(() => {
-    const defaultCoworker = findDefaultCoworker(propCoworkers);
+    if (propCoworker) {
+      setPreferredCoworker(propCoworker);
+      return;
+    }
+    if (propSelectedModel) {
+      setPreferredCoworker(null);
+      return;
+    }
     setPreferredCoworker(
-      propCoworker ?? (propSelectedModel ? null : defaultCoworker),
+      findDefaultCoworker(
+        filterCoworkersForComposeKind(propCoworkers ?? [], composeKind),
+      ),
     );
-  }, [propCoworker, propSelectedModel, propCoworkers]);
+  }, [composeKind, propCoworker, propSelectedModel, propCoworkers]);
 
   useEffect(() => {
     setSelectedModel(propSelectedModel ?? null);
@@ -471,12 +495,7 @@ function PureMultimodalInput({
 
   const coworkers = propCoworkers ?? [];
   const availableCoworkers = useMemo(
-    () =>
-      composeKind === "task"
-        ? coworkers.filter((coworker) =>
-            coworker.capabilities?.includes("tasks"),
-          )
-        : coworkers,
+    () => filterCoworkersForComposeKind(coworkers, composeKind),
     [composeKind, coworkers],
   );
   const selectedCoworker = useMemo(() => {
@@ -637,9 +656,7 @@ function PureMultimodalInput({
       if (nextKind === "task") {
         setSelectedModel(null);
         onSelectModel?.(null);
-        const taskCoworkers = coworkers.filter((coworker) =>
-          coworker.capabilities?.includes("tasks"),
-        );
+        const taskCoworkers = filterCoworkersForComposeKind(coworkers, "task");
         const hasCurrentTaskCoworker = taskCoworkers.some((coworker) =>
           matchesCoworker(coworker, preferredCoworker),
         );
@@ -653,11 +670,15 @@ function PureMultimodalInput({
         return;
       }
 
-      if (!preferredCoworker) {
-        const defaultCoworker = findDefaultCoworker(coworkers);
-        setPreferredCoworker(defaultCoworker);
-        if (defaultCoworker) {
-          onCoworkerChange?.(defaultCoworker);
+      const chatCoworkers = filterCoworkersForComposeKind(coworkers, "chat");
+      const hasCurrentChatCoworker = chatCoworkers.some((coworker) =>
+        matchesCoworker(coworker, preferredCoworker),
+      );
+      if (!hasCurrentChatCoworker) {
+        const defaultChatCoworker = findDefaultCoworker(chatCoworkers);
+        setPreferredCoworker(defaultChatCoworker);
+        if (defaultChatCoworker) {
+          onCoworkerChange?.(defaultChatCoworker);
         }
       }
     },

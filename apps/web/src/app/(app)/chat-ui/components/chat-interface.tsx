@@ -29,6 +29,7 @@ import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { useCoworkerPostRefreshAssistantPoll } from "@/app/chat/hooks/use-coworker-post-refresh-assistant-poll";
+import { coworkerHasCapability } from "@/app/chat/utils/coworker-utils";
 import type {
   Chat,
   ChatComposeKind,
@@ -1450,7 +1451,7 @@ export default function ChatInterface({
           const selectedTaskCoworker =
             coworker ??
             coworkers.find((candidate) =>
-              candidate.capabilities?.includes("tasks"),
+              coworkerHasCapability(candidate, "tasks"),
             ) ??
             null;
 

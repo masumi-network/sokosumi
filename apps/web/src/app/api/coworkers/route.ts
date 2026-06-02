@@ -1,11 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import type { CoworkerCapability } from "@/app/chat/utils/coworker-utils";
 import { getSession } from "@/lib/auth/utils";
 import { CoworkerSchema } from "@/lib/clients/generated/core/schemas.gen";
-import {
-  type CoworkerCapability,
-  coworkerService,
-} from "@/lib/services/coworker.service";
+import { coworkerService } from "@/lib/services/coworker.service";
 
 /**
  * GET /api/coworkers
