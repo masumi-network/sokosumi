@@ -11,6 +11,7 @@ import {
 import { getAllCoreAgents } from "@/lib/agents/core-loaders";
 import { coreClient } from "@/lib/clients/core.client";
 import { agentService } from "@/lib/services";
+import { coworkerService } from "@/lib/services/coworker.service";
 
 import FilterSection from "./components/filter-section";
 import FilteredAgents from "./components/filtered-agents";
@@ -25,15 +26,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const [coreAgents, categoriesResponse, favoriteAgents, coworkersResponse] =
+  const [coreAgents, categoriesResponse, favoriteAgents, coworkers] =
     await Promise.all([
       getAllCoreAgents(),
       coreClient.getCategories(),
       // TODO(core-api): replace with a Core favorites API when available.
       agentService.getFavoriteAgents(),
-      coreClient.getCoworkers({
-        scope: "whitelisted",
-      }),
+      coworkerService.listCoworkers(),
     ]);
   const agentsWithPrice = mapCoreAgentsToAgentWithCreditsPrice(coreAgents);
 
@@ -49,7 +48,7 @@ export default async function GalleryPage() {
       <div className="space-y-12 px-2">
         <FilterSection categories={categories} />
 
-        <CoworkerGallerySection coworkers={coworkersResponse.data} />
+        <CoworkerGallerySection coworkers={coworkers} />
 
         <div className="space-y-6">
           <FilteredAgents

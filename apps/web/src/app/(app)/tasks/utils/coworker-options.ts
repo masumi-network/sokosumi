@@ -1,4 +1,5 @@
 import type { Coworker } from "@/lib/clients/generated/core";
+import { normalizeCoworkerSlug } from "@/lib/coworkers/ui-restricted-slugs";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
@@ -21,10 +22,10 @@ export function findCoworkerIdBySlug(
   options: CoworkerOption[],
   slug: string,
 ): string | null {
-  const normalized = slug.trim().toLowerCase();
+  const normalized = normalizeCoworkerSlug(slug);
   if (!normalized) return null;
   const match = options.find(
-    (option) => option.slug.toLowerCase() === normalized,
+    (option) => normalizeCoworkerSlug(option.slug) === normalized,
   );
   return match?.id ?? null;
 }
