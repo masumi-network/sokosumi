@@ -247,6 +247,7 @@ async function preCreateUpcomingLocalFreeSubscriptions(
   const lookaheadEnd = new Date(
     now.getTime() + FREE_SUBSCRIPTION_PRECREATE_LOOKAHEAD_MS,
   );
+  const preCreateVisitedSubscriptionIds = new Set<string>();
 
   while (true) {
     if (
@@ -278,7 +279,9 @@ async function preCreateUpcomingLocalFreeSubscriptions(
     const subscriptionsNeedingPreCreate =
       await filterSubscriptionsMissingNextLocalSuccessor(
         upcomingLocalFreeSubscriptions.filter(
-          (subscription) => !attemptedSubscriptionIds.has(subscription.id),
+          (subscription) =>
+            !attemptedSubscriptionIds.has(subscription.id) &&
+            !preCreateVisitedSubscriptionIds.has(subscription.id),
         ),
       );
 
@@ -297,7 +300,7 @@ async function preCreateUpcomingLocalFreeSubscriptions(
         return { preCreated, stoppedEarly };
       }
 
-      attemptedSubscriptionIds.add(subscription.id);
+      preCreateVisitedSubscriptionIds.add(subscription.id);
 
       const nextPeriod = getNextLocalFreeSubscriptionPeriod(subscription);
       if (!nextPeriod) {
@@ -305,8 +308,8 @@ async function preCreateUpcomingLocalFreeSubscriptions(
       }
 
       try {
-        await prisma.$transaction(async (tx) => {
-          await ensureNextLocalFreeSubscriptionPeriod(
+        const ensured = await prisma.$transaction(async (tx) => {
+          return ensureNextLocalFreeSubscriptionPeriod(
             {
               activatesAt: nextPeriod.periodStart,
               subscription,
@@ -314,8 +317,13 @@ async function preCreateUpcomingLocalFreeSubscriptions(
             tx,
           );
         });
-        preCreated += 1;
+
+        if (ensured) {
+          preCreated += 1;
+          attemptedSubscriptionIds.add(subscription.id);
+        }
       } catch (error) {
+        attemptedSubscriptionIds.add(subscription.id);
         console.error(
           `${LOG_PREFIX} Failed to pre-create local free subscription ${subscription.id}:`,
           error,

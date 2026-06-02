@@ -152,6 +152,121 @@ describe("freeSubscriptionSyncService", () => {
     ).not.toHaveBeenCalled();
   });
 
+  it("does not increment preCreated when ensureNextLocalFreeSubscriptionPeriod returns false", async () => {
+    ensureNextLocalFreeSubscriptionPeriodMock.mockResolvedValue(false);
+    subscriptionFindManyMock.mockImplementation(
+      ({ where }: { where: SubscriptionRenewalFindManyWhere }) => {
+        if (where.OR) {
+          return Promise.resolve([]);
+        }
+
+        if (isPreCreateQuery(where)) {
+          return Promise.resolve([
+            {
+              canceledAt: null,
+              createdAt: new Date("2026-03-15T00:00:00.000Z"),
+              endedAt: null,
+              id: "sub-orphan",
+              periodEnd: new Date("2026-04-15T00:10:00.000Z"),
+              referenceId: "missing-user",
+              seats: null,
+              stripeCustomerId: "cus_1",
+              stripeSubscriptionId: null,
+            },
+          ]);
+        }
+
+        if (isOverdueQuery(where)) {
+          return Promise.resolve([]);
+        }
+
+        return Promise.resolve([]);
+      },
+    );
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    const result =
+      await freeSubscriptionSyncService.renewLocalFreeSubscriptions(
+        createSyncExecutionOptions(),
+      );
+
+    expect(result.preCreated).toBe(0);
+    expect(ensureNextLocalFreeSubscriptionPeriodMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the overdue phase handle subscriptions when pre-create could not ensure a successor", async () => {
+    ensureNextLocalFreeSubscriptionPeriodMock.mockResolvedValue(false);
+    subscriptionFindManyMock.mockImplementation(
+      ({ where }: { where: SubscriptionRenewalFindManyWhere }) => {
+        if (where.OR) {
+          return Promise.resolve([]);
+        }
+
+        if (isPreCreateQuery(where)) {
+          return Promise.resolve([
+            {
+              canceledAt: null,
+              createdAt: new Date("2026-03-15T00:00:00.000Z"),
+              endedAt: null,
+              id: "sub-orphan",
+              periodEnd: new Date("2026-04-15T00:10:00.000Z"),
+              referenceId: "missing-user",
+              seats: null,
+              stripeCustomerId: "cus_1",
+              stripeSubscriptionId: null,
+            },
+          ]);
+        }
+
+        if (isOverdueQuery(where)) {
+          return Promise.resolve([
+            {
+              canceledAt: null,
+              createdAt: new Date("2026-03-15T00:00:00.000Z"),
+              endedAt: null,
+              id: "sub-orphan",
+              periodEnd: new Date("2026-04-15T00:00:00.000Z"),
+              referenceId: "missing-user",
+              seats: null,
+              stripeCustomerId: "cus_1",
+              stripeSubscriptionId: null,
+            },
+          ]);
+        }
+
+        return Promise.resolve([]);
+      },
+    );
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    const result =
+      await freeSubscriptionSyncService.renewLocalFreeSubscriptions(
+        createSyncExecutionOptions(),
+      );
+
+    expect(result.preCreated).toBe(0);
+    expect(result.renewed).toBe(1);
+    expect(ensureNextLocalFreeSubscriptionPeriodMock).toHaveBeenCalledTimes(1);
+    expect(
+      transitionToNextLocalFreeSubscriptionPeriodMock,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      transitionToNextLocalFreeSubscriptionPeriodMock,
+    ).toHaveBeenCalledWith(
+      {
+        setCanceledAt: false,
+        subscription: expect.objectContaining({ id: "sub-orphan" }),
+      },
+      expect.anything(),
+    );
+  });
+
   it("renews due local free subscriptions exactly once per overdue period", async () => {
     subscriptionFindManyMock.mockImplementation(
       ({ where }: { where: SubscriptionRenewalFindManyWhere }) => {
