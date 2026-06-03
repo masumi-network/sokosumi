@@ -15,21 +15,29 @@ const {
   historyCountMock,
   historyFindFirstMock,
   historyFindManyMock,
+  jobFindManyMock,
+  prismaQueryRawMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   historyCountMock: vi.fn(),
   historyFindFirstMock: vi.fn(),
   historyFindManyMock: vi.fn(),
+  jobFindManyMock: vi.fn(),
+  prismaQueryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $queryRaw: prismaQueryRawMock,
     $transaction: prismaTransactionMock,
     history: {
       count: historyCountMock,
       findFirst: historyFindFirstMock,
       findMany: historyFindManyMock,
+    },
+    job: {
+      findMany: jobFindManyMock,
     },
   },
 }));
@@ -93,6 +101,8 @@ describe("GET /history", () => {
     historyFindFirstMock.mockResolvedValue(null);
     historyFindManyMock.mockResolvedValue([]);
     historyCountMock.mockResolvedValue(0);
+    jobFindManyMock.mockResolvedValue([]);
+    prismaQueryRawMock.mockResolvedValue([]);
     prismaTransactionMock.mockImplementation(
       async (operations: Array<Promise<unknown>>) =>
         await Promise.all(operations),
@@ -244,22 +254,92 @@ describe("GET /history", () => {
     );
   });
 
-  it("applies status filters", async () => {
+  it("applies status filters with computed job status matching", async () => {
+    prismaQueryRawMock.mockResolvedValue([{ entityId: "job_completed" }]);
+
     const app = createApp();
     const response = await app.request(
       "http://localhost/?status=READY,completed&status=READY",
     );
 
     expect(response.status).toBe(200);
+    expect(prismaQueryRawMock).toHaveBeenCalledOnce();
     expect(historyFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           AND: expect.arrayContaining([
-            { status: { in: [TaskStatus.READY, SokosumiJobStatus.COMPLETED] } },
+            {
+              OR: [
+                {
+                  kind: HistoryKind.TASK,
+                  status: {
+                    in: [TaskStatus.READY, SokosumiJobStatus.COMPLETED],
+                  },
+                },
+                {
+                  kind: HistoryKind.CONVERSATION,
+                  status: {
+                    in: [TaskStatus.READY, SokosumiJobStatus.COMPLETED],
+                  },
+                },
+                {
+                  kind: HistoryKind.JOB,
+                  entityId: { in: ["job_completed"] },
+                },
+              ],
+            },
           ]),
         }),
       }),
     );
+  });
+
+  it("overlays computed job status on timed-out payment-pending rows", async () => {
+    const payByTime = new Date(Date.now() - 11 * 60 * 1000);
+    const row = createHistoryRow({
+      agentId: "agent_123",
+      entityId: "job_timed_out",
+      kind: HistoryKind.JOB,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    historyFindManyMock.mockResolvedValue([row]);
+    historyCountMock.mockResolvedValue(1);
+    jobFindManyMock.mockResolvedValue([
+      {
+        createdAt: payByTime,
+        events: [],
+        externalDisputeUnlockTime: null,
+        id: "job_timed_out",
+        jobType: "PAID",
+        payByTime,
+        projectId: null,
+        purchase: null,
+        refundedTransactionId: null,
+        submitResultTime: null,
+      },
+    ]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(jobFindManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["job_timed_out"] } },
+      select: expect.objectContaining({
+        jobType: true,
+        payByTime: true,
+        purchase: true,
+      }),
+    });
+
+    const body = (await response.json()) as {
+      data: Array<{ id: string; kind: string; status: string }>;
+    };
+    expect(body.data[0]).toMatchObject({
+      id: "job_timed_out",
+      kind: "job",
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+    });
   });
 
   it("searches title and description when q is provided", async () => {

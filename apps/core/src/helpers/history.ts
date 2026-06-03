@@ -1,8 +1,13 @@
 import { HistoryKind, type Prisma, TaskStatus } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import { computeJobStatus } from "@sokosumi/database/helpers";
+import {
+  jobForStatusComputeSelect,
+  SokosumiJobStatus,
+} from "@sokosumi/database/types/job";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { createPaginationMeta } from "@/helpers/pagination";
+import type prisma from "@/lib/db/prisma";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import type { HistoryItem } from "@/schemas/history.schema";
@@ -33,28 +38,96 @@ export interface BuildHistoryWhereParams {
   workspaceContext: WorkspaceContext;
 }
 
-export function buildHistoryWhere({
-  projectId,
-  q,
-  scope,
-  statuses,
-  types,
-  userContext,
-  workspaceContext,
-}: BuildHistoryWhereParams): Prisma.HistoryWhereInput {
-  const workspaceKinds = types.filter(
+type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job">;
+
+export function buildHistoryStatusFilter(
+  statuses: string[],
+  types: HistoryKind[],
+  jobEntityIds: string[],
+): Prisma.HistoryWhereInput {
+  const branches: Prisma.HistoryWhereInput[] = [];
+
+  if (types.includes(HistoryKind.TASK)) {
+    branches.push({
+      kind: HistoryKind.TASK,
+      status: { in: statuses },
+    });
+  }
+
+  if (types.includes(HistoryKind.CONVERSATION)) {
+    branches.push({
+      kind: HistoryKind.CONVERSATION,
+      status: { in: statuses },
+    });
+  }
+
+  if (types.includes(HistoryKind.JOB)) {
+    branches.push({
+      kind: HistoryKind.JOB,
+      entityId: { in: jobEntityIds },
+    });
+  }
+
+  if (branches.length === 0) {
+    return { id: { in: [] } };
+  }
+
+  return { OR: branches };
+}
+
+export async function findJobHistoryEntityIdsMatchingStatuses(
+  {
+    projectId,
+    scope,
+    statuses,
+    userContext,
+    workspaceContext,
+  }: BuildHistoryWhereParams,
+  prismaClient: HistoryPrismaClient,
+): Promise<string[]> {
+  const owned = scope === "owned";
+  const hasProjectFilter = projectId !== undefined;
+
+  const rows = await prismaClient.$queryRaw<Array<{ entityId: string }>>`
+    SELECT h."entityId"
+    FROM "history" h
+    WHERE h."archivedAt" IS NULL
+      AND h."kind" = 'JOB'::"HistoryKind"
+      AND h."workspaceId" = ${workspaceContext.workspaceId}::uuid
+      AND (${owned} = false OR h."userId" = ${userContext.userId})
+      AND (
+        ${hasProjectFilter} = false
+        OR h."projectId" IS NOT DISTINCT FROM ${projectId ?? null}
+      )
+      AND compute_history_job_status(h."entityId") = ANY(${statuses}::text[])
+  `;
+
+  return rows.map((row) => row.entityId);
+}
+
+export async function buildHistoryWhere(
+  params: BuildHistoryWhereParams,
+  prismaClient: HistoryPrismaClient,
+): Promise<Prisma.HistoryWhereInput> {
+  const workspaceKinds = params.types.filter(
     (kind) => kind === HistoryKind.TASK || kind === HistoryKind.JOB,
   );
-  const shouldIncludeConversations = types.includes(HistoryKind.CONVERSATION);
+  const shouldIncludeConversations = params.types.includes(
+    HistoryKind.CONVERSATION,
+  );
 
   const visibilityBranches: Prisma.HistoryWhereInput[] = [
     ...(workspaceKinds.length > 0
       ? [
           {
             kind: { in: workspaceKinds },
-            workspaceId: workspaceContext.workspaceId,
-            ...(scope === "owned" ? { userId: userContext.userId } : {}),
-            ...(projectId !== undefined ? { projectId } : {}),
+            workspaceId: params.workspaceContext.workspaceId,
+            ...(params.scope === "owned"
+              ? { userId: params.userContext.userId }
+              : {}),
+            ...(params.projectId !== undefined
+              ? { projectId: params.projectId }
+              : {}),
           },
         ]
       : []),
@@ -62,7 +135,7 @@ export function buildHistoryWhere({
       ? [
           {
             kind: HistoryKind.CONVERSATION,
-            userId: userContext.userId,
+            userId: params.userContext.userId,
           },
         ]
       : []),
@@ -74,31 +147,69 @@ export function buildHistoryWhere({
     };
   }
 
-  return {
-    AND: [
-      { archivedAt: null },
-      { OR: visibilityBranches },
-      ...(statuses ? [{ status: { in: statuses } }] : []),
-      ...(q
-        ? [
-            {
-              OR: [
-                { title: { contains: q, mode: "insensitive" as const } },
-                { description: { contains: q, mode: "insensitive" as const } },
-              ],
-            },
-          ]
-        : []),
-    ],
-  };
+  const andClauses: Prisma.HistoryWhereInput[] = [
+    { archivedAt: null },
+    { OR: visibilityBranches },
+  ];
+
+  if (params.statuses?.length) {
+    const jobEntityIds = params.types.includes(HistoryKind.JOB)
+      ? await findJobHistoryEntityIdsMatchingStatuses(params, prismaClient)
+      : [];
+
+    andClauses.push(
+      buildHistoryStatusFilter(params.statuses, params.types, jobEntityIds),
+    );
+  }
+
+  if (params.q) {
+    andClauses.push({
+      OR: [
+        { title: { contains: params.q, mode: "insensitive" } },
+        { description: { contains: params.q, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  return { AND: andClauses };
 }
 
-export function mapHistoryRow(row: HistoryRowForApi): HistoryItem {
+export async function loadComputedJobStatusByEntityId(
+  entityIds: string[],
+  prismaClient: HistoryPrismaClient,
+): Promise<Map<string, SokosumiJobStatus>> {
+  if (entityIds.length === 0) {
+    return new Map();
+  }
+
+  const jobs = await prismaClient.job.findMany({
+    where: { id: { in: entityIds } },
+    select: {
+      id: true,
+      ...jobForStatusComputeSelect,
+    },
+  });
+
+  return new Map(jobs.map((job) => [job.id, computeJobStatus(job)]));
+}
+
+export function mapHistoryRow(
+  row: HistoryRowForApi,
+  options?: {
+    jobStatusByEntityId?: Map<string, SokosumiJobStatus>;
+  },
+): HistoryItem {
+  const jobStatus =
+    row.kind === HistoryKind.JOB
+      ? options?.jobStatusByEntityId?.get(row.entityId)
+      : undefined;
+  const status = jobStatus ?? row.status;
+
   const baseItem = {
     id: row.entityId,
     title: row.title,
     description: row.description,
-    status: row.status,
+    status,
     updatedAt: row.sortAt.toISOString(),
   };
 
@@ -107,7 +218,7 @@ export function mapHistoryRow(row: HistoryRowForApi): HistoryItem {
       return {
         ...baseItem,
         kind: "task",
-        status: row.status as TaskStatus,
+        status: status as TaskStatus,
         credits:
           row.creditsCents != null
             ? convertCentsToCredits(row.creditsCents)
@@ -119,7 +230,7 @@ export function mapHistoryRow(row: HistoryRowForApi): HistoryItem {
       return {
         ...baseItem,
         kind: "job",
-        status: row.status as SokosumiJobStatus,
+        status: status as SokosumiJobStatus,
         credits:
           row.creditsCents != null
             ? convertCentsToCredits(row.creditsCents)

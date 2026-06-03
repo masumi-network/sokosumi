@@ -5,6 +5,7 @@ import { badRequest } from "@/helpers/error";
 import {
   buildHistoryWhere,
   createHistoryPaginationMeta,
+  loadComputedJobStatusByEntityId,
   mapHistoryRow,
 } from "@/helpers/history";
 import {
@@ -149,15 +150,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       allHistoryKinds;
     const projectId =
       queryParams.projectId === "null" ? null : queryParams.projectId;
-    const where = buildHistoryWhere({
-      projectId,
-      q: queryParams.q,
-      scope: queryParams.scope,
-      statuses: queryParams.status,
-      types,
-      userContext,
-      workspaceContext,
-    });
+    const where = await buildHistoryWhere(
+      {
+        projectId,
+        q: queryParams.q,
+        scope: queryParams.scope,
+        statuses: queryParams.status,
+        types,
+        userContext,
+        workspaceContext,
+      },
+      prisma,
+    );
     const takePlusOne = take + 1;
     const cursorHistoryId = cursor
       ? (
@@ -186,7 +190,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const hasMore = rows.length === takePlusOne;
     const pagedRows = rows.slice(0, take);
-    const historyItems = pagedRows.map((row) => mapHistoryRow(row));
+    const jobEntityIds = pagedRows
+      .filter((row) => row.kind === HistoryKind.JOB)
+      .map((row) => row.entityId);
+    const jobStatusByEntityId = await loadComputedJobStatusByEntityId(
+      jobEntityIds,
+      prisma,
+    );
+    const historyItems = pagedRows.map((row) =>
+      mapHistoryRow(row, { jobStatusByEntityId }),
+    );
     const paginationMeta = createHistoryPaginationMeta(
       historyItems,
       count,
