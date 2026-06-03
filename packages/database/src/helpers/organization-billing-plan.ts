@@ -5,7 +5,7 @@ import {
 import { subscriptionRepository } from "../repositories/subscription.repository.js";
 import {
   deriveEnterpriseContractEndDate,
-  isEnterpriseContractActive,
+  isEnterpriseContractConsumable,
 } from "./enterprise-contract.js";
 import { resolvePurchasedSeats } from "./organization-seats.js";
 import { isActiveSubscriptionStatus } from "./subscription.js";
@@ -16,7 +16,7 @@ export type SelfServeSubscriptionPlanName =
   | "standard"
   | "pro";
 
-/** UI / entitlement label; `enterprise` is only set from an active enterprise contract. */
+/** UI label; `enterprise` is set when the org has a commercially active contract. */
 export type OrganizationBillingPlanName =
   | SelfServeSubscriptionPlanName
   | "enterprise";
@@ -25,6 +25,8 @@ export type OrganizationBillingPlan =
   | {
       mode: "enterprise_contract";
       plan: "enterprise";
+      /** True when credits and plan exclusivity apply (within the commercial term). */
+      isConsumable: boolean;
       purchasedSeats: number;
       contractId: string;
       contractEnd: Date;
@@ -75,18 +77,18 @@ export async function resolveOrganizationBillingPlan(
     orderBy: [{ updatedAt: "desc" }],
   });
 
-  if (
-    activeContract?.startDate &&
-    isEnterpriseContractActive({
+  if (activeContract?.startDate) {
+    const isConsumable = isEnterpriseContractConsumable({
       now,
       periodCount: activeContract.periodCount,
       startDate: activeContract.startDate,
       status: activeContract.status,
-    })
-  ) {
+    });
+
     return {
       mode: "enterprise_contract",
       plan: "enterprise",
+      isConsumable,
       purchasedSeats: activeContract.seats,
       contractId: activeContract.id,
       contractEnd: deriveEnterpriseContractEndDate(
