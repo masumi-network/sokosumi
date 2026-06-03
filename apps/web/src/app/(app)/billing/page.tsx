@@ -122,6 +122,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     );
     const currentPlan = billingPlan.plan;
     const isEnterpriseContract = billingPlan.mode === "enterprise_contract";
+    const showOrganizationBillingPortal = !isEnterpriseContract;
     const canPurchaseCredits =
       isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
     const creditsCheckoutParams =
@@ -174,7 +175,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             stripeCustomerId={activeOrganization.stripeCustomerId}
             stripeCustomerLabel={t("stripeCustomerIdLabel")}
             billingPortal={
-              activeOrganization.stripeCustomerId ? (
+              activeOrganization.stripeCustomerId &&
+              showOrganizationBillingPortal ? (
                 <BalanceBillingPortalLink
                   baseReturnPath="/billing"
                   description={t("billingPortalDescription")}

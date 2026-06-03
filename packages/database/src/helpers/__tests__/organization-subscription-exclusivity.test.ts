@@ -62,6 +62,22 @@ describe("organization subscription exclusivity", () => {
     await assertOrganizationSubscriptionChangeAllowed("org-1", {} as never);
   });
 
+  it("allows organization subscription changes when enterprise contract is not consumable", async () => {
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable: false,
+      purchasedSeats: 3,
+      contractId: "contract-1",
+      contractEnd: new Date("2027-01-01T00:00:00.000Z"),
+      startDate: new Date("2027-06-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+
+    await assertOrganizationSubscriptionChangeAllowed("org-1", {} as never);
+  });
+
   it("blocks organization subscription changes during consumable enterprise", async () => {
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "enterprise_contract",

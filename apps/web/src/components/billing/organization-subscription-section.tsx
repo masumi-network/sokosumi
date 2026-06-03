@@ -236,17 +236,19 @@ export function OrganizationSubscriptionSection({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardContent className="space-y-6">
-          <OrganizationSeatSettingsFields
-            assignedSeatCount={assignedSeatCount}
-            inputId="organization-seats"
-            memberCount={memberCount}
-            onTargetSeatsChange={setTargetSeats}
-            targetSeats={targetSeats}
-          />
-        </CardContent>
-      </Card>
+      {!isEnterpriseContract ? (
+        <Card>
+          <CardContent className="space-y-6">
+            <OrganizationSeatSettingsFields
+              assignedSeatCount={assignedSeatCount}
+              inputId="organization-seats"
+              memberCount={memberCount}
+              onTargetSeatsChange={setTargetSeats}
+              targetSeats={targetSeats}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
       <div className="space-y-4">
         {isEnterpriseContract ? (
           <SubscriptionEnterprisePlanCard isCurrent />
