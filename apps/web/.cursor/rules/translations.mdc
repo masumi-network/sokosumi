@@ -122,7 +122,8 @@ Supported locale catalogs:
 
 1. Add the key to `apps/web/messages/en.json`.
 2. Add the same key path to every supported locale file.
-3. If a translated value is not available yet, temporarily copy the English string so the key exists in all locales.
+3. Provide a **proper translation** in each non-English locale file in the same change (see [Locale string quality](#locale-string-quality)).
+4. Only if translation is genuinely blocked: temporarily copy the English string so the key exists in all locales, and replace with real translations before merge (or track an explicit follow-up).
 
 #### Remove key
 
@@ -136,6 +137,42 @@ Supported locale catalogs:
 2. Apply the same rename/move to every supported locale file.
 3. Preserve values during the move in each locale file.
 
+## Locale string quality
+
+`apps/web/messages/en.json` is the **source of truth for key paths** and the only catalog authored in English.
+
+**Non-English locale files** (`de`, `es`, `it`, `fr`, `pt`, `pt-BR`, `ja`, `zh-Hans`) must contain **real translations** for user-facing strings—not English copies left as the final value.
+
+### ✅ DO
+
+- Write new or changed copy in each locale’s language in the **same PR** as `en.json` changes.
+- Match terminology already used in that locale file (e.g. Abonnement, Enterprise, self-serve, Seats).
+- Preserve `{placeholders}`, ICU plural/select syntax, and JSON structure exactly across locales.
+
+### ❌ DON'T
+
+- Ship non-English locale files with English text unless you explicitly defer (document why; fix before release).
+- Invent inconsistent product terms when the same concept already has a translation nearby in that file.
+
+### Placeholder workflow
+
+English copy in `de.json` / `ja.json` / etc. is allowed only as a **short-lived placeholder** while keys are being wired. Before finishing the task, replace placeholders with translations or call out the deferral.
+
+### Verification (optional)
+
+After editing keys, spot-check that non-English values differ from English for the keys you added:
+
+```bash
+# Example: compare one key path (adjust path to your new key)
+KEY='App.Organizations.OrganizationDetail.Subscription.enterpriseContractPendingDescription'
+for locale in de es it fr pt pt-BR ja zh-Hans; do
+  echo "$locale: $(jq -r --arg k "$KEY" 'getpath($k | split("."))' apps/web/messages/$locale.json)"
+done
+jq -r --arg k "$KEY" 'getpath($k | split("."))' apps/web/messages/en.json
+```
+
+For email templates, follow [`packages/email/AGENTS.md`](../../../../packages/email/AGENTS.md) locale parity rules instead of this web catalog.
+
 ## Rules
 
 ### ✅ DO
@@ -147,6 +184,7 @@ Supported locale catalogs:
 - Handle nested keys correctly (check both full path and namespace + key patterns)
 - Keep locale key paths in sync when `messages/en.json` changes
 - Add/update/remove translation keys in all locale catalogs in the same change
+- Provide real translations in non-English locale files when adding or changing user-facing strings
 
 ### ❌ DON'T
 
@@ -156,6 +194,7 @@ Supported locale catalogs:
 - Remove keys that are used in other files
 - Add keys only in `messages/en.json` and leave other locale files missing them
 - Rename/move keys in `messages/en.json` without applying the same path change to all locales
+- Leave English placeholder text in non-English locale files as the final merged state
 
 ## Verification
 
@@ -163,8 +202,9 @@ After adding/removing/renaming translation keys:
 
 1. Verify JSON is still valid for all locale files.
 2. Verify key-path parity between `apps/web/messages/en.json` and all supported locale files (no missing/extra keys).
-3. Check that no broken references exist in code.
-4. Ensure files are properly formatted (run `pnpm web:format`).
+3. Verify non-English locale values are translated (not English copies left as final state).
+4. Check that no broken references exist in code.
+5. Ensure files are properly formatted (run `pnpm web:format`).
 
 ## Tools
 
