@@ -179,7 +179,7 @@ describe("GET /history", () => {
     );
   });
 
-  it("filters types and projectId on task and job rows", async () => {
+  it("filters types and projectId on task and job rows only", async () => {
     const projectId = "33333333-3333-4333-8333-333333333333";
     const app = createApp();
     const response = await app.request(
@@ -199,6 +199,42 @@ describe("GET /history", () => {
                   projectId,
                   userId: "user_123",
                   workspaceId: WORKSPACE_CONTEXT.workspaceId,
+                },
+                {
+                  kind: HistoryKind.CONVERSATION,
+                  userId: "user_123",
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("includes conversations when projectId=null filters unassigned tasks and jobs", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?types=task,conversation&projectId=null",
+    );
+
+    expect(response.status).toBe(200);
+    expect(historyFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { archivedAt: null },
+            {
+              OR: [
+                {
+                  kind: { in: [HistoryKind.TASK] },
+                  projectId: null,
+                  userId: "user_123",
+                  workspaceId: WORKSPACE_CONTEXT.workspaceId,
+                },
+                {
+                  kind: HistoryKind.CONVERSATION,
+                  userId: "user_123",
                 },
               ],
             },

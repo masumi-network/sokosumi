@@ -45,8 +45,7 @@ export function buildHistoryWhere({
   const workspaceKinds = types.filter(
     (kind) => kind === HistoryKind.TASK || kind === HistoryKind.JOB,
   );
-  const shouldIncludeConversations =
-    projectId === undefined && types.includes(HistoryKind.CONVERSATION);
+  const shouldIncludeConversations = types.includes(HistoryKind.CONVERSATION);
 
   const visibilityBranches: Prisma.HistoryWhereInput[] = [
     ...(workspaceKinds.length > 0
