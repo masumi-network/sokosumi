@@ -105,11 +105,9 @@ vi.mock("@sokosumi/database/repositories", () => ({
 }));
 
 vi.mock("@/components/billing/enterprise-contract-summary", () => ({
-  EnterpriseContractSummary: (props: { billingPortal?: React.ReactNode }) => {
+  EnterpriseContractSummary: (props: { summary: unknown }) => {
     enterpriseContractSummaryMock(props);
-    return (
-      <div data-testid="enterprise-contract-summary">{props.billingPortal}</div>
-    );
+    return <div data-testid="enterprise-contract-summary" />;
   },
 }));
 
@@ -501,7 +499,7 @@ describe("BillingPage", () => {
     expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
   });
 
-  it("shows the enterprise contract summary after the commercial term and restores the billing portal", async () => {
+  it("shows the enterprise contract summary after the commercial term with contact us", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       _count: { members: 2 },
       id: "org-enterprise-post-term",
@@ -554,12 +552,7 @@ describe("BillingPage", () => {
     );
     expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
     expect(view.queryByTestId("balance-section")).toBeNull();
-    expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        billingPortal: expect.anything(),
-      }),
-    );
-    expect(balanceBillingPortalLinkMock).toHaveBeenCalled();
-    expect(view.getByTestId("balance-billing-portal-link")).toBeTruthy();
+    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
+    expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
   });
 });

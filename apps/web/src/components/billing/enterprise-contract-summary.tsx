@@ -1,20 +1,14 @@
 import { getFormatter, getTranslations } from "next-intl/server";
-import type { ReactNode } from "react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { EnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
+const ENTERPRISE_CONTACT_HREF = "mailto:info@sokosumi.com";
+
 interface EnterpriseContractSummaryProps {
-  billingPortal?: ReactNode;
-  spendableCredits?: number | null;
   summary: EnterpriseContractBillingSummary;
 }
 
@@ -29,8 +23,6 @@ function formatDate(
 }
 
 export async function EnterpriseContractSummary({
-  billingPortal,
-  spendableCredits,
   summary,
 }: EnterpriseContractSummaryProps) {
   const t = await getTranslations("App.Billing.EnterpriseContract");
@@ -38,48 +30,23 @@ export async function EnterpriseContractSummary({
   const poolRemainingCredits = formatCreditsForDisplay(
     summary.poolRemainingCredits,
   );
-  const poolTotalCredits = formatCreditsForDisplay(summary.poolTotalCredits);
-  const formattedSpendableCredits =
-    spendableCredits != null && spendableCredits > 0
-      ? formatCreditsForDisplay(spendableCredits)
-      : null;
 
   return (
     <Card>
-      <CardHeader className="grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-y-1.5">
-        <div className="col-start-1 row-span-1 flex min-w-0 flex-col gap-1 sm:row-span-2">
-          <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>
-            {summary.isConsumable ? t("description") : t("postTermDescription")}
-          </CardDescription>
-        </div>
-        <div className="col-start-1 flex flex-col gap-1 sm:col-start-2 sm:items-end sm:text-right">
+      <CardHeader>
+        <CardTitle>{t("title")}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-sm font-medium">
+            {t("poolBalanceLabel")}
+          </p>
           <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
             {t("poolBalanceCredits", { credits: poolRemainingCredits })}
           </p>
-          <p className="text-muted-foreground text-sm tabular-nums">
-            {t("poolBalanceValue", {
-              remaining: poolRemainingCredits,
-              total: poolTotalCredits,
-            })}
-          </p>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
         <Separator />
         <dl className="grid gap-3 text-sm sm:grid-cols-2">
-          {formattedSpendableCredits != null ? (
-            <div className="space-y-1 sm:col-span-2">
-              <dt className="text-muted-foreground">
-                {t("spendableCreditsLabel")}
-              </dt>
-              <dd className="font-medium tabular-nums">
-                {t("spendableCreditsValue", {
-                  credits: formattedSpendableCredits,
-                })}
-              </dd>
-            </div>
-          ) : null}
           <div className="space-y-1">
             <dt className="text-muted-foreground">{t("monthlyGrantLabel")}</dt>
             <dd className="font-medium tabular-nums">
@@ -129,12 +96,15 @@ export async function EnterpriseContractSummary({
             </dd>
           </div>
         </dl>
-        {billingPortal ? (
-          <>
-            <Separator />
-            <div>{billingPortal}</div>
-          </>
-        ) : null}
+        <Separator />
+        <div className="space-y-3">
+          <p className="text-muted-foreground text-sm">
+            {t("contactDescription")}
+          </p>
+          <Button asChild className="w-full sm:w-auto" variant="outline">
+            <a href={ENTERPRISE_CONTACT_HREF}>{t("contactUsCta")}</a>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

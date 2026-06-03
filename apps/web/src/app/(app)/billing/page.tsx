@@ -190,11 +190,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
           {isEnterpriseContract ? (
             enterpriseContractSummary ? (
-              <EnterpriseContractSummary
-                billingPortal={organizationBillingPortal}
-                spendableCredits={credits}
-                summary={enterpriseContractSummary}
-              />
+              <EnterpriseContractSummary summary={enterpriseContractSummary} />
             ) : null
           ) : (
             <BalanceSection

@@ -2446,12 +2446,8 @@
       "orgAccessRestrictedHint": "Wechsle zu deinem persönlichen Account oder kontaktiere einen Organisations-Admin, wenn du Zugang benötigst.",
       "EnterpriseContract": {
         "title": "Enterprise contract",
-        "description": "Your organization is on a Sokosumi-managed enterprise contract.",
-        "postTermDescription": "Your enterprise contract term has ended. Subscription changes are available again.",
+        "poolBalanceLabel": "Available organization credits",
         "poolBalanceCredits": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
-        "poolBalanceValue": "{remaining} of {total} credits remaining",
-        "spendableCreditsLabel": "Your spendable credits",
-        "spendableCreditsValue": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
         "monthlyGrantLabel": "Monthly grant",
         "monthlyGrantCredits": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
         "currentPeriodEndLabel": "Current period ends",
@@ -2461,7 +2457,9 @@
         "nextActivationNone": "No upcoming activations",
         "notAvailable": "Not available",
         "purchasedSeatsLabel": "Purchased seats",
-        "purchasedSeatsValue": "{seats, plural, =1 {# seat} other {# seats}}"
+        "purchasedSeatsValue": "{seats, plural, =1 {# seat} other {# seats}}",
+        "contactDescription": "Get in touch with our team about your enterprise contract, renewals, or billing questions.",
+        "contactUsCta": "Contact us"
       },
       "Errors": {
         "unauthenticated": "Bitte melde dich an, um fortzufahren",
