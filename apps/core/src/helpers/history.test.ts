@@ -2,12 +2,37 @@ import { HistoryKind, JobType, TaskStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 import { describe, expect, it, vi } from "vitest";
 
+import type prisma from "@/lib/db/prisma";
+import type { UserAuthenticationContext } from "@/middleware/auth";
+
 import {
   buildHistoryArchivedFilter,
   buildHistoryStatusFilter,
   type HistoryRowForApi,
   mapHistoryRow,
 } from "./history";
+
+type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job">;
+
+const orgAuthContext: UserAuthenticationContext = {
+  actor: "user",
+  userId: "user_123",
+  organizationId: "org_123",
+  role: "user",
+};
+
+function createHistoryPrismaClient(
+  overrides: {
+    $queryRaw?: HistoryPrismaClient["$queryRaw"];
+    job?: Pick<HistoryPrismaClient["job"], "findMany">;
+  } = {},
+): HistoryPrismaClient {
+  return {
+    $queryRaw: vi.fn(),
+    job: { findMany: vi.fn() },
+    ...overrides,
+  } as unknown as HistoryPrismaClient;
+}
 
 function createHistoryRow(
   overrides: Partial<HistoryRowForApi> = {},
@@ -311,18 +336,14 @@ describe("findJobHistoryEntityIdsMatchingStatuses", () => {
         scope: "owned",
         statuses: [SokosumiJobStatus.PAYMENT_FAILED],
         types: [HistoryKind.JOB],
-        userContext: {
-          userId: "user_123",
-          organizationId: "org_123",
-          role: "user",
-        },
+        userContext: { source: "session", ...orgAuthContext },
         workspaceContext: {
           workspaceId: "11111111-1111-7111-8111-111111111111",
           userId: null,
           organizationId: "org_123",
         },
       },
-      { $queryRaw: queryRawMock, job: { findMany: vi.fn() } },
+      createHistoryPrismaClient({ $queryRaw: queryRawMock }),
     );
 
     expect(entityIds).toEqual(["job_123"]);
@@ -349,10 +370,10 @@ describe("loadComputedJobStatusByEntityId", () => {
     ]);
     const { loadComputedJobStatusByEntityId } = await import("./history");
 
-    const statuses = await loadComputedJobStatusByEntityId(["job_123"], {
-      $queryRaw: vi.fn(),
-      job: { findMany: findManyMock },
-    });
+    const statuses = await loadComputedJobStatusByEntityId(
+      ["job_123"],
+      createHistoryPrismaClient({ job: { findMany: findManyMock } }),
+    );
 
     expect(findManyMock).toHaveBeenCalledWith({
       where: { id: { in: ["job_123"] } },
