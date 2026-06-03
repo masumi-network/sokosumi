@@ -140,11 +140,11 @@ export function mapHistoryRow(row: HistoryRowForApi): HistoryItem {
 }
 
 export function createHistoryPaginationMeta(
-  rows: HistoryRowForApi[],
+  items: HistoryItem[],
   count: number,
   take: number,
   hasMore: boolean,
   cursor: string | undefined,
 ): CursorPaginationMeta {
-  return createPaginationMeta(rows, count, take, hasMore, cursor);
+  return createPaginationMeta(items, count, take, hasMore, cursor);
 }

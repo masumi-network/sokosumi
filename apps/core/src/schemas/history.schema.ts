@@ -128,7 +128,7 @@ export const historyListResponseExample = {
       cursor: null,
       limit: 20,
       total: 200,
-      nextCursor: "hist_123",
+      nextCursor: "tsk_123",
     },
   },
 };

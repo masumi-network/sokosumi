@@ -11,18 +11,24 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetHistory from "./get";
 
-const { historyCountMock, historyFindManyMock, prismaTransactionMock } =
-  vi.hoisted(() => ({
-    historyCountMock: vi.fn(),
-    historyFindManyMock: vi.fn(),
-    prismaTransactionMock: vi.fn(),
-  }));
+const {
+  historyCountMock,
+  historyFindFirstMock,
+  historyFindManyMock,
+  prismaTransactionMock,
+} = vi.hoisted(() => ({
+  historyCountMock: vi.fn(),
+  historyFindFirstMock: vi.fn(),
+  historyFindManyMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
     history: {
       count: historyCountMock,
+      findFirst: historyFindFirstMock,
       findMany: historyFindManyMock,
     },
   },
@@ -84,6 +90,7 @@ function createHistoryRow(
 describe("GET /history", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    historyFindFirstMock.mockResolvedValue(null);
     historyFindManyMock.mockResolvedValue([]);
     historyCountMock.mockResolvedValue(0);
     prismaTransactionMock.mockImplementation(
@@ -250,13 +257,24 @@ describe("GET /history", () => {
     );
   });
 
-  it("uses the history row id as the pagination cursor", async () => {
+  it("resolves entity ids to history row ids for pagination cursors", async () => {
+    historyFindFirstMock.mockResolvedValue({ id: "history_cursor" });
+
     const app = createApp();
     const response = await app.request(
-      "http://localhost/?cursor=history_cursor&limit=10",
+      "http://localhost/?cursor=entity_cursor&limit=10",
     );
 
     expect(response.status).toBe(200);
+    expect(historyFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([{ entityId: "entity_cursor" }]),
+        }),
+        select: { id: true },
+        orderBy: [{ sortAt: "desc" }, { id: "desc" }],
+      }),
+    );
     expect(historyFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         cursor: { id: "history_cursor" },
@@ -266,7 +284,7 @@ describe("GET /history", () => {
     );
   });
 
-  it("returns the next history row id cursor and null conversation credits", async () => {
+  it("returns the next item entity id as cursor and null conversation credits", async () => {
     const visibleRow = createHistoryRow({
       bucketSlug: "hannah",
       creditsCents: null,
@@ -295,6 +313,6 @@ describe("GET /history", () => {
         kind: "conversation",
       }),
     ]);
-    expect(body.meta.pagination.nextCursor).toBe(visibleRow.id);
+    expect(body.meta.pagination.nextCursor).toBe(visibleRow.entityId);
   });
 });

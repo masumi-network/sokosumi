@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { HistoryKind } from "@sokosumi/database";
 
+import { badRequest } from "@/helpers/error";
 import {
   buildHistoryWhere,
   createHistoryPaginationMeta,
@@ -158,13 +159,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceContext,
     });
     const takePlusOne = take + 1;
+    const cursorHistoryId = cursor
+      ? (
+          await prisma.history.findFirst({
+            where: { AND: [where, { entityId: cursor }] },
+            select: { id: true },
+            orderBy: [{ sortAt: "desc" }, { id: "desc" }],
+          })
+        )?.id
+      : undefined;
+
+    if (cursor && !cursorHistoryId) {
+      throw badRequest("Invalid pagination cursor");
+    }
 
     const [rows, count] = await prisma.$transaction([
       prisma.history.findMany({
         where,
         take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        skip: cursorHistoryId ? 1 : skip,
+        cursor: cursorHistoryId ? { id: cursorHistoryId } : undefined,
         orderBy: [{ sortAt: "desc" }, { id: "desc" }],
       }),
       prisma.history.count({ where }),
@@ -174,7 +188,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const pagedRows = rows.slice(0, take);
     const historyItems = pagedRows.map((row) => mapHistoryRow(row));
     const paginationMeta = createHistoryPaginationMeta(
-      pagedRows,
+      historyItems,
       count,
       take,
       hasMore,
