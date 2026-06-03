@@ -76,7 +76,8 @@ const creditsResponseExtraSchema = z
 const creditsDeprecatedMirrorSchema = z.object({
   subscription: subscriptionSchema.nullable(),
   buffer: z.number().openapi({
-    description: "Current available non-subscription credit balance",
+    description:
+      "Current available credit balance excluding subscription-period and enterprise pool buckets (see extra.enterprise for pool)",
     example: 25.0,
   }),
   total: z.number().openapi({

@@ -269,11 +269,6 @@ export async function buildCreditsPayload(params: {
         }
       : null,
   );
-  const { buffer, total } = getCreditSummary({
-    totalCredits,
-    subscriptionCredits,
-  });
-
   const bucketRows =
     await creditBucketRepository.listAvailableBucketsWithBalances(
       params.userId,
@@ -331,6 +326,16 @@ export async function buildCreditsPayload(params: {
           })),
         }
       : null;
+
+  const enterpriseRemainingCredits = enterprise?.credits.remaining ?? 0;
+  const { buffer: bufferIncludingEnterprise, total } = getCreditSummary({
+    totalCredits,
+    subscriptionCredits,
+  });
+  const buffer = Math.max(
+    0,
+    bufferIncludingEnterprise - enterpriseRemainingCredits,
+  );
 
   const credits = {
     subscription,
