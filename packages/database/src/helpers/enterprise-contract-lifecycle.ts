@@ -6,7 +6,7 @@ import {
 } from "../generated/prisma/client.js";
 import {
   buildEnterpriseContractPeriodSchedule,
-  deriveEnterpriseContractEndDate,
+  isEnterpriseContractPastCommercialTerm,
   resolveContractStartDate,
   validateEnterprisePeriodCount,
 } from "./enterprise-contract.js";
@@ -63,6 +63,10 @@ export async function activateEnterpriseContract(
       "Only draft enterprise contracts can be activated",
     );
   }
+
+  await completeEnterpriseContractsAfterLastPeriod(tx, params.activatedAt, {
+    organizationId: contract.organizationId,
+  });
 
   const existingActiveContract = await tx.enterpriseContract.findFirst({
     where: {
@@ -283,9 +287,14 @@ export async function cancelEnterpriseContract(
   });
 }
 
+export interface CompleteEnterpriseContractsOptions {
+  organizationId?: string;
+}
+
 export async function completeEnterpriseContractsAfterLastPeriod(
   tx: Prisma.TransactionClient,
   now: Date = new Date(),
+  options?: CompleteEnterpriseContractsOptions,
 ): Promise<number> {
   const activeContracts = await tx.enterpriseContract.findMany({
     where: {
@@ -293,6 +302,9 @@ export async function completeEnterpriseContractsAfterLastPeriod(
       startDate: {
         not: null,
       },
+      ...(options?.organizationId
+        ? { organizationId: options.organizationId }
+        : {}),
     },
     select: {
       id: true,
@@ -308,12 +320,13 @@ export async function completeEnterpriseContractsAfterLastPeriod(
       continue;
     }
 
-    const contractEnd = deriveEnterpriseContractEndDate(
-      contract.startDate,
-      contract.periodCount,
-    );
-
-    if (now.getTime() > contractEnd.getTime()) {
+    if (
+      isEnterpriseContractPastCommercialTerm({
+        now,
+        periodCount: contract.periodCount,
+        startDate: contract.startDate,
+      })
+    ) {
       await tx.enterpriseContract.update({
         where: {
           id: contract.id,

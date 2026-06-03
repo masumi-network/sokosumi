@@ -168,6 +168,7 @@ function createLifecycleClient(params?: {
   const updateContractMock = vi.fn().mockResolvedValue({});
   const findContractMock = vi.fn().mockResolvedValue(contract);
   const findActiveContractMock = vi.fn().mockResolvedValue(null);
+  const findManyContractsMock = vi.fn().mockResolvedValue([]);
   const findMemberMock = vi
     .fn()
     .mockResolvedValue({ userId: params?.ownerId ?? OWNER_ID });
@@ -188,6 +189,7 @@ function createLifecycleClient(params?: {
     createdPeriods,
     deleteManyPeriodsMock,
     findActiveContractMock,
+    findManyContractsMock,
     findContractMock,
     findMemberMock,
     findManyMembersMock,
@@ -205,6 +207,7 @@ function createLifecycleClient(params?: {
       },
       enterpriseContract: {
         findFirst: findActiveContractMock,
+        findMany: findManyContractsMock,
         findUnique: findContractMock,
         update: updateContractMock,
       },
@@ -580,6 +583,36 @@ describe("activateEnterpriseContract", () => {
 
     assert.equal(result.periodBucketCreated, false);
     assert.equal(client.grantClient.createTransactionMock.mock.calls.length, 0);
+  });
+
+  it("completes a past-term active contract before activating a new draft", async () => {
+    const activatedAt = new Date("2027-06-01T00:00:00.000Z");
+    const expiredStartDate = new Date("2026-01-01T00:00:00.000Z");
+    const client = createLifecycleClient();
+    client.findManyContractsMock.mockResolvedValue([
+      {
+        id: "expired-active-contract",
+        periodCount: 1,
+        startDate: expiredStartDate,
+      },
+    ]);
+
+    const result = await activateEnterpriseContract(
+      CONTRACT_ID,
+      { activatedAt },
+      client.tx,
+    );
+
+    assert.equal(result.periodsCreated, 3);
+    assert.equal(client.findManyContractsMock.mock.calls.length, 1);
+    assert.equal(
+      client.updateContractMock.mock.calls.some(
+        (call) =>
+          call[0]?.where.id === "expired-active-contract" &&
+          call[0]?.data.status === EnterpriseContractStatus.completed,
+      ),
+      true,
+    );
   });
 
   it("rejects activation when the organization already has an active contract", async () => {
