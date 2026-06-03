@@ -4,6 +4,7 @@ import {
   EnterpriseContractPeriodStatus,
   EnterpriseContractStatus,
 } from "@sokosumi/database";
+import type { PaidSubscriptionBlocker } from "@sokosumi/database/helpers";
 import {
   deriveEnterpriseContractEndDate,
   resolveContractStartDate,
@@ -106,6 +107,19 @@ export function mapEnterpriseContractForApi(
           left.periodStart.getTime() - right.periodStart.getTime(),
       )
       .map(mapEnterpriseContractPeriodForApi),
+  };
+}
+
+export function mapEnterpriseContractActivationBlockerForApi(
+  blocker: PaidSubscriptionBlocker,
+) {
+  return {
+    subscriptionId: blocker.subscriptionId,
+    stripeSubscriptionId: blocker.stripeSubscriptionId,
+    referenceId: blocker.referenceId,
+    plan: blocker.plan,
+    scope: blocker.scope,
+    userId: blocker.userId,
   };
 }
 

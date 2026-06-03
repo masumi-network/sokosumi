@@ -67,10 +67,20 @@ export function errorHandler(
       Sentry.captureException(error);
     }
 
-    const errorResponse: ErrorResponse = {
+    const extensions =
+      typeof error.cause === "object" &&
+      error.cause !== null &&
+      "extensions" in error.cause &&
+      error.cause.extensions != null &&
+      typeof error.cause.extensions === "object"
+        ? (error.cause.extensions as Record<string, unknown>)
+        : undefined;
+
+    const errorResponse = {
       error: getErrorName(status),
       message: error.message,
       meta,
+      ...extensions,
     };
 
     return c.json(errorResponse, status);

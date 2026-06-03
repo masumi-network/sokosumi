@@ -3,13 +3,18 @@ import { activateEnterpriseContract } from "@sokosumi/database/helpers";
 
 import { handleEnterpriseContractLifecycleError } from "@/helpers/enterprise-contract-route.js";
 import { notFound } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonContent,
+  jsonErrorResponse,
+  jsonSuccessResponse,
+} from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   activateEnterpriseContractRequestSchema,
   activateEnterpriseContractResponseSchema,
+  enterpriseContractActivationConflictResponseSchema,
   enterpriseContractIdParamsSchema,
 } from "@/schemas/enterprise-contract.schema";
 
@@ -36,7 +41,11 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict"),
+    409: {
+      description:
+        "Activation blocked by paid subscriptions (see blockers in response body)",
+      content: jsonContent(enterpriseContractActivationConflictResponseSchema),
+    },
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });

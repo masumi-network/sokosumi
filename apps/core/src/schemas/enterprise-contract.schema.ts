@@ -9,6 +9,7 @@ import {
   enterpriseContractPeriodStatusValues,
   enterpriseContractStatusValues,
 } from "@/helpers/enterprise-contract-api.js";
+import { errorResponseSchema } from "@/helpers/error.js";
 
 export const enterpriseContractIdParamsSchema = z.object({
   id: z.uuid().openapi({
@@ -176,6 +177,13 @@ export const enterpriseContractActivationBlockerSchema = z
     userId: z.string().optional(),
   })
   .openapi("EnterpriseContractActivationBlocker");
+
+export const enterpriseContractActivationConflictResponseSchema =
+  errorResponseSchema
+    .extend({
+      blockers: z.array(enterpriseContractActivationBlockerSchema),
+    })
+    .openapi("EnterpriseContractActivationConflictResponse");
 
 export const activateEnterpriseContractResponseSchema = z
   .object({

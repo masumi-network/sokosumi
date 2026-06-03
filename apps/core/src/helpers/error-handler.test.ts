@@ -1,8 +1,9 @@
 import { z } from "@hono/zod-openapi";
+import { EnterpriseContractActivationError } from "@sokosumi/database/helpers";
 import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { handleEnterpriseContractLifecycleError } from "./enterprise-contract-route";
 import { serviceUnavailable } from "./error";
 import { errorHandler } from "./error-handler";
 
@@ -69,6 +70,43 @@ describe("errorHandler", () => {
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
     expect(body.message).toBe("Service is under maintenance");
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("includes activation blockers in 409 conflict responses", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      handleEnterpriseContractLifecycleError(
+        new EnterpriseContractActivationError([
+          {
+            plan: "starter",
+            referenceId: "org-1",
+            scope: "organization",
+            stripeSubscriptionId: "sub_stripe_1",
+            subscriptionId: "sub_local_1",
+          },
+        ]),
+      );
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      blockers: Array<{ scope: string; subscriptionId: string }>;
+      error: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("Conflict");
+    expect(body.blockers).toEqual([
+      {
+        plan: "starter",
+        referenceId: "org-1",
+        scope: "organization",
+        stripeSubscriptionId: "sub_stripe_1",
+        subscriptionId: "sub_local_1",
+      },
+    ]);
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 

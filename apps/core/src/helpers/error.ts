@@ -7,6 +7,8 @@ import { dateTimeSchema } from "./datetime.js";
 export interface HTTPExceptionMetadata {
   kind?: string;
   reportToSentry?: boolean;
+  /** Merged into the JSON error body (e.g. activation `blockers`). */
+  extensions?: Record<string, unknown>;
 }
 
 /**
@@ -86,8 +88,11 @@ export const notFound = (message: string = "Not Found"): HTTPException => {
  * 409 Conflict
  * The request conflicts with the current state of the server
  */
-export const conflict = (message: string = "Conflict"): HTTPException => {
-  return createHTTPException(409, message);
+export const conflict = (
+  message: string = "Conflict",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(409, message, metadata);
 };
 
 /**

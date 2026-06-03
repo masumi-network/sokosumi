@@ -26,6 +26,10 @@ describe("enterprise contracts routes OpenAPI contract", () => {
 
     expect(activate?.responses).toHaveProperty("401");
     expect(activate?.responses).toHaveProperty("403");
-    expect(activate?.responses).toHaveProperty("409");
+    expect(
+      activate?.responses?.["409"]?.content?.["application/json"]?.schema,
+    ).toEqual({
+      $ref: "#/components/schemas/EnterpriseContractActivationConflictResponse",
+    });
   });
 });
