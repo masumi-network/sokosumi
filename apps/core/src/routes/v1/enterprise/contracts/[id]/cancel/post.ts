@@ -37,15 +37,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const exists = await prisma.enterpriseContract.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!exists) {
-      throw notFound("Enterprise contract not found");
-    }
-
     const now = new Date();
 
     try {

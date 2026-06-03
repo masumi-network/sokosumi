@@ -2,7 +2,6 @@ import { createRoute } from "@hono/zod-openapi";
 import { activateEnterpriseContract } from "@sokosumi/database/helpers";
 
 import { handleEnterpriseContractLifecycleError } from "@/helpers/enterprise-contract-route.js";
-import { notFound } from "@/helpers/error";
 import {
   jsonContent,
   jsonErrorResponse,
@@ -54,15 +53,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
-
-    const exists = await prisma.enterpriseContract.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!exists) {
-      throw notFound("Enterprise contract not found");
-    }
 
     const activatedAt = new Date();
 
