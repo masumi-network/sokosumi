@@ -14,13 +14,15 @@ When refactoring or adding features that touch logic used in more than one app:
 
 ### Where to put it
 
-- **`packages/utils`** (`@sokosumi/utils`): Framework-agnostic helpers—URL/file utilities, markdown link extraction, string helpers, user-name helpers, etc. No React, no Hono, no app-specific config.
+- **`packages/utils`** (`@sokosumi/utils`): Framework-agnostic helpers—URL/file utilities, markdown link extraction, string helpers, user-name helpers, billing plan name types/parsers, credit conversion, etc. No React, no Hono, no Prisma, no app-specific config.
 - **Other packages**: Use existing packages when the logic fits (e.g. `@sokosumi/database` for DB helpers, `@sokosumi/masumi` for agent protocol).
+
+For **client-safe vs database-backed** boundaries (when not to import `@sokosumi/database/helpers` from the web client), see [utils-vs-database.mdc](./utils-vs-database.mdc).
 
 ### How to consume shared code
 
 - **Import directly** from the shared package in app code (e.g. `import { extractFileLikeLinks, isHttpUrl } from "@sokosumi/utils"`).
-- **Avoid re-exports** in the app (e.g. do not add `apps/web/src/lib/utils/file.ts` that only re-exports from `@sokosumi/utils`). Re-exports add indirection and can get out of sync; prefer updating all call sites to use the package.
+- **Avoid re-export layers** — see [avoid-re-exports.mdc](./avoid-re-exports.mdc).
 
 ### Refactoring steps
 

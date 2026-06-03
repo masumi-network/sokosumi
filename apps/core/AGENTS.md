@@ -654,6 +654,8 @@ Environment variables required by Vitest (or by code under test) must be set in 
 
 ## Additional Rules
 
+- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import from the canonical package; no passthrough re-export modules
+- [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – shared pure helpers in `@sokosumi/utils`; Prisma-backed logic in `@sokosumi/database`
 - [Credits API](.cursor/rules/credits-api.mdc) – expose credits only, never cents
 - [Data Access](.cursor/rules/data-access.mdc) – direct Prisma, no repository pattern
 - [Responses](.cursor/rules/responses.mdc)

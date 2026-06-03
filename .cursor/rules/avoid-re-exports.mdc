@@ -1,0 +1,37 @@
+---
+description: "Avoid re-export layers; import from the canonical package or module that owns the symbol"
+alwaysApply: false
+---
+
+## Avoid re-exports
+
+Re-export layers (`export { foo } from "other-module"` or `export type { Bar } from "…"`) look convenient but hide the real owner of the code. They drift out of sync, confuse readers (“where is this defined?”), and can pull the wrong dependency graph into client bundles.
+
+**Default: import from the module that owns the symbol.** Do not add a passthrough file or barrel re-export unless it provides real value.
+
+### Do not add
+
+| Pattern | Why |
+| ------- | --- |
+| App file that only re-exports a shared package | e.g. `apps/web/src/lib/utils/file.ts` → `@sokosumi/utils`. Update call sites to import the package directly. |
+| Package re-exporting another package’s API | e.g. `@sokosumi/database/helpers` re-exporting `@sokosumi/utils`. Consumers import each package at the call site. |
+| Duplicate type aliases in a second module | e.g. defining `SelfServeSubscriptionPlanName` in both utils and `subscription-catalog.ts`. One canonical definition only. |
+| “Stable local entry” that is only `export … from` | If the only purpose is indirection, delete the layer and fix imports. |
+
+### Allowed (not “re-export smell”)
+
+- **Package public entry**: `packages/utils/src/index.ts` (and similar) aggregating **this package’s own** modules—that is the documented API surface.
+- **Same-package barrel**: `export * from "./feature.js"` inside a package when the barrel is the intentional entry (e.g. `@sokosumi/database/helpers` exporting its own helpers). Do not use that barrel to forward another package’s symbols.
+- **App modules that add behavior**: Wrapping, env wiring, or app-specific types composed on top of shared imports—not a one-line forward.
+
+### Refactoring away from re-exports
+
+1. Find the **canonical owner** (usually `@sokosumi/utils`, `@sokosumi/database`, or the defining file in the same app).
+2. Update all imports to point there.
+3. Delete the passthrough file or remove the `export … from` lines.
+4. Run `pnpm check` and the relevant workspace build/tests.
+
+### Related rules
+
+- [shared-packages.mdc](./shared-packages.mdc) — where shared code lives
+- [utils-vs-database.mdc](./utils-vs-database.mdc) — no utils symbols on `@sokosumi/database/helpers`
