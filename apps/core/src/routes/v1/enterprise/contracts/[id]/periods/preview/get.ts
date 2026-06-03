@@ -7,6 +7,7 @@ import {
 import {
   derivePreviewContractEnd,
   mapEnterpriseContractPreviewPeriodForApi,
+  parseEnterpriseContractActivatedAt,
 } from "@/helpers/enterprise-contract-api.js";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -46,7 +47,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
     const { activatedAt: activatedAtRaw } = c.req.valid("query");
-    const activatedAt = new Date(activatedAtRaw);
+    const activatedAt = parseEnterpriseContractActivatedAt(activatedAtRaw);
 
     const contract = await prisma.enterpriseContract.findUnique({
       where: { id },

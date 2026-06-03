@@ -367,13 +367,24 @@ describe("enterprise contract admin routes", () => {
       expect(response.status).toBe(409);
       expect(previewEnterpriseContractPeriodsMock).not.toHaveBeenCalled();
     });
+
+    it("returns 422 when activatedAt is not a valid datetime", async () => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord(),
+      );
+      const app = createContractsApp();
+
+      const response = await app.request(
+        `http://localhost/${CONTRACT_ID}/periods/preview?activatedAt=not-a-date`,
+      );
+
+      expect(response.status).toBe(422);
+      expect(previewEnterpriseContractPeriodsMock).not.toHaveBeenCalled();
+    });
   });
 
   describe("POST /{id}/activate", () => {
     it("activates a draft contract with an empty JSON body", async () => {
-      enterpriseContractFindUniqueMock.mockResolvedValue(
-        createContractRecord(),
-      );
       const app = createContractsApp();
 
       const response = await app.request(
@@ -402,9 +413,6 @@ describe("enterprise contract admin routes", () => {
     });
 
     it("returns 404 when activation fails with a not-found lifecycle error", async () => {
-      enterpriseContractFindUniqueMock.mockResolvedValue(
-        createContractRecord(),
-      );
       activateEnterpriseContractMock.mockRejectedValue(
         new EnterpriseContractNotFoundError(),
       );
@@ -423,9 +431,6 @@ describe("enterprise contract admin routes", () => {
     });
 
     it("returns 409 with blockers and kind when activation is blocked", async () => {
-      enterpriseContractFindUniqueMock.mockResolvedValue(
-        createContractRecord(),
-      );
       activateEnterpriseContractMock.mockRejectedValue(
         new EnterpriseContractActivationError([
           {
@@ -467,9 +472,6 @@ describe("enterprise contract admin routes", () => {
     });
 
     it("returns 409 for other lifecycle conflicts", async () => {
-      enterpriseContractFindUniqueMock.mockResolvedValue(
-        createContractRecord(),
-      );
       activateEnterpriseContractMock.mockRejectedValue(
         new EnterpriseContractLifecycleError(
           "Only draft enterprise contracts can be activated",
@@ -492,11 +494,6 @@ describe("enterprise contract admin routes", () => {
 
   describe("POST /{id}/cancel", () => {
     it("returns 409 when canceling a non-active contract", async () => {
-      enterpriseContractFindUniqueMock
-        .mockResolvedValueOnce({ id: CONTRACT_ID })
-        .mockResolvedValueOnce(
-          createContractRecord({ status: EnterpriseContractStatus.draft }),
-        );
       cancelEnterpriseContractMock.mockRejectedValue(
         new EnterpriseContractLifecycleError(
           "Only active enterprise contracts can be canceled",

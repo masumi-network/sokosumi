@@ -40,6 +40,17 @@ export function creditsPerMonthToCents(creditsPerMonth: number): bigint {
   return convertCreditsToCents(creditsPerMonth);
 }
 
+export function parseEnterpriseContractActivatedAt(
+  activatedAtRaw: string,
+): Date {
+  const activatedAt = new Date(activatedAtRaw);
+  if (Number.isNaN(activatedAt.getTime())) {
+    throw unprocessableEntity("activatedAt must be a valid ISO 8601 datetime");
+  }
+
+  return activatedAt;
+}
+
 export function optionalOneTimeCreditsToCents(
   oneTimeCredits: number | undefined,
 ): bigint | null {
