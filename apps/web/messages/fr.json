@@ -2947,6 +2947,7 @@
           "currentPlanCta": "Forfait actuel",
           "updateSeatsCta": "Mettre à jour les Seats",
           "choosePlanCta": "Choisir un forfait",
+          "enterpriseContractPendingDescription": "Votre contrat Enterprise débute le {date}. Jusqu'à cette date, les abonnements en libre-service restent disponibles.",
           "Errors": {
             "unauthenticated": "Veuillez vous connecter pour continuer",
             "unauthenticatedAction": "Se connecter",

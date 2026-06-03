@@ -101,7 +101,7 @@ describe("OrganizationSubscriptionSection", () => {
     });
   });
 
-  it("shows only the enterprise card when the org has an active contract", () => {
+  it("shows only the enterprise card when the org has a consumable contract", () => {
     render(
       <OrganizationSubscriptionSection
         assignedSeatCount={2}
@@ -109,6 +109,8 @@ describe("OrganizationSubscriptionSection", () => {
         currentPlan="enterprise"
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={5}
+        enterpriseContractStartDate={new Date("2026-01-01T00:00:00.000Z")}
+        isEnterpriseConsumable
         isEnterpriseContract
         memberCount={3}
         organizationId="org-enterprise"
@@ -126,12 +128,41 @@ describe("OrganizationSubscriptionSection", () => {
     expect(subscriptionFreePlanRowMock).not.toHaveBeenCalled();
   });
 
+  it("shows self-serve plans before a consumable enterprise contract starts", () => {
+    render(
+      <OrganizationSubscriptionSection
+        assignedSeatCount={0}
+        cancelAtPeriodEnd={false}
+        currentPlan="enterprise"
+        currentPeriodEnd={null}
+        currentSeats={5}
+        enterpriseContractStartDate={new Date("2099-06-01T00:00:00.000Z")}
+        isEnterpriseConsumable={false}
+        isEnterpriseContract
+        memberCount={0}
+        organizationId="org-enterprise-pending"
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+      />,
+    );
+
+    expect(subscriptionEnterprisePlanCardMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isCurrent: true,
+      }),
+    );
+    expect(subscriptionPlanCardMock).toHaveBeenCalled();
+    expect(subscriptionFreePlanRowMock).toHaveBeenCalled();
+  });
+
   it("renders a cancel action for the current paid plan and no action for free", () => {
     render(
       <OrganizationSubscriptionSection
         assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
+        enterpriseContractStartDate={null}
+        isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={2}
@@ -164,6 +195,8 @@ describe("OrganizationSubscriptionSection", () => {
         assignedSeatCount={2}
         cancelAtPeriodEnd
         currentPlan="starter"
+        enterpriseContractStartDate={null}
+        isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={2}
@@ -189,6 +222,8 @@ describe("OrganizationSubscriptionSection", () => {
         assignedSeatCount={3}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
+        enterpriseContractStartDate={null}
+        isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={2}
@@ -213,6 +248,8 @@ describe("OrganizationSubscriptionSection", () => {
         assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
+        enterpriseContractStartDate={null}
+        isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={2}
@@ -256,6 +293,8 @@ describe("OrganizationSubscriptionSection", () => {
         assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
+        enterpriseContractStartDate={null}
+        isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={2}

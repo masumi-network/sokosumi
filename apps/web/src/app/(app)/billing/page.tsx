@@ -122,7 +122,12 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     );
     const currentPlan = billingPlan.plan;
     const isEnterpriseContract = billingPlan.mode === "enterprise_contract";
-    const showOrganizationBillingPortal = !isEnterpriseContract;
+    const isEnterpriseConsumable =
+      isEnterpriseContract && billingPlan.isConsumable;
+    const enterpriseContractStartDate = isEnterpriseContract
+      ? billingPlan.startDate
+      : null;
+    const showOrganizationBillingPortal = !isEnterpriseConsumable;
     const canPurchaseCredits =
       isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
     const creditsCheckoutParams =
@@ -151,7 +156,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       return {
         credits: plan.credits,
         currency: plan.currency,
-        isCurrent: !isEnterpriseContract && currentPlan === planName,
+        isCurrent: !isEnterpriseConsumable && currentPlan === planName,
         monthlyAmount: plan.monthlyAmount,
         name: planName,
       };
@@ -207,6 +212,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 currentPlan={currentPlan}
                 currentPeriodEnd={billingPlan.periodEnd}
                 currentSeats={currentSeats}
+                enterpriseContractStartDate={enterpriseContractStartDate}
+                isEnterpriseConsumable={isEnterpriseConsumable}
                 isEnterpriseContract={isEnterpriseContract}
                 memberCount={seatSummary.memberCount}
                 organizationId={activeOrganization.id}

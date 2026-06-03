@@ -2947,6 +2947,7 @@
           "currentPlanCta": "現在のプラン",
           "updateSeatsCta": "Seatsを更新",
           "choosePlanCta": "プランを選択",
+          "enterpriseContractPendingDescription": "Enterprise契約は{date}に開始されます。それまではセルフサーブのサブスクリプションをご利用いただけます。",
           "Errors": {
             "unauthenticated": "続行するにはログインしてください",
             "unauthenticatedAction": "ログイン",

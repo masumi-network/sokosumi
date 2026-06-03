@@ -32,6 +32,8 @@ interface OrganizationSubscriptionSectionProps {
   currentPlan: OrganizationBillingPlanName;
   currentPeriodEnd: Date | string | null;
   currentSeats: number;
+  enterpriseContractStartDate: Date | string | null;
+  isEnterpriseConsumable: boolean;
   isEnterpriseContract: boolean;
   memberCount: number;
   organizationId: string;
@@ -45,6 +47,8 @@ export function OrganizationSubscriptionSection({
   currentPlan,
   currentPeriodEnd,
   currentSeats,
+  enterpriseContractStartDate,
+  isEnterpriseConsumable,
   isEnterpriseContract,
   memberCount,
   organizationId,
@@ -104,6 +108,34 @@ export function OrganizationSubscriptionSection({
       date: cancellationDate,
     });
   }, [cancellationDate, tSubscriptions]);
+
+  const showEnterpriseExclusiveUi =
+    isEnterpriseContract && isEnterpriseConsumable;
+  const showEnterprisePendingUi =
+    isEnterpriseContract && !isEnterpriseConsumable;
+
+  const enterpriseContractPendingDescription = useMemo(() => {
+    if (!showEnterprisePendingUi || !enterpriseContractStartDate) {
+      return null;
+    }
+
+    const startDate =
+      enterpriseContractStartDate instanceof Date
+        ? enterpriseContractStartDate
+        : new Date(enterpriseContractStartDate);
+
+    if (Date.now() >= startDate.getTime()) {
+      return null;
+    }
+
+    return t("enterpriseContractPendingDescription", {
+      date: formatter.dateTime(startDate, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    });
+  }, [enterpriseContractStartDate, formatter, showEnterprisePendingUi, t]);
 
   const handleOpenLogin = useCallback(() => {
     router.push("/login");
@@ -236,7 +268,7 @@ export function OrganizationSubscriptionSection({
 
   return (
     <div className="space-y-6">
-      {!isEnterpriseContract ? (
+      {!showEnterpriseExclusiveUi ? (
         <Card>
           <CardContent className="space-y-6">
             <OrganizationSeatSettingsFields
@@ -250,10 +282,20 @@ export function OrganizationSubscriptionSection({
         </Card>
       ) : null}
       <div className="space-y-4">
-        {isEnterpriseContract ? (
+        {showEnterpriseExclusiveUi ? (
           <SubscriptionEnterprisePlanCard isCurrent />
         ) : (
           <>
+            {showEnterprisePendingUi ? (
+              <div className="space-y-4">
+                <SubscriptionEnterprisePlanCard isCurrent />
+                {enterpriseContractPendingDescription ? (
+                  <p className="text-muted-foreground text-sm">
+                    {enterpriseContractPendingDescription}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="grid gap-4 md:grid-cols-2">
               {paidPlans.map((plan) => {
                 const planPresentationProps = getPlanPresentationProps(plan);
@@ -268,7 +310,9 @@ export function OrganizationSubscriptionSection({
                   />
                 );
               })}
-              <SubscriptionEnterprisePlanCard />
+              {!showEnterprisePendingUi ? (
+                <SubscriptionEnterprisePlanCard />
+              ) : null}
             </div>
 
             {freePlan ? (

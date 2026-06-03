@@ -2947,6 +2947,7 @@
           "currentPlanCta": "当前套餐",
           "updateSeatsCta": "更新 Seats",
           "choosePlanCta": "选择套餐",
+          "enterpriseContractPendingDescription": "您的 Enterprise 合约将于 {date} 开始生效。在此之前，您仍可使用自助订阅。",
           "Errors": {
             "unauthenticated": "请登录以继续",
             "unauthenticatedAction": "登录",
