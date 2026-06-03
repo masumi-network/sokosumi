@@ -67,19 +67,27 @@ export function errorHandler(
       Sentry.captureException(error);
     }
 
-    const extensions =
-      typeof error.cause === "object" &&
-      error.cause !== null &&
-      "extensions" in error.cause &&
-      error.cause.extensions != null &&
-      typeof error.cause.extensions === "object"
-        ? (error.cause.extensions as Record<string, unknown>)
+    const cause =
+      typeof error.cause === "object" && error.cause !== null
+        ? (error.cause as {
+            extensions?: Record<string, unknown>;
+            kind?: string;
+          })
         : undefined;
+
+    const extensions = cause?.extensions;
+    const kind =
+      typeof cause?.kind === "string"
+        ? cause.kind
+        : typeof extensions?.kind === "string"
+          ? extensions.kind
+          : undefined;
 
     const errorResponse = {
       error: getErrorName(status),
       message: error.message,
       meta,
+      ...(kind ? { kind } : {}),
       ...extensions,
     };
 

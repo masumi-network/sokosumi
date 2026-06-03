@@ -88,10 +88,13 @@ export type EnterpriseContractResponse = z.infer<
 export const createEnterpriseContractRequestSchema = z
   .object({
     organizationId: z.string().min(1).openapi({ example: "org_123" }),
-    creditsPerMonth: z.number().openapi({
-      example: MIN_ENTERPRISE_CREDITS_PER_MONTH,
-      description: `Minimum ${MIN_ENTERPRISE_CREDITS_PER_MONTH} credits`,
-    }),
+    creditsPerMonth: z
+      .number()
+      .min(MIN_ENTERPRISE_CREDITS_PER_MONTH)
+      .openapi({
+        example: MIN_ENTERPRISE_CREDITS_PER_MONTH,
+        description: `Minimum ${MIN_ENTERPRISE_CREDITS_PER_MONTH} credits`,
+      }),
     periods: z.number().int().min(MIN_ENTERPRISE_PERIOD_COUNT).openapi({
       example: 12,
       description: "Number of full monthly grant periods",
@@ -102,7 +105,7 @@ export const createEnterpriseContractRequestSchema = z
     }),
     oneTimeCredits: z.number().min(0).optional(),
     oneTimeExpiresAt: dateTimeSchema.optional(),
-    paymentReference: z.string().optional(),
+    paymentReference: z.string().min(1).optional(),
     notes: z.string().optional(),
     externalReference: z.string().optional(),
   })
@@ -110,7 +113,10 @@ export const createEnterpriseContractRequestSchema = z
 
 export const patchEnterpriseContractRequestSchema = z
   .object({
-    creditsPerMonth: z.number().optional(),
+    creditsPerMonth: z
+      .number()
+      .min(MIN_ENTERPRISE_CREDITS_PER_MONTH)
+      .optional(),
     periods: z.number().int().min(MIN_ENTERPRISE_PERIOD_COUNT).optional(),
     seats: z.number().int().min(1).optional(),
     startDate: dateTimeSchema.nullable().optional(),

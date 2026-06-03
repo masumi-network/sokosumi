@@ -98,6 +98,9 @@ describe("errorHandler", () => {
 
     expect(response.status).toBe(409);
     expect(body.error).toBe("Conflict");
+    expect(body).toMatchObject({
+      kind: "enterprise_activation_blocked",
+    });
     expect(body.blockers).toEqual([
       {
         plan: "starter",

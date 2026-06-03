@@ -35,8 +35,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const items = await prisma.enterpriseContract.findMany({
       where: {
-        organizationId: query.organizationId,
-        status: query.status as EnterpriseContractStatus | undefined,
+        ...(query.organizationId
+          ? { organizationId: query.organizationId }
+          : {}),
+        ...(query.status
+          ? { status: query.status as EnterpriseContractStatus }
+          : {}),
       },
       orderBy: [{ createdAt: "desc" }],
     });

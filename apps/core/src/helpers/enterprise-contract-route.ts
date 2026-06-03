@@ -1,6 +1,7 @@
 import {
   EnterpriseContractActivationError,
   EnterpriseContractLifecycleError,
+  EnterpriseContractNotFoundError,
 } from "@sokosumi/database/helpers";
 
 import { mapEnterpriseContractActivationBlockerForApi } from "@/helpers/enterprise-contract-api.js";
@@ -18,15 +19,16 @@ export function handleEnterpriseContractLifecycleError(error: unknown): never {
       `Enterprise contract activation blocked by paid subscriptions: ${summary}`,
       {
         kind: "enterprise_activation_blocked",
-        extensions: { blockers },
+        extensions: { blockers, kind: "enterprise_activation_blocked" },
       },
     );
   }
 
+  if (error instanceof EnterpriseContractNotFoundError) {
+    throw notFound(error.message);
+  }
+
   if (error instanceof EnterpriseContractLifecycleError) {
-    if (error.message.toLowerCase().includes("not found")) {
-      throw notFound(error.message);
-    }
     throw conflict(error.message);
   }
 
