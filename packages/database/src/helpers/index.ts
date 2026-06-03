@@ -31,6 +31,7 @@
  */
 
 export * from "./credit.js";
+export * from "./credit-bucket-scope.js";
 export * from "./enterprise-contract.js";
 export * from "./enterprise-contract-exclusivity.js";
 export * from "./enterprise-contract-grants.js";

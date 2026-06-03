@@ -6,10 +6,11 @@ import {
 import {
   creditBucketActivatesAtOrBefore,
   creditBucketActivatesAtOrBeforeSql,
-  escapeStringForLike,
-  getOrganizationMemberSubscriptionReferencePrefix,
-  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
 } from "../helpers/credit.js";
+import {
+  buildCreditBucketScopeSql,
+  buildCreditBucketScopeWhere,
+} from "../helpers/credit-bucket-scope.js";
 
 export interface Consumption {
   bucketId: string;
@@ -249,66 +250,5 @@ async function getFifoBucketsToCoverSpend(
     FROM ordered
     WHERE running_total - available < ${cents}
     ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
-  `;
-}
-
-function buildCreditBucketScopeWhere(
-  userId: string,
-  organizationId: string | null,
-): Prisma.CreditBucketWhereInput {
-  if (!organizationId) {
-    return {
-      userId,
-      organizationId: null,
-    };
-  }
-
-  return {
-    organizationId,
-    OR: [
-      {
-        referenceType: null,
-      },
-      {
-        referenceType: {
-          not: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-        },
-      },
-      {
-        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-        userId,
-        referenceId: {
-          startsWith:
-            getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
-              userId,
-            ),
-        },
-      },
-    ],
-  };
-}
-
-function buildCreditBucketScopeSql(
-  userId: string,
-  organizationId: string | null,
-): Prisma.Sql {
-  if (!organizationId) {
-    return Prisma.sql`cb."userId" = ${userId} AND cb."organizationId" IS NULL`;
-  }
-
-  const escapedPrefix = escapeStringForLike(
-    getOrganizationMemberSubscriptionReferencePrefix(userId),
-  );
-  const memberReferencePattern = `${escapedPrefix}%`;
-  return Prisma.sql`
-    cb."organizationId" = ${organizationId}
-    AND (
-      cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
-      OR (
-        cb."referenceType" = ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
-        AND cb."userId" = ${userId}
-        AND cb."referenceId" LIKE ${memberReferencePattern} ESCAPE '\\'
-      )
-    )
   `;
 }
