@@ -2947,7 +2947,6 @@
           "currentPlanCta": "Piano attuale",
           "updateSeatsCta": "Aggiorna Seats",
           "choosePlanCta": "Scegli un piano",
-          "enterpriseContractPendingDescription": "Il contratto Enterprise inizia il {date}. Fino ad allora restano disponibili gli abbonamenti self-serve.",
           "Errors": {
             "unauthenticated": "Accedi per continuare",
             "unauthenticatedAction": "Accedi",

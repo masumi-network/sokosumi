@@ -78,7 +78,7 @@ flowchart TB
 
 - One **org-level shared pool** per period (`organizationId` set, `userId` null), full monthly grant every period (no proration). Stored as **`centsPerMonth`** / **`centsToGrant`** in DB; exposed as credits at API boundaries.
 - **`periodCount`** — commercial term length (number of full rolling monthly grant periods). **No stored `endDate`**; contract end is derived via `deriveEnterpriseContractEndDate()` or the last materialized period row.
-- **`startDate`** (optional) — earliest date the contract may begin. If unset at activation, defaults to `activatedAt` (immediate start). If set (including a future date), entitlements begin no earlier than `startDate`, even when activation/payment happens sooner. **Replaces `billingAnchorDay`**; each period runs **one calendar month** from its `periodStart` (same rolling-month rules as `getNextMonthlyPeriodEnd()` in `subscription.ts` — e.g. Jan 31 + `periodCount: 2` → two full months, not calendar-month boundaries).
+- **`activatedAt`** — set on activation; anchors the rolling monthly period schedule and commercial term (no separate `startDate`; activate on go-live day). Each period runs **one calendar month** from its `periodStart` (same rolling-month rules as `getNextMonthlyPeriodEnd()` in `subscription.ts` — e.g. Jan 31 + `periodCount: 2` → two full months, not calendar-month boundaries).
 - `contract.seats` = purchased capacity for seat assignment (not member-count gate).
 - Activation blocked if org/members have paid subs with consumable buckets (list offenders; no auto-cancel until SOK-543).
 - Extract `activateEnterpriseContract(contractId, { paymentReference, activatedAt })` as a callable helper for future SOK-542 webhook reuse.
@@ -94,11 +94,11 @@ flowchart TB
 1. **Prisma models** in `[schema.prisma](packages/database/prisma/schema.prisma)`:
   - `EnterpriseContract` (org-scoped, status enum, commercial fields, `paymentReference`, `notes`, `externalReference`)
     - **`id`** `@default(uuid(7)) @db.Uuid` — native PostgreSQL UUID (same as `Workspace`, `Conversation`)
-    - **`startDate`** `DateTime?` — optional earliest contract start; **must be normalized at activation** (see Phase 2)
+    - **`activatedAt`** `DateTime?` — set on activation; anchors period schedule and consumable window (draft = null)
     - **`periodCount`** `Int` — commercial term length (number of full rolling monthly grant periods); **no `endDate` column** — contract end is derived from the last materialized period (or `deriveEnterpriseContractEndDate()`)
     - **`centsPerMonth`** `BigInt` — monthly grant size in cents
     - **`oneTimeCents`** `BigInt?` — optional lump-sum org grant on activation (cents)
-    - **No `billingAnchorDay` column** — rolling month derived from `startDate` via `getNextMonthlyPeriodEnd()`
+    - **No `billingAnchorDay` column** — rolling month derived from `activatedAt` via `getNextMonthlyPeriodEnd()`
     - **No audit/event table** — deferred; contract `status` + timestamps suffice for MVP
     - **No `createdByUserId`** — admin identity not stored on contract row
   - `EnterpriseContractPeriod` (materialized schedule + status enum)
@@ -106,24 +106,23 @@ flowchart TB
   - Partial unique index: at most one `active` contract per `organizationId`
   - Extend `CreditBucketReferenceType` with `ENTERPRISE_PERIOD`, `ENTERPRISE_TOP_UP`
 2. **Helpers** (`enterprise-contract.ts`):
-  - `resolveContractStartDate(startDate, activatedAt)` — `startDate ?? activatedAt`
-  - `buildEnterpriseContractPeriodSchedule({ startDate, periodCount, ... })` — exactly **`periodCount`** full rolling months via `getNextMonthlyPeriodEnd()`
-  - `deriveEnterpriseContractEndDate(startDate, periodCount)` — last period end (for consumable window / completion checks)
+  - `buildEnterpriseContractPeriodSchedule({ activatedAt, periodCount, ... })` — exactly **`periodCount`** full rolling months via `getNextMonthlyPeriodEnd()`
+  - `deriveEnterpriseContractEndDate(activatedAt, periodCount)` — last period end (for consumable window / completion checks)
   - `previewEnterpriseContractPeriods()` — **`activatedAt` required** (no implicit `new Date()`)
-  - `isEnterpriseContractActive()` — `status === active` and `now ∈ [startDate, deriveEnterpriseContractEndDate(...)]` using **`periodCount`**
+  - `isEnterpriseContractActive()` / `isEnterpriseContractConsumable()` — `status === active`, `activatedAt` set, and `now` not past derived commercial end
   - `validateMinEnterpriseCreditsPerMonth()` / `validateEnterprisePeriodCount()` — for API boundary
-3. **Tests** cover: rolling month (incl. Jan 31), leap year, full grant / no proration, `periodCount: 1`, invalid `periodCount`, future `startDate` preview, consumable window including after last period.
+3. **Tests** cover: rolling month (incl. Jan 31), leap year, full grant / no proration, `periodCount: 1`, invalid `periodCount`, preview at `activatedAt`, consumable window including after last period.
 
 **Suggested PR title:** `feat(database): add enterprise contract schema and period schedule`
 
 ### Period schedule rules (authoritative — carry into Phase 2+)
 
-Each period runs **one calendar month from its `periodStart`**, using the same logic as local-free subscriptions (`getNextMonthlyPeriodEnd(periodStart, contractStartDate)`):
+Each period runs **one calendar month from its `periodStart`**, using the same logic as local-free subscriptions (`getNextMonthlyPeriodEnd(periodStart, activatedAt)`):
 
 - **Not** calendar-month boundaries and **not** “roll to 1st of next month when day missing”.
-- **Term length:** `periodCount` full periods — e.g. `startDate = Jan 31`, `periodCount = 2` → Jan 31–Feb 28, then Feb 28–Mar 31 (both full grants).
+- **Term length:** `periodCount` full periods — e.g. `activatedAt = Jan 31`, `periodCount = 2` → Jan 31–Feb 28, then Feb 28–Mar 31 (both full grants).
 - **No tail-clamp / partial final period** — every period is a full rolling month; total grants = `periodCount × centsPerMonth`.
-- **Contract end** for completion/cron: last row’s `periodEnd`, or `deriveEnterpriseContractEndDate(startDate, periodCount)`.
+- **Contract end** for completion/cron: last row’s `periodEnd`, or `deriveEnterpriseContractEndDate(activatedAt, periodCount)`.
 
 ---
 
@@ -143,7 +142,7 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
 
 **Phase 2 must-dos (from Phase 1 review):**
 
-- **`startDate` normalization on activate:** persist `startDate = startDate ?? activatedAt` before materializing periods or grants. All consumable checks use this resolved value — never pass nullable `contract.startDate` into `isEnterpriseContractActive()`.
+- **Set `activatedAt` on activate** before materializing periods or grants; schedule and buckets anchor at that timestamp.
 - **Reuse `buildEnterpriseContractPeriodSchedule()`** for materialization; do not reimplement period boundaries.
 - **Period idempotency:** delete draft preview rows on activate, then insert schedule once; grants via stable `referenceId` + bucket unique constraint. Optional hard guard: `@@unique([contractId, periodStart])` on `EnterpriseContractPeriod` (code-first is enough for MVP).
 - **Period status:** `scheduled`, `active`, `expired`, `void` only — `skipped` was never added to the enum.
@@ -152,12 +151,12 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
 **Activation behavior (spec-critical):**
 
 1. Guard → reject with blocking subscriptions if any
-2. Stamp `activatedAt`; normalize **`startDate`**: if null, set `startDate = activatedAt`
-3. Materialize full schedule via `buildEnterpriseContractPeriodSchedule({ startDate, periodCount, centsPerMonth, purchasedSeats: seats })`; persist periods with `status = scheduled` (period 1 → `active` after bucket created)
-4. Create period-1 bucket inline: **`activatesAt = startDate`**, `expiresAt = periodEnd`, flip period → `active` (non-consumable until `startDate` if future)
-5. Optional top-up org bucket on activation: **`activatesAt = startDate`**, `ENTERPRISE_TOP_UP`
+2. Stamp **`activatedAt`** (server time on activate)
+3. Materialize full schedule via `buildEnterpriseContractPeriodSchedule({ activatedAt, periodCount, centsPerMonth, purchasedSeats: seats })`; persist periods with `status = scheduled` (period 1 → `active` after bucket created)
+4. Create period-1 bucket inline: **`activatesAt = activatedAt`**, `expiresAt = periodEnd`, flip period → `active`
+5. Optional top-up org bucket on activation: **`activatesAt = activatedAt`**, `ENTERPRISE_TOP_UP`
 
-**Contract start (entitlements + exclusivity):** Commercially **active** (`status === active` + `startDate`) drives seat capacity and `enterprise_contract` billing mode. **Consumable** entitlements (pool spend, subscription exclusivity in 5c) use `isEnterpriseContractConsumable()` (`now >= startDate` and not past `deriveEnterpriseContractEndDate`). Early activation records payment but does not apply consumable exclusivity until `startDate`.
+**Contract start (entitlements + exclusivity):** **`status === active`** with **`activatedAt` set** drives seat capacity and `enterprise_contract` billing mode. **Consumable** entitlements (pool spend, subscription exclusivity in 5c) use `isEnterpriseContractConsumable()` (within commercial term, not past `deriveEnterpriseContractEndDate`). **Post-term** while row is still `active`: `isConsumable` false → self-serve allowed; cron sets **`completed`** on next pass.
 
 **Cancellation behavior:**
 
@@ -174,7 +173,7 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
 | `expired` | Period ended normally (or late catch-up audit grant after `periodEnd`) |
 | `void` | Invalidated by cancel — never grants |
 
-**Tests:** Transaction-level tests with Prisma test doubles (mirror `[subscription.test.ts](packages/database/src/helpers/subscription.test.ts)` patterns): activation idempotency, top-up grant idempotency, cancel voids future buckets, activation guard lists blockers, `startDate` persisted on activate when null.
+**Tests:** Transaction-level tests with Prisma test doubles (mirror `[subscription.test.ts](packages/database/src/helpers/subscription.test.ts)` patterns): activation idempotency, top-up grant idempotency, cancel voids future buckets, activation guard lists blockers, `activatedAt` persisted on activate.
 
 **Deliverable:** Package-level lifecycle fully tested; still no HTTP surface. **Delivered** in [`enterprise-contract-lifecycle.test.ts`](packages/database/src/helpers/__tests__/enterprise-contract-lifecycle.test.ts).
 
@@ -202,7 +201,7 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
 | Pre-create (period not yet started) | `periodStart` |
 | Catch-up (missed period, still in window) | `now` |
 | Catch-up (missed period, after `periodEnd`) | `periodStart` (audit grant; bucket already expired); period → `expired` |
-| Phase 2 activation (already implemented) | `startDate` |
+| Phase 2 activation (already implemented) | `activatedAt` |
 
 After the bucket row exists with non-null `activatesAt`, flip period status: **in-window catch-up** and **pre-create** → `active`; **late catch-up** (`now > periodEnd`) → `expired` (audit grant only). Do not add a `periodStart` fallback in cancel for MVP — enforce the invariant at creation instead.
 
@@ -233,7 +232,7 @@ After the bucket row exists with non-null `activatesAt`, flip period status: **i
 
 | Method | Path                                              | Purpose                                                           |
 | ------ | ------------------------------------------------- | ----------------------------------------------------------------- |
-| POST   | `/enterprise/contracts`                           | Create draft (accept optional `startDate`, required `periodCount`; API field may be named `periods`) |
+| POST   | `/enterprise/contracts`                           | Create draft (required `periodCount`; API field may be named `periods`) |
 | GET    | `/enterprise/contracts`                           | List/filter by org, status                                        |
 | GET    | `/enterprise/contracts/{id}`                      | Detail + periods                                                |
 | PATCH  | `/enterprise/contracts/{id}`                      | Edit draft only                                                   |
@@ -250,9 +249,9 @@ After the bucket row exists with non-null `activatesAt`, flip period status: **i
 | `seats` | integer ≥ 1 |
 | `periodCount` (API: `periods`) | integer ≥ 1 (`validateEnterprisePeriodCount`) |
 | `oneTimeCredits` | optional; if set, ≥ 0 |
-| Preview query/body | **`activatedAt` required** when simulating activation without explicit `startDate`; pass explicit timestamp (e.g. hypothetical activation time), never rely on server “now” implicitly |
+| Preview query | **`activatedAt` required** (hypothetical activation time); never rely on server “now” implicitly |
 
-**Preview endpoint:** call `previewEnterpriseContractPeriods({ activatedAt, startDate?, periodCount, centsPerMonth, purchasedSeats })` — map response `creditsToGrant` from `centsToGrant`; include derived `contractEnd` from `deriveEnterpriseContractEndDate()` in response for display (not stored).
+**Preview endpoint:** call `previewEnterpriseContractPeriods({ activatedAt, periodCount, centsPerMonth, purchasedSeats })` — map response `creditsToGrant` from `centsToGrant`; include derived `contractEnd` from `deriveEnterpriseContractEndDate(activatedAt, periodCount)` in response (not stored).
 
 **Product decision (document in PR):** **multiple `draft` contracts per org are allowed** for MVP (iterate on terms before activate). Only one `active` per org (DB partial unique). Revisit one-draft-per-org later if admin UX needs it.
 
@@ -288,7 +287,7 @@ After the bucket row exists with non-null `activatesAt`, flip period status: **i
 **Delivered:**
 
 - [`organization-billing-plan.ts`](packages/database/src/helpers/organization-billing-plan.ts) — `resolveOrganizationBillingPlan()`, `parseSelfServeSubscriptionPlanName()` (legacy `Subscription.plan === "enterprise"` → `null`)
-- **Commercial vs consumable:** return `enterprise_contract` for any `active` contract with normalized `startDate`; expose `isConsumable` via `isEnterpriseContractConsumable()` for entitlement/checkout guards (Phase 5c)
+- **Commercial vs consumable:** return `enterprise_contract` for any `active` contract with `activatedAt`; expose `isConsumable` via `isEnterpriseContractConsumable()` for entitlement/checkout guards (Phase 5c)
 - **Helpers:** `isEnterpriseContractPastCommercialTerm()`, `isEnterpriseContractConsumable()` / `isEnterpriseContractActive()` in [`enterprise-contract.ts`](packages/database/src/helpers/enterprise-contract.ts)
 - **Web wiring:** [`organization-seat.service.ts`](apps/web/src/lib/services/organization-seat.service.ts), [`billing/page.tsx`](apps/web/src/app/(app)/billing/page.tsx), [`organization-subscription-section.tsx`](apps/web/src/components/billing/organization-subscription-section.tsx) (`isEnterpriseContract`), [`onboarding-dialog-loader.tsx`](apps/web/src/app/(app)/components/onboarding-dialog-loader.tsx)
 - Self-serve Stripe catalog: no `enterprise` plan type
@@ -338,7 +337,7 @@ While contract is **consumable** (`isEnterpriseContractConsumable()` / `billingP
 - Fetch active contract via Core client or server-side Prisma/repository (prefer generated Core client if available post Phase 4 OpenAPI regen)
 - New component e.g. `enterprise-contract-summary.tsx` in billing section — pool balance, period expiry, next bucket activation
 - i18n keys in all locale files per [translations rules](apps/web/.cursor/rules/translations.mdc)
-- Update `[organization-subscription-section.tsx](apps/web/src/components/billing/organization-subscription-section.tsx)` to show enterprise state instead of self-serve plan cards when `plan === 'enterprise'`
+- Subscription UI: enterprise-only while `isConsumable`; self-serve again post-term until cron marks contract `completed` (already wired in `organization-subscription-section.tsx`)
 
 **Deliverable:** Meets final acceptance criterion for org-admin billing visibility.
 
@@ -350,7 +349,7 @@ While contract is **consumable** (`isEnterpriseContractConsumable()` / `billingP
 
 - **Credits vs cents:** Database stores **cents only** (`centsPerMonth`, `oneTimeCents`, `centsToGrant`, `CreditBucket.amount`). API request/response and validation minimums use **credits**; convert at the boundary with `convertCreditsToCents()` / `convertCentsToCredits()` ([credits-api rule](apps/core/.cursor/rules/credits-api.mdc)). Do not name Prisma columns `creditsPerMonth` — that would contradict `CreditBucket`, `Transaction.amount`, and `CreditCost.centsPerUnit`.
 - **Contract term:** `periodCount` is the commercial source of truth (API may expose as `periods`). No stored `endDate` — use `deriveEnterpriseContractEndDate()` or the last materialized `EnterpriseContractPeriod.periodEnd` for completion/cron/display.
-- **Contract start:** Optional `startDate` replaces `billingAnchorDay`. Persist **`startDate = startDate ?? activatedAt` on activate**. Early activation before a future `startDate` is allowed; buckets use `activatesAt = startDate`. Entitlements/consumption require resolved `startDate` + `periodCount`.
+- **Contract start:** **`activatedAt` on activate** replaces `billingAnchorDay` / optional future `startDate`. Ops activate on go-live day; buckets use `activatesAt = activatedAt`. Commercial term = `periodCount` rolling months from `activatedAt`.
 - **Period schedule:** One calendar month per period via `getNextMonthlyPeriodEnd()` — exactly `periodCount` full periods; see **Period schedule rules** under Phase 1.
 - **Audit trail:** No `EnterpriseContractEvent` table in MVP — rely on contract/period status and timestamps; add event log in a follow-up if ops need it.
 - **Bucket reference types:** `ENTERPRISE_PERIOD` (monthly pool), `ENTERPRISE_TOP_UP` (optional lump-sum on activation).

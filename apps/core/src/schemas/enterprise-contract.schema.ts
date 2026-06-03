@@ -55,7 +55,6 @@ export const enterpriseContractSchema = z
     updatedAt: dateTimeSchema,
     organizationId: z.string().openapi({ example: "org_123" }),
     status: enterpriseContractStatusSchema,
-    startDate: dateTimeSchema.nullable(),
     periods: z.number().int().min(MIN_ENTERPRISE_PERIOD_COUNT).openapi({
       description: "Commercial term length in monthly grant periods",
       example: 12,
@@ -106,9 +105,6 @@ export const createEnterpriseContractRequestSchema = z
       description: "Number of full monthly grant periods",
     }),
     seats: z.number().int().min(1).openapi({ example: 10 }),
-    startDate: dateTimeSchema.optional().openapi({
-      description: "Earliest date the contract may begin after activation",
-    }),
     oneTimeCredits: z.number().min(0).optional(),
     oneTimeExpiresAt: dateTimeSchema.optional(),
     paymentReference: enterpriseContractPaymentReferenceSchema.optional(),
@@ -125,7 +121,6 @@ export const patchEnterpriseContractRequestSchema = z
       .optional(),
     periods: z.number().int().min(MIN_ENTERPRISE_PERIOD_COUNT).optional(),
     seats: z.number().int().min(1).optional(),
-    startDate: dateTimeSchema.nullable().optional(),
     oneTimeCredits: z.number().min(0).nullable().optional(),
     oneTimeExpiresAt: dateTimeSchema.nullable().optional(),
     paymentReference: z
@@ -167,7 +162,6 @@ export const enterpriseContractPreviewPeriodSchema = z
 export const enterpriseContractPreviewSchema = z
   .object({
     activatedAt: dateTimeSchema,
-    startDate: dateTimeSchema,
     contractEnd: dateTimeSchema,
     periods: z.array(enterpriseContractPreviewPeriodSchema),
   })

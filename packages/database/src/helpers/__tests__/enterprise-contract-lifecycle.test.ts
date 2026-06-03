@@ -67,7 +67,6 @@ function createGrantClient(params?: { existingBucketReferenceIds?: string[] }) {
 function createDraftContract(overrides?: {
   oneTimeCents?: bigint | null;
   periodCount?: number;
-  startDate?: Date | null;
   status?: EnterpriseContractStatus;
 }) {
   return {
@@ -91,7 +90,6 @@ function createDraftContract(overrides?: {
       status: EnterpriseContractPeriodStatus;
     }>,
     seats: 10,
-    startDate: overrides?.startDate ?? null,
     status: overrides?.status ?? EnterpriseContractStatus.draft,
   };
 }
@@ -411,7 +409,7 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
 });
 
 describe("activateEnterpriseContract", () => {
-  it("persists startDate from activatedAt when unset and materializes periods", async () => {
+  it("persists activatedAt and materializes periods from activation time", async () => {
     const activatedAt = new Date("2026-05-01T12:00:00.000Z");
     const client = createLifecycleClient();
 
@@ -429,7 +427,7 @@ describe("activateEnterpriseContract", () => {
     assert.equal(client.createPeriodMock.mock.calls.length, 3);
     assert.equal(client.updatePeriodMock.mock.calls.length, 1);
     assert.equal(
-      client.updateContractMock.mock.calls[0]?.[0].data.startDate.toISOString(),
+      client.updateContractMock.mock.calls[0]?.[0].data.activatedAt.toISOString(),
       activatedAt.toISOString(),
     );
     assert.equal(
@@ -443,31 +441,6 @@ describe("activateEnterpriseContract", () => {
     assert.equal(
       client.grantClient.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.activatesAt.toISOString(),
       activatedAt.toISOString(),
-    );
-  });
-
-  it("preserves an explicit future startDate on activation", async () => {
-    const activatedAt = new Date("2026-04-01T12:00:00.000Z");
-    const futureStartDate = new Date("2026-06-01T00:00:00.000Z");
-    const client = createLifecycleClient({
-      contract: {
-        startDate: futureStartDate,
-      },
-    });
-
-    await activateEnterpriseContract(CONTRACT_ID, { activatedAt }, client.tx);
-
-    assert.equal(
-      client.updateContractMock.mock.calls[0]?.[0].data.startDate.toISOString(),
-      futureStartDate.toISOString(),
-    );
-    assert.equal(
-      client.grantClient.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.activatesAt.toISOString(),
-      futureStartDate.toISOString(),
-    );
-    assert.equal(
-      client.createdPeriods[0]?.periodStart.toISOString(),
-      futureStartDate.toISOString(),
     );
   });
 
@@ -587,13 +560,13 @@ describe("activateEnterpriseContract", () => {
 
   it("completes a past-term active contract before activating a new draft", async () => {
     const activatedAt = new Date("2027-06-01T00:00:00.000Z");
-    const expiredStartDate = new Date("2026-01-01T00:00:00.000Z");
+    const expiredActivatedAt = new Date("2026-01-01T00:00:00.000Z");
     const client = createLifecycleClient();
     client.findManyContractsMock.mockResolvedValue([
       {
+        activatedAt: expiredActivatedAt,
         id: "expired-active-contract",
         periodCount: 1,
-        startDate: expiredStartDate,
       },
     ]);
 
@@ -820,15 +793,15 @@ describe("cancelEnterpriseContract", () => {
 });
 
 describe("completeEnterpriseContractsAfterLastPeriod", () => {
-  const startDate = new Date("2026-05-01T00:00:00.000Z");
+  const activatedAt = new Date("2026-05-01T00:00:00.000Z");
   const periodCount = 3;
-  const contractEnd = deriveEnterpriseContractEndDate(startDate, periodCount);
+  const contractEnd = deriveEnterpriseContractEndDate(activatedAt, periodCount);
 
   function createCompletionClient(
     contracts: Array<{
+      activatedAt: Date | null;
       id: string;
       periodCount: number;
-      startDate: Date | null;
     }>,
   ) {
     const updateMock = vi.fn().mockResolvedValue({});
@@ -847,9 +820,9 @@ describe("completeEnterpriseContractsAfterLastPeriod", () => {
   it("does not complete contracts at the exact contract end (strict after boundary)", async () => {
     const client = createCompletionClient([
       {
+        activatedAt,
         id: CONTRACT_ID,
         periodCount,
-        startDate,
       },
     ]);
 
@@ -865,9 +838,9 @@ describe("completeEnterpriseContractsAfterLastPeriod", () => {
   it("completes contracts after the last period ends", async () => {
     const client = createCompletionClient([
       {
+        activatedAt,
         id: CONTRACT_ID,
         periodCount,
-        startDate,
       },
     ]);
 
@@ -888,14 +861,14 @@ describe("completeEnterpriseContractsAfterLastPeriod", () => {
   it("skips contracts still within the commercial term", async () => {
     const client = createCompletionClient([
       {
+        activatedAt,
         id: CONTRACT_ID,
         periodCount,
-        startDate,
       },
       {
+        activatedAt: new Date("2026-06-01T00:00:00.000Z"),
         id: "contract-still-active",
         periodCount: 12,
-        startDate: new Date("2026-06-01T00:00:00.000Z"),
       },
     ]);
 

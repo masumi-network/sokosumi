@@ -24,7 +24,7 @@ function createTx(
     id: string;
     periodCount: number;
     seats: number;
-    startDate: Date;
+    activatedAt: Date;
     status: EnterpriseContractStatus;
   } | null,
 ): PrismaType.TransactionClient {
@@ -42,13 +42,13 @@ describe("resolveOrganizationBillingPlan", () => {
   });
 
   it("returns enterprise_contract with isConsumable true within the commercial term", async () => {
-    const startDate = new Date("2026-05-01T00:00:00.000Z");
+    const activatedAt = new Date("2026-05-01T00:00:00.000Z");
     const now = new Date("2026-06-01T00:00:00.000Z");
     const tx = createTx({
       id: CONTRACT_ID,
       periodCount: 8,
       seats: 25,
-      startDate,
+      activatedAt,
       status: EnterpriseContractStatus.active,
     });
 
@@ -65,34 +65,8 @@ describe("resolveOrganizationBillingPlan", () => {
     assert.equal(plan.contractId, CONTRACT_ID);
     assert.equal(
       plan.contractEnd.toISOString(),
-      deriveEnterpriseContractEndDate(startDate, 8).toISOString(),
+      deriveEnterpriseContractEndDate(activatedAt, 8).toISOString(),
     );
-    assert.equal(
-      resolveActiveSubscriptionByReferenceIdMock.mock.calls.length,
-      0,
-    );
-  });
-
-  it("returns enterprise_contract with isConsumable false before startDate", async () => {
-    const startDate = new Date("2026-08-01T00:00:00.000Z");
-    const now = new Date("2026-06-01T00:00:00.000Z");
-    const tx = createTx({
-      id: CONTRACT_ID,
-      periodCount: 3,
-      seats: 10,
-      startDate,
-      status: EnterpriseContractStatus.active,
-    });
-
-    const plan = await resolveOrganizationBillingPlan(ORG_ID, tx, now);
-
-    assert.equal(plan.mode, "enterprise_contract");
-    if (plan.mode !== "enterprise_contract") {
-      return;
-    }
-
-    assert.equal(plan.isConsumable, false);
-    assert.equal(plan.purchasedSeats, 10);
     assert.equal(
       resolveActiveSubscriptionByReferenceIdMock.mock.calls.length,
       0,
@@ -100,15 +74,18 @@ describe("resolveOrganizationBillingPlan", () => {
   });
 
   it("returns enterprise_contract with isConsumable false after the commercial term", async () => {
-    const startDate = new Date("2026-01-01T00:00:00.000Z");
+    const activatedAt = new Date("2026-01-01T00:00:00.000Z");
     const periodCount = 1;
-    const contractEnd = deriveEnterpriseContractEndDate(startDate, periodCount);
+    const contractEnd = deriveEnterpriseContractEndDate(
+      activatedAt,
+      periodCount,
+    );
     const now = new Date(contractEnd.getTime() + 1);
     const tx = createTx({
       id: CONTRACT_ID,
       periodCount,
       seats: 5,
-      startDate,
+      activatedAt,
       status: EnterpriseContractStatus.active,
     });
 

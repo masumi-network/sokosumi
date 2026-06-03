@@ -164,7 +164,7 @@ After editing keys, spot-check that non-English values differ from English for t
 
 ```bash
 # Example: compare one key path (adjust path to your new key)
-KEY='App.Organizations.OrganizationDetail.Subscription.enterpriseContractPendingDescription'
+KEY='App.Organizations.OrganizationDetail.Subscription.someKey'
 for locale in de es it fr pt pt-BR ja zh-Hans; do
   echo "$locale: $(jq -r --arg k "$KEY" 'getpath($k | split("."))' apps/web/messages/$locale.json)"
 done

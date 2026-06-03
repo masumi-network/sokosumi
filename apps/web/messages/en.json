@@ -2947,7 +2947,6 @@
           "currentPlanCta": "Current plan",
           "updateSeatsCta": "Update seats",
           "choosePlanCta": "Choose plan",
-          "enterpriseContractPendingDescription": "Your enterprise contract starts on {date}. Self-serve subscriptions remain available until then.",
           "Errors": {
             "unauthenticated": "Please log in to continue",
             "unauthenticatedAction": "Log in",

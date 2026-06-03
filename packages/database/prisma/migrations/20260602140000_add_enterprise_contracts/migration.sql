@@ -15,7 +15,6 @@ CREATE TABLE "enterprise_contract" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "organizationId" TEXT NOT NULL,
     "status" "EnterpriseContractStatus" NOT NULL DEFAULT 'draft',
-    "startDate" TIMESTAMP(3),
     "periodCount" INTEGER NOT NULL,
     "activatedAt" TIMESTAMP(3),
     "canceledAt" TIMESTAMP(3),

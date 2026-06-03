@@ -7,7 +7,6 @@ import {
 import type { PaidSubscriptionBlocker } from "@sokosumi/database/helpers";
 import {
   deriveEnterpriseContractEndDate,
-  resolveContractStartDate,
   validateEnterprisePeriodCount,
   validateMinEnterpriseCreditsPerMonth,
 } from "@sokosumi/database/helpers";
@@ -84,9 +83,9 @@ export function mapEnterpriseContractForApi(
   contract: EnterpriseContract & { periods?: EnterpriseContractPeriod[] },
 ) {
   const contractEnd =
-    contract.startDate != null
+    contract.activatedAt != null
       ? deriveEnterpriseContractEndDate(
-          contract.startDate,
+          contract.activatedAt,
           contract.periodCount,
         )
       : null;
@@ -97,7 +96,6 @@ export function mapEnterpriseContractForApi(
     updatedAt: contract.updatedAt,
     organizationId: contract.organizationId,
     status: contract.status,
-    startDate: contract.startDate,
     periods: contract.periodCount,
     activatedAt: contract.activatedAt,
     canceledAt: contract.canceledAt,
@@ -151,14 +149,12 @@ export function mapEnterpriseContractPreviewPeriodForApi(period: {
 export function derivePreviewContractEnd(params: {
   activatedAt: Date;
   periodCount: number;
-  startDate?: Date | null;
 }): Date {
   assertEnterprisePeriodCount(params.periodCount);
-  const effectiveStart = resolveContractStartDate(
-    params.startDate,
+  return deriveEnterpriseContractEndDate(
     params.activatedAt,
+    params.periodCount,
   );
-  return deriveEnterpriseContractEndDate(effectiveStart, params.periodCount);
 }
 
 export const enterpriseContractStatusValues = [

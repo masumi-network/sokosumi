@@ -10,33 +10,11 @@ import {
   MIN_ENTERPRISE_PERIOD_COUNT,
   minEnterpriseCentsPerMonth,
   previewEnterpriseContractPeriods,
-  resolveContractStartDate,
   validateEnterprisePeriodCount,
   validateMinEnterpriseCreditsPerMonth,
 } from "../enterprise-contract.js";
 
 const CENTS_PER_MONTH = 600_000_000_000_000n;
-
-describe("resolveContractStartDate", () => {
-  it("uses activatedAt when startDate is unset", () => {
-    const activatedAt = new Date("2026-04-01T12:00:00.000Z");
-
-    assert.equal(
-      resolveContractStartDate(null, activatedAt).toISOString(),
-      activatedAt.toISOString(),
-    );
-  });
-
-  it("preserves an explicit future startDate", () => {
-    const activatedAt = new Date("2026-04-01T12:00:00.000Z");
-    const startDate = new Date("2026-05-01T00:00:00.000Z");
-
-    assert.equal(
-      resolveContractStartDate(startDate, activatedAt).toISOString(),
-      startDate.toISOString(),
-    );
-  });
-});
 
 describe("validateMinEnterpriseCreditsPerMonth", () => {
   it("accepts the minimum credits", () => {
@@ -79,10 +57,10 @@ describe("validateEnterprisePeriodCount", () => {
 
 describe("deriveEnterpriseContractEndDate", () => {
   it("returns the last period end for a multi-period contract", () => {
-    const startDate = new Date("2026-04-15T10:00:00.000Z");
+    const activatedAt = new Date("2026-04-15T10:00:00.000Z");
 
     assert.equal(
-      deriveEnterpriseContractEndDate(startDate, 3).toISOString(),
+      deriveEnterpriseContractEndDate(activatedAt, 3).toISOString(),
       "2026-07-15T09:59:59.999Z",
     );
   });
@@ -100,26 +78,26 @@ describe("deriveEnterpriseContractEndDate", () => {
 
   it("matches the last period end from buildEnterpriseContractPeriodSchedule", () => {
     const cases = [
-      { periodCount: 1, startDate: new Date("2026-06-15T10:00:00.000Z") },
-      { periodCount: 2, startDate: new Date("2026-01-31T09:00:00.000Z") },
-      { periodCount: 3, startDate: new Date("2026-04-15T10:00:00.000Z") },
-      { periodCount: 12, startDate: new Date("2026-01-31T00:00:00.000Z") },
+      { periodCount: 1, activatedAt: new Date("2026-06-15T10:00:00.000Z") },
+      { periodCount: 2, activatedAt: new Date("2026-01-31T09:00:00.000Z") },
+      { periodCount: 3, activatedAt: new Date("2026-04-15T10:00:00.000Z") },
+      { periodCount: 12, activatedAt: new Date("2026-01-31T00:00:00.000Z") },
     ];
 
-    for (const { periodCount, startDate } of cases) {
+    for (const { periodCount, activatedAt } of cases) {
       const periods = buildEnterpriseContractPeriodSchedule({
         centsPerMonth: CENTS_PER_MONTH,
         periodCount,
         purchasedSeats: 1,
-        startDate,
+        activatedAt,
       });
-      const derived = deriveEnterpriseContractEndDate(startDate, periodCount);
+      const derived = deriveEnterpriseContractEndDate(activatedAt, periodCount);
       const lastPeriod = periods.at(-1);
 
       assert.equal(
         derived.toISOString(),
         lastPeriod?.periodEnd.toISOString(),
-        `periodCount ${periodCount} starting ${startDate.toISOString()}`,
+        `periodCount ${periodCount} starting ${activatedAt.toISOString()}`,
       );
     }
   });
@@ -131,7 +109,7 @@ describe("buildEnterpriseContractPeriodSchedule", () => {
       centsPerMonth: CENTS_PER_MONTH,
       periodCount: 3,
       purchasedSeats: 10,
-      startDate: new Date("2026-04-15T10:00:00.000Z"),
+      activatedAt: new Date("2026-04-15T10:00:00.000Z"),
     });
 
     assert.equal(periods.length, 3);
@@ -174,7 +152,7 @@ describe("buildEnterpriseContractPeriodSchedule", () => {
       centsPerMonth: CENTS_PER_MONTH,
       periodCount: 2,
       purchasedSeats: 5,
-      startDate: new Date("2026-01-31T09:00:00.000Z"),
+      activatedAt: new Date("2026-01-31T09:00:00.000Z"),
     });
 
     assert.equal(periods.length, 2);
@@ -201,7 +179,7 @@ describe("buildEnterpriseContractPeriodSchedule", () => {
       centsPerMonth: CENTS_PER_MONTH,
       periodCount: 2,
       purchasedSeats: 3,
-      startDate: new Date("2028-01-31T10:00:00.000Z"),
+      activatedAt: new Date("2028-01-31T10:00:00.000Z"),
     });
 
     assert.equal(
@@ -223,7 +201,7 @@ describe("buildEnterpriseContractPeriodSchedule", () => {
       centsPerMonth: CENTS_PER_MONTH,
       periodCount: 0,
       purchasedSeats: 1,
-      startDate: new Date("2026-06-15T10:00:00.000Z"),
+      activatedAt: new Date("2026-06-15T10:00:00.000Z"),
     });
 
     assert.deepEqual(periods, []);
@@ -234,7 +212,7 @@ describe("buildEnterpriseContractPeriodSchedule", () => {
       centsPerMonth: CENTS_PER_MONTH,
       periodCount: 1,
       purchasedSeats: 1,
-      startDate: new Date("2026-06-15T10:00:00.000Z"),
+      activatedAt: new Date("2026-06-15T10:00:00.000Z"),
     });
 
     assert.equal(periods.length, 1);
@@ -251,7 +229,7 @@ describe("buildEnterpriseContractPeriodSchedule", () => {
 });
 
 describe("previewEnterpriseContractPeriods", () => {
-  it("uses activatedAt when startDate is unset", () => {
+  it("anchors the schedule at activatedAt", () => {
     const activatedAt = new Date("2026-04-01T08:00:00.000Z");
     const periods = previewEnterpriseContractPeriods({
       activatedAt,
@@ -264,47 +242,20 @@ describe("previewEnterpriseContractPeriods", () => {
       periods[0]?.periodStart.toISOString(),
       activatedAt.toISOString(),
     );
-  });
-
-  it("schedules from a future startDate even when activated earlier", () => {
-    const periods = previewEnterpriseContractPeriods({
-      activatedAt: new Date("2026-04-01T08:00:00.000Z"),
-      centsPerMonth: CENTS_PER_MONTH,
-      periodCount: 3,
-      purchasedSeats: 2,
-      startDate: new Date("2026-05-01T00:00:00.000Z"),
-    });
-
-    assert.equal(
-      periods[0]?.periodStart.toISOString(),
-      "2026-05-01T00:00:00.000Z",
-    );
-    assert.equal(periods.length, 3);
+    assert.equal(periods.length, 2);
   });
 });
 
 describe("isEnterpriseContractActive", () => {
-  const startDate = new Date("2026-05-01T00:00:00.000Z");
+  const activatedAt = new Date("2026-05-01T00:00:00.000Z");
   const periodCount = 8;
-
-  it("is false before startDate even when status is active", () => {
-    assert.equal(
-      isEnterpriseContractActive({
-        now: new Date("2026-04-30T23:59:59.999Z"),
-        periodCount,
-        startDate,
-        status: EnterpriseContractStatus.active,
-      }),
-      false,
-    );
-  });
 
   it("is true within the consumable window", () => {
     assert.equal(
       isEnterpriseContractActive({
         now: new Date("2026-06-01T00:00:00.000Z"),
         periodCount,
-        startDate,
+        activatedAt,
         status: EnterpriseContractStatus.active,
       }),
       true,
@@ -312,13 +263,16 @@ describe("isEnterpriseContractActive", () => {
   });
 
   it("is true at the exact contract end (inclusive boundary)", () => {
-    const contractEnd = deriveEnterpriseContractEndDate(startDate, periodCount);
+    const contractEnd = deriveEnterpriseContractEndDate(
+      activatedAt,
+      periodCount,
+    );
 
     assert.equal(
       isEnterpriseContractActive({
         now: contractEnd,
         periodCount,
-        startDate,
+        activatedAt,
         status: EnterpriseContractStatus.active,
       }),
       true,
@@ -326,13 +280,16 @@ describe("isEnterpriseContractActive", () => {
   });
 
   it("is false after the last period ends", () => {
-    const contractEnd = deriveEnterpriseContractEndDate(startDate, periodCount);
+    const contractEnd = deriveEnterpriseContractEndDate(
+      activatedAt,
+      periodCount,
+    );
 
     assert.equal(
       isEnterpriseContractActive({
         now: new Date(contractEnd.getTime() + 1),
         periodCount,
-        startDate,
+        activatedAt,
         status: EnterpriseContractStatus.active,
       }),
       false,
@@ -351,7 +308,7 @@ describe("isEnterpriseContractActive", () => {
         isEnterpriseContractActive({
           now,
           periodCount,
-          startDate,
+          activatedAt,
           status,
         }),
         false,

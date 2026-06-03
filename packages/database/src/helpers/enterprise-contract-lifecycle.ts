@@ -7,7 +7,6 @@ import {
 import {
   buildEnterpriseContractPeriodSchedule,
   isEnterpriseContractPastCommercialTerm,
-  resolveContractStartDate,
   validateEnterprisePeriodCount,
 } from "./enterprise-contract.js";
 import {
@@ -96,15 +95,12 @@ export async function activateEnterpriseContract(
     throw new EnterpriseContractActivationError(blockers);
   }
 
-  const startDate = resolveContractStartDate(
-    contract.startDate,
-    params.activatedAt,
-  );
+  const activatedAt = params.activatedAt;
   const schedule = buildEnterpriseContractPeriodSchedule({
+    activatedAt,
     centsPerMonth: contract.centsPerMonth,
     periodCount: contract.periodCount,
     purchasedSeats: contract.seats,
-    startDate,
   });
 
   if (schedule.length !== contract.periodCount) {
@@ -150,7 +146,7 @@ export async function activateEnterpriseContract(
 
   const periodBucket = await createEnterprisePeriodCreditBucket(
     {
-      activatesAt: startDate,
+      activatesAt: activatedAt,
       amount: firstPeriod.centsToGrant,
       expiresAt: firstPeriod.periodEnd,
       organizationId: contract.organizationId,
@@ -173,7 +169,7 @@ export async function activateEnterpriseContract(
   if (contract.oneTimeCents != null && contract.oneTimeCents > 0n) {
     const topUpBucket = await createEnterpriseTopUpCreditBucket(
       {
-        activatesAt: startDate,
+        activatesAt: activatedAt,
         amount: contract.oneTimeCents,
         contractId: contract.id,
         expiresAt: contract.oneTimeExpiresAt,
@@ -190,9 +186,8 @@ export async function activateEnterpriseContract(
       id: contractId,
     },
     data: {
-      activatedAt: params.activatedAt,
+      activatedAt,
       paymentReference: params.paymentReference ?? contract.paymentReference,
-      startDate,
       status: EnterpriseContractStatus.active,
     },
   });
@@ -299,7 +294,7 @@ export async function completeEnterpriseContractsAfterLastPeriod(
   const activeContracts = await tx.enterpriseContract.findMany({
     where: {
       status: EnterpriseContractStatus.active,
-      startDate: {
+      activatedAt: {
         not: null,
       },
       ...(options?.organizationId
@@ -307,24 +302,24 @@ export async function completeEnterpriseContractsAfterLastPeriod(
         : {}),
     },
     select: {
+      activatedAt: true,
       id: true,
       periodCount: true,
-      startDate: true,
     },
   });
 
   let completedCount = 0;
 
   for (const contract of activeContracts) {
-    if (!contract.startDate) {
+    if (!contract.activatedAt) {
       continue;
     }
 
     if (
       isEnterpriseContractPastCommercialTerm({
+        activatedAt: contract.activatedAt,
         now,
         periodCount: contract.periodCount,
-        startDate: contract.startDate,
       })
     ) {
       await tx.enterpriseContract.update({

@@ -109,7 +109,6 @@ describe("OrganizationSubscriptionSection", () => {
         currentPlan="enterprise"
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={5}
-        enterpriseContractStartDate={new Date("2026-01-01T00:00:00.000Z")}
         isEnterpriseConsumable
         isEnterpriseContract
         memberCount={3}
@@ -128,7 +127,7 @@ describe("OrganizationSubscriptionSection", () => {
     expect(subscriptionFreePlanRowMock).not.toHaveBeenCalled();
   });
 
-  it("shows self-serve plans before a consumable enterprise contract starts", () => {
+  it("shows self-serve plans after the enterprise commercial term ends", () => {
     render(
       <OrganizationSubscriptionSection
         assignedSeatCount={0}
@@ -136,11 +135,10 @@ describe("OrganizationSubscriptionSection", () => {
         currentPlan="enterprise"
         currentPeriodEnd={null}
         currentSeats={5}
-        enterpriseContractStartDate={new Date("2099-06-01T00:00:00.000Z")}
         isEnterpriseConsumable={false}
         isEnterpriseContract
         memberCount={0}
-        organizationId="org-enterprise-pending"
+        organizationId="org-enterprise-post-term"
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
       />,
@@ -161,7 +159,6 @@ describe("OrganizationSubscriptionSection", () => {
         assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
-        enterpriseContractStartDate={null}
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
@@ -195,7 +192,6 @@ describe("OrganizationSubscriptionSection", () => {
         assignedSeatCount={2}
         cancelAtPeriodEnd
         currentPlan="starter"
-        enterpriseContractStartDate={null}
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
@@ -222,7 +218,6 @@ describe("OrganizationSubscriptionSection", () => {
         assignedSeatCount={3}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
-        enterpriseContractStartDate={null}
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
@@ -248,7 +243,6 @@ describe("OrganizationSubscriptionSection", () => {
         assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
-        enterpriseContractStartDate={null}
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
@@ -293,7 +287,6 @@ describe("OrganizationSubscriptionSection", () => {
         assignedSeatCount={1}
         cancelAtPeriodEnd={false}
         currentPlan="starter"
-        enterpriseContractStartDate={null}
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}

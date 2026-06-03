@@ -2916,7 +2916,6 @@
           "currentPlanCta": "Plan actual",
           "updateSeatsCta": "Actualizar Seats",
           "choosePlanCta": "Elegir plan",
-          "enterpriseContractPendingDescription": "Su contrato Enterprise comienza el {date}. Hasta entonces, las suscripciones de autoservicio siguen disponibles.",
           "Errors": {
             "unauthenticated": "Por favor, inicia sesión para continuar",
             "unauthenticatedAction": "Iniciar sesión",

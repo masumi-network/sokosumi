@@ -23,7 +23,7 @@ export type OrganizationBillingPlan =
       purchasedSeats: number;
       contractId: string;
       contractEnd: Date;
-      startDate: Date;
+      activatedAt: Date;
       cancelAtPeriodEnd: false;
       periodEnd: null;
     }
@@ -45,18 +45,18 @@ export async function resolveOrganizationBillingPlan(
     where: {
       organizationId,
       status: EnterpriseContractStatus.active,
-      startDate: {
+      activatedAt: {
         not: null,
       },
     },
     orderBy: [{ updatedAt: "desc" }],
   });
 
-  if (activeContract?.startDate) {
+  if (activeContract?.activatedAt) {
     const isConsumable = isEnterpriseContractConsumable({
+      activatedAt: activeContract.activatedAt,
       now,
       periodCount: activeContract.periodCount,
-      startDate: activeContract.startDate,
       status: activeContract.status,
     });
 
@@ -67,10 +67,10 @@ export async function resolveOrganizationBillingPlan(
       purchasedSeats: activeContract.seats,
       contractId: activeContract.id,
       contractEnd: deriveEnterpriseContractEndDate(
-        activeContract.startDate,
+        activeContract.activatedAt,
         activeContract.periodCount,
       ),
-      startDate: activeContract.startDate,
+      activatedAt: activeContract.activatedAt,
       cancelAtPeriodEnd: false,
       periodEnd: null,
     };

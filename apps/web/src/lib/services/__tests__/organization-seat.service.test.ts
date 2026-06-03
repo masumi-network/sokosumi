@@ -147,7 +147,7 @@ describe("organizationSeatService", () => {
     });
   });
 
-  it("returns enterprise seat summary before the consumable window", async () => {
+  it("returns enterprise seat summary for post-term enterprise contract", async () => {
     getAssignedMemberCountMock.mockResolvedValue(2);
     memberCountMock.mockResolvedValue(5);
     resolveOrganizationBillingPlanMock.mockResolvedValue({
@@ -159,7 +159,7 @@ describe("organizationSeatService", () => {
       periodEnd: null,
       plan: "enterprise",
       purchasedSeats: 12,
-      startDate: new Date("2026-08-01T00:00:00.000Z"),
+      activatedAt: new Date("2026-08-01T00:00:00.000Z"),
     });
 
     const { organizationSeatService } = await import(
@@ -230,7 +230,7 @@ describe("organizationSeatService", () => {
       periodEnd: null,
       plan: "enterprise",
       purchasedSeats: 3,
-      startDate: new Date("2026-05-01T00:00:00.000Z"),
+      activatedAt: new Date("2026-05-01T00:00:00.000Z"),
     });
     assignSeatMock.mockResolvedValue({
       id: "member-1",

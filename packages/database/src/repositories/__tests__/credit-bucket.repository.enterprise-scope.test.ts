@@ -54,7 +54,7 @@ describe("creditBucketRepository.getBalance (consumable enterprise)", () => {
       purchasedSeats: 5,
       contractId: "contract-1",
       contractEnd: new Date("2027-01-01T00:00:00.000Z"),
-      startDate: new Date("2026-01-01T00:00:00.000Z"),
+      activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
       periodEnd: null,
     });
@@ -84,7 +84,7 @@ describe("creditBucketRepository.getBalance (consumable enterprise)", () => {
       purchasedSeats: 5,
       contractId: "contract-1",
       contractEnd: new Date("2027-01-01T00:00:00.000Z"),
-      startDate: new Date("2026-01-01T00:00:00.000Z"),
+      activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
       periodEnd: null,
     });

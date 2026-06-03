@@ -102,7 +102,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         periodCount: body.periods,
         seats: body.seats,
         centsPerMonth,
-        startDate: body.startDate,
         oneTimeCents,
         oneTimeExpiresAt: body.oneTimeExpiresAt,
         paymentReference: body.paymentReference,

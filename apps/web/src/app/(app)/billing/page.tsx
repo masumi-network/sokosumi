@@ -124,9 +124,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     const isEnterpriseContract = billingPlan.mode === "enterprise_contract";
     const isEnterpriseConsumable =
       isEnterpriseContract && billingPlan.isConsumable;
-    const enterpriseContractStartDate = isEnterpriseContract
-      ? billingPlan.startDate
-      : null;
     const showOrganizationBillingPortal = !isEnterpriseConsumable;
     const canPurchaseCredits =
       isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
@@ -212,7 +209,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 currentPlan={currentPlan}
                 currentPeriodEnd={billingPlan.periodEnd}
                 currentSeats={currentSeats}
-                enterpriseContractStartDate={enterpriseContractStartDate}
                 isEnterpriseConsumable={isEnterpriseConsumable}
                 isEnterpriseContract={isEnterpriseContract}
                 memberCount={seatSummary.memberCount}

@@ -335,7 +335,7 @@ describe("runEnterpriseContractSchedulerPass", () => {
           {
             id: "contract-1",
             periodCount: 3,
-            startDate: new Date("2026-05-01T00:00:00.000Z"),
+            activatedAt: new Date("2026-05-01T00:00:00.000Z"),
           },
         ]),
         update: updateContractMock,
@@ -376,7 +376,7 @@ describe("runEnterpriseContractSchedulerPass", () => {
           {
             id: "contract-1",
             periodCount: 3,
-            startDate: new Date("2026-05-01T00:00:00.000Z"),
+            activatedAt: new Date("2026-05-01T00:00:00.000Z"),
           },
         ]),
         update: updateContractMock,

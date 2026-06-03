@@ -89,7 +89,6 @@ function createContractRecord(
     updatedAt: new Date("2026-06-01T10:00:00.000Z"),
     organizationId: ORG_ID,
     status: EnterpriseContractStatus.draft,
-    startDate: null,
     periodCount: 12,
     activatedAt: null,
     canceledAt: null,

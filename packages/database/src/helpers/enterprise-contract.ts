@@ -42,38 +42,31 @@ export function minEnterpriseCentsPerMonth(): bigint {
   return convertCreditsToCents(MIN_ENTERPRISE_CREDITS_PER_MONTH);
 }
 
-export function resolveContractStartDate(
-  startDate: Date | null | undefined,
-  activatedAt: Date,
-): Date {
-  return startDate ?? activatedAt;
-}
-
 function periodEndBeforeNextStart(nextPeriodStart: Date): Date {
   return new Date(nextPeriodStart.getTime() - 1);
 }
 
 export function deriveEnterpriseContractEndDate(
-  startDate: Date,
+  activatedAt: Date,
   periodCount: number,
 ): Date {
   validateEnterprisePeriodCount(periodCount);
 
-  let periodStart = startDate;
+  let periodStart = activatedAt;
 
   for (let index = 1; index < periodCount; index++) {
-    periodStart = getNextMonthlyPeriodEnd(periodStart, startDate);
+    periodStart = getNextMonthlyPeriodEnd(periodStart, activatedAt);
   }
 
-  const nextPeriodStart = getNextMonthlyPeriodEnd(periodStart, startDate);
+  const nextPeriodStart = getNextMonthlyPeriodEnd(periodStart, activatedAt);
   return periodEndBeforeNextStart(nextPeriodStart);
 }
 
 export function buildEnterpriseContractPeriodSchedule(params: {
+  activatedAt: Date;
   centsPerMonth: bigint;
   periodCount: number;
   purchasedSeats: number;
-  startDate: Date;
 }): EnterpriseContractPeriodDraft[] {
   if (
     !Number.isInteger(params.periodCount) ||
@@ -83,12 +76,12 @@ export function buildEnterpriseContractPeriodSchedule(params: {
   }
 
   const periods: EnterpriseContractPeriodDraft[] = [];
-  let periodStart = params.startDate;
+  let periodStart = params.activatedAt;
 
   for (let index = 0; index < params.periodCount; index++) {
     const nextPeriodStart = getNextMonthlyPeriodEnd(
       periodStart,
-      params.startDate,
+      params.activatedAt,
     );
 
     periods.push({
@@ -109,18 +102,12 @@ export function previewEnterpriseContractPeriods(params: {
   centsPerMonth: bigint;
   periodCount: number;
   purchasedSeats: number;
-  startDate?: Date | null;
 }): EnterpriseContractPeriodDraft[] {
-  const effectiveStart = resolveContractStartDate(
-    params.startDate,
-    params.activatedAt,
-  );
-
   return buildEnterpriseContractPeriodSchedule({
+    activatedAt: params.activatedAt,
     centsPerMonth: params.centsPerMonth,
     periodCount: params.periodCount,
     purchasedSeats: params.purchasedSeats,
-    startDate: effectiveStart,
   });
 }
 
@@ -130,9 +117,9 @@ export function previewEnterpriseContractPeriods(params: {
  * instant at `contractEnd` is still consumable but not yet completed.
  */
 export function isEnterpriseContractPastCommercialTerm(params: {
+  activatedAt: Date;
   now?: Date;
   periodCount: number;
-  startDate: Date;
 }): boolean {
   if (
     !Number.isInteger(params.periodCount) ||
@@ -143,7 +130,7 @@ export function isEnterpriseContractPastCommercialTerm(params: {
 
   const now = params.now ?? new Date();
   const contractEnd = deriveEnterpriseContractEndDate(
-    params.startDate,
+    params.activatedAt,
     params.periodCount,
   );
 
@@ -152,9 +139,9 @@ export function isEnterpriseContractPastCommercialTerm(params: {
 
 /** Whether entitlements (credits, exclusivity) apply for an active contract. */
 export function isEnterpriseContractConsumable(params: {
+  activatedAt: Date;
   now?: Date;
   periodCount: number;
-  startDate: Date;
   status: EnterpriseContractStatus;
 }): boolean {
   if (params.status !== EnterpriseContractStatus.active) {
@@ -163,21 +150,18 @@ export function isEnterpriseContractConsumable(params: {
 
   const now = params.now ?? new Date();
 
-  return (
-    now.getTime() >= params.startDate.getTime() &&
-    !isEnterpriseContractPastCommercialTerm({
-      now,
-      periodCount: params.periodCount,
-      startDate: params.startDate,
-    })
-  );
+  return !isEnterpriseContractPastCommercialTerm({
+    activatedAt: params.activatedAt,
+    now,
+    periodCount: params.periodCount,
+  });
 }
 
 /** Alias for {@link isEnterpriseContractConsumable} (historical name). */
 export function isEnterpriseContractActive(params: {
+  activatedAt: Date;
   now?: Date;
   periodCount: number;
-  startDate: Date;
   status: EnterpriseContractStatus;
 }): boolean {
   return isEnterpriseContractConsumable(params);

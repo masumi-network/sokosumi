@@ -1437,12 +1437,10 @@ model EnterpriseContract {
 
   status EnterpriseContractStatus @default(draft)
 
-  /// Earliest date the contract may begin. Defaults to activatedAt on activation when unset.
-  startDate DateTime?
-
   /// Number of full rolling monthly grant periods (commercial term length).
   periodCount Int
 
+  /// Set on activation; anchors the rolling monthly period schedule and commercial term.
   activatedAt DateTime?
   canceledAt  DateTime?
 

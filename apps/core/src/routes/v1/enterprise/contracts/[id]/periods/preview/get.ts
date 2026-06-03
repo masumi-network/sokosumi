@@ -1,9 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import { EnterpriseContractStatus } from "@sokosumi/database";
-import {
-  previewEnterpriseContractPeriods,
-  resolveContractStartDate,
-} from "@sokosumi/database/helpers";
+import { previewEnterpriseContractPeriods } from "@sokosumi/database/helpers";
 import {
   derivePreviewContractEnd,
   mapEnterpriseContractPreviewPeriodForApi,
@@ -66,21 +63,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       centsPerMonth: contract.centsPerMonth,
       periodCount: contract.periodCount,
       purchasedSeats: contract.seats,
-      startDate: contract.startDate,
     });
 
-    const startDate = resolveContractStartDate(contract.startDate, activatedAt);
     const contractEnd = derivePreviewContractEnd({
       activatedAt,
       periodCount: contract.periodCount,
-      startDate: contract.startDate,
     });
 
     return ok(
       c,
       enterpriseContractPreviewSchema.parse({
         activatedAt,
-        startDate,
         contractEnd,
         periods: schedule.map(mapEnterpriseContractPreviewPeriodForApi),
       }),
