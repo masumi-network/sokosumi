@@ -34,8 +34,9 @@ isProject: false
   - **Phase 2:** [`enterprise-contract-lifecycle.ts`](packages/database/src/helpers/enterprise-contract-lifecycle.ts), grants, exclusivity guards
   - **Phase 3:** [`enterprise-contract-scheduler.ts`](packages/database/src/helpers/enterprise-contract-scheduler.ts) + [`enterprise-contract-sync.service.ts`](apps/core/src/services/enterprise-contract-sync.service.ts) + `GET /sync/enterprise-contracts-renewal` (daily cron)
   - **Phase 4:** Core admin API under `/v1/enterprise/contracts` (admin middleware on `/v1/enterprise`); no org member read route — web uses Prisma + `resolveOrganizationBillingPlan()`
-  - **Phase 5a (partial):** [`organization-billing-plan.ts`](packages/database/src/helpers/organization-billing-plan.ts) + web billing/seats/onboarding wired; legacy `Subscription.plan === "enterprise"` ignored (no Stripe enterprise plan)
-  - **Next:** Phase 5 entitlements (credit bucket consumption, exclusivity at checkout). Existing primitives to reuse:
+  - **Phase 5a ✅:** Plan resolution complete (see Phase 5 below). **Next:** **5b** (credit consumption), then **5c** (subscription exclusivity + free-grant skips). Credit top-ups and coupons stay available for enterprise orgs (product decision).
+  - **Prep (pre–5b):** commercial vs consumable billing plan, complete expired contracts on activate, [`credit-bucket-scope.ts`](packages/database/src/helpers/credit-bucket-scope.ts), seat-service grant skips for `enterprise_contract`.
+  - Existing primitives to reuse:
   - `CreditBucket.activatesAt` + `[creditBucketActivatesAtOrBefore()](packages/database/src/helpers/credit.ts)` (spec’s `activeFrom` maps to this field — **do not add a duplicate column**)
   - Per-period pre-create pattern in `[subscription.ts](packages/database/src/helpers/subscription.ts)` and `[free-subscription-sync.service.ts](apps/core/src/services/free-subscription-sync.service.ts)`
   - Admin auth via `[requireAdminAuthContext()](apps/core/src/middleware/auth.ts)` (same as credit-costs routes)
@@ -157,7 +158,7 @@ Each period runs **one calendar month from its `periodStart`**, using the same l
 4. Create period-1 bucket inline: **`activatesAt = startDate`**, `expiresAt = periodEnd`, flip period → `active` (non-consumable until `startDate` if future)
 5. Optional top-up org bucket on activation: **`activatesAt = startDate`**, `ENTERPRISE_TOP_UP`
 
-**Contract start (entitlements + exclusivity):** While status is `active`, the contract is **consumable** only when `isEnterpriseContractActive()` is true (`now >= startDate` and `now <= deriveEnterpriseContractEndDate(startDate, periodCount)`). Plan exclusivity (Phase 5) uses the same window — early activation records payment but does not lock the org or grant credits until `startDate`.
+**Contract start (entitlements + exclusivity):** Commercially **active** (`status === active` + `startDate`) drives seat capacity and `enterprise_contract` billing mode. **Consumable** entitlements (pool spend, subscription exclusivity in 5c) use `isEnterpriseContractConsumable()` (`now >= startDate` and not past `deriveEnterpriseContractEndDate`). Early activation records payment but does not apply consumable exclusivity until `startDate`.
 
 **Cancellation behavior:**
 
@@ -273,7 +274,7 @@ After the bucket row exists with non-null `activatesAt`, flip period status: **i
 
 **Org billing read (web, not Core):** `resolveOrganizationBillingPlan(organizationId, prisma)` in [`organization-billing-plan.ts`](packages/database/src/helpers/organization-billing-plan.ts). No stored `Organization.type`; `plan: "enterprise"` is **not** a Stripe/Better Auth plan.
 
-**Deliverable:** Full admin lifecycle via Core API + OpenAPI; web billing/seats use the resolver (Phase 5a partial).
+**Deliverable:** Full admin lifecycle via Core API + OpenAPI; web billing/seats use the resolver (Phase 5a complete).
 
 **Suggested PR title:** `feat(core): enterprise contract admin API`
 
@@ -283,15 +284,22 @@ After the bucket row exists with non-null `activatesAt`, flip period status: **i
 
 **Goal:** Make enterprise contracts enforceable in production — this phase must land before activating customer contracts.
 
-### 5a. Plan resolution ✅ (partial — resolver + web wiring)
+### 5a. Plan resolution ✅
 
-**Done:** [`organization-billing-plan.ts`](packages/database/src/helpers/organization-billing-plan.ts) — `resolveOrganizationBillingPlan()`, `parseSelfServeSubscriptionPlanName()` (legacy `enterprise` subscription rows → `null`). Wired: [`organization-seat.service.ts`](apps/web/src/lib/services/organization-seat.service.ts), [`billing/page.tsx`](apps/web/src/app/(app)/billing/page.tsx), [`organization-subscription-section.tsx`](apps/web/src/components/billing/organization-subscription-section.tsx) (`isEnterpriseContract`), [`onboarding-dialog-loader.tsx`](apps/web/src/app/(app)/components/onboarding-dialog-loader.tsx). Removed Stripe `enterprise` from self-serve catalog types.
+**Delivered:**
 
-**Remaining in 5a/5c:** block org/personal checkout when contract active; skip free grants for enterprise orgs.
+- [`organization-billing-plan.ts`](packages/database/src/helpers/organization-billing-plan.ts) — `resolveOrganizationBillingPlan()`, `parseSelfServeSubscriptionPlanName()` (legacy `Subscription.plan === "enterprise"` → `null`)
+- **Commercial vs consumable:** return `enterprise_contract` for any `active` contract with normalized `startDate`; expose `isConsumable` via `isEnterpriseContractConsumable()` for entitlement/checkout guards (Phase 5c)
+- **Helpers:** `isEnterpriseContractPastCommercialTerm()`, `isEnterpriseContractConsumable()` / `isEnterpriseContractActive()` in [`enterprise-contract.ts`](packages/database/src/helpers/enterprise-contract.ts)
+- **Web wiring:** [`organization-seat.service.ts`](apps/web/src/lib/services/organization-seat.service.ts), [`billing/page.tsx`](apps/web/src/app/(app)/billing/page.tsx), [`organization-subscription-section.tsx`](apps/web/src/components/billing/organization-subscription-section.tsx) (`isEnterpriseContract`), [`onboarding-dialog-loader.tsx`](apps/web/src/app/(app)/components/onboarding-dialog-loader.tsx)
+- Self-serve Stripe catalog: no `enterprise` plan type
+- Tests: [`organization-billing-plan.test.ts`](packages/database/src/helpers/__tests__/organization-billing-plan.test.ts)
+
+**Not in 5a (moved to 5c):** subscription checkout blocks and skipping local-free grants — see 5c.
 
 ### 5b. Credit consumption (shared org pool, assigned-only)
 
-Update `[credit-bucket.repository.ts](packages/database/src/repositories/credit-bucket.repository.ts)` scope logic:
+Update scope in [`credit-bucket-scope.ts`](packages/database/src/helpers/credit-bucket-scope.ts) (used by [`credit-bucket.repository.ts`](packages/database/src/repositories/credit-bucket.repository.ts)):
 
 - Include `ENTERPRISE_PERIOD` / `ENTERPRISE_TOP_UP` org-level buckets for **assigned** members only
 - Exclude enterprise pool buckets for unassigned members and for orgs without active contract
@@ -299,18 +307,20 @@ Update `[credit-bucket.repository.ts](packages/database/src/repositories/credit-
 
 Update `[apps/core/src/helpers/subscription.ts](apps/core/src/helpers/subscription.ts)` credit breakdown to surface enterprise pool balance separately from per-member subscription credits.
 
-### 5c. Suppress conflicting entitlements
+### 5c. Suppress conflicting entitlements (subscriptions only)
 
-While contract is **consumable** (`isEnterpriseContractActive()`):
+While contract is **consumable** (`isEnterpriseContractConsumable()` / `billingPlan.isConsumable`):
 
-- **Block** org subscription purchase in `[subscription/action.ts](apps/web/src/lib/actions/subscription/action.ts)` + `[organization-subscription.service.ts](apps/web/src/lib/services/organization-subscription.service.ts)`
-- **Block** personal subscription purchase for members of enterprise orgs
+- **Block** org **subscription** purchase/change in `[subscription/action.ts](apps/web/src/lib/actions/subscription/action.ts)` + `[organization-subscription.service.ts](apps/web/src/lib/services/organization-subscription.service.ts)`
+- **Block** personal **subscription** purchase for members of enterprise orgs
 - **Skip** local-free / unassigned-member free grants (`[webhook-handlers.ts](apps/web/src/lib/stripe/webhook-handlers.ts)`, `[organization-subscription.service.ts](apps/web/src/lib/services/organization-subscription.service.ts)`) for enterprise orgs
-- **Unassigned members:** zero entitlements (no free-tier fallback)
+- **Unassigned members:** zero entitlements (no free-tier fallback) — enforced primarily in **5b** (credit scope)
 
-### 5d. Seat assignment capacity
+**Explicitly not blocked:** org credit **top-ups** (`purchaseCredits`) and **coupons** remain available for enterprise organizations.
 
-When enterprise active, `memberRepository.assignSeat(..., purchasedSeats)` receives `contract.seats` instead of `subscription.seats`.
+### 5d. Seat assignment capacity ✅ (implemented; verify in tests)
+
+[`resolveOrganizationBillingPlan()`](packages/database/src/helpers/organization-billing-plan.ts) supplies `contract.seats` as `purchasedSeats` for `enterprise_contract`; [`organization-seat.service.ts`](apps/web/src/lib/services/organization-seat.service.ts) passes that into `memberRepository.assignSeat`. Self-serve subscription credit grants on assign/unassign are skipped for enterprise orgs.
 
 **Tests:** Exclusivity guards, assigned-only pool consumption, unassigned member gets zero balance, seat assign respects contract capacity, exclusivity lifts on cancel/complete.
 
