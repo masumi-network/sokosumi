@@ -30,6 +30,25 @@ const getMembersOrganizationIdsByUserIdMock = vi.mocked(
 );
 
 describe("organization subscription exclusivity", () => {
+  it("returns false when enterprise contract is not consumable", async () => {
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable: false,
+      purchasedSeats: 5,
+      contractId: "contract-1",
+      contractEnd: new Date("2026-02-01T00:00:00.000Z"),
+      startDate: new Date("2026-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+
+    assert.equal(
+      await hasConsumableEnterpriseContract("org-1", {} as never),
+      false,
+    );
+  });
+
   it("detects consumable enterprise contracts", async () => {
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "enterprise_contract",
@@ -59,6 +78,26 @@ describe("organization subscription exclusivity", () => {
       periodEnd: new Date("2026-03-01T00:00:00.000Z"),
     });
 
+    await assertOrganizationSubscriptionChangeAllowed("org-1", {} as never);
+  });
+
+  it("does not treat post-term enterprise contracts as consumable", async () => {
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "enterprise_contract",
+      plan: "enterprise",
+      isConsumable: false,
+      purchasedSeats: 5,
+      contractId: "contract-1",
+      contractEnd: new Date("2026-02-01T00:00:00.000Z"),
+      startDate: new Date("2026-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      periodEnd: null,
+    });
+
+    assert.equal(
+      await hasConsumableEnterpriseContract("org-1", {} as never),
+      false,
+    );
     await assertOrganizationSubscriptionChangeAllowed("org-1", {} as never);
   });
 
