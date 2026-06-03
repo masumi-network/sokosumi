@@ -1,7 +1,7 @@
 "use client";
 
+import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import { useFormatter, useTranslations } from "next-intl";
-
 import {
   Card,
   CardContent,
@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import { cn } from "@/lib/utils";
 import {
   formatPlanPrice,

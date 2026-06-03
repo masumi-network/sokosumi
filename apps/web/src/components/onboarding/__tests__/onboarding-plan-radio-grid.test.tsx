@@ -1,11 +1,10 @@
+import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-
 import type { PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
 import { OnboardingPlanRadioGrid } from "@/components/onboarding/onboarding-plan-radio-grid";
-import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
 const basePlans: PaidSubscriptionPlanView[] = [
   {

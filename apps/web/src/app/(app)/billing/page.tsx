@@ -5,7 +5,10 @@ import {
   subscriptionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import {
+  convertCentsToCredits,
+  type SelfServeSubscriptionPlanName,
+} from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import Stripe from "stripe";
 
@@ -27,10 +30,7 @@ import prisma from "@/lib/db/prisma";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
 import { organizationSeatService, userService } from "@/lib/services";
 import { ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY } from "@/lib/stripe/credit-topup-pricing";
-import {
-  getSubscriptionCatalog,
-  type SelfServeSubscriptionPlanName,
-} from "@/lib/stripe/subscription-catalog";
+import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);

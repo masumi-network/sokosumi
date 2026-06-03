@@ -1,17 +1,9 @@
 import {
   type OrganizationBillingPlanName,
+  type PaidSubscriptionPlanName,
   parseSelfServeSubscriptionPlanName,
   type SelfServeSubscriptionPlanName,
 } from "@sokosumi/utils";
-
-export type { OrganizationBillingPlanName, SelfServeSubscriptionPlanName };
-
-export type SubscriptionPlanName = SelfServeSubscriptionPlanName;
-
-export type PaidSubscriptionPlanName = Exclude<
-  SelfServeSubscriptionPlanName,
-  "free"
->;
 
 export interface SubscriptionPlanView {
   credits: number;

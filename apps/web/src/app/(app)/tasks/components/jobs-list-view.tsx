@@ -18,8 +18,6 @@ interface RecentJobsReference {
   referenceTs: number;
 }
 
-export type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
-
 interface JobsListViewProps {
   jobs: TasksViewJob[];
   agentPreviewById: Record<string, { name: string; icon: string | null }>;

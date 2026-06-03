@@ -1,9 +1,9 @@
 import { MemberRole, type OrganizationWithRelations } from "@sokosumi/database";
 import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
+import type { SubscriptionPlanName } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import { Suspense } from "react";
 import Stripe from "stripe";
-
 import {
   type ActiveSubscription,
   type PaidSubscriptionPlanView,
@@ -13,10 +13,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { auth } from "@/lib/auth/auth";
 import prisma from "@/lib/db/prisma";
 import { organizationSeatService, userService } from "@/lib/services";
-import {
-  getSubscriptionCatalog,
-  type SubscriptionPlanName,
-} from "@/lib/stripe/subscription-catalog";
+import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
 import {
   OnboardingDialog,

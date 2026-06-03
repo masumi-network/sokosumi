@@ -3,23 +3,12 @@ import "server-only";
 import type { StripePlan } from "@better-auth/stripe";
 import { FREE_SUBSCRIPTION_MONTHLY_CREDITS } from "@sokosumi/database/helpers";
 import type {
-  OrganizationBillingPlanName,
+  PaidSubscriptionPlanName,
   SelfServeSubscriptionPlanName,
 } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-
-export type { OrganizationBillingPlanName, SelfServeSubscriptionPlanName };
-
-/** Self-serve Stripe/Better Auth plan names only. */
-export type SubscriptionPlanName = SelfServeSubscriptionPlanName;
-
-/** Self-serve paid plans in Stripe checkout upgrade flows. */
-export type PaidSubscriptionPlanName = Exclude<
-  SelfServeSubscriptionPlanName,
-  "free"
->;
 
 export interface SubscriptionCatalogPlan {
   credits: number;

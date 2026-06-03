@@ -1,17 +1,19 @@
 "use client";
 
+import type {
+  OrganizationBillingPlanName,
+  PaidSubscriptionPlanName,
+} from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
 import { Card, CardContent } from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import {
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
-import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import {
   OrganizationSeatSettingsFields,
   resolveMinimumOrganizationSeats,
@@ -21,7 +23,6 @@ import { SubscriptionEnterprisePlanCard } from "./subscription-enterprise-plan-c
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
 import {
-  type OrganizationBillingPlanName,
   type SubscriptionPlanView,
   splitSubscriptionPlans,
 } from "./subscription-plan-utils";

@@ -2,7 +2,10 @@
 
 import type { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi";
-import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
+import {
+  type InputFieldSchemaType,
+  normalizeAndValidateInputSchema,
+} from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import { isUrlArray, isUrlString } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
@@ -17,10 +20,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
-import {
-  flattenInputs,
-  normalizeAndValidateInputSchema,
-} from "@/lib/schemas/job";
+import { flattenInputs } from "@/lib/schemas/job";
 import { cn } from "@/lib/utils";
 
 import { FileChipWithMetadata } from "./file-chip-with-metadata";

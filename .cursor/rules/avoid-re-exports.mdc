@@ -15,7 +15,7 @@ Re-export layers (`export { foo } from "other-module"` or `export type { Bar } f
 | ------- | --- |
 | App file that only re-exports a shared package | e.g. `apps/web/src/lib/utils/file.ts` → `@sokosumi/utils`. Update call sites to import the package directly. |
 | Package re-exporting another package’s API | e.g. `@sokosumi/database/helpers` re-exporting `@sokosumi/utils`. Consumers import each package at the call site. |
-| Duplicate type aliases in a second module | e.g. defining `SelfServeSubscriptionPlanName` in both utils and `subscription-catalog.ts`. One canonical definition only. |
+| Duplicate type aliases in a second module | e.g. defining `PaidSubscriptionPlanName` in both `@sokosumi/utils` and `subscription-catalog.ts`. One canonical definition only. |
 | “Stable local entry” that is only `export … from` | If the only purpose is indirection, delete the layer and fix imports. |
 
 ### Allowed (not “re-export smell”)

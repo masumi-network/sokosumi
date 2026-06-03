@@ -42,7 +42,7 @@ Server code may import these from `@sokosumi/database/helpers`.
 
 ### Example (billing plan names)
 
-- **Utils**: `SelfServeSubscriptionPlanName`, `OrganizationBillingPlanName`, `parseSelfServeSubscriptionPlanName` → `packages/utils/src/organization-billing-plan-names.ts`
+- **Utils**: `SelfServeSubscriptionPlanName`, `OrganizationBillingPlanName`, `SubscriptionPlanName`, `PaidSubscriptionPlanName`, `parseSelfServeSubscriptionPlanName` → `packages/utils/src/organization-billing-plan-names.ts`
 - **Database**: `OrganizationBillingPlan`, `resolveOrganizationBillingPlan` → `packages/database/src/helpers/organization-billing-plan.ts` (imports plan-name types/parser from `@sokosumi/utils`)
 
 ### Checklist before merging
