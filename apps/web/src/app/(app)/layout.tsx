@@ -73,7 +73,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     getPendingNoticesAction(),
     userService.getActiveOrganization(),
     coreClient.getMyCredits().catch(() => null),
-    coworkerService.listCoworkers("chat").catch(() => []),
+    coworkerService.listCoworkers().catch(() => []),
     hermesBetaEnabled(),
   ]);
   const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;

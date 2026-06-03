@@ -20,7 +20,11 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import {
+  filterCoworkersForComposeKind,
+  findDefaultCoworker,
+  getCoworkerImageUrl,
+} from "@/app/chat/utils/coworker-utils";
 import type {
   ChatComposeKind,
   ChatComposeMessage,
@@ -112,28 +116,15 @@ interface MultimodalInputProps {
   coworker?: Coworker;
   coworkers?: Coworker[];
   coworkersLoading?: boolean;
-  onCoworkerChange?: (coworker: Coworker) => void;
+  onCoworkerChange?: (coworker: Coworker | null) => void;
   enterSubmitsOnMobile?: boolean;
   blurOnSendOnMobile?: boolean;
   persistentImageGeneration?: boolean;
 }
 
-const DEFAULT_COWORKER_SLUG = "elena";
 const TASK_MARKDOWN_EDITOR_ID = "chat-task-markdown-editor";
 
 type ChatFilePart = Extract<UIMessage["parts"][number], { type: "file" }>;
-
-function findDefaultCoworker(list: Coworker[] | undefined) {
-  return (
-    list?.find(
-      (coworker) =>
-        coworker.slug?.toLowerCase() === DEFAULT_COWORKER_SLUG ||
-        coworker.id?.toLowerCase() === DEFAULT_COWORKER_SLUG,
-    ) ??
-    list?.[0] ??
-    null
-  );
-}
 
 function matchesCoworker(a: Coworker | null, b: Coworker | null): boolean {
   if (!a || !b) {
@@ -201,22 +192,63 @@ function PureMultimodalInput({
   const [chatFileParts, setChatFileParts] = useState<ChatFilePart[]>([]);
   const [imageGenerationEnabled, setImageGenerationEnabled] = useState(false);
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
-  const initialDefault = findDefaultCoworker(propCoworkers);
   const [preferredCoworker, setPreferredCoworker] = useState<Coworker | null>(
-    propCoworker ?? (propSelectedModel ? null : initialDefault),
+    () => {
+      if (propCoworker) {
+        return propCoworker;
+      }
+      if (propSelectedModel) {
+        return null;
+      }
+      const initialComposeKind: ChatComposeKind = chatId
+        ? "chat"
+        : (controlledComposeKind ?? "task");
+      return (
+        findDefaultCoworker(
+          filterCoworkersForComposeKind(
+            propCoworkers ?? [],
+            initialComposeKind,
+          ),
+        ) ?? null
+      );
+    },
   );
   const [selectedModel, setSelectedModel] = useState<{
     id: string;
     name: string;
   } | null>(propSelectedModel ?? null);
 
-  // Sync selected agent from props when switching conversations (model vs coworker).
+  // Sync from props when the conversation or parent-driven agent changes.
+  // Compose-kind toggles are handled in handleComposeKindChange — do not reset here.
   useEffect(() => {
-    const defaultCoworker = findDefaultCoworker(propCoworkers);
+    if (propSelectedModel) {
+      setPreferredCoworker(null);
+      return;
+    }
+    if (propCoworker) {
+      const filteredCoworkers = filterCoworkersForComposeKind(
+        [propCoworker],
+        composeKind,
+      );
+      if (filteredCoworkers.length > 0) {
+        setPreferredCoworker(filteredCoworkers[0] ?? null);
+      } else {
+        setPreferredCoworker(null);
+      }
+    }
+  }, [composeKind, propCoworker, propSelectedModel]);
+
+  // Seed default coworker when the coworkers list loads (uncontrolled selection only).
+  useEffect(() => {
+    if (propCoworker || propSelectedModel) {
+      return;
+    }
     setPreferredCoworker(
-      propCoworker ?? (propSelectedModel ? null : defaultCoworker),
+      findDefaultCoworker(
+        filterCoworkersForComposeKind(propCoworkers ?? [], composeKind),
+      ) ?? null,
     );
-  }, [propCoworker, propSelectedModel, propCoworkers]);
+  }, [propCoworkers]);
 
   useEffect(() => {
     setSelectedModel(propSelectedModel ?? null);
@@ -471,12 +503,7 @@ function PureMultimodalInput({
 
   const coworkers = propCoworkers ?? [];
   const availableCoworkers = useMemo(
-    () =>
-      composeKind === "task"
-        ? coworkers.filter((coworker) =>
-            coworker.capabilities?.includes("tasks"),
-          )
-        : coworkers,
+    () => filterCoworkersForComposeKind(coworkers, composeKind),
     [composeKind, coworkers],
   );
   const selectedCoworker = useMemo(() => {
@@ -498,7 +525,9 @@ function PureMultimodalInput({
     canSubmitContent &&
     status === "ready" &&
     !submitBlocked &&
-    (composeKind === "chat" || selectedCoworker != null) &&
+    (composeKind === "chat"
+      ? selectedCoworker != null || selectedModel != null
+      : selectedCoworker != null) &&
     !isUploadingAttachments;
   const placeholder = t(
     composeKind === "task"
@@ -637,28 +666,26 @@ function PureMultimodalInput({
       if (nextKind === "task") {
         setSelectedModel(null);
         onSelectModel?.(null);
-        const taskCoworkers = coworkers.filter((coworker) =>
-          coworker.capabilities?.includes("tasks"),
-        );
+        const taskCoworkers = filterCoworkersForComposeKind(coworkers, "task");
         const hasCurrentTaskCoworker = taskCoworkers.some((coworker) =>
           matchesCoworker(coworker, preferredCoworker),
         );
         if (!hasCurrentTaskCoworker) {
           const defaultTaskCoworker = findDefaultCoworker(taskCoworkers);
           setPreferredCoworker(defaultTaskCoworker);
-          if (defaultTaskCoworker) {
-            onCoworkerChange?.(defaultTaskCoworker);
-          }
+          onCoworkerChange?.(defaultTaskCoworker);
         }
         return;
       }
 
-      if (!preferredCoworker) {
-        const defaultCoworker = findDefaultCoworker(coworkers);
-        setPreferredCoworker(defaultCoworker);
-        if (defaultCoworker) {
-          onCoworkerChange?.(defaultCoworker);
-        }
+      const chatCoworkers = filterCoworkersForComposeKind(coworkers, "chat");
+      const hasCurrentChatCoworker = chatCoworkers.some((coworker) =>
+        matchesCoworker(coworker, preferredCoworker),
+      );
+      if (!hasCurrentChatCoworker) {
+        const defaultChatCoworker = findDefaultCoworker(chatCoworkers);
+        setPreferredCoworker(defaultChatCoworker);
+        onCoworkerChange?.(defaultChatCoworker);
       }
     },
     [

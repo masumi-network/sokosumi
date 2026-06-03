@@ -1,8 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
+import { filterCoworkersForComposeKind } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,10 @@ export default function SelectCoworkerModal({
   const t = useTranslations("App.Chat.Chat");
   const [selectedCoworkerId, setSelectedCoworkerId] = useState<string>("");
 
-  const coworkers = propCoworkers ?? [];
+  const coworkers = useMemo(
+    () => filterCoworkersForComposeKind(propCoworkers ?? [], "chat"),
+    [propCoworkers],
+  );
 
   const selectedCoworker = coworkers.find((c) => c.id === selectedCoworkerId);
 
