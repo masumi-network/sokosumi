@@ -605,14 +605,12 @@ describe("activateEnterpriseContract", () => {
 
     assert.equal(result.periodsCreated, 3);
     assert.equal(client.findManyContractsMock.mock.calls.length, 1);
-    assert.equal(
-      client.updateContractMock.mock.calls.some(
-        (call) =>
-          call[0]?.where.id === "expired-active-contract" &&
-          call[0]?.data.status === EnterpriseContractStatus.completed,
-      ),
-      true,
+    const completedExpiredContract = client.updateContractMock.mock.calls.some(
+      (call: [{ data: { status: string }; where: { id: string } }]) =>
+        call[0]?.where.id === "expired-active-contract" &&
+        call[0]?.data.status === EnterpriseContractStatus.completed,
     );
+    assert.equal(completedExpiredContract, true);
   });
 
   it("rejects activation when the organization already has an active contract", async () => {
