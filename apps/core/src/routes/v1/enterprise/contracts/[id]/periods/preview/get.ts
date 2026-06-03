@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { EnterpriseContractStatus } from "@sokosumi/database";
 import {
   previewEnterpriseContractPeriods,
   resolveContractStartDate,
@@ -7,7 +8,7 @@ import {
   derivePreviewContractEnd,
   mapEnterpriseContractPreviewPeriodForApi,
 } from "@/helpers/enterprise-contract-api.js";
-import { notFound } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -36,6 +37,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -52,6 +54,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (!contract) {
       throw notFound("Enterprise contract not found");
+    }
+
+    if (contract.status !== EnterpriseContractStatus.draft) {
+      throw conflict("Only draft enterprise contracts can be previewed");
     }
 
     const schedule = previewEnterpriseContractPeriods({

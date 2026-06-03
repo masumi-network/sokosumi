@@ -21,6 +21,12 @@ describe("enterprise contracts routes OpenAPI contract", () => {
     expect(doc.paths?.["/{id}/periods/preview"]?.get).toBeDefined();
   });
 
+  it("documents 409 when previewing a non-draft contract", () => {
+    const preview = doc.paths?.["/{id}/periods/preview"]?.get;
+
+    expect(preview?.responses).toHaveProperty("409");
+  });
+
   it("documents auth and conflict responses on activate", () => {
     const activate = doc.paths?.["/{id}/activate"]?.post;
 
