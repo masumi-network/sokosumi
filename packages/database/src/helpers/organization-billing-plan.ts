@@ -1,4 +1,8 @@
 import {
+  parseSelfServeSubscriptionPlanName,
+  type SelfServeSubscriptionPlanName,
+} from "@sokosumi/utils";
+import {
   EnterpriseContractStatus,
   type Prisma,
 } from "../generated/prisma/client.js";
@@ -9,17 +13,6 @@ import {
 } from "./enterprise-contract.js";
 import { resolvePurchasedSeats } from "./organization-seats.js";
 import { isActiveSubscriptionStatus } from "./subscription.js";
-
-export type SelfServeSubscriptionPlanName =
-  | "free"
-  | "starter"
-  | "standard"
-  | "pro";
-
-/** UI label; `enterprise` is set when the org has a commercially active contract. */
-export type OrganizationBillingPlanName =
-  | SelfServeSubscriptionPlanName
-  | "enterprise";
 
 export type OrganizationBillingPlan =
   | {
@@ -42,24 +35,6 @@ export type OrganizationBillingPlan =
       cancelAtPeriodEnd: boolean;
       periodEnd: Date | null;
     };
-
-export function parseSelfServeSubscriptionPlanName(
-  value: string | null | undefined,
-): SelfServeSubscriptionPlanName | null {
-  if (!value) {
-    return null;
-  }
-
-  switch (value.toLowerCase()) {
-    case "free":
-    case "starter":
-    case "standard":
-    case "pro":
-      return value.toLowerCase() as SelfServeSubscriptionPlanName;
-    default:
-      return null;
-  }
-}
 
 export async function resolveOrganizationBillingPlan(
   organizationId: string,

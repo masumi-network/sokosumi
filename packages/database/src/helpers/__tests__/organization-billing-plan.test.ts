@@ -5,10 +5,7 @@ import {
   type Prisma as PrismaType,
 } from "../../generated/prisma/client.js";
 import { deriveEnterpriseContractEndDate } from "../enterprise-contract.js";
-import {
-  parseSelfServeSubscriptionPlanName,
-  resolveOrganizationBillingPlan,
-} from "../organization-billing-plan.js";
+import { resolveOrganizationBillingPlan } from "../organization-billing-plan.js";
 
 const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 
@@ -21,7 +18,6 @@ vi.mock("../../repositories/subscription.repository.js", () => ({
 
 const ORG_ID = "org-billing-plan-test";
 const CONTRACT_ID = "01900000-0000-7000-8000-000000000099";
-const CENTS_PER_MONTH = 600_000_000_000_000n;
 
 function createTx(
   activeContract: {
@@ -38,20 +34,6 @@ function createTx(
     },
   } as unknown as PrismaType.TransactionClient;
 }
-
-describe("parseSelfServeSubscriptionPlanName", () => {
-  it("parses self-serve plan names", () => {
-    assert.equal(parseSelfServeSubscriptionPlanName("starter"), "starter");
-    assert.equal(parseSelfServeSubscriptionPlanName("PRO"), "pro");
-    assert.equal(parseSelfServeSubscriptionPlanName("free"), "free");
-  });
-
-  it("returns null for unknown values", () => {
-    assert.equal(parseSelfServeSubscriptionPlanName("enterprise"), null);
-    assert.equal(parseSelfServeSubscriptionPlanName(null), null);
-    assert.equal(parseSelfServeSubscriptionPlanName("custom"), null);
-  });
-});
 
 describe("resolveOrganizationBillingPlan", () => {
   beforeEach(() => {

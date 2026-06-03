@@ -6,10 +6,7 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../../generated/prisma/client.js";
-import {
-  getOrganizationMemberSubscriptionReferencePrefix,
-  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
-} from "../../helpers/credit.js";
+import { getOrganizationMemberSubscriptionReferencePrefix } from "../../helpers/credit.js";
 import {
   buildCreditBucketScopeWhere,
   type CreditBucketScopeContext,
