@@ -70,7 +70,7 @@ export async function getEnterpriseContractBillingSummary(
     ),
   ]);
 
-  if (!contract) {
+  if (!contract || contract.organizationId !== organizationId) {
     return null;
   }
 

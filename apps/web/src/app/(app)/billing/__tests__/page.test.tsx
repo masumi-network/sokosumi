@@ -497,4 +497,60 @@ describe("BillingPage", () => {
     expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
     expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
   });
+
+  it("shows the enterprise contract summary after the commercial term and restores the billing portal", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      _count: { members: 2 },
+      id: "org-enterprise-post-term",
+      name: "Enterprise Org Post Term",
+      stripeCustomerId: "cus_org_enterprise_post_term",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    mockEnterpriseOrganizationBillingPlan(false, 10);
+    getEnterpriseContractBillingSummaryMock.mockResolvedValue({
+      activatedAt: new Date("2026-01-15T00:00:00.000Z"),
+      contractEnd: new Date("2026-12-14T23:59:59.999Z"),
+      currentPeriodEnd: null,
+      isConsumable: false,
+      monthlyCredits: 60_000,
+      nextActivationAt: null,
+      poolRemainingCredits: 1_000,
+      poolTotalCredits: 60_000,
+      purchasedSeats: 10,
+    });
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contractId: "contract-1",
+        isConsumable: false,
+        mode: "enterprise_contract",
+      }),
+      "org-enterprise-post-term",
+      expect.anything(),
+    );
+    expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          isConsumable: false,
+          poolRemainingCredits: 1_000,
+        }),
+      }),
+    );
+    expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
+    expect(balanceBillingPortalLinkMock).toHaveBeenCalled();
+    expect(view.getByTestId("balance-billing-portal-link")).toBeTruthy();
+  });
 });

@@ -97,9 +97,30 @@ describe("getEnterpriseContractBillingSummary", () => {
     expect(summary).toBeNull();
   });
 
+  it("returns null when the contract belongs to another organization", async () => {
+    getContractWithPeriodsMock.mockResolvedValue({
+      centsPerMonth: 60_000_000_000_000n,
+      organizationId: "org-other",
+      periods: [],
+    });
+    sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
+      remainingCents: 0n,
+      totalCents: 0n,
+    });
+
+    const summary = await getEnterpriseContractBillingSummary(
+      billingPlan,
+      "org-1",
+      {},
+    );
+
+    expect(summary).toBeNull();
+  });
+
   it("maps contract, period, and pool data into a billing summary", async () => {
     getContractWithPeriodsMock.mockResolvedValue({
       centsPerMonth: 60_000_000_000_000n,
+      organizationId: "org-1",
       periods: [
         {
           periodStart: new Date("2026-01-15T00:00:00.000Z"),
