@@ -10,6 +10,8 @@ import {
 import {
   buildCreditBucketScopeSql,
   buildCreditBucketScopeWhere,
+  buildEnterprisePoolScopeSql,
+  resolveCreditBucketScopeContext,
 } from "../helpers/credit-bucket-scope.js";
 
 export interface Consumption {
@@ -47,7 +49,13 @@ export const creditBucketRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<CreditBucket[]> {
     const now = new Date();
-    const scopeWhere = buildCreditBucketScopeWhere(userId, organizationId);
+    const scopeContext = await resolveCreditBucketScopeContext(
+      userId,
+      organizationId,
+      tx,
+      now,
+    );
+    const scopeWhere = buildCreditBucketScopeWhere(scopeContext);
 
     return await tx.creditBucket.findMany({
       where: {
@@ -81,7 +89,13 @@ export const creditBucketRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<bigint> {
     const now = new Date();
-    const where = buildCreditBucketScopeSql(userId, organizationId);
+    const scopeContext = await resolveCreditBucketScopeContext(
+      userId,
+      organizationId,
+      tx,
+      now,
+    );
+    const where = buildCreditBucketScopeSql(scopeContext);
 
     const result = await tx.$queryRaw<Array<{ balance: bigint }>>`
       WITH bucket_avail AS (
@@ -115,7 +129,13 @@ export const creditBucketRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<CreditBucketBalanceRow[]> {
     const now = new Date();
-    const where = buildCreditBucketScopeSql(userId, organizationId);
+    const scopeContext = await resolveCreditBucketScopeContext(
+      userId,
+      organizationId,
+      tx,
+      now,
+    );
+    const where = buildCreditBucketScopeSql(scopeContext);
 
     return await tx.$queryRaw<
       Array<{
@@ -137,6 +157,60 @@ export const creditBucketRepository = {
           AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
           AND ${creditBucketActivatesAtOrBeforeSql(now)}
           AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
+          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_PERIOD}
+          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_TOP_UP}
+        GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
+        HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
+      )
+      SELECT
+        amount AS "totalCents",
+        available AS "remainingCents",
+        "expiresAt"
+      FROM bucket_avail
+      ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
+    `;
+  },
+
+  /**
+   * List unexpired enterprise pool buckets for assigned members when the org has a
+   * consumable enterprise contract.
+   */
+  async listEnterprisePoolBucketsWithBalances(
+    userId: string,
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<CreditBucketBalanceRow[]> {
+    const now = new Date();
+    const scopeContext = await resolveCreditBucketScopeContext(
+      userId,
+      organizationId,
+      tx,
+      now,
+    );
+    const where = buildEnterprisePoolScopeSql(scopeContext);
+    if (!where) {
+      return [];
+    }
+
+    return await tx.$queryRaw<
+      Array<{
+        totalCents: bigint;
+        remainingCents: bigint;
+        expiresAt: Date | null;
+      }>
+    >`
+      WITH bucket_avail AS (
+        SELECT
+          cb.id,
+          cb.amount,
+          (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
+          cb."expiresAt",
+          cb."createdAt"
+        FROM credit_bucket cb
+        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+        WHERE ${where}
+          AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+          AND ${creditBucketActivatesAtOrBeforeSql(now)}
         GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
         HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
       )
@@ -216,7 +290,13 @@ async function getFifoBucketsToCoverSpend(
   cents: bigint,
   tx: Prisma.TransactionClient,
 ): Promise<Array<{ id: string; available: bigint }>> {
-  const where = buildCreditBucketScopeSql(userId, organizationId);
+  const scopeContext = await resolveCreditBucketScopeContext(
+    userId,
+    organizationId,
+    tx,
+    now,
+  );
+  const where = buildCreditBucketScopeSql(scopeContext);
 
   return await tx.$queryRaw<Array<{ id: string; available: bigint }>>`
     WITH bucket_avail AS (

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { describe, it } from "vitest";
+import { describe, it, vi } from "vitest";
 
 import {
   CreditBucketReferenceType,
@@ -10,7 +10,37 @@ import {
   getOrganizationMemberSubscriptionReferencePrefix,
   getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
 } from "../../helpers/credit.js";
+import {
+  buildCreditBucketScopeWhere,
+  type CreditBucketScopeContext,
+} from "../../helpers/credit-bucket-scope.js";
 import { creditBucketRepository } from "../credit-bucket.repository.js";
+
+const defaultScopeContext: CreditBucketScopeContext = {
+  userId: "user-1",
+  organizationId: "org-1",
+  canAccessOrganizationSharedCredits: true,
+  canAccessEnterprisePool: false,
+};
+
+vi.mock("../../helpers/credit-bucket-scope.js", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../helpers/credit-bucket-scope.js")
+  >("../../helpers/credit-bucket-scope.js");
+
+  return {
+    ...actual,
+    resolveCreditBucketScopeContext: vi.fn(
+      async (userId: string, organizationId: string | null) => ({
+        ...defaultScopeContext,
+        userId,
+        organizationId,
+        canAccessOrganizationSharedCredits: organizationId != null,
+        canAccessEnterprisePool: false,
+      }),
+    ),
+  };
+});
 
 function extractNestedSqlValues(args: unknown[]): unknown[] {
   const sqlArg = args.find((arg) => {
@@ -283,26 +313,15 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
       OR?: Array<Record<string, unknown>>;
     };
     assert.equal(scopeWhere.organizationId, "org-1");
-    assert.deepEqual(scopeWhere.OR, [
-      {
-        referenceType: null,
-      },
-      {
-        referenceType: {
-          not: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-        },
-      },
-      {
-        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+    assert.deepEqual(
+      scopeWhere.OR,
+      buildCreditBucketScopeWhere({
         userId: "user-1",
-        referenceId: {
-          startsWith:
-            getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
-              "user-1",
-            ),
-        },
-      },
-    ]);
+        organizationId: "org-1",
+        canAccessOrganizationSharedCredits: true,
+        canAccessEnterprisePool: false,
+      }).OR,
+    );
     const activationWhere = andClause[1] as { OR?: unknown[] };
     assert.ok(Array.isArray(activationWhere.OR));
   });
