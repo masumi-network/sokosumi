@@ -18,7 +18,6 @@ export type OrganizationBillingPlan =
   | {
       mode: "enterprise_contract";
       plan: "enterprise";
-      /** True when credits and plan exclusivity apply (within the commercial term). */
       isConsumable: boolean;
       purchasedSeats: number;
       contractId: string;

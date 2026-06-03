@@ -171,10 +171,6 @@ export const creditBucketRepository = {
     `;
   },
 
-  /**
-   * List unexpired enterprise pool buckets for assigned members when the org has a
-   * consumable enterprise contract.
-   */
   async listEnterprisePoolBucketsWithBalances(
     userId: string,
     organizationId: string,

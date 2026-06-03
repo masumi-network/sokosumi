@@ -10,7 +10,6 @@ import {
   shouldReportHttpException,
 } from "./error.js";
 
-/** Top-level keys owned by the standard API error envelope. */
 const RESERVED_ERROR_BODY_KEYS = new Set(["error", "message", "meta", "kind"]);
 
 function mergeHttpExceptionExtensions(

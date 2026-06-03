@@ -26,7 +26,6 @@ export const enterpriseContractPeriodStatusSchema = z
   .enum(enterpriseContractPeriodStatusValues)
   .openapi("EnterpriseContractPeriodStatus");
 
-/** Non-empty when provided; use null on patch to clear. */
 export const enterpriseContractPaymentReferenceSchema = z
   .string()
   .min(1)

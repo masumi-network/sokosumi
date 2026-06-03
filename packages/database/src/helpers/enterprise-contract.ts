@@ -111,11 +111,6 @@ export function previewEnterpriseContractPeriods(params: {
   });
 }
 
-/**
- * True when `now` is strictly after the derived commercial term end.
- * Completion uses this boundary; consumable checks use the negation so the
- * instant at `contractEnd` is still consumable but not yet completed.
- */
 export function isEnterpriseContractPastCommercialTerm(params: {
   activatedAt: Date;
   now?: Date;
@@ -137,7 +132,6 @@ export function isEnterpriseContractPastCommercialTerm(params: {
   return now.getTime() > contractEnd.getTime();
 }
 
-/** Whether entitlements (credits, exclusivity) apply for an active contract. */
 export function isEnterpriseContractConsumable(params: {
   activatedAt: Date;
   now?: Date;
@@ -155,14 +149,4 @@ export function isEnterpriseContractConsumable(params: {
     now,
     periodCount: params.periodCount,
   });
-}
-
-/** Alias for {@link isEnterpriseContractConsumable} (historical name). */
-export function isEnterpriseContractActive(params: {
-  activatedAt: Date;
-  now?: Date;
-  periodCount: number;
-  status: EnterpriseContractStatus;
-}): boolean {
-  return isEnterpriseContractConsumable(params);
 }

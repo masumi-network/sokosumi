@@ -5,7 +5,7 @@ import { EnterpriseContractStatus } from "../../generated/prisma/client.js";
 import {
   buildEnterpriseContractPeriodSchedule,
   deriveEnterpriseContractEndDate,
-  isEnterpriseContractActive,
+  isEnterpriseContractConsumable,
   MIN_ENTERPRISE_CREDITS_PER_MONTH,
   MIN_ENTERPRISE_PERIOD_COUNT,
   minEnterpriseCentsPerMonth,
@@ -246,13 +246,13 @@ describe("previewEnterpriseContractPeriods", () => {
   });
 });
 
-describe("isEnterpriseContractActive", () => {
+describe("isEnterpriseContractConsumable", () => {
   const activatedAt = new Date("2026-05-01T00:00:00.000Z");
   const periodCount = 8;
 
   it("is true within the consumable window", () => {
     assert.equal(
-      isEnterpriseContractActive({
+      isEnterpriseContractConsumable({
         now: new Date("2026-06-01T00:00:00.000Z"),
         periodCount,
         activatedAt,
@@ -269,7 +269,7 @@ describe("isEnterpriseContractActive", () => {
     );
 
     assert.equal(
-      isEnterpriseContractActive({
+      isEnterpriseContractConsumable({
         now: contractEnd,
         periodCount,
         activatedAt,
@@ -286,7 +286,7 @@ describe("isEnterpriseContractActive", () => {
     );
 
     assert.equal(
-      isEnterpriseContractActive({
+      isEnterpriseContractConsumable({
         now: new Date(contractEnd.getTime() + 1),
         periodCount,
         activatedAt,
@@ -305,7 +305,7 @@ describe("isEnterpriseContractActive", () => {
       EnterpriseContractStatus.draft,
     ]) {
       assert.equal(
-        isEnterpriseContractActive({
+        isEnterpriseContractConsumable({
           now,
           periodCount,
           activatedAt,

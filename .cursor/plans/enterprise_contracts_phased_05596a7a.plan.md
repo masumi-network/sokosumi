@@ -109,7 +109,7 @@ flowchart TB
   - `buildEnterpriseContractPeriodSchedule({ activatedAt, periodCount, ... })` — exactly **`periodCount`** full rolling months via `getNextMonthlyPeriodEnd()`
   - `deriveEnterpriseContractEndDate(activatedAt, periodCount)` — last period end (for consumable window / completion checks)
   - `previewEnterpriseContractPeriods()` — **`activatedAt` required** (no implicit `new Date()`)
-  - `isEnterpriseContractActive()` / `isEnterpriseContractConsumable()` — `status === active`, `activatedAt` set, and `now` not past derived commercial end
+  - `isEnterpriseContractConsumable()` — `status === active`, `activatedAt` set, and `now` not past derived commercial end
   - `validateMinEnterpriseCreditsPerMonth()` / `validateEnterprisePeriodCount()` — for API boundary
 3. **Tests** cover: rolling month (incl. Jan 31), leap year, full grant / no proration, `periodCount: 1`, invalid `periodCount`, preview at `activatedAt`, consumable window including after last period.
 
@@ -288,7 +288,7 @@ After the bucket row exists with non-null `activatesAt`, flip period status: **i
 
 - [`organization-billing-plan.ts`](packages/database/src/helpers/organization-billing-plan.ts) — `resolveOrganizationBillingPlan()`, `parseSelfServeSubscriptionPlanName()` (legacy `Subscription.plan === "enterprise"` → `null`)
 - **Commercial vs consumable:** return `enterprise_contract` for any `active` contract with `activatedAt`; expose `isConsumable` via `isEnterpriseContractConsumable()` for entitlement/checkout guards (Phase 5c)
-- **Helpers:** `isEnterpriseContractPastCommercialTerm()`, `isEnterpriseContractConsumable()` / `isEnterpriseContractActive()` in [`enterprise-contract.ts`](packages/database/src/helpers/enterprise-contract.ts)
+- **Helpers:** `isEnterpriseContractPastCommercialTerm()`, `isEnterpriseContractConsumable()` in [`enterprise-contract.ts`](packages/database/src/helpers/enterprise-contract.ts)
 - **Web wiring:** [`organization-seat.service.ts`](apps/web/src/lib/services/organization-seat.service.ts), [`billing/page.tsx`](apps/web/src/app/(app)/billing/page.tsx), [`organization-subscription-section.tsx`](apps/web/src/components/billing/organization-subscription-section.tsx) (`isEnterpriseContract`), [`onboarding-dialog-loader.tsx`](apps/web/src/app/(app)/components/onboarding-dialog-loader.tsx)
 - Self-serve Stripe catalog: no `enterprise` plan type
 - Tests: [`organization-billing-plan.test.ts`](packages/database/src/helpers/__tests__/organization-billing-plan.test.ts)

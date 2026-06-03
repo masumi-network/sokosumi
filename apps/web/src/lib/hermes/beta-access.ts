@@ -3,7 +3,6 @@ import { getEmailDomain } from "@/lib/utils";
 /** Email domains allowed to use Hermes beta (sidebar, page, APIs). */
 export const HERMES_BETA_EMAIL_DOMAINS = ["nmkr.io"] as const;
 
-/** Individual House of Communication emails allowed to use Hermes beta. */
 export const HERMES_BETA_ALLOWED_EMAILS = [
   "k.platz@house-of-communication.com",
   "y.bollinger@house-of-communication.com",

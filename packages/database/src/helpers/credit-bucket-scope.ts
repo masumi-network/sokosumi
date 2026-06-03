@@ -23,9 +23,7 @@ const NON_SUBSCRIPTION_SHARED_REFERENCE_TYPES = [
 export interface CreditBucketScopeContext {
   userId: string;
   organizationId: string | null;
-  /** Shared org buckets (coupons, top-ups, etc.) */
   canAccessOrganizationSharedCredits: boolean;
-  /** Org-level ENTERPRISE_* pool buckets */
   canAccessEnterprisePool: boolean;
 }
 
@@ -114,9 +112,6 @@ function buildOrganizationScopeOr(
   return [...branches, ...sharedBranches];
 }
 
-/**
- * Ownership scope for credit bucket reads and consumption in an organization.
- */
 export function buildCreditBucketScopeWhere(
   context: CreditBucketScopeContext,
 ): Prisma.CreditBucketWhereInput {
