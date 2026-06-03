@@ -186,13 +186,19 @@ export const organizationSeatService = (() => {
             });
           }
 
-          await grantUnusedSeatSubscriptionCreditsIfEligible(
-            organizationId,
-            member.userId,
-            tx,
-          );
+          if (billingPlan.mode !== "enterprise_contract") {
+            await grantUnusedSeatSubscriptionCreditsIfEligible(
+              organizationId,
+              member.userId,
+              tx,
+            );
+          }
 
-          if (subscription?.periodStart && subscription.periodEnd) {
+          if (
+            billingPlan.mode === "self_serve" &&
+            subscription?.periodStart &&
+            subscription?.periodEnd
+          ) {
             await syncLocalFreeOrganizationCreditsIfNeeded(
               organizationId,
               {
@@ -226,11 +232,21 @@ export const organizationSeatService = (() => {
 
       try {
         return await prisma.$transaction(async (tx) => {
+          const billingPlan = await resolveOrganizationBillingPlan(
+            organizationId,
+            tx,
+          );
           const member = await memberRepository.unassignSeat(
             memberId,
             organizationId,
             tx,
           );
+
+          if (billingPlan.mode === "enterprise_contract") {
+            return {
+              memberId: member.id,
+            };
+          }
 
           const subscription =
             await subscriptionRepository.resolveActiveSubscriptionByReferenceId(

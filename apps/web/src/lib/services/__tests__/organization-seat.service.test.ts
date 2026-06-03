@@ -147,6 +147,37 @@ describe("organizationSeatService", () => {
     });
   });
 
+  it("returns enterprise seat summary before the consumable window", async () => {
+    getAssignedMemberCountMock.mockResolvedValue(2);
+    memberCountMock.mockResolvedValue(5);
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      cancelAtPeriodEnd: false,
+      contractEnd: new Date("2027-01-01T00:00:00.000Z"),
+      contractId: "contract-1",
+      isConsumable: false,
+      mode: "enterprise_contract",
+      periodEnd: null,
+      plan: "enterprise",
+      purchasedSeats: 12,
+      startDate: new Date("2026-08-01T00:00:00.000Z"),
+    });
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.getSeatSummary("org-1"),
+    ).resolves.toEqual({
+      assignedCount: 2,
+      isEnterpriseContract: true,
+      memberCount: 5,
+      paidPlan: "enterprise",
+      purchasedSeats: 12,
+      unusedSeats: 10,
+    });
+  });
+
   it("assigns a seat when caller is owner and capacity remains", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
     resolveOrganizationBillingPlanMock.mockResolvedValue({
@@ -186,6 +217,43 @@ describe("organizationSeatService", () => {
     expect(
       grantUnusedSeatSubscriptionCreditsIfEligibleMock,
     ).toHaveBeenCalledWith("org-1", "user-2", expect.any(Object));
+  });
+
+  it("skips self-serve credit grants when assigning seats on enterprise contracts", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      cancelAtPeriodEnd: false,
+      contractEnd: new Date("2027-01-01T00:00:00.000Z"),
+      contractId: "contract-1",
+      isConsumable: true,
+      mode: "enterprise_contract",
+      periodEnd: null,
+      plan: "enterprise",
+      purchasedSeats: 3,
+      startDate: new Date("2026-05-01T00:00:00.000Z"),
+    });
+    assignSeatMock.mockResolvedValue({
+      id: "member-1",
+      seatAssignedAt: new Date("2026-05-01T00:00:00.000Z"),
+      userId: "user-2",
+    });
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await organizationSeatService.assignSeat("user-1", "org-1", "member-1");
+
+    expect(assignSeatMock).toHaveBeenCalledWith(
+      "member-1",
+      "org-1",
+      3,
+      expect.any(Object),
+    );
+    expect(
+      grantUnusedSeatSubscriptionCreditsIfEligibleMock,
+    ).not.toHaveBeenCalled();
+    expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
   });
 
   it("reads purchased seats inside the transaction before assigning", async () => {
