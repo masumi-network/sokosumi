@@ -228,6 +228,36 @@ model Workspace {
   @@map("workspace")
 }
 
+enum HistoryKind {
+  TASK
+  JOB
+  CONVERSATION
+}
+
+model History {
+  id             String      @id @default(uuid(7))
+  kind           HistoryKind
+  entityId       String
+  userId         String
+  workspaceId    String?     @db.Uuid
+  organizationId String?
+  title          String
+  description    String?
+  status         String
+  sortAt         DateTime
+  creditsCents   BigInt?
+  projectId      String?     @db.Uuid
+  agentId        String?
+  coworkerId     String?
+  bucketSlug     String?
+  archivedAt     DateTime?
+
+  @@unique([kind, entityId])
+  @@index([userId, sortAt(sort: Desc), id(sort: Desc)])
+  @@index([workspaceId, sortAt(sort: Desc), id(sort: Desc)])
+  @@map("history")
+}
+
 model Project {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())

@@ -2743,6 +2743,279 @@ export const HermesFinalizeIntegrationRequestSchema = {
     ]
 } as const;
 
+export const HistoryListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/HistoryItem'
+    }
+} as const;
+
+export const HistoryItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/HistoryTaskItem'
+        },
+        {
+            $ref: '#/components/schemas/HistoryJobItem'
+        },
+        {
+            $ref: '#/components/schemas/HistoryConversationItem'
+        }
+    ],
+    discriminator: {
+        propertyName: 'kind',
+        mapping: {
+            task: '#/components/schemas/HistoryTaskItem',
+            job: '#/components/schemas/HistoryJobItem',
+            conversation: '#/components/schemas/HistoryConversationItem'
+        }
+    }
+} as const;
+
+export const HistoryTaskItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Source entity ID for this history row',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            description: 'Display title for the history row',
+            example: 'Review onboarding flow'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Short subtitle or description for the history row',
+            example: 'Audit copy and empty states'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'User-facing credits. Null means credits do not apply to this item.',
+            example: 2.5
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'task'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED'
+            ],
+            example: 'RUNNING'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project ID for the task, when assigned',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        coworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Coworker ID associated with the task, when assigned',
+            example: 'cow_123'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'updatedAt',
+        'credits',
+        'kind',
+        'status',
+        'projectId',
+        'coworkerId'
+    ]
+} as const;
+
+export const HistoryJobItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Source entity ID for this history row',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            description: 'Display title for the history row',
+            example: 'Review onboarding flow'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Short subtitle or description for the history row',
+            example: 'Audit copy and empty states'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'User-facing credits. Null means credits do not apply to this item.',
+            example: 2.5
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'job'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'started',
+                'completed',
+                'processing',
+                'input_required',
+                'result_pending',
+                'failed',
+                'payment_pending',
+                'payment_failed',
+                'refund_pending',
+                'refund_resolved',
+                'dispute_pending',
+                'dispute_resolved'
+            ],
+            example: 'completed'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project ID for the job, when assigned',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        agentId: {
+            type: 'string',
+            description: 'Agent ID for deep-linking to the job',
+            example: 'agent_123'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'updatedAt',
+        'credits',
+        'kind',
+        'status',
+        'projectId',
+        'agentId'
+    ]
+} as const;
+
+export const HistoryConversationItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Source entity ID for this history row',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            description: 'Display title for the history row',
+            example: 'Review onboarding flow'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Short subtitle or description for the history row',
+            example: 'Audit copy and empty states'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        credits: {
+            type: 'null',
+            description: 'Conversations do not currently have credits',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'conversation'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active',
+                'archived'
+            ],
+            example: 'active'
+        },
+        bucketSlug: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Chat bucket slug for deep-linking to the conversation',
+            example: 'hannah'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'updatedAt',
+        'credits',
+        'kind',
+        'status',
+        'bucketSlug'
+    ]
+} as const;
+
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
