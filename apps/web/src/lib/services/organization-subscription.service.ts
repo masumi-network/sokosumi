@@ -350,6 +350,22 @@ export const organizationSubscriptionService = (() => {
     },
 
     async ensureCanAcceptInvitation(organizationId: string): Promise<void> {
+      const billingPlan = await resolveOrganizationBillingPlan(
+        organizationId,
+        prisma,
+      );
+
+      if (billingPlan.mode === "enterprise_contract") {
+        if (billingPlan.purchasedSeats < 1) {
+          throw new APIError("BAD_REQUEST", {
+            message:
+              "Enterprise contract has no purchased seats configured for this organization.",
+          });
+        }
+
+        return;
+      }
+
       await ensureActiveOrganizationSubscription(
         organizationId,
         "An active organization subscription is required before adding members.",
