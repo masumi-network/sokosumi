@@ -35,9 +35,9 @@ describe("hermesBetaEnabled", () => {
   it.each([
     "user@nmkr.io",
     "USER@NMKR.IO",
-    "user@house-of-communication.com",
-    "USER@HOUSE-OF-COMMUNICATION.COM",
-  ])("returns true for beta domain %s", async (email) => {
+    "k.platz@house-of-communication.com",
+    "K.PLATZ@HOUSE-OF-COMMUNICATION.COM",
+  ])("returns true for beta access email %s", async (email) => {
     getSessionMock.mockResolvedValue({ user: { email } });
 
     const { hermesBetaEnabled } = await import("../hermes-beta");
