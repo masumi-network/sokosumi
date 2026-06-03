@@ -99,6 +99,12 @@ export async function EnterpriseContractSummary({
             </dd>
           </div>
           <div className="space-y-1">
+            <dt className="text-muted-foreground">{t("activatedAtLabel")}</dt>
+            <dd className="font-medium">
+              {formatDate(formatter, summary.activatedAt)}
+            </dd>
+          </div>
+          <div className="space-y-1">
             <dt className="text-muted-foreground">{t("contractEndLabel")}</dt>
             <dd className="font-medium">
               {formatDate(formatter, summary.contractEnd)}

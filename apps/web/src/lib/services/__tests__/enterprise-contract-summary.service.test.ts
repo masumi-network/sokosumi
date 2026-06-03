@@ -171,6 +171,7 @@ describe("getEnterpriseContractBillingSummary", () => {
     );
 
     expect(summary).toEqual({
+      activatedAt: billingPlan.activatedAt,
       contractEnd: billingPlan.contractEnd,
       currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
       isConsumable: true,

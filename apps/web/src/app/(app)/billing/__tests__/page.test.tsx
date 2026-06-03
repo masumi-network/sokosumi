@@ -459,6 +459,7 @@ describe("BillingPage", () => {
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockEnterpriseOrganizationBillingPlan(true, 10);
     getEnterpriseContractBillingSummaryMock.mockResolvedValue({
+      activatedAt: new Date("2026-01-15T00:00:00.000Z"),
       contractEnd: new Date("2026-12-14T23:59:59.999Z"),
       currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
       isConsumable: true,
@@ -513,6 +514,7 @@ describe("BillingPage", () => {
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockEnterpriseOrganizationBillingPlan(false, 10);
     getEnterpriseContractBillingSummaryMock.mockResolvedValue({
+      activatedAt: new Date("2026-01-15T00:00:00.000Z"),
       contractEnd: new Date("2026-12-14T23:59:59.999Z"),
       currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
       isConsumable: false,

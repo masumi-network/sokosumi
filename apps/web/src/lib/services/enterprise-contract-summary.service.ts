@@ -9,6 +9,7 @@ import {
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 export interface EnterpriseContractBillingSummary {
+  activatedAt: Date;
   contractEnd: Date;
   currentPeriodEnd: Date | null;
   isConsumable: boolean;
@@ -96,6 +97,7 @@ export async function getEnterpriseContractBillingSummary(
   }));
 
   return {
+    activatedAt: billingPlan.activatedAt,
     contractEnd: billingPlan.contractEnd,
     currentPeriodEnd: resolveEnterprisePeriodEndForDisplay(
       periodWindows,
