@@ -43,6 +43,85 @@ type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job">;
 const ARCHIVED_STATUS = "archived";
 const ACTIVE_STATUS = "active";
 
+const TASK_STATUS_FROM_JOB_STATUS: Partial<
+  Record<SokosumiJobStatus, TaskStatus>
+> = {
+  [SokosumiJobStatus.COMPLETED]: TaskStatus.COMPLETED,
+  [SokosumiJobStatus.FAILED]: TaskStatus.FAILED,
+  [SokosumiJobStatus.INPUT_REQUIRED]: TaskStatus.INPUT_REQUIRED,
+  [SokosumiJobStatus.PROCESSING]: TaskStatus.RUNNING,
+};
+
+const JOB_STATUS_FROM_TASK_STATUS: Partial<
+  Record<TaskStatus, SokosumiJobStatus>
+> = {
+  [TaskStatus.COMPLETED]: SokosumiJobStatus.COMPLETED,
+  [TaskStatus.FAILED]: SokosumiJobStatus.FAILED,
+  [TaskStatus.INPUT_REQUIRED]: SokosumiJobStatus.INPUT_REQUIRED,
+  [TaskStatus.RUNNING]: SokosumiJobStatus.PROCESSING,
+};
+
+function resolveTaskStatusesForFilter(statuses: string[]): TaskStatus[] {
+  const resolved = new Set<TaskStatus>();
+
+  for (const status of statuses) {
+    if (Object.values(TaskStatus).includes(status as TaskStatus)) {
+      resolved.add(status as TaskStatus);
+      continue;
+    }
+
+    const uppercased = status.toUpperCase();
+    if (Object.values(TaskStatus).includes(uppercased as TaskStatus)) {
+      resolved.add(uppercased as TaskStatus);
+      continue;
+    }
+
+    const jobStatus = Object.values(SokosumiJobStatus).find(
+      (value) => value === status || value === status.toLowerCase(),
+    );
+    if (jobStatus) {
+      const mapped = TASK_STATUS_FROM_JOB_STATUS[jobStatus];
+      if (mapped) {
+        resolved.add(mapped);
+      }
+    }
+  }
+
+  return [...resolved];
+}
+
+function resolveJobStatusesForFilter(statuses: string[]): string[] {
+  const resolved = new Set<string>();
+
+  for (const status of statuses) {
+    const jobStatus = Object.values(SokosumiJobStatus).find(
+      (value) => value === status || value === status.toLowerCase(),
+    );
+    if (jobStatus) {
+      resolved.add(jobStatus);
+      continue;
+    }
+
+    if (Object.values(TaskStatus).includes(status as TaskStatus)) {
+      const mapped = JOB_STATUS_FROM_TASK_STATUS[status as TaskStatus];
+      if (mapped) {
+        resolved.add(mapped);
+      }
+      continue;
+    }
+
+    const uppercased = status.toUpperCase();
+    if (Object.values(TaskStatus).includes(uppercased as TaskStatus)) {
+      const mapped = JOB_STATUS_FROM_TASK_STATUS[uppercased as TaskStatus];
+      if (mapped) {
+        resolved.add(mapped);
+      }
+    }
+  }
+
+  return [...resolved];
+}
+
 export function buildHistoryArchivedFilter(
   statuses: string[] | undefined,
 ): Prisma.HistoryWhereInput | null {
@@ -70,22 +149,23 @@ function appendKindBranches(
 export function buildHistoryStatusFilter(
   statuses: string[],
   types: HistoryKind[],
-  jobEntityIds: string[],
+  jobEntityIds: string[] | undefined,
 ): Prisma.HistoryWhereInput {
   const includesArchived = statuses.includes(ARCHIVED_STATUS);
   const includesActive = statuses.includes(ACTIVE_STATUS);
   const kindStatuses = statuses.filter(
     (status) => status !== ARCHIVED_STATUS && status !== ACTIVE_STATUS,
   );
+  const taskStatuses = resolveTaskStatusesForFilter(kindStatuses);
   const branches: Prisma.HistoryWhereInput[] = [];
 
   if (types.includes(HistoryKind.TASK)) {
     const taskBranches: Prisma.HistoryWhereInput[] = [];
 
-    if (kindStatuses.length > 0) {
+    if (taskStatuses.length > 0) {
       taskBranches.push({
         kind: HistoryKind.TASK,
-        status: { in: kindStatuses },
+        status: { in: taskStatuses },
         archivedAt: null,
       });
     }
@@ -110,7 +190,10 @@ export function buildHistoryStatusFilter(
   if (types.includes(HistoryKind.CONVERSATION)) {
     const conversationBranches: Prisma.HistoryWhereInput[] = [];
 
-    if (includesActive) {
+    // Kind-specific statuses (READY, completed, etc.) do not apply to
+    // conversations; include non-archived rows whenever they are requested
+    // explicitly or mixed with task/job status filters.
+    if (includesActive || kindStatuses.length > 0) {
       conversationBranches.push({
         kind: HistoryKind.CONVERSATION,
         archivedAt: null,
@@ -128,10 +211,22 @@ export function buildHistoryStatusFilter(
   }
 
   if (types.includes(HistoryKind.JOB)) {
-    branches.push({
-      kind: HistoryKind.JOB,
-      entityId: { in: jobEntityIds },
-    });
+    const jobBranches: Prisma.HistoryWhereInput[] = [];
+
+    if (jobEntityIds !== undefined) {
+      jobBranches.push({
+        kind: HistoryKind.JOB,
+        entityId: { in: jobEntityIds },
+      });
+    }
+
+    if (includesActive && kindStatuses.length === 0) {
+      jobBranches.push({
+        kind: HistoryKind.JOB,
+      });
+    }
+
+    appendKindBranches(branches, jobBranches);
   }
 
   if (branches.length === 0) {
@@ -223,9 +318,17 @@ export async function buildHistoryWhere(
   }
 
   if (params.statuses?.length) {
-    const jobEntityIds = params.types.includes(HistoryKind.JOB)
-      ? await findJobHistoryEntityIdsMatchingStatuses(params, prismaClient)
-      : [];
+    const kindStatuses = params.statuses.filter(
+      (status) => status !== ARCHIVED_STATUS && status !== ACTIVE_STATUS,
+    );
+    const jobStatuses = resolveJobStatusesForFilter(kindStatuses);
+    const jobEntityIds =
+      params.types.includes(HistoryKind.JOB) && jobStatuses.length > 0
+        ? await findJobHistoryEntityIdsMatchingStatuses(
+            { ...params, statuses: jobStatuses },
+            prismaClient,
+          )
+        : undefined;
 
     andClauses.push(
       buildHistoryStatusFilter(params.statuses, params.types, jobEntityIds),

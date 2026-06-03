@@ -101,6 +101,28 @@ describe("buildHistoryArchivedFilter", () => {
 });
 
 describe("buildHistoryStatusFilter", () => {
+  it("includes non-archived conversations when status filter uses kind-specific values only", () => {
+    expect(
+      buildHistoryStatusFilter(
+        [TaskStatus.READY],
+        [HistoryKind.TASK, HistoryKind.CONVERSATION],
+        [],
+      ),
+    ).toEqual({
+      OR: [
+        {
+          kind: HistoryKind.TASK,
+          status: { in: [TaskStatus.READY] },
+          archivedAt: null,
+        },
+        {
+          kind: HistoryKind.CONVERSATION,
+          archivedAt: null,
+        },
+      ],
+    });
+  });
+
   it("matches non-archived task and conversation rows on stored status", () => {
     expect(
       buildHistoryStatusFilter(
@@ -208,13 +230,68 @@ describe("buildHistoryStatusFilter", () => {
     ).toEqual({
       OR: [
         {
+          kind: HistoryKind.JOB,
+          entityId: { in: [] },
+        },
+      ],
+    });
+  });
+
+  it("includes non-archived job rows when status filter is active only", () => {
+    expect(
+      buildHistoryStatusFilter(
+        ["active"],
+        [HistoryKind.TASK, HistoryKind.JOB],
+        undefined,
+      ),
+    ).toEqual({
+      OR: [
+        {
           kind: HistoryKind.TASK,
-          status: { in: [SokosumiJobStatus.PAYMENT_FAILED] },
           archivedAt: null,
         },
         {
           kind: HistoryKind.JOB,
-          entityId: { in: [] },
+        },
+      ],
+    });
+  });
+
+  it("maps lowercase job-style completed to task COMPLETED", () => {
+    expect(
+      buildHistoryStatusFilter(
+        [SokosumiJobStatus.COMPLETED],
+        [HistoryKind.TASK],
+        [],
+      ),
+    ).toEqual({
+      OR: [
+        {
+          kind: HistoryKind.TASK,
+          status: { in: [TaskStatus.COMPLETED] },
+          archivedAt: null,
+        },
+      ],
+    });
+  });
+
+  it("matches READY tasks and completed jobs from mixed status query", () => {
+    expect(
+      buildHistoryStatusFilter(
+        [TaskStatus.READY, SokosumiJobStatus.COMPLETED],
+        [HistoryKind.TASK, HistoryKind.JOB],
+        ["job_1"],
+      ),
+    ).toEqual({
+      OR: [
+        {
+          kind: HistoryKind.TASK,
+          status: { in: [TaskStatus.READY, TaskStatus.COMPLETED] },
+          archivedAt: null,
+        },
+        {
+          kind: HistoryKind.JOB,
+          entityId: { in: ["job_1"] },
         },
       ],
     });
