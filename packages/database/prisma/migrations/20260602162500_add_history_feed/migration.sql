@@ -5,6 +5,7 @@
 -- - taskEvent INSERT/UPDATE/DELETE: recompute TASK credits from linked transactions.
 -- - "Job" INSERT/UPDATE/DELETE: upsert or remove the JOB history row.
 -- - jobEvent INSERT/UPDATE/DELETE: recompute JOB status from the latest event.
+-- - jobInput INSERT/UPDATE/DELETE: recompute JOB status when input is submitted.
 -- - jobPurchase INSERT/UPDATE/DELETE: recompute paid JOB status from on-chain state.
 -- - "Transaction" INSERT/UPDATE/DELETE: recompute linked JOB credits and TASK credits.
 -- - conversation INSERT/UPDATE/DELETE: upsert or remove the CONVERSATION history row.
@@ -553,6 +554,48 @@ CREATE TRIGGER history_job_event_sync
   AFTER INSERT OR UPDATE OR DELETE ON "jobEvent"
   FOR EACH ROW
   EXECUTE FUNCTION sync_history_from_job_event();
+
+CREATE OR REPLACE FUNCTION sync_history_from_job_input()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  linked_job_id TEXT;
+BEGIN
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    SELECT e."jobId"
+    INTO linked_job_id
+    FROM "jobEvent" AS e
+    WHERE e."id" = OLD."eventId";
+
+    IF linked_job_id IS NOT NULL THEN
+      PERFORM upsert_history_job(linked_job_id);
+    END IF;
+  END IF;
+
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    SELECT e."jobId"
+    INTO linked_job_id
+    FROM "jobEvent" AS e
+    WHERE e."id" = NEW."eventId";
+
+    IF linked_job_id IS NOT NULL THEN
+      PERFORM upsert_history_job(linked_job_id);
+    END IF;
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER history_job_input_sync
+  AFTER INSERT OR UPDATE OR DELETE ON "jobInput"
+  FOR EACH ROW
+  EXECUTE FUNCTION sync_history_from_job_input();
 
 CREATE OR REPLACE FUNCTION sync_history_from_job_purchase()
 RETURNS TRIGGER

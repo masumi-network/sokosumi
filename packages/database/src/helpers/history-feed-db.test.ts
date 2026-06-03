@@ -133,4 +133,182 @@ describeDatabase("history feed database triggers", () => {
       `;
     }
   });
+
+  it("recomputes job history status when jobInput is submitted", async () => {
+    assert.ok(prisma);
+
+    const suffix = crypto.randomUUID();
+    const userId = `history-job-user-${suffix}`;
+    const jobId = `history-job-${suffix}`;
+    const eventId = `history-job-event-${suffix}`;
+    const agentId = `history-agent-${suffix}`;
+    const pricingId = `history-pricing-${suffix}`;
+    const email = `history-job-${suffix}@example.test`;
+
+    try {
+      const beforeInputRows = await prisma.$queryRaw<Array<{ status: string }>>`
+        WITH created_user AS (
+          INSERT INTO "user" (
+            "id",
+            "name",
+            "email",
+            "emailVerified",
+            "createdAt",
+            "updatedAt"
+          )
+          VALUES (
+            ${userId},
+            'History Job Trigger User',
+            ${email},
+            true,
+            NOW(),
+            NOW()
+          )
+          RETURNING "id"
+        ),
+        created_workspace AS (
+          INSERT INTO "workspace" (
+            "id",
+            "createdAt",
+            "updatedAt",
+            "userId"
+          )
+          SELECT gen_random_uuid(), NOW(), NOW(), "id"
+          FROM created_user
+          RETURNING "id"
+        ),
+        created_pricing AS (
+          INSERT INTO "AgentPricing" (
+            "id",
+            "createdAt",
+            "updatedAt",
+            "pricingType"
+          )
+          VALUES (
+            ${pricingId},
+            NOW(),
+            NOW(),
+            'FREE'::"PricingType"
+          )
+          RETURNING "id"
+        ),
+        created_agent AS (
+          INSERT INTO "Agent" (
+            "id",
+            "createdAt",
+            "updatedAt",
+            "blockchainIdentifier",
+            "name",
+            "apiBaseUrl",
+            "lastUptimeCheck",
+            "uptimeCount",
+            "uptimeCheckCount",
+            "pricingId",
+            "isShown"
+          )
+          SELECT
+            ${agentId},
+            NOW(),
+            NOW(),
+            ${`history-agent-${suffix}`},
+            'History Trigger Agent',
+            'https://example.test/agent',
+            NOW(),
+            1,
+            1,
+            "id",
+            true
+          FROM created_pricing
+          RETURNING "id"
+        ),
+        created_job AS (
+          INSERT INTO "Job" (
+            "id",
+            "createdAt",
+            "updatedAt",
+            "userId",
+            "agentId",
+            "agentJobId",
+            "jobType",
+            "workspaceId"
+          )
+          SELECT
+            ${jobId},
+            NOW(),
+            NOW(),
+            ${userId},
+            "id",
+            ${`remote-${suffix}`},
+            'FREE'::"JobType",
+            (SELECT "id" FROM created_workspace)
+          FROM created_agent
+          RETURNING "id"
+        ),
+        created_event AS (
+          INSERT INTO "jobEvent" (
+            "id",
+            "createdAt",
+            "updatedAt",
+            "jobId",
+            "status"
+          )
+          SELECT
+            ${eventId},
+            NOW(),
+            NOW(),
+            "id",
+            'AWAITING_INPUT'::"AgentJobStatus"
+          FROM created_job
+          RETURNING "id", "jobId"
+        )
+        SELECT "status"
+        FROM "history"
+        WHERE "kind" = 'JOB'::"HistoryKind"
+          AND "entityId" = (SELECT "jobId"::TEXT FROM created_event)
+      `;
+
+      assert.equal(beforeInputRows.length, 1);
+      assert.equal(beforeInputRows[0]?.status, "input_required");
+
+      const afterInputRows = await prisma.$queryRaw<Array<{ status: string }>>`
+        WITH submitted_input AS (
+          INSERT INTO "jobInput" (
+            "id",
+            "createdAt",
+            "updatedAt",
+            "eventId",
+            "input"
+          )
+          VALUES (
+            ${`history-job-input-${suffix}`},
+            NOW(),
+            NOW(),
+            ${eventId},
+            '{"answer":"yes"}'
+          )
+          RETURNING "eventId"
+        )
+        SELECT "status"
+        FROM "history"
+        WHERE "kind" = 'JOB'::"HistoryKind"
+          AND "entityId" = (
+            SELECT e."jobId"
+            FROM "jobEvent" AS e
+            WHERE e."id" = (SELECT "eventId" FROM submitted_input)
+          )
+      `;
+
+      assert.equal(afterInputRows.length, 1);
+      assert.equal(afterInputRows[0]?.status, "processing");
+    } finally {
+      await prisma.$executeRaw`
+        DELETE FROM "history"
+        WHERE "entityId" = ${jobId}
+      `;
+      await prisma.$executeRaw`
+        DELETE FROM "user"
+        WHERE "id" = ${userId}
+      `;
+    }
+  });
 });
