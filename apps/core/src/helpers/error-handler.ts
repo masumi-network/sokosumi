@@ -10,6 +10,23 @@ import {
   shouldReportHttpException,
 } from "./error.js";
 
+/** Top-level keys owned by the standard API error envelope. */
+const RESERVED_ERROR_BODY_KEYS = new Set(["error", "message", "meta", "kind"]);
+
+function mergeHttpExceptionExtensions(
+  extensions: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!extensions) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(extensions).filter(
+      ([key]) => !RESERVED_ERROR_BODY_KEYS.has(key),
+    ),
+  );
+}
+
 /**
  * Centralized error handler for Hono app
  * Formats HTTPExceptions into consistent error responses
@@ -75,11 +92,11 @@ export function errorHandler(
           })
         : undefined;
 
-    const extensions = cause?.extensions;
+    const extensions = mergeHttpExceptionExtensions(cause?.extensions);
     const kind =
       typeof cause?.kind === "string"
         ? cause.kind
-        : typeof extensions?.kind === "string"
+        : typeof extensions.kind === "string"
           ? extensions.kind
           : undefined;
 

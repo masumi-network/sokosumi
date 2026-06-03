@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { handleEnterpriseContractLifecycleError } from "./enterprise-contract-route";
-import { serviceUnavailable } from "./error";
+import { conflict, serviceUnavailable } from "./error";
 import { errorHandler } from "./error-handler";
 
 const { captureExceptionMock } = vi.hoisted(() => ({
@@ -111,6 +111,38 @@ describe("errorHandler", () => {
       },
     ]);
     expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("does not let extensions override reserved error envelope keys", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw conflict("Conflict", {
+        kind: "test_kind",
+        extensions: {
+          blockers: [],
+          error: "Overridden",
+          message: "Overridden message",
+          meta: { hijacked: true },
+          kind: "shadow_kind",
+        },
+      });
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+      kind: string;
+      meta: { timestamp: string; requestId: string };
+      hijacked?: boolean;
+    };
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("Conflict");
+    expect(body.message).toBe("Conflict");
+    expect(body.kind).toBe("test_kind");
+    expect(body.meta.requestId).toBe("req_123");
+    expect(body.hijacked).toBeUndefined();
   });
 
   it("reports unhandled validation errors to Sentry as internal server errors", async () => {

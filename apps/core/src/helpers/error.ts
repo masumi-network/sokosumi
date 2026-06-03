@@ -7,7 +7,11 @@ import { dateTimeSchema } from "./datetime.js";
 export interface HTTPExceptionMetadata {
   kind?: string;
   reportToSentry?: boolean;
-  /** Merged into the JSON error body (e.g. activation `blockers`). */
+  /**
+   * Extra fields merged into the JSON error body (e.g. activation `blockers`).
+   * Do not use keys reserved for the standard envelope: `error`, `message`,
+   * `meta`, or `kind` (those are set separately and extension keys are filtered).
+   */
   extensions?: Record<string, unknown>;
 }
 
