@@ -13,6 +13,7 @@ import {
 import {
   EnterpriseContractActivationError,
   EnterpriseContractLifecycleError,
+  EnterpriseContractNotFoundError,
 } from "./enterprise-contract-errors.js";
 import { findPaidSubscriptionsBlockingEnterpriseActivation } from "./enterprise-contract-exclusivity.js";
 import {
@@ -26,6 +27,7 @@ import {
 export {
   EnterpriseContractActivationError,
   EnterpriseContractLifecycleError,
+  EnterpriseContractNotFoundError,
 } from "./enterprise-contract-errors.js";
 
 export interface ActivateEnterpriseContractParams {
@@ -53,7 +55,7 @@ export async function activateEnterpriseContract(
   });
 
   if (!contract) {
-    throw new EnterpriseContractLifecycleError("Enterprise contract not found");
+    throw new EnterpriseContractNotFoundError();
   }
 
   if (contract.status !== EnterpriseContractStatus.draft) {
@@ -212,7 +214,7 @@ export async function cancelEnterpriseContract(
   });
 
   if (!contract) {
-    throw new EnterpriseContractLifecycleError("Enterprise contract not found");
+    throw new EnterpriseContractNotFoundError();
   }
 
   if (contract.status !== EnterpriseContractStatus.active) {

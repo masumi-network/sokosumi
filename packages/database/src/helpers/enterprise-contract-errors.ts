@@ -16,3 +16,10 @@ export class EnterpriseContractLifecycleError extends Error {
     this.name = "EnterpriseContractLifecycleError";
   }
 }
+
+export class EnterpriseContractNotFoundError extends EnterpriseContractLifecycleError {
+  constructor(message = "Enterprise contract not found") {
+    super(message);
+    this.name = "EnterpriseContractNotFoundError";
+  }
+}
