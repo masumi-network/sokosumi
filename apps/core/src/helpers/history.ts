@@ -40,25 +40,91 @@ export interface BuildHistoryWhereParams {
 
 type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job">;
 
+const ARCHIVED_STATUS = "archived";
+const ACTIVE_STATUS = "active";
+
+export function buildHistoryArchivedFilter(
+  statuses: string[] | undefined,
+): Prisma.HistoryWhereInput | null {
+  if (statuses?.includes(ARCHIVED_STATUS)) {
+    return null;
+  }
+
+  return { archivedAt: null };
+}
+
+function appendKindBranches(
+  branches: Prisma.HistoryWhereInput[],
+  kindBranches: Prisma.HistoryWhereInput[],
+) {
+  if (kindBranches.length === 1) {
+    branches.push(kindBranches[0]);
+    return;
+  }
+
+  if (kindBranches.length > 1) {
+    branches.push({ OR: kindBranches });
+  }
+}
+
 export function buildHistoryStatusFilter(
   statuses: string[],
   types: HistoryKind[],
   jobEntityIds: string[],
 ): Prisma.HistoryWhereInput {
+  const includesArchived = statuses.includes(ARCHIVED_STATUS);
+  const includesActive = statuses.includes(ACTIVE_STATUS);
+  const kindStatuses = statuses.filter(
+    (status) => status !== ARCHIVED_STATUS && status !== ACTIVE_STATUS,
+  );
   const branches: Prisma.HistoryWhereInput[] = [];
 
   if (types.includes(HistoryKind.TASK)) {
-    branches.push({
-      kind: HistoryKind.TASK,
-      status: { in: statuses },
-    });
+    const taskBranches: Prisma.HistoryWhereInput[] = [];
+
+    if (kindStatuses.length > 0) {
+      taskBranches.push({
+        kind: HistoryKind.TASK,
+        status: { in: kindStatuses },
+        archivedAt: null,
+      });
+    }
+
+    if (includesActive && kindStatuses.length === 0) {
+      taskBranches.push({
+        kind: HistoryKind.TASK,
+        archivedAt: null,
+      });
+    }
+
+    if (includesArchived) {
+      taskBranches.push({
+        kind: HistoryKind.TASK,
+        archivedAt: { not: null },
+      });
+    }
+
+    appendKindBranches(branches, taskBranches);
   }
 
   if (types.includes(HistoryKind.CONVERSATION)) {
-    branches.push({
-      kind: HistoryKind.CONVERSATION,
-      status: { in: statuses },
-    });
+    const conversationBranches: Prisma.HistoryWhereInput[] = [];
+
+    if (includesActive) {
+      conversationBranches.push({
+        kind: HistoryKind.CONVERSATION,
+        archivedAt: null,
+      });
+    }
+
+    if (includesArchived) {
+      conversationBranches.push({
+        kind: HistoryKind.CONVERSATION,
+        archivedAt: { not: null },
+      });
+    }
+
+    appendKindBranches(branches, conversationBranches);
   }
 
   if (types.includes(HistoryKind.JOB)) {
@@ -142,15 +208,19 @@ export async function buildHistoryWhere(
   ];
 
   if (visibilityBranches.length === 0) {
-    return {
-      AND: [{ archivedAt: null }, { id: { in: [] } }],
-    };
+    const andClauses: Prisma.HistoryWhereInput[] = [{ id: { in: [] } }];
+    const archivedFilter = buildHistoryArchivedFilter(params.statuses);
+    if (archivedFilter) {
+      andClauses.unshift(archivedFilter);
+    }
+    return { AND: andClauses };
   }
 
-  const andClauses: Prisma.HistoryWhereInput[] = [
-    { archivedAt: null },
-    { OR: visibilityBranches },
-  ];
+  const andClauses: Prisma.HistoryWhereInput[] = [{ OR: visibilityBranches }];
+  const archivedFilter = buildHistoryArchivedFilter(params.statuses);
+  if (archivedFilter) {
+    andClauses.unshift(archivedFilter);
+  }
 
   if (params.statuses?.length) {
     const jobEntityIds = params.types.includes(HistoryKind.JOB)

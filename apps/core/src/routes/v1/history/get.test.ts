@@ -254,6 +254,73 @@ describe("GET /history", () => {
     );
   });
 
+  it("includes archived conversations when status filter requests archived", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?types=conversation&status=archived",
+    );
+
+    expect(response.status).toBe(200);
+    expect(historyFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              OR: [
+                {
+                  kind: HistoryKind.CONVERSATION,
+                  userId: "user_123",
+                },
+              ],
+            },
+            {
+              OR: [
+                {
+                  kind: HistoryKind.CONVERSATION,
+                  archivedAt: { not: null },
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("includes archived tasks when status filter requests archived", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?types=task&status=archived",
+    );
+
+    expect(response.status).toBe(200);
+    expect(historyFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              OR: [
+                {
+                  kind: { in: [HistoryKind.TASK] },
+                  userId: "user_123",
+                  workspaceId: WORKSPACE_CONTEXT.workspaceId,
+                },
+              ],
+            },
+            {
+              OR: [
+                {
+                  kind: HistoryKind.TASK,
+                  archivedAt: { not: null },
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+  });
+
   it("applies status filters with computed job status matching", async () => {
     prismaQueryRawMock.mockResolvedValue([{ entityId: "job_completed" }]);
 
@@ -275,12 +342,7 @@ describe("GET /history", () => {
                   status: {
                     in: [TaskStatus.READY, SokosumiJobStatus.COMPLETED],
                   },
-                },
-                {
-                  kind: HistoryKind.CONVERSATION,
-                  status: {
-                    in: [TaskStatus.READY, SokosumiJobStatus.COMPLETED],
-                  },
+                  archivedAt: null,
                 },
                 {
                   kind: HistoryKind.JOB,

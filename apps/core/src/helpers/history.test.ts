@@ -3,6 +3,7 @@ import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  buildHistoryArchivedFilter,
   buildHistoryStatusFilter,
   type HistoryRowForApi,
   mapHistoryRow,
@@ -80,8 +81,27 @@ describe("mapHistoryRow", () => {
   });
 });
 
+describe("buildHistoryArchivedFilter", () => {
+  it("excludes archived rows by default", () => {
+    expect(buildHistoryArchivedFilter(undefined)).toEqual({
+      archivedAt: null,
+    });
+  });
+
+  it("excludes archived rows when status filter omits archived", () => {
+    expect(buildHistoryArchivedFilter(["active", "READY"])).toEqual({
+      archivedAt: null,
+    });
+  });
+
+  it("skips the global archived filter when status filter includes archived", () => {
+    expect(buildHistoryArchivedFilter(["archived"])).toBeNull();
+    expect(buildHistoryArchivedFilter(["active", "archived"])).toBeNull();
+  });
+});
+
 describe("buildHistoryStatusFilter", () => {
-  it("matches task and conversation rows on stored status", () => {
+  it("matches non-archived task and conversation rows on stored status", () => {
     expect(
       buildHistoryStatusFilter(
         [TaskStatus.READY, "active"],
@@ -92,11 +112,70 @@ describe("buildHistoryStatusFilter", () => {
       OR: [
         {
           kind: HistoryKind.TASK,
-          status: { in: [TaskStatus.READY, "active"] },
+          status: { in: [TaskStatus.READY] },
+          archivedAt: null,
         },
         {
           kind: HistoryKind.CONVERSATION,
-          status: { in: [TaskStatus.READY, "active"] },
+          archivedAt: null,
+        },
+      ],
+    });
+  });
+
+  it("matches archived tasks and conversations using archivedAt", () => {
+    expect(
+      buildHistoryStatusFilter(
+        ["archived"],
+        [HistoryKind.TASK, HistoryKind.CONVERSATION],
+        [],
+      ),
+    ).toEqual({
+      OR: [
+        {
+          kind: HistoryKind.TASK,
+          archivedAt: { not: null },
+        },
+        {
+          kind: HistoryKind.CONVERSATION,
+          archivedAt: { not: null },
+        },
+      ],
+    });
+  });
+
+  it("includes both archived and non-archived rows when active and archived are requested", () => {
+    expect(
+      buildHistoryStatusFilter(
+        ["active", "archived"],
+        [HistoryKind.TASK, HistoryKind.CONVERSATION],
+        [],
+      ),
+    ).toEqual({
+      OR: [
+        {
+          OR: [
+            {
+              kind: HistoryKind.TASK,
+              archivedAt: null,
+            },
+            {
+              kind: HistoryKind.TASK,
+              archivedAt: { not: null },
+            },
+          ],
+        },
+        {
+          OR: [
+            {
+              kind: HistoryKind.CONVERSATION,
+              archivedAt: null,
+            },
+            {
+              kind: HistoryKind.CONVERSATION,
+              archivedAt: { not: null },
+            },
+          ],
         },
       ],
     });
@@ -131,6 +210,7 @@ describe("buildHistoryStatusFilter", () => {
         {
           kind: HistoryKind.TASK,
           status: { in: [SokosumiJobStatus.PAYMENT_FAILED] },
+          archivedAt: null,
         },
         {
           kind: HistoryKind.JOB,
