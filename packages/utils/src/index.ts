@@ -58,8 +58,10 @@ export {
 } from "./openrouter-react-image-envelope.js";
 export {
   type OrganizationBillingPlanName,
+  type PaidSubscriptionPlanName,
   parseSelfServeSubscriptionPlanName,
   type SelfServeSubscriptionPlanName,
+  type SubscriptionPlanName,
 } from "./organization-billing-plan-names.js";
 export {
   isOrganizationLogoAllowedContentType,

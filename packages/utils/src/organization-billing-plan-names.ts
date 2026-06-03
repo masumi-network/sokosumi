@@ -9,6 +9,15 @@ export type OrganizationBillingPlanName =
   | SelfServeSubscriptionPlanName
   | "enterprise";
 
+/** Self-serve Stripe/Better Auth plan names only. */
+export type SubscriptionPlanName = SelfServeSubscriptionPlanName;
+
+/** Self-serve paid plans in Stripe checkout and upgrade flows. */
+export type PaidSubscriptionPlanName = Exclude<
+  SelfServeSubscriptionPlanName,
+  "free"
+>;
+
 export function parseSelfServeSubscriptionPlanName(
   value: string | null | undefined,
 ): SelfServeSubscriptionPlanName | null {
