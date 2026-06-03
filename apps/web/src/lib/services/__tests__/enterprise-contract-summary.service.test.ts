@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getContractWithPeriodsMock = vi.fn();
@@ -87,6 +88,7 @@ describe("enterprise contract summary helpers", () => {
 });
 
 describe("getEnterpriseContractBillingSummary", () => {
+  const mockTx = {} as Prisma.TransactionClient;
   const billingPlan = {
     mode: "enterprise_contract" as const,
     plan: "enterprise" as const,
@@ -106,14 +108,14 @@ describe("getEnterpriseContractBillingSummary", () => {
   it("returns null when the contract cannot be loaded", async () => {
     getContractWithPeriodsMock.mockResolvedValue(null);
     sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
-      remainingCents: 0n,
-      totalCents: 0n,
+      remainingCents: BigInt(0),
+      totalCents: BigInt(0),
     });
 
     const summary = await getEnterpriseContractBillingSummary(
       billingPlan,
       "org-1",
-      {},
+      mockTx,
     );
 
     expect(summary).toBeNull();
@@ -121,19 +123,19 @@ describe("getEnterpriseContractBillingSummary", () => {
 
   it("returns null when the contract belongs to another organization", async () => {
     getContractWithPeriodsMock.mockResolvedValue({
-      centsPerMonth: 60_000_000_000_000n,
+      centsPerMonth: BigInt(60_000_000_000_000),
       organizationId: "org-other",
       periods: [],
     });
     sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
-      remainingCents: 0n,
-      totalCents: 0n,
+      remainingCents: BigInt(0),
+      totalCents: BigInt(0),
     });
 
     const summary = await getEnterpriseContractBillingSummary(
       billingPlan,
       "org-1",
-      {},
+      mockTx,
     );
 
     expect(summary).toBeNull();
@@ -141,7 +143,7 @@ describe("getEnterpriseContractBillingSummary", () => {
 
   it("maps contract, period, and pool data into a billing summary", async () => {
     getContractWithPeriodsMock.mockResolvedValue({
-      centsPerMonth: 60_000_000_000_000n,
+      centsPerMonth: BigInt(60_000_000_000_000),
       organizationId: "org-1",
       periods: [
         {
@@ -159,14 +161,14 @@ describe("getEnterpriseContractBillingSummary", () => {
       ],
     });
     sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
-      remainingCents: 25_000_000_000_000n,
-      totalCents: 60_000_000_000_000n,
+      remainingCents: BigInt(25_000_000_000_000),
+      totalCents: BigInt(60_000_000_000_000),
     });
 
     const summary = await getEnterpriseContractBillingSummary(
       billingPlan,
       "org-1",
-      {},
+      mockTx,
       new Date("2026-02-15T12:00:00.000Z"),
     );
 
@@ -184,7 +186,7 @@ describe("getEnterpriseContractBillingSummary", () => {
 
   it("uses the last period end when the contract is post-term", async () => {
     getContractWithPeriodsMock.mockResolvedValue({
-      centsPerMonth: 60_000_000_000_000n,
+      centsPerMonth: BigInt(60_000_000_000_000),
       organizationId: "org-1",
       periods: [
         {
@@ -198,14 +200,14 @@ describe("getEnterpriseContractBillingSummary", () => {
       ],
     });
     sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
-      remainingCents: 0n,
-      totalCents: 0n,
+      remainingCents: BigInt(0),
+      totalCents: BigInt(0),
     });
 
     const summary = await getEnterpriseContractBillingSummary(
       { ...billingPlan, isConsumable: false },
       "org-1",
-      {},
+      mockTx,
       new Date("2026-04-01T00:00:00.000Z"),
     );
 

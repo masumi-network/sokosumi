@@ -149,7 +149,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           : Promise.resolve(null),
         organizationSeatService.getSeatSummary(activeOrganization.id),
         isEnterpriseContract
-          ? Promise.resolve(0n)
+          ? Promise.resolve(BigInt(0))
           : creditBucketRepository.getBalance(
               userId,
               activeOrganization.id,
