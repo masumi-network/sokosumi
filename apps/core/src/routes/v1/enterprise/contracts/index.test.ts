@@ -38,4 +38,20 @@ describe("enterprise contracts routes OpenAPI contract", () => {
       $ref: "#/components/schemas/EnterpriseContractActivationConflictResponse",
     });
   });
+
+  it("documents kind on enterprise activation conflict schema", () => {
+    const schema =
+      doc.components?.schemas?.EnterpriseContractActivationConflictResponse;
+
+    expect(schema).toBeDefined();
+    expect(schema).toMatchObject({
+      properties: {
+        kind: {
+          type: "string",
+          enum: ["enterprise_activation_blocked"],
+        },
+      },
+      required: expect.arrayContaining(["kind", "blockers"]),
+    });
+  });
 });

@@ -187,6 +187,9 @@ export const enterpriseContractActivationBlockerSchema = z
 export const enterpriseContractActivationConflictResponseSchema =
   errorResponseSchema
     .extend({
+      kind: z.literal("enterprise_activation_blocked").openapi({
+        description: "Machine-readable conflict reason for activation guards",
+      }),
       blockers: z.array(enterpriseContractActivationBlockerSchema),
     })
     .openapi("EnterpriseContractActivationConflictResponse");
