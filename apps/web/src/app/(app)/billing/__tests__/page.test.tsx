@@ -20,6 +20,8 @@ const billingTabsMock = vi.fn();
 const organizationSubscriptionSectionMock = vi.fn();
 const personalSubscriptionSectionMock = vi.fn();
 const resolveOrganizationBillingPlanMock = vi.fn();
+const getEnterpriseContractBillingSummaryMock = vi.fn();
+const enterpriseContractSummaryMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -102,6 +104,18 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
+vi.mock("@/components/billing/enterprise-contract-summary", () => ({
+  EnterpriseContractSummary: (props: unknown) => {
+    enterpriseContractSummaryMock(props);
+    return <div data-testid="enterprise-contract-summary" />;
+  },
+}));
+
+vi.mock("@/lib/services/enterprise-contract-summary.service", () => ({
+  getEnterpriseContractBillingSummary: (...args: unknown[]) =>
+    getEnterpriseContractBillingSummaryMock(...args),
+}));
+
 vi.mock("@/components/billing/balance-section", () => ({
   BalanceSection: (props: { billingPortal?: React.ReactNode }) => (
     <div data-testid="balance-section">{props.billingPortal}</div>
@@ -180,6 +194,23 @@ function mockSelfServeOrganizationBillingPlan(
     subscriptionId: "sub-org-1",
     cancelAtPeriodEnd: false,
     periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+  });
+}
+
+function mockEnterpriseOrganizationBillingPlan(
+  isConsumable: boolean,
+  purchasedSeats: number,
+): void {
+  resolveOrganizationBillingPlanMock.mockResolvedValue({
+    mode: "enterprise_contract",
+    plan: "enterprise",
+    isConsumable,
+    purchasedSeats,
+    contractId: "contract-1",
+    contractEnd: new Date("2026-12-14T23:59:59.999Z"),
+    activatedAt: new Date("2026-01-15T00:00:00.000Z"),
+    cancelAtPeriodEnd: false,
+    periodEnd: null,
   });
 }
 
@@ -411,5 +442,59 @@ describe("BillingPage", () => {
 
     expect(balanceBillingPortalLinkMock).toHaveBeenCalled();
     expect(view.getByTestId("balance-billing-portal-link")).toBeTruthy();
+  });
+
+  it("shows the enterprise contract summary for consumable enterprise org billing", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      _count: { members: 2 },
+      id: "org-enterprise",
+      name: "Enterprise Org",
+      stripeCustomerId: "cus_org_enterprise",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    mockEnterpriseOrganizationBillingPlan(true, 10);
+    getEnterpriseContractBillingSummaryMock.mockResolvedValue({
+      activatedAt: new Date("2026-01-15T00:00:00.000Z"),
+      contractEnd: new Date("2026-12-14T23:59:59.999Z"),
+      currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
+      isConsumable: true,
+      monthlyCredits: 60_000,
+      nextActivationAt: new Date("2026-03-15T00:00:00.000Z"),
+      poolRemainingCredits: 25_000,
+      poolTotalCredits: 60_000,
+      purchasedSeats: 10,
+    });
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contractId: "contract-1",
+        mode: "enterprise_contract",
+      }),
+      "org-enterprise",
+      expect.anything(),
+    );
+    expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          poolRemainingCredits: 25_000,
+          purchasedSeats: 10,
+        }),
+      }),
+    );
+    expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
+    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
   });
 });

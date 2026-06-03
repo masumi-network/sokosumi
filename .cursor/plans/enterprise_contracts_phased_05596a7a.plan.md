@@ -19,7 +19,7 @@ todos:
     status: completed
   - id: phase-6-billing-ui
     content: "Phase 6: Org billing page contract summary + i18n across locales"
-    status: pending
+    status: completed
 isProject: false
 ---
 

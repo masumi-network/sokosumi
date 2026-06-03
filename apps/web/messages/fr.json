@@ -2475,6 +2475,23 @@
       "orgAccessRestrictedTitle": "Accès à la facturation restreint",
       "orgAccessRestrictedDescription": "Seuls les propriétaires et administrateurs de l’organisation peuvent consulter les informations de facturation de cette organisation.",
       "orgAccessRestrictedHint": "Basculez vers un contexte personnel ou contactez un propriétaire/administrateur de l’organisation si vous avez besoin d’un accès.",
+      "EnterpriseContract": {
+        "title": "Enterprise contract",
+        "description": "Your organization is on a Sokosumi-managed enterprise contract.",
+        "postTermDescription": "Your enterprise contract term has ended. Subscription changes are available again.",
+        "poolBalanceLabel": "Pool balance",
+        "poolBalanceCredits": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
+        "poolBalanceValue": "{remaining} of {total} credits remaining",
+        "monthlyGrantLabel": "Monthly grant",
+        "monthlyGrantCredits": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
+        "currentPeriodEndLabel": "Current period ends",
+        "contractEndLabel": "Contract ends",
+        "nextActivationLabel": "Next credits activate",
+        "nextActivationNone": "No upcoming activations",
+        "notAvailable": "Not available",
+        "purchasedSeatsLabel": "Purchased seats",
+        "purchasedSeatsValue": "{seats, plural, =1 {# seat} other {# seats}}"
+      },
       "Errors": {
         "unauthenticated": "Veuillez vous connecter pour continuer",
         "unauthenticatedAction": "Se connecter",

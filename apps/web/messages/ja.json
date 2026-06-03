@@ -2475,6 +2475,23 @@
       "orgAccessRestrictedTitle": "請求へのアクセスが制限されています",
       "orgAccessRestrictedDescription": "この組織の請求情報を閲覧できるのは、組織のオーナーと管理者のみです。",
       "orgAccessRestrictedHint": "個人コンテキストに切り替えるか、アクセスが必要な場合は組織のオーナー／管理者にお問い合わせください。",
+      "EnterpriseContract": {
+        "title": "Enterprise contract",
+        "description": "Your organization is on a Sokosumi-managed enterprise contract.",
+        "postTermDescription": "Your enterprise contract term has ended. Subscription changes are available again.",
+        "poolBalanceLabel": "Pool balance",
+        "poolBalanceCredits": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
+        "poolBalanceValue": "{remaining} of {total} credits remaining",
+        "monthlyGrantLabel": "Monthly grant",
+        "monthlyGrantCredits": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
+        "currentPeriodEndLabel": "Current period ends",
+        "contractEndLabel": "Contract ends",
+        "nextActivationLabel": "Next credits activate",
+        "nextActivationNone": "No upcoming activations",
+        "notAvailable": "Not available",
+        "purchasedSeatsLabel": "Purchased seats",
+        "purchasedSeatsValue": "{seats, plural, =1 {# seat} other {# seats}}"
+      },
       "Errors": {
         "unauthenticated": "続行するにはサインインしてください",
         "unauthenticatedAction": "サインイン",

@@ -2478,6 +2478,23 @@
       "orgAccessRestrictedTitle": "Billing access restricted",
       "orgAccessRestrictedDescription": "Only organization owners and admins can view billing details for this organization.",
       "orgAccessRestrictedHint": "Switch to a personal context or contact an organization owner/admin if you need access.",
+      "EnterpriseContract": {
+        "title": "Enterprise contract",
+        "description": "Your organization is on a Sokosumi-managed enterprise contract.",
+        "postTermDescription": "Your enterprise contract term has ended. Subscription changes are available again.",
+        "poolBalanceLabel": "Pool balance",
+        "poolBalanceCredits": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
+        "poolBalanceValue": "{remaining} of {total} credits remaining",
+        "monthlyGrantLabel": "Monthly grant",
+        "monthlyGrantCredits": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
+        "currentPeriodEndLabel": "Current period ends",
+        "contractEndLabel": "Contract ends",
+        "nextActivationLabel": "Next credits activate",
+        "nextActivationNone": "No upcoming activations",
+        "notAvailable": "Not available",
+        "purchasedSeatsLabel": "Purchased seats",
+        "purchasedSeatsValue": "{seats, plural, =1 {# seat} other {# seats}}"
+      },
       "Errors": {
         "unauthenticated": "Please sign in to continue",
         "unauthenticatedAction": "Sign In",

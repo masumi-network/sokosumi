@@ -17,6 +17,7 @@ import { BalanceSection } from "@/components/billing/balance-section";
 import { BillingTabs } from "@/components/billing/billing-tabs";
 import CouponSection from "@/components/billing/coupon-section";
 import CreditsSection from "@/components/billing/credits-section";
+import { EnterpriseContractSummary } from "@/components/billing/enterprise-contract-summary";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import {
@@ -29,6 +30,7 @@ import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
 import { organizationSeatService, userService } from "@/lib/services";
+import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
 import { ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY } from "@/lib/stripe/credit-topup-pricing";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
@@ -124,6 +126,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     const isEnterpriseContract = billingPlan.mode === "enterprise_contract";
     const isEnterpriseConsumable =
       isEnterpriseContract && billingPlan.isConsumable;
+    const enterpriseContractSummary = isEnterpriseContract
+      ? await getEnterpriseContractBillingSummary(
+          billingPlan,
+          activeOrganization.id,
+          prisma,
+        )
+      : null;
     const showOrganizationBillingPortal = !isEnterpriseConsumable;
     const canPurchaseCredits =
       isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
@@ -194,6 +203,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               ) : null
             }
           />
+
+          {enterpriseContractSummary ? (
+            <EnterpriseContractSummary summary={enterpriseContractSummary} />
+          ) : null}
 
           <BillingTabs
             tabLabels={{

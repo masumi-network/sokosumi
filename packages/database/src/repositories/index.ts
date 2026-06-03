@@ -30,6 +30,7 @@ export * from "./blob.repository.js";
 export * from "./category.repository.js";
 export * from "./credit-bucket.repository.js";
 export * from "./creditCost.repository.js";
+export * from "./enterprise-contract.repository.js";
 export * from "./hermes-instance.repository.js";
 export * from "./hermes-message.repository.js";
 export * from "./invitation.repository.js";
