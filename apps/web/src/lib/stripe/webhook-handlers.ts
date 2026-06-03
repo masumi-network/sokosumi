@@ -18,6 +18,7 @@ import {
   grantFreeOrganizationMemberSubscriptionCredits,
   isActiveSubscriptionStatus,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+  resolveOrganizationBillingPlan,
   transitionToNextLocalFreeSubscriptionPeriod,
 } from "@sokosumi/database/helpers";
 import {
@@ -772,11 +773,21 @@ export async function handleInvoicePaidEvent(
 
   const freeTierPeriodEndUnix =
     resolveSubscriptionLinesPeriodEndUnix(subscriptionLines);
-  const shouldGrantUnassignedFreeCredits =
+  let shouldGrantUnassignedFreeCredits =
     organizationId !== null &&
     subscriptionLines.length > 0 &&
     freeTierPeriodEndUnix !== null &&
     organizationUnassignedMemberUserIds.length > 0;
+
+  if (shouldGrantUnassignedFreeCredits && organizationId) {
+    const billingPlan = await resolveOrganizationBillingPlan(
+      organizationId,
+      prisma,
+    );
+    if (billingPlan.mode === "enterprise_contract") {
+      shouldGrantUnassignedFreeCredits = false;
+    }
+  }
 
   if (creditGrants.length === 0 && !shouldGrantUnassignedFreeCredits) {
     console.log(

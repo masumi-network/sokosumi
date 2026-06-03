@@ -2,9 +2,12 @@ import "server-only";
 
 import { MemberRole } from "@sokosumi/database";
 import {
+  assertOrganizationSubscriptionChangeAllowed,
   ensureLocalFreeSubscriptionPeriod,
   ensurePurchasedSeatsSufficient,
   grantFreeOrganizationMemberSubscriptionCredits,
+  OrganizationSubscriptionExclusivityError,
+  resolveOrganizationBillingPlan,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import {
@@ -267,6 +270,14 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
   organizationId: string,
   activeSubscription?: ActiveOrganizationSubscription | null,
 ): Promise<number> {
+  const billingPlan = await resolveOrganizationBillingPlan(
+    organizationId,
+    prisma,
+  );
+  if (billingPlan.mode === "enterprise_contract") {
+    return resolvePurchasedSeats(billingPlan.purchasedSeats);
+  }
+
   const currentActiveSubscription =
     activeSubscription ??
     (await resolveActiveOrganizationSubscription(organizationId));
@@ -296,6 +307,22 @@ export const organizationSubscriptionService = (() => {
       seats: number,
     ): Promise<{ seats: number }> {
       await ensureCanManageOrganizationSubscription(userId, organizationId);
+
+      try {
+        await assertOrganizationSubscriptionChangeAllowed(
+          organizationId,
+          prisma,
+        );
+      } catch (error) {
+        if (error instanceof OrganizationSubscriptionExclusivityError) {
+          throw new APIError("BAD_REQUEST", {
+            message: error.message,
+          });
+        }
+
+        throw error;
+      }
+
       const activeSubscription = await ensureActiveOrganizationSubscription(
         organizationId,
         "An active organization subscription is required before updating seats.",

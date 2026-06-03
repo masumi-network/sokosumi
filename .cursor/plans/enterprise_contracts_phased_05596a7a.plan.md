@@ -16,7 +16,7 @@ todos:
     status: completed
   - id: phase-5-entitlements
     content: "Phase 5: Plan resolution, pool consumption, exclusivity guards, seat capacity wiring"
-    status: pending
+    status: completed
   - id: phase-6-billing-ui
     content: "Phase 6: Org billing page contract summary + i18n across locales"
     status: pending
@@ -34,8 +34,7 @@ isProject: false
   - **Phase 2:** [`enterprise-contract-lifecycle.ts`](packages/database/src/helpers/enterprise-contract-lifecycle.ts), grants, exclusivity guards
   - **Phase 3:** [`enterprise-contract-scheduler.ts`](packages/database/src/helpers/enterprise-contract-scheduler.ts) + [`enterprise-contract-sync.service.ts`](apps/core/src/services/enterprise-contract-sync.service.ts) + `GET /sync/enterprise-contracts-renewal` (daily cron)
   - **Phase 4:** Core admin API under `/v1/enterprise/contracts` (admin middleware on `/v1/enterprise`); no org member read route — web uses Prisma + `resolveOrganizationBillingPlan()`
-  - **Phase 5a ✅:** Plan resolution complete (see Phase 5 below). **Next:** **5b** (credit consumption), then **5c** (subscription exclusivity + free-grant skips). Credit top-ups and coupons stay available for enterprise orgs (product decision).
-  - **Prep (pre–5b):** commercial vs consumable billing plan, complete expired contracts on activate, [`credit-bucket-scope.ts`](packages/database/src/helpers/credit-bucket-scope.ts), seat-service grant skips for `enterprise_contract`.
+  - **Phase 5 ✅:** 5a plan resolution, 5b assigned-only enterprise pool consumption + API breakdown, 5c subscription exclusivity + free-grant skips (top-ups/coupons remain available).
   - Existing primitives to reuse:
   - `CreditBucket.activatesAt` + `[creditBucketActivatesAtOrBefore()](packages/database/src/helpers/credit.ts)` (spec’s `activeFrom` maps to this field — **do not add a duplicate column**)
   - Per-period pre-create pattern in `[subscription.ts](packages/database/src/helpers/subscription.ts)` and `[free-subscription-sync.service.ts](apps/core/src/services/free-subscription-sync.service.ts)`
@@ -297,7 +296,7 @@ After the bucket row exists with non-null `activatesAt`, flip period status: **i
 
 **Not in 5a (moved to 5c):** subscription checkout blocks and skipping local-free grants — see 5c.
 
-### 5b. Credit consumption (shared org pool, assigned-only)
+### 5b. Credit consumption (shared org pool, assigned-only) ✅
 
 Update scope in [`credit-bucket-scope.ts`](packages/database/src/helpers/credit-bucket-scope.ts) (used by [`credit-bucket.repository.ts`](packages/database/src/repositories/credit-bucket.repository.ts)):
 
@@ -307,7 +306,7 @@ Update scope in [`credit-bucket-scope.ts`](packages/database/src/helpers/credit-
 
 Update `[apps/core/src/helpers/subscription.ts](apps/core/src/helpers/subscription.ts)` credit breakdown to surface enterprise pool balance separately from per-member subscription credits.
 
-### 5c. Suppress conflicting entitlements (subscriptions only)
+### 5c. Suppress conflicting entitlements (subscriptions only) ✅
 
 While contract is **consumable** (`isEnterpriseContractConsumable()` / `billingPlan.isConsumable`):
 
