@@ -17,6 +17,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
 import {
   getEnterpriseContractBillingSummary,
   resolveCurrentEnterprisePeriodEnd,
+  resolveEnterprisePeriodEndForDisplay,
   resolveNextEnterpriseActivationAt,
 } from "@/lib/services/enterprise-contract-summary.service";
 
@@ -61,6 +62,27 @@ describe("enterprise contract summary helpers", () => {
     );
 
     expect(nextActivationAt?.toISOString()).toBe("2026-02-15T00:00:00.000Z");
+  });
+
+  it("falls back to the last period end after the commercial term", () => {
+    const periods = [
+      {
+        periodStart: new Date("2026-01-15T00:00:00.000Z"),
+        periodEnd: new Date("2026-02-14T23:59:59.999Z"),
+      },
+      {
+        periodStart: new Date("2026-02-15T00:00:00.000Z"),
+        periodEnd: new Date("2026-03-14T23:59:59.999Z"),
+      },
+    ];
+
+    expect(
+      resolveEnterprisePeriodEndForDisplay(
+        periods,
+        new Date("2026-04-01T00:00:00.000Z"),
+        false,
+      )?.toISOString(),
+    ).toBe("2026-03-14T23:59:59.999Z");
   });
 });
 
@@ -149,7 +171,6 @@ describe("getEnterpriseContractBillingSummary", () => {
     );
 
     expect(summary).toEqual({
-      activatedAt: billingPlan.activatedAt,
       contractEnd: billingPlan.contractEnd,
       currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
       isConsumable: true,
@@ -159,5 +180,37 @@ describe("getEnterpriseContractBillingSummary", () => {
       poolTotalCredits: 6_000,
       purchasedSeats: 10,
     });
+  });
+
+  it("uses the last period end when the contract is post-term", async () => {
+    getContractWithPeriodsMock.mockResolvedValue({
+      centsPerMonth: 60_000_000_000_000n,
+      organizationId: "org-1",
+      periods: [
+        {
+          periodStart: new Date("2026-01-15T00:00:00.000Z"),
+          periodEnd: new Date("2026-02-14T23:59:59.999Z"),
+        },
+        {
+          periodStart: new Date("2026-02-15T00:00:00.000Z"),
+          periodEnd: new Date("2026-03-14T23:59:59.999Z"),
+        },
+      ],
+    });
+    sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
+      remainingCents: 0n,
+      totalCents: 0n,
+    });
+
+    const summary = await getEnterpriseContractBillingSummary(
+      { ...billingPlan, isConsumable: false },
+      "org-1",
+      {},
+      new Date("2026-04-01T00:00:00.000Z"),
+    );
+
+    expect(summary?.currentPeriodEnd?.toISOString()).toBe(
+      "2026-03-14T23:59:59.999Z",
+    );
   });
 });

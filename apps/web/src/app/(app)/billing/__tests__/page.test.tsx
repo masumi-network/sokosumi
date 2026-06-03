@@ -105,9 +105,11 @@ vi.mock("@sokosumi/database/repositories", () => ({
 }));
 
 vi.mock("@/components/billing/enterprise-contract-summary", () => ({
-  EnterpriseContractSummary: (props: unknown) => {
+  EnterpriseContractSummary: (props: { billingPortal?: React.ReactNode }) => {
     enterpriseContractSummaryMock(props);
-    return <div data-testid="enterprise-contract-summary" />;
+    return (
+      <div data-testid="enterprise-contract-summary">{props.billingPortal}</div>
+    );
   },
 }));
 
@@ -457,7 +459,6 @@ describe("BillingPage", () => {
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockEnterpriseOrganizationBillingPlan(true, 10);
     getEnterpriseContractBillingSummaryMock.mockResolvedValue({
-      activatedAt: new Date("2026-01-15T00:00:00.000Z"),
       contractEnd: new Date("2026-12-14T23:59:59.999Z"),
       currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
       isConsumable: true,
@@ -495,6 +496,7 @@ describe("BillingPage", () => {
       }),
     );
     expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
+    expect(view.queryByTestId("balance-section")).toBeNull();
     expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
   });
 
@@ -511,9 +513,8 @@ describe("BillingPage", () => {
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockEnterpriseOrganizationBillingPlan(false, 10);
     getEnterpriseContractBillingSummaryMock.mockResolvedValue({
-      activatedAt: new Date("2026-01-15T00:00:00.000Z"),
       contractEnd: new Date("2026-12-14T23:59:59.999Z"),
-      currentPeriodEnd: null,
+      currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
       isConsumable: false,
       monthlyCredits: 60_000,
       nextActivationAt: null,
@@ -550,6 +551,12 @@ describe("BillingPage", () => {
       }),
     );
     expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
+    expect(view.queryByTestId("balance-section")).toBeNull();
+    expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        billingPortal: expect.anything(),
+      }),
+    );
     expect(balanceBillingPortalLinkMock).toHaveBeenCalled();
     expect(view.getByTestId("balance-billing-portal-link")).toBeTruthy();
   });

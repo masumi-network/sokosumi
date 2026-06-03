@@ -126,13 +126,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     const isEnterpriseContract = billingPlan.mode === "enterprise_contract";
     const isEnterpriseConsumable =
       isEnterpriseContract && billingPlan.isConsumable;
-    const enterpriseContractSummary = isEnterpriseContract
-      ? await getEnterpriseContractBillingSummary(
-          billingPlan,
-          activeOrganization.id,
-          prisma,
-        )
-      : null;
     const showOrganizationBillingPortal = !isEnterpriseConsumable;
     const canPurchaseCredits =
       isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
@@ -145,17 +138,41 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         ? { cancel: query.cancel, session_id: query.session_id }
         : undefined;
 
-    const balanceInCents = await creditBucketRepository.getBalance(
-      userId,
-      activeOrganization.id,
-      prisma,
-    );
-    const seatSummary = await organizationSeatService.getSeatSummary(
-      activeOrganization.id,
-    );
+    const [enterpriseContractSummaryResult, balanceInCents, seatSummary] =
+      await Promise.all([
+        isEnterpriseContract
+          ? getEnterpriseContractBillingSummary(
+              billingPlan,
+              activeOrganization.id,
+              prisma,
+            )
+          : Promise.resolve(null),
+        creditBucketRepository.getBalance(
+          userId,
+          activeOrganization.id,
+          prisma,
+        ),
+        organizationSeatService.getSeatSummary(activeOrganization.id),
+      ]);
+    const enterpriseContractSummary = enterpriseContractSummaryResult;
     const currentSeats = seatSummary.purchasedSeats;
     const credits = convertCentsToCredits(balanceInCents);
     const displayCredits = formatCreditsForDisplay(credits);
+    const organizationBillingPortal =
+      activeOrganization.stripeCustomerId && showOrganizationBillingPortal ? (
+        <BalanceBillingPortalLink
+          baseReturnPath="/billing"
+          description={t("billingPortalDescription")}
+          generalErrorMessage={t("Errors.general")}
+          label={t("manageYourBilling")}
+          openingLabel={t("openingBillingPortal")}
+          organizationId={activeOrganization.id}
+          returnPath="/billing"
+          unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
+          unauthenticatedErrorMessage={t("Errors.unauthenticated")}
+          unauthorizedErrorMessage={t("Errors.unauthorized")}
+        />
+      ) : null;
 
     const orgPlans: SubscriptionPlanView[] = PLAN_ORDER.map((planName) => {
       const plan = subscriptionCatalog[planName];
@@ -171,42 +188,32 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     return (
       <div className="min-h-full w-full">
         <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
-          <BalanceSection
-            title={t("balanceTitle")}
-            description={t("balanceDescriptionOrganization", {
-              assigned: seatSummary.assignedCount,
-              members: seatSummary.memberCount,
-              organization: activeOrganization.name,
-              purchased: seatSummary.purchasedSeats,
-              unused: seatSummary.unusedSeats,
-            })}
-            creditsLabel={t("balanceCreditsLabel", {
-              credits: displayCredits,
-            })}
-            stripeCustomerId={activeOrganization.stripeCustomerId}
-            stripeCustomerLabel={t("stripeCustomerIdLabel")}
-            billingPortal={
-              activeOrganization.stripeCustomerId &&
-              showOrganizationBillingPortal ? (
-                <BalanceBillingPortalLink
-                  baseReturnPath="/billing"
-                  description={t("billingPortalDescription")}
-                  generalErrorMessage={t("Errors.general")}
-                  label={t("manageYourBilling")}
-                  openingLabel={t("openingBillingPortal")}
-                  organizationId={activeOrganization.id}
-                  returnPath="/billing"
-                  unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-                  unauthenticatedErrorMessage={t("Errors.unauthenticated")}
-                  unauthorizedErrorMessage={t("Errors.unauthorized")}
-                />
-              ) : null
-            }
-          />
-
-          {enterpriseContractSummary ? (
-            <EnterpriseContractSummary summary={enterpriseContractSummary} />
-          ) : null}
+          {isEnterpriseContract ? (
+            enterpriseContractSummary ? (
+              <EnterpriseContractSummary
+                billingPortal={organizationBillingPortal}
+                spendableCredits={credits}
+                summary={enterpriseContractSummary}
+              />
+            ) : null
+          ) : (
+            <BalanceSection
+              title={t("balanceTitle")}
+              description={t("balanceDescriptionOrganization", {
+                assigned: seatSummary.assignedCount,
+                members: seatSummary.memberCount,
+                organization: activeOrganization.name,
+                purchased: seatSummary.purchasedSeats,
+                unused: seatSummary.unusedSeats,
+              })}
+              creditsLabel={t("balanceCreditsLabel", {
+                credits: displayCredits,
+              })}
+              stripeCustomerId={activeOrganization.stripeCustomerId}
+              stripeCustomerLabel={t("stripeCustomerIdLabel")}
+              billingPortal={organizationBillingPortal}
+            />
+          )}
 
           <BillingTabs
             tabLabels={{

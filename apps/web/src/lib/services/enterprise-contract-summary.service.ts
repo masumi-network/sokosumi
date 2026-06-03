@@ -9,7 +9,6 @@ import {
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 export interface EnterpriseContractBillingSummary {
-  activatedAt: Date;
   contractEnd: Date;
   currentPeriodEnd: Date | null;
   isConsumable: boolean;
@@ -49,6 +48,23 @@ export function resolveNextEnterpriseActivationAt(
   return upcomingPeriods[0]?.periodStart ?? null;
 }
 
+export function resolveEnterprisePeriodEndForDisplay(
+  periods: EnterpriseContractPeriodWindow[],
+  now: Date,
+  isConsumable: boolean,
+): Date | null {
+  const currentPeriodEnd = resolveCurrentEnterprisePeriodEnd(periods, now);
+  if (currentPeriodEnd) {
+    return currentPeriodEnd;
+  }
+
+  if (!isConsumable && periods.length > 0) {
+    return periods.at(-1)?.periodEnd ?? null;
+  }
+
+  return null;
+}
+
 export async function getEnterpriseContractBillingSummary(
   billingPlan: Extract<
     OrganizationBillingPlan,
@@ -80,9 +96,12 @@ export async function getEnterpriseContractBillingSummary(
   }));
 
   return {
-    activatedAt: billingPlan.activatedAt,
     contractEnd: billingPlan.contractEnd,
-    currentPeriodEnd: resolveCurrentEnterprisePeriodEnd(periodWindows, now),
+    currentPeriodEnd: resolveEnterprisePeriodEndForDisplay(
+      periodWindows,
+      now,
+      billingPlan.isConsumable,
+    ),
     isConsumable: billingPlan.isConsumable,
     monthlyCredits: convertCentsToCredits(contract.centsPerMonth),
     nextActivationAt: resolveNextEnterpriseActivationAt(periodWindows, now),

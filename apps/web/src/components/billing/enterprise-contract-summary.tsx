@@ -1,4 +1,5 @@
 import { getFormatter, getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
 
 import {
   Card,
@@ -12,6 +13,8 @@ import type { EnterpriseContractBillingSummary } from "@/lib/services/enterprise
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 interface EnterpriseContractSummaryProps {
+  billingPortal?: ReactNode;
+  spendableCredits?: number | null;
   summary: EnterpriseContractBillingSummary;
 }
 
@@ -26,6 +29,8 @@ function formatDate(
 }
 
 export async function EnterpriseContractSummary({
+  billingPortal,
+  spendableCredits,
   summary,
 }: EnterpriseContractSummaryProps) {
   const t = await getTranslations("App.Billing.EnterpriseContract");
@@ -33,6 +38,11 @@ export async function EnterpriseContractSummary({
   const poolRemainingCredits = formatCreditsForDisplay(
     summary.poolRemainingCredits,
   );
+  const poolTotalCredits = formatCreditsForDisplay(summary.poolTotalCredits);
+  const formattedSpendableCredits =
+    spendableCredits != null && spendableCredits > 0
+      ? formatCreditsForDisplay(spendableCredits)
+      : null;
 
   return (
     <Card>
@@ -43,22 +53,33 @@ export async function EnterpriseContractSummary({
             {summary.isConsumable ? t("description") : t("postTermDescription")}
           </CardDescription>
         </div>
-        <p className="col-start-1 justify-self-start text-left text-2xl font-semibold tracking-tight tabular-nums sm:col-start-2 sm:justify-self-end sm:text-right sm:text-3xl">
-          {t("poolBalanceCredits", { credits: poolRemainingCredits })}
-        </p>
+        <div className="col-start-1 flex flex-col gap-1 sm:col-start-2 sm:items-end sm:text-right">
+          <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+            {t("poolBalanceCredits", { credits: poolRemainingCredits })}
+          </p>
+          <p className="text-muted-foreground text-sm tabular-nums">
+            {t("poolBalanceValue", {
+              remaining: poolRemainingCredits,
+              total: poolTotalCredits,
+            })}
+          </p>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <Separator />
         <dl className="grid gap-3 text-sm sm:grid-cols-2">
-          <div className="space-y-1">
-            <dt className="text-muted-foreground">{t("poolBalanceLabel")}</dt>
-            <dd className="font-medium tabular-nums">
-              {t("poolBalanceValue", {
-                remaining: poolRemainingCredits,
-                total: formatCreditsForDisplay(summary.poolTotalCredits),
-              })}
-            </dd>
-          </div>
+          {formattedSpendableCredits != null ? (
+            <div className="space-y-1 sm:col-span-2">
+              <dt className="text-muted-foreground">
+                {t("spendableCreditsLabel")}
+              </dt>
+              <dd className="font-medium tabular-nums">
+                {t("spendableCreditsValue", {
+                  credits: formattedSpendableCredits,
+                })}
+              </dd>
+            </div>
+          ) : null}
           <div className="space-y-1">
             <dt className="text-muted-foreground">{t("monthlyGrantLabel")}</dt>
             <dd className="font-medium tabular-nums">
@@ -102,6 +123,12 @@ export async function EnterpriseContractSummary({
             </dd>
           </div>
         </dl>
+        {billingPortal ? (
+          <>
+            <Separator />
+            <div>{billingPortal}</div>
+          </>
+        ) : null}
       </CardContent>
     </Card>
   );
