@@ -26,6 +26,12 @@ export const enterpriseContractPeriodStatusSchema = z
   .enum(enterpriseContractPeriodStatusValues)
   .openapi("EnterpriseContractPeriodStatus");
 
+/** Non-empty when provided; use null on patch to clear. */
+export const enterpriseContractPaymentReferenceSchema = z
+  .string()
+  .min(1)
+  .openapi({ description: "Non-empty payment reference" });
+
 export const enterpriseContractPeriodSchema = z
   .object({
     id: z.uuid(),
@@ -105,7 +111,7 @@ export const createEnterpriseContractRequestSchema = z
     }),
     oneTimeCredits: z.number().min(0).optional(),
     oneTimeExpiresAt: dateTimeSchema.optional(),
-    paymentReference: z.string().min(1).optional(),
+    paymentReference: enterpriseContractPaymentReferenceSchema.optional(),
     notes: z.string().optional(),
     externalReference: z.string().optional(),
   })
@@ -122,7 +128,9 @@ export const patchEnterpriseContractRequestSchema = z
     startDate: dateTimeSchema.nullable().optional(),
     oneTimeCredits: z.number().min(0).nullable().optional(),
     oneTimeExpiresAt: dateTimeSchema.nullable().optional(),
-    paymentReference: z.string().nullable().optional(),
+    paymentReference: z
+      .union([enterpriseContractPaymentReferenceSchema, z.null()])
+      .optional(),
     notes: z.string().nullable().optional(),
     externalReference: z.string().nullable().optional(),
   })
@@ -143,7 +151,7 @@ export const listEnterpriseContractsQuerySchema = z.object({
 
 export const activateEnterpriseContractRequestSchema = z
   .object({
-    paymentReference: z.string().min(1).optional(),
+    paymentReference: enterpriseContractPaymentReferenceSchema.optional(),
   })
   .openapi("ActivateEnterpriseContractRequest");
 
