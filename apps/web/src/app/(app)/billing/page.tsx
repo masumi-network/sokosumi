@@ -1,4 +1,5 @@
 import { MemberRole } from "@sokosumi/database";
+import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   subscriptionRepository,
@@ -28,7 +29,7 @@ import { organizationSeatService, userService } from "@/lib/services";
 import { ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY } from "@/lib/stripe/credit-topup-pricing";
 import {
   getSubscriptionCatalog,
-  type SubscriptionPlanName,
+  type SelfServeSubscriptionPlanName,
 } from "@/lib/stripe/subscription-catalog";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
@@ -38,7 +39,7 @@ const PLAN_ORDER = [
   "starter",
   "standard",
   "pro",
-] as const satisfies SubscriptionPlanName[];
+] as const satisfies SelfServeSubscriptionPlanName[];
 
 interface BillingPageProps {
   searchParams: Promise<{
@@ -115,12 +116,12 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       );
     }
 
-    const latestSubscription =
-      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-        activeOrganization.id,
-        prisma,
-      );
-    const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
+    const billingPlan = await resolveOrganizationBillingPlan(
+      activeOrganization.id,
+      prisma,
+    );
+    const currentPlan = billingPlan.plan;
+    const isEnterpriseContract = billingPlan.mode === "enterprise_contract";
     const canPurchaseCredits =
       isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
     const creditsCheckoutParams =
@@ -149,7 +150,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       return {
         credits: plan.credits,
         currency: plan.currency,
-        isCurrent: currentPlan === planName,
+        isCurrent: !isEnterpriseContract && currentPlan === planName,
         monthlyAmount: plan.monthlyAmount,
         name: planName,
       };
@@ -200,12 +201,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             subscriptionContent={
               <OrganizationSubscriptionSection
                 assignedSeatCount={seatSummary.assignedCount}
-                cancelAtPeriodEnd={
-                  latestSubscription?.cancelAtPeriodEnd ?? false
-                }
+                cancelAtPeriodEnd={billingPlan.cancelAtPeriodEnd}
                 currentPlan={currentPlan}
-                currentPeriodEnd={latestSubscription?.periodEnd ?? null}
+                currentPeriodEnd={billingPlan.periodEnd}
                 currentSeats={currentSeats}
+                isEnterpriseContract={isEnterpriseContract}
                 memberCount={seatSummary.memberCount}
                 organizationId={activeOrganization.id}
                 plans={orgPlans}

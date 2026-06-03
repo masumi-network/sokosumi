@@ -18,6 +18,7 @@ const getAssignedMemberCountMock = vi.fn();
 const assignSeatMock = vi.fn();
 const unassignSeatMock = vi.fn();
 const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
+const resolveOrganizationBillingPlanMock = vi.fn();
 const memberCountMock = vi.fn();
 const grantUnusedSeatSubscriptionCreditsIfEligibleMock = vi.fn();
 const grantFreeOrganizationMemberSubscriptionCreditsMock = vi.fn();
@@ -41,6 +42,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
       fetchOrganizationMemberUserIdsMock(...args),
     grantFreeOrganizationMemberSubscriptionCredits: (...args: unknown[]) =>
       grantFreeOrganizationMemberSubscriptionCreditsMock(...args),
+    resolveOrganizationBillingPlan: (...args: unknown[]) =>
+      resolveOrganizationBillingPlanMock(...args),
   };
 });
 
@@ -91,10 +94,13 @@ describe("organizationSeatService", () => {
   it("returns zero purchased seats for free organizations", async () => {
     getAssignedMemberCountMock.mockResolvedValue(2);
     memberCountMock.mockResolvedValue(5);
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      cancelAtPeriodEnd: false,
+      mode: "self_serve",
+      periodEnd: null,
       plan: "free",
-      seats: null,
-      status: "active",
+      purchasedSeats: 0,
+      subscriptionId: null,
     });
 
     const { organizationSeatService } = await import(
@@ -105,6 +111,7 @@ describe("organizationSeatService", () => {
       organizationSeatService.getSeatSummary("org-1"),
     ).resolves.toEqual({
       assignedCount: 0,
+      isEnterpriseContract: false,
       memberCount: 5,
       paidPlan: null,
       purchasedSeats: 0,
@@ -115,10 +122,13 @@ describe("organizationSeatService", () => {
   it("returns paid seat counts for active paid subscriptions", async () => {
     getAssignedMemberCountMock.mockResolvedValue(2);
     memberCountMock.mockResolvedValue(5);
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      cancelAtPeriodEnd: false,
+      mode: "self_serve",
+      periodEnd: null,
       plan: "starter",
-      seats: 4,
-      status: "active",
+      purchasedSeats: 4,
+      subscriptionId: "sub-1",
     });
 
     const { organizationSeatService } = await import(
@@ -129,6 +139,7 @@ describe("organizationSeatService", () => {
       organizationSeatService.getSeatSummary("org-1"),
     ).resolves.toEqual({
       assignedCount: 2,
+      isEnterpriseContract: false,
       memberCount: 5,
       paidPlan: "starter",
       purchasedSeats: 4,
@@ -138,6 +149,14 @@ describe("organizationSeatService", () => {
 
   it("assigns a seat when caller is owner and capacity remains", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      cancelAtPeriodEnd: false,
+      mode: "self_serve",
+      periodEnd: null,
+      plan: "starter",
+      purchasedSeats: 3,
+      subscriptionId: "sub-1",
+    });
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       seats: 3,
     });
@@ -172,6 +191,17 @@ describe("organizationSeatService", () => {
   it("reads purchased seats inside the transaction before assigning", async () => {
     const callOrder: string[] = [];
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
+    resolveOrganizationBillingPlanMock.mockImplementation(async () => {
+      callOrder.push("getBillingPlan");
+      return {
+        cancelAtPeriodEnd: false,
+        mode: "self_serve",
+        periodEnd: null,
+        plan: "starter",
+        purchasedSeats: 3,
+        subscriptionId: "sub-1",
+      };
+    });
     resolveActiveSubscriptionByReferenceIdMock.mockImplementation(async () => {
       callOrder.push("getSubscription");
       return { seats: 3 };
@@ -191,7 +221,11 @@ describe("organizationSeatService", () => {
 
     await organizationSeatService.assignSeat("user-1", "org-1", "member-1");
 
-    expect(callOrder).toEqual(["getSubscription", "assignSeat"]);
+    expect(callOrder).toEqual([
+      "getBillingPlan",
+      "getSubscription",
+      "assignSeat",
+    ]);
   });
 
   it("rejects seat assignment for non-admin members", async () => {

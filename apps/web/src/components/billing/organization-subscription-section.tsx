@@ -11,10 +11,7 @@ import {
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
-import type {
-  PaidSubscriptionPlanName,
-  SubscriptionPlanName,
-} from "@/lib/stripe/subscription-catalog";
+import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import {
   OrganizationSeatSettingsFields,
   resolveMinimumOrganizationSeats,
@@ -24,6 +21,7 @@ import { SubscriptionEnterprisePlanCard } from "./subscription-enterprise-plan-c
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
 import {
+  type OrganizationBillingPlanName,
   type SubscriptionPlanView,
   splitSubscriptionPlans,
 } from "./subscription-plan-utils";
@@ -31,9 +29,10 @@ import {
 interface OrganizationSubscriptionSectionProps {
   assignedSeatCount: number;
   cancelAtPeriodEnd: boolean;
-  currentPlan: SubscriptionPlanName | null;
+  currentPlan: OrganizationBillingPlanName;
   currentPeriodEnd: Date | string | null;
   currentSeats: number;
+  isEnterpriseContract: boolean;
   memberCount: number;
   organizationId: string;
   plans: SubscriptionPlanView[];
@@ -46,6 +45,7 @@ export function OrganizationSubscriptionSection({
   currentPlan,
   currentPeriodEnd,
   currentSeats,
+  isEnterpriseContract,
   memberCount,
   organizationId,
   plans,
@@ -69,9 +69,8 @@ export function OrganizationSubscriptionSection({
   const [targetSeats, setTargetSeats] = useState(
     resolveTargetOrganizationSeats(currentSeats, assignedSeatCount),
   );
-  const [pendingPlan, setPendingPlan] = useState<SubscriptionPlanName | null>(
-    null,
-  );
+  const [pendingPlan, setPendingPlan] =
+    useState<PaidSubscriptionPlanName | null>(null);
 
   useEffect(() => {
     setTargetSeats(
@@ -249,38 +248,37 @@ export function OrganizationSubscriptionSection({
         </CardContent>
       </Card>
       <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          {paidPlans.map((plan) => {
-            const planPresentationProps = getPlanPresentationProps(plan);
+        {isEnterpriseContract ? (
+          <SubscriptionEnterprisePlanCard isCurrent />
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              {paidPlans.map((plan) => {
+                const planPresentationProps = getPlanPresentationProps(plan);
 
-            return (
-              <SubscriptionPlanCard
-                key={plan.name}
-                {...planPresentationProps}
-                isAnyPlanPending={pendingPlan !== null}
-                onAction={handleUpgradePlan}
-                plan={plan}
+                return (
+                  <SubscriptionPlanCard
+                    key={plan.name}
+                    {...planPresentationProps}
+                    isAnyPlanPending={pendingPlan !== null}
+                    onAction={handleUpgradePlan}
+                    plan={plan}
+                  />
+                );
+              })}
+              <SubscriptionEnterprisePlanCard />
+            </div>
+
+            {freePlan ? (
+              <SubscriptionFreePlanRow
+                creditsText={t("includedCreditsPerSeat", {
+                  credits: freePlan.credits,
+                })}
+                plan={freePlan}
               />
-            );
-          })}
-          <SubscriptionEnterprisePlanCard
-            actionLabel={
-              currentPlan === "enterprise" && cancelAtPeriodEnd
-                ? cancellationLabel
-                : undefined
-            }
-            isCurrent={currentPlan === "enterprise"}
-          />
-        </div>
-
-        {freePlan ? (
-          <SubscriptionFreePlanRow
-            creditsText={t("includedCreditsPerSeat", {
-              credits: freePlan.credits,
-            })}
-            plan={freePlan}
-          />
-        ) : null}
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );

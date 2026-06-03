@@ -1,14 +1,24 @@
-import type {
-  PaidSubscriptionPlanName,
-  SubscriptionPlanName,
-} from "@/lib/stripe/subscription-catalog";
+import {
+  type OrganizationBillingPlanName,
+  parseSelfServeSubscriptionPlanName,
+  type SelfServeSubscriptionPlanName,
+} from "@sokosumi/database/helpers";
+
+export type { OrganizationBillingPlanName, SelfServeSubscriptionPlanName };
+
+export type SubscriptionPlanName = SelfServeSubscriptionPlanName;
+
+export type PaidSubscriptionPlanName = Exclude<
+  SelfServeSubscriptionPlanName,
+  "free"
+>;
 
 export interface SubscriptionPlanView {
   credits: number;
   currency: string;
   isCurrent: boolean;
   monthlyAmount: number;
-  name: SubscriptionPlanName;
+  name: OrganizationBillingPlanName;
 }
 
 export type PaidSubscriptionPlanView = Omit<SubscriptionPlanView, "name"> & {
@@ -38,6 +48,10 @@ export function splitSubscriptionPlans(
       continue;
     }
 
+    if (plan.name === "enterprise") {
+      continue;
+    }
+
     paidPlans.push(plan as PaidSubscriptionPlanView);
   }
 
@@ -47,7 +61,9 @@ export function splitSubscriptionPlans(
   };
 }
 
-export function getPlanTranslationKey(plan: SubscriptionPlanName): string {
+export function getPlanTranslationKey(
+  plan: OrganizationBillingPlanName,
+): string {
   switch (plan) {
     case "free":
       return "free";
@@ -74,23 +90,11 @@ interface SubscriptionWithPeriodEnd {
   periodEnd?: Date | string | null;
 }
 
+/** Parses self-serve subscription plan names only. */
 export function parsePlanName(
   value: string | null | undefined,
-): SubscriptionPlanName | null {
-  if (!value) {
-    return null;
-  }
-
-  switch (value.toLowerCase()) {
-    case "free":
-    case "starter":
-    case "standard":
-    case "enterprise":
-    case "pro":
-      return value.toLowerCase() as SubscriptionPlanName;
-    default:
-      return null;
-  }
+): SelfServeSubscriptionPlanName | null {
+  return parseSelfServeSubscriptionPlanName(value);
 }
 
 function getDateValue(value: Date | string | null | undefined): number {
@@ -122,7 +126,7 @@ export function resolveLatestSubscription<T extends SubscriptionWithPeriodEnd>(
 
 export function resolveCurrentPlanName<
   T extends SubscriptionWithPlan & SubscriptionWithPeriodEnd,
->(subscriptions: T[]): SubscriptionPlanName | null {
+>(subscriptions: T[]): SelfServeSubscriptionPlanName | null {
   const latestSubscription = resolveLatestSubscription(subscriptions);
   return parsePlanName(latestSubscription?.plan);
 }

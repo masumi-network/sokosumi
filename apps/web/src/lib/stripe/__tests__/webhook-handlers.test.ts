@@ -1580,8 +1580,8 @@ describe("reconcileActiveStripeBackedSubscription", () => {
     );
 
     await reconcileActiveStripeBackedSubscription({
-      id: "sub_local_enterprise",
-      plan: "enterprise",
+      id: "sub_local_paid",
+      plan: "pro",
       referenceId: "org-enterprise",
       status: "active",
       stripeSubscriptionId: "sub_enterprise",
@@ -1590,7 +1590,7 @@ describe("reconcileActiveStripeBackedSubscription", () => {
     expect(subscriptionUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: {
-          not: "sub_local_enterprise",
+          not: "sub_local_paid",
         },
         plan: "free",
         referenceId: "org-enterprise",
@@ -1613,8 +1613,8 @@ describe("reconcileActiveStripeBackedSubscription", () => {
     );
 
     await reconcileActiveStripeBackedSubscription({
-      id: "sub_local_enterprise",
-      plan: "enterprise",
+      id: "sub_local_paid",
+      plan: "pro",
       referenceId: "org-enterprise",
       status: "incomplete",
       stripeSubscriptionId: "sub_enterprise",

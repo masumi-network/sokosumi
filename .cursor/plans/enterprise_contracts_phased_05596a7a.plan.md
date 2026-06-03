@@ -13,7 +13,7 @@ todos:
     status: completed
   - id: phase-4-admin-api
     content: "Phase 4: Core admin CRUD/activate/cancel/preview routes + OpenAPI tests"
-    status: pending
+    status: completed
   - id: phase-5-entitlements
     content: "Phase 5: Plan resolution, pool consumption, exclusivity guards, seat capacity wiring"
     status: pending
@@ -33,7 +33,9 @@ isProject: false
   - **Phase 1:** schema + [`enterprise-contract.ts`](packages/database/src/helpers/enterprise-contract.ts) schedule helpers
   - **Phase 2:** [`enterprise-contract-lifecycle.ts`](packages/database/src/helpers/enterprise-contract-lifecycle.ts), grants, exclusivity guards
   - **Phase 3:** [`enterprise-contract-scheduler.ts`](packages/database/src/helpers/enterprise-contract-scheduler.ts) + [`enterprise-contract-sync.service.ts`](apps/core/src/services/enterprise-contract-sync.service.ts) + `GET /sync/enterprise-contracts-renewal` (daily cron)
-  - **Next:** Phase 4 admin API (Core). Existing primitives to reuse:
+  - **Phase 4:** Core admin API under `/v1/enterprise/contracts` (admin middleware on `/v1/enterprise`); no org member read route — web uses Prisma + `resolveOrganizationBillingPlan()`
+  - **Phase 5a (partial):** [`organization-billing-plan.ts`](packages/database/src/helpers/organization-billing-plan.ts) + web billing/seats/onboarding wired; legacy `Subscription.plan === "enterprise"` ignored (no Stripe enterprise plan)
+  - **Next:** Phase 5 entitlements (credit bucket consumption, exclusivity at checkout). Existing primitives to reuse:
   - `CreditBucket.activatesAt` + `[creditBucketActivatesAtOrBefore()](packages/database/src/helpers/credit.ts)` (spec’s `activeFrom` maps to this field — **do not add a duplicate column**)
   - Per-period pre-create pattern in `[subscription.ts](packages/database/src/helpers/subscription.ts)` and `[free-subscription-sync.service.ts](apps/core/src/services/free-subscription-sync.service.ts)`
   - Admin auth via `[requireAdminAuthContext()](apps/core/src/middleware/auth.ts)` (same as credit-costs routes)
@@ -220,22 +222,24 @@ After the bucket row exists with non-null `activatesAt`, flip period status: **i
 
 ---
 
-## Phase 4 — Admin Core API (API-only MVP)
+## Phase 4 — Admin Core API (API-only MVP) ✅
 
 **Goal:** Internal ops can manage contracts end-to-end without Stripe.
 
-**New routes under `apps/core/src/routes/v1/enterprise-contracts/`** (all use `requireAdminAuthContext`):
+**Delivered:** `apps/core/src/routes/v1/enterprise/contracts/`, schemas, API mappers, OpenAPI contract tests; mounted at `/v1/enterprise` with `requireAdminAuthContext` on the parent router (handlers do not duplicate the check). Cancel returns **200** with updated contract (no `empty()` helper in core). **Removed:** `GET /v1/organizations/{id}/enterprise-contract` — billing UI resolves entitlements server-side via `resolveOrganizationBillingPlan()`.
+
+**New routes under `apps/core/src/routes/v1/enterprise/contracts/`** (admin-only via `/v1/enterprise` middleware):
 
 
-| Method | Path                                         | Purpose                                                           |
-| ------ | -------------------------------------------- | ----------------------------------------------------------------- |
-| POST   | `/enterprise-contracts`                      | Create draft (accept optional `startDate`, required `periodCount`; API field may be named `periods`) |
-| GET    | `/enterprise-contracts`                      | List/filter by org, status                                        |
-| GET    | `/enterprise-contracts/{id}`                 | Detail + periods                                                |
-| PATCH  | `/enterprise-contracts/{id}`                 | Edit draft only                                                   |
-| POST   | `/enterprise-contracts/{id}/activate`        | Body: `paymentReference`; 409 with blocking subs on guard failure |
-| POST   | `/enterprise-contracts/{id}/cancel`          | Cancel active contract                                            |
-| GET    | `/enterprise-contracts/{id}/periods/preview` | Preview schedule for draft                                        |
+| Method | Path                                              | Purpose                                                           |
+| ------ | ------------------------------------------------- | ----------------------------------------------------------------- |
+| POST   | `/enterprise/contracts`                           | Create draft (accept optional `startDate`, required `periodCount`; API field may be named `periods`) |
+| GET    | `/enterprise/contracts`                           | List/filter by org, status                                        |
+| GET    | `/enterprise/contracts/{id}`                      | Detail + periods                                                |
+| PATCH  | `/enterprise/contracts/{id}`                      | Edit draft only                                                   |
+| POST   | `/enterprise/contracts/{id}/activate`             | Body: `paymentReference`; 409 with blocking subs on guard failure |
+| POST   | `/enterprise/contracts/{id}/cancel`              | Cancel active contract                                            |
+| GET    | `/enterprise/contracts/{id}/periods/preview`    | Preview schedule for draft                                        |
 
 
 **Validation at API boundary (Zod + `422`):** keep schedule helpers pure; reject bad input before DB writes.
@@ -267,11 +271,9 @@ After the bucket row exists with non-null `activatesAt`, flip period status: **i
 - Mount in `[apps/core/src/routes/v1/index.ts](apps/core/src/routes/v1/index.ts)`
 - OpenAPI contract tests (mirror credit-costs / coworkers admin patterns)
 
-**Org-scoped read (non-admin):**
+**Org billing read (web, not Core):** `resolveOrganizationBillingPlan(organizationId, prisma)` in [`organization-billing-plan.ts`](packages/database/src/helpers/organization-billing-plan.ts). No stored `Organization.type`; `plan: "enterprise"` is **not** a Stripe/Better Auth plan.
 
-- `GET /organizations/{id}/enterprise-contract` — active or latest contract summary for org admins (reuse org auth patterns from existing org routes)
-
-**Deliverable:** Full admin lifecycle via Core API + OpenAPI; ops can activate real contracts once Phase 5 ships.
+**Deliverable:** Full admin lifecycle via Core API + OpenAPI; web billing/seats use the resolver (Phase 5a partial).
 
 **Suggested PR title:** `feat(core): enterprise contract admin API`
 
@@ -281,16 +283,11 @@ After the bucket row exists with non-null `activatesAt`, flip period status: **i
 
 **Goal:** Make enterprise contracts enforceable in production — this phase must land before activating customer contracts.
 
-### 5a. Plan resolution
+### 5a. Plan resolution ✅ (partial — resolver + web wiring)
 
-New helper: `resolveOrganizationBillingPlan(organizationId)` — check **consumable** `EnterpriseContract` first via `isEnterpriseContractActive()` (`active` + resolved `startDate` + `periodCount`) → `{ plan: 'enterprise', purchasedSeats: contract.seats }`, else fall back to `[subscriptionRepository.resolveActiveSubscriptionByReferenceId](packages/database/src/repositories/subscription.repository.ts)`.
+**Done:** [`organization-billing-plan.ts`](packages/database/src/helpers/organization-billing-plan.ts) — `resolveOrganizationBillingPlan()`, `parseSelfServeSubscriptionPlanName()` (legacy `enterprise` subscription rows → `null`). Wired: [`organization-seat.service.ts`](apps/web/src/lib/services/organization-seat.service.ts), [`billing/page.tsx`](apps/web/src/app/(app)/billing/page.tsx), [`organization-subscription-section.tsx`](apps/web/src/components/billing/organization-subscription-section.tsx) (`isEnterpriseContract`), [`onboarding-dialog-loader.tsx`](apps/web/src/app/(app)/components/onboarding-dialog-loader.tsx). Removed Stripe `enterprise` from self-serve catalog types.
 
-**Important:** load contract with non-null `startDate` (active contracts must have been activated with normalization from Phase 2). Use `isEnterpriseContractActive()` from `[enterprise-contract.ts](packages/database/src/helpers/enterprise-contract.ts)`.
-
-Wire into:
-
-- `[organization-seat.service.ts](apps/web/src/lib/services/organization-seat.service.ts)` — `getSeatSummary`, `assignSeat` use contract seats when enterprise
-- `[apps/web/src/app/(app)/billing/page.tsx](apps/web/src/app/(app)/billing/page.tsx)` — `currentPlan = 'enterprise'` when contract is consumable
+**Remaining in 5a/5c:** block org/personal checkout when contract active; skip free grants for enterprise orgs.
 
 ### 5b. Credit consumption (shared org pool, assigned-only)
 

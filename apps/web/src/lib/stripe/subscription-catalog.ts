@@ -6,24 +6,31 @@ import type Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
-export type SubscriptionPlanName =
-  | "enterprise"
+export type SelfServeSubscriptionPlanName =
   | "free"
   | "pro"
   | "standard"
   | "starter";
 
-/** Self-serve paid plans in Stripe checkout upgrade flows (excludes support-managed enterprise). */
+/** Includes contract-backed enterprise (not a Stripe subscription plan). */
+export type OrganizationBillingPlanName =
+  | SelfServeSubscriptionPlanName
+  | "enterprise";
+
+/** Self-serve Stripe/Better Auth plan names only. */
+export type SubscriptionPlanName = SelfServeSubscriptionPlanName;
+
+/** Self-serve paid plans in Stripe checkout upgrade flows. */
 export type PaidSubscriptionPlanName = Exclude<
-  SubscriptionPlanName,
-  "enterprise" | "free"
+  SelfServeSubscriptionPlanName,
+  "free"
 >;
 
 export interface SubscriptionCatalogPlan {
   credits: number;
   currency: string;
   monthlyAmount: number;
-  name: SubscriptionPlanName;
+  name: SelfServeSubscriptionPlanName;
   priceId: string;
   productId: string;
   slug: string;

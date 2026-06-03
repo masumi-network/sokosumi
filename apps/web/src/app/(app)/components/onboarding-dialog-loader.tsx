@@ -1,5 +1,5 @@
 import { MemberRole, type OrganizationWithRelations } from "@sokosumi/database";
-import { subscriptionRepository } from "@sokosumi/database/repositories";
+import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
 import { headers } from "next/headers";
 import { Suspense } from "react";
 import Stripe from "stripe";
@@ -92,25 +92,19 @@ export async function OnboardingDialogLoader({
       : activeOrganization
         ? userService.getMyMemberInOrganization(activeOrganization.id)
         : Promise.resolve(null);
-  const latestOrganizationSubscriptionPromise = activeOrganization
-    ? subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-        activeOrganization.id,
-        prisma,
-      )
+  const organizationBillingPlanPromise = activeOrganization
+    ? resolveOrganizationBillingPlan(activeOrganization.id, prisma)
     : Promise.resolve(null);
   const organizationSeatSummaryPromise = activeOrganization
     ? organizationSeatService.getSeatSummary(activeOrganization.id)
     : Promise.resolve(null);
 
-  const [
-    organizationMember,
-    latestOrganizationSubscription,
-    organizationSeatSummary,
-  ] = await Promise.all([
-    organizationMemberPromise,
-    latestOrganizationSubscriptionPromise,
-    organizationSeatSummaryPromise,
-  ]);
+  const [organizationMember, organizationBillingPlan, organizationSeatSummary] =
+    await Promise.all([
+      organizationMemberPromise,
+      organizationBillingPlanPromise,
+      organizationSeatSummaryPromise,
+    ]);
 
   const canManageOrganizationSubscription =
     organizationMember?.role === MemberRole.OWNER ||
@@ -119,9 +113,7 @@ export async function OnboardingDialogLoader({
     organizationSeatSummary?.memberCount ??
     activeOrganization?._count.members ??
     0;
-  const organizationCurrentPlan = parsePlanName(
-    latestOrganizationSubscription?.plan,
-  );
+  const organizationCurrentPlan = organizationBillingPlan?.plan ?? null;
   const hasActiveOrganization = activeOrganization !== null;
   const subscriptionCheckoutMode: OnboardingSubscriptionCheckoutMode =
     hasActiveOrganization
