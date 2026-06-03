@@ -28,6 +28,7 @@ const transitionToNextLocalFreeSubscriptionPeriodMock = vi.fn();
 const getSubscriptionByStripeSubscriptionIdMock = vi.fn();
 const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const subscriptionUpdateManyMock = vi.fn();
+const resolveOrganizationBillingPlanMock = vi.fn();
 const prismaOrganizationUpdateMock = vi.fn();
 const prismaUserUpdateMock = vi.fn();
 
@@ -70,6 +71,8 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
       ensureInitialLocalFreeSubscriptionPeriodMock(...args),
     transitionToNextLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
       transitionToNextLocalFreeSubscriptionPeriodMock(...args),
+    resolveOrganizationBillingPlan: (...args: unknown[]) =>
+      resolveOrganizationBillingPlanMock(...args),
   };
 });
 
@@ -181,12 +184,26 @@ function mockSubscriptionCatalog(): void {
   getSubscriptionCatalogMock.mockResolvedValue(SUBSCRIPTION_CATALOG);
 }
 
+function mockSelfServeOrganizationBillingPlan(
+  plan: "free" | "pro" | "standard" | "starter" = "starter",
+): void {
+  resolveOrganizationBillingPlanMock.mockResolvedValue({
+    mode: "self_serve",
+    plan,
+    purchasedSeats: 1,
+    subscriptionId: "sub-org-1",
+    cancelAtPeriodEnd: false,
+    periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+  });
+}
+
 function mockOrganizationInvoiceContext(
   members: OrganizationMemberFixture[],
   organizationId = "org-1",
   assignedMemberUserIds?: string[],
   unassignedMemberUserIds?: string[],
 ): void {
+  mockSelfServeOrganizationBillingPlan();
   getUserByStripeCustomerIdMock.mockResolvedValue(null);
   getOrganizationByStripeCustomerIdMock.mockResolvedValue({
     id: organizationId,

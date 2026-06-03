@@ -2,7 +2,7 @@ import {
   type OrganizationBillingPlanName,
   parseSelfServeSubscriptionPlanName,
   type SelfServeSubscriptionPlanName,
-} from "@sokosumi/database/helpers";
+} from "@sokosumi/utils";
 
 export type { OrganizationBillingPlanName, SelfServeSubscriptionPlanName };
 

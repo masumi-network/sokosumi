@@ -19,6 +19,7 @@ const creditsSectionMock = vi.fn();
 const billingTabsMock = vi.fn();
 const organizationSubscriptionSectionMock = vi.fn();
 const personalSubscriptionSectionMock = vi.fn();
+const resolveOrganizationBillingPlanMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -77,6 +78,16 @@ vi.mock("@/lib/stripe/subscription-catalog", () => ({
 vi.mock("@/lib/utils/credits", () => ({
   formatCreditsForDisplay: (credits: number) => String(credits),
 }));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    resolveOrganizationBillingPlan: (...args: unknown[]) =>
+      resolveOrganizationBillingPlanMock(...args),
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
@@ -158,6 +169,20 @@ function createSubscriptionCatalog() {
   };
 }
 
+function mockSelfServeOrganizationBillingPlan(
+  plan: "free" | "pro" | "standard" | "starter",
+  purchasedSeats: number,
+): void {
+  resolveOrganizationBillingPlanMock.mockResolvedValue({
+    mode: "self_serve",
+    plan,
+    purchasedSeats,
+    subscriptionId: "sub-org-1",
+    cancelAtPeriodEnd: false,
+    periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+  });
+}
+
 describe("BillingPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -227,11 +252,7 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(true);
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      periodEnd: "2026-03-01T00:00:00.000Z",
-      plan: "free",
-      seats: 2,
-    });
+    mockSelfServeOrganizationBillingPlan("free", 2);
 
     const { default: BillingPage } = await import("../page");
 
@@ -330,11 +351,7 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      periodEnd: "2026-03-01T00:00:00.000Z",
-      plan: "free",
-      seats: 5,
-    });
+    mockSelfServeOrganizationBillingPlan("free", 5);
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 2,
       memberCount: 2,
@@ -358,8 +375,10 @@ describe("BillingPage", () => {
         assignedSeatCount: 2,
         cancelAtPeriodEnd: false,
         currentPlan: "free",
-        currentPeriodEnd: "2026-03-01T00:00:00.000Z",
+        currentPeriodEnd: new Date("2026-03-01T00:00:00.000Z"),
         currentSeats: 5,
+        isEnterpriseConsumable: false,
+        isEnterpriseContract: false,
         memberCount: 2,
       }),
     );
@@ -378,11 +397,7 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      periodEnd: "2026-03-01T00:00:00.000Z",
-      plan: "pro",
-      seats: 10,
-    });
+    mockSelfServeOrganizationBillingPlan("pro", 10);
 
     const { default: BillingPage } = await import("../page");
 

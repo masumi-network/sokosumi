@@ -8,7 +8,6 @@ import {
   getUnusedSeatCount,
   grantFreeOrganizationMemberSubscriptionCredits,
   isActiveSubscriptionStatus,
-  type OrganizationBillingPlanName,
   resolveOrganizationBillingPlan,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
@@ -16,6 +15,7 @@ import {
   memberRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
+import type { OrganizationBillingPlanName } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 
 import prisma from "@/lib/db/prisma";
