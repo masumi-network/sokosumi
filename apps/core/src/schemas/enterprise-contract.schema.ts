@@ -63,7 +63,7 @@ export const enterpriseContractSchema = z
     activatedAt: dateTimeSchema.nullable(),
     canceledAt: dateTimeSchema.nullable(),
     seats: z.number().int().min(1),
-    creditsPerMonth: z.number().openapi({
+    creditsPerMonth: z.number().min(MIN_ENTERPRISE_CREDITS_PER_MONTH).openapi({
       description: "Monthly shared pool grant (credits)",
       example: MIN_ENTERPRISE_CREDITS_PER_MONTH,
     }),
