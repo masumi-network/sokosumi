@@ -87,8 +87,7 @@ function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
     return await next();
   });
 
-  // errorHandler is typed for RequestId-only context; this test app adds auth/workspace vars.
-  app.onError(errorHandler as never);
+  app.onError(errorHandler);
 
   mountDeleteTask(app as unknown as OpenAPIHonoWithAuth);
 

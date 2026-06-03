@@ -32,9 +32,9 @@ function mergeHttpExceptionExtensions(
  * Formats HTTPExceptions into consistent error responses
  * Logs parsing errors for debugging
  */
-export function errorHandler(
+export function errorHandler<E extends { Variables: RequestIdVariables }>(
   error: Error,
-  c: Context<{ Variables: RequestIdVariables }>,
+  c: Context<E>,
 ): Response {
   const meta = {
     timestamp: new Date().toISOString(),

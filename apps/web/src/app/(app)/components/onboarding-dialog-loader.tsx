@@ -7,7 +7,6 @@ import Stripe from "stripe";
 import {
   type ActiveSubscription,
   type PaidSubscriptionPlanView,
-  parsePlanName,
   resolveCurrentPlanName,
 } from "@/components/billing/subscription-plan-utils";
 import { getEnvSecrets } from "@/config/env.secrets";
