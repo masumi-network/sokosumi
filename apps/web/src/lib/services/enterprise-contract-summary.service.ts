@@ -16,7 +16,6 @@ export interface EnterpriseContractBillingSummary {
   monthlyCredits: number;
   nextActivationAt: Date | null;
   poolRemainingCredits: number;
-  poolTotalCredits: number;
   purchasedSeats: number;
 }
 
@@ -108,7 +107,6 @@ export async function getEnterpriseContractBillingSummary(
     monthlyCredits: convertCentsToCredits(contract.centsPerMonth),
     nextActivationAt: resolveNextEnterpriseActivationAt(periodWindows, now),
     poolRemainingCredits: convertCentsToCredits(poolBalances.remainingCents),
-    poolTotalCredits: convertCentsToCredits(poolBalances.totalCents),
     purchasedSeats: billingPlan.purchasedSeats,
   };
 }

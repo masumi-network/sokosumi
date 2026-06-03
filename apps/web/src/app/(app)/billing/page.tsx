@@ -138,7 +138,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         ? { cancel: query.cancel, session_id: query.session_id }
         : undefined;
 
-    const [enterpriseContractSummaryResult, balanceInCents, seatSummary] =
+    const [enterpriseContractSummary, seatSummary, balanceInCents] =
       await Promise.all([
         isEnterpriseContract
           ? getEnterpriseContractBillingSummary(
@@ -147,17 +147,19 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               prisma,
             )
           : Promise.resolve(null),
-        creditBucketRepository.getBalance(
-          userId,
-          activeOrganization.id,
-          prisma,
-        ),
         organizationSeatService.getSeatSummary(activeOrganization.id),
+        isEnterpriseContract
+          ? Promise.resolve(0n)
+          : creditBucketRepository.getBalance(
+              userId,
+              activeOrganization.id,
+              prisma,
+            ),
       ]);
-    const enterpriseContractSummary = enterpriseContractSummaryResult;
     const currentSeats = seatSummary.purchasedSeats;
-    const credits = convertCentsToCredits(balanceInCents);
-    const displayCredits = formatCreditsForDisplay(credits);
+    const displayCredits = formatCreditsForDisplay(
+      convertCentsToCredits(balanceInCents),
+    );
     const organizationBillingPortal =
       activeOrganization.stripeCustomerId && showOrganizationBillingPortal ? (
         <BalanceBillingPortalLink

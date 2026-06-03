@@ -3,10 +3,9 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ENTERPRISE_CONTACT_HREF } from "@/lib/constants/enterprise-contact";
 import type { EnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
-
-const ENTERPRISE_CONTACT_HREF = "mailto:info@sokosumi.com";
 
 interface EnterpriseContractSummaryProps {
   summary: EnterpriseContractBillingSummary;

@@ -464,7 +464,6 @@ describe("BillingPage", () => {
       monthlyCredits: 60_000,
       nextActivationAt: new Date("2026-03-15T00:00:00.000Z"),
       poolRemainingCredits: 25_000,
-      poolTotalCredits: 60_000,
       purchasedSeats: 10,
     });
 
@@ -486,6 +485,7 @@ describe("BillingPage", () => {
       "org-enterprise",
       expect.anything(),
     );
+    expect(getBalanceMock).not.toHaveBeenCalled();
     expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
       expect.objectContaining({
         summary: expect.objectContaining({
@@ -519,7 +519,6 @@ describe("BillingPage", () => {
       monthlyCredits: 60_000,
       nextActivationAt: null,
       poolRemainingCredits: 1_000,
-      poolTotalCredits: 60_000,
       purchasedSeats: 10,
     });
 
@@ -542,6 +541,7 @@ describe("BillingPage", () => {
       "org-enterprise-post-term",
       expect.anything(),
     );
+    expect(getBalanceMock).not.toHaveBeenCalled();
     expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
       expect.objectContaining({
         summary: expect.objectContaining({

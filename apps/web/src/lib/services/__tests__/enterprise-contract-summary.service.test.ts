@@ -178,7 +178,6 @@ describe("getEnterpriseContractBillingSummary", () => {
       monthlyCredits: 6_000,
       nextActivationAt: new Date("2026-03-15T00:00:00.000Z"),
       poolRemainingCredits: 2_500,
-      poolTotalCredits: 6_000,
       purchasedSeats: 10,
     });
   });
