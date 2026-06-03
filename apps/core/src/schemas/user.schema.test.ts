@@ -42,6 +42,7 @@ describe("creditsResponseSchema", () => {
           used: 0,
         },
         buckets: [],
+        enterprise: null,
       },
       credits: {
         subscription,
@@ -78,6 +79,7 @@ describe("creditsResponseSchema", () => {
           used: 0,
         },
         buckets: [],
+        enterprise: null,
       },
       credits: {
         subscription: null,
@@ -118,6 +120,7 @@ describe("creditsResponseSchema", () => {
           used: 6.75,
         },
         buckets: bucketList,
+        enterprise: null,
       },
       credits: {
         subscription: null,
@@ -146,6 +149,7 @@ describe("creditsResponseSchema", () => {
           used: 0,
         },
         buckets: [{ total: 2, remaining: 2, expiresAt: null }],
+        enterprise: null,
       },
       credits: {
         subscription: null,

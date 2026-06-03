@@ -36,6 +36,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     listAvailableBucketsWithBalances: (...args: unknown[]) =>
       listAvailableBucketsWithBalancesMock(...args),
+    listEnterprisePoolBucketsWithBalances: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -545,6 +546,7 @@ describe("buildCreditsPayload", () => {
               expiresAt: null,
             },
           ],
+          enterprise: null,
         },
         credits: {
           buffer: 19,
@@ -646,6 +648,7 @@ describe("buildCreditsPayload", () => {
               expiresAt: null,
             },
           ],
+          enterprise: null,
         },
         credits: {
           buffer: 19,
@@ -733,6 +736,7 @@ describe("buildCreditsPayload", () => {
             { total: 20, remaining: 7.5, expiresAt },
             { total: 5, remaining: 5, expiresAt: null },
           ],
+          enterprise: null,
         },
         credits: {
           buffer: 10,

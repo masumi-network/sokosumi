@@ -42,15 +42,32 @@ const creditsResponseExtraCreditsSchema = z
   })
   .openapi("CreditsResponseExtraCredits");
 
+const creditsResponseEnterpriseSchema = z
+  .object({
+    credits: creditsResponseExtraCreditsSchema.openapi({
+      description:
+        "Enterprise contract pool rollup (ENTERPRISE_PERIOD and ENTERPRISE_TOP_UP buckets)",
+    }),
+    buckets: z.array(creditBucketBreakdownItemSchema).openapi({
+      description:
+        "Enterprise pool buckets with remaining balance for the assigned member",
+    }),
+  })
+  .openapi("CreditsResponseEnterprise");
+
 const creditsResponseExtraSchema = z
   .object({
     credits: creditsResponseExtraCreditsSchema.openapi({
       description:
-        "Non-subscription credit rollup; subscription-period wallet stays on top-level `subscription`",
+        "Non-subscription credit rollup excluding subscription-period and enterprise pool buckets",
     }),
     buckets: z.array(creditBucketBreakdownItemSchema).openapi({
       description:
-        "Non-subscription buckets with remaining balance (subscription-period buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id",
+        "Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id",
+    }),
+    enterprise: creditsResponseEnterpriseSchema.nullable().openapi({
+      description:
+        "Enterprise contract shared pool for assigned members; null when not applicable",
     }),
   })
   .openapi("CreditsResponseExtra");
