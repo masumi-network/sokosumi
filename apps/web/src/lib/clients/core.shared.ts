@@ -18,6 +18,7 @@ import type {
   GetCategoriesData,
   GetCoworkersData,
   GetHermesMeMessagesData,
+  GetHistoryData,
   GetJobsData,
   GetProjectsData,
   GetProjectsStatsData,
@@ -71,6 +72,7 @@ import {
   getHermesMeInstanceSchedules as coreGetHermesMeInstanceSchedules,
   getHermesMeMessages as coreGetHermesMeMessages,
   getHermesMeUnreadCount as coreGetHermesMeUnreadCount,
+  getHistory as coreGetHistory,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getProjects as coreGetProjects,
@@ -409,6 +411,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch tasks",
+    );
+  }
+
+  async function getHistory(query?: GetHistoryData["query"]) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetHistory({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch history",
     );
   }
 
@@ -1374,6 +1389,7 @@ export function createCoreClient(getClient: GetClient) {
     getHermesMessages,
     getHermesOnboardingProgress,
     getHermesUnreadCount,
+    getHistory,
     listHermesIntegrations,
     listHermesSchedules,
     patchHermesSchedule,
