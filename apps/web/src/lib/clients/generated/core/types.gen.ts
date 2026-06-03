@@ -795,6 +795,111 @@ export type HermesFinalizeIntegrationRequest = {
     mode?: HermesIntegrationMode;
 };
 
+export type HistoryList = Array<HistoryItem>;
+
+export type HistoryItem = ({
+    kind: 'task';
+} & HistoryTaskItem) | ({
+    kind: 'job';
+} & HistoryJobItem) | ({
+    kind: 'conversation';
+} & HistoryConversationItem);
+
+export type HistoryTaskItem = {
+    /**
+     * Source entity ID for this history row
+     */
+    id: string;
+    /**
+     * Display title for the history row
+     */
+    title: string;
+    /**
+     * Short subtitle or description for the history row
+     */
+    description: string | null;
+    /**
+     * Source entity updatedAt timestamp used for feed ordering
+     */
+    updatedAt: Date;
+    /**
+     * User-facing credits. Null means credits do not apply to this item.
+     */
+    credits: number | null;
+    kind: 'task';
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * Project ID for the task, when assigned
+     */
+    projectId: string | null;
+    /**
+     * Coworker ID associated with the task, when assigned
+     */
+    coworkerId: string | null;
+};
+
+export type HistoryJobItem = {
+    /**
+     * Source entity ID for this history row
+     */
+    id: string;
+    /**
+     * Display title for the history row
+     */
+    title: string;
+    /**
+     * Short subtitle or description for the history row
+     */
+    description: string | null;
+    /**
+     * Source entity updatedAt timestamp used for feed ordering
+     */
+    updatedAt: Date;
+    /**
+     * User-facing credits. Null means credits do not apply to this item.
+     */
+    credits: number | null;
+    kind: 'job';
+    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    /**
+     * Project ID for the job, when assigned
+     */
+    projectId: string | null;
+    /**
+     * Agent ID for deep-linking to the job
+     */
+    agentId: string;
+};
+
+export type HistoryConversationItem = {
+    /**
+     * Source entity ID for this history row
+     */
+    id: string;
+    /**
+     * Display title for the history row
+     */
+    title: string;
+    /**
+     * Short subtitle or description for the history row
+     */
+    description: string | null;
+    /**
+     * Source entity updatedAt timestamp used for feed ordering
+     */
+    updatedAt: Date;
+    /**
+     * Conversations do not currently have credits
+     */
+    credits: null;
+    kind: 'conversation';
+    status: 'active' | 'archived';
+    /**
+     * Chat bucket slug for deep-linking to the conversation
+     */
+    bucketSlug: string | null;
+};
+
 /**
  * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
  */
@@ -7080,6 +7185,129 @@ export type PostHermesMeInstanceIntegrationsFinalizeResponses = {
 };
 
 export type PostHermesMeInstanceIntegrationsFinalizeResponse = PostHermesMeInstanceIntegrationsFinalizeResponses[keyof PostHermesMeInstanceIntegrationsFinalizeResponses];
+
+export type GetHistoryData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Filter task and job history rows by project ID. Use 'null' for unassigned rows.
+         */
+        projectId?: string | 'null';
+        /**
+         * Case-insensitive search across history title and description
+         */
+        q?: string;
+        /**
+         * Workspace visibility scope for task and job rows. Conversations are always scoped to the authenticated user.
+         */
+        scope?: 'workspace' | 'owned';
+        /**
+         * Comma-separated status filters
+         */
+        status?: Array<string>;
+        /**
+         * Comma-separated history kinds to include: task, job, conversation
+         */
+        types?: Array<'task' | 'job' | 'conversation'>;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/history';
+};
+
+export type GetHistoryErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHistoryError = GetHistoryErrors[keyof GetHistoryErrors];
+
+export type GetHistoryResponses = {
+    /**
+     * Retrieve history feed items
+     */
+    200: {
+        data: HistoryList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHistoryResponse = GetHistoryResponses[keyof GetHistoryResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;
