@@ -152,14 +152,17 @@ function HistoryMetaTime({
   updatedLabel,
   className,
 }: {
-  updatedAt: Date;
-  formatTimeAgo: (date: Date) => string;
+  updatedAt: string | Date;
+  formatTimeAgo: (date: string | Date) => string;
   updatedLabel: string;
   className?: string;
 }) {
+  const dateTime =
+    updatedAt instanceof Date ? updatedAt.toISOString() : updatedAt;
+
   return (
     <time
-      dateTime={updatedAt.toISOString()}
+      dateTime={dateTime}
       className={cn(
         "text-muted-foreground whitespace-nowrap text-xs capitalize sm:text-right",
         className,

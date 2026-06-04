@@ -53,6 +53,33 @@ const subtitleLookups: HistorySubtitleLookups = {
 };
 
 describe("HistoryListItem", () => {
+  it("renders when updatedAt is an ISO string from the server boundary", () => {
+    const item = {
+      kind: "task",
+      id: "task-1",
+      title: "Review onboarding",
+      description: null,
+      status: "READY",
+      updatedAt: "2026-02-19T10:00:00.000Z",
+      credits: 1,
+      projectId: null,
+      coworkerId: null,
+    } as HistoryItem;
+
+    render(
+      <HistoryListItem
+        item={item}
+        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByRole("time")).toHaveAttribute(
+      "dateTime",
+      "2026-02-19T10:00:00.000Z",
+    );
+  });
+
   it("renders an em dash for conversation credits and links to the conversation", () => {
     const item: HistoryItem = {
       kind: "conversation",
