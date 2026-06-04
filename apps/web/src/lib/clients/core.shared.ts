@@ -161,6 +161,18 @@ function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
+function transformHistoryResponseEnvelope(data: any) {
+  data.data = data.data.map((item: any) => ({
+    ...item,
+    updatedAt: toDate(item.updatedAt),
+  }));
+  if (data.meta?.timestamp) {
+    data.meta.timestamp = toDate(data.meta.timestamp);
+  }
+
+  return data;
+}
+
 function transformTaskResponseEnvelope(data: any) {
   const task = data.data;
 
@@ -422,6 +434,8 @@ export function createCoreClient(getClient: GetClient) {
           client,
           query,
           cache: "no-store",
+          responseTransformer: async (data) =>
+            transformHistoryResponseEnvelope(data),
         }),
       "Failed to fetch history",
     );

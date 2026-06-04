@@ -11,7 +11,6 @@ import {
   CHAT_APP_ROUTE_PREFIX,
   getPendingConversationStorageKey,
 } from "@/app/chat-ui/utils/chat-route-base";
-import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import type { Conversation } from "@/lib/actions/conversation";
 
 interface UseChatCreationProps {
@@ -61,7 +60,6 @@ export function useChatCreation({
   navigateToConversation,
 }: UseChatCreationProps) {
   const router = useRouter();
-  const { setShowSecondarySidebar } = useChatSecondarySidebar();
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
   const [showMessagesAfterTransition, setShowMessagesAfterTransition] =
     useState(true);
@@ -132,7 +130,6 @@ export function useChatCreation({
       if (navigateToConversation) {
         void navigateToConversation(conversation, slug);
       } else {
-        setShowSecondarySidebar(false);
         router.push(
           `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
           {
@@ -150,7 +147,6 @@ export function useChatCreation({
       setChats,
       setSelectedChatId,
       setSelectedModel,
-      setShowSecondarySidebar,
       router,
       navigateToConversation,
       chatMessagesRef,
@@ -228,7 +224,6 @@ export function useChatCreation({
       if (navigateToConversation) {
         void navigateToConversation(conversation, slug);
       } else {
-        setShowSecondarySidebar(false);
         router.push(
           `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
           {
@@ -246,7 +241,6 @@ export function useChatCreation({
       setChats,
       setSelectedChatId,
       setSelectedModel,
-      setShowSecondarySidebar,
       router,
       navigateToConversation,
       chatMessagesRef,

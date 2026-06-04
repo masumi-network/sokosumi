@@ -80,7 +80,8 @@ const historyStatusQuerySchema = z
   )
   .openapi({
     param: { name: "status", in: "query" },
-    description: "Comma-separated status filters",
+    description:
+      "Comma-separated status filters. Use `active` or `archived` for conversations. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, only non-archived conversations match (not tasks or jobs).",
     example: "READY,completed",
   });
 

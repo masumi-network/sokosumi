@@ -1,6 +1,9 @@
 /** App Router shell for full-page chat (`/chat/...`). */
 export const CHAT_APP_ROUTE_PREFIX = "/chat" as const;
 
+/** URL segment when conversation metadata has no slugifiable coworker or model. */
+export const FALLBACK_BUCKET_SEGMENT = "_" as const;
+
 /** Next.js BFF for Core `GET` / `POST` `/v1/chat`. */
 export const CHAT_API_PATH = "/api/chat" as const;
 

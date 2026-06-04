@@ -1,6 +1,12 @@
 "use client";
 
-import { Feather, FolderKanban, ListTodo, Sparkles } from "lucide-react";
+import {
+  Feather,
+  FolderKanban,
+  History,
+  ListTodo,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -120,6 +126,12 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
           },
         ] satisfies MenuItemConfig[])
       : []),
+    {
+      key: "history",
+      href: "/history",
+      label: t("history"),
+      Icon: History,
+    },
   ];
 
   return (

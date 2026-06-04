@@ -74,6 +74,24 @@ describe("history.service", () => {
     });
   });
 
+  it("converts ISO string updatedAt values from core into Date objects", async () => {
+    coreClientMock.getHistory.mockResolvedValue({
+      data: [
+        {
+          ...buildHistoryItem(),
+          updatedAt: "2026-02-19T10:00:00.000Z",
+        },
+      ],
+    });
+
+    const { historyService } = await import("../history.service");
+    const result = await historyService.listHistory();
+
+    expect(result.history[0]?.updatedAt).toEqual(
+      new Date("2026-02-19T10:00:00.000Z"),
+    );
+  });
+
   it("omits null cursor and returns null pagination when absent", async () => {
     const item = buildHistoryItem();
     coreClientMock.getHistory.mockResolvedValue({

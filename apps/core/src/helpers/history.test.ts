@@ -126,7 +126,7 @@ describe("buildHistoryArchivedFilter", () => {
 });
 
 describe("buildHistoryStatusFilter", () => {
-  it("includes non-archived conversations when status filter uses kind-specific values only", () => {
+  it("does not include conversations when status filter uses kind-specific values only", () => {
     expect(
       buildHistoryStatusFilter(
         [TaskStatus.READY],
@@ -138,10 +138,6 @@ describe("buildHistoryStatusFilter", () => {
         {
           kind: HistoryKind.TASK,
           status: { in: [TaskStatus.READY] },
-          archivedAt: null,
-        },
-        {
-          kind: HistoryKind.CONVERSATION,
           archivedAt: null,
         },
       ],
@@ -262,7 +258,7 @@ describe("buildHistoryStatusFilter", () => {
     });
   });
 
-  it("includes non-archived job rows when status filter is active only", () => {
+  it("excludes task and job rows when active is the only status filter", () => {
     expect(
       buildHistoryStatusFilter(
         ["active"],
@@ -270,15 +266,7 @@ describe("buildHistoryStatusFilter", () => {
         undefined,
       ),
     ).toEqual({
-      OR: [
-        {
-          kind: HistoryKind.TASK,
-          archivedAt: null,
-        },
-        {
-          kind: HistoryKind.JOB,
-        },
-      ],
+      id: { in: [] },
     });
   });
 
