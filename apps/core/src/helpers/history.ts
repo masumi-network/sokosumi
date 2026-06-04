@@ -18,7 +18,7 @@ export interface HistoryRowForApi {
   agentId: string | null;
   bucketSlug: string | null;
   coworkerId: string | null;
-  creditsCents: bigint | null;
+  amount: bigint | null;
   description: string | null;
   entityId: string;
   kind: HistoryKind;
@@ -381,10 +381,7 @@ export function mapHistoryRow(
         ...baseItem,
         kind: "task",
         status: status as TaskStatus,
-        credits:
-          row.creditsCents != null
-            ? convertCentsToCredits(row.creditsCents)
-            : null,
+        credits: row.amount != null ? convertCentsToCredits(row.amount) : null,
         projectId: row.projectId,
         coworkerId: row.coworkerId,
       };
@@ -393,10 +390,7 @@ export function mapHistoryRow(
         ...baseItem,
         kind: "job",
         status: status as SokosumiJobStatus,
-        credits:
-          row.creditsCents != null
-            ? convertCentsToCredits(row.creditsCents)
-            : null,
+        credits: row.amount != null ? convertCentsToCredits(row.amount) : null,
         projectId: row.projectId,
         agentId: row.agentId ?? "",
       };
