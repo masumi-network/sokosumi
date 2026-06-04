@@ -50,6 +50,8 @@ function getTaskStatusLabel(status: TaskStatus): string {
 
 interface TaskStatusBadgeProps {
   status: TaskStatus;
+  /** When set, overrides the default English label (e.g. from next-intl). */
+  label?: string;
   className?: string;
   showDot?: boolean;
   showLabel?: boolean;
@@ -57,6 +59,7 @@ interface TaskStatusBadgeProps {
 
 export function TaskStatusBadge({
   status,
+  label,
   className,
   showDot = true,
   showLabel = true,
@@ -74,7 +77,7 @@ export function TaskStatusBadge({
       ) : null}
       {showLabel && (
         <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-          {getTaskStatusLabel(status)}
+          {label ?? getTaskStatusLabel(status)}
         </span>
       )}
     </div>

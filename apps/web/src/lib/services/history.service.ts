@@ -20,6 +20,17 @@ export interface ListHistoryParams {
 
 export type { HistoryItem };
 
+function toHistoryDate(value: Date | string): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
+function mapHistoryItem(item: HistoryItem): HistoryItem {
+  return {
+    ...item,
+    updatedAt: toHistoryDate(item.updatedAt),
+  };
+}
+
 export const historyService = (() => {
   async function listHistory(params: ListHistoryParams = {}): Promise<{
     history: HistoryItem[];
@@ -41,7 +52,7 @@ export const historyService = (() => {
     });
 
     return {
-      history: result.data,
+      history: result.data.map(mapHistoryItem),
       pagination: result.meta?.pagination ?? null,
     };
   }

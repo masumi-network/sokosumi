@@ -6,10 +6,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { displaySlugFromMetadata } from "@/app/chat/utils/bucket-slug";
-import { CHAT_APP_ROUTE_PREFIX } from "@/app/chat-ui/utils/chat-route-base";
+import {
+  CHAT_APP_ROUTE_PREFIX,
+  FALLBACK_BUCKET_SEGMENT,
+} from "@/app/chat-ui/utils/chat-route-base";
 import type { Conversation } from "@/lib/actions/conversation";
-
-const FALLBACK_BUCKET_SEGMENT = "_";
 
 interface UseChatSelectionProps {
   urlConversationId: string | null;

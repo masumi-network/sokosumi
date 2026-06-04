@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import {
   getBucketKeyFromMetadata,
@@ -13,7 +13,6 @@ import {
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
 } from "@/app/chat-ui/utils/chat-route-base";
-import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 
@@ -31,12 +30,8 @@ export function ChatLayoutClient({
   userName,
 }: ChatLayoutClientProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { showSecondarySidebar: showFromContext } = useChatSecondarySidebar();
   const { conversations } = useConversationsContext();
   const { coworkers } = useCoworkersContext();
-
-  const openedFromList = searchParams?.get("open") === "1";
 
   const pendingConversationKey = getPendingConversationStorageKey();
   const bucketSlug = useMemo(
@@ -62,7 +57,8 @@ export function ChatLayoutClient({
       }
     })();
 
-  const showSecondarySidebar = showFromContext && !isJustCreatedConversation;
+  const showSecondarySidebar =
+    Boolean(bucketSlug) && !isJustCreatedConversation;
 
   const bucket = useMemo(() => {
     return resolveBucketKeyFromDisplaySlug(
@@ -92,21 +88,10 @@ export function ChatLayoutClient({
 
   const showTwoColumn = Boolean(bucketSlug) && showSecondarySidebar;
 
-  // Mobile: show list first when landing from main sidebar (conversation in URL but not opened from list).
-  // Show chat when no conversation, or when just-created, or when user tapped a conversation from the list (open=1).
+  // Mobile: bucket routes show the conversation list; conversation URLs show chat (bookmarks, refresh, shared links).
   const mobileListOnly =
-    showTwoColumn &&
-    bucketSlug &&
-    (!conversationIdFromPath ||
-      (conversationIdFromPath &&
-        !isJustCreatedConversation &&
-        !openedFromList));
-  const mobileChatOnly =
-    Boolean(conversationIdFromPath) &&
-    (isJustCreatedConversation ||
-      openedFromList ||
-      !showTwoColumn ||
-      !bucketSlug);
+    showTwoColumn && Boolean(bucketSlug) && !conversationIdFromPath;
+  const mobileChatOnly = Boolean(conversationIdFromPath) && !mobileListOnly;
 
   return (
     <div
@@ -152,8 +137,7 @@ export function ChatLayoutClient({
       >
         <div
           className={
-            (mobileChatOnly && conversationIdFromPath) ||
-            (mobileListOnly && conversationIdFromPath)
+            mobileChatOnly && conversationIdFromPath
               ? "flex min-h-0 flex-1 flex-col overflow-hidden lg:min-h-0"
               : "flex h-full flex-col"
           }

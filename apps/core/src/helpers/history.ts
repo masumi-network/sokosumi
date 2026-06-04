@@ -18,7 +18,7 @@ export interface HistoryRowForApi {
   agentId: string | null;
   bucketSlug: string | null;
   coworkerId: string | null;
-  creditsCents: bigint | null;
+  amount: bigint | null;
   description: string | null;
   entityId: string;
   kind: HistoryKind;
@@ -168,9 +168,7 @@ export function buildHistoryStatusFilter(
         status: { in: taskStatuses },
         archivedAt: null,
       });
-    }
-
-    if (includesActive && kindStatuses.length === 0) {
+    } else if (includesActive && includesArchived) {
       taskBranches.push({
         kind: HistoryKind.TASK,
         archivedAt: null,
@@ -190,10 +188,7 @@ export function buildHistoryStatusFilter(
   if (types.includes(HistoryKind.CONVERSATION)) {
     const conversationBranches: Prisma.HistoryWhereInput[] = [];
 
-    // Kind-specific statuses (READY, completed, etc.) do not apply to
-    // conversations; include non-archived rows whenever they are requested
-    // explicitly or mixed with task/job status filters.
-    if (includesActive || kindStatuses.length > 0) {
+    if (includesActive) {
       conversationBranches.push({
         kind: HistoryKind.CONVERSATION,
         archivedAt: null,
@@ -217,12 +212,6 @@ export function buildHistoryStatusFilter(
       jobBranches.push({
         kind: HistoryKind.JOB,
         entityId: { in: jobEntityIds },
-      });
-    }
-
-    if (includesActive && kindStatuses.length === 0) {
-      jobBranches.push({
-        kind: HistoryKind.JOB,
       });
     }
 
@@ -392,10 +381,7 @@ export function mapHistoryRow(
         ...baseItem,
         kind: "task",
         status: status as TaskStatus,
-        credits:
-          row.creditsCents != null
-            ? convertCentsToCredits(row.creditsCents)
-            : null,
+        credits: row.amount != null ? convertCentsToCredits(row.amount) : null,
         projectId: row.projectId,
         coworkerId: row.coworkerId,
       };
@@ -404,10 +390,7 @@ export function mapHistoryRow(
         ...baseItem,
         kind: "job",
         status: status as SokosumiJobStatus,
-        credits:
-          row.creditsCents != null
-            ? convertCentsToCredits(row.creditsCents)
-            : null,
+        credits: row.amount != null ? convertCentsToCredits(row.amount) : null,
         projectId: row.projectId,
         agentId: row.agentId ?? "",
       };

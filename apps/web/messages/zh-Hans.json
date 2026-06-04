@@ -253,6 +253,7 @@
       "tasks": "任务",
       "connections": "连接",
       "hermes": "Hermes",
+      "history": "历史记录",
       "new": "新建",
       "projects": "项目"
     },
@@ -1149,6 +1150,74 @@
     "delete": "删除",
     "cancel": "取消",
     "save": "保存",
+    "History": {
+      "Metadata": {
+        "title": "历史记录",
+        "description": "在一个时间线中查看任务、作业和对话。"
+      },
+      "Search": {
+        "placeholder": "搜索历史记录...",
+        "clear": "清除搜索"
+      },
+      "Filters": {
+        "title": "筛选",
+        "searchPlaceholder": "筛选...",
+        "emptyResults": "未找到结果。",
+        "all": "全部",
+        "scopeLabel": "范围",
+        "scopeOwned": "我的历史",
+        "scopeWorkspace": "工作区",
+        "typeLabel": "类型",
+        "statusLabel": "状态",
+        "projectLabel": "项目",
+        "typeOptions": {
+          "task": "任务",
+          "job": "作业",
+          "conversation": "对话"
+        },
+        "statusOptions": {
+          "active": "活跃",
+          "archived": "已归档",
+          "DRAFT": "草稿",
+          "READY": "就绪",
+          "INPUT_REQUIRED": "需要输入",
+          "AUTHENTICATION_REQUIRED": "需要认证",
+          "OUT_OF_CREDITS": "积分不足",
+          "CREDITS_TOPPED_UP": "积分已充值",
+          "RUNNING": "运行中",
+          "AWAITING_EXTERNAL": "等待外部",
+          "COMPLETED": "已完成",
+          "FAILED": "失败",
+          "CANCEL_REQUESTED": "已请求取消",
+          "CANCELED": "已取消"
+        }
+      },
+      "Empty": {
+        "title": "暂无历史记录",
+        "description": "有活动后，您的任务、作业和对话将显示在这里。"
+      },
+      "List": {
+        "loadMore": "加载更多",
+        "loading": "正在加载历史记录...",
+        "loadMoreError": "无法加载更多历史记录"
+      },
+      "Row": {
+        "credit": "积分",
+        "credits": "积分",
+        "creditsUnavailable": "—",
+        "noDescription": "无描述",
+        "updated": "更新于",
+        "kind": {
+          "task": "任务",
+          "job": "作业",
+          "conversation": "对话"
+        },
+        "conversationStatus": {
+          "active": "活跃",
+          "archived": "已归档"
+        }
+      }
+    },
     "ChatRail": {
       "chat": "聊天"
     },
@@ -1259,7 +1328,15 @@
           "clearSearch": "清除搜索",
           "resultsCount": "{found} / {total}",
           "noResults": "没有匹配的对话",
-          "noConversations": "暂无对话"
+          "noConversations": "暂无对话",
+          "untitledChat": "未命名聊天",
+          "deleteChatAriaLabel": "删除聊天",
+          "deleteDialog": {
+            "title": "删除聊天",
+            "description": "确定要删除此聊天吗？此操作无法撤销。",
+            "cancel": "取消",
+            "delete": "删除"
+          }
         },
         "uploadFileError": "上传文件失败",
         "uploadFileErrorRetry": "上传文件失败，请重试！",
@@ -2263,44 +2340,8 @@
           "filesAndOutputs": "文件与输出",
           "taskManager": "任务",
           "projects": "项目",
-          "hermes": "Hermes"
-        },
-        "ChatLists": {
-          "title": "最近聊天",
-          "noChats": "暂无聊天",
-          "untitledChat": "未命名聊天",
-          "modelAlt": "模型",
-          "coworkerAlt": "协作伙伴",
-          "deleteChatAriaLabel": "删除聊天",
-          "deleteDialog": {
-            "title": "删除聊天",
-            "description": "确定要删除此聊天吗？此操作无法撤销。",
-            "cancel": "取消",
-            "delete": "删除"
-          }
-        },
-        "AgentLists": {
-          "pinnedTitle": "置顶智能体",
-          "hiredTitle": "最近智能体",
-          "noAgents": "暂无{type}智能体",
-          "pinnedType": "置顶",
-          "hiredType": "已雇用",
-          "Statuses": {
-            "completed": "已完成",
-            "failed": "已失败",
-            "paymentPending": "雇用中",
-            "paymentFailed": "雇用失败",
-            "processing": "处理中",
-            "agentConnectionFailed": "连接智能体失败",
-            "paymentNodeConnectionFailed": "连接节点失败",
-            "inputRequired": "需要输入",
-            "disputeRequested": "争议处理中",
-            "disputeResolved": "争议已解决",
-            "refundRequested": "已申请退款",
-            "refundResolved": "已退款",
-            "outputPending": "输出缺失",
-            "resultPending": "结果处理中"
-          }
+          "hermes": "Hermes",
+          "history": "历史记录"
         }
       }
     },

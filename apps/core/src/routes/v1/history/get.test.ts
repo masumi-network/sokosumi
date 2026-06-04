@@ -80,9 +80,9 @@ function createHistoryRow(
 ): HistoryRowForApi {
   return {
     agentId: null,
+    amount: 25_000_000_000n,
     bucketSlug: null,
     coworkerId: "cow_123",
-    creditsCents: 25_000_000_000n,
     description: "History row description",
     entityId: "entity_123",
     id: "history_123",
@@ -345,10 +345,6 @@ describe("GET /history", () => {
                   archivedAt: null,
                 },
                 {
-                  kind: HistoryKind.CONVERSATION,
-                  archivedAt: null,
-                },
-                {
                   kind: HistoryKind.JOB,
                   entityId: { in: ["job_completed"] },
                 },
@@ -360,7 +356,34 @@ describe("GET /history", () => {
     );
   });
 
-  it("includes job rows when status filter is active only", async () => {
+  it("does not include active conversations for task or job status filters", async () => {
+    prismaQueryRawMock.mockResolvedValue([{ entityId: "job_payment_pending" }]);
+
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/?status=${SokosumiJobStatus.PAYMENT_PENDING}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(historyFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            {
+              OR: [
+                {
+                  kind: HistoryKind.JOB,
+                  entityId: { in: ["job_payment_pending"] },
+                },
+              ],
+            },
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("only includes conversations when status filter is active", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?status=active");
 
@@ -373,15 +396,8 @@ describe("GET /history", () => {
             {
               OR: [
                 {
-                  kind: HistoryKind.TASK,
-                  archivedAt: null,
-                },
-                {
                   kind: HistoryKind.CONVERSATION,
                   archivedAt: null,
-                },
-                {
-                  kind: HistoryKind.JOB,
                 },
               ],
             },
@@ -499,8 +515,8 @@ describe("GET /history", () => {
 
   it("returns the next item entity id as cursor and null conversation credits", async () => {
     const visibleRow = createHistoryRow({
+      amount: null,
       bucketSlug: "hannah",
-      creditsCents: null,
       entityId: "conversation_1",
       kind: HistoryKind.CONVERSATION,
       projectId: null,
