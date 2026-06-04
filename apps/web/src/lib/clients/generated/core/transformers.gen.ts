@@ -337,18 +337,7 @@ export const postHermesMeInstanceIntegrationsFinalizeResponseTransformer = async
     return data;
 };
 
-const historyItemSchemaResponseTransformer = (data: any) => {
-    data.updatedAt = new Date(data.updatedAt);
-    return data;
-};
-
-const historyListSchemaResponseTransformer = (data: any) => {
-    data = data.map((item: any) => historyItemSchemaResponseTransformer(item));
-    return data;
-};
-
 export const getHistoryResponseTransformer = async (data: any): Promise<GetHistoryResponse> => {
-    data.data = historyListSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

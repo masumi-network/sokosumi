@@ -39,9 +39,9 @@ function createHistoryRow(
 ): HistoryRowForApi {
   return {
     agentId: "agent_123",
+    amount: 25_000_000_000n,
     bucketSlug: null,
     coworkerId: null,
-    creditsCents: 25_000_000_000n,
     description: null,
     entityId: "job_123",
     id: "history_123",

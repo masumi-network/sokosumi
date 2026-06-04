@@ -245,7 +245,7 @@ model History {
   description    String?
   status         String
   sortAt         DateTime
-  creditsCents   BigInt?
+  amount         BigInt? // positive spend total in Transaction.amount units; null for conversations
   projectId      String?     @db.Uuid
   agentId        String?
   coworkerId     String?

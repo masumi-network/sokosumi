@@ -7217,7 +7217,7 @@ export type GetHistoryData = {
          */
         scope?: 'workspace' | 'owned';
         /**
-         * Comma-separated status filters
+         * Comma-separated status filters. Use `active` or `archived` for conversations. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, only non-archived conversations match (not tasks or jobs).
          */
         status?: Array<string>;
         /**
