@@ -175,7 +175,6 @@ export function ChatConversationsSidebar({
   displayName: _displayName,
   conversations,
 }: ChatConversationsSidebarProps) {
-  const t = useTranslations("App.Sidebar.Content.ChatLists");
   const tSearch = useTranslations("App.Chat.Chat.ConversationsSidebar");
   const { formatTimeAgo, getDateGroupKey } = useLocalizedDateTime();
   const router = useRouter();
@@ -319,7 +318,7 @@ export function ChatConversationsSidebar({
                         ?.model_name ??
                       (conv.metadata as Record<string, string> | null)
                         ?.coworker_name ??
-                      t("untitledChat", { default: "Untitled Chat" });
+                      tSearch("untitledChat");
                     const displayTitle = truncateTitle(
                       title,
                       CONVERSATION_TITLE_MAX_CHARS,
@@ -337,7 +336,7 @@ export function ChatConversationsSidebar({
                           updatedAt={conv.updatedAt}
                           onSelect={() => handleConversationClick(conv.id)}
                           onDelete={(e) => handleDeleteClick(e, conv.id)}
-                          deleteAriaLabel={t("deleteChatAriaLabel")}
+                          deleteAriaLabel={tSearch("deleteChatAriaLabel")}
                         />
                       </li>
                     );
@@ -361,25 +360,20 @@ export function ChatConversationsSidebar({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("deleteDialog.title", { default: "Delete Chat" })}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{tSearch("deleteDialog.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("deleteDialog.description", {
-                default:
-                  "Are you sure you want to delete this chat? This action cannot be undone.",
-              })}
+              {tSearch("deleteDialog.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setChatToDelete(null)}>
-              {t("deleteDialog.cancel", { default: "Cancel" })}
+              {tSearch("deleteDialog.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               className={buttonVariants({ variant: "destructive" })}
             >
-              {t("deleteDialog.delete", { default: "Delete" })}
+              {tSearch("deleteDialog.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

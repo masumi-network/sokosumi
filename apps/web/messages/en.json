@@ -253,6 +253,7 @@
       "tasks": "Tasks",
       "connections": "Connections",
       "hermes": "Hermes",
+      "history": "History",
       "new": "New",
       "projects": "Projects"
     },
@@ -1149,6 +1150,74 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "save": "Save",
+    "History": {
+      "Metadata": {
+        "title": "History",
+        "description": "Review tasks, jobs, and conversations in one timeline."
+      },
+      "Search": {
+        "placeholder": "Search history...",
+        "clear": "Clear search"
+      },
+      "Filters": {
+        "title": "Filters",
+        "searchPlaceholder": "Filter...",
+        "emptyResults": "No results found.",
+        "all": "All",
+        "scopeLabel": "Scope",
+        "scopeOwned": "My history",
+        "scopeWorkspace": "Workspace",
+        "typeLabel": "Type",
+        "statusLabel": "Status",
+        "projectLabel": "Project",
+        "typeOptions": {
+          "task": "Task",
+          "job": "Job",
+          "conversation": "Chat"
+        },
+        "statusOptions": {
+          "active": "Active",
+          "archived": "Archived",
+          "DRAFT": "Draft",
+          "READY": "Ready",
+          "INPUT_REQUIRED": "Input required",
+          "AUTHENTICATION_REQUIRED": "Authentication required",
+          "OUT_OF_CREDITS": "Out of credits",
+          "CREDITS_TOPPED_UP": "Credits topped up",
+          "RUNNING": "Running",
+          "AWAITING_EXTERNAL": "Awaiting external",
+          "COMPLETED": "Completed",
+          "FAILED": "Failed",
+          "CANCEL_REQUESTED": "Cancel requested",
+          "CANCELED": "Canceled"
+        }
+      },
+      "Empty": {
+        "title": "No history yet",
+        "description": "Your tasks, jobs, and conversations will appear here once there is activity."
+      },
+      "List": {
+        "loadMore": "Load more",
+        "loading": "Loading history...",
+        "loadMoreError": "Failed to load more history"
+      },
+      "Row": {
+        "credit": "credit",
+        "credits": "credits",
+        "creditsUnavailable": "—",
+        "noDescription": "No description",
+        "updated": "Updated",
+        "kind": {
+          "task": "Task",
+          "job": "Job",
+          "conversation": "Chat"
+        },
+        "conversationStatus": {
+          "active": "Active",
+          "archived": "Archived"
+        }
+      }
+    },
     "ChatRail": {
       "chat": "Chat"
     },
@@ -1259,7 +1328,15 @@
           "clearSearch": "Clear search",
           "resultsCount": "{found} of {total}",
           "noResults": "No matching conversations",
-          "noConversations": "No conversations yet"
+          "noConversations": "No conversations yet",
+          "untitledChat": "Untitled Chat",
+          "deleteChatAriaLabel": "Delete chat",
+          "deleteDialog": {
+            "title": "Delete Chat",
+            "description": "Are you sure you want to delete this chat? This action cannot be undone.",
+            "cancel": "Cancel",
+            "delete": "Delete"
+          }
         },
         "uploadFileError": "Failed to upload file",
         "uploadFileErrorRetry": "Failed to upload file, please try again!",
@@ -2263,44 +2340,8 @@
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
           "projects": "Projects",
-          "hermes": "Hermes"
-        },
-        "ChatLists": {
-          "title": "Recent Chats",
-          "noChats": "No chats yet",
-          "untitledChat": "Untitled Chat",
-          "modelAlt": "Model",
-          "coworkerAlt": "Coworker",
-          "deleteChatAriaLabel": "Delete chat",
-          "deleteDialog": {
-            "title": "Delete Chat",
-            "description": "Are you sure you want to delete this chat? This action cannot be undone.",
-            "cancel": "Cancel",
-            "delete": "Delete"
-          }
-        },
-        "AgentLists": {
-          "pinnedTitle": "Pinned Agents",
-          "hiredTitle": "Recent Agents",
-          "noAgents": "No {type} agents yet",
-          "pinnedType": "pinned",
-          "hiredType": "hired",
-          "Statuses": {
-            "completed": "Completed",
-            "failed": "Failed",
-            "paymentPending": "Hiring",
-            "paymentFailed": "Hiring Failed",
-            "processing": "Working",
-            "agentConnectionFailed": "Agent Connection Failed",
-            "paymentNodeConnectionFailed": "Node Connection Failed",
-            "inputRequired": "Input Required",
-            "disputeRequested": "Dispute Pending",
-            "disputeResolved": "Dispute Resolved",
-            "refundRequested": "Refund Requested",
-            "refundResolved": "Refunded",
-            "outputPending": "Output Missing",
-            "resultPending": "Result Pending"
-          }
+          "hermes": "Hermes",
+          "history": "History"
         }
       }
     },

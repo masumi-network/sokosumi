@@ -13,7 +13,6 @@ import {
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
 } from "@/app/chat-ui/utils/chat-route-base";
-import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 
@@ -32,7 +31,6 @@ export function ChatLayoutClient({
 }: ChatLayoutClientProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { showSecondarySidebar: showFromContext } = useChatSecondarySidebar();
   const { conversations } = useConversationsContext();
   const { coworkers } = useCoworkersContext();
 
@@ -62,7 +60,8 @@ export function ChatLayoutClient({
       }
     })();
 
-  const showSecondarySidebar = showFromContext && !isJustCreatedConversation;
+  const showSecondarySidebar =
+    Boolean(bucketSlug) && !isJustCreatedConversation;
 
   const bucket = useMemo(() => {
     return resolveBucketKeyFromDisplaySlug(

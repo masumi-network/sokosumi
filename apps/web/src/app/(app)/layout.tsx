@@ -9,7 +9,6 @@ import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { AppChatRailProvider } from "@/contexts/app-chat-rail-context";
-import { ChatSecondarySidebarProvider } from "@/contexts/chat-secondary-sidebar-context";
 import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import QueryProvider from "@/contexts/query-provider";
@@ -127,63 +126,61 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       legalNotices={legalNotices}
       announcementNotices={announcementNotices}
     >
-      <ChatSecondarySidebarProvider>
-        <SidebarProvider
-          defaultOpen={defaultOpen}
-          data-app-shell
-          className="flex max-w-svw overflow-clip"
-        >
-          <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
-            <Sidebar
-              creditsData={creditsData}
-              currentTimestampMs={currentTimestampMs}
-              hermesMenuEnabled={hermesMenuEnabled}
-              organizationName={activeOrganization?.name ?? null}
-              session={session}
-            />
-            <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
-              <div
-                className="flex min-w-0 flex-1 flex-col overflow-clip"
-                data-app-content-inner
+      <SidebarProvider
+        defaultOpen={defaultOpen}
+        data-app-shell
+        className="flex max-w-svw overflow-clip"
+      >
+        <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
+          <Sidebar
+            creditsData={creditsData}
+            currentTimestampMs={currentTimestampMs}
+            hermesMenuEnabled={hermesMenuEnabled}
+            organizationName={activeOrganization?.name ?? null}
+            session={session}
+          />
+          <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
+            <div
+              className="flex min-w-0 flex-1 flex-col overflow-clip"
+              data-app-content-inner
+            >
+              <HeaderGate>
+                <Header className="h-16 p-4" />
+              </HeaderGate>
+              <main
+                className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
+                data-app-main
               >
-                <HeaderGate>
-                  <Header className="h-16 p-4" />
-                </HeaderGate>
-                <main
-                  className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
-                  data-app-main
+                <EmergencyDialog />
+                {topNotice.kind === "emailVerification" ? (
+                  <EmailVerificationNotice
+                    email={topNotice.email}
+                    emailVerified={false}
+                  />
+                ) : null}
+                {topNotice.kind === "lowCredits" ||
+                topNotice.kind === "outOfCredits" ? (
+                  <LowCreditsNotice
+                    kind={topNotice.kind}
+                    path={topNotice.path}
+                  />
+                ) : null}
+                <div
+                  className="flex h-full flex-1 flex-col overflow-visible"
+                  data-app-main-inner
                 >
-                  <EmergencyDialog />
-                  {topNotice.kind === "emailVerification" ? (
-                    <EmailVerificationNotice
-                      email={topNotice.email}
-                      emailVerified={false}
-                    />
-                  ) : null}
-                  {topNotice.kind === "lowCredits" ||
-                  topNotice.kind === "outOfCredits" ? (
-                    <LowCreditsNotice
-                      kind={topNotice.kind}
-                      path={topNotice.path}
-                    />
-                  ) : null}
-                  <div
-                    className="flex h-full flex-1 flex-col overflow-visible"
-                    data-app-main-inner
-                  >
-                    {children}
-                  </div>
-                </main>
-              </div>
-              <ChatRail
-                organizationSlug={activeOrganization?.slug ?? null}
-                userImageUrl={userImageUrl}
-                userName={session.user.name ?? undefined}
-              />
+                  {children}
+                </div>
+              </main>
             </div>
-          </AppChatRailProvider>
-        </SidebarProvider>
-      </ChatSecondarySidebarProvider>
+            <ChatRail
+              organizationSlug={activeOrganization?.slug ?? null}
+              userImageUrl={userImageUrl}
+              userName={session.user.name ?? undefined}
+            />
+          </div>
+        </AppChatRailProvider>
+      </SidebarProvider>
     </NoticeDialogProvider>
   );
 

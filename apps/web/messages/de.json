@@ -253,6 +253,7 @@
       "tasks": "Aufgaben",
       "connections": "Verbindungen",
       "hermes": "Hermes",
+      "history": "Verlauf",
       "new": "Neu",
       "projects": "Projekte"
     },
@@ -1149,6 +1150,74 @@
     "delete": "Löschen",
     "cancel": "Abbrechen",
     "save": "Speichern",
+    "History": {
+      "Metadata": {
+        "title": "Verlauf",
+        "description": "Aufgaben, Jobs und Chats in einer Zeitleiste durchsuchen."
+      },
+      "Search": {
+        "placeholder": "Verlauf durchsuchen...",
+        "clear": "Suche löschen"
+      },
+      "Filters": {
+        "title": "Filter",
+        "searchPlaceholder": "Filtern...",
+        "emptyResults": "Keine Ergebnisse gefunden.",
+        "all": "Alle",
+        "scopeLabel": "Bereich",
+        "scopeOwned": "Mein Verlauf",
+        "scopeWorkspace": "Workspace",
+        "typeLabel": "Typ",
+        "statusLabel": "Status",
+        "projectLabel": "Projekt",
+        "typeOptions": {
+          "task": "Aufgabe",
+          "job": "Job",
+          "conversation": "Chat"
+        },
+        "statusOptions": {
+          "active": "Aktiv",
+          "archived": "Archiviert",
+          "DRAFT": "Entwurf",
+          "READY": "Bereit",
+          "INPUT_REQUIRED": "Eingabe erforderlich",
+          "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
+          "OUT_OF_CREDITS": "Keine Credits mehr",
+          "CREDITS_TOPPED_UP": "Credits aufgeladen",
+          "RUNNING": "Läuft",
+          "AWAITING_EXTERNAL": "Wartet auf Externes",
+          "COMPLETED": "Abgeschlossen",
+          "FAILED": "Fehlgeschlagen",
+          "CANCEL_REQUESTED": "Abbruch angefordert",
+          "CANCELED": "Abgebrochen"
+        }
+      },
+      "Empty": {
+        "title": "Noch kein Verlauf",
+        "description": "Deine Aufgaben, Jobs und Chats erscheinen hier, sobald es Aktivität gibt."
+      },
+      "List": {
+        "loadMore": "Mehr laden",
+        "loading": "Verlauf wird geladen...",
+        "loadMoreError": "Weitere Einträge konnten nicht geladen werden"
+      },
+      "Row": {
+        "credit": "Credit",
+        "credits": "Credits",
+        "creditsUnavailable": "—",
+        "noDescription": "Keine Beschreibung",
+        "updated": "Aktualisiert",
+        "kind": {
+          "task": "Aufgabe",
+          "job": "Job",
+          "conversation": "Chat"
+        },
+        "conversationStatus": {
+          "active": "Aktiv",
+          "archived": "Archiviert"
+        }
+      }
+    },
     "ChatRail": {
       "chat": "Chat"
     },
@@ -1259,7 +1328,15 @@
           "clearSearch": "Suche zurücksetzen",
           "resultsCount": "{found} von {total}",
           "noResults": "Keine passenden Gespräche",
-          "noConversations": "Noch keine Gespräche"
+          "noConversations": "Noch keine Gespräche",
+          "untitledChat": "Unbenannter Chat",
+          "deleteChatAriaLabel": "Chat löschen",
+          "deleteDialog": {
+            "title": "Chat löschen",
+            "description": "Möchtest du diesen Chat wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+            "cancel": "Abbrechen",
+            "delete": "Löschen"
+          }
         },
         "uploadFileError": "Datei konnte nicht hochgeladen werden",
         "uploadFileErrorRetry": "Datei konnte nicht hochgeladen werden. Bitte versuche es erneut!",
@@ -2263,44 +2340,8 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "projects": "Projekte",
-          "hermes": "Hermes"
-        },
-        "ChatLists": {
-          "title": "Letzte Chats",
-          "noChats": "Noch keine Chats",
-          "untitledChat": "Unbenannter Chat",
-          "modelAlt": "Modell",
-          "coworkerAlt": "Coworker",
-          "deleteChatAriaLabel": "Chat löschen",
-          "deleteDialog": {
-            "title": "Chat löschen",
-            "description": "Möchtest du diesen Chat wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
-            "cancel": "Abbrechen",
-            "delete": "Löschen"
-          }
-        },
-        "AgentLists": {
-          "pinnedTitle": "Angeheftete Agents",
-          "hiredTitle": "Zuletzt verwendete Agents",
-          "noAgents": "Noch keine {type} Agents",
-          "pinnedType": "angeheftete",
-          "hiredType": "beauftragte",
-          "Statuses": {
-            "completed": "Abgeschlossen",
-            "failed": "Fehlgeschlagen",
-            "paymentPending": "In Beauftragung",
-            "paymentFailed": "Beauftragung fehlgeschlagen",
-            "processing": "In Bearbeitung",
-            "agentConnectionFailed": "Agent-Verbindung fehlgeschlagen",
-            "paymentNodeConnectionFailed": "Knoten-Verbindung fehlgeschlagen",
-            "inputRequired": "Input erforderlich",
-            "disputeRequested": "Einspruch ausstehend",
-            "disputeResolved": "Einspruch gelöst",
-            "refundRequested": "Rückerstattung beantragt",
-            "refundResolved": "Erstattet",
-            "outputPending": "Output fehlt",
-            "resultPending": "Ergebnis ausstehend"
-          }
+          "hermes": "Hermes",
+          "history": "Verlauf"
         }
       }
     },

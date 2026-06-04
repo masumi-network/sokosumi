@@ -3,6 +3,7 @@
 import { JobType, SokosumiJobStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
+import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
 import { cn } from "@/lib/utils";
 
 interface JobStatusBadgeProps {
@@ -47,7 +48,7 @@ export function JobStatusBadge({
   variant = "badge",
 }: JobStatusBadgeProps) {
   const t = useTranslations("Components.Jobs.StatusBadge");
-  const label = t(statusToLabelKey(status, jobType));
+  const label = t(getJobStatusBadgeLabelKey(status, jobType));
   const dotClass = getJobStatusDotColorClass(status, jobType);
 
   if (variant === "dot") {
@@ -74,38 +75,4 @@ export function JobStatusBadge({
       </span>
     </div>
   );
-}
-
-function statusToLabelKey(status: SokosumiJobStatus, jobType?: JobType) {
-  if (jobType === JobType.DEMO) {
-    return "demo";
-  }
-
-  switch (status) {
-    case SokosumiJobStatus.COMPLETED:
-      return "completed";
-    case SokosumiJobStatus.FAILED:
-      return "failed";
-    case SokosumiJobStatus.PAYMENT_FAILED:
-      return "paymentFailed";
-    case SokosumiJobStatus.STARTED:
-    case SokosumiJobStatus.PAYMENT_PENDING:
-      return "paymentPending";
-    case SokosumiJobStatus.PROCESSING:
-      return "processing";
-    case SokosumiJobStatus.INPUT_REQUIRED:
-      return "inputRequired";
-    case SokosumiJobStatus.REFUND_PENDING:
-      return "refundRequested";
-    case SokosumiJobStatus.REFUND_RESOLVED:
-      return "refundResolved";
-    case SokosumiJobStatus.DISPUTE_PENDING:
-      return "disputeRequested";
-    case SokosumiJobStatus.DISPUTE_RESOLVED:
-      return "disputeResolved";
-    case SokosumiJobStatus.RESULT_PENDING:
-      return "resultPending";
-    default:
-      return "unknown";
-  }
 }

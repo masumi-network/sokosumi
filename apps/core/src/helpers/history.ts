@@ -170,13 +170,6 @@ export function buildHistoryStatusFilter(
       });
     }
 
-    if (includesActive && kindStatuses.length === 0) {
-      taskBranches.push({
-        kind: HistoryKind.TASK,
-        archivedAt: null,
-      });
-    }
-
     if (includesArchived) {
       taskBranches.push({
         kind: HistoryKind.TASK,
@@ -190,10 +183,7 @@ export function buildHistoryStatusFilter(
   if (types.includes(HistoryKind.CONVERSATION)) {
     const conversationBranches: Prisma.HistoryWhereInput[] = [];
 
-    // Kind-specific statuses (READY, completed, etc.) do not apply to
-    // conversations; include non-archived rows whenever they are requested
-    // explicitly or mixed with task/job status filters.
-    if (includesActive || kindStatuses.length > 0) {
+    if (includesActive) {
       conversationBranches.push({
         kind: HistoryKind.CONVERSATION,
         archivedAt: null,
@@ -217,12 +207,6 @@ export function buildHistoryStatusFilter(
       jobBranches.push({
         kind: HistoryKind.JOB,
         entityId: { in: jobEntityIds },
-      });
-    }
-
-    if (includesActive && kindStatuses.length === 0) {
-      jobBranches.push({
-        kind: HistoryKind.JOB,
       });
     }
 
