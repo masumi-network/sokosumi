@@ -1,6 +1,6 @@
 import { TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getHistoryItemHref,
@@ -14,17 +14,36 @@ import {
 } from "@/app/history/utils/history-row-subtitle";
 import type { HistoryItem } from "@/lib/services/history.service";
 
+const iconMocks = vi.hoisted(() => ({
+  agentIcon: vi.fn(),
+  chatModelIcon: vi.fn(),
+}));
+
 vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTranslations: () => (key: string) => key,
 }));
 
 vi.mock("@/components/agents/agent-icon", () => ({
-  AgentIcon: () => <span data-testid="agent-icon" />,
+  AgentIcon: (props: {
+    agent: { name: string; icon: string | null };
+    className?: string;
+  }) => {
+    iconMocks.agentIcon(props);
+    return <span data-testid="agent-icon" />;
+  },
 }));
 
 vi.mock("@/components/chat/chat-model-icon", () => ({
-  ChatModelIcon: () => <span data-testid="chat-model-icon" />,
+  ChatModelIcon: (props: {
+    modelId: string;
+    modelName?: string;
+    className?: string;
+    size?: number;
+  }) => {
+    iconMocks.chatModelIcon(props);
+    return <span data-testid="chat-model-icon" />;
+  },
 }));
 
 const labels: HistoryListItemLabels = {
@@ -59,15 +78,35 @@ const labels: HistoryListItemLabels = {
 };
 
 const subtitleLookups: HistorySubtitleLookups = {
-  agentNameById: {
-    "agent-1": "Research Agent",
+  agentPreviewById: {
+    "agent-1": {
+      name: "Research Agent",
+      icon: "https://example.com/research.svg",
+    },
   },
   bucketDisplayNameBySlug: {
     hannah: "Hannah",
+    "gpt-5-4": "GPT-5.4",
+  },
+  bucketIconBySlug: {
+    hannah: {
+      kind: "coworker",
+      name: "Hannah",
+      imageUrl: "/images/coworkers/hannah.webp",
+    },
+    "gpt-5-4": {
+      kind: "model",
+      modelId: "gpt-5-4",
+      modelName: "GPT-5.4",
+    },
   },
 };
 
 describe("HistoryListItem", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("renders localized task status labels instead of TaskStatusBadge defaults", () => {
     const item: HistoryItem = {
       kind: "task",
@@ -231,6 +270,14 @@ describe("HistoryListItem", () => {
     );
 
     expect(screen.getByText("Research Agent")).toBeInTheDocument();
+    expect(iconMocks.agentIcon).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agent: {
+          name: "Research Agent",
+          icon: "https://example.com/research.svg",
+        },
+      }),
+    );
   });
 
   it("uses the bucket display name as the conversation fallback subtitle", () => {
@@ -254,6 +301,35 @@ describe("HistoryListItem", () => {
     );
 
     expect(screen.getByText("Hannah")).toBeInTheDocument();
+    expect(screen.getByText("H")).toBeInTheDocument();
+  });
+
+  it("passes resolved model data to the chat model icon", () => {
+    const item: HistoryItem = {
+      kind: "conversation",
+      id: "conversation-1",
+      title: "Planning chat",
+      description: null,
+      status: "active",
+      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      credits: null,
+      bucketSlug: "gpt-5-4",
+    };
+
+    render(
+      <HistoryListItem
+        item={item}
+        subtitleLookups={subtitleLookups}
+        labels={labels}
+      />,
+    );
+
+    expect(iconMocks.chatModelIcon).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "gpt-5-4",
+        modelName: "GPT-5.4",
+      }),
+    );
   });
 
   it("does not repeat the title when the fallback subtitle matches it", () => {

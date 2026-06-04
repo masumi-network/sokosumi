@@ -15,6 +15,7 @@ import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { HistoryItem } from "@/lib/services/history.service";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
@@ -117,37 +118,102 @@ function HistoryTypeColumn({
   labels: HistoryListItemLabels;
   subtitleLookups: HistorySubtitleLookups;
 }) {
-  const jobAgentName =
-    item.kind === "job" && item.agentId
-      ? subtitleLookups.agentNameById[item.agentId]
-      : undefined;
-
   return (
     <div className="flex w-9 shrink-0 items-center gap-1.5 sm:w-30">
       <span
         className="text-muted-foreground flex size-9 items-center justify-center rounded-full"
         aria-hidden
       >
-        {item.kind === "task" ? (
-          <ListTodo className="size-4" />
-        ) : item.kind === "job" ? (
-          <AgentIcon
-            agent={{ name: jobAgentName ?? item.title, icon: null }}
-            className="size-4"
-          />
-        ) : (
-          <ChatModelIcon
-            modelId=""
-            modelName={labels.kind.conversation}
-            className="size-4"
-            size={16}
-          />
-        )}
+        <HistoryTypeIcon
+          item={item}
+          labels={labels}
+          subtitleLookups={subtitleLookups}
+        />
       </span>
       <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[10px] font-medium tracking-wider uppercase hidden sm:block">
         {labels.kind[item.kind]}
       </span>
     </div>
+  );
+}
+
+function HistoryTypeIcon({
+  item,
+  labels,
+  subtitleLookups,
+}: {
+  item: HistoryItem;
+  labels: HistoryListItemLabels;
+  subtitleLookups: HistorySubtitleLookups;
+}) {
+  if (item.kind === "task") {
+    return <ListTodo className="size-4" />;
+  }
+
+  if (item.kind === "job") {
+    const agentPreview = subtitleLookups.agentPreviewById[item.agentId];
+
+    return (
+      <AgentIcon
+        agent={{
+          name: agentPreview?.name ?? item.title,
+          icon: agentPreview?.icon ?? null,
+        }}
+        className="size-4"
+      />
+    );
+  }
+
+  const bucketIcon = item.bucketSlug
+    ? subtitleLookups.bucketIconBySlug[item.bucketSlug]
+    : undefined;
+
+  return (
+    <HistoryConversationIcon
+      bucketIcon={bucketIcon}
+      fallbackLabel={labels.kind.conversation}
+    />
+  );
+}
+
+function HistoryConversationIcon({
+  bucketIcon,
+  fallbackLabel,
+}: {
+  bucketIcon: HistorySubtitleLookups["bucketIconBySlug"][string] | undefined;
+  fallbackLabel: string;
+}) {
+  if (bucketIcon?.kind === "model") {
+    return (
+      <ChatModelIcon
+        modelId={bucketIcon.modelId}
+        modelName={bucketIcon.modelName}
+        className="size-4"
+        size={16}
+      />
+    );
+  }
+
+  if (bucketIcon?.kind === "coworker") {
+    return (
+      <Avatar className="size-4">
+        {bucketIcon.imageUrl ? (
+          <AvatarImage src={bucketIcon.imageUrl} alt={bucketIcon.name} />
+        ) : null}
+        <AvatarFallback className="bg-primary text-primary-foreground text-[8px]">
+          {bucketIcon.name.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+    );
+  }
+
+  return (
+    <ChatModelIcon
+      modelId=""
+      modelName={fallbackLabel}
+      className="size-4"
+      size={16}
+    />
   );
 }
 
