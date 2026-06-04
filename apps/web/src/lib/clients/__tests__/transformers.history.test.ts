@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { getHistoryResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
 
 describe("getHistoryResponseTransformer", () => {
-  it("converts history item updatedAt strings to Date objects", async () => {
+  it("converts meta.timestamp to a Date and leaves history item updatedAt unchanged", async () => {
     const data = {
       data: [
         {
@@ -42,12 +42,8 @@ describe("getHistoryResponseTransformer", () => {
 
     const result = await getHistoryResponseTransformer(structuredClone(data));
 
-    expect(result.data[0]?.updatedAt).toEqual(
-      new Date("2026-02-19T10:00:00.000Z"),
-    );
-    expect(result.data[1]?.updatedAt).toEqual(
-      new Date("2026-02-19T11:00:00.000Z"),
-    );
+    expect(result.data[0]?.updatedAt).toBe("2026-02-19T10:00:00.000Z");
+    expect(result.data[1]?.updatedAt).toBe("2026-02-19T11:00:00.000Z");
     expect(result.meta.timestamp).toEqual(new Date("2026-02-19T12:00:00.000Z"));
   });
 });
