@@ -64,7 +64,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
-    } as HistoryItem;
+    } as unknown as HistoryItem;
 
     render(
       <HistoryListItem
