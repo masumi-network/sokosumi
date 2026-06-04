@@ -168,6 +168,11 @@ export function buildHistoryStatusFilter(
         status: { in: taskStatuses },
         archivedAt: null,
       });
+    } else if (includesActive && includesArchived) {
+      taskBranches.push({
+        kind: HistoryKind.TASK,
+        archivedAt: null,
+      });
     }
 
     if (includesArchived) {
