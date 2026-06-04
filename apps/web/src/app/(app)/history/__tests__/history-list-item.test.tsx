@@ -103,7 +103,7 @@ describe("HistoryListItem", () => {
     expect(screen.queryAllByText("—").length).toBeGreaterThan(0);
     expect(screen.getByRole("link")).toHaveAttribute(
       "href",
-      "/chat/hannah/conversation/conversation-1",
+      "/chat/hannah/conversation/conversation-1?open=1",
     );
   });
 
@@ -133,6 +133,23 @@ describe("HistoryListItem", () => {
 
     expect(getHistoryItemHref(task)).toBe("/tasks/task-1");
     expect(getHistoryItemHref(job)).toBe("/agents/agent-1/jobs/job-1");
+  });
+
+  it("adds open=1 to conversation links for mobile chat pane", () => {
+    const conversation: HistoryItem = {
+      kind: "conversation",
+      id: "conversation-1",
+      title: "Planning chat",
+      description: null,
+      status: "active",
+      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      credits: null,
+      bucketSlug: "hannah",
+    };
+
+    expect(getHistoryItemHref(conversation)).toBe(
+      "/chat/hannah/conversation/conversation-1?open=1",
+    );
   });
 
   it("uses the agent name as the job fallback subtitle", () => {

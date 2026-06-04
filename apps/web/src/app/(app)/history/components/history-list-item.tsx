@@ -98,7 +98,7 @@ export function getHistoryItemHref(item: HistoryItem): string {
       return `/agents/${encodeURIComponent(item.agentId)}/jobs/${encodeURIComponent(item.id)}`;
     case "conversation":
       return item.bucketSlug
-        ? `/chat/${encodeURIComponent(item.bucketSlug)}/conversation/${encodeURIComponent(item.id)}`
+        ? `/chat/${encodeURIComponent(item.bucketSlug)}/conversation/${encodeURIComponent(item.id)}?open=1`
         : "/chat";
   }
 }
