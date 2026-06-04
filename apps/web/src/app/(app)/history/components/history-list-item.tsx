@@ -72,7 +72,7 @@ export function HistoryListItem({
         </p>
       </div>
 
-      <div className="text-muted-foreground/70 col-span-2 flex flex-wrap items-center gap-3 text-xs sm:contents">
+      <div className="text-muted-foreground/70 col-span-2 flex flex-wrap items-center gap-3 text-xs sm:contents justify-between sm:justify-start">
         <div className="flex items-center sm:col-start-3 sm:row-start-1">
           <HistoryStatus item={item} labels={labels} />
         </div>
@@ -118,7 +118,7 @@ function HistoryTypeColumn({
       : undefined;
 
   return (
-    <div className="flex w-30 shrink-0 items-center gap-1.5">
+    <div className="flex w-9 shrink-0 items-center gap-1.5 sm:w-30">
       <span
         className="text-muted-foreground flex size-9 items-center justify-center rounded-full"
         aria-hidden
@@ -139,7 +139,7 @@ function HistoryTypeColumn({
           />
         )}
       </span>
-      <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[10px] font-medium tracking-wider uppercase">
+      <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[10px] font-medium tracking-wider uppercase hidden sm:block">
         {labels.kind[item.kind]}
       </span>
     </div>
