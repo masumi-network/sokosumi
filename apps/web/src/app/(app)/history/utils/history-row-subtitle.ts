@@ -1,8 +1,13 @@
 import type { HistoryItem } from "@/lib/services/history.service";
 
+export type HistoryBucketIconPreview =
+  | { kind: "model"; modelId: string; modelName: string }
+  | { kind: "coworker"; name: string; imageUrl: string | null };
+
 export interface HistorySubtitleLookups {
-  agentNameById: Record<string, string>;
+  agentPreviewById: Record<string, { name: string; icon: string | null }>;
   bucketDisplayNameBySlug: Record<string, string>;
+  bucketIconBySlug: Record<string, HistoryBucketIconPreview>;
 }
 
 export interface HistorySubtitleLabels {
@@ -11,8 +16,9 @@ export interface HistorySubtitleLabels {
 
 export function createEmptyHistorySubtitleLookups(): HistorySubtitleLookups {
   return {
-    agentNameById: {},
+    agentPreviewById: {},
     bucketDisplayNameBySlug: {},
+    bucketIconBySlug: {},
   };
 }
 
@@ -21,13 +27,17 @@ export function mergeHistorySubtitleLookups(
   next: HistorySubtitleLookups,
 ): HistorySubtitleLookups {
   return {
-    agentNameById: {
-      ...current.agentNameById,
-      ...next.agentNameById,
+    agentPreviewById: {
+      ...current.agentPreviewById,
+      ...next.agentPreviewById,
     },
     bucketDisplayNameBySlug: {
       ...current.bucketDisplayNameBySlug,
       ...next.bucketDisplayNameBySlug,
+    },
+    bucketIconBySlug: {
+      ...current.bucketIconBySlug,
+      ...next.bucketIconBySlug,
     },
   };
 }
@@ -52,7 +62,7 @@ function getHistoryRowSubtitleFallback(
 ): string | null {
   switch (item.kind) {
     case "job":
-      return lookups.agentNameById[item.agentId]?.trim() || null;
+      return lookups.agentPreviewById[item.agentId]?.name.trim() || null;
     case "conversation":
       return item.bucketSlug
         ? lookups.bucketDisplayNameBySlug[item.bucketSlug]?.trim() || null

@@ -1,14 +1,23 @@
 import "server-only";
 
+import { CHAT_MODELS } from "@sokosumi/chat";
+
 import { slugify } from "@/app/chat/utils/bucket-slug";
 import {
   createEmptyHistorySubtitleLookups,
+  type HistoryBucketIconPreview,
   type HistorySubtitleLookups,
 } from "@/app/history/utils/history-row-subtitle";
+import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import prisma from "@/lib/db/prisma";
-import { getAgentName } from "@/lib/helpers/agent";
+import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { coworkerService } from "@/lib/services/coworker.service";
 import type { HistoryItem } from "@/lib/services/history.service";
+
+interface BucketLookup {
+  bucketDisplayNameBySlug: Record<string, string>;
+  bucketIconBySlug: Record<string, HistoryBucketIconPreview>;
+}
 
 export async function buildHistorySubtitleLookups(
   history: HistoryItem[],
@@ -20,14 +29,14 @@ export async function buildHistorySubtitleLookups(
     return createEmptyHistorySubtitleLookups();
   }
 
-  const [agentNameById, bucketDisplayNameBySlug] = await Promise.all([
-    buildAgentNameLookup(agentIds),
-    buildBucketDisplayNameLookup(bucketSlugs),
+  const [agentPreviewById, bucketLookup] = await Promise.all([
+    buildAgentPreviewLookup(agentIds),
+    buildBucketLookup(bucketSlugs),
   ]);
 
   return {
-    agentNameById,
-    bucketDisplayNameBySlug,
+    agentPreviewById,
+    ...bucketLookup,
   };
 }
 
@@ -51,9 +60,9 @@ function getUniqueBucketSlugs(history: HistoryItem[]): string[] {
   ];
 }
 
-async function buildAgentNameLookup(
+async function buildAgentPreviewLookup(
   agentIds: string[],
-): Promise<Record<string, string>> {
+): Promise<HistorySubtitleLookups["agentPreviewById"]> {
   if (agentIds.length === 0) return {};
 
   const agents = await prisma.agent
@@ -67,37 +76,92 @@ async function buildAgentNameLookup(
         id: true,
         name: true,
         overrideName: true,
+        icon: true,
       },
     })
     .catch(() => []);
 
   return Object.fromEntries(
-    agents.map((agent) => [
-      agent.id,
-      getAgentName(agent as Parameters<typeof getAgentName>[0]),
-    ]),
+    agents.map((agent) => {
+      const name = getAgentName(agent as Parameters<typeof getAgentName>[0]);
+      return [
+        agent.id,
+        {
+          name,
+          icon: getAgentResolvedIcon(
+            agent as Parameters<typeof getAgentResolvedIcon>[0],
+          ),
+        },
+      ];
+    }),
   );
 }
 
-async function buildBucketDisplayNameLookup(
-  bucketSlugs: string[],
-): Promise<Record<string, string>> {
-  if (bucketSlugs.length === 0) return {};
-
-  const coworkers = await coworkerService.listCoworkers().catch(() => []);
-  const coworkerNameBySlug = new Map<string, string>();
-
-  for (const coworker of coworkers) {
-    coworkerNameBySlug.set(slugify(coworker.slug), coworker.name);
-    coworkerNameBySlug.set(slugify(coworker.name), coworker.name);
+async function buildBucketLookup(bucketSlugs: string[]): Promise<BucketLookup> {
+  if (bucketSlugs.length === 0) {
+    return {
+      bucketDisplayNameBySlug: {},
+      bucketIconBySlug: {},
+    };
   }
 
-  return Object.fromEntries(
-    bucketSlugs.map((bucketSlug) => [
-      bucketSlug,
-      coworkerNameBySlug.get(slugify(bucketSlug)) ?? humanizeSlug(bucketSlug),
+  const coworkers = await coworkerService.listCoworkers().catch(() => []);
+  const coworkerBySlug = new Map<
+    string,
+    { name: string; imageUrl: string | null }
+  >();
+
+  for (const coworker of coworkers) {
+    const preview = {
+      name: coworker.name,
+      imageUrl: getCoworkerImage(coworker),
+    };
+    coworkerBySlug.set(slugify(coworker.slug), preview);
+    coworkerBySlug.set(slugify(coworker.name), preview);
+  }
+
+  const modelBySlug = new Map(
+    CHAT_MODELS.flatMap((model) => [
+      [slugify(model.name), model],
+      [slugify(model.id), model],
     ]),
   );
+
+  const bucketDisplayNameBySlug: Record<string, string> = {};
+  const bucketIconBySlug: Record<string, HistoryBucketIconPreview> = {};
+
+  for (const bucketSlug of bucketSlugs) {
+    const normalizedSlug = slugify(bucketSlug);
+    const coworker = coworkerBySlug.get(normalizedSlug);
+
+    if (coworker) {
+      bucketDisplayNameBySlug[bucketSlug] = coworker.name;
+      bucketIconBySlug[bucketSlug] = {
+        kind: "coworker",
+        name: coworker.name,
+        imageUrl: coworker.imageUrl,
+      };
+      continue;
+    }
+
+    const model = modelBySlug.get(normalizedSlug);
+    if (model) {
+      bucketDisplayNameBySlug[bucketSlug] = model.name;
+      bucketIconBySlug[bucketSlug] = {
+        kind: "model",
+        modelId: model.id,
+        modelName: model.name,
+      };
+      continue;
+    }
+
+    bucketDisplayNameBySlug[bucketSlug] = humanizeSlug(bucketSlug);
+  }
+
+  return {
+    bucketDisplayNameBySlug,
+    bucketIconBySlug,
+  };
 }
 
 function humanizeSlug(slug: string): string {
