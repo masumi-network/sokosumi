@@ -1,3 +1,4 @@
+import { TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -41,6 +42,20 @@ const labels: HistoryListItemLabels = {
     active: "Active",
     archived: "Archived",
   },
+  taskStatus: {
+    [TaskStatus.DRAFT]: "Entwurf",
+    [TaskStatus.READY]: "Bereit",
+    [TaskStatus.INPUT_REQUIRED]: "Eingabe erforderlich",
+    [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentifizierung erforderlich",
+    [TaskStatus.OUT_OF_CREDITS]: "Keine Credits mehr",
+    [TaskStatus.CREDITS_TOPPED_UP]: "Credits aufgeladen",
+    [TaskStatus.RUNNING]: "Läuft",
+    [TaskStatus.AWAITING_EXTERNAL]: "Wartet auf Externes",
+    [TaskStatus.COMPLETED]: "Abgeschlossen",
+    [TaskStatus.FAILED]: "Fehlgeschlagen",
+    [TaskStatus.CANCEL_REQUESTED]: "Abbruch angefordert",
+    [TaskStatus.CANCELED]: "Abgebrochen",
+  },
 };
 
 const subtitleLookups: HistorySubtitleLookups = {
@@ -53,6 +68,31 @@ const subtitleLookups: HistorySubtitleLookups = {
 };
 
 describe("HistoryListItem", () => {
+  it("renders localized task status labels instead of TaskStatusBadge defaults", () => {
+    const item: HistoryItem = {
+      kind: "task",
+      id: "task-1",
+      title: "Review onboarding",
+      description: null,
+      status: TaskStatus.READY,
+      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      credits: 1,
+      projectId: null,
+      coworkerId: null,
+    };
+
+    render(
+      <HistoryListItem
+        item={item}
+        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByText("Bereit")).toBeInTheDocument();
+    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
+  });
+
   it("renders when updatedAt is an ISO string from the server boundary", () => {
     const item = {
       kind: "task",
@@ -149,6 +189,23 @@ describe("HistoryListItem", () => {
 
     expect(getHistoryItemHref(conversation)).toBe(
       "/chat/hannah/conversation/conversation-1?open=1",
+    );
+  });
+
+  it("uses the fallback bucket segment when bucketSlug is null", () => {
+    const conversation: HistoryItem = {
+      kind: "conversation",
+      id: "conversation-1",
+      title: "Untitled chat",
+      description: null,
+      status: "active",
+      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      credits: null,
+      bucketSlug: null,
+    };
+
+    expect(getHistoryItemHref(conversation)).toBe(
+      "/chat/_/conversation/conversation-1?open=1",
     );
   });
 

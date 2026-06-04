@@ -4,6 +4,10 @@ import { SokosumiJobStatus, TaskStatus } from "@sokosumi/database";
 import { ListTodo } from "lucide-react";
 import Link from "next/link";
 import {
+  CHAT_APP_ROUTE_PREFIX,
+  FALLBACK_BUCKET_SEGMENT,
+} from "@/app/chat-ui/utils/chat-route-base";
+import {
   getHistoryRowSubtitle,
   type HistorySubtitleLookups,
 } from "@/app/history/utils/history-row-subtitle";
@@ -31,6 +35,7 @@ export interface HistoryListItemLabels {
     active: string;
     archived: string;
   };
+  taskStatus: Record<TaskStatus, string>;
 }
 
 interface HistoryListItemProps {
@@ -96,10 +101,10 @@ export function getHistoryItemHref(item: HistoryItem): string {
       return `/tasks/${encodeURIComponent(item.id)}`;
     case "job":
       return `/agents/${encodeURIComponent(item.agentId)}/jobs/${encodeURIComponent(item.id)}`;
-    case "conversation":
-      return item.bucketSlug
-        ? `/chat/${encodeURIComponent(item.bucketSlug)}/conversation/${encodeURIComponent(item.id)}?open=1`
-        : "/chat";
+    case "conversation": {
+      const bucketSegment = item.bucketSlug ?? FALLBACK_BUCKET_SEGMENT;
+      return `${CHAT_APP_ROUTE_PREFIX}/${encodeURIComponent(bucketSegment)}/conversation/${encodeURIComponent(item.id)}?open=1`;
+    }
   }
 }
 
@@ -182,7 +187,10 @@ function HistoryStatus({
   labels: HistoryListItemLabels;
 }) {
   if (item.kind === "task") {
-    return <TaskStatusBadge status={item.status as TaskStatus} />;
+    const status = item.status as TaskStatus;
+    return (
+      <TaskStatusBadge status={status} label={labels.taskStatus[status]} />
+    );
   }
 
   if (item.kind === "job") {

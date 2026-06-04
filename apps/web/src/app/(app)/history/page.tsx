@@ -71,6 +71,26 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       jobStatusT(getJobStatusBadgeLabelKey(status)),
     ]),
   ) as Record<(typeof HISTORY_JOB_ONLY_STATUS_VALUES)[number], string>;
+  const taskStatusOptions: Record<TaskStatus, string> = {
+    [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
+    [TaskStatus.READY]: t("Filters.statusOptions.READY"),
+    [TaskStatus.INPUT_REQUIRED]: t("Filters.statusOptions.INPUT_REQUIRED"),
+    [TaskStatus.AUTHENTICATION_REQUIRED]: t(
+      "Filters.statusOptions.AUTHENTICATION_REQUIRED",
+    ),
+    [TaskStatus.OUT_OF_CREDITS]: t("Filters.statusOptions.OUT_OF_CREDITS"),
+    [TaskStatus.CREDITS_TOPPED_UP]: t(
+      "Filters.statusOptions.CREDITS_TOPPED_UP",
+    ),
+    [TaskStatus.RUNNING]: t("Filters.statusOptions.RUNNING"),
+    [TaskStatus.AWAITING_EXTERNAL]: t(
+      "Filters.statusOptions.AWAITING_EXTERNAL",
+    ),
+    [TaskStatus.COMPLETED]: t("Filters.statusOptions.COMPLETED"),
+    [TaskStatus.FAILED]: t("Filters.statusOptions.FAILED"),
+    [TaskStatus.CANCEL_REQUESTED]: t("Filters.statusOptions.CANCEL_REQUESTED"),
+    [TaskStatus.CANCELED]: t("Filters.statusOptions.CANCELED"),
+  };
 
   return (
     <div className="w-full px-2">
@@ -102,30 +122,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
               statusOptions: {
                 active: t("Filters.statusOptions.active"),
                 archived: t("Filters.statusOptions.archived"),
-                [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
-                [TaskStatus.READY]: t("Filters.statusOptions.READY"),
-                [TaskStatus.INPUT_REQUIRED]: t(
-                  "Filters.statusOptions.INPUT_REQUIRED",
-                ),
-                [TaskStatus.AUTHENTICATION_REQUIRED]: t(
-                  "Filters.statusOptions.AUTHENTICATION_REQUIRED",
-                ),
-                [TaskStatus.OUT_OF_CREDITS]: t(
-                  "Filters.statusOptions.OUT_OF_CREDITS",
-                ),
-                [TaskStatus.CREDITS_TOPPED_UP]: t(
-                  "Filters.statusOptions.CREDITS_TOPPED_UP",
-                ),
-                [TaskStatus.RUNNING]: t("Filters.statusOptions.RUNNING"),
-                [TaskStatus.AWAITING_EXTERNAL]: t(
-                  "Filters.statusOptions.AWAITING_EXTERNAL",
-                ),
-                [TaskStatus.COMPLETED]: t("Filters.statusOptions.COMPLETED"),
-                [TaskStatus.FAILED]: t("Filters.statusOptions.FAILED"),
-                [TaskStatus.CANCEL_REQUESTED]: t(
-                  "Filters.statusOptions.CANCEL_REQUESTED",
-                ),
-                [TaskStatus.CANCELED]: t("Filters.statusOptions.CANCELED"),
+                ...taskStatusOptions,
                 ...jobStatusOptions,
               },
             },
@@ -162,6 +159,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                 active: t("Row.conversationStatus.active"),
                 archived: t("Row.conversationStatus.archived"),
               },
+              taskStatus: taskStatusOptions,
             },
           }}
         />
