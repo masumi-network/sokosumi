@@ -115,6 +115,7 @@ describe("HistoryListItem", () => {
       description: null,
       status: TaskStatus.READY,
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: 1,
       projectId: null,
       coworkerId: null,
@@ -140,6 +141,7 @@ describe("HistoryListItem", () => {
       description: null,
       status: "READY",
       updatedAt: "2026-02-19T10:00:00.000Z",
+      archivedAt: null,
       credits: 1,
       projectId: null,
       coworkerId: null,
@@ -167,6 +169,7 @@ describe("HistoryListItem", () => {
       description: null,
       status: "active",
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: null,
       bucketSlug: "hannah",
     };
@@ -186,6 +189,82 @@ describe("HistoryListItem", () => {
     );
   });
 
+  it("links non-archived task rows", () => {
+    const item: HistoryItem = {
+      kind: "task",
+      id: "task-1",
+      title: "Review onboarding",
+      description: null,
+      status: TaskStatus.READY,
+      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
+      credits: 1,
+      projectId: null,
+      coworkerId: null,
+    };
+
+    render(
+      <HistoryListItem
+        item={item}
+        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/tasks/task-1");
+  });
+
+  it("renders archived task rows without a link", () => {
+    const item: HistoryItem = {
+      kind: "task",
+      id: "task-1",
+      title: "Archived task",
+      description: null,
+      status: TaskStatus.COMPLETED,
+      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: new Date("2026-02-20T10:00:00.000Z"),
+      credits: 1,
+      projectId: null,
+      coworkerId: null,
+    };
+
+    render(
+      <HistoryListItem
+        item={item}
+        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByText("Archived task")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("renders archived conversation rows without a link", () => {
+    const item: HistoryItem = {
+      kind: "conversation",
+      id: "conversation-1",
+      title: "Archived chat",
+      description: null,
+      status: "archived",
+      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: new Date("2026-02-20T10:00:00.000Z"),
+      credits: null,
+      bucketSlug: "hannah",
+    };
+
+    render(
+      <HistoryListItem
+        item={item}
+        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByText("Archived chat")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
   it("builds task and job deep links", () => {
     const task: HistoryItem = {
       kind: "task",
@@ -194,6 +273,7 @@ describe("HistoryListItem", () => {
       description: "Audit copy",
       status: "READY",
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: 1,
       projectId: null,
       coworkerId: null,
@@ -205,6 +285,7 @@ describe("HistoryListItem", () => {
       description: null,
       status: "completed",
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: 2,
       projectId: null,
       agentId: "agent-1",
@@ -222,6 +303,7 @@ describe("HistoryListItem", () => {
       description: null,
       status: "active",
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: null,
       bucketSlug: "hannah",
     };
@@ -239,6 +321,7 @@ describe("HistoryListItem", () => {
       description: null,
       status: "active",
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: null,
       bucketSlug: null,
     };
@@ -256,6 +339,7 @@ describe("HistoryListItem", () => {
       description: null,
       status: "completed",
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: 2,
       projectId: null,
       agentId: "agent-1",
@@ -288,6 +372,7 @@ describe("HistoryListItem", () => {
       description: null,
       status: "active",
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: null,
       bucketSlug: "hannah",
     };
@@ -312,6 +397,7 @@ describe("HistoryListItem", () => {
       description: null,
       status: "active",
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: null,
       bucketSlug: "gpt-5-4",
     };
@@ -340,6 +426,7 @@ describe("HistoryListItem", () => {
       description: null,
       status: "completed",
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: 2,
       projectId: null,
       agentId: "agent-1",
@@ -358,6 +445,7 @@ describe("HistoryListItem", () => {
       description: "  Audit copy  ",
       status: "READY",
       updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
       credits: 1,
       projectId: null,
       coworkerId: null,
