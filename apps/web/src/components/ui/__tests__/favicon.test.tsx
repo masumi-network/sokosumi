@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { Favicon } from "@/components/ui/favicon";
+import { stubPendingImageLoad } from "@/test/stub-pending-image-load";
 
 describe("Favicon", () => {
+  stubPendingImageLoad();
   it("advances through candidates and renders fallback when exhausted", () => {
     render(
       <Favicon
