@@ -611,7 +611,7 @@ describe("core.client", () => {
     );
   });
 
-  it("normalizes history updatedAt strings through the server transport", async () => {
+  it("normalizes history updatedAt and archivedAt strings through the server transport", async () => {
     getHistoryMock.mockImplementation(
       async (options: {
         responseTransformer?: (data: unknown) => Promise<unknown>;
@@ -625,6 +625,7 @@ describe("core.client", () => {
               description: null,
               status: "READY",
               updatedAt: "2026-02-19T10:00:00.000Z",
+              archivedAt: "2026-02-20T10:00:00.000Z",
               credits: 2,
               projectId: null,
               coworkerId: null,
@@ -662,6 +663,9 @@ describe("core.client", () => {
     });
     expect(response.data[0]?.updatedAt).toEqual(
       new Date("2026-02-19T10:00:00.000Z"),
+    );
+    expect(response.data[0]?.archivedAt).toEqual(
+      new Date("2026-02-20T10:00:00.000Z"),
     );
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-02-19T12:00:00.000Z"),

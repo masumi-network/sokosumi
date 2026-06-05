@@ -18,6 +18,7 @@ function buildHistoryItem() {
     description: null,
     status: "READY" as const,
     updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+    archivedAt: null,
     credits: 2,
     projectId: null,
     coworkerId: null,
@@ -89,6 +90,24 @@ describe("history.service", () => {
 
     expect(result.history[0]?.updatedAt).toEqual(
       new Date("2026-02-19T10:00:00.000Z"),
+    );
+  });
+
+  it("converts ISO string archivedAt values from core into Date objects", async () => {
+    coreClientMock.getHistory.mockResolvedValue({
+      data: [
+        {
+          ...buildHistoryItem(),
+          archivedAt: "2026-02-20T10:00:00.000Z",
+        },
+      ],
+    });
+
+    const { historyService } = await import("../history.service");
+    const result = await historyService.listHistory();
+
+    expect(result.history[0]?.archivedAt).toEqual(
+      new Date("2026-02-20T10:00:00.000Z"),
     );
   });
 
