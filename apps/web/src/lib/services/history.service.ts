@@ -28,6 +28,7 @@ function mapHistoryItem(item: HistoryItem): HistoryItem {
   return {
     ...item,
     updatedAt: toHistoryDate(item.updatedAt),
+    archivedAt: item.archivedAt ? toHistoryDate(item.archivedAt) : null,
   };
 }
 

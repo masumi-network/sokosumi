@@ -176,6 +176,7 @@ function transformHistoryResponseEnvelope(data: any) {
   data.data = data.data.map((item: any) => ({
     ...item,
     updatedAt: toDate(item.updatedAt),
+    archivedAt: item.archivedAt ? toDate(item.archivedAt) : null,
   }));
   if (data.meta?.timestamp) {
     data.meta.timestamp = toDate(data.meta.timestamp);

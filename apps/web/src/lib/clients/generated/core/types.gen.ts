@@ -972,6 +972,10 @@ export type HistoryTaskItem = {
      */
     updatedAt: Date;
     /**
+     * Source entity archivedAt timestamp. Null means the row is navigable.
+     */
+    archivedAt: Date | null;
+    /**
      * User-facing credits. Null means credits do not apply to this item.
      */
     credits: number | null;
@@ -1005,6 +1009,10 @@ export type HistoryJobItem = {
      */
     updatedAt: Date;
     /**
+     * Source entity archivedAt timestamp. Null means the row is navigable.
+     */
+    archivedAt: Date | null;
+    /**
      * User-facing credits. Null means credits do not apply to this item.
      */
     credits: number | null;
@@ -1037,6 +1045,10 @@ export type HistoryConversationItem = {
      * Source entity updatedAt timestamp used for feed ordering
      */
     updatedAt: Date;
+    /**
+     * Source entity archivedAt timestamp. Null means the row is navigable.
+     */
+    archivedAt: Date | null;
     /**
      * Conversations do not currently have credits
      */

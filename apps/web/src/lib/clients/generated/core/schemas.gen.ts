@@ -3286,6 +3286,15 @@ export const HistoryTaskItemSchema = {
             example: '2021-01-01T00:00:00.000Z',
             description: 'Source entity updatedAt timestamp used for feed ordering'
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+        },
         credits: {
             type: [
                 'number',
@@ -3341,6 +3350,7 @@ export const HistoryTaskItemSchema = {
         'title',
         'description',
         'updatedAt',
+        'archivedAt',
         'credits',
         'kind',
         'status',
@@ -3375,6 +3385,15 @@ export const HistoryJobItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
             description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
         },
         credits: {
             type: [
@@ -3428,6 +3447,7 @@ export const HistoryJobItemSchema = {
         'title',
         'description',
         'updatedAt',
+        'archivedAt',
         'credits',
         'kind',
         'status',
@@ -3463,6 +3483,15 @@ export const HistoryConversationItemSchema = {
             example: '2021-01-01T00:00:00.000Z',
             description: 'Source entity updatedAt timestamp used for feed ordering'
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+        },
         credits: {
             type: 'null',
             description: 'Conversations do not currently have credits',
@@ -3496,6 +3525,7 @@ export const HistoryConversationItemSchema = {
         'title',
         'description',
         'updatedAt',
+        'archivedAt',
         'credits',
         'kind',
         'status',

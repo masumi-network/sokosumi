@@ -16,6 +16,7 @@ import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 export interface HistoryRowForApi {
   id: string;
   agentId: string | null;
+  archivedAt: Date | null;
   bucketSlug: string | null;
   coworkerId: string | null;
   amount: bigint | null;
@@ -373,6 +374,7 @@ export function mapHistoryRow(
     description: row.description,
     status,
     updatedAt: row.sortAt.toISOString(),
+    archivedAt: row.archivedAt?.toISOString() ?? null,
   };
 
   switch (row.kind) {

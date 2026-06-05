@@ -20,6 +20,10 @@ const historyBaseItemSchema = z.object({
   updatedAt: dateTimeSchema.openapi({
     description: "Source entity updatedAt timestamp used for feed ordering",
   }),
+  archivedAt: dateTimeSchema.nullable().openapi({
+    description:
+      "Source entity archivedAt timestamp. Null means the row is navigable.",
+  }),
   credits: z.number().nullable().openapi({
     description:
       "User-facing credits. Null means credits do not apply to this item.",
@@ -95,6 +99,7 @@ export const historyListResponseExample = {
       description: "Audit copy and empty states",
       status: TaskStatus.RUNNING,
       updatedAt: "2025-01-21T12:00:00.000Z",
+      archivedAt: null,
       credits: 2.5,
       projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       coworkerId: "cow_123",
@@ -106,6 +111,7 @@ export const historyListResponseExample = {
       description: "Generated market summary",
       status: SokosumiJobStatus.COMPLETED,
       updatedAt: "2025-01-21T11:30:00.000Z",
+      archivedAt: null,
       credits: 5,
       projectId: null,
       agentId: "agent_123",
@@ -117,6 +123,7 @@ export const historyListResponseExample = {
       description: null,
       status: "active",
       updatedAt: "2025-01-21T11:00:00.000Z",
+      archivedAt: null,
       credits: null,
       bucketSlug: "hannah",
     },

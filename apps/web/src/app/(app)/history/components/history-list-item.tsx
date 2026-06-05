@@ -53,16 +53,52 @@ export function HistoryListItem({
   const { formatTimeAgo } = useLocalizedDateTime();
   const description = getHistoryRowSubtitle(item, subtitleLookups, labels);
   const credits = formatHistoryCredits(item.credits, labels);
+  const rowClassName = cn(
+    "group -mx-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-lg px-4 py-3 transition-colors",
+    "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
+    isArchivedHistoryItem(item)
+      ? "cursor-default"
+      : "hover:bg-muted/50 active:scale-[0.995]",
+  );
+  const content = (
+    <HistoryListItemContent
+      credits={credits}
+      description={description}
+      formatTimeAgo={formatTimeAgo}
+      item={item}
+      labels={labels}
+      subtitleLookups={subtitleLookups}
+    />
+  );
+
+  if (isArchivedHistoryItem(item)) {
+    return <div className={rowClassName}>{content}</div>;
+  }
 
   return (
-    <Link
-      href={getHistoryItemHref(item)}
-      className={cn(
-        "group -mx-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-lg px-4 py-3 transition-colors",
-        "hover:bg-muted/50 active:scale-[0.995]",
-        "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
-      )}
-    >
+    <Link href={getHistoryItemHref(item)} className={rowClassName}>
+      {content}
+    </Link>
+  );
+}
+
+function HistoryListItemContent({
+  credits,
+  description,
+  formatTimeAgo,
+  item,
+  labels,
+  subtitleLookups,
+}: {
+  credits: string;
+  description: string;
+  formatTimeAgo: (date: string | Date) => string;
+  item: HistoryItem;
+  labels: HistoryListItemLabels;
+  subtitleLookups: HistorySubtitleLookups;
+}) {
+  return (
+    <>
       <HistoryTypeColumn
         item={item}
         labels={labels}
@@ -92,8 +128,12 @@ export function HistoryListItem({
           {credits}
         </span>
       </div>
-    </Link>
+    </>
   );
+}
+
+export function isArchivedHistoryItem(item: HistoryItem): boolean {
+  return item.archivedAt != null;
 }
 
 export function getHistoryItemHref(item: HistoryItem): string {

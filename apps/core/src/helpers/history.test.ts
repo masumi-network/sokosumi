@@ -40,6 +40,7 @@ function createHistoryRow(
   return {
     agentId: "agent_123",
     amount: 25_000_000_000n,
+    archivedAt: null,
     bucketSlug: null,
     coworkerId: null,
     description: null,
@@ -102,6 +103,41 @@ describe("mapHistoryRow", () => {
     expect(item).toMatchObject({
       kind: "task",
       status: TaskStatus.READY,
+    });
+  });
+
+  it("maps archivedAt for archived task rows", () => {
+    const archivedAt = new Date("2026-04-03T10:00:00.000Z");
+    const row = createHistoryRow({
+      archivedAt,
+      entityId: "task_123",
+      kind: HistoryKind.TASK,
+      status: TaskStatus.COMPLETED,
+    });
+
+    const item = mapHistoryRow(row);
+
+    expect(item).toMatchObject({
+      kind: "task",
+      archivedAt: archivedAt.toISOString(),
+    });
+  });
+
+  it("maps archivedAt for archived conversation rows", () => {
+    const archivedAt = new Date("2026-04-03T11:00:00.000Z");
+    const row = createHistoryRow({
+      archivedAt,
+      bucketSlug: "hannah",
+      entityId: "11111111-1111-4111-8111-111111111111",
+      kind: HistoryKind.CONVERSATION,
+      status: "archived",
+    });
+
+    const item = mapHistoryRow(row);
+
+    expect(item).toMatchObject({
+      kind: "conversation",
+      archivedAt: archivedAt.toISOString(),
     });
   });
 });

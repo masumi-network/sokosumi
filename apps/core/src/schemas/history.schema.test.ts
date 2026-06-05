@@ -16,6 +16,7 @@ const taskItem = {
   description: "Audit copy and empty states",
   status: TaskStatus.RUNNING,
   updatedAt: "2025-01-21T12:00:00.000Z",
+  archivedAt: null,
   credits: 2.5,
   projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   coworkerId: "cow_123",
@@ -28,6 +29,7 @@ const jobItem = {
   description: "Generated market summary",
   status: SokosumiJobStatus.COMPLETED,
   updatedAt: "2025-01-21T11:30:00.000Z",
+  archivedAt: null,
   credits: 5,
   projectId: null,
   agentId: "agent_123",
@@ -40,6 +42,7 @@ const conversationItem = {
   description: null,
   status: "active",
   updatedAt: "2025-01-21T11:00:00.000Z",
+  archivedAt: null,
   credits: null,
   bucketSlug: "hannah",
 };
