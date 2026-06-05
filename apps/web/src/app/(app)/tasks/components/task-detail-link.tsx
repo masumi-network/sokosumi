@@ -16,6 +16,7 @@ interface TaskDetailLinkProps
 
 export function TaskDetailLink({
   href,
+  onClick,
   onPointerEnter,
   onFocus,
   onTouchStart,
@@ -33,7 +34,7 @@ export function TaskDetailLink({
       href={href}
       prefetch={false}
       onClick={(event) => {
-        props.onClick?.(event);
+        onClick?.(event);
         if (event.defaultPrevented || typeof window === "undefined") {
           return;
         }
