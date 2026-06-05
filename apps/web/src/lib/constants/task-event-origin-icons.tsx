@@ -1,9 +1,9 @@
 import { TaskEventOrigin } from "@sokosumi/database";
 import {
   CircleHelp,
-  type LucideProps,
   Mail,
   MessageSquare,
+  type SVGAttributes,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { PiMicrosoftTeamsLogo } from "react-icons/pi";
@@ -36,8 +36,9 @@ function MasumiMessengerOriginIcon(
 }
 
 export interface TaskEventOriginIconProps
-  extends Omit<LucideProps, "ref" | "size"> {
+  extends Omit<SVGAttributes, "ref" | "size" | "width" | "height"> {
   size?: number;
+  absoluteStrokeWidth?: boolean;
 }
 
 export type TaskEventOriginIconComponent =
