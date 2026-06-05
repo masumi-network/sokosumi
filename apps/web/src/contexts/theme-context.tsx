@@ -2,10 +2,18 @@ import {
   ThemeProvider as NextThemesProvider,
   type ThemeProviderProps,
 } from "next-themes";
+import type { ComponentType, ReactNode } from "react";
 
-export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+interface AppThemeProviderProps extends ThemeProviderProps {
+  children: ReactNode;
+}
+
+const ThemeProviderComponent =
+  NextThemesProvider as ComponentType<AppThemeProviderProps>;
+
+export function ThemeProvider({ children, ...props }: AppThemeProviderProps) {
   return (
-    <NextThemesProvider
+    <ThemeProviderComponent
       attribute="class"
       defaultTheme="system"
       enableSystem
@@ -13,6 +21,6 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
       {...props}
     >
       {children}
-    </NextThemesProvider>
+    </ThemeProviderComponent>
   );
 }
