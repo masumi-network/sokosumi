@@ -186,7 +186,11 @@ export const organizationSeatService = (() => {
             });
           }
 
-          if (billingPlan.mode !== "enterprise_contract") {
+          const suppressSelfServeSeatCredits =
+            billingPlan.mode === "enterprise_contract" &&
+            billingPlan.isConsumable;
+
+          if (!suppressSelfServeSeatCredits) {
             await grantUnusedSeatSubscriptionCreditsIfEligible(
               organizationId,
               member.userId,
@@ -242,7 +246,10 @@ export const organizationSeatService = (() => {
             tx,
           );
 
-          if (billingPlan.mode === "enterprise_contract") {
+          if (
+            billingPlan.mode === "enterprise_contract" &&
+            billingPlan.isConsumable
+          ) {
             return {
               memberId: member.id,
             };

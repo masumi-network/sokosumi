@@ -784,7 +784,10 @@ export async function handleInvoicePaidEvent(
       organizationId,
       prisma,
     );
-    if (billingPlan.mode === "enterprise_contract") {
+    if (
+      billingPlan.mode === "enterprise_contract" &&
+      billingPlan.isConsumable
+    ) {
       shouldGrantUnassignedFreeCredits = false;
     }
   }

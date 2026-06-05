@@ -274,7 +274,7 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
     organizationId,
     prisma,
   );
-  if (billingPlan.mode === "enterprise_contract") {
+  if (billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable) {
     return resolvePurchasedSeats(billingPlan.purchasedSeats);
   }
 

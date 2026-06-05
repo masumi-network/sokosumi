@@ -739,6 +739,90 @@ describe("handleInvoicePaidEvent", () => {
     }
   });
 
+  it("skips unassigned free credits while an enterprise contract is consumable", async () => {
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    mockOrganizationInvoiceContext(
+      [
+        { role: "member", userId: "member-1" },
+        { role: "owner", userId: "owner-2" },
+      ],
+      "org-1",
+      [],
+    );
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      activatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      contractId: "contract-1",
+      endsAt: new Date("2027-01-01T00:00:00.000Z"),
+      isConsumable: true,
+      mode: "enterprise_contract",
+      periodEnd: null,
+      plan: "enterprise",
+      purchasedSeats: 5,
+    });
+    mockSubscriptionCatalog();
+    vi.setSystemTime(new Date(1_733_011_200 * 1000));
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    try {
+      await handleInvoicePaidEvent(
+        createInvoice({
+          billingReason: "subscription_cycle",
+          id: "in_org_enterprise_consumable",
+          lines: [{ productId: "prod_starter", quantity: 5 }],
+        }) as never,
+      );
+
+      expect(createTransactionMock).not.toHaveBeenCalled();
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Invoice in_org_enterprise_consumable has no grantable credits",
+        ),
+      );
+    } finally {
+      consoleLogSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("grants unassigned free credits for post-term enterprise contracts", async () => {
+    mockOrganizationInvoiceContext(
+      [
+        { role: "member", userId: "member-1" },
+        { role: "owner", userId: "owner-2" },
+      ],
+      "org-1",
+      [],
+    );
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      activatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      contractId: "contract-1",
+      endsAt: new Date("2026-02-01T00:00:00.000Z"),
+      isConsumable: false,
+      mode: "enterprise_contract",
+      periodEnd: null,
+      plan: "enterprise",
+      purchasedSeats: 5,
+    });
+    mockSubscriptionCatalog();
+    vi.setSystemTime(new Date(1_733_011_200 * 1000));
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_org_enterprise_post_term",
+        lines: [{ productId: "prod_starter", quantity: 5 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+  });
+
   it("grants only free monthly credits to unassigned members on subscription_update when no seats are assigned", async () => {
     mockOrganizationInvoiceContext(
       [

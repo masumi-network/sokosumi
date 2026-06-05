@@ -256,6 +256,36 @@ describe("organizationSeatService", () => {
     expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
   });
 
+  it("grants self-serve credits when assigning seats on post-term enterprise contracts", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      cancelAtPeriodEnd: false,
+      endsAt: new Date("2026-02-01T00:00:00.000Z"),
+      contractId: "contract-1",
+      isConsumable: false,
+      mode: "enterprise_contract",
+      periodEnd: null,
+      plan: "enterprise",
+      purchasedSeats: 3,
+      activatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    assignSeatMock.mockResolvedValue({
+      id: "member-1",
+      seatAssignedAt: new Date("2026-05-01T00:00:00.000Z"),
+      userId: "user-2",
+    });
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await organizationSeatService.assignSeat("user-1", "org-1", "member-1");
+
+    expect(
+      grantUnusedSeatSubscriptionCreditsIfEligibleMock,
+    ).toHaveBeenCalledWith("org-1", "user-2", expect.any(Object));
+  });
+
   it("reads purchased seats inside the transaction before assigning", async () => {
     const callOrder: string[] = [];
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
