@@ -4,6 +4,7 @@ import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
@@ -55,7 +56,7 @@ export default async function RootLayout({
       <head>
         {ucDataSettingsId && (
           <>
-            <script
+            <Script
               id="_before-gtm"
               dangerouslySetInnerHTML={{
                 __html: `(function(w,l){
@@ -63,13 +64,15 @@ export default async function RootLayout({
                   w[l].push('consent','default',{'ad_personalization':'denied','ad_storage':'denied','ad_user_data':'denied','analytics_storage':'denied','wait_for_update':2000});
                 })(window,'dataLayer');`,
               }}
+              strategy="beforeInteractive"
             />
-            <script
+            <Script
               id="usercentrics-cmp"
               src="https://web.cmp.usercentrics.eu/ui/loader.js"
               {...(draftUserCentrics && { "data-draft": "true" })}
               data-settings-id={ucDataSettingsId}
               async
+              strategy="afterInteractive"
             />
           </>
         )}
