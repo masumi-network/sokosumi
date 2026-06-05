@@ -1,5 +1,6 @@
 "use client";
 
+import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { ArrowLeft, ArrowRight, Bot } from "lucide-react";
 import Image from "next/image";
@@ -7,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import {
   OrganizationSeatSettingsFields,
@@ -40,7 +40,6 @@ import {
   upgradeOrganizationSubscription,
   upgradePersonalSubscription,
 } from "@/lib/actions/subscription";
-import type { PaidSubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
 const INTRO_STEP_COUNT = 5;
 const DEFAULT_SELECTED_PLAN: PaidSubscriptionPlanName = "standard";

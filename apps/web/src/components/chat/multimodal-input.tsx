@@ -218,8 +218,6 @@ function PureMultimodalInput({
     name: string;
   } | null>(propSelectedModel ?? null);
 
-  // Sync from props when the conversation or parent-driven agent changes.
-  // Compose-kind toggles are handled in handleComposeKindChange — do not reset here.
   useEffect(() => {
     if (propSelectedModel) {
       setPreferredCoworker(null);
@@ -238,7 +236,6 @@ function PureMultimodalInput({
     }
   }, [composeKind, propCoworker, propSelectedModel]);
 
-  // Seed default coworker when the coworkers list loads (uncontrolled selection only).
   useEffect(() => {
     if (propCoworker || propSelectedModel) {
       return;

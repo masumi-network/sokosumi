@@ -2516,6 +2516,23 @@
       "orgAccessRestrictedTitle": "Accesso alla fatturazione limitato",
       "orgAccessRestrictedDescription": "Solo i proprietari e gli amministratori dell’organizzazione possono visualizzare i dettagli di fatturazione per questa organizzazione.",
       "orgAccessRestrictedHint": "Passa al contesto personale o contatta un proprietario/amministratore dell’organizzazione se ti serve l’accesso.",
+      "EnterpriseContract": {
+        "title": "Contratto Enterprise",
+        "poolBalanceLabel": "Crediti organizzazione disponibili",
+        "poolBalanceCredits": "{credits, plural, =0 {Nessun credito} =1 {# credito} other {# crediti}}",
+        "monthlyGrantLabel": "Assegnazione mensile",
+        "monthlyGrantCredits": "{credits, plural, =0 {Nessun credito} =1 {# credito} other {# crediti}}",
+        "currentPeriodEndLabel": "Fine del periodo corrente",
+        "activatedAtLabel": "Contratto attivato",
+        "endsAtLabel": "Fine del contratto",
+        "nextActivationLabel": "Prossima attivazione crediti",
+        "nextActivationNone": "Nessuna attivazione in programma",
+        "notAvailable": "Non disponibile",
+        "purchasedSeatsLabel": "Seats acquistati",
+        "purchasedSeatsValue": "{seats, plural, =1 {# seat} other {# seats}}",
+        "contactDescription": "Contatta il nostro team per il tuo contratto Enterprise, i rinnovi o domande sulla fatturazione.",
+        "contactUsCta": "Contattaci"
+      },
       "Errors": {
         "unauthenticated": "Accedi per continuare",
         "unauthenticatedAction": "Accedi",

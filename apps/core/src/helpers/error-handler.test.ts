@@ -1,9 +1,10 @@
 import { z } from "@hono/zod-openapi";
+import { EnterpriseContractActivationError } from "@sokosumi/database/helpers";
 import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import { serviceUnavailable } from "./error";
+import { handleEnterpriseContractLifecycleError } from "./enterprise-contract-route";
+import { conflict, serviceUnavailable } from "./error";
 import { errorHandler } from "./error-handler";
 
 const { captureExceptionMock } = vi.hoisted(() => ({
@@ -70,6 +71,76 @@ describe("errorHandler", () => {
     expect(body.error).toBe("ServiceUnavailable");
     expect(body.message).toBe("Service is under maintenance");
     expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("includes activation blocker in 409 conflict responses", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      handleEnterpriseContractLifecycleError(
+        new EnterpriseContractActivationError({
+          plan: "starter",
+          referenceId: "org-1",
+          scope: "organization",
+          stripeSubscriptionId: "sub_stripe_1",
+          subscriptionId: "sub_local_1",
+        }),
+      );
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      blocker: { scope: string; subscriptionId: string };
+      error: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("Conflict");
+    expect(body).toMatchObject({
+      kind: "enterprise_activation_blocked",
+    });
+    expect(body.message).toBe(
+      "Enterprise contract activation blocked by an active organization subscription",
+    );
+    expect(body.blocker).toEqual({
+      plan: "starter",
+      scope: "organization",
+      stripeSubscriptionId: "sub_stripe_1",
+      subscriptionId: "sub_local_1",
+    });
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("does not let extensions override reserved error envelope keys", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw conflict("Conflict", {
+        kind: "test_kind",
+        extensions: {
+          blockers: [],
+          error: "Overridden",
+          message: "Overridden message",
+          meta: { hijacked: true },
+          kind: "shadow_kind",
+        },
+      });
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      message: string;
+      kind: string;
+      meta: { timestamp: string; requestId: string };
+      hijacked?: boolean;
+    };
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("Conflict");
+    expect(body.message).toBe("Conflict");
+    expect(body.kind).toBe("test_kind");
+    expect(body.meta.requestId).toBe("req_123");
+    expect(body.hijacked).toBeUndefined();
   });
 
   it("reports unhandled validation errors to Sentry as internal server errors", async () => {

@@ -31,9 +31,14 @@ vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
 
-vi.mock("@sokosumi/database/helpers", () => ({
-  mapJobWithStatus: mapJobWithStatusMock,
-}));
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    mapJobWithStatus: mapJobWithStatusMock,
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   workspaceRepository: {

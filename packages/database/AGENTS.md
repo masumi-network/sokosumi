@@ -213,6 +213,11 @@ pnpm prisma:generate
 2. Rebuild the package: `pnpm database:build`
 3. Restart TypeScript server
 
+## Additional Rules
+
+- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – do not re-export `@sokosumi/utils` (or other packages) from helpers
+- [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – pure shared types/parsers live in `@sokosumi/utils`; DB resolution stays in helpers here
+
 ## References
 
 - [Root AGENTS.md](../../AGENTS.md) - Comprehensive monorepo guidelines

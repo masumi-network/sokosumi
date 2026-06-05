@@ -1,8 +1,12 @@
 "use server";
 
+import {
+  assertOrganizationSubscriptionChangeAllowed,
+  assertPersonalSubscriptionChangeAllowed,
+  OrganizationSubscriptionExclusivityError,
+} from "@sokosumi/database/helpers";
 import { headers } from "next/headers";
 import * as z from "zod";
-
 import {
   type ActionError,
   betterAuthApiErrorSchema,
@@ -10,6 +14,7 @@ import {
 } from "@/lib/actions/errors";
 import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
 import { auth } from "@/lib/auth/auth";
+import prisma from "@/lib/db/prisma";
 import { organizationSubscriptionService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
@@ -53,7 +58,23 @@ function getErrorStatus(error: unknown): string | null {
     : null;
 }
 
+function mapSubscriptionExclusivityError(error: unknown): ActionError | null {
+  if (!(error instanceof OrganizationSubscriptionExclusivityError)) {
+    return null;
+  }
+
+  return {
+    code: CommonErrorCode.BAD_INPUT,
+    message: error.message,
+  };
+}
+
 function parseBetterAuthActionError(error: unknown): ActionError {
+  const exclusivityError = mapSubscriptionExclusivityError(error);
+  if (exclusivityError) {
+    return exclusivityError;
+  }
+
   const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
   if (parsedBetterAuthError.success) {
     return {
@@ -123,6 +144,8 @@ export const upgradePersonalSubscription = withSession<
   }
 
   try {
+    await assertPersonalSubscriptionChangeAllowed(session.user.id, prisma);
+
     const resolvedReturnPath =
       parsed.data.returnPath ?? "/billing?tab=subscription";
 
@@ -157,7 +180,7 @@ interface OpenPersonalBillingPortalParameters extends AuthenticatedRequest {
 export const openPersonalBillingPortal = withSession<
   OpenPersonalBillingPortalParameters,
   Result<{ url: string }, ActionError>
->(async ({ returnPath }) => {
+>(async ({ returnPath, session }) => {
   const parsedReturnPath = personalReturnPathSchema
     .optional()
     .safeParse(returnPath);
@@ -168,6 +191,8 @@ export const openPersonalBillingPortal = withSession<
   }
 
   try {
+    await assertPersonalSubscriptionChangeAllowed(session.user.id, prisma);
+
     const result = await auth.api.createBillingPortal({
       headers: await headers(),
       body: {
@@ -214,6 +239,11 @@ export const upgradeOrganizationSubscription = withSession<
   }
 
   try {
+    await assertOrganizationSubscriptionChangeAllowed(
+      parsed.data.organizationId,
+      prisma,
+    );
+
     const result = await auth.api.upgradeSubscription({
       headers: await headers(),
       body: {
@@ -266,6 +296,11 @@ export const openOrganizationBillingPortal = withSession<
   }
 
   try {
+    await assertOrganizationSubscriptionChangeAllowed(
+      parsed.data.organizationId,
+      prisma,
+    );
+
     const result = await auth.api.createBillingPortal({
       headers: await headers(),
       body: {

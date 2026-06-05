@@ -32,6 +32,7 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
+import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import {
   getJobsListFiltersFromSearchParams,
   getJobsListFiltersResetKey,
@@ -73,7 +74,8 @@ import {
   CreateTaskModalProvider,
   useCreateTaskModal,
 } from "./create-task-modal";
-import { JobsListView, type TasksViewJob } from "./jobs-list-view";
+
+import { JobsListView } from "./jobs-list-view";
 import { JobsViewFilters } from "./jobs-view-filters";
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";

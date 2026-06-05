@@ -50,9 +50,30 @@ After deleting a component that used `Components.CookieConsent.title`:
 
 **Locale files**: `de.json`, `es.json`, `it.json`, `fr.json`, `pt.json`, `pt-BR.json`, `ja.json`, `zh-Hans.json` (all under `apps/web/messages/`).
 
-- **Add key**: Add to `en.json`, then add same path to every locale (copy English value if translation not ready).
+- **Add key**: Add to `en.json`, then add same path to every locale with **proper translations** in each non-English file (see Locale string quality).
 - **Remove key**: Remove from `en.json`, then remove same path from every locale; remove empty parent objects.
 - **Rename/move key**: Apply same rename/move in `en.json` and in every locale; preserve values per locale.
+
+## Locale string quality
+
+`apps/web/messages/en.json` is source of truth for **key paths** and the only catalog authored in English.
+
+Non-English files (`de`, `es`, `it`, `fr`, `pt`, `pt-BR`, `ja`, `zh-Hans`) must use **real translations** for user-facing strings—not English left as the final value.
+
+### ✅ DO
+
+- Write new or changed copy in each locale’s language in the **same PR** as `en.json`.
+- Match terminology already used in that locale file.
+- Preserve `{placeholders}`, ICU plural/select syntax, and JSON structure across locales.
+
+### ❌ DON'T
+
+- Ship non-English locale files with English text unless explicitly deferred (document why; fix before release).
+- Leave English placeholders in non-English files without replacing them before finishing the task.
+
+English in non-`en` files is only a **short-lived placeholder** while wiring keys. Replace before merge, or call out deferral.
+
+For `@sokosumi/email` locales, use `packages/email/AGENTS.md` instead of this web catalog.
 
 ## Rules
 
@@ -62,6 +83,7 @@ After deleting a component that used `Components.CookieConsent.title`:
 - Remove empty parent objects after removing all children.
 - Preserve JSON formatting and handle nested keys (full path and namespace + key).
 - Keep locale key paths in sync; add/update/remove in all locale catalogs in the same change.
+- Provide real translations in non-English locale files when adding or changing user-facing strings.
 
 ### ❌ DON'T
 
@@ -69,6 +91,7 @@ After deleting a component that used `Components.CookieConsent.title`:
 - Remove parent objects that still have used children.
 - Add keys only in `messages/en.json` and leave other locale files missing them.
 - Rename/move keys in `en.json` without applying the same path change to all locales.
+- Leave English placeholder text in non-English locale files as the final merged state.
 
 ## Verification
 
@@ -76,8 +99,9 @@ After changes:
 
 1. JSON valid for all locale files.
 2. Key-path parity between `apps/web/messages/en.json` and all locale files.
-3. No broken references in code.
-4. Run `pnpm web:format`.
+3. Non-English locale values are translated (not English copies left as final state).
+4. No broken references in code.
+5. Run `pnpm web:format`.
 
 ## Tools
 
@@ -90,4 +114,11 @@ jq 'has("Components.CookieConsent.title")' apps/web/messages/en.json
 
 # List all keys
 jq -r 'paths(scalars) as $p | $p | join(".")' apps/web/messages/en.json
+
+# Spot-check one key across locales (replace KEY path)
+KEY='App.Organizations.OrganizationDetail.Subscription.exampleKey'
+for locale in de es it fr pt pt-BR ja zh-Hans; do
+  echo "$locale: $(jq -r --arg k "$KEY" 'getpath($k | split("."))' apps/web/messages/$locale.json)"
+done
+jq -r --arg k "$KEY" 'getpath($k | split("."))' apps/web/messages/en.json
 ```

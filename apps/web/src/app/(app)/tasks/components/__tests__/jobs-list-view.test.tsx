@@ -3,10 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  JobsListView,
-  type TasksViewJob,
-} from "@/app/tasks/components/jobs-list-view";
+import { JobsListView } from "@/app/tasks/components/jobs-list-view";
+import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import type { KanbanColumnId } from "@/lib/types/task";
 
 vi.mock("next-intl", () => ({

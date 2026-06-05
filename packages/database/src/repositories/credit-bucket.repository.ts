@@ -6,10 +6,13 @@ import {
 import {
   creditBucketActivatesAtOrBefore,
   creditBucketActivatesAtOrBeforeSql,
-  escapeStringForLike,
-  getOrganizationMemberSubscriptionReferencePrefix,
-  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
 } from "../helpers/credit.js";
+import {
+  buildCreditBucketScopeSql,
+  buildCreditBucketScopeWhere,
+  buildEnterprisePoolScopeSql,
+  resolveCreditBucketScopeContext,
+} from "../helpers/credit-bucket-scope.js";
 
 export interface Consumption {
   bucketId: string;
@@ -46,7 +49,13 @@ export const creditBucketRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<CreditBucket[]> {
     const now = new Date();
-    const scopeWhere = buildCreditBucketScopeWhere(userId, organizationId);
+    const scopeContext = await resolveCreditBucketScopeContext(
+      userId,
+      organizationId,
+      tx,
+      now,
+    );
+    const scopeWhere = buildCreditBucketScopeWhere(scopeContext);
 
     return await tx.creditBucket.findMany({
       where: {
@@ -80,7 +89,13 @@ export const creditBucketRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<bigint> {
     const now = new Date();
-    const where = buildCreditBucketScopeSql(userId, organizationId);
+    const scopeContext = await resolveCreditBucketScopeContext(
+      userId,
+      organizationId,
+      tx,
+      now,
+    );
+    const where = buildCreditBucketScopeSql(scopeContext);
 
     const result = await tx.$queryRaw<Array<{ balance: bigint }>>`
       WITH bucket_avail AS (
@@ -114,7 +129,13 @@ export const creditBucketRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<CreditBucketBalanceRow[]> {
     const now = new Date();
-    const where = buildCreditBucketScopeSql(userId, organizationId);
+    const scopeContext = await resolveCreditBucketScopeContext(
+      userId,
+      organizationId,
+      tx,
+      now,
+    );
+    const where = buildCreditBucketScopeSql(scopeContext);
 
     return await tx.$queryRaw<
       Array<{
@@ -136,6 +157,88 @@ export const creditBucketRepository = {
           AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
           AND ${creditBucketActivatesAtOrBeforeSql(now)}
           AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
+          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_PERIOD}
+          AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_TOP_UP}
+        GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
+        HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
+      )
+      SELECT
+        amount AS "totalCents",
+        available AS "remainingCents",
+        "expiresAt"
+      FROM bucket_avail
+      ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
+    `;
+  },
+
+  async sumOrganizationEnterprisePoolBalances(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+    now: Date = new Date(),
+  ): Promise<{ totalCents: bigint; remainingCents: bigint }> {
+    const rows = await tx.$queryRaw<
+      Array<{ totalCents: bigint; remainingCents: bigint }>
+    >`
+      WITH bucket_avail AS (
+        SELECT
+          cb.amount,
+          (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
+        FROM credit_bucket cb
+        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+        WHERE cb."organizationId" = ${organizationId}
+          AND cb."referenceType" IN (
+            ${CreditBucketReferenceType.ENTERPRISE_PERIOD},
+            ${CreditBucketReferenceType.ENTERPRISE_TOP_UP}
+          )
+          AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+          AND ${creditBucketActivatesAtOrBeforeSql(now)}
+        GROUP BY cb.id, cb.amount
+      )
+      SELECT
+        COALESCE(SUM(amount), 0)::bigint AS "totalCents",
+        COALESCE(SUM(GREATEST(available, 0)), 0)::bigint AS "remainingCents"
+      FROM bucket_avail
+    `;
+
+    return rows[0] ?? { totalCents: 0n, remainingCents: 0n };
+  },
+
+  async listEnterprisePoolBucketsWithBalances(
+    userId: string,
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<CreditBucketBalanceRow[]> {
+    const now = new Date();
+    const scopeContext = await resolveCreditBucketScopeContext(
+      userId,
+      organizationId,
+      tx,
+      now,
+    );
+    const where = buildEnterprisePoolScopeSql(scopeContext);
+    if (!where) {
+      return [];
+    }
+
+    return await tx.$queryRaw<
+      Array<{
+        totalCents: bigint;
+        remainingCents: bigint;
+        expiresAt: Date | null;
+      }>
+    >`
+      WITH bucket_avail AS (
+        SELECT
+          cb.id,
+          cb.amount,
+          (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
+          cb."expiresAt",
+          cb."createdAt"
+        FROM credit_bucket cb
+        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+        WHERE ${where}
+          AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+          AND ${creditBucketActivatesAtOrBeforeSql(now)}
         GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
         HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
       )
@@ -215,7 +318,13 @@ async function getFifoBucketsToCoverSpend(
   cents: bigint,
   tx: Prisma.TransactionClient,
 ): Promise<Array<{ id: string; available: bigint }>> {
-  const where = buildCreditBucketScopeSql(userId, organizationId);
+  const scopeContext = await resolveCreditBucketScopeContext(
+    userId,
+    organizationId,
+    tx,
+    now,
+  );
+  const where = buildCreditBucketScopeSql(scopeContext);
 
   return await tx.$queryRaw<Array<{ id: string; available: bigint }>>`
     WITH bucket_avail AS (
@@ -249,66 +358,5 @@ async function getFifoBucketsToCoverSpend(
     FROM ordered
     WHERE running_total - available < ${cents}
     ORDER BY "expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC
-  `;
-}
-
-function buildCreditBucketScopeWhere(
-  userId: string,
-  organizationId: string | null,
-): Prisma.CreditBucketWhereInput {
-  if (!organizationId) {
-    return {
-      userId,
-      organizationId: null,
-    };
-  }
-
-  return {
-    organizationId,
-    OR: [
-      {
-        referenceType: null,
-      },
-      {
-        referenceType: {
-          not: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-        },
-      },
-      {
-        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-        userId,
-        referenceId: {
-          startsWith:
-            getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
-              userId,
-            ),
-        },
-      },
-    ],
-  };
-}
-
-function buildCreditBucketScopeSql(
-  userId: string,
-  organizationId: string | null,
-): Prisma.Sql {
-  if (!organizationId) {
-    return Prisma.sql`cb."userId" = ${userId} AND cb."organizationId" IS NULL`;
-  }
-
-  const escapedPrefix = escapeStringForLike(
-    getOrganizationMemberSubscriptionReferencePrefix(userId),
-  );
-  const memberReferencePattern = `${escapedPrefix}%`;
-  return Prisma.sql`
-    cb."organizationId" = ${organizationId}
-    AND (
-      cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
-      OR (
-        cb."referenceType" = ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
-        AND cb."userId" = ${userId}
-        AND cb."referenceId" LIKE ${memberReferencePattern} ESCAPE '\\'
-      )
-    )
   `;
 }

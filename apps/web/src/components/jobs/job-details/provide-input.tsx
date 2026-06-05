@@ -4,7 +4,10 @@ import type {
   JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
-import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
+import {
+  type InputSchemaSchemaType,
+  normalizeAndValidateInputSchema,
+} from "@sokosumi/masumi/schemas";
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,10 +25,7 @@ import { Button } from "@/components/ui/button";
 import { useInputs } from "@/hooks/use-inputs";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { useProvideJobInput } from "@/hooks/use-provide-job-input";
-import {
-  flattenInputs,
-  normalizeAndValidateInputSchema,
-} from "@/lib/schemas/job";
+import { flattenInputs } from "@/lib/schemas/job";
 import { getReadonlyNoneInputValues } from "@/lib/utils/job-input-transformers";
 
 interface JobDetailsProvideInputProps {

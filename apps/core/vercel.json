@@ -31,6 +31,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/sync/enterprise-contracts-renewal",
+      "schedule": "0 0 * * *"
+    },
+    {
       "path": "/sync/hermes/poll-inboxes",
       "schedule": "* * * * *"
     },

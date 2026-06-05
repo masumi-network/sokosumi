@@ -7,6 +7,7 @@ import { dateTimeSchema } from "./datetime.js";
 export interface HTTPExceptionMetadata {
   kind?: string;
   reportToSentry?: boolean;
+  extensions?: Record<string, unknown>;
 }
 
 /**
@@ -36,6 +37,22 @@ export const errorResponseSchema = z.object({
  * Error response structure (for TypeScript types and onError handler)
  */
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+
+/**
+ * Error envelope with extra top-level fields before `meta`.
+ * Keeps `meta` last so enterprise (and other) extended error schemas stay consistent.
+ */
+export function errorResponseWithExtensionsSchema<T extends z.ZodRawShape>(
+  extensions: T,
+  openapiName?: string,
+) {
+  const schema = errorResponseSchema.omit({ meta: true }).extend({
+    ...extensions,
+    meta: errorResponseSchema.shape.meta,
+  });
+
+  return openapiName ? schema.openapi(openapiName) : schema;
+}
 
 /**
  * Helper to create HTTPException with options stored in cause
@@ -86,8 +103,11 @@ export const notFound = (message: string = "Not Found"): HTTPException => {
  * 409 Conflict
  * The request conflicts with the current state of the server
  */
-export const conflict = (message: string = "Conflict"): HTTPException => {
-  return createHTTPException(409, message);
+export const conflict = (
+  message: string = "Conflict",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(409, message, metadata);
 };
 
 /**

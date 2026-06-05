@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMyMemberInOrganizationMock = vi.fn();
-const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
+const resolveOrganizationBillingPlanMock = vi.fn();
 const getSeatSummaryMock = vi.fn();
 const listActiveSubscriptionsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
@@ -56,12 +56,15 @@ vi.mock("@/lib/stripe/subscription-catalog", () => ({
     getSubscriptionCatalogMock(...args),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  subscriptionRepository: {
-    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
-      resolveActiveSubscriptionByReferenceIdMock(...args),
-  },
-}));
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    resolveOrganizationBillingPlan: (...args: unknown[]) =>
+      resolveOrganizationBillingPlanMock(...args),
+  };
+});
 
 vi.mock("../onboarding-dialog", () => ({
   OnboardingDialog: (props: unknown) => {
@@ -89,9 +92,13 @@ describe("OnboardingDialogLoader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSubscriptionCatalogMock.mockResolvedValue(createSubscriptionCatalog());
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      cancelAtPeriodEnd: false,
+      mode: "self_serve",
+      periodEnd: null,
       plan: "starter",
-      seats: 3,
+      purchasedSeats: 3,
+      subscriptionId: "sub-1",
     });
     listActiveSubscriptionsMock.mockResolvedValue([
       {
@@ -178,7 +185,7 @@ describe("OnboardingDialogLoader", () => {
     expect(onboardingDialogMock).not.toHaveBeenCalled();
     expect(getMyMemberInOrganizationMock).toHaveBeenCalledOnce();
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
-    expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    expect(resolveOrganizationBillingPlanMock).not.toHaveBeenCalled();
     expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
   });
 
@@ -211,7 +218,7 @@ describe("OnboardingDialogLoader", () => {
     expect(queryByTestId("onboarding-dialog")).toBeNull();
     expect(onboardingDialogMock).not.toHaveBeenCalled();
     expect(getMyMemberInOrganizationMock).toHaveBeenCalledOnce();
-    expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    expect(resolveOrganizationBillingPlanMock).not.toHaveBeenCalled();
     expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "Failed to load subscription catalog for onboarding",

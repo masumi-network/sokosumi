@@ -18,6 +18,7 @@ const getUnassignedMemberUserIdsMock = vi.fn();
 const ensureLocalFreeSubscriptionPeriodMock = vi.fn();
 const grantFreeOrganizationMemberSubscriptionCreditsMock = vi.fn();
 const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
+const resolveOrganizationBillingPlanMock = vi.fn();
 const prismaTransactionMock = vi.fn();
 const updateSubscriptionRecordMock = vi.fn();
 const retrieveStripeSubscriptionMock = vi.fn();
@@ -54,6 +55,10 @@ vi.mock("@sokosumi/database/helpers", () => ({
   },
   resolvePurchasedSeats: (seats: number | null | undefined) =>
     seats && seats > 0 ? seats : 1,
+  resolveOrganizationBillingPlan: (...args: unknown[]) =>
+    resolveOrganizationBillingPlanMock(...args),
+  assertOrganizationSubscriptionChangeAllowed: vi.fn(),
+  OrganizationSubscriptionExclusivityError: class OrganizationSubscriptionExclusivityError extends Error {},
 }));
 
 vi.mock("@/config/env.secrets", () => ({
@@ -139,7 +144,41 @@ describe("organizationSubscriptionService", () => {
   });
 
   describe("ensureCanAcceptInvitation", () => {
+    it("allows invitations for enterprise contract organizations without Stripe subscription", async () => {
+      resolveOrganizationBillingPlanMock.mockResolvedValue({
+        mode: "enterprise_contract",
+        plan: "enterprise",
+        isConsumable: true,
+        purchasedSeats: 5,
+        contractId: "contract-1",
+        endsAt: new Date("2027-01-01T00:00:00.000Z"),
+        activatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+        periodEnd: null,
+      });
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await organizationSubscriptionService.ensureCanAcceptInvitation("org-1");
+
+      expect(resolveOrganizationBillingPlanMock).toHaveBeenCalledWith(
+        "org-1",
+        expect.any(Object),
+      );
+      expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    });
+
     it("throws when no active organization subscription exists", async () => {
+      resolveOrganizationBillingPlanMock.mockResolvedValue({
+        mode: "self_serve",
+        plan: "free",
+        purchasedSeats: 0,
+        subscriptionId: null,
+        cancelAtPeriodEnd: false,
+        periodEnd: null,
+      });
       resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
 
       const { organizationSubscriptionService } = await import(
@@ -159,6 +198,14 @@ describe("organizationSubscriptionService", () => {
     });
 
     it("does not pre-allocate seats for a local free subscription", async () => {
+      resolveOrganizationBillingPlanMock.mockResolvedValue({
+        mode: "self_serve",
+        plan: "free",
+        purchasedSeats: 2,
+        subscriptionId: "sub-row-1",
+        cancelAtPeriodEnd: false,
+        periodEnd: null,
+      });
       resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
         id: "sub-row-1",
         plan: "free",
@@ -183,6 +230,14 @@ describe("organizationSubscriptionService", () => {
     });
 
     it("does not auto-increase Stripe seats when accepting an invitation", async () => {
+      resolveOrganizationBillingPlanMock.mockResolvedValue({
+        mode: "self_serve",
+        plan: "starter",
+        purchasedSeats: 2,
+        subscriptionId: "sub-row-1",
+        cancelAtPeriodEnd: false,
+        periodEnd: null,
+      });
       resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
         id: "sub-row-1",
         plan: "starter",
@@ -420,6 +475,14 @@ describe("organizationSubscriptionService", () => {
     it("syncs local free credits for all organization members", async () => {
       const periodStart = new Date("2026-04-08T00:00:00.000Z");
       const periodEnd = new Date("2026-05-08T00:00:00.000Z");
+      resolveOrganizationBillingPlanMock.mockResolvedValue({
+        cancelAtPeriodEnd: false,
+        mode: "self_serve",
+        periodEnd: null,
+        plan: "free",
+        purchasedSeats: 5,
+        subscriptionId: "sub-row-1",
+      });
       resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
         createdAt: periodStart,
         id: "sub-row-1",
@@ -468,6 +531,14 @@ describe("organizationSubscriptionService", () => {
 
     it("grants free monthly credits to unassigned members in a paid organization without a local-free subscription row", async () => {
       const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      resolveOrganizationBillingPlanMock.mockResolvedValue({
+        cancelAtPeriodEnd: false,
+        mode: "self_serve",
+        periodEnd: null,
+        plan: "starter",
+        purchasedSeats: 5,
+        subscriptionId: "sub-row-1",
+      });
       resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
         id: "sub-row-1",
         plan: "starter",
@@ -496,6 +567,88 @@ describe("organizationSubscriptionService", () => {
           memberUserIds: ["user-2", "user-3"],
           organizationId: "org-1",
           periodEnd,
+        },
+        expect.objectContaining({
+          __tx: true,
+        }),
+      );
+    });
+
+    it("skips local free sync while an enterprise contract is consumable", async () => {
+      resolveOrganizationBillingPlanMock.mockResolvedValue({
+        activatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+        contractId: "contract-1",
+        endsAt: new Date("2027-01-01T00:00:00.000Z"),
+        isConsumable: true,
+        mode: "enterprise_contract",
+        periodEnd: null,
+        plan: "enterprise",
+        purchasedSeats: 5,
+      });
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await expect(
+        organizationSubscriptionService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
+          "org-1",
+        ),
+      ).resolves.toBeUndefined();
+
+      expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+      expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
+      expect(
+        grantFreeOrganizationMemberSubscriptionCreditsMock,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("syncs local free credits after the enterprise commercial term ends", async () => {
+      const periodStart = new Date("2026-04-08T00:00:00.000Z");
+      const periodEnd = new Date("2026-05-08T00:00:00.000Z");
+      resolveOrganizationBillingPlanMock.mockResolvedValue({
+        activatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+        contractId: "contract-1",
+        endsAt: new Date("2026-02-01T00:00:00.000Z"),
+        isConsumable: false,
+        mode: "enterprise_contract",
+        periodEnd: null,
+        plan: "enterprise",
+        purchasedSeats: 5,
+      });
+      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+        createdAt: periodStart,
+        id: "sub-row-1",
+        plan: "free",
+        seats: 5,
+        periodEnd,
+        periodStart,
+        stripeSubscriptionId: null,
+      });
+      getOrganizationMemberUserIdsMock.mockResolvedValue(["user-1", "user-2"]);
+      ensureLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await expect(
+        organizationSubscriptionService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
+          "org-1",
+        ),
+      ).resolves.toBeUndefined();
+
+      expect(ensureLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
+        {
+          billingAnchorDate: periodStart,
+          memberUserIds: ["user-1", "user-2"],
+          organizationId: "org-1",
+          periodEnd,
+          periodStart,
+          purchasedSeats: 5,
+          referenceId: "org-1",
         },
         expect.objectContaining({
           __tx: true,

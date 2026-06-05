@@ -8,43 +8,36 @@ import {
   getUnusedSeatCount,
   grantFreeOrganizationMemberSubscriptionCredits,
   isActiveSubscriptionStatus,
+  resolveOrganizationBillingPlan,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import {
   memberRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
+import type { OrganizationBillingPlanName } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 
-import { parsePlanName } from "@/components/billing/subscription-plan-utils";
 import prisma from "@/lib/db/prisma";
 import { grantUnusedSeatSubscriptionCreditsIfEligible } from "@/lib/services/organization-seat-credits.service";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 
 export interface OrganizationSeatSummary {
   assignedCount: number;
   memberCount: number;
-  paidPlan: SubscriptionPlanName | null;
+  isEnterpriseContract: boolean;
+  paidPlan: OrganizationBillingPlanName | null;
   purchasedSeats: number;
   unusedSeats: number;
 }
 
-function resolveOrganizationPaidPlan(
-  subscription: {
-    plan: string;
-    status: string;
-  } | null,
-): SubscriptionPlanName | null {
-  if (!subscription || !isActiveSubscriptionStatus(subscription.status)) {
+function resolveOrganizationPaidPlanLabel(
+  plan: OrganizationBillingPlanName,
+): OrganizationBillingPlanName | null {
+  if (plan === "free") {
     return null;
   }
 
-  const parsedPlan = parsePlanName(subscription.plan);
-  if (!parsedPlan || parsedPlan === "free") {
-    return null;
-  }
-
-  return parsedPlan;
+  return plan;
 }
 
 function isOwnerOrAdmin(role: string): boolean {
@@ -133,29 +126,26 @@ export const organizationSeatService = (() => {
     async getSeatSummary(
       organizationId: string,
     ): Promise<OrganizationSeatSummary> {
-      const [assignedCount, memberCount, subscription] = await Promise.all([
+      const [assignedCount, memberCount, billingPlan] = await Promise.all([
         memberRepository.getAssignedMemberCount(organizationId, prisma),
         prisma.member.count({
           where: {
             organizationId,
           },
         }),
-        subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-          organizationId,
-          prisma,
-        ),
+        resolveOrganizationBillingPlan(organizationId, prisma),
       ]);
-      const paidPlan = resolveOrganizationPaidPlan(subscription);
-      const purchasedSeats = paidPlan
-        ? resolvePurchasedSeats(subscription?.seats)
-        : 0;
+      const paidPlan = resolveOrganizationPaidPlanLabel(billingPlan.plan);
+      const purchasedSeats = billingPlan.purchasedSeats;
+      const hasSeatEntitlements = paidPlan != null;
 
       return {
-        assignedCount: paidPlan ? assignedCount : 0,
+        assignedCount: hasSeatEntitlements ? assignedCount : 0,
         memberCount,
+        isEnterpriseContract: billingPlan.mode === "enterprise_contract",
         paidPlan,
         purchasedSeats,
-        unusedSeats: paidPlan
+        unusedSeats: hasSeatEntitlements
           ? getUnusedSeatCount(purchasedSeats, assignedCount)
           : 0,
       };
@@ -170,12 +160,18 @@ export const organizationSeatService = (() => {
 
       try {
         return await prisma.$transaction(async (tx) => {
+          const billingPlan = await resolveOrganizationBillingPlan(
+            organizationId,
+            tx,
+          );
+          const purchasedSeats = billingPlan.purchasedSeats;
           const subscription =
-            await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-              organizationId,
-              tx,
-            );
-          const purchasedSeats = resolvePurchasedSeats(subscription?.seats);
+            billingPlan.mode === "self_serve"
+              ? await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+                  organizationId,
+                  tx,
+                )
+              : null;
 
           const member = await memberRepository.assignSeat(
             memberId,
@@ -190,13 +186,23 @@ export const organizationSeatService = (() => {
             });
           }
 
-          await grantUnusedSeatSubscriptionCreditsIfEligible(
-            organizationId,
-            member.userId,
-            tx,
-          );
+          const suppressSelfServeSeatCredits =
+            billingPlan.mode === "enterprise_contract" &&
+            billingPlan.isConsumable;
 
-          if (subscription?.periodStart && subscription.periodEnd) {
+          if (!suppressSelfServeSeatCredits) {
+            await grantUnusedSeatSubscriptionCreditsIfEligible(
+              organizationId,
+              member.userId,
+              tx,
+            );
+          }
+
+          if (
+            billingPlan.mode === "self_serve" &&
+            subscription?.periodStart &&
+            subscription?.periodEnd
+          ) {
             await syncLocalFreeOrganizationCreditsIfNeeded(
               organizationId,
               {
@@ -230,11 +236,24 @@ export const organizationSeatService = (() => {
 
       try {
         return await prisma.$transaction(async (tx) => {
+          const billingPlan = await resolveOrganizationBillingPlan(
+            organizationId,
+            tx,
+          );
           const member = await memberRepository.unassignSeat(
             memberId,
             organizationId,
             tx,
           );
+
+          if (
+            billingPlan.mode === "enterprise_contract" &&
+            billingPlan.isConsumable
+          ) {
+            return {
+              memberId: member.id,
+            };
+          }
 
           const subscription =
             await subscriptionRepository.resolveActiveSubscriptionByReferenceId(

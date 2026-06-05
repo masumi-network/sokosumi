@@ -57,6 +57,13 @@ export {
   parseReactEnvelopeBuffer,
 } from "./openrouter-react-image-envelope.js";
 export {
+  type OrganizationBillingPlanName,
+  type PaidSubscriptionPlanName,
+  parseSelfServeSubscriptionPlanName,
+  type SelfServeSubscriptionPlanName,
+  type SubscriptionPlanName,
+} from "./organization-billing-plan-names.js";
+export {
   isOrganizationLogoAllowedContentType,
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,

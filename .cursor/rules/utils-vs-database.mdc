@@ -1,0 +1,55 @@
+---
+description: "Put client-safe shared types and pure helpers in @sokosumi/utils; keep Prisma-backed logic in @sokosumi/database"
+alwaysApply: false
+---
+
+## Utils vs database helpers
+
+Use this rule when adding or moving code shared between **web (including client components)**, **core**, and **database**.
+
+### Put in `@sokosumi/utils`
+
+- **Pure TypeScript**: types, constants, parsers, formatters with no I/O
+- **No Prisma**, repositories, or `server-only` dependencies
+- **Any module imported from** `'use client'` components or other client bundles
+- **Cross-app product vocabulary** used in UI and server code alike (e.g. billing plan name unions, `parseSelfServeSubscriptionPlanName`, credit conversion helpers in `credit.ts`)
+
+Export from `packages/utils/src/index.ts` and colocate tests under `packages/utils/src/__tests__/`.
+
+### Keep in `@sokosumi/database`
+
+- **Repositories** and all Prisma access
+- **Helpers that need a transaction client** or load rows from the database
+- **Domain resolution** that combines DB state (e.g. `resolveOrganizationBillingPlan`, enterprise contract lifecycle, credit-bucket scope with org membership)
+
+Server code may import these from `@sokosumi/database/helpers`.
+
+### Import rules
+
+| Consumer | Import from |
+| -------- | ----------- |
+| Client components, shared UI utils | `@sokosumi/utils` |
+| Server Components, server actions, API routes, database helpers | `@sokosumi/utils` for pure shared bits; `@sokosumi/database/helpers` for DB-backed helpers |
+
+**Do not** import `@sokosumi/database/helpers` from client code. The helpers barrel re-exports server-only modules (Prisma, repositories). A single value import can pull the whole graph into the Next.js client bundle and fail the build (`node:module`, etc.).
+
+**Do not** add new `@sokosumi/database/helpers/<subpath>` exports only to dodge the barrel—move the shared surface to utils instead.
+
+### No cross-package re-exports
+
+- **`@sokosumi/database/helpers` must not re-export** symbols from `@sokosumi/utils`. Import shared pure helpers from `@sokosumi/utils` at each call site (client or server).
+- Follow [avoid-re-exports.mdc](./avoid-re-exports.mdc) for apps and other packages—no passthrough modules or duplicate type definitions.
+
+### Example (billing plan names)
+
+- **Utils**: `SelfServeSubscriptionPlanName`, `OrganizationBillingPlanName`, `SubscriptionPlanName`, `PaidSubscriptionPlanName`, `parseSelfServeSubscriptionPlanName` → `packages/utils/src/organization-billing-plan-names.ts`
+- **Database**: `OrganizationBillingPlan`, `resolveOrganizationBillingPlan` → `packages/database/src/helpers/organization-billing-plan.ts` (imports plan-name types/parser from `@sokosumi/utils`)
+
+### Checklist before merging
+
+1. New shared pure helper → utils + export from `index.ts` + vitest in utils
+2. Client or `subscription-plan-utils`-style module → no `@sokosumi/database/helpers` import
+3. `pnpm --filter @sokosumi/utils build` when database or apps depend on new utils exports
+4. `pnpm web:build` (or `pnpm build`) after touching client import paths
+
+See also [shared-packages.mdc](./shared-packages.mdc) for general deduplication workflow.

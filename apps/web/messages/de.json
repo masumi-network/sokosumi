@@ -2485,6 +2485,23 @@
       "orgAccessRestrictedTitle": "Billing-Zugang eingeschränkt",
       "orgAccessRestrictedDescription": "Nur Eigentümer und Admins der Organisation können Billing-Details einsehen.",
       "orgAccessRestrictedHint": "Wechsle zu deinem persönlichen Account oder kontaktiere einen Organisations-Admin, wenn du Zugang benötigst.",
+      "EnterpriseContract": {
+        "title": "Enterprise-Vertrag",
+        "poolBalanceLabel": "Verfügbare Organisations-Credits",
+        "poolBalanceCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit} other {# Credits}}",
+        "monthlyGrantLabel": "Monatliche Gutschrift",
+        "monthlyGrantCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit} other {# Credits}}",
+        "currentPeriodEndLabel": "Aktuelle Periode endet",
+        "activatedAtLabel": "Vertrag aktiviert",
+        "endsAtLabel": "Vertrag endet",
+        "nextActivationLabel": "Nächste Credits werden aktiviert",
+        "nextActivationNone": "Keine anstehenden Aktivierungen",
+        "notAvailable": "Nicht verfügbar",
+        "purchasedSeatsLabel": "Gekaufte Seats",
+        "purchasedSeatsValue": "{seats, plural, =1 {# Seat} other {# Seats}}",
+        "contactDescription": "Kontaktiere unser Team zu deinem Enterprise-Vertrag, Verlängerungen oder Billing-Fragen.",
+        "contactUsCta": "Kontakt aufnehmen"
+      },
       "Errors": {
         "unauthenticated": "Bitte melde dich an, um fortzufahren",
         "unauthenticatedAction": "Anmelden",

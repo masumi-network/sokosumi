@@ -1,23 +1,19 @@
 import { MemberRole, type OrganizationWithRelations } from "@sokosumi/database";
-import { subscriptionRepository } from "@sokosumi/database/repositories";
+import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
+import type { SubscriptionPlanName } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import { Suspense } from "react";
 import Stripe from "stripe";
-
 import {
   type ActiveSubscription,
   type PaidSubscriptionPlanView,
-  parsePlanName,
   resolveCurrentPlanName,
 } from "@/components/billing/subscription-plan-utils";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { auth } from "@/lib/auth/auth";
 import prisma from "@/lib/db/prisma";
 import { organizationSeatService, userService } from "@/lib/services";
-import {
-  getSubscriptionCatalog,
-  type SubscriptionPlanName,
-} from "@/lib/stripe/subscription-catalog";
+import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
 import {
   OnboardingDialog,
@@ -92,25 +88,19 @@ export async function OnboardingDialogLoader({
       : activeOrganization
         ? userService.getMyMemberInOrganization(activeOrganization.id)
         : Promise.resolve(null);
-  const latestOrganizationSubscriptionPromise = activeOrganization
-    ? subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-        activeOrganization.id,
-        prisma,
-      )
+  const organizationBillingPlanPromise = activeOrganization
+    ? resolveOrganizationBillingPlan(activeOrganization.id, prisma)
     : Promise.resolve(null);
   const organizationSeatSummaryPromise = activeOrganization
     ? organizationSeatService.getSeatSummary(activeOrganization.id)
     : Promise.resolve(null);
 
-  const [
-    organizationMember,
-    latestOrganizationSubscription,
-    organizationSeatSummary,
-  ] = await Promise.all([
-    organizationMemberPromise,
-    latestOrganizationSubscriptionPromise,
-    organizationSeatSummaryPromise,
-  ]);
+  const [organizationMember, organizationBillingPlan, organizationSeatSummary] =
+    await Promise.all([
+      organizationMemberPromise,
+      organizationBillingPlanPromise,
+      organizationSeatSummaryPromise,
+    ]);
 
   const canManageOrganizationSubscription =
     organizationMember?.role === MemberRole.OWNER ||
@@ -119,9 +109,7 @@ export async function OnboardingDialogLoader({
     organizationSeatSummary?.memberCount ??
     activeOrganization?._count.members ??
     0;
-  const organizationCurrentPlan = parsePlanName(
-    latestOrganizationSubscription?.plan,
-  );
+  const organizationCurrentPlan = organizationBillingPlan?.plan ?? null;
   const hasActiveOrganization = activeOrganization !== null;
   const subscriptionCheckoutMode: OnboardingSubscriptionCheckoutMode =
     hasActiveOrganization

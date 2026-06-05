@@ -1,8 +1,5 @@
 import * as z from "zod";
 
-// Re-export types from database package
-export type { UTMData, UTMParams } from "@sokosumi/database";
-
 export const utmDataSchema = z.object({
   utm_source: z.string().min(1).max(255),
   utm_medium: z.string().max(255).optional(),

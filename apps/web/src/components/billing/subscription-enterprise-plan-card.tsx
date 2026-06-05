@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ENTERPRISE_CONTACT_HREF } from "@/lib/constants/enterprise-contact";
 import { cn } from "@/lib/utils";
 
 import {
@@ -18,8 +19,6 @@ import {
   SubscriptionPlanActionButton,
   SubscriptionPlanFeatureList,
 } from "./subscription-plan-presentation";
-
-const ENTERPRISE_CONTACT_HREF = "mailto:info@sokosumi.com";
 
 interface SubscriptionEnterprisePlanCardProps {
   actionLabel?: null | string;
@@ -71,7 +70,7 @@ export function SubscriptionEnterprisePlanCard({
             disabled
             isCurrent={isCurrent}
             isPlanPending={false}
-            loadingLabel={t("updating")}
+            loadingLabel={t("upgrading")}
             onPress={() => undefined}
           />
         ) : (

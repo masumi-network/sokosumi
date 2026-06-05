@@ -1,10 +1,14 @@
 import { MemberRole } from "@sokosumi/database";
+import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   subscriptionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import {
+  convertCentsToCredits,
+  type SelfServeSubscriptionPlanName,
+} from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import Stripe from "stripe";
 
@@ -13,6 +17,7 @@ import { BalanceSection } from "@/components/billing/balance-section";
 import { BillingTabs } from "@/components/billing/billing-tabs";
 import CouponSection from "@/components/billing/coupon-section";
 import CreditsSection from "@/components/billing/credits-section";
+import { EnterpriseContractSummary } from "@/components/billing/enterprise-contract-summary";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import {
@@ -25,11 +30,9 @@ import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
 import { organizationSeatService, userService } from "@/lib/services";
+import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
 import { ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY } from "@/lib/stripe/credit-topup-pricing";
-import {
-  getSubscriptionCatalog,
-  type SubscriptionPlanName,
-} from "@/lib/stripe/subscription-catalog";
+import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -38,7 +41,7 @@ const PLAN_ORDER = [
   "starter",
   "standard",
   "pro",
-] as const satisfies SubscriptionPlanName[];
+] as const satisfies SelfServeSubscriptionPlanName[];
 
 interface BillingPageProps {
   searchParams: Promise<{
@@ -115,12 +118,15 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       );
     }
 
-    const latestSubscription =
-      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-        activeOrganization.id,
-        prisma,
-      );
-    const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
+    const billingPlan = await resolveOrganizationBillingPlan(
+      activeOrganization.id,
+      prisma,
+    );
+    const currentPlan = billingPlan.plan;
+    const isEnterpriseContract = billingPlan.mode === "enterprise_contract";
+    const isEnterpriseConsumable =
+      isEnterpriseContract && billingPlan.isConsumable;
+    const showOrganizationBillingPortal = !isEnterpriseConsumable;
     const canPurchaseCredits =
       isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
     const creditsCheckoutParams =
@@ -132,24 +138,50 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         ? { cancel: query.cancel, session_id: query.session_id }
         : undefined;
 
-    const balanceInCents = await creditBucketRepository.getBalance(
-      userId,
-      activeOrganization.id,
-      prisma,
-    );
-    const seatSummary = await organizationSeatService.getSeatSummary(
-      activeOrganization.id,
-    );
+    const [enterpriseContractSummary, seatSummary, balanceInCents] =
+      await Promise.all([
+        isEnterpriseContract
+          ? getEnterpriseContractBillingSummary(
+              billingPlan,
+              activeOrganization.id,
+              prisma,
+            )
+          : Promise.resolve(null),
+        organizationSeatService.getSeatSummary(activeOrganization.id),
+        isEnterpriseContract
+          ? Promise.resolve(BigInt(0))
+          : creditBucketRepository.getBalance(
+              userId,
+              activeOrganization.id,
+              prisma,
+            ),
+      ]);
     const currentSeats = seatSummary.purchasedSeats;
-    const credits = convertCentsToCredits(balanceInCents);
-    const displayCredits = formatCreditsForDisplay(credits);
+    const displayCredits = formatCreditsForDisplay(
+      convertCentsToCredits(balanceInCents),
+    );
+    const organizationBillingPortal =
+      activeOrganization.stripeCustomerId && showOrganizationBillingPortal ? (
+        <BalanceBillingPortalLink
+          baseReturnPath="/billing"
+          description={t("billingPortalDescription")}
+          generalErrorMessage={t("Errors.general")}
+          label={t("manageYourBilling")}
+          openingLabel={t("openingBillingPortal")}
+          organizationId={activeOrganization.id}
+          returnPath="/billing"
+          unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
+          unauthenticatedErrorMessage={t("Errors.unauthenticated")}
+          unauthorizedErrorMessage={t("Errors.unauthorized")}
+        />
+      ) : null;
 
     const orgPlans: SubscriptionPlanView[] = PLAN_ORDER.map((planName) => {
       const plan = subscriptionCatalog[planName];
       return {
         credits: plan.credits,
         currency: plan.currency,
-        isCurrent: currentPlan === planName,
+        isCurrent: !isEnterpriseConsumable && currentPlan === planName,
         monthlyAmount: plan.monthlyAmount,
         name: planName,
       };
@@ -158,37 +190,26 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     return (
       <div className="min-h-full w-full">
         <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
-          <BalanceSection
-            title={t("balanceTitle")}
-            description={t("balanceDescriptionOrganization", {
-              assigned: seatSummary.assignedCount,
-              members: seatSummary.memberCount,
-              organization: activeOrganization.name,
-              purchased: seatSummary.purchasedSeats,
-              unused: seatSummary.unusedSeats,
-            })}
-            creditsLabel={t("balanceCreditsLabel", {
-              credits: displayCredits,
-            })}
-            stripeCustomerId={activeOrganization.stripeCustomerId}
-            stripeCustomerLabel={t("stripeCustomerIdLabel")}
-            billingPortal={
-              activeOrganization.stripeCustomerId ? (
-                <BalanceBillingPortalLink
-                  baseReturnPath="/billing"
-                  description={t("billingPortalDescription")}
-                  generalErrorMessage={t("Errors.general")}
-                  label={t("manageYourBilling")}
-                  openingLabel={t("openingBillingPortal")}
-                  organizationId={activeOrganization.id}
-                  returnPath="/billing"
-                  unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-                  unauthenticatedErrorMessage={t("Errors.unauthenticated")}
-                  unauthorizedErrorMessage={t("Errors.unauthorized")}
-                />
-              ) : null
-            }
-          />
+          {isEnterpriseContract ? (
+            <EnterpriseContractSummary summary={enterpriseContractSummary!} />
+          ) : (
+            <BalanceSection
+              title={t("balanceTitle")}
+              description={t("balanceDescriptionOrganization", {
+                assigned: seatSummary.assignedCount,
+                members: seatSummary.memberCount,
+                organization: activeOrganization.name,
+                purchased: seatSummary.purchasedSeats,
+                unused: seatSummary.unusedSeats,
+              })}
+              creditsLabel={t("balanceCreditsLabel", {
+                credits: displayCredits,
+              })}
+              stripeCustomerId={activeOrganization.stripeCustomerId}
+              stripeCustomerLabel={t("stripeCustomerIdLabel")}
+              billingPortal={organizationBillingPortal}
+            />
+          )}
 
           <BillingTabs
             tabLabels={{
@@ -200,12 +221,12 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             subscriptionContent={
               <OrganizationSubscriptionSection
                 assignedSeatCount={seatSummary.assignedCount}
-                cancelAtPeriodEnd={
-                  latestSubscription?.cancelAtPeriodEnd ?? false
-                }
+                cancelAtPeriodEnd={billingPlan.cancelAtPeriodEnd}
                 currentPlan={currentPlan}
-                currentPeriodEnd={latestSubscription?.periodEnd ?? null}
+                currentPeriodEnd={billingPlan.periodEnd}
                 currentSeats={currentSeats}
+                isEnterpriseConsumable={isEnterpriseConsumable}
+                isEnterpriseContract={isEnterpriseContract}
                 memberCount={seatSummary.memberCount}
                 organizationId={activeOrganization.id}
                 plans={orgPlans}

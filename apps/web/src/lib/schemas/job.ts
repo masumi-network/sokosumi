@@ -173,5 +173,3 @@ export function flattenInputs(
   }
   return schema.input_data;
 }
-
-export { normalizeAndValidateInputSchema } from "@sokosumi/masumi/schemas";

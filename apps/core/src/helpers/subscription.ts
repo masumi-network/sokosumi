@@ -219,6 +219,18 @@ export interface CreditsApiPayload {
       remaining: number;
       expiresAt: Date | null;
     }>;
+    enterprise: {
+      credits: {
+        total: number;
+        remaining: number;
+        used: number;
+      };
+      buckets: Array<{
+        total: number;
+        remaining: number;
+        expiresAt: Date | null;
+      }>;
+    } | null;
   };
   credits: CreditsPayload;
 }
@@ -257,17 +269,20 @@ export async function buildCreditsPayload(params: {
         }
       : null,
   );
-  const { buffer, total } = getCreditSummary({
-    totalCredits,
-    subscriptionCredits,
-  });
-
   const bucketRows =
     await creditBucketRepository.listAvailableBucketsWithBalances(
       params.userId,
       params.organizationId,
       params.tx,
     );
+
+  const enterpriseBucketRows = params.organizationId
+    ? await creditBucketRepository.listEnterprisePoolBucketsWithBalances(
+        params.userId,
+        params.organizationId,
+        params.tx,
+      )
+    : [];
 
   const nonSubAggregates = bucketRows.reduce(
     (acc, row) => ({
@@ -285,6 +300,43 @@ export async function buildCreditsPayload(params: {
     expiresAt: row.expiresAt,
   }));
 
+  const enterpriseAggregates = enterpriseBucketRows.reduce(
+    (acc, row) => ({
+      totalCents: acc.totalCents + row.totalCents,
+      remainingCents: acc.remainingCents + row.remainingCents,
+    }),
+    { totalCents: 0n, remainingCents: 0n },
+  );
+  const enterpriseUsedCents =
+    enterpriseAggregates.totalCents - enterpriseAggregates.remainingCents;
+  const enterprise =
+    enterpriseBucketRows.length > 0
+      ? {
+          credits: {
+            total: convertCentsToCredits(enterpriseAggregates.totalCents),
+            remaining: convertCentsToCredits(
+              enterpriseAggregates.remainingCents,
+            ),
+            used: convertCentsToCredits(enterpriseUsedCents),
+          },
+          buckets: enterpriseBucketRows.map((row) => ({
+            total: convertCentsToCredits(row.totalCents),
+            remaining: convertCentsToCredits(row.remainingCents),
+            expiresAt: row.expiresAt,
+          })),
+        }
+      : null;
+
+  const enterpriseRemainingCredits = enterprise?.credits.remaining ?? 0;
+  const { buffer: bufferIncludingEnterprise, total } = getCreditSummary({
+    totalCredits,
+    subscriptionCredits,
+  });
+  const buffer = Math.max(
+    0,
+    bufferIncludingEnterprise - enterpriseRemainingCredits,
+  );
+
   const credits = {
     subscription,
     buffer,
@@ -300,6 +352,7 @@ export async function buildCreditsPayload(params: {
         used: convertCentsToCredits(nonSubUsedCents),
       },
       buckets,
+      enterprise,
     },
     credits,
   };

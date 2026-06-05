@@ -1,20 +1,19 @@
 "use client";
 
+import type {
+  OrganizationBillingPlanName,
+  PaidSubscriptionPlanName,
+} from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
 import { Card, CardContent } from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import {
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
-import type {
-  PaidSubscriptionPlanName,
-  SubscriptionPlanName,
-} from "@/lib/stripe/subscription-catalog";
 import {
   OrganizationSeatSettingsFields,
   resolveMinimumOrganizationSeats,
@@ -31,9 +30,11 @@ import {
 interface OrganizationSubscriptionSectionProps {
   assignedSeatCount: number;
   cancelAtPeriodEnd: boolean;
-  currentPlan: SubscriptionPlanName | null;
+  currentPlan: OrganizationBillingPlanName;
   currentPeriodEnd: Date | string | null;
   currentSeats: number;
+  isEnterpriseConsumable: boolean;
+  isEnterpriseContract: boolean;
   memberCount: number;
   organizationId: string;
   plans: SubscriptionPlanView[];
@@ -46,6 +47,8 @@ export function OrganizationSubscriptionSection({
   currentPlan,
   currentPeriodEnd,
   currentSeats,
+  isEnterpriseConsumable,
+  isEnterpriseContract,
   memberCount,
   organizationId,
   plans,
@@ -69,9 +72,8 @@ export function OrganizationSubscriptionSection({
   const [targetSeats, setTargetSeats] = useState(
     resolveTargetOrganizationSeats(currentSeats, assignedSeatCount),
   );
-  const [pendingPlan, setPendingPlan] = useState<SubscriptionPlanName | null>(
-    null,
-  );
+  const [pendingPlan, setPendingPlan] =
+    useState<PaidSubscriptionPlanName | null>(null);
 
   useEffect(() => {
     setTargetSeats(
@@ -105,6 +107,11 @@ export function OrganizationSubscriptionSection({
       date: cancellationDate,
     });
   }, [cancellationDate, tSubscriptions]);
+
+  const showEnterpriseExclusiveUi =
+    isEnterpriseContract && isEnterpriseConsumable;
+  const showEnterprisePostTermUi =
+    isEnterpriseContract && !isEnterpriseConsumable;
 
   const handleOpenLogin = useCallback(() => {
     router.push("/login");
@@ -237,50 +244,56 @@ export function OrganizationSubscriptionSection({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardContent className="space-y-6">
-          <OrganizationSeatSettingsFields
-            assignedSeatCount={assignedSeatCount}
-            inputId="organization-seats"
-            memberCount={memberCount}
-            onTargetSeatsChange={setTargetSeats}
-            targetSeats={targetSeats}
-          />
-        </CardContent>
-      </Card>
+      {!showEnterpriseExclusiveUi ? (
+        <Card>
+          <CardContent className="space-y-6">
+            <OrganizationSeatSettingsFields
+              assignedSeatCount={assignedSeatCount}
+              inputId="organization-seats"
+              memberCount={memberCount}
+              onTargetSeatsChange={setTargetSeats}
+              targetSeats={targetSeats}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
       <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          {paidPlans.map((plan) => {
-            const planPresentationProps = getPlanPresentationProps(plan);
+        {showEnterpriseExclusiveUi ? (
+          <SubscriptionEnterprisePlanCard isCurrent />
+        ) : (
+          <>
+            {showEnterprisePostTermUi ? (
+              <SubscriptionEnterprisePlanCard isCurrent />
+            ) : null}
+            <div className="grid gap-4 md:grid-cols-2">
+              {paidPlans.map((plan) => {
+                const planPresentationProps = getPlanPresentationProps(plan);
 
-            return (
-              <SubscriptionPlanCard
-                key={plan.name}
-                {...planPresentationProps}
-                isAnyPlanPending={pendingPlan !== null}
-                onAction={handleUpgradePlan}
-                plan={plan}
+                return (
+                  <SubscriptionPlanCard
+                    key={plan.name}
+                    {...planPresentationProps}
+                    isAnyPlanPending={pendingPlan !== null}
+                    onAction={handleUpgradePlan}
+                    plan={plan}
+                  />
+                );
+              })}
+              {!isEnterpriseContract ? (
+                <SubscriptionEnterprisePlanCard />
+              ) : null}
+            </div>
+
+            {freePlan ? (
+              <SubscriptionFreePlanRow
+                creditsText={t("includedCreditsPerSeat", {
+                  credits: freePlan.credits,
+                })}
+                plan={freePlan}
               />
-            );
-          })}
-          <SubscriptionEnterprisePlanCard
-            actionLabel={
-              currentPlan === "enterprise" && cancelAtPeriodEnd
-                ? cancellationLabel
-                : undefined
-            }
-            isCurrent={currentPlan === "enterprise"}
-          />
-        </div>
-
-        {freePlan ? (
-          <SubscriptionFreePlanRow
-            creditsText={t("includedCreditsPerSeat", {
-              credits: freePlan.credits,
-            })}
-            plan={freePlan}
-          />
-        ) : null}
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );

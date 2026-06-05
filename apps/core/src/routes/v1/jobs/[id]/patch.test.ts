@@ -96,9 +96,14 @@ vi.mock("@/middleware/auth", () => ({
     authContext.actor === "coworker",
 }));
 
-vi.mock("@sokosumi/database/helpers", () => ({
-  mapJobWithStatus: (...args: unknown[]) => mapJobWithStatusMock(...args),
-}));
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    mapJobWithStatus: (...args: unknown[]) => mapJobWithStatusMock(...args),
+  };
+});
 
 vi.mock("@/types/job", () => ({
   serializeJobDetails: (...args: unknown[]) => serializeJobDetailsMock(...args),

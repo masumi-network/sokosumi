@@ -1,9 +1,9 @@
 import { subscriptionRepository } from "@sokosumi/database/repositories";
+import type { SubscriptionPlanName } from "@sokosumi/utils";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
@@ -26,7 +26,6 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
-import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
 import { resolveAccountName } from "@/lib/utils/account-name";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 

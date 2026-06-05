@@ -2,28 +2,19 @@ import "server-only";
 
 import type { StripePlan } from "@better-auth/stripe";
 import { FREE_SUBSCRIPTION_MONTHLY_CREDITS } from "@sokosumi/database/helpers";
+import type {
+  PaidSubscriptionPlanName,
+  SelfServeSubscriptionPlanName,
+} from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-
-export type SubscriptionPlanName =
-  | "enterprise"
-  | "free"
-  | "pro"
-  | "standard"
-  | "starter";
-
-/** Self-serve paid plans in Stripe checkout upgrade flows (excludes support-managed enterprise). */
-export type PaidSubscriptionPlanName = Exclude<
-  SubscriptionPlanName,
-  "enterprise" | "free"
->;
 
 export interface SubscriptionCatalogPlan {
   credits: number;
   currency: string;
   monthlyAmount: number;
-  name: SubscriptionPlanName;
+  name: SelfServeSubscriptionPlanName;
   priceId: string;
   productId: string;
   slug: string;

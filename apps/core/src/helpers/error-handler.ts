@@ -10,14 +10,30 @@ import {
   shouldReportHttpException,
 } from "./error.js";
 
+const RESERVED_ERROR_BODY_KEYS = new Set(["error", "message", "meta", "kind"]);
+
+function mergeHttpExceptionExtensions(
+  extensions: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!extensions) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(extensions).filter(
+      ([key]) => !RESERVED_ERROR_BODY_KEYS.has(key),
+    ),
+  );
+}
+
 /**
  * Centralized error handler for Hono app
  * Formats HTTPExceptions into consistent error responses
  * Logs parsing errors for debugging
  */
-export function errorHandler(
+export function errorHandler<E extends { Variables: RequestIdVariables }>(
   error: Error,
-  c: Context<{ Variables: RequestIdVariables }>,
+  c: Context<E>,
 ): Response {
   const meta = {
     timestamp: new Date().toISOString(),
@@ -67,9 +83,27 @@ export function errorHandler(
       Sentry.captureException(error);
     }
 
-    const errorResponse: ErrorResponse = {
+    const cause =
+      typeof error.cause === "object" && error.cause !== null
+        ? (error.cause as {
+            extensions?: Record<string, unknown>;
+            kind?: string;
+          })
+        : undefined;
+
+    const extensions = mergeHttpExceptionExtensions(cause?.extensions);
+    const kind =
+      typeof cause?.kind === "string"
+        ? cause.kind
+        : typeof extensions.kind === "string"
+          ? extensions.kind
+          : undefined;
+
+    const errorResponse = {
       error: getErrorName(status),
       message: error.message,
+      ...(kind ? { kind } : {}),
+      ...extensions,
       meta,
     };
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   acquireLockMock,
+  syncEnterpriseContractRenewalMock,
   syncFreeSubscriptionRenewalMock,
   syncHermesInboxMock,
   releaseLockMock,
@@ -13,6 +14,7 @@ const {
   syncStripeCustomersMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
+  syncEnterpriseContractRenewalMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
   syncHermesInboxMock: vi.fn(),
   releaseLockMock: vi.fn(),
@@ -50,6 +52,12 @@ vi.mock("@/services/agent-sync.service", () => ({
 vi.mock("@/services/source-import-sync.service", () => ({
   sourceImportSyncService: {
     importPendingResultBlobs: syncSourceImportMock,
+  },
+}));
+
+vi.mock("@/services/enterprise-contract-sync.service", () => ({
+  enterpriseContractSyncService: {
+    runRenewalPass: syncEnterpriseContractRenewalMock,
   },
 }));
 
@@ -127,6 +135,12 @@ describe("sync routes", () => {
     });
     syncSourceImportMock.mockResolvedValue(3);
     syncFreeSubscriptionRenewalMock.mockResolvedValue(undefined);
+    syncEnterpriseContractRenewalMock.mockResolvedValue({
+      catchUpGranted: 0,
+      completedContracts: 0,
+      expiredPeriods: 0,
+      preCreated: 0,
+    });
     syncHermesInboxMock.mockResolvedValue({
       status: "ok",
       polled: 0,
@@ -302,6 +316,27 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 200 and starts enterprise-contract renewal sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/enterprise-contracts-renewal",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith(
+      "enterprise-contracts-renewal-sync",
+    );
+
+    await flushMicrotasks();
+    expect(syncEnterpriseContractRenewalMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {

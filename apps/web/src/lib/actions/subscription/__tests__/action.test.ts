@@ -33,6 +33,18 @@ vi.mock("@/lib/services", () => ({
   },
 }));
 
+vi.mock("@sokosumi/database/helpers", () => ({
+  assertOrganizationSubscriptionChangeAllowed: vi
+    .fn()
+    .mockResolvedValue(undefined),
+  assertPersonalSubscriptionChangeAllowed: vi.fn().mockResolvedValue(undefined),
+  OrganizationSubscriptionExclusivityError: class OrganizationSubscriptionExclusivityError extends Error {},
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {},
+}));
+
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
     (handler: (params: unknown) => Promise<unknown>) =>

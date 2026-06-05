@@ -19,6 +19,9 @@ const creditsSectionMock = vi.fn();
 const billingTabsMock = vi.fn();
 const organizationSubscriptionSectionMock = vi.fn();
 const personalSubscriptionSectionMock = vi.fn();
+const resolveOrganizationBillingPlanMock = vi.fn();
+const getEnterpriseContractBillingSummaryMock = vi.fn();
+const enterpriseContractSummaryMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -78,6 +81,16 @@ vi.mock("@/lib/utils/credits", () => ({
   formatCreditsForDisplay: (credits: number) => String(credits),
 }));
 
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    resolveOrganizationBillingPlan: (...args: unknown[]) =>
+      resolveOrganizationBillingPlanMock(...args),
+  };
+});
+
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     getBalance: (...args: unknown[]) => getBalanceMock(...args),
@@ -89,6 +102,18 @@ vi.mock("@sokosumi/database/repositories", () => ({
   userRepository: {
     getUserById: (...args: unknown[]) => getUserByIdMock(...args),
   },
+}));
+
+vi.mock("@/components/billing/enterprise-contract-summary", () => ({
+  EnterpriseContractSummary: (props: { summary: unknown }) => {
+    enterpriseContractSummaryMock(props);
+    return <div data-testid="enterprise-contract-summary" />;
+  },
+}));
+
+vi.mock("@/lib/services/enterprise-contract-summary.service", () => ({
+  getEnterpriseContractBillingSummary: (...args: unknown[]) =>
+    getEnterpriseContractBillingSummaryMock(...args),
 }));
 
 vi.mock("@/components/billing/balance-section", () => ({
@@ -156,6 +181,37 @@ function createSubscriptionCatalog() {
     standard: { credits: 5_250, currency: "EUR", monthlyAmount: 7_500 },
     starter: { credits: 1_750, currency: "EUR", monthlyAmount: 2_500 },
   };
+}
+
+function mockSelfServeOrganizationBillingPlan(
+  plan: "free" | "pro" | "standard" | "starter",
+  purchasedSeats: number,
+): void {
+  resolveOrganizationBillingPlanMock.mockResolvedValue({
+    mode: "self_serve",
+    plan,
+    purchasedSeats,
+    subscriptionId: "sub-org-1",
+    cancelAtPeriodEnd: false,
+    periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+  });
+}
+
+function mockEnterpriseOrganizationBillingPlan(
+  isConsumable: boolean,
+  purchasedSeats: number,
+): void {
+  resolveOrganizationBillingPlanMock.mockResolvedValue({
+    mode: "enterprise_contract",
+    plan: "enterprise",
+    isConsumable,
+    purchasedSeats,
+    contractId: "contract-1",
+    endsAt: new Date("2026-12-14T23:59:59.999Z"),
+    activatedAt: new Date("2026-01-15T00:00:00.000Z"),
+    cancelAtPeriodEnd: false,
+    periodEnd: null,
+  });
 }
 
 describe("BillingPage", () => {
@@ -227,11 +283,7 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(true);
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      periodEnd: "2026-03-01T00:00:00.000Z",
-      plan: "free",
-      seats: 2,
-    });
+    mockSelfServeOrganizationBillingPlan("free", 2);
 
     const { default: BillingPage } = await import("../page");
 
@@ -330,11 +382,7 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      periodEnd: "2026-03-01T00:00:00.000Z",
-      plan: "free",
-      seats: 5,
-    });
+    mockSelfServeOrganizationBillingPlan("free", 5);
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 2,
       memberCount: 2,
@@ -358,8 +406,10 @@ describe("BillingPage", () => {
         assignedSeatCount: 2,
         cancelAtPeriodEnd: false,
         currentPlan: "free",
-        currentPeriodEnd: "2026-03-01T00:00:00.000Z",
+        currentPeriodEnd: new Date("2026-03-01T00:00:00.000Z"),
         currentSeats: 5,
+        isEnterpriseConsumable: false,
+        isEnterpriseContract: false,
         memberCount: 2,
       }),
     );
@@ -378,11 +428,7 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      periodEnd: "2026-03-01T00:00:00.000Z",
-      plan: "pro",
-      seats: 10,
-    });
+    mockSelfServeOrganizationBillingPlan("pro", 10);
 
     const { default: BillingPage } = await import("../page");
 
@@ -396,5 +442,163 @@ describe("BillingPage", () => {
 
     expect(balanceBillingPortalLinkMock).toHaveBeenCalled();
     expect(view.getByTestId("balance-billing-portal-link")).toBeTruthy();
+  });
+
+  it("shows the enterprise contract summary for consumable enterprise org billing", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      _count: { members: 2 },
+      id: "org-enterprise",
+      name: "Enterprise Org",
+      stripeCustomerId: "cus_org_enterprise",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    mockEnterpriseOrganizationBillingPlan(true, 10);
+    getEnterpriseContractBillingSummaryMock.mockResolvedValue({
+      activatedAt: new Date("2026-01-15T00:00:00.000Z"),
+      endsAt: new Date("2026-12-14T23:59:59.999Z"),
+      currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
+      isConsumable: true,
+      monthlyCredits: 60_000,
+      nextActivationAt: new Date("2026-03-15T00:00:00.000Z"),
+      poolRemainingCredits: 25_000,
+      purchasedSeats: 10,
+    });
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contractId: "contract-1",
+        mode: "enterprise_contract",
+      }),
+      "org-enterprise",
+      expect.anything(),
+    );
+    expect(getBalanceMock).not.toHaveBeenCalled();
+    expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          poolRemainingCredits: 25_000,
+          purchasedSeats: 10,
+        }),
+      }),
+    );
+    expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
+    expect(view.queryByTestId("balance-section")).toBeNull();
+    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("shows the enterprise contract summary when contract details cannot be loaded", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      _count: { members: 2 },
+      id: "org-enterprise-missing-contract",
+      name: "Enterprise Org Missing Contract",
+      stripeCustomerId: "cus_org_enterprise_missing_contract",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    mockEnterpriseOrganizationBillingPlan(true, 10);
+    getEnterpriseContractBillingSummaryMock.mockResolvedValue({
+      activatedAt: new Date("2026-01-15T00:00:00.000Z"),
+      endsAt: new Date("2026-12-14T23:59:59.999Z"),
+      currentPeriodEnd: null,
+      isConsumable: true,
+      monthlyCredits: null,
+      nextActivationAt: null,
+      poolRemainingCredits: 4_500,
+      purchasedSeats: 10,
+    });
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          monthlyCredits: null,
+          poolRemainingCredits: 4_500,
+        }),
+      }),
+    );
+    expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
+    expect(view.queryByTestId("balance-section")).toBeNull();
+    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("shows the enterprise contract summary after the commercial term with contact us", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      _count: { members: 2 },
+      id: "org-enterprise-post-term",
+      name: "Enterprise Org Post Term",
+      stripeCustomerId: "cus_org_enterprise_post_term",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    mockEnterpriseOrganizationBillingPlan(false, 10);
+    getEnterpriseContractBillingSummaryMock.mockResolvedValue({
+      activatedAt: new Date("2026-01-15T00:00:00.000Z"),
+      endsAt: new Date("2026-12-14T23:59:59.999Z"),
+      currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
+      isConsumable: false,
+      monthlyCredits: 60_000,
+      nextActivationAt: null,
+      poolRemainingCredits: 1_000,
+      purchasedSeats: 10,
+    });
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contractId: "contract-1",
+        isConsumable: false,
+        mode: "enterprise_contract",
+      }),
+      "org-enterprise-post-term",
+      expect.anything(),
+    );
+    expect(getBalanceMock).not.toHaveBeenCalled();
+    expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          isConsumable: false,
+          poolRemainingCredits: 1_000,
+        }),
+      }),
+    );
+    expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
+    expect(view.queryByTestId("balance-section")).toBeNull();
+    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
+    expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
   });
 });

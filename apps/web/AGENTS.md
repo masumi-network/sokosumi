@@ -271,6 +271,8 @@ Core workflow:
 
 ## Additional Rules
 
+- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import shared symbols from `@sokosumi/utils` / `@sokosumi/database` directly; no passthrough files
+- [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; never `@sokosumi/database/helpers`
 - [Analysis Process](.cursor/rules/analysis-process.mdc)
 - [Effects](.cursor/rules/effects.mdc)
 - [Interface](.cursor/rules/interface.mdc)
