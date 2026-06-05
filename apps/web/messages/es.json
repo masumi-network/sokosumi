@@ -2502,6 +2502,12 @@
           "ends": "Finaliza",
           "actions": "Acciones",
           "view": "Ver"
+        },
+        "Form": {
+          "oneTimeExpiresAtHelper": "Déjelo en blanco si los créditos únicos no deben caducar."
+        },
+        "Detail": {
+          "noExpiry": "Sin caducidad"
         }
       }
     },

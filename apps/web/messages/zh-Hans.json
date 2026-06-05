@@ -2533,6 +2533,12 @@
           "ends": "结束",
           "actions": "操作",
           "view": "查看"
+        },
+        "Form": {
+          "oneTimeExpiresAtHelper": "若一次性积分不过期，请留空。"
+        },
+        "Detail": {
+          "noExpiry": "无到期日"
         }
       }
     },

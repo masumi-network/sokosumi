@@ -2533,6 +2533,12 @@
           "ends": "Ends",
           "actions": "Actions",
           "view": "View"
+        },
+        "Form": {
+          "oneTimeExpiresAtHelper": "Leave blank if one-time credits should not expire."
+        },
+        "Detail": {
+          "noExpiry": "No expiry"
         }
       }
     },

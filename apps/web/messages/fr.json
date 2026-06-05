@@ -2533,6 +2533,12 @@
           "ends": "Se termine",
           "actions": "Actions",
           "view": "Voir"
+        },
+        "Form": {
+          "oneTimeExpiresAtHelper": "Laissez vide si les crédits ponctuels ne doivent pas expirer."
+        },
+        "Detail": {
+          "noExpiry": "Sans expiration"
         }
       }
     },

@@ -2533,6 +2533,12 @@
           "ends": "終了",
           "actions": "操作",
           "view": "表示"
+        },
+        "Form": {
+          "oneTimeExpiresAtHelper": "一回限りのクレジットを期限なしにする場合は空欄のままにしてください。"
+        },
+        "Detail": {
+          "noExpiry": "期限なし"
         }
       }
     },

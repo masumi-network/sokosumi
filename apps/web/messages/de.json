@@ -2502,6 +2502,12 @@
           "ends": "Endet",
           "actions": "Aktionen",
           "view": "Ansehen"
+        },
+        "Form": {
+          "oneTimeExpiresAtHelper": "Leer lassen, wenn die Einmal-Credits nicht ablaufen sollen."
+        },
+        "Detail": {
+          "noExpiry": "Kein Ablauf"
         }
       }
     },

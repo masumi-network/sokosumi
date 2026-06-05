@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getFormatter } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 
 import { ActivateContractDialog } from "@/components/admin/enterprise-contracts/activate-contract-dialog";
 import { CancelContractDialog } from "@/components/admin/enterprise-contracts/cancel-contract-dialog";
@@ -12,15 +12,33 @@ import { Separator } from "@/components/ui/separator";
 import type { EnterpriseContract } from "@/lib/clients/generated/core/types.gen";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
+const dateTimeOptions = {
+  dateStyle: "medium",
+  timeStyle: "short",
+} as const;
+
 function formatDateTime(
   formatter: Awaited<ReturnType<typeof getFormatter>>,
   value: Date | null,
 ): string {
   if (!value) return "—";
-  return formatter.dateTime(value, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return formatter.dateTime(value, dateTimeOptions);
+}
+
+function formatOneTimeExpiresAt(
+  formatter: Awaited<ReturnType<typeof getFormatter>>,
+  contract: Pick<EnterpriseContract, "oneTimeCredits" | "oneTimeExpiresAt">,
+  noExpiryLabel: string,
+): string {
+  if (contract.oneTimeCredits == null || contract.oneTimeCredits <= 0) {
+    return "—";
+  }
+
+  if (!contract.oneTimeExpiresAt) {
+    return noExpiryLabel;
+  }
+
+  return formatter.dateTime(contract.oneTimeExpiresAt, dateTimeOptions);
 }
 
 interface ContractDetailProps {
@@ -28,6 +46,7 @@ interface ContractDetailProps {
 }
 
 export async function ContractDetail({ contract }: ContractDetailProps) {
+  const t = await getTranslations("App.Admin.EnterpriseContracts.Detail");
   const formatter = await getFormatter();
   const isDraft = contract.status === "draft";
   const isActive = contract.status === "active";
@@ -100,7 +119,7 @@ export async function ContractDetail({ contract }: ContractDetailProps) {
             <div className="space-y-1">
               <dt className="text-muted-foreground">One-time expires</dt>
               <dd className="font-medium">
-                {formatDateTime(formatter, contract.oneTimeExpiresAt)}
+                {formatOneTimeExpiresAt(formatter, contract, t("noExpiry"))}
               </dd>
             </div>
             <div className="space-y-1">

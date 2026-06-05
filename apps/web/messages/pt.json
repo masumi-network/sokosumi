@@ -2533,6 +2533,12 @@
           "ends": "Termina",
           "actions": "Ações",
           "view": "Ver"
+        },
+        "Form": {
+          "oneTimeExpiresAtHelper": "Deixe em branco se os créditos únicos não devem expirar."
+        },
+        "Detail": {
+          "noExpiry": "Sem expiração"
         }
       }
     },

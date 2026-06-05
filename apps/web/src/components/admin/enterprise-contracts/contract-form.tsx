@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -136,6 +136,7 @@ interface ContractFormProps {
 }
 
 export function ContractForm({ mode, contract }: ContractFormProps) {
+  const t = useTranslations("App.Admin.EnterpriseContracts.Form");
   const formatter = useFormatter();
   const router = useRouter();
   const [values, setValues] = useState<ContractFormValues>(() =>
@@ -280,6 +281,9 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
               updateValue("oneTimeExpiresAt", event.target.value)
             }
           />
+          <p className="text-muted-foreground text-xs">
+            {t("oneTimeExpiresAtHelper")}
+          </p>
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="paymentReference">Payment reference (optional)</Label>

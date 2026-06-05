@@ -2533,6 +2533,12 @@
           "ends": "Termina",
           "actions": "Azioni",
           "view": "Visualizza"
+        },
+        "Form": {
+          "oneTimeExpiresAtHelper": "Lascia vuoto se i crediti una tantum non devono scadere."
+        },
+        "Detail": {
+          "noExpiry": "Nessuna scadenza"
         }
       }
     },
