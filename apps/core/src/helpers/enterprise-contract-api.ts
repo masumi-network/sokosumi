@@ -79,8 +79,19 @@ export function mapEnterpriseContractPeriodForApi(
   };
 }
 
+export const enterpriseContractOrganizationSelect = {
+  organization: {
+    select: {
+      slug: true,
+    },
+  },
+} as const;
+
 export function mapEnterpriseContractForApi(
-  contract: EnterpriseContract & { periods?: EnterpriseContractPeriod[] },
+  contract: EnterpriseContract & {
+    periods?: EnterpriseContractPeriod[];
+    organization: { slug: string };
+  },
 ) {
   const contractEnd =
     contract.activatedAt != null
@@ -94,7 +105,7 @@ export function mapEnterpriseContractForApi(
     id: contract.id,
     createdAt: contract.createdAt,
     updatedAt: contract.updatedAt,
-    organizationId: contract.organizationId,
+    organizationSlug: contract.organization.slug,
     status: contract.status,
     periods: contract.periodCount,
     activatedAt: contract.activatedAt,

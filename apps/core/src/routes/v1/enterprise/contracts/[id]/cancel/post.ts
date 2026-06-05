@@ -49,6 +49,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const canceled = await prisma.enterpriseContract.findUnique({
       where: { id },
+      include: {
+        organization: {
+          select: { slug: true },
+        },
+      },
     });
 
     if (!canceled) {

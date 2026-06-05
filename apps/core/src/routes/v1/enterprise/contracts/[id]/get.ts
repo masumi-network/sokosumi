@@ -38,6 +38,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: { id },
       include: {
         periods: true,
+        organization: {
+          select: { slug: true },
+        },
       },
     });
 

@@ -4,6 +4,7 @@ import { EnterpriseContractStatus } from "@sokosumi/database";
 import {
   assertEnterprisePeriodCount,
   creditsPerMonthToCents,
+  enterpriseContractOrganizationSelect,
   mapEnterpriseContractForApi,
   optionalOneTimeCreditsToCents,
 } from "@/helpers/enterprise-contract-api.js";
@@ -50,8 +51,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     assertEnterprisePeriodCount(body.periods);
 
     const organization = await prisma.organization.findUnique({
-      where: { id: body.organizationId },
-      select: { id: true },
+      where: { slug: body.organizationSlug },
+      select: { id: true, slug: true },
     });
 
     if (!organization) {
@@ -69,7 +70,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const record = await prisma.enterpriseContract.create({
       data: {
-        organizationId: body.organizationId,
+        organizationId: organization.id,
         status: EnterpriseContractStatus.draft,
         periodCount: body.periods,
         seats: body.seats,
@@ -80,6 +81,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         notes: body.notes,
         externalReference: body.externalReference,
       },
+      include: enterpriseContractOrganizationSelect,
     });
 
     return created(

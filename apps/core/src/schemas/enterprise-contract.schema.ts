@@ -52,7 +52,7 @@ export const enterpriseContractSchema = z
     id: z.uuid(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    organizationId: z.string().openapi({ example: "org_123" }),
+    organizationSlug: z.string().openapi({ example: "acme-corp" }),
     status: enterpriseContractStatusSchema,
     periods: z.number().int().min(MIN_ENTERPRISE_PERIOD_COUNT).openapi({
       description: "Commercial term length in monthly grant periods",
@@ -91,7 +91,7 @@ export type EnterpriseContractResponse = z.infer<
 
 export const createEnterpriseContractRequestSchema = z
   .object({
-    organizationId: z.string().min(1).openapi({ example: "org_123" }),
+    organizationSlug: z.string().min(1).openapi({ example: "acme-corp" }),
     creditsPerMonth: z
       .number()
       .min(MIN_ENTERPRISE_CREDITS_PER_MONTH)
@@ -131,12 +131,12 @@ export const patchEnterpriseContractRequestSchema = z
   .openapi("PatchEnterpriseContractRequest");
 
 export const listEnterpriseContractsQuerySchema = z.object({
-  organizationId: z
+  organizationSlug: z
     .string()
     .optional()
     .openapi({
-      param: { name: "organizationId", in: "query" },
-      example: "org_123",
+      param: { name: "organizationSlug", in: "query" },
+      example: "acme-corp",
     }),
   status: enterpriseContractStatusSchema.optional().openapi({
     param: { name: "status", in: "query" },

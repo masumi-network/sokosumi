@@ -4,6 +4,7 @@ import { EnterpriseContractStatus } from "@sokosumi/database";
 import {
   assertEnterprisePeriodCount,
   creditsPerMonthToCents,
+  enterpriseContractOrganizationSelect,
   mapEnterpriseContractForApi,
   optionalOneTimeCreditsToCents,
 } from "@/helpers/enterprise-contract-api.js";
@@ -108,6 +109,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         notes: body.notes,
         externalReference: body.externalReference,
       },
+      include: enterpriseContractOrganizationSelect,
     });
 
     return ok(

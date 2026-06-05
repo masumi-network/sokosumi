@@ -25,6 +25,7 @@ import mountPostEnterpriseContract from "./post.js";
 
 const CONTRACT_ID = "01960000-0000-7000-8000-000000000001";
 const ORG_ID = "org_123";
+const ORG_SLUG = "acme-corp";
 
 const {
   organizationFindUniqueMock,
@@ -88,6 +89,7 @@ function createContractRecord(
     createdAt: new Date("2026-06-01T10:00:00.000Z"),
     updatedAt: new Date("2026-06-01T10:00:00.000Z"),
     organizationId: ORG_ID,
+    organization: { slug: ORG_SLUG },
     status: EnterpriseContractStatus.draft,
     periodCount: 12,
     activatedAt: null,
@@ -160,7 +162,10 @@ function createContractsApp(options: AppOptions = {}) {
 describe("enterprise contract admin routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
+    organizationFindUniqueMock.mockResolvedValue({
+      id: ORG_ID,
+      slug: ORG_SLUG,
+    });
     enterpriseContractFindManyMock.mockResolvedValue([]);
     enterpriseContractFindUniqueMock.mockResolvedValue(null);
     prismaTransactionMock.mockImplementation(async (callback) => {
@@ -190,7 +195,7 @@ describe("enterprise contract admin routes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          organizationId: ORG_ID,
+          organizationSlug: ORG_SLUG,
           creditsPerMonth: 60_000,
           periods: 12,
           seats: 10,
@@ -219,7 +224,7 @@ describe("enterprise contract admin routes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          organizationId: ORG_ID,
+          organizationSlug: ORG_SLUG,
           creditsPerMonth: 60_000,
           periods: 12,
           seats: 10,
@@ -227,11 +232,11 @@ describe("enterprise contract admin routes", () => {
       });
 
       const body = (await response.json()) as {
-        data: { organizationId: string; status: string };
+        data: { organizationSlug: string; status: string };
       };
 
       expect(response.status).toBe(201);
-      expect(body.data.organizationId).toBe(ORG_ID);
+      expect(body.data.organizationSlug).toBe(ORG_SLUG);
       expect(body.data.status).toBe(EnterpriseContractStatus.draft);
       expect(enterpriseContractCreateMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -240,6 +245,11 @@ describe("enterprise contract admin routes", () => {
             status: EnterpriseContractStatus.draft,
             periodCount: 12,
           }),
+          include: {
+            organization: {
+              select: { slug: true },
+            },
+          },
         }),
       );
     });
@@ -252,7 +262,7 @@ describe("enterprise contract admin routes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          organizationId: ORG_ID,
+          organizationSlug: ORG_SLUG,
           creditsPerMonth: 60_000,
           periods: 12,
           seats: 10,
@@ -269,7 +279,7 @@ describe("enterprise contract admin routes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          organizationId: ORG_ID,
+          organizationSlug: ORG_SLUG,
           creditsPerMonth: 1,
           periods: 12,
           seats: 10,
@@ -287,7 +297,7 @@ describe("enterprise contract admin routes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          organizationId: ORG_ID,
+          organizationSlug: ORG_SLUG,
           creditsPerMonth: 60_000,
           periods: 12,
           seats: 10,
@@ -307,7 +317,7 @@ describe("enterprise contract admin routes", () => {
       const app = createContractsApp();
 
       const response = await app.request(
-        `http://localhost/?organizationId=${ORG_ID}&status=${EnterpriseContractStatus.draft}`,
+        `http://localhost/?organizationSlug=${ORG_SLUG}&status=${EnterpriseContractStatus.draft}`,
       );
       const body = (await response.json()) as {
         data: Array<{ id: string }>;
@@ -319,6 +329,11 @@ describe("enterprise contract admin routes", () => {
         where: {
           organizationId: ORG_ID,
           status: EnterpriseContractStatus.draft,
+        },
+        include: {
+          organization: {
+            select: { slug: true },
+          },
         },
         orderBy: [{ createdAt: "desc" }],
       });
