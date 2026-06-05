@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,10 @@ import type {
   EnterpriseContract,
   PatchEnterpriseContractRequest,
 } from "@/lib/clients/generated/core/types.gen";
+import {
+  formatDatetimeLocalValue,
+  parseDatetimeLocalValue,
+} from "@/lib/job-input/date-value";
 
 const MIN_CREDITS_PER_MONTH = 60_000;
 const MIN_PERIODS = 1;
@@ -43,18 +47,11 @@ function toFormValues(contract?: EnterpriseContract): ContractFormValues {
     periods: contract?.periods ?? MIN_PERIODS,
     seats: contract?.seats ?? MIN_SEATS,
     oneTimeCredits: contract?.oneTimeCredits ?? null,
-    oneTimeExpiresAt: contract?.oneTimeExpiresAt
-      ? toDateTimeLocalValue(contract.oneTimeExpiresAt)
-      : "",
+    oneTimeExpiresAt: "",
     paymentReference: contract?.paymentReference ?? "",
     notes: contract?.notes ?? "",
     externalReference: contract?.externalReference ?? "",
   };
-}
-
-function toDateTimeLocalValue(value: Date): string {
-  const pad = (part: number) => String(part).padStart(2, "0");
-  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
 }
 
 function parseOptionalNumber(value: string): number | null {
@@ -72,7 +69,10 @@ function resolveOneTimeCredits(values: ContractFormValues): number | null {
   return values.oneTimeCredits;
 }
 
-function resolveOneTimeExpiresAt(values: ContractFormValues): Date | null {
+function resolveOneTimeExpiresAt(
+  values: ContractFormValues,
+  originalOneTimeExpiresAt?: Date | null,
+): Date | null {
   if (
     resolveOneTimeCredits(values) == null ||
     !values.oneTimeExpiresAt.trim()
@@ -80,7 +80,16 @@ function resolveOneTimeExpiresAt(values: ContractFormValues): Date | null {
     return null;
   }
 
-  return new Date(values.oneTimeExpiresAt);
+  const trimmed = values.oneTimeExpiresAt.trim();
+
+  if (
+    originalOneTimeExpiresAt &&
+    trimmed === formatDatetimeLocalValue(originalOneTimeExpiresAt)
+  ) {
+    return originalOneTimeExpiresAt;
+  }
+
+  return parseDatetimeLocalValue(trimmed) ?? null;
 }
 
 function buildCreateBody(
@@ -117,13 +126,14 @@ function buildCreateBody(
 
 function buildPatchBody(
   values: ContractFormValues,
+  originalOneTimeExpiresAt?: Date | null,
 ): PatchEnterpriseContractRequest {
   return {
     creditsPerMonth: values.creditsPerMonth,
     periods: values.periods,
     seats: values.seats,
     oneTimeCredits: resolveOneTimeCredits(values),
-    oneTimeExpiresAt: resolveOneTimeExpiresAt(values),
+    oneTimeExpiresAt: resolveOneTimeExpiresAt(values, originalOneTimeExpiresAt),
     paymentReference: values.paymentReference.trim() || null,
     notes: values.notes.trim() || null,
     externalReference: values.externalReference.trim() || null,
@@ -143,6 +153,18 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
     toFormValues(contract),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const oneTimeExpiresAt = contract?.oneTimeExpiresAt;
+    if (!oneTimeExpiresAt) {
+      return;
+    }
+
+    setValues((current) => ({
+      ...current,
+      oneTimeExpiresAt: formatDatetimeLocalValue(oneTimeExpiresAt),
+    }));
+  }, [contract?.oneTimeExpiresAt]);
 
   function updateValue<K extends keyof ContractFormValues>(
     key: K,
@@ -177,7 +199,7 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
 
       const result = await updateEnterpriseContractAction({
         id: contract.id,
-        body: buildPatchBody(values),
+        body: buildPatchBody(values, contract.oneTimeExpiresAt),
       });
       if (!result.ok) {
         toast.error(result.error.message ?? "Failed to update contract");
