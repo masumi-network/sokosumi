@@ -178,20 +178,20 @@ export const enterpriseContractActivationBlockerSchema = z
   .object({
     subscriptionId: z.string(),
     stripeSubscriptionId: z.string(),
-    referenceId: z.string(),
     plan: z.string(),
-    scope: z.enum(["member", "organization"]),
-    userId: z.string().optional(),
+    scope: z.literal("organization"),
   })
   .openapi("EnterpriseContractActivationBlocker");
 
 export const enterpriseContractActivationConflictResponseSchema =
   errorResponseSchema
+    .omit({ meta: true })
     .extend({
       kind: z.literal("enterprise_activation_blocked").openapi({
         description: "Machine-readable conflict reason for activation guards",
       }),
-      blockers: z.array(enterpriseContractActivationBlockerSchema),
+      blocker: enterpriseContractActivationBlockerSchema,
+      meta: errorResponseSchema.shape.meta,
     })
     .openapi("EnterpriseContractActivationConflictResponse");
 

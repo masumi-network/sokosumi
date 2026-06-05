@@ -136,10 +136,8 @@ export function mapEnterpriseContractActivationBlockerForApi(
   return {
     subscriptionId: blocker.subscriptionId,
     stripeSubscriptionId: blocker.stripeSubscriptionId,
-    referenceId: blocker.referenceId,
     plan: blocker.plan,
     scope: blocker.scope,
-    userId: blocker.userId,
   };
 }
 

@@ -73,25 +73,23 @@ describe("errorHandler", () => {
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
-  it("includes activation blockers in 409 conflict responses", async () => {
+  it("includes activation blocker in 409 conflict responses", async () => {
     const app = createApp();
     app.get("/", () => {
       handleEnterpriseContractLifecycleError(
-        new EnterpriseContractActivationError([
-          {
-            plan: "starter",
-            referenceId: "org-1",
-            scope: "organization",
-            stripeSubscriptionId: "sub_stripe_1",
-            subscriptionId: "sub_local_1",
-          },
-        ]),
+        new EnterpriseContractActivationError({
+          plan: "starter",
+          referenceId: "org-1",
+          scope: "organization",
+          stripeSubscriptionId: "sub_stripe_1",
+          subscriptionId: "sub_local_1",
+        }),
       );
     });
 
     const response = await app.request("http://localhost/");
     const body = (await response.json()) as {
-      blockers: Array<{ scope: string; subscriptionId: string }>;
+      blocker: { scope: string; subscriptionId: string };
       error: string;
       message: string;
     };
@@ -101,15 +99,15 @@ describe("errorHandler", () => {
     expect(body).toMatchObject({
       kind: "enterprise_activation_blocked",
     });
-    expect(body.blockers).toEqual([
-      {
-        plan: "starter",
-        referenceId: "org-1",
-        scope: "organization",
-        stripeSubscriptionId: "sub_stripe_1",
-        subscriptionId: "sub_local_1",
-      },
-    ]);
+    expect(body.message).toBe(
+      "Enterprise contract activation blocked by an active organization subscription",
+    );
+    expect(body.blocker).toEqual({
+      plan: "starter",
+      scope: "organization",
+      stripeSubscriptionId: "sub_stripe_1",
+      subscriptionId: "sub_local_1",
+    });
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 

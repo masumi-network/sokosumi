@@ -9,17 +9,12 @@ import { conflict, notFound } from "@/helpers/error.js";
 
 export function handleEnterpriseContractLifecycleError(error: unknown): never {
   if (error instanceof EnterpriseContractActivationError) {
-    const blockers = error.blockers.map(
-      mapEnterpriseContractActivationBlockerForApi,
-    );
-    const summary = blockers
-      .map((blocker) => `${blocker.scope}:${blocker.subscriptionId}`)
-      .join(", ");
+    const blocker = mapEnterpriseContractActivationBlockerForApi(error.blocker);
     throw conflict(
-      `Enterprise contract activation blocked by paid subscriptions: ${summary}`,
+      "Enterprise contract activation blocked by an active organization subscription",
       {
         kind: "enterprise_activation_blocked",
-        extensions: { blockers, kind: "enterprise_activation_blocked" },
+        extensions: { blocker, kind: "enterprise_activation_blocked" },
       },
     );
   }

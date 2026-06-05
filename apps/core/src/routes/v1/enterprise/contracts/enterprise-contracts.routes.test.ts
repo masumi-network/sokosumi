@@ -444,17 +444,15 @@ describe("enterprise contract admin routes", () => {
       expect(response.status).toBe(404);
     });
 
-    it("returns 409 with blockers and kind when activation is blocked", async () => {
+    it("returns 409 with blocker and kind when activation is blocked", async () => {
       activateEnterpriseContractMock.mockRejectedValue(
-        new EnterpriseContractActivationError([
-          {
-            plan: "starter",
-            referenceId: ORG_ID,
-            scope: "organization",
-            stripeSubscriptionId: "sub_stripe_1",
-            subscriptionId: "sub_local_1",
-          },
-        ]),
+        new EnterpriseContractActivationError({
+          plan: "starter",
+          referenceId: ORG_ID,
+          scope: "organization",
+          stripeSubscriptionId: "sub_stripe_1",
+          subscriptionId: "sub_local_1",
+        }),
       );
       const app = createContractsApp();
 
@@ -469,20 +467,17 @@ describe("enterprise contract admin routes", () => {
 
       const body = (await response.json()) as {
         kind: string;
-        blockers: Array<{ subscriptionId: string }>;
+        blocker: { subscriptionId: string };
       };
 
       expect(response.status).toBe(409);
       expect(body.kind).toBe("enterprise_activation_blocked");
-      expect(body.blockers).toEqual([
-        {
-          plan: "starter",
-          referenceId: ORG_ID,
-          scope: "organization",
-          stripeSubscriptionId: "sub_stripe_1",
-          subscriptionId: "sub_local_1",
-        },
-      ]);
+      expect(body.blocker).toEqual({
+        plan: "starter",
+        scope: "organization",
+        stripeSubscriptionId: "sub_stripe_1",
+        subscriptionId: "sub_local_1",
+      });
     });
 
     it("returns 409 for other lifecycle conflicts", async () => {

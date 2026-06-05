@@ -98,10 +98,9 @@ function createLifecycleClient(params?: {
   blockers?: Array<{
     plan: string;
     referenceId: string;
-    scope: "member" | "organization";
+    scope: "organization";
     stripeSubscriptionId: string;
     subscriptionId: string;
-    userId?: string;
   }>;
   contract?: Partial<ReturnType<typeof createDraftContract>> & {
     periods?: Array<{
@@ -339,18 +338,43 @@ describe("expireCreditBucketsNow", () => {
 });
 
 describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
-  it("lists organization and member paid subscriptions with consumable buckets", async () => {
+  it("lists an organization paid subscription with consumable buckets", async () => {
     const findFirstBucketMock = vi
       .fn()
-      .mockResolvedValueOnce({ id: "org-bucket" })
-      .mockResolvedValueOnce({ id: "member-bucket" });
+      .mockResolvedValueOnce({ id: "org-bucket" });
+    const resolveActiveSubscriptionMock = vi.fn().mockResolvedValueOnce({
+      id: "sub-org",
+      plan: "starter",
+      stripeSubscriptionId: "sub_stripe_org",
+    });
+
+    const tx = {
+      creditBucket: {
+        findFirst: findFirstBucketMock,
+      },
+      member: {
+        findMany: vi.fn().mockResolvedValue([{ userId: "member-1" }]),
+      },
+      subscription: {
+        findFirst: resolveActiveSubscriptionMock,
+      },
+    } as unknown as PrismaType.TransactionClient;
+
+    const blocker = await findPaidSubscriptionsBlockingEnterpriseActivation(
+      ORG_ID,
+      tx,
+      new Date("2026-05-01T00:00:00.000Z"),
+    );
+
+    assert.ok(blocker);
+    assert.equal(blocker.scope, "organization");
+  });
+
+  it("ignores member personal subscriptions", async () => {
+    const findFirstBucketMock = vi.fn().mockResolvedValue(null);
     const resolveActiveSubscriptionMock = vi
       .fn()
-      .mockResolvedValueOnce({
-        id: "sub-org",
-        plan: "starter",
-        stripeSubscriptionId: "sub_stripe_org",
-      })
+      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         id: "sub-member",
         plan: "starter",
@@ -369,19 +393,16 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
       },
     } as unknown as PrismaType.TransactionClient;
 
-    const blockers = await findPaidSubscriptionsBlockingEnterpriseActivation(
+    const blocker = await findPaidSubscriptionsBlockingEnterpriseActivation(
       ORG_ID,
       tx,
       new Date("2026-05-01T00:00:00.000Z"),
     );
 
-    assert.equal(blockers.length, 2);
-    assert.equal(blockers[0]?.scope, "organization");
-    assert.equal(blockers[1]?.scope, "member");
-    assert.equal(blockers[1]?.userId, "member-1");
+    assert.equal(blocker, null);
   });
 
-  it("returns no blockers when a paid subscription has no consumable buckets", async () => {
+  it("returns no blocker when a paid subscription has no consumable buckets", async () => {
     const tx = {
       creditBucket: {
         findFirst: vi.fn().mockResolvedValue(null),
@@ -398,13 +419,13 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
       },
     } as unknown as PrismaType.TransactionClient;
 
-    const blockers = await findPaidSubscriptionsBlockingEnterpriseActivation(
+    const blocker = await findPaidSubscriptionsBlockingEnterpriseActivation(
       ORG_ID,
       tx,
       new Date("2026-05-01T00:00:00.000Z"),
     );
 
-    assert.equal(blockers.length, 0);
+    assert.equal(blocker, null);
   });
 });
 
@@ -519,8 +540,7 @@ describe("activateEnterpriseContract", () => {
         ),
       (error: unknown) => {
         assert.ok(error instanceof EnterpriseContractActivationError);
-        assert.ok(error.blockers.length >= 1);
-        assert.equal(error.blockers[0]?.scope, "organization");
+        assert.equal(error.blocker.scope, "organization");
         return true;
       },
     );

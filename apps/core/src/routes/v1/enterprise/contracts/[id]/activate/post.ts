@@ -42,7 +42,7 @@ const route = createRoute({
     404: jsonErrorResponse("Not Found"),
     409: {
       description:
-        "Activation blocked by paid subscriptions (see blockers in response body)",
+        "Activation blocked by an active organization subscription (see blocker in response body)",
       content: jsonContent(enterpriseContractActivationConflictResponseSchema),
     },
     422: jsonErrorResponse("Unprocessable Entity"),

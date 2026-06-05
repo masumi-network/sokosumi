@@ -51,7 +51,14 @@ describe("enterprise contracts routes OpenAPI contract", () => {
           enum: ["enterprise_activation_blocked"],
         },
       },
-      required: expect.arrayContaining(["kind", "blockers"]),
+      required: expect.arrayContaining(["kind", "blocker", "meta"]),
     });
+    expect(Object.keys(schema?.properties ?? {})).toEqual([
+      "error",
+      "message",
+      "kind",
+      "blocker",
+      "meta",
+    ]);
   });
 });

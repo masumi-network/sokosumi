@@ -1,12 +1,12 @@
 import type { PaidSubscriptionBlocker } from "./enterprise-contract-exclusivity.js";
 
 export class EnterpriseContractActivationError extends Error {
-  readonly blockers: PaidSubscriptionBlocker[];
+  readonly blocker: PaidSubscriptionBlocker;
 
-  constructor(blockers: PaidSubscriptionBlocker[]) {
+  constructor(blocker: PaidSubscriptionBlocker) {
     super("Enterprise contract activation blocked by paid subscriptions");
     this.name = "EnterpriseContractActivationError";
-    this.blockers = blockers;
+    this.blocker = blocker;
   }
 }
 

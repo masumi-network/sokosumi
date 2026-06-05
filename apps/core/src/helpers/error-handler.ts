@@ -102,9 +102,9 @@ export function errorHandler<E extends { Variables: RequestIdVariables }>(
     const errorResponse = {
       error: getErrorName(status),
       message: error.message,
-      meta,
       ...(kind ? { kind } : {}),
       ...extensions,
+      meta,
     };
 
     return c.json(errorResponse, status);

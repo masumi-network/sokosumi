@@ -10,10 +10,9 @@ import { LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS } from "./subscription.js";
 export interface PaidSubscriptionBlocker {
   plan: string;
   referenceId: string;
-  scope: "member" | "organization";
+  scope: "organization";
   stripeSubscriptionId: string;
   subscriptionId: string;
-  userId?: string;
 }
 
 async function hasConsumablePaidSubscriptionPeriodBucket(
@@ -73,8 +72,7 @@ export async function findPaidSubscriptionsBlockingEnterpriseActivation(
   organizationId: string,
   tx: Prisma.TransactionClient,
   now: Date = new Date(),
-): Promise<PaidSubscriptionBlocker[]> {
-  const blockers: PaidSubscriptionBlocker[] = [];
+): Promise<PaidSubscriptionBlocker | null> {
   const memberUserIds = await fetchOrganizationMemberUserIds(
     organizationId,
     tx,
@@ -87,57 +85,26 @@ export async function findPaidSubscriptionsBlockingEnterpriseActivation(
       now,
     );
 
-  if (organizationSubscription?.stripeSubscriptionId) {
-    const hasConsumableBuckets = await hasConsumableOrgPaidSubscriptionBuckets(
-      organizationId,
-      memberUserIds,
-      now,
-      tx,
-    );
-
-    if (hasConsumableBuckets) {
-      blockers.push({
-        plan: organizationSubscription.plan,
-        referenceId: organizationId,
-        scope: "organization",
-        stripeSubscriptionId: organizationSubscription.stripeSubscriptionId,
-        subscriptionId: organizationSubscription.id,
-      });
-    }
+  if (!organizationSubscription?.stripeSubscriptionId) {
+    return null;
   }
 
-  for (const userId of memberUserIds) {
-    const personalSubscription =
-      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-        userId,
-        tx,
-        now,
-      );
+  const hasConsumableBuckets = await hasConsumableOrgPaidSubscriptionBuckets(
+    organizationId,
+    memberUserIds,
+    now,
+    tx,
+  );
 
-    if (!personalSubscription?.stripeSubscriptionId) {
-      continue;
-    }
-
-    const hasConsumableBucket = await hasConsumablePaidSubscriptionPeriodBucket(
-      {
-        now,
-        organizationId: null,
-        userId,
-      },
-      tx,
-    );
-
-    if (hasConsumableBucket) {
-      blockers.push({
-        plan: personalSubscription.plan,
-        referenceId: userId,
-        scope: "member",
-        stripeSubscriptionId: personalSubscription.stripeSubscriptionId,
-        subscriptionId: personalSubscription.id,
-        userId,
-      });
-    }
+  if (!hasConsumableBuckets) {
+    return null;
   }
 
-  return blockers;
+  return {
+    plan: organizationSubscription.plan,
+    referenceId: organizationId,
+    scope: "organization",
+    stripeSubscriptionId: organizationSubscription.stripeSubscriptionId,
+    subscriptionId: organizationSubscription.id,
+  };
 }

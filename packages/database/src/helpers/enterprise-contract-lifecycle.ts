@@ -85,14 +85,14 @@ export async function activateEnterpriseContract(
 
   validateEnterprisePeriodCount(contract.periodCount);
 
-  const blockers = await findPaidSubscriptionsBlockingEnterpriseActivation(
+  const blocker = await findPaidSubscriptionsBlockingEnterpriseActivation(
     contract.organizationId,
     tx,
     params.activatedAt,
   );
 
-  if (blockers.length > 0) {
-    throw new EnterpriseContractActivationError(blockers);
+  if (blocker) {
+    throw new EnterpriseContractActivationError(blocker);
   }
 
   const activatedAt = params.activatedAt;
