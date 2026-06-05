@@ -9,7 +9,11 @@ import {
   enterpriseContractPeriodStatusValues,
   enterpriseContractStatusValues,
 } from "@/helpers/enterprise-contract-api.js";
-import { errorResponseSchema } from "@/helpers/error.js";
+import {
+  errorResponseSchema,
+  errorResponseWithExtensionsSchema,
+} from "@/helpers/error.js";
+import { successResponseSchema } from "@/helpers/response.js";
 
 export const enterpriseContractIdParamsSchema = z.object({
   id: z.uuid().openapi({
@@ -183,17 +187,26 @@ export const enterpriseContractActivationBlockerSchema = z
   })
   .openapi("EnterpriseContractActivationBlocker");
 
+/** Standard success envelope for enterprise routes (`data`, then `meta`). */
+export function enterpriseSuccessResponseSchema<T extends z.ZodTypeAny>(
+  dataSchema: T,
+) {
+  return successResponseSchema(dataSchema);
+}
+
+/** Standard error envelope for enterprise routes (`meta` is always last). */
+export const enterpriseErrorResponseSchema = errorResponseSchema;
+
 export const enterpriseContractActivationConflictResponseSchema =
-  errorResponseSchema
-    .omit({ meta: true })
-    .extend({
+  errorResponseWithExtensionsSchema(
+    {
       kind: z.literal("enterprise_activation_blocked").openapi({
         description: "Machine-readable conflict reason for activation guards",
       }),
       blocker: enterpriseContractActivationBlockerSchema,
-      meta: errorResponseSchema.shape.meta,
-    })
-    .openapi("EnterpriseContractActivationConflictResponse");
+    },
+    "EnterpriseContractActivationConflictResponse",
+  );
 
 export const activateEnterpriseContractResponseSchema = z
   .object({

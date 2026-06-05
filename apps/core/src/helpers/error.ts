@@ -39,6 +39,22 @@ export const errorResponseSchema = z.object({
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
 /**
+ * Error envelope with extra top-level fields before `meta`.
+ * Keeps `meta` last so enterprise (and other) extended error schemas stay consistent.
+ */
+export function errorResponseWithExtensionsSchema<T extends z.ZodRawShape>(
+  extensions: T,
+  openapiName?: string,
+) {
+  const schema = errorResponseSchema.omit({ meta: true }).extend({
+    ...extensions,
+    meta: errorResponseSchema.shape.meta,
+  });
+
+  return openapiName ? schema.openapi(openapiName) : schema;
+}
+
+/**
  * Helper to create HTTPException with options stored in cause
  */
 function createHTTPException(

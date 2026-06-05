@@ -3,7 +3,10 @@ import type { EnterpriseContractStatus } from "@sokosumi/database";
 
 import { mapEnterpriseContractForApi } from "@/helpers/enterprise-contract-api.js";
 import { notFound } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonEnterpriseErrorResponse,
+  jsonEnterpriseSuccessResponse,
+} from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -21,13 +24,13 @@ const route = createRoute({
     query: listEnterpriseContractsQuerySchema,
   },
   responses: {
-    200: jsonSuccessResponse(
+    200: jsonEnterpriseSuccessResponse(
       z.array(enterpriseContractSchema),
       "List enterprise contracts",
     ),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
+    401: jsonEnterpriseErrorResponse("Unauthorized"),
+    403: jsonEnterpriseErrorResponse("Forbidden"),
+    404: jsonEnterpriseErrorResponse("Not Found"),
   },
 });
 

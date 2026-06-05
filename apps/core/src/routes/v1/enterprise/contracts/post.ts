@@ -9,7 +9,10 @@ import {
   optionalOneTimeCreditsToCents,
 } from "@/helpers/enterprise-contract-api.js";
 import { notFound, unprocessableEntity } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonEnterpriseErrorResponse,
+  jsonEnterpriseSuccessResponse,
+} from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -33,14 +36,14 @@ const route = createRoute({
     },
   },
   responses: {
-    201: jsonSuccessResponse(
+    201: jsonEnterpriseSuccessResponse(
       enterpriseContractSchema,
       "Create enterprise contract draft",
     ),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    422: jsonErrorResponse("Unprocessable Entity"),
+    401: jsonEnterpriseErrorResponse("Unauthorized"),
+    403: jsonEnterpriseErrorResponse("Forbidden"),
+    404: jsonEnterpriseErrorResponse("Not Found"),
+    422: jsonEnterpriseErrorResponse("Unprocessable Entity"),
   },
 });
 

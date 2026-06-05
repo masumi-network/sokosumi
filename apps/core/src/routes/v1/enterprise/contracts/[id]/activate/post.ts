@@ -4,8 +4,8 @@ import { activateEnterpriseContract } from "@sokosumi/database/helpers";
 import { handleEnterpriseContractLifecycleError } from "@/helpers/enterprise-contract-route.js";
 import {
   jsonContent,
-  jsonErrorResponse,
-  jsonSuccessResponse,
+  jsonEnterpriseErrorResponse,
+  jsonEnterpriseSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -33,19 +33,19 @@ const route = createRoute({
     },
   },
   responses: {
-    200: jsonSuccessResponse(
+    200: jsonEnterpriseSuccessResponse(
       activateEnterpriseContractResponseSchema,
       "Activate enterprise contract",
     ),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
+    401: jsonEnterpriseErrorResponse("Unauthorized"),
+    403: jsonEnterpriseErrorResponse("Forbidden"),
+    404: jsonEnterpriseErrorResponse("Not Found"),
     409: {
       description:
         "Activation blocked by an active organization subscription (see blocker in response body)",
       content: jsonContent(enterpriseContractActivationConflictResponseSchema),
     },
-    422: jsonErrorResponse("Unprocessable Entity"),
+    422: jsonEnterpriseErrorResponse("Unprocessable Entity"),
   },
 });
 

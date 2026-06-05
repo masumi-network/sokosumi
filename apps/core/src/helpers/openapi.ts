@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
-
+import {
+  enterpriseErrorResponseSchema,
+  enterpriseSuccessResponseSchema,
+} from "@/schemas/enterprise-contract.schema";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
 import { dateTimeSchema } from "./datetime.js";
@@ -78,5 +81,34 @@ export function jsonErrorResponse(description: string) {
   return {
     description,
     content: jsonContent(errorResponseSchema),
+  };
+}
+
+export function jsonEnterpriseSuccessResponse(
+  schema: z.ZodTypeAny,
+  description: string,
+  example?: Record<string, unknown>,
+) {
+  const baseContent = jsonContent(enterpriseSuccessResponseSchema(schema));
+
+  const content = example
+    ? {
+        "application/json": {
+          ...baseContent["application/json"],
+          example,
+        },
+      }
+    : baseContent;
+
+  return {
+    description,
+    content,
+  };
+}
+
+export function jsonEnterpriseErrorResponse(description: string) {
+  return {
+    description,
+    content: jsonContent(enterpriseErrorResponseSchema),
   };
 }
