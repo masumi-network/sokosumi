@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ComponentProps } from "react";
+import type {
+  ComponentProps,
+  FocusEvent,
+  MouseEvent,
+  PointerEvent,
+  TouchEvent,
+} from "react";
 
 import {
   isTasksRootPath,
@@ -33,7 +39,7 @@ export function TaskDetailLink({
       {...props}
       href={href}
       prefetch={false}
-      onClick={(event) => {
+      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
         onClick?.(event);
         if (event.defaultPrevented || typeof window === "undefined") {
           return;
@@ -46,19 +52,19 @@ export function TaskDetailLink({
           );
         }
       }}
-      onPointerEnter={(event) => {
+      onPointerEnter={(event: PointerEvent<HTMLAnchorElement>) => {
         onPointerEnter?.(event);
         if (!event.defaultPrevented) {
           prefetchTaskDetail();
         }
       }}
-      onFocus={(event) => {
+      onFocus={(event: FocusEvent<HTMLAnchorElement>) => {
         onFocus?.(event);
         if (!event.defaultPrevented) {
           prefetchTaskDetail();
         }
       }}
-      onTouchStart={(event) => {
+      onTouchStart={(event: TouchEvent<HTMLAnchorElement>) => {
         onTouchStart?.(event);
         if (!event.defaultPrevented) {
           prefetchTaskDetail();
