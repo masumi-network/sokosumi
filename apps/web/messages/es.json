@@ -125,6 +125,8 @@
       "organizations": "Organizaciones",
       "billing": "Facturación",
       "connections": "Conexiones",
+      "admin": "Administración",
+      "enterpriseContracts": "Contratos empresariales",
       "support": "Soporte",
       "logout": "Cerrar sesión",
       "creditsUsedOfTotal": "{used, number} / {total, number} Credits usados",
@@ -247,6 +249,9 @@
       "subscriptions": "Suscripciones",
       "billing": "Billing",
       "account": "Cuenta",
+      "admin": "Administración",
+      "edit": "Editar",
+      "enterprise-contracts": "Contratos empresariales",
       "organizations": "Organizaciones",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
@@ -2466,6 +2471,38 @@
         "title": "Algo salió mal",
         "message": "Hubo un problema al cargar las suscripciones. Por favor, inténtalo más tarde.",
         "retryButton": "Intentar de nuevo"
+      }
+    },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Contratos empresariales",
+        "description": "Consola de administración interna para borradores, activación y cancelación.",
+        "newContract": "Nuevo contrato",
+        "loading": "Cargando…",
+        "loadFailed": "No se pudieron cargar los contratos empresariales.",
+        "Filters": {
+          "organizationSlug": "Slug de la organización",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Estado",
+          "statusAll": "Todos",
+          "apply": "Aplicar filtros"
+        },
+        "Status": {
+          "draft": "Borrador",
+          "active": "Activo",
+          "completed": "Completado",
+          "canceled": "Cancelado"
+        },
+        "Table": {
+          "organization": "Organización",
+          "status": "Estado",
+          "seats": "Plazas",
+          "creditsPerMonth": "Créditos por mes",
+          "periods": "Períodos",
+          "ends": "Finaliza",
+          "actions": "Acciones",
+          "view": "Ver"
+        }
       }
     },
     "Billing": {

@@ -125,6 +125,8 @@
       "organizations": "Organizzazioni",
       "billing": "Fatturazione",
       "connections": "Connessioni",
+      "admin": "Amministrazione",
+      "enterpriseContracts": "Contratti enterprise",
       "help": "Aiuto",
       "legal": "Note legali",
       "support": "Supporto",
@@ -247,6 +249,9 @@
       "subscriptions": "Abbonamenti",
       "billing": "Fatturazione",
       "account": "Account",
+      "admin": "Amministrazione",
+      "edit": "Modifica",
+      "enterprise-contracts": "Contratti enterprise",
       "organizations": "Organizzazioni",
       "mcp": "Protocollo Model Context (MCP)",
       "chat": "Chat",
@@ -2497,6 +2502,38 @@
         "title": "Qualcosa è andato storto",
         "message": "Si è verificato un problema durante il caricamento degli abbonamenti. Riprova più tardi.",
         "retryButton": "Riprova"
+      }
+    },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Contratti enterprise",
+        "description": "Console di amministrazione interna per bozze, attivazione e cancellazione.",
+        "newContract": "Nuovo contratto",
+        "loading": "Caricamento…",
+        "loadFailed": "Impossibile caricare i contratti enterprise.",
+        "Filters": {
+          "organizationSlug": "Slug organizzazione",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Stato",
+          "statusAll": "Tutti",
+          "apply": "Applica filtri"
+        },
+        "Status": {
+          "draft": "Bozza",
+          "active": "Attivo",
+          "completed": "Completato",
+          "canceled": "Annullato"
+        },
+        "Table": {
+          "organization": "Organizzazione",
+          "status": "Stato",
+          "seats": "Posti",
+          "creditsPerMonth": "Crediti al mese",
+          "periods": "Periodi",
+          "ends": "Termina",
+          "actions": "Azioni",
+          "view": "Visualizza"
+        }
       }
     },
     "Billing": {

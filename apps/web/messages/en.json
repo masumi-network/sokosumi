@@ -125,6 +125,8 @@
       "organizations": "Organizations",
       "billing": "Billing",
       "connections": "Connections",
+      "admin": "Admin",
+      "enterpriseContracts": "Enterprise contracts",
       "help": "Help",
       "legal": "Legal",
       "support": "Support",
@@ -247,6 +249,9 @@
       "subscriptions": "Subscriptions",
       "billing": "Billing",
       "account": "Account",
+      "admin": "Admin",
+      "edit": "Edit",
+      "enterprise-contracts": "Enterprise contracts",
       "organizations": "Organizations",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
@@ -2497,6 +2502,38 @@
         "title": "Something Went Wrong",
         "message": "We encountered an issue loading subscriptions. Please try again later.",
         "retryButton": "Try Again"
+      }
+    },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Enterprise contracts",
+        "description": "Internal admin console for draft, activation, and cancellation flows.",
+        "newContract": "New contract",
+        "loading": "Loading…",
+        "loadFailed": "Failed to load enterprise contracts.",
+        "Filters": {
+          "organizationSlug": "Organization slug",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Status",
+          "statusAll": "All",
+          "apply": "Apply filters"
+        },
+        "Status": {
+          "draft": "Draft",
+          "active": "Active",
+          "completed": "Completed",
+          "canceled": "Canceled"
+        },
+        "Table": {
+          "organization": "Organization",
+          "status": "Status",
+          "seats": "Seats",
+          "creditsPerMonth": "Credits per month",
+          "periods": "Periods",
+          "ends": "Ends",
+          "actions": "Actions",
+          "view": "View"
+        }
       }
     },
     "Billing": {

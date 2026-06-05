@@ -125,6 +125,8 @@
       "organizations": "組織",
       "billing": "請求",
       "connections": "接続",
+      "admin": "管理",
+      "enterpriseContracts": "エンタープライズ契約",
       "help": "ヘルプ",
       "legal": "法務",
       "support": "サポート",
@@ -247,6 +249,9 @@
       "subscriptions": "サブスクリプション",
       "billing": "請求",
       "account": "アカウント",
+      "admin": "管理",
+      "edit": "編集",
+      "enterprise-contracts": "エンタープライズ契約",
       "organizations": "組織",
       "mcp": "Model Context Protocol（MCP）",
       "chat": "チャット",
@@ -2497,6 +2502,38 @@
         "title": "問題が発生しました",
         "message": "サブスクリプションの読み込み中に問題が発生しました。しばらくしてから再度お試しください。",
         "retryButton": "再試行"
+      }
+    },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "エンタープライズ契約",
+        "description": "下書き、有効化、解約フロー用の内部管理コンソール。",
+        "newContract": "新規契約",
+        "loading": "読み込み中…",
+        "loadFailed": "エンタープライズ契約を読み込めませんでした。",
+        "Filters": {
+          "organizationSlug": "組織スラッグ",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "ステータス",
+          "statusAll": "すべて",
+          "apply": "フィルターを適用"
+        },
+        "Status": {
+          "draft": "下書き",
+          "active": "有効",
+          "completed": "完了",
+          "canceled": "解約済み"
+        },
+        "Table": {
+          "organization": "組織",
+          "status": "ステータス",
+          "seats": "シート",
+          "creditsPerMonth": "月間クレジット",
+          "periods": "期間",
+          "ends": "終了",
+          "actions": "操作",
+          "view": "表示"
+        }
       }
     },
     "Billing": {

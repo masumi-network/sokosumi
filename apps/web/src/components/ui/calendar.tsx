@@ -6,6 +6,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react"
+import { useFormatter } from "next-intl"
 import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
@@ -24,6 +25,7 @@ function Calendar({
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const formatter = useFormatter()
 
   return (
     <DayPicker
@@ -36,9 +38,10 @@ function Calendar({
       )}
       captionLayout={captionLayout}
       formatters={{
-        formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
         ...formatters,
+        formatMonthDropdown:
+          formatters?.formatMonthDropdown ??
+          ((date) => formatter.dateTime(date, { month: "short" })),
       }}
       classNames={{
         root: cn("w-fit", defaultClassNames.root),

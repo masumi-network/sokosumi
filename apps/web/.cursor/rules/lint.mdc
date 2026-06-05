@@ -44,12 +44,13 @@ alwaysApply: true
 - All user-facing text must use translation keys via `useTranslations()` hook
 - Never hardcode user-facing strings in components
 - Translation keys are defined in `messages/en.json`
+- In `'use client'` components, format numbers and dates with `useFormatter()` — not bare `.toLocaleString()` or default-locale `Intl.*` (hydration mismatch). See [i18n-formatting.mdc](i18n-formatting.mdc).
 
 **Example**:
 
 ```typescript
-const t = useTranslations('common');
-return <h1>{t('title')}</h1>;
+const t = useTranslations("common");
+return <h1>{t("title")}</h1>;
 ```
 
 ## Syntax Best Practices

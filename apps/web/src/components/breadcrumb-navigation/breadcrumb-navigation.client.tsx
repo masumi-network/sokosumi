@@ -53,12 +53,14 @@ export default function BreadcrumbNavigationClient({
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
 
-  const segments = generateSegments(
-    pathname,
-    segmentLabels,
-    agents,
-    organizations,
-    breadcrumbMessages,
+  const segments = resolveCurrentSegment(
+    generateSegments(
+      pathname,
+      segmentLabels,
+      agents,
+      organizations,
+      breadcrumbMessages,
+    ),
   );
 
   return (
@@ -81,6 +83,19 @@ export default function BreadcrumbNavigationClient({
       </BreadcrumbList>
     </Breadcrumb>
   );
+}
+
+function resolveCurrentSegment(
+  segments: BreadcrumbSegment[],
+): BreadcrumbSegment[] {
+  if (segments.length === 0 || segments.some((segment) => segment.isCurrent)) {
+    return segments;
+  }
+
+  return segments.map((segment, index) => ({
+    ...segment,
+    isCurrent: index === segments.length - 1,
+  }));
 }
 
 function generateSegments(
