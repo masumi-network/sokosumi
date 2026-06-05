@@ -54,13 +54,7 @@ async function EnterpriseContractsContent({
     );
   }
 
-  return (
-    <ContractsTable
-      contracts={result.data}
-      initialOrganizationSlug={organizationSlug}
-      initialStatus={status ?? "all"}
-    />
-  );
+  return <ContractsTable contracts={result.data} />;
 }
 
 export default async function EnterpriseContractsPage(

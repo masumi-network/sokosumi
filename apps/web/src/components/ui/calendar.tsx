@@ -12,6 +12,10 @@ import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 
+const monthDropdownDateTimeOptions = {
+  month: "short",
+} as const
+
 function Calendar({
   className,
   classNames,
@@ -41,7 +45,7 @@ function Calendar({
         ...formatters,
         formatMonthDropdown:
           formatters?.formatMonthDropdown ??
-          ((date) => formatter.dateTime(date, { month: "short" })),
+          ((date) => formatter.dateTime(date, monthDropdownDateTimeOptions)),
       }}
       classNames={{
         root: cn("w-fit", defaultClassNames.root),

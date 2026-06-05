@@ -2,9 +2,9 @@
 
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useMemo, useState, useTransition } from "react";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { ContractStatusBadge } from "@/components/admin/enterprise-contracts/contract-status-badge";
 import { DataTable } from "@/components/data-table";
@@ -24,13 +24,22 @@ import type {
 } from "@/lib/clients/generated/core/types.gen";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
-const STATUS_OPTIONS: Array<EnterpriseContractStatus | "all"> = [
-  "all",
+const ENTERPRISE_CONTRACT_STATUSES = [
   "draft",
   "active",
   "completed",
   "canceled",
+] as const satisfies readonly EnterpriseContractStatus[];
+
+const STATUS_OPTIONS: Array<EnterpriseContractStatus | "all"> = [
+  "all",
+  ...ENTERPRISE_CONTRACT_STATUSES,
 ];
+
+const enterpriseContractFilterParsers = {
+  organizationSlug: parseAsString.withDefault(""),
+  status: parseAsStringLiteral(ENTERPRISE_CONTRACT_STATUSES),
+};
 
 const columnHelper = createColumnHelper<EnterpriseContract>();
 
@@ -157,51 +166,35 @@ function getColumns(
 
 interface ContractsTableProps {
   contracts: EnterpriseContract[];
-  initialOrganizationSlug?: string;
-  initialStatus?: EnterpriseContractStatus | "all";
 }
 
-export function ContractsTable({
-  contracts,
-  initialOrganizationSlug = "",
-  initialStatus = "all",
-}: ContractsTableProps) {
+export function ContractsTable({ contracts }: ContractsTableProps) {
   const t = useTranslations("App.Admin.EnterpriseContracts");
   const formatter = useFormatter();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [appliedFilters, setAppliedFilters] = useQueryStates(
+    enterpriseContractFilterParsers,
+  );
   const [organizationSlug, setOrganizationSlug] = useState(
-    initialOrganizationSlug,
+    appliedFilters.organizationSlug,
   );
   const [status, setStatus] = useState<EnterpriseContractStatus | "all">(
-    initialStatus,
+    appliedFilters.status ?? "all",
   );
+
+  useEffect(() => {
+    setOrganizationSlug(appliedFilters.organizationSlug);
+    setStatus(appliedFilters.status ?? "all");
+  }, [appliedFilters.organizationSlug, appliedFilters.status]);
+
   const columns = useMemo(() => getColumns(t, formatter), [t, formatter]);
 
   function applyFilters() {
-    const params = new URLSearchParams(searchParams.toString());
-    const trimmedSlug = organizationSlug.trim();
-
-    if (trimmedSlug) {
-      params.set("organizationSlug", trimmedSlug);
-    } else {
-      params.delete("organizationSlug");
-    }
-
-    if (status === "all") {
-      params.delete("status");
-    } else {
-      params.set("status", status);
-    }
-
     startTransition(() => {
-      const query = params.toString();
-      router.push(
-        query
-          ? `/admin/enterprise-contracts?${query}`
-          : "/admin/enterprise-contracts",
-      );
+      void setAppliedFilters({
+        organizationSlug: organizationSlug.trim() || null,
+        status: status === "all" ? null : status,
+      });
     });
   }
 
