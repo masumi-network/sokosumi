@@ -97,8 +97,7 @@ function buildCreateBody(
 function buildPatchBody(
   values: ContractFormValues,
 ): PatchEnterpriseContractRequest {
-  const body: PatchEnterpriseContractRequest = {
-    organizationSlug: values.organizationSlug.trim(),
+  return {
     creditsPerMonth: values.creditsPerMonth,
     periods: values.periods,
     seats: values.seats,
@@ -110,8 +109,6 @@ function buildPatchBody(
     notes: values.notes.trim() || null,
     externalReference: values.externalReference.trim() || null,
   };
-
-  return body;
 }
 
 interface ContractFormProps {
