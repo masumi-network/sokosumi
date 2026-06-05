@@ -5,6 +5,7 @@ import type { ImgHTMLAttributes } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OrganizationLogo } from "@/components/organizations/organization-logo";
+import { stubPendingImageLoad } from "@/test/stub-pending-image-load";
 
 vi.mock("next/image", () => ({
   __esModule: true,
@@ -32,6 +33,8 @@ function createOrganization(overrides: Partial<Organization>): Organization {
 }
 
 describe("OrganizationLogo", () => {
+  stubPendingImageLoad();
+
   beforeEach(() => {
     mockedResolveIpfsOrHttpUrl.mockReset();
   });

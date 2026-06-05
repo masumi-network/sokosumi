@@ -1,9 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { stubPendingImageLoad } from "@/test/stub-pending-image-load";
+
 import { ChatGeneratedImageBubble } from "../chat-generated-image-bubble";
 
 describe("ChatGeneratedImageBubble", () => {
+  stubPendingImageLoad();
   it("shows a loading skeleton while waiting for generated image data", () => {
     const { container } = render(
       <ChatGeneratedImageBubble
@@ -22,7 +25,7 @@ describe("ChatGeneratedImageBubble", () => {
       <ChatGeneratedImageBubble
         alt="Generated image"
         downloadLabel="Download generated image"
-        src="data:image/png;base64,abc123=="
+        src="https://example.com/generated-image.png"
       />,
     );
 
