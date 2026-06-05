@@ -49,9 +49,11 @@ export async function EnterpriseContractSummary({
           <div className="space-y-1">
             <dt className="text-muted-foreground">{t("monthlyGrantLabel")}</dt>
             <dd className="font-medium tabular-nums">
-              {t("monthlyGrantCredits", {
-                credits: formatCreditsForDisplay(summary.monthlyCredits),
-              })}
+              {summary.monthlyCredits == null
+                ? t("notAvailable")
+                : t("monthlyGrantCredits", {
+                    credits: formatCreditsForDisplay(summary.monthlyCredits),
+                  })}
             </dd>
           </div>
           <div className="space-y-1">

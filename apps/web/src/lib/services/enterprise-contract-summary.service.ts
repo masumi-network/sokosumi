@@ -13,10 +13,33 @@ export interface EnterpriseContractBillingSummary {
   endsAt: Date;
   currentPeriodEnd: Date | null;
   isConsumable: boolean;
-  monthlyCredits: number;
+  monthlyCredits: number | null;
   nextActivationAt: Date | null;
   poolRemainingCredits: number;
   purchasedSeats: number;
+}
+
+interface EnterprisePoolBalances {
+  remainingCents: bigint;
+}
+
+export function buildEnterpriseContractBillingSummaryFallback(
+  billingPlan: Extract<
+    OrganizationBillingPlan,
+    { mode: "enterprise_contract" }
+  >,
+  poolBalances: EnterprisePoolBalances,
+): EnterpriseContractBillingSummary {
+  return {
+    activatedAt: billingPlan.activatedAt,
+    endsAt: billingPlan.endsAt,
+    currentPeriodEnd: null,
+    isConsumable: billingPlan.isConsumable,
+    monthlyCredits: null,
+    nextActivationAt: null,
+    poolRemainingCredits: convertCentsToCredits(poolBalances.remainingCents),
+    purchasedSeats: billingPlan.purchasedSeats,
+  };
 }
 
 interface EnterpriseContractPeriodWindow {
@@ -73,7 +96,7 @@ export async function getEnterpriseContractBillingSummary(
   organizationId: string,
   tx: Prisma.TransactionClient,
   now: Date = new Date(),
-): Promise<EnterpriseContractBillingSummary | null> {
+): Promise<EnterpriseContractBillingSummary> {
   const [contract, poolBalances] = await Promise.all([
     enterpriseContractRepository.getContractWithPeriods(
       billingPlan.contractId,
@@ -87,7 +110,10 @@ export async function getEnterpriseContractBillingSummary(
   ]);
 
   if (!contract || contract.organizationId !== organizationId) {
-    return null;
+    return buildEnterpriseContractBillingSummaryFallback(
+      billingPlan,
+      poolBalances,
+    );
   }
 
   const periodWindows = contract.periods.map((period) => ({

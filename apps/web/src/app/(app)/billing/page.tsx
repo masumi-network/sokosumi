@@ -191,9 +191,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       <div className="min-h-full w-full">
         <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
           {isEnterpriseContract ? (
-            enterpriseContractSummary ? (
-              <EnterpriseContractSummary summary={enterpriseContractSummary} />
-            ) : null
+            <EnterpriseContractSummary summary={enterpriseContractSummary!} />
           ) : (
             <BalanceSection
               title={t("balanceTitle")}

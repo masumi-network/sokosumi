@@ -499,6 +499,52 @@ describe("BillingPage", () => {
     expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
   });
 
+  it("shows the enterprise contract summary when contract details cannot be loaded", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      _count: { members: 2 },
+      id: "org-enterprise-missing-contract",
+      name: "Enterprise Org Missing Contract",
+      stripeCustomerId: "cus_org_enterprise_missing_contract",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    mockEnterpriseOrganizationBillingPlan(true, 10);
+    getEnterpriseContractBillingSummaryMock.mockResolvedValue({
+      activatedAt: new Date("2026-01-15T00:00:00.000Z"),
+      endsAt: new Date("2026-12-14T23:59:59.999Z"),
+      currentPeriodEnd: null,
+      isConsumable: true,
+      monthlyCredits: null,
+      nextActivationAt: null,
+      poolRemainingCredits: 4_500,
+      purchasedSeats: 10,
+    });
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          monthlyCredits: null,
+          poolRemainingCredits: 4_500,
+        }),
+      }),
+    );
+    expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
+    expect(view.queryByTestId("balance-section")).toBeNull();
+    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
+  });
+
   it("shows the enterprise contract summary after the commercial term with contact us", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       _count: { members: 2 },

@@ -105,11 +105,11 @@ describe("getEnterpriseContractBillingSummary", () => {
     vi.clearAllMocks();
   });
 
-  it("returns null when the contract cannot be loaded", async () => {
+  it("returns a billing-plan fallback when the contract cannot be loaded", async () => {
     getContractWithPeriodsMock.mockResolvedValue(null);
     sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
-      remainingCents: BigInt(0),
-      totalCents: BigInt(0),
+      remainingCents: BigInt(12_500_000_000_000),
+      totalCents: BigInt(12_500_000_000_000),
     });
 
     const summary = await getEnterpriseContractBillingSummary(
@@ -118,10 +118,19 @@ describe("getEnterpriseContractBillingSummary", () => {
       mockTx,
     );
 
-    expect(summary).toBeNull();
+    expect(summary).toEqual({
+      activatedAt: billingPlan.activatedAt,
+      endsAt: billingPlan.endsAt,
+      currentPeriodEnd: null,
+      isConsumable: true,
+      monthlyCredits: null,
+      nextActivationAt: null,
+      poolRemainingCredits: 1_250,
+      purchasedSeats: 10,
+    });
   });
 
-  it("returns null when the contract belongs to another organization", async () => {
+  it("returns a billing-plan fallback when the contract belongs to another organization", async () => {
     getContractWithPeriodsMock.mockResolvedValue({
       centsPerMonth: BigInt(60_000_000_000_000),
       organizationId: "org-other",
@@ -138,7 +147,16 @@ describe("getEnterpriseContractBillingSummary", () => {
       mockTx,
     );
 
-    expect(summary).toBeNull();
+    expect(summary).toEqual({
+      activatedAt: billingPlan.activatedAt,
+      endsAt: billingPlan.endsAt,
+      currentPeriodEnd: null,
+      isConsumable: true,
+      monthlyCredits: null,
+      nextActivationAt: null,
+      poolRemainingCredits: 0,
+      purchasedSeats: 10,
+    });
   });
 
   it("maps contract, period, and pool data into a billing summary", async () => {
