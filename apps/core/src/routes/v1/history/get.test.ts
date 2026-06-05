@@ -81,6 +81,7 @@ function createHistoryRow(
   return {
     agentId: null,
     amount: 25_000_000_000n,
+    archivedAt: null,
     bucketSlug: null,
     coworkerId: "cow_123",
     description: "History row description",
