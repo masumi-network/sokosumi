@@ -64,6 +64,25 @@ function parseOptionalNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function resolveOneTimeCredits(values: ContractFormValues): number | null {
+  if (values.oneTimeCredits == null || values.oneTimeCredits <= 0) {
+    return null;
+  }
+
+  return values.oneTimeCredits;
+}
+
+function resolveOneTimeExpiresAt(values: ContractFormValues): Date | null {
+  if (
+    resolveOneTimeCredits(values) == null ||
+    !values.oneTimeExpiresAt.trim()
+  ) {
+    return null;
+  }
+
+  return new Date(values.oneTimeExpiresAt);
+}
+
 function buildCreateBody(
   values: ContractFormValues,
 ): CreateEnterpriseContractRequest {
@@ -74,10 +93,12 @@ function buildCreateBody(
     seats: values.seats,
   };
 
-  if (values.oneTimeCredits != null && values.oneTimeCredits > 0) {
-    body.oneTimeCredits = values.oneTimeCredits;
-    if (values.oneTimeExpiresAt.trim()) {
-      body.oneTimeExpiresAt = new Date(values.oneTimeExpiresAt);
+  const oneTimeCredits = resolveOneTimeCredits(values);
+  if (oneTimeCredits != null) {
+    body.oneTimeCredits = oneTimeCredits;
+    const oneTimeExpiresAt = resolveOneTimeExpiresAt(values);
+    if (oneTimeExpiresAt) {
+      body.oneTimeExpiresAt = oneTimeExpiresAt;
     }
   }
 
@@ -101,10 +122,8 @@ function buildPatchBody(
     creditsPerMonth: values.creditsPerMonth,
     periods: values.periods,
     seats: values.seats,
-    oneTimeCredits: values.oneTimeCredits,
-    oneTimeExpiresAt: values.oneTimeExpiresAt.trim()
-      ? new Date(values.oneTimeExpiresAt)
-      : null,
+    oneTimeCredits: resolveOneTimeCredits(values),
+    oneTimeExpiresAt: resolveOneTimeExpiresAt(values),
     paymentReference: values.paymentReference.trim() || null,
     notes: values.notes.trim() || null,
     externalReference: values.externalReference.trim() || null,
