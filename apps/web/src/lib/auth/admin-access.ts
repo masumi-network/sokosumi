@@ -3,6 +3,7 @@ import "server-only";
 import { notFound } from "next/navigation";
 
 import type { Session } from "@/lib/auth/auth";
+import { AdminAccessRequiredError } from "@/lib/auth/errors";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 
@@ -25,6 +26,6 @@ export async function requireAdminSession(): Promise<Session> {
 
 export function assertAdminSession(session: Session): void {
   if (!hasAdminRole(getSessionUserRole(session))) {
-    throw new Error("Admin access required");
+    throw new AdminAccessRequiredError();
   }
 }

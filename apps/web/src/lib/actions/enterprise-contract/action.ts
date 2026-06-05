@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
+import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import type {
   ActivateEnterpriseContractResponse,
@@ -37,6 +38,13 @@ function revalidateEnterpriseContractRoutes(contractId?: string) {
 }
 
 function mapCoreError(error: unknown): ActionError {
+  if (isAdminAccessRequiredError(error)) {
+    return {
+      code: CommonErrorCode.UNAUTHORIZED,
+      message: error.message,
+    };
+  }
+
   return toCoreApiActionError(error);
 }
 
