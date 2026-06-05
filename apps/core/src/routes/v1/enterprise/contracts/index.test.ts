@@ -7,6 +7,10 @@ interface OpenApiSchemaObject {
   properties?: Record<string, unknown>;
 }
 
+interface OpenApiResponseObject {
+  content?: Record<string, { schema?: OpenApiSchemaObject }>;
+}
+
 function resolveOpenApiSchema(
   doc: ReturnType<typeof enterpriseContractsRouter.getOpenAPI31Document>,
   schema: OpenApiSchemaObject | undefined,
@@ -67,7 +71,9 @@ function collectEnvelopeSchemasWithMeta(
           continue;
         }
 
-        const content = response.content?.["application/json"];
+        const content = (response as OpenApiResponseObject).content?.[
+          "application/json"
+        ];
         if (!content?.schema) {
           continue;
         }
@@ -131,8 +137,10 @@ describe("enterprise contracts routes OpenAPI contract", () => {
   });
 
   it("documents kind on enterprise activation conflict schema", () => {
-    const schema =
-      doc.components?.schemas?.EnterpriseContractActivationConflictResponse;
+    const schema = doc.components?.schemas
+      ?.EnterpriseContractActivationConflictResponse as
+      | OpenApiSchemaObject
+      | undefined;
 
     expect(schema).toBeDefined();
     expect(schema).toMatchObject({
