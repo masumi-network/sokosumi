@@ -3,9 +3,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { ContractForm } from "@/components/admin/enterprise-contracts/contract-form";
+import { ContractLoadError } from "@/components/admin/enterprise-contracts/contract-load-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEnterpriseContractAction } from "@/lib/actions/enterprise-contract/action";
+import { CommonErrorCode } from "@/lib/actions/errors";
 
 export const metadata: Metadata = {
   title: "Edit enterprise contract",
@@ -23,7 +25,20 @@ export default async function EditEnterpriseContractPage({
   const result = await getEnterpriseContractAction({ id });
 
   if (!result.ok) {
-    notFound();
+    if (result.error.code === CommonErrorCode.NOT_FOUND) {
+      notFound();
+    }
+
+    return (
+      <div className="min-h-full w-full">
+        <div className="mx-auto max-w-3xl space-y-6 px-4 py-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/enterprise-contracts">Back to list</Link>
+          </Button>
+          <ContractLoadError message={result.error.message} />
+        </div>
+      </div>
+    );
   }
 
   if (result.data.status !== "draft") {
