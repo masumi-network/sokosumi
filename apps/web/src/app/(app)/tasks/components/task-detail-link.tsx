@@ -34,42 +34,50 @@ export function TaskDetailLink({
     router.prefetch(href);
   };
 
+  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
+    onClick?.(event);
+    if (event.defaultPrevented || typeof window === "undefined") {
+      return;
+    }
+
+    if (isTasksRootPath(window.location.pathname)) {
+      window.sessionStorage.setItem(
+        TASKS_RETURN_PATH_SESSION_KEY,
+        `${window.location.pathname}${window.location.search}`,
+      );
+    }
+  }
+
+  function handlePointerEnter(event: PointerEvent<HTMLAnchorElement>) {
+    onPointerEnter?.(event);
+    if (!event.defaultPrevented) {
+      prefetchTaskDetail();
+    }
+  }
+
+  function handleFocus(event: FocusEvent<HTMLAnchorElement>) {
+    onFocus?.(event);
+    if (!event.defaultPrevented) {
+      prefetchTaskDetail();
+    }
+  }
+
+  function handleTouchStart(event: TouchEvent<HTMLAnchorElement>) {
+    onTouchStart?.(event);
+    if (!event.defaultPrevented) {
+      prefetchTaskDetail();
+    }
+  }
+
   return (
     <Link
       {...props}
       href={href}
       prefetch={false}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        onClick?.(event);
-        if (event.defaultPrevented || typeof window === "undefined") {
-          return;
-        }
-
-        if (isTasksRootPath(window.location.pathname)) {
-          window.sessionStorage.setItem(
-            TASKS_RETURN_PATH_SESSION_KEY,
-            `${window.location.pathname}${window.location.search}`,
-          );
-        }
-      }}
-      onPointerEnter={(event: PointerEvent<HTMLAnchorElement>) => {
-        onPointerEnter?.(event);
-        if (!event.defaultPrevented) {
-          prefetchTaskDetail();
-        }
-      }}
-      onFocus={(event: FocusEvent<HTMLAnchorElement>) => {
-        onFocus?.(event);
-        if (!event.defaultPrevented) {
-          prefetchTaskDetail();
-        }
-      }}
-      onTouchStart={(event: TouchEvent<HTMLAnchorElement>) => {
-        onTouchStart?.(event);
-        if (!event.defaultPrevented) {
-          prefetchTaskDetail();
-        }
-      }}
+      onClick={handleClick}
+      onPointerEnter={handlePointerEnter}
+      onFocus={handleFocus}
+      onTouchStart={handleTouchStart}
     />
   );
 }

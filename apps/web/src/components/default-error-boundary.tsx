@@ -1,23 +1,39 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { ErrorBoundary } from "react-error-boundary";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 
 interface DefaultErrorBoundaryProps {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+  children: ReactNode;
+  fallback?: ReactNode;
 }
 
-export default function DefaultErrorBoundary({
-  children,
-  fallback,
-}: DefaultErrorBoundaryProps) {
-  return (
-    <ErrorBoundary fallback={fallback ?? <DefaultErrorBoundaryError />}>
-      {children}
-    </ErrorBoundary>
-  );
+interface DefaultErrorBoundaryState {
+  hasError: boolean;
 }
+
+class DefaultErrorBoundary extends Component<
+  DefaultErrorBoundaryProps,
+  DefaultErrorBoundaryState
+> {
+  state: DefaultErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): DefaultErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {}
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback ?? <DefaultErrorBoundaryError />;
+    }
+
+    return this.props.children;
+  }
+}
+
+export default DefaultErrorBoundary;
 
 function DefaultErrorBoundaryError() {
   const t = useTranslations("Components.DefaultErrorBoundary");

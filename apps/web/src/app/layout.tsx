@@ -59,8 +59,7 @@ export default async function RootLayout({
             <Script
               id="_before-gtm"
               dangerouslySetInnerHTML={{
-                __html: `
-                (function(w,l){
+                __html: `(function(w,l){
                   w[l]=w[l]||[];
                   w[l].push('consent','default',{'ad_personalization':'denied','ad_storage':'denied','ad_user_data':'denied','analytics_storage':'denied','wait_for_update':2000});
                 })(window,'dataLayer');`,

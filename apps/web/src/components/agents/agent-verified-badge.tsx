@@ -3,6 +3,7 @@
 import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { MouseEvent } from "react";
 
 import {
   Tooltip,
@@ -41,7 +42,9 @@ function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
             target="_blank"
             rel="noreferrer noopener"
             className="underline"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event: MouseEvent<HTMLAnchorElement>) =>
+              event.stopPropagation()
+            }
           >
             {t("learnMore")}
           </Link>{" "}
